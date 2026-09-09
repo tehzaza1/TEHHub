@@ -6,32 +6,7 @@
     "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_*.tdtx:[]": "Kalguur town?",
     "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01_ghost.tdtx:[]": "Boat",
     "Metadata/Terrain/Woods/Woods/AzmeriLeague/Features/arenaTransition_01.tdtx:[]": "Boss stronghold",
-    "*WaygateDevice*:[]": "WaygateDeviceInfestedBarrens",
-    "Metadata/Terrain/Leagues/Incursion/Tiles/Features/Waygates/WaygateDevice*": "Waygate",
-    "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_outerwall_end_stairsup_01.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Lower_Exterior/SwampTower_BasementOuterWall_EndStairsUp_01.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Lower_Exterior/SwampTower_BasementOuterWall_EndStairsUp_02.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Mid_Exterior/SwampTower_OuterWallEnd_StairsUp_02.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/CentrePillar_02.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Mid_Exterior/SwampTower_OuterWallEnd_StairsUp_01.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_outerwall_end_stairsup_02.tdtx:[]": "Stairs",
-    "*RitualRuneObject*": "Ritual",
-    "Metadata/Terrain/Gallows/Leagues/Delirium/HungerBoss/Tiles/Arena_Platform.tdtx:[]": "Platform",
-    "Metadata/MiscellaneousObjects/PortalToggleableReverseVoodooKing": "Portal",
-    "Metadata/Chests/LeagueAzmeri/OmenChest": "OmenChest",
-    "Metadata/Terrain/Leagues/Breach/BreachTower/Tiles/Abyss/BreachTowerEntrance_01.tdtx:[]": "Stairs",
-    "Metadata/MiscellaneousObjects/AreaTransition_Animate": "AreaTransition_Animate",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheSerpentPrimal*": "Spirit of the Serpent",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritofthePrimatePrimal*": "Spirit of the Primate",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheCatVivid*": "Spirit of the Cat",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheBearWild*": "Spirit of the Bear",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheWolfVivid*": "Spirit of the Wolf",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheFoxSacred*": "Spirit of the Fox",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheOwlPrimal*": "Spirit of the Owl",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheOxWild*": "Spirit of the Ox",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheStagVivid*": "Spirit of the Stag",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheRabbitSacred*": "Spirit of the Rabbit",
-    "Metadata/Monsters/TormentedSpirits/TormentedSpiritoftheBoarWild*": "Spirit of the Boar"
+    "*WaygateDevice*:[]": "WaygateDeviceInfestedBarrens"
   },
   "Abyss_Intro": {
     "Metadata/Terrain/Gallows/Leagues/Abyss/AbyssHub/Tiles/AbyssPitFeature_01.tdtx:[]": "Rare Fight",
@@ -179,8 +154,7 @@
     "Metadata/Terrain/Jungle/JungleExterior/Waterway/Jungle_Waterway_Ramp_01.tdtx:[]": "The Matlan Waterways"
   },
   "G3_2_2": {
-    "Metadata/Terrain/Jungle/JungleExterior/Feature/Jungle_WaterwaysLever_01.tdtx:[]": "Waterways Lever",
-    "Metadata/Terrain/Gallows/Act3/3_2_2/Objects/WaterLevel*": "Lever"
+    "Metadata/Terrain/Jungle/JungleExterior/Feature/Jungle_WaterwaysLever_01.tdtx:[]": "Waterways Lever"
   },
   "G3_3": {
     "Metadata/Terrain/Jungle/JungleExterior/AreaTransitions/JungleDepths_to_SnakePit.tdtx:[]": "The Venom Crypts",
@@ -237,12 +211,10 @@
   "G4_2_1": {
     "Metadata/Terrain/Islands/Tiles/Island/KedgeBay/BossArena_*.tdtx:[]": "Tidal Key (Orb of Alchemy)",
     "Metadata/Terrain/Islands/Tiles/Island/Features/UnwalkableCliff_Transition_Up_*.tdtx:[]": "Journey's end",
-    "Metadata/Terrain/Islands/Tiles/Island/UnwalkableCliff/KedgeBay/UnwalkableCliff_CaveEntrance_*.tdtx:[]": "Deadman Chest (Map Piece)",
-    "Metadata/Terrain/Islands/Tiles/Island/Features/Features2/Shipwreck_LandmarkRoom_*.tdtx:[]": "Abandoned Ship"
+    "Metadata/Terrain/Islands/Tiles/Island/UnwalkableCliff/KedgeBay/UnwalkableCliff_CaveEntrance_*.tdtx:[]": "Deadman Chest (Map Piece)"
   },
   "G4_2_2": {
-    "Metadata/Terrain/Islands/Tiles/Island/JourneysEnd/JourneysEnd_ExplodingShip_02.tdtx:[]": "Loot - SHIP EXPLODES",
-    "Metadata/Terrain/Islands/Tiles/Island/JourneysEnd/BossArena_*.tdtx:[]": "Boss - Captain Hartlin"
+    "Metadata/Terrain/Islands/Tiles/Island/JourneysEnd/JourneysEnd_ExplodingShip_02.tdtx:[]": "Loot - SHIP EXPLODES"
   },
   "G4_3_1": {
     "Metadata/Terrain/Islands/Tiles/TropicalIsland/Features/Shark_Arena_*.tdtx:[]": "Boss - Shark",
@@ -309,8 +281,7 @@
   },
   "P1_2": {
     "Metadata/Terrain/interlude/part1/p1_2/feature/farmlands_transition_01.tdtx:[]": "Farmlands",
-    "Metadata/Terrain/Maps/UniqueMegalith/Tiles/RitualClearing02.tdtx:[]": "Boss Arena",
-    "Metadata/Terrain/Gallows/Act4_Interlude/Part1/P1_2/Objects/RuneRock*": "Runed Megalith"
+    "Metadata/Terrain/Maps/UniqueMegalith/Tiles/RitualClearing02.tdtx:[]": "Boss Arena"
   },
   "P1_3": {
     "Metadata/Terrain/interlude/part1/p1_3/holten_transition_01.tdtx:[]": "Holten"

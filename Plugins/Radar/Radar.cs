@@ -751,7 +751,7 @@ namespace Radar
             }
             else if (this.Settings.ShowImportantPOI)
             {
-                var drawnPositions = new List<Vector2>();
+                var drawnPositions = new List<(string name, Vector2 pos)>();
 
                 void RenderPoiDict(Dictionary<string, string> tgts)
                 {
@@ -759,7 +759,7 @@ namespace Radar
                     {
                         if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
                         {
-                            var clusters = ClusterTileLocations(rawLocations, 80.0f);
+                            var clusters = ClusterTileLocations(rawLocations, 350.0f);
                             var strSize = this.GetTextHalfSize(tile.Value);
 
                             for (var i = 0; i < clusters.Count; i++)
@@ -768,7 +768,15 @@ namespace Radar
                                 bool duplicate = false;
                                 for (int d = 0; d < drawnPositions.Count; d++)
                                 {
-                                    if (Vector2.DistanceSquared(loc, drawnPositions[d]) < 400.0f)
+                                    // If same POI name is within 400 grid units -> duplicate
+                                    if (drawnPositions[d].name == tile.Value && Vector2.DistanceSquared(loc, drawnPositions[d].pos) < 160000.0f)
+                                    {
+                                        duplicate = true;
+                                        break;
+                                    }
+
+                                    // If any label is within 60 grid units -> duplicate to avoid visual overlap
+                                    if (Vector2.DistanceSquared(loc, drawnPositions[d].pos) < 3600.0f)
                                     {
                                         duplicate = true;
                                         break;
@@ -777,7 +785,7 @@ namespace Radar
 
                                 if (!duplicate)
                                 {
-                                    drawnPositions.Add(loc);
+                                    drawnPositions.Add((tile.Value, loc));
                                     drawString(tile.Value, loc, strSize, this.Settings.EnablePOIBackground);
                                 }
                             }
@@ -861,7 +869,7 @@ namespace Radar
 
             // --- Collect POI snapshot ---
             var poiSnapshot = new List<(string cacheKey, Vector2 gridPos)>();
-            var collectedPositions = new List<Vector2>();
+            var collectedPositions = new List<(string name, Vector2 pos)>();
 
             void CollectFrom(Dictionary<string, string> tileDict, string prefix)
             {
@@ -869,14 +877,22 @@ namespace Radar
                 {
                     if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
                     {
-                        var clusters = ClusterTileLocations(rawLocations, 80.0f);
+                        var clusters = ClusterTileLocations(rawLocations, 350.0f);
                         for (var i = 0; i < clusters.Count; i++)
                         {
                             var loc = clusters[i];
                             bool duplicate = false;
                             for (int c = 0; c < collectedPositions.Count; c++)
                             {
-                                if (Vector2.DistanceSquared(loc, collectedPositions[c]) < 400.0f)
+                                // Same POI name within 400 grid units -> duplicate
+                                if (collectedPositions[c].name == tile.Value && Vector2.DistanceSquared(loc, collectedPositions[c].pos) < 160000.0f)
+                                {
+                                    duplicate = true;
+                                    break;
+                                }
+
+                                // Any POI within 60 grid units -> duplicate
+                                if (Vector2.DistanceSquared(loc, collectedPositions[c].pos) < 3600.0f)
                                 {
                                     duplicate = true;
                                     break;
@@ -885,7 +901,7 @@ namespace Radar
 
                             if (!duplicate)
                             {
-                                collectedPositions.Add(loc);
+                                collectedPositions.Add((tile.Value, loc));
                                 var poiKey = $"{prefix}|{tile.Key}|{i}";
                                 this.MarkReachedIfClose(poiKey, pPos, loc);
                                 poiSnapshot.Add((poiKey, loc));
