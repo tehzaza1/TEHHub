@@ -346,8 +346,32 @@ namespace LootValue
             ImGui.SameLine();
             if (ImGui.RadioButton(this.PluginText.Label("currency.divine", "Divine", "LootValueCurrencyDivine"), this.Settings.DisplayCurrency == 0)) this.Settings.DisplayCurrency = 0;
 
-            ImGui.SliderFloat(this.PluginText.Label("settings.min_value_to_show", "Min value to show (ex)", "LootValueMinValueToShow"), ref this.Settings.MinValueEx, 0f, 50f, "%.2f");
-            ImGui.SliderFloat(this.PluginText.Label("settings.highlight_from", "Highlight from (ex)", "LootValueHighlightFrom"), ref this.Settings.HighlightMinEx, 0f, 200f, "%.1f");
+            var curSymbol = this.Settings.DisplayCurrency switch
+            {
+                0 => "div",
+                2 => "c",
+                _ => "ex"
+            };
+
+            var maxMinVal = this.Settings.DisplayCurrency switch
+            {
+                0 => 20f,
+                2 => 500f,
+                _ => 50f
+            };
+
+            var maxHighlight = this.Settings.DisplayCurrency switch
+            {
+                0 => 100f,
+                2 => 5000f,
+                _ => 200f
+            };
+
+            var minFormat = this.Settings.DisplayCurrency == 2 ? "%.1f" : "%.2f";
+            var hlFormat = this.Settings.DisplayCurrency == 2 ? "%.0f" : "%.1f";
+
+            ImGui.SliderFloat($"Min value to show ({curSymbol})###LootValueMinValueToShow", ref this.Settings.MinValueEx, 0f, maxMinVal, minFormat);
+            ImGui.SliderFloat($"Highlight from ({curSymbol})###LootValueHighlightFrom", ref this.Settings.HighlightMinEx, 0f, maxHighlight, hlFormat);
             ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Font size", "LootValueFontSize"), ref this.Settings.FontSize, 8f, 48f, "%.0f");
             ImGui.SliderFloat(this.PluginText.Label("settings.highlight_font_size", "Highlight font size", "LootValueHighlightFontSize"), ref this.Settings.HighlightFontSize, 8f, 64f, "%.0f");
             ImGui.Checkbox(this.PluginText.Label("settings.highlight_bold", "Highlight bold", "LootValueHighlightBold"), ref this.Settings.HighlightBold);
@@ -728,12 +752,11 @@ namespace LootValue
             if (price == null) return false;
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * Math.Max(1, count) };
-            var (exVal, _) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, 1);
-            if (exVal < this.Settings.MinValueEx) return false;
-
             var (disp, cur) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
+            if (disp < this.Settings.MinValueEx) return false;
+
             chipText = FormatValue(disp, cur);
-            highlight = exVal >= this.Settings.HighlightMinEx;
+            highlight = disp >= this.Settings.HighlightMinEx;
             color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
             return true;
         }
@@ -956,12 +979,11 @@ namespace LootValue
             if (price == null) return false;
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * amount };
-            var (exValue, _) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, 1);
-            if (exValue < this.Settings.MinValueEx) return false;
-
             var (displayValue, displayCurrency) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
+            if (displayValue < this.Settings.MinValueEx) return false;
+
             text = FormatValue(displayValue, displayCurrency);
-            highlight = exValue >= this.Settings.HighlightMinEx;
+            highlight = displayValue >= this.Settings.HighlightMinEx;
             color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
             return true;
         }
@@ -1580,9 +1602,8 @@ namespace LootValue
             displayValue = dispVal;
             displayCurrency = dispCur;
 
-            // Value floor / highlight compare in Exalted, independent of the chosen display currency.
-            var (exValue, _) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, 1);
-            valueEx = exValue;
+            // Value floor / highlight compare in the chosen display currency (Divine, Exalted, or Chaos).
+            valueEx = displayValue;
 
             var valueText = FormatValue(displayValue, displayCurrency);
 
