@@ -4,9 +4,8 @@
     "Metadata/Terrain/islands/tiles/bloodfever/wharewall/alleyway_to_smallalley_ccst_01.tdtx:[]": "Smallalley Ccst",
     "Metadata/Terrain/islands/tiles/coraldungeon/features/area_transition_stww_01.tdtx:[]": "Transition",
     "Metadata/Terrain/islands/tiles/island/oceanledge/oceanledge_to_lowerledge_x_karui_01.tdtx:[]": "Lowerledge X Karui",
-    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01.tdtx:[]": "Kalguur town?",
     "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01_ghost.tdtx:[]": "Boat",
-    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_02.tdtx:[]": "Kalguur town?"
+    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_*.tdtx:[]": "Kalguur town?"
   },
   "Abyss_Intro": {
     "Metadata/Terrain/Gallows/Leagues/Abyss/AbyssHub/Tiles/AbyssPitFeature_01.tdtx:[]": "Rare Fight",
@@ -31,49 +30,30 @@
   },
   "G1_13_1": {
     "Metadata/Terrain/Woods/Village/RoadFields/Bosstile_*.tdtx:[]": "Crop Circle (Skill Gem Level 4)",
-    "Metadata/Terrain/Woods/Village/RoadFields/Bosstile_01.tdtx:[]": "Crop Circle (Skill Gem Level 4)",
     "Metadata/Terrain/Woods/Village/RoadFields/Feature/RoadVillage_Areatransition.tdtx:[]": "Ogham Village",
-    "Metadata/Terrain/Woods/Village/RoadFields/Feature/YurtUna_*.tdtx:[]": "Una's Lute (+2 Passive)",
-    "Metadata/Terrain/Woods/Village/RoadFields/Feature/YurtUna_01.tdtx:[]": "Una's Lute (+2 Passive)"
+    "Metadata/Terrain/Woods/Village/RoadFields/Feature/YurtUna_*.tdtx:[]": "Una's Lute (+2 Passive)"
   },
   "G1_13_2": {
     "Metadata/Terrain/Woods/Village/Blacksmith_Large.tdtx:[]": "Renly's Tools (Salvaging Bench)",
     "Metadata/Terrain/Woods/Village/Huts/VillageArena_*.tdtx:[]": "Executioner's Block",
-    "Metadata/Terrain/Woods/Village/Huts/VillageArena_02.tdtx:[]": "Executioner's Block",
     "Metadata/Terrain/Woods/Village/RoadFields/Feature/RoadVillage_Areatransition_village_side.tdtx:[]": "Ogham Farmlands"
   },
   "G1_14": {
     "Metadata/Terrain/Woods/Manor/CourtyardFeatures/Gallows_*.tdtx:[]": "Gallows (Support Gem Level 1)",
-    "Metadata/Terrain/Woods/Manor/CourtyardFeatures/Gallows_02.tdtx:[]": "Gallows (Support Gem Level 1)",
     "Metadata/Terrain/Woods/Manor/CourtyardFeatures/Manor_GrandEntrance_Transition_*.tdtx:[]": "Oghams Manor",
-    "Metadata/Terrain/Woods/Manor/CourtyardFeatures/Manor_GrandEntrance_Transition_01.tdtx:[]": "Oghams Manor",
     "Metadata/Terrain/Woods/Village/Huts/VillageArena_02_courtyard_side.tdtx:[]": "Entrance"
   },
   "G1_15": {
     "Metadata/Terrain/Woods/Manor/Features/ArenaTop_*.tdtx:[]": "Throne of the Wolf",
-    "Metadata/Terrain/Woods/Manor/Features/ArenaTop_01.tdtx:[]": "Throne of the Wolf",
     "Metadata/Terrain/Woods/Manor/Features/Chapel_boss_*.tdtx:[]": "Candlemass (+20 Max Life)",
-    "Metadata/Terrain/Woods/Manor/Features/Chapel_boss_01.tdtx:[]": "Candlemass (+20 Max Life)",
     "Metadata/Terrain/Woods/Manor/Interior/Features/Manor_Entrance_*.tdtx:[]": "The Manor Ramparts",
-    "Metadata/Terrain/Woods/Manor/Interior/Features/Manor_Entrance_01.tdtx:[]": "The Manor Ramparts",
     "Metadata/Terrain/Woods/Manor/Interior/Features/ThickWall_AreaTransition_01.tdtx:[]": "Stairs Up",
     "Metadata/Terrain/Woods/Manor/Interior/Features/ThickWall_StairsDown_Cc_01.tdtx:[]": "Stairs Down"
   },
   "G1_2": {
     "Metadata/Terrain/Woods/AreaTransitions/Clearfell_OldForest_Transition_01.tdtx:[]": "The Grelwood",
     "Metadata/Terrain/Woods/AreaTransitions/FallenTree*.tdtx:[]": "Mud Burrow",
-    "Metadata/Terrain/Woods/AreaTransitions/FallenTreeSlash_in.tdtx:[]": "Mud Burrow",
-    "Metadata/Terrain/Woods/AreaTransitions/FallenTreeSlash_out.tdtx:[]": "Mud Burrow",
-    "Metadata/Terrain/Woods/AreaTransitions/FallenTreeWoods_in.tdtx:[]": "Mud Burrow",
-    "Metadata/Terrain/Woods/AreaTransitions/FallenTreeWoods_out.tdtx:[]": "Mud Burrow",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_*.tdtx:[]": "Beira of the Rotten (10% Cold Res)",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_01.tdtx:[]": "Beira of the Rotten (10% Cold Res)",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_02.tdtx:[]": "Beira of the Rotten (10% Cold Res)",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_03.tdtx:[]": "Beira of the Rotten (10% Cold Res)",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_04.tdtx:[]": "Beira of the Rotten (10% Cold Res)",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_05.tdtx:[]": "Beira of the Rotten (10% Cold Res)",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_06.tdtx:[]": "Beira of the Rotten (10% Cold Res)",
-    "Metadata/Terrain/Woods/Slash/HagWitchArena_07.tdtx:[]": "Beira of the Rotten (10% Cold Res)"
+    "Metadata/Terrain/Woods/Slash/HagWitchArena_*.tdtx:[]": "Beira of the Rotten (10% Cold Res)"
   },
   "G1_3": {
     "Metadata/Terrain/Woods/Mudburrow/Path/path_St_Spawner_v02_01.tdtx:[]": "To Devourer "
@@ -84,9 +64,7 @@
     "Metadata/Terrain/Woods/AreaTransitions/redvale_transition_02_oldforest.tdtx:[]": "The Red Vale",
     "Metadata/Terrain/Woods/GrimTangle/areatransitions/GrimtangleTransitionDown_02.tdtx:[]": "The Corpse Tree (waypoint)",
     "Metadata/Terrain/Woods/OldForestWoods/Feature/BurnTheWitch_*.tdtx:[]": "Areagne's Hut (Support Gem Level 1 and Flasks)",
-    "Metadata/Terrain/Woods/OldForestWoods/Feature/BurnTheWitch_01.tdtx:[]": "Areagne's Hut (Support Gem Level 1 and Flasks)",
-    "Metadata/Terrain/Woods/OldForestWoods/Feature/PlantBoss_*.tdtx:[]": "The Moving Bramble (Skill Gem Level 2)",
-    "Metadata/Terrain/Woods/OldForestWoods/Feature/PlantBoss_01.tdtx:[]": "The Moving Bramble (Skill Gem Level 2)"
+    "Metadata/Terrain/Woods/OldForestWoods/Feature/PlantBoss_*.tdtx:[]": "The Moving Bramble (Skill Gem Level 2)"
   },
   "G1_5": {
     "Metadata/Terrain/Woods/AreaTransitions/redvale_transition_02_redvale.tdtx:[]": "The Grelwood"
@@ -100,10 +78,7 @@
     "Metadata/Terrain/Woods/Graveyard/Feature/GraveyardArena.tdtx:[]": "Arena / Hunting Grounds",
     "Metadata/Terrain/Woods/Graveyard/Feature/GraveyardToGrimTangle_transition_01.tdtx:[]": "The Grim Tangle",
     "Metadata/Terrain/Woods/Graveyard/Feature/mausoleum_*.tdtx:[]": "Mausoleum of the Praetor",
-    "Metadata/Terrain/Woods/Graveyard/Feature/mausoleum_01.tdtx:[]": "Mausoleum of the Praetor",
-    "Metadata/Terrain/Woods/Graveyard/Feature/tomb_*.tdtx:[]": "Tomb of the Consort",
-    "Metadata/Terrain/Woods/Graveyard/Feature/tomb_01.tdtx:[]": "Tomb of the Consort",
-    "Metadata/Terrain/Woods/Graveyard/Feature/tomb_02.tdtx:[]": "Tomb of the Consort"
+    "Metadata/Terrain/Woods/Graveyard/Feature/tomb_*.tdtx:[]": "Tomb of the Consort"
   },
   "G1_8": {
     "Metadata/Terrain/Woods/GraveyardDungeons/Feature/MausoleumBoss_ArenaFloor.tdtx:[]": "Mausoleum Boss",
@@ -113,12 +88,10 @@
   },
   "G1_9": {
     "Metadata/Terrain/Woods/GraveyardDungeons/Feature/TombBoss_ArenaFloor.tdtx:[]": "Asinia Boss",
-    "Metadata/Terrain/Woods/GraveyardDungeons/Feature/Tomb_Landmark_*.tdtx:[]": "Embattled Trove (Support Gem Level 1)",
-    "Metadata/Terrain/Woods/GraveyardDungeons/Feature/Tomb_Landmark_01.tdtx:[]": "Embattled Trove (Support Gem Level 1)"
+    "Metadata/Terrain/Woods/GraveyardDungeons/Feature/Tomb_Landmark_*.tdtx:[]": "Embattled Trove (Support Gem Level 1)"
   },
   "G2_1": {
-    "Metadata/Terrain/Desert/UnwalkableDune/DunePlatform/Dune_Platform_Feature_*.tdtx:[]": "Raiders Cliffs",
-    "Metadata/Terrain/Desert/UnwalkableDune/DunePlatform/Dune_Platform_Feature_01.tdtx:[]": "Raiders Cliffs"
+    "Metadata/Terrain/Desert/UnwalkableDune/DunePlatform/Dune_Platform_Feature_*.tdtx:[]": "Raiders Cliffs"
   },
   "G2_10_1": {
     "Metadata/Terrain/Desert/Quarry/Features/Maraketh_Entrance_01.tdtx:[]": "The Ardura Caravan",
@@ -126,29 +99,23 @@
   },
   "G2_10_2": {
     "Metadata/Terrain/Desert/Foundry/Features/Foundry_Bossroom_*.tdtx:[]": "Munitions Bunker",
-    "Metadata/Terrain/Desert/Foundry/Features/Foundry_Bossroom_01.tdtx:[]": "Munitions Bunker",
     "Metadata/Terrain/Desert/Quarry/Features/MiningShaftFloor.tdtx:[]": "Mawdun Quarry"
   },
   "G2_12_1": {
-    "Metadata/Terrain/Desert/FarudinCarts/cart_walkway_*.tdtx:[]": "Dreadnought Vanguard",
-    "Metadata/Terrain/Desert/FarudinCarts/cart_walkway_02.tdtx:[]": "Dreadnought Vanguard"
+    "Metadata/Terrain/Desert/FarudinCarts/cart_walkway_*.tdtx:[]": "Dreadnought Vanguard"
   },
   "G2_12_2": {
     "Metadata/Terrain/Desert/FarudinCarts/Features/DreadnoughtArena_*.tdtx:[]": "The Faridun Throne",
-    "Metadata/Terrain/Desert/FarudinCarts/Features/DreadnoughtArena_03.tdtx:[]": "The Faridun Throne",
-    "Metadata/Terrain/Desert/FarudinCarts/cart_walkway_*.tdtx:[]": "The Dreadnought",
-    "Metadata/Terrain/Desert/FarudinCarts/cart_walkway_02.tdtx:[]": "The Dreadnought"
+    "Metadata/Terrain/Desert/FarudinCarts/cart_walkway_*.tdtx:[]": "The Dreadnought"
   },
   "G2_13": {
     "Metadata/Terrain/Desert/KethAscendancy/Level_1/Feature/pedestal_02.tdtx:[]": "Relic Altar"
   },
   "G2_2": {
     "Metadata/Terrain/Desert/CavePath/Features/Landmark_feature_*.tdtx:[]": "Bell Chest (Skill Gem Level 6)",
-    "Metadata/Terrain/Desert/CavePath/Features/Landmark_feature_01.tdtx:[]": "Bell Chest (Skill Gem Level 6)",
     "Metadata/Terrain/Desert/CavePath/Features/Thickwall_Cave_Entrance.tdtx:[]": "The Halani Gates",
     "Metadata/Terrain/Desert/CavePath/Features/cave_entrance_01.tdtx:[]": "The Ardura Caravan",
-    "Metadata/Terrain/Desert/Maraketh/TraitorsPassage/TraitorsPassage_Arena_*.tdtx:[]": "Prison of the Disgraced (Djinn Barya)",
-    "Metadata/Terrain/Desert/Maraketh/TraitorsPassage/TraitorsPassage_Arena_01.tdtx:[]": "Prison of the Disgraced (Djinn Barya)"
+    "Metadata/Terrain/Desert/Maraketh/TraitorsPassage/TraitorsPassage_Arena_*.tdtx:[]": "Prison of the Disgraced (Djinn Barya)"
   },
   "G2_3": {
     "Metadata/Terrain/Desert/AreaTransitions/Ruin_PassageStair_01.tdtx:[]": "Traitor's Passage",
@@ -158,20 +125,16 @@
     "Metadata/Terrain/Desert/BuriedCity/Features/Cityroof_Entrance.tdtx:[]": "The Ardura Caravan",
     "Metadata/Terrain/Desert/BuriedCity/Features/Keth_SinkholeTransition_01.tdtx:[]": "Looted Vault",
     "Metadata/Terrain/Desert/BuriedCity/Features/Keth_Stairs_RuinEntrance.tdtx:[]": "The Lost City",
-    "Metadata/Terrain/Desert/BuriedCity/Features/QueenKabalaRoom_*_meta*.tdtx:[]": "Kabala (+2 Passive)",
-    "Metadata/Terrain/Desert/BuriedCity/Features/QueenKabalaRoom_01_meta01.tdtx:[]": "Kabala (+2 Passive)"
+    "Metadata/Terrain/Desert/BuriedCity/Features/QueenKabalaRoom_*_meta*.tdtx:[]": "Kabala (+2 Passive)"
   },
   "G2_4_2": {
     "Metadata/Terrain/Desert/Maraketh/Features/KethEntrance_01.tdtx:[]": "Keth",
-    "Metadata/Terrain/Desert/Maraketh/Features/Thickwall_StairsDown_*.tdtx:[]": "Buried Shrines",
-    "Metadata/Terrain/Desert/Maraketh/Features/Thickwall_StairsDown_01.tdtx:[]": "Buried Shrines"
+    "Metadata/Terrain/Desert/Maraketh/Features/Thickwall_StairsDown_*.tdtx:[]": "Buried Shrines"
   },
   "G2_4_3": {
     "Metadata/Terrain/Desert/Maraketh/Arena/CentrePattern_*.tdtx:[]": "The Vestibule",
-    "Metadata/Terrain/Desert/Maraketh/Arena/CentrePattern_01.tdtx:[]": "The Vestibule",
     "Metadata/Terrain/Desert/Maraketh/Arena/Thickwall_GoddessStatue_01.tdtx:[]": "The Water Goddess",
     "Metadata/Terrain/Desert/Maraketh/Features/Thickwall_BossTransition_*.tdtx:[]": "The Heart of Keth",
-    "Metadata/Terrain/Desert/Maraketh/Features/Thickwall_BossTransition_01.tdtx:[]": "The Heart of Keth",
     "Metadata/Terrain/Desert/Maraketh/Features/Thickwall_StairsUp_01.tdtx:[]": "The Lost City",
     "Metadata/Terrain/Desert/Maraketh/Floor/Floortrim_BossMedallion_01.tdtx:[]": "Elemental Offering (Res Ring)",
     "Metadata/Terrain/Desert/Maraketh/Floor/ThickWall_TransitionWide_St_01.tdtx:[]": "Buried Shrines"
@@ -179,50 +142,37 @@
   "G2_5_1": {
     "Metadata/Terrain/Desert/Badlands/Features/AbyssHole.tdtx:[]": "Lightless Passage",
     "Metadata/Terrain/Desert/Badlands/Features/AreaTransition_BadlandsToPits_*.tdtx:[]": "The Bone Pits",
-    "Metadata/Terrain/Desert/Badlands/Features/AreaTransition_BadlandsToPits_01.tdtx:[]": "The Bone Pits",
     "Metadata/Terrain/Desert/Badlands/Features/Badlands_Entrance_01.tdtx:[]": "The Ardura Caravan",
-    "Metadata/Terrain/Desert/Badlands/Features/Landmark_feature_*.tdtx:[]": "Fossilised Memorial (Support Gem Level 1)",
-    "Metadata/Terrain/Desert/Badlands/Features/Landmark_feature_02.tdtx:[]": "Fossilised Memorial (Support Gem Level 1)"
+    "Metadata/Terrain/Desert/Badlands/Features/Landmark_feature_*.tdtx:[]": "Fossilised Memorial (Support Gem Level 1)"
   },
   "G2_5_2": {
     "Metadata/Terrain/Desert/Badlands/Features/AreaTransition_BadlandsToPits_*.tdtx:[]": "Mastodon Badlands",
-    "Metadata/Terrain/Desert/Badlands/Features/AreaTransition_BadlandsToPits_01.tdtx:[]": "Mastodon Badlands",
-    "Metadata/Terrain/Desert/Badlands/Features/MastodonArena_*.tdtx:[]": "Blackrib Pit",
-    "Metadata/Terrain/Desert/Badlands/Features/MastodonArena_01.tdtx:[]": "Blackrib Pit"
+    "Metadata/Terrain/Desert/Badlands/Features/MastodonArena_*.tdtx:[]": "Blackrib Pit"
   },
   "G2_6": {
     "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/CartEntrance_01.tdtx:[]": "The Ardura Caravan",
     "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/GrottoExit01.tdtx:[]": "The Titan Grotto",
     "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/TitanQuest*.tdtx:[]": "Ancient Seal",
-    "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/TitanQuest01.tdtx:[]": "Ancient Seal",
-    "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/TitanQuest02.tdtx:[]": "Ancient Seal",
-    "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/TitanQuest03.tdtx:[]": "Ancient Seal",
-    "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/titan_valley_boss_*.tdtx:[]": "Medallion",
-    "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/titan_valley_boss_01.tdtx:[]": "Medallion"
+    "Metadata/Terrain/Desert/UnwalkableDune/Titans/Feature/titan_valley_boss_*.tdtx:[]": "Medallion"
   },
   "G2_7": {
     "Metadata/Terrain/Desert/CaveTitans/Features/Staircase_Entrance_01.tdtx:[]": "Valley of the Titans",
-    "Metadata/Terrain/Desert/CaveTitans/Features/Titan_Arena_*.tdtx:[]": "Dais of Reckoning",
-    "Metadata/Terrain/Desert/CaveTitans/Features/Titan_Arena_01.tdtx:[]": "Dais of Reckoning"
+    "Metadata/Terrain/Desert/CaveTitans/Features/Titan_Arena_*.tdtx:[]": "Dais of Reckoning"
   },
   "G2_8": {
     "Metadata/Terrain/Desert/Pillars/Base/Arena/bossroom_02.tdtx:[]": "Forgotten Corpses",
     "Metadata/Terrain/Desert/Pillars/Base/PillarBaseWide_StairsUp_*.tdtx:[]": "Path of Mourning",
-    "Metadata/Terrain/Desert/Pillars/Base/PillarBaseWide_StairsUp_01.tdtx:[]": "Path of Mourning",
     "Metadata/Terrain/Desert/Pillars/Base/PillarBase_CartTransition_01.tdtx:[]": "The Ardura Caravan"
   },
   "G2_9_1": {
     "Metadata/Terrain/Desert/Pillars/Lower/Pillar_TinyBalcony_feature_01.tdtx:[]": "Shifting Vases (Support Gem Level 1)",
     "Metadata/Terrain/Desert/Pillars/Lower/Wide/PillarLowerWide_StairsDown_01.tdtx:[]": "Deshar",
-    "Metadata/Terrain/Desert/Pillars/Upper/PillarUpper_StairsUp_*.tdtx:[]": "The Spires of Deshar",
-    "Metadata/Terrain/Desert/Pillars/Upper/PillarUpper_StairsUp_01.tdtx:[]": "The Spires of Deshar"
+    "Metadata/Terrain/Desert/Pillars/Upper/PillarUpper_StairsUp_*.tdtx:[]": "The Spires of Deshar"
   },
   "G2_9_2": {
     "Metadata/Terrain/Desert/Pillars/Tall/PillarTall_StairsDown_*.tdtx:[]": "Path of Mourning",
-    "Metadata/Terrain/Desert/Pillars/Tall/PillarTall_StairsDown_01.tdtx:[]": "Path of Mourning",
     "Metadata/Terrain/Desert/Pillars/Tops/PillarArena.tdtx:[]": "Arena",
-    "Metadata/Terrain/Desert/Pillars/Tops/PillarTopWide_Shrine_*.tdtx:[]": "Sisters of Garukhan (10% Lightning Res)",
-    "Metadata/Terrain/Desert/Pillars/Tops/PillarTopWide_Shrine_01.tdtx:[]": "Sisters of Garukhan (10% Lightning Res)"
+    "Metadata/Terrain/Desert/Pillars/Tops/PillarTopWide_Shrine_*.tdtx:[]": "Sisters of Garukhan (10% Lightning Res)"
   },
   "G3_1": {
     "Metadata/Terrain/Jungle/JungleExterior/Fills/JungleGroundPuddle_04.tdtx:[]": "Orok Campfire (Lesser Jeweller's Orb)",
@@ -238,9 +188,8 @@
   },
   "G3_12": {
     "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_outerwall_end_stairsdown_02.tdtx:[]": "Stairs Down",
-    "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_outerwall_end_stairsup_01.tdtx:[]": "Stairs Up",
-    "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_outerwall_end_stairsup_02.tdtx:[]": "Stairs Up",
-    "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_to_sunkencity_01.tdtx:[]": "Ziggurat Encampment"
+    "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_to_sunkencity_01.tdtx:[]": "Ziggurat Encampment",
+    "Metadata/Terrain/Dungeon/Ziggurat/ziggurat_outerwall_end_stairsup_*.tdtx:[]": "Stairs Up"
   },
   "G3_14": {
     "Metadata/Terrain/Jungle/AreaTransitions/SunkenCity/jungle_pyramid_entrance_atziri_01_metatile.tdtx:[]": "Aggorat",
@@ -285,8 +234,7 @@
   "G3_5": {
     "Metadata/Terrain/Jungle/JungleExterior/AreaTransitions/ChimeralJungle_to_ChaosTemple.tdtx:[]": "The Temple of Chaos",
     "Metadata/Terrain/Jungle/JungleExterior/AreaTransitions/ChimeralWetlands_to_JungleDepths.tdtx:[]": "Infested Barrens",
-    "Metadata/Terrain/Jungle/JungleExterior/AreaTransitions/Observatory_Entrance_*.tdtx:[]": "Deadly Nest",
-    "Metadata/Terrain/Jungle/JungleExterior/AreaTransitions/Observatory_Entrance_01.tdtx:[]": "Deadly Nest"
+    "Metadata/Terrain/Jungle/JungleExterior/AreaTransitions/Observatory_Entrance_*.tdtx:[]": "Deadly Nest"
   },
   "G3_6_1": {
     "Metadata/Terrain/Dungeon/NextFeatures/Machinarium_Entrance_02.tdtx:[]": "Jiquani's Sanctum",
@@ -331,8 +279,6 @@
     "Metadata/Terrain/Islands/Tiles/Island/Volcano/Goblins/Features/GoblinMinesEntrance_01.tdtx:[]": "Volcanic Warrens",
     "Metadata/Terrain/Islands/Tiles/Island/Volcano/Goblins/Features/GoblinTownArena_01.tdtx:[]": "Primal Arena (+2 Passive)",
     "Metadata/Terrain/Islands/Tiles/Island/Volcano/RhoaCamp_*.tdtx:[]": "Rhoa - No reward?",
-    "Metadata/Terrain/Islands/Tiles/Island/Volcano/RhoaCamp_01.tdtx:[]": "Rhoa - No reward?",
-    "Metadata/Terrain/Islands/Tiles/Island/Volcano/RhoaCamp_02.tdtx:[]": "Rhoa - No reward?",
     "Metadata/Terrain/Islands/Tiles/Island/Volcano/SulphurRockVein_01.tdtx:[]": "Voltaxic spire"
   },
   "G4_1_2": {
@@ -343,7 +289,6 @@
   },
   "G4_2_1": {
     "Metadata/Terrain/Islands/Tiles/Island/Features/UnwalkableCliff_Transition_Up_*.tdtx:[]": "Journey's end",
-    "Metadata/Terrain/Islands/Tiles/Island/Features/UnwalkableCliff_Transition_Up_01.tdtx:[]": "Journey's end",
     "Metadata/Terrain/Islands/Tiles/Island/KedgeBay/BossArena_*.tdtx:[]": "Tidal Key (Orb of Alchemy)",
     "Metadata/Terrain/Islands/Tiles/Island/KedgeBay/BossArena_01.tdtx:[]": "Arena - Orb of Alchemy?",
     "Metadata/Terrain/Islands/Tiles/Island/UnwalkableCliff/KedgeBay/UnwalkableCliff_CaveEntrance_*.tdtx:[]": "Deadman Chest (Map Piece)",
@@ -356,11 +301,10 @@
   },
   "G4_3_1": {
     "Metadata/Terrain/Islands/Tiles/TropicalIsland/Features/Shark_Arena_*.tdtx:[]": "Boss - Shark",
-    "Metadata/Terrain/Islands/Tiles/TropicalIsland/Features/Shark_Arena_02.tdtx:[]": "Boss - Shark",
-    "Metadata/Terrain/Islands/Tiles/TropicalIsland/Features/TropicalCoastCliff_CrabCave_01.tdtx:[]": "Singing Caverns",
+    "Metadata/Terrain/Islands/Tiles/TropicalIsland/Features/TropicalCoastCliff_CrabCave_01.tdtx:[]": "Singing Caverns (Cave)",
     "Metadata/Terrain/Islands/Tiles/TropicalIsland/Features/TropicalCoastCliff_CrabCave_02.tdtx:[]": "Crab Rare (Support Gem 4)",
     "Metadata/Terrain/Islands/Tiles/TropicalIsland/Ground/TropicalGround_04_blank.tdtx:[]": "Petrified Pirate (Map Piece)",
-    "Metadata/Terrain/Islands/Tiles/TropicalIsland/TropicalCliff/TropicalCliff_Cv_Cove_01.tdtx:[]": "Singing Caverns"
+    "Metadata/Terrain/Islands/Tiles/TropicalIsland/TropicalCliff/TropicalCliff_Cv_Cove_01.tdtx:[]": "Singing Caverns (Cliff)"
   },
   "G4_3_2": {
     "Metadata/Terrain/Islands/Tiles/CoralDungeon/Features/CoveTreasure_01.tdtx:[]": "Quest - Humming Pearl",
@@ -393,8 +337,8 @@
   },
   "G4_8b": {
     "Metadata/Terrain/Islands/Tiles/TwilightIsland/Feature/TwilightArena.tdtx:[]": "Boss Arena",
-    "Metadata/Terrain/Islands/Tiles/TwilightIsland/Feature/TwilightLighthouse.tdtx:[]": "Bell - Exalted Orb",
-    "Metadata/Terrain/Islands/Tiles/TwilightIsland/Feature/TwilightOverlook.tdtx:[]": "Bell - Exalted Orb",
+    "Metadata/Terrain/Islands/Tiles/TwilightIsland/Feature/TwilightLighthouse.tdtx:[]": "Bell (Lighthouse) - Exalted Orb",
+    "Metadata/Terrain/Islands/Tiles/TwilightIsland/Feature/TwilightOverlook.tdtx:[]": "Bell (Overlook) - Exalted Orb",
     "Metadata/Terrain/Islands/Tiles/TwilightIsland/Feature/bell_feature_01.tdtx:[]": "Bell - Regal Orb"
   },
   "MapBluff": {
@@ -411,13 +355,9 @@
     "Metadata/Terrain/Maps/Mesa/Tiles/Peak.tdtx:[]": "Beacon"
   },
   "MapSwampTower": {
-    "Metadata/Terrain/Maps/SwampTower/Tiles/CentrePillar_02.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Lower_Exterior/SwampTower_BasementOuterWall_EndStairsUp_*.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Lower_Exterior/SwampTower_BasementOuterWall_EndStairsUp_01.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Lower_Exterior/SwampTower_BasementOuterWall_EndStairsUp_02.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Mid_Exterior/SwampTower_OuterWallEnd_StairsUp_*.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Mid_Exterior/SwampTower_OuterWallEnd_StairsUp_01.tdtx:[]": "Stairs",
-    "Metadata/Terrain/Maps/SwampTower/Tiles/Mid_Exterior/SwampTower_OuterWallEnd_StairsUp_02.tdtx:[]": "Stairs"
+    "Metadata/Terrain/Maps/SwampTower/Tiles/CentrePillar_02.tdtx:[]": "Stairs (Centre Pillar)",
+    "Metadata/Terrain/Maps/SwampTower/Tiles/Lower_Exterior/SwampTower_BasementOuterWall_EndStairsUp_*.tdtx:[]": "Stairs (Basement)",
+    "Metadata/Terrain/Maps/SwampTower/Tiles/Mid_Exterior/SwampTower_OuterWallEnd_StairsUp_*.tdtx:[]": "Stairs (Mid Exterior)"
   },
   "P1_1": {
     "Metadata/Terrain/interlude/part1/p1_1/feature/forest_transition_01.tdtx:[]": "Forest 1 of 2",
@@ -442,8 +382,8 @@
     "Metadata/Terrain/Interlude/Part1/P1_5/Holten_Prison_Bossroom.tdtx:[]": "Boss"
   },
   "P1_6": {
-    "Metadata/Terrain/Maps/Derelict/Tiles/HoltenBossStairsDown_01.tdtx:[]": "Boss stairs",
-    "Metadata/Terrain/Maps/Derelict/Tiles/StairsUp_01.tdtx:[]": "Boss stairs"
+    "Metadata/Terrain/Maps/Derelict/Tiles/HoltenBossStairsDown_01.tdtx:[]": "Boss Stairs (Down)",
+    "Metadata/Terrain/Maps/Derelict/Tiles/StairsUp_01.tdtx:[]": "Boss Stairs (Up)"
   },
   "P2_1": {
     "Metadata/Terrain/Desert/Oasis/Ruins/ruinwall_St_M_end_01.tdtx:[]": "Torbik",
