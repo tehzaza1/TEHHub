@@ -1094,7 +1094,13 @@ namespace LootValue
                 if (element == IntPtr.Zero || !visited.Add(element)) continue;
                 report.VisitedElements++;
                 if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { element }) is not UiElementBaseOffset offset) continue;
-                if (!UiElementBaseFuncs.IsVisibleChecker(offset.Flags)) continue;
+                if (!UiElementBaseFuncs.IsVisibleChecker(offset.Flags))
+{
+    // Skip only invisible leaf nodes (no children)
+    var childArray = this.readStdVectorMethod?.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) as IntPtr[];
+    if (childArray == null || childArray.Length == 0)
+        continue;
+}
 
                 if (this.readStdVectorMethod.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) is IntPtr[] children)
                 {

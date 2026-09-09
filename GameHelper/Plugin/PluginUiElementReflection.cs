@@ -155,11 +155,13 @@ namespace GameHelper.Plugin
             {
                 return false;
             }
-            if ((data.Self != IntPtr.Zero && data.Self != address) ||
-                !UiElementBaseFuncs.IsVisibleChecker(data.Flags))
+
+            if (data.Self != IntPtr.Zero && data.Self != address)
             {
                 return false;
             }
+            // Allow traversal of invisible container nodes; leaf visibility will be handled later.
+
 
             var relative = new Vector2(data.RelativePosition.X, data.RelativePosition.Y);
             if (data.ParentPtr == IntPtr.Zero)
