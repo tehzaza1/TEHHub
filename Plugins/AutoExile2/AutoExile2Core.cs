@@ -178,12 +178,27 @@ namespace AutoExile2
             var player = currentArea?.Player;
 
             int hpPct = 100;
+            int esPct = 0;
+            int hpCur = 0, hpTot = 0;
+            int esCur = 0, esTot = 0;
             int manaPct = 100;
 
-            if (player != null && player.TryGetComponent<Life>(out var life) && life.Health.Total > 0)
+            if (player != null && player.TryGetComponent<Life>(out var life))
             {
-                hpPct = (int)((float)life.Health.Current / life.Health.Total * 100f);
-                manaPct = life.Mana.Total > 0 ? (int)((float)life.Mana.Current / life.Mana.Total * 100f) : 100;
+                hpCur = life.Health.Current;
+                hpTot = life.Health.Total;
+                esCur = life.EnergyShield.Current;
+                esTot = life.EnergyShield.Total;
+
+                if (hpTot > 0)
+                {
+                    hpPct = Math.Clamp((int)((float)hpCur / hpTot * 100f), 0, 100);
+                }
+                if (esTot > 0)
+                {
+                    esPct = Math.Clamp((int)((float)esCur / esTot * 100f), 0, 100);
+                }
+                manaPct = life.Mana.Total > 0 ? Math.Clamp((int)((float)life.Mana.Current / life.Mana.Total * 100f), 0, 100) : 100;
             }
 
             var detectedSkills = new List<DetectedSkillInfo>();
@@ -295,6 +310,9 @@ namespace AutoExile2
             var detectedDebuffs = new List<ActiveBuffInfo>(this.combatSystem.ObservedTargetDebuffs);
 
             int followerHp = 100;
+            int followerEs = 0;
+            int fHpCur = 0, fHpTot = 0;
+            int fEsCur = 0, fEsTot = 0;
             int followerMana = 100;
             bool followerFound = false;
             var p2DetectedSkills = new List<DetectedSkillInfo>();
@@ -398,10 +416,22 @@ namespace AutoExile2
                         followerPlayerName = fPlayerComp.Name;
                     }
 
-                    if (targetFollowerEntity.TryGetComponent<Life>(out var fLife) && fLife.Health.Total > 0)
+                    if (targetFollowerEntity.TryGetComponent<Life>(out var fLife))
                     {
-                        followerHp = (int)((float)fLife.Health.Current / fLife.Health.Total * 100f);
-                        followerMana = fLife.Mana.Total > 0 ? (int)((float)fLife.Mana.Current / fLife.Mana.Total * 100f) : 100;
+                        fHpCur = fLife.Health.Current;
+                        fHpTot = fLife.Health.Total;
+                        fEsCur = fLife.EnergyShield.Current;
+                        fEsTot = fLife.EnergyShield.Total;
+
+                        if (fHpTot > 0)
+                        {
+                            followerHp = Math.Clamp((int)((float)fHpCur / fHpTot * 100f), 0, 100);
+                        }
+                        if (fEsTot > 0)
+                        {
+                            followerEs = Math.Clamp((int)((float)fEsCur / fEsTot * 100f), 0, 100);
+                        }
+                        followerMana = fLife.Mana.Total > 0 ? Math.Clamp((int)((float)fLife.Mana.Current / fLife.Mana.Total * 100f), 0, 100) : 100;
                     }
 
                     if (targetFollowerEntity.TryGetComponent<Actor>(out var fActor) && fActor.ActiveSkills != null)
@@ -436,6 +466,11 @@ namespace AutoExile2
                 ExplorationCoverage = this.explorationMap.Coverage,
                 HostileCount = this.combatSystem.NearbyHostileCount,
                 PlayerHpPercent = hpPct,
+                PlayerEsPercent = esPct,
+                PlayerHpCurrent = hpCur,
+                PlayerHpTotal = hpTot,
+                PlayerEsCurrent = esCur,
+                PlayerEsTotal = esTot,
                 PlayerManaPercent = manaPct,
                 CurrentAction = this.activeMode.CurrentAction,
                 ActiveDuration = this.runtime.FormattedDuration,
@@ -448,6 +483,11 @@ namespace AutoExile2
                 ActiveTotemNames = activeTotemNames,
                 DeployedObjects = deployedObjects,
                 FollowerHpPercent = followerHp,
+                FollowerEsPercent = followerEs,
+                FollowerHpCurrent = fHpCur,
+                FollowerHpTotal = fHpTot,
+                FollowerEsCurrent = fEsCur,
+                FollowerEsTotal = fEsTot,
                 FollowerManaPercent = followerMana,
                 IsFollowerActive = followerFound,
                 FollowerSlotIndex = this.coopGamepad.FollowerSlotIndex,

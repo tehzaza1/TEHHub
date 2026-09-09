@@ -1622,25 +1622,90 @@ function updateDashboardSnapshot(snap) {
   document.getElementById('coverageText').innerText = cov + '%';
   document.getElementById('coverageBar').style.width = cov + '%';
 
-  // Player 1 HP / Mana
-  const hp = snap.PlayerHpPercent || 100;
-  document.getElementById('hpText').innerText = hp + '%';
-  document.getElementById('hpBar').style.width = hp + '%';
+  // Player 1 HP / Mana & ES (Smart Dual Bar)
+  const hp = snap.PlayerHpPercent !== undefined ? snap.PlayerHpPercent : 100;
+  const es = snap.PlayerEsPercent || 0;
+  const esTot = snap.PlayerEsTotal || 0;
+  const hpTot = snap.PlayerHpTotal || 0;
+  const hpEl = document.getElementById('hpText');
+  const hpBar = document.getElementById('hpBar');
+  const p1EsWrap = document.getElementById('p1EsWrap');
+  const esBar = document.getElementById('esBar');
+  const p1HpWrap = document.getElementById('p1HpWrap');
+
+  if (hpBar) hpBar.style.width = hp + '%';
+
+  if (p1EsWrap && esBar) {
+    if (esTot > 0) {
+      p1EsWrap.style.display = 'block';
+      if (p1HpWrap) p1HpWrap.style.marginTop = '4px';
+      esBar.style.width = Math.min(100, Math.max(0, es)) + '%';
+      if (hpTot <= 1) {
+        // Chaos Inoculation (CI)
+        if (hpEl) hpEl.innerHTML = `<span style="color:#38bdf8; font-weight:700;">ES ${es}%</span> <span style="font-size:10px; color:var(--text-dim);">(CI)</span>`;
+      } else {
+        // Hybrid HP + ES
+        if (hpEl) hpEl.innerHTML = `${hp}% <span style="color:var(--border);">|</span> <span style="color:#38bdf8; font-weight:600;">ES ${es}%</span>`;
+      }
+    } else {
+      // Pure Life
+      p1EsWrap.style.display = 'none';
+      if (p1HpWrap) p1HpWrap.style.marginTop = '8px';
+      if (hpEl) hpEl.innerText = hp + '%';
+    }
+    if (hpEl && hpTot > 0) {
+      hpEl.title = esTot > 0 ? `HP: ${snap.PlayerHpCurrent}/${hpTot} | ES: ${snap.PlayerEsCurrent}/${esTot}` : `HP: ${snap.PlayerHpCurrent}/${hpTot}`;
+    }
+  } else if (hpEl) {
+    hpEl.innerText = hp + '%';
+  }
 
   const mana = snap.PlayerManaPercent || 100;
   document.getElementById('manaText').innerText = mana + '%';
   document.getElementById('manaBar').style.width = mana + '%';
 
-  // Player 2 HP / Mana (Co-op)
+  // Player 2 HP / Mana & ES (Co-op Smart Dual Bar)
   if (snap.FollowerHpPercent !== undefined) {
-    const fHp = snap.FollowerHpPercent || 100;
-    const fMana = snap.FollowerManaPercent || 100;
+    const fHp = snap.FollowerHpPercent;
+    const fEs = snap.FollowerEsPercent || 0;
+    const fEsTot = snap.FollowerEsTotal || 0;
+    const fHpTot = snap.FollowerHpTotal || 0;
     const p2HpEl = document.getElementById('p2HpText');
     const p2HpBar = document.getElementById('p2HpBar');
+    const p2EsWrap = document.getElementById('p2EsWrap');
+    const p2EsBar = document.getElementById('p2EsBar');
+    const p2HpWrap = document.getElementById('p2HpWrap');
     const p2ManaEl = document.getElementById('p2ManaText');
     const p2ManaBar = document.getElementById('p2ManaBar');
-    if (p2HpEl) p2HpEl.innerText = fHp + '%';
+
     if (p2HpBar) p2HpBar.style.width = fHp + '%';
+
+    if (p2EsWrap && p2EsBar) {
+      if (fEsTot > 0) {
+        p2EsWrap.style.display = 'block';
+        if (p2HpWrap) p2HpWrap.style.marginTop = '4px';
+        p2EsBar.style.width = Math.min(100, Math.max(0, fEs)) + '%';
+        if (fHpTot <= 1) {
+          // CI
+          if (p2HpEl) p2HpEl.innerHTML = `<span style="color:#38bdf8; font-weight:700;">ES ${fEs}%</span> <span style="font-size:10px; color:var(--text-dim);">(CI)</span>`;
+        } else {
+          // Hybrid
+          if (p2HpEl) p2HpEl.innerHTML = `${fHp}% <span style="color:var(--border);">|</span> <span style="color:#38bdf8; font-weight:600;">ES ${fEs}%</span>`;
+        }
+      } else {
+        // Pure Life
+        p2EsWrap.style.display = 'none';
+        if (p2HpWrap) p2HpWrap.style.marginTop = '8px';
+        if (p2HpEl) p2HpEl.innerText = fHp + '%';
+      }
+      if (p2HpEl && fHpTot > 0) {
+        p2HpEl.title = fEsTot > 0 ? `HP: ${snap.FollowerHpCurrent}/${fHpTot} | ES: ${snap.FollowerEsCurrent}/${fEsTot}` : `HP: ${snap.FollowerHpCurrent}/${fHpTot}`;
+      }
+    } else if (p2HpEl) {
+      p2HpEl.innerText = fHp + '%';
+    }
+
+    const fMana = snap.FollowerManaPercent || 100;
     if (p2ManaEl) p2ManaEl.innerText = fMana + '%';
     if (p2ManaBar) p2ManaBar.style.width = fMana + '%';
   }

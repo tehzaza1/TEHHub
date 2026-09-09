@@ -619,8 +619,13 @@ namespace AutoExile2.WebServer
         public string AreaName { get; set; } = "Unknown";
         public float ExplorationCoverage { get; set; }
         public int HostileCount { get; set; }
-        public int PlayerHpPercent { get; set; }
-        public int PlayerManaPercent { get; set; }
+        public int PlayerHpPercent { get; set; } = 100;
+        public int PlayerEsPercent { get; set; } = 0;
+        public int PlayerHpCurrent { get; set; } = 0;
+        public int PlayerHpTotal { get; set; } = 0;
+        public int PlayerEsCurrent { get; set; } = 0;
+        public int PlayerEsTotal { get; set; } = 0;
+        public int PlayerManaPercent { get; set; } = 100;
         public string CurrentAction { get; set; } = "Ready";
         public string ActiveDuration { get; set; } = "00:00:00";
         public List<DetectedSkillInfo> DetectedSkills { get; set; } = new();
@@ -636,6 +641,11 @@ namespace AutoExile2.WebServer
         public List<string> ActiveTotemNames { get; set; } = new();
         public List<DeployedObjectInfo> DeployedObjects { get; set; } = new();
         public int FollowerHpPercent { get; set; } = 100;
+        public int FollowerEsPercent { get; set; } = 0;
+        public int FollowerHpCurrent { get; set; } = 0;
+        public int FollowerHpTotal { get; set; } = 0;
+        public int FollowerEsCurrent { get; set; } = 0;
+        public int FollowerEsTotal { get; set; } = 0;
         public int FollowerManaPercent { get; set; } = 100;
         public bool IsFollowerActive { get; set; } = false;
         public int FollowerSlotIndex { get; set; } = -1;

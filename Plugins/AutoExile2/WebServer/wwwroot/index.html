@@ -69,7 +69,11 @@
             <span>Player 1 (Leader) Life</span>
             <span id="hpText">100%</span>
           </div>
-          <div class="bar-wrap">
+          <!-- Player 1 ES Bar (Smart Dual Bar) -->
+          <div id="p1EsWrap" class="bar-wrap es-wrap" style="display:none; height:5px; margin-top:6px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); border-radius:3px; overflow:hidden;">
+            <div id="esBar" class="bar-fill" style="width:0%; height:100%; background:#38bdf8; box-shadow:0 0 6px rgba(56,189,248,0.6); transition:width .2s ease;"></div>
+          </div>
+          <div id="p1HpWrap" class="bar-wrap">
             <div id="hpBar" class="bar-fill red" style="width:100%;"></div>
           </div>
         </div>
@@ -91,7 +95,11 @@
             <span>🤖 Player 2 (Follower) Life</span>
             <span id="p2HpText">100%</span>
           </div>
-          <div class="bar-wrap">
+          <!-- Player 2 ES Bar (Smart Dual Bar) -->
+          <div id="p2EsWrap" class="bar-wrap es-wrap" style="display:none; height:5px; margin-top:6px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); border-radius:3px; overflow:hidden;">
+            <div id="p2EsBar" class="bar-fill" style="width:0%; height:100%; background:#38bdf8; box-shadow:0 0 6px rgba(56,189,248,0.6); transition:width .2s ease;"></div>
+          </div>
+          <div id="p2HpWrap" class="bar-wrap">
             <div id="p2HpBar" class="bar-fill red" style="width:100%;"></div>
           </div>
         </div>
