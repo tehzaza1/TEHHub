@@ -758,12 +758,8 @@ namespace LootValue
 
                 try
                 {
-                    var el = PluginUiElementReflection.CreateUiElement(chip.ElementAddress, this.uiParentsObj);
-                    if (el == null) continue;
-
-                    var pos = (Vector2)PluginUiElementReflection.UiElementPositionProperty!.GetValue(el)!;
-                    var size = (Vector2)PluginUiElementReflection.UiElementSizeProperty!.GetValue(el)!;
-                    if (size.X <= 0f || pos == Vector2.Zero) continue;
+                    if (!PluginUiElementReflection.TryGetAbsoluteRect(chip.ElementAddress, out var pos, out var size)) continue;
+                    if (size.X <= 0f || size.Y <= 0f || pos == Vector2.Zero) continue;
 
                     var fontSize = chip.Highlight ? this.Settings.HighlightFontSize : this.Settings.FontSize;
                     var chipPos = new Vector2(pos.X + size.X + 6f, pos.Y + ((size.Y - fontSize) / 2f));
