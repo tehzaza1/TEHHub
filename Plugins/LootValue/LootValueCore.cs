@@ -118,12 +118,9 @@ namespace LootValue
                     this.Settings = JsonConvert.DeserializeObject<LootValueSettings>(settingsJson) ?? new LootValueSettings();
 
                     // Migrate legacy single-currency values if newly added per-currency values are default
-                    if (this.Settings.DisplayCurrency == 2)
+                    if (this.Settings.DisplayCurrency == 2 && this.Settings.HighlightMinChaos == 10f && this.Settings.HighlightMinEx > 0f)
                     {
-                        if (this.Settings.MinValueChaos == 0f && this.Settings.MinValueEx > 0f)
-                            this.Settings.MinValueChaos = Math.Clamp(this.Settings.MinValueEx, 0f, 1f);
-                        if (this.Settings.HighlightMinChaos == 10f && this.Settings.HighlightMinEx > 0f)
-                            this.Settings.HighlightMinChaos = Math.Clamp(this.Settings.HighlightMinEx, 1f, 100f);
+                        this.Settings.HighlightMinChaos = Math.Clamp(this.Settings.HighlightMinEx, 1f, 100f);
                     }
                 }
                 catch (Exception ex)
@@ -318,25 +315,6 @@ namespace LootValue
             }
         }
 
-        private float CurrentMinValue
-        {
-            get => this.Settings.DisplayCurrency switch
-            {
-                0 => this.Settings.MinValueDiv,
-                2 => this.Settings.MinValueChaos,
-                _ => this.Settings.MinValueEx
-            };
-            set
-            {
-                switch (this.Settings.DisplayCurrency)
-                {
-                    case 0: this.Settings.MinValueDiv = value; break;
-                    case 2: this.Settings.MinValueChaos = value; break;
-                    default: this.Settings.MinValueEx = value; break;
-                }
-            }
-        }
-
         private float CurrentHighlightMin
         {
             get => this.Settings.DisplayCurrency switch
@@ -400,25 +378,11 @@ namespace LootValue
                 _ => "ex"
             };
 
-            var (minMinVal, maxMinVal) = this.Settings.DisplayCurrency switch
-            {
-                0 => (0f, 10f),
-                2 => (0f, 1f),
-                _ => (0f, 50f)
-            };
-
             var (minHighlight, maxHighlight) = this.Settings.DisplayCurrency switch
             {
                 0 => (0f, 100f),
                 2 => (1f, 100f),
                 _ => (50f, 1000f)
-            };
-
-            var minFormat = this.Settings.DisplayCurrency switch
-            {
-                0 => "%.2f",
-                2 => "%.2f",
-                _ => "%.1f"
             };
 
             var hlFormat = this.Settings.DisplayCurrency switch
@@ -427,12 +391,6 @@ namespace LootValue
                 2 => "%.0f",
                 _ => "%.0f"
             };
-
-            var curMinVal = this.CurrentMinValue;
-            if (ImGui.SliderFloat($"Min value to show ({curSymbol})###LootValueMinValueToShow", ref curMinVal, minMinVal, maxMinVal, minFormat))
-            {
-                this.CurrentMinValue = curMinVal;
-            }
 
             var curHlVal = this.CurrentHighlightMin;
             if (ImGui.SliderFloat($"Highlight from ({curSymbol})###LootValueHighlightFrom", ref curHlVal, minHighlight, maxHighlight, hlFormat))
@@ -640,7 +598,6 @@ namespace LootValue
                 if (item == null) continue;
 
                 if (!this.TryPriceItem(item, out var valueEx, out var label)) continue;
-                if (valueEx < this.CurrentMinValue) continue;
 
                 var highlight = valueEx >= this.CurrentHighlightMin;
                 var color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
@@ -820,7 +777,7 @@ namespace LootValue
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * Math.Max(1, count) };
             var (disp, cur) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
-            if (disp < this.CurrentMinValue) return false;
+            if (disp <= 0) return false;
 
             chipText = FormatValue(disp, cur);
             highlight = disp >= this.CurrentHighlightMin;
@@ -1047,7 +1004,7 @@ namespace LootValue
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * amount };
             var (displayValue, displayCurrency) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
-            if (displayValue < this.CurrentMinValue) return false;
+            if (displayValue <= 0) return false;
 
             text = FormatValue(displayValue, displayCurrency);
             highlight = displayValue >= this.CurrentHighlightMin;
@@ -1271,8 +1228,7 @@ namespace LootValue
                 }
 
                 report.ValidItems++;
-                if (!this.TryPriceItem(item, out var valueEx, out var valueText, includeUniqueName: false) ||
-                    valueEx < this.CurrentMinValue) continue;
+                if (!this.TryPriceItem(item, out var valueEx, out var valueText, includeUniqueName: false)) continue;
                 report.PricedCandidates++;
 
                 var highlight = valueEx >= this.CurrentHighlightMin;
@@ -1532,7 +1488,7 @@ namespace LootValue
             this.nextDiagUtc = now.AddMilliseconds(500);
 
             this.diagSamples.Clear();
-            int total = 0, wiPath = 0, metaItemsPath = 0, wiComp = 0, innerOk = 0, priced = 0, belowFloor = 0;
+            int total = 0, wiPath = 0, metaItemsPath = 0, wiComp = 0, innerOk = 0, priced = 0;
 
             var area = Core.States.InGameStateObject.CurrentAreaInstance;
             foreach (var entity in area.AwakeEntities.Values)
@@ -1556,7 +1512,6 @@ namespace LootValue
                 if (ok)
                 {
                     priced++;
-                    if (ex < this.CurrentMinValue) belowFloor++;
                 }
 
                 if (this.diagSamples.Count < 20)
@@ -1572,7 +1527,7 @@ namespace LootValue
                 this.PluginText.F("diagnostics.summary.awake_entities", "AwakeEntities={0}", total) + "\n" +
                 this.PluginText.F("diagnostics.summary.paths", "path contains 'WorldItem'={0}    path starts 'Metadata/Items'={1}", wiPath, metaItemsPath) + "\n" +
                 this.PluginText.F("diagnostics.summary.components", "WorldItem component (inner!=0)={0}    inner item read OK={1}", wiComp, innerOk) + "\n" +
-                this.PluginText.F("diagnostics.summary.pricing", "priced={0}    belowFloor(<{1})={2}    would draw={3}", priced, this.CurrentMinValue, belowFloor, priced - belowFloor) + "\n" +
+                this.PluginText.F("diagnostics.summary.pricing", "priced={0}    would draw={1}", priced, priced) + "\n" +
                 this.PluginText.F("diagnostics.summary.price_db", "priceDB items={0}  fetching={1}", PoeNinjaPriceFetcher.LoadedItemCount, PoeNinjaPriceFetcher.IsFetching);
         }
 

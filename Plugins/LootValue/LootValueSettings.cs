@@ -55,20 +55,14 @@ namespace LootValue
         /// <summary>Display currency: 0 = Divine, 1 = Exalted, 2 = Chaos.</summary>
         public int DisplayCurrency = 1;
 
-        /// <summary>Minimum value (in Exalted) for a drop to get a label. Hides chaff.</summary>
+        /// <summary>Minimum value for a drop to get a label (legacy/unused).</summary>
         public float MinValueEx = 0f;
 
         /// <summary>Value (in Exalted) at/above which a label is drawn in the highlight color.</summary>
         public float HighlightMinEx = 100f;
 
-        /// <summary>Minimum value (in Chaos) for a drop to get a label. Hides chaff.</summary>
-        public float MinValueChaos = 0f;
-
         /// <summary>Value (in Chaos) at/above which a label is drawn in the highlight color.</summary>
         public float HighlightMinChaos = 10f;
-
-        /// <summary>Minimum value (in Divine) for a drop to get a label. Hides chaff.</summary>
-        public float MinValueDiv = 0f;
 
         /// <summary>Value (in Divine) at/above which a label is drawn in the highlight color.</summary>
         public float HighlightMinDiv = 1f;
