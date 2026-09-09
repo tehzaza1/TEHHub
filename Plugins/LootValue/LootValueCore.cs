@@ -368,6 +368,7 @@ namespace LootValue
 
             ImGui.ColorEdit4(this.PluginText.Label("settings.text_color", "Text color", "LootValueTextColor"), ref this.Settings.TextColor);
             ImGui.ColorEdit4(this.PluginText.Label("settings.highlight_color", "Highlight color", "LootValueHighlightColor"), ref this.Settings.HighlightColor);
+            ImGui.ColorEdit4(this.PluginText.Label("settings.background_color", "Background color", "LootValueBackgroundColor"), ref this.Settings.BackgroundColor);
 
             ImGui.Separator();
             ImGui.Text(this.PluginText.T("section.drop_alerts", "Valuable Drop Alerts"));
@@ -605,7 +606,8 @@ namespace LootValue
             var bold = highlight && this.Settings.HighlightBold;
             var textWidth = ImGui.CalcTextSize(text).X * (fontSize / baseSize);
 
-            fg.AddRectFilled(pos - new Vector2(3f, 1f), pos + new Vector2(textWidth + 3f, fontSize + 1f), 0xB0000000u, 3f);
+            var bg = ImGui.ColorConvertFloat4ToU32(this.Settings.BackgroundColor);
+            fg.AddRectFilled(pos - new Vector2(3f, 1f), pos + new Vector2(textWidth + 3f, fontSize + 1f), bg, 3f);
             fg.AddText(font, fontSize, pos + new Vector2(1f, 1f), shadow, text);
             fg.AddText(font, fontSize, pos, color, text);
             if (bold)
@@ -1385,10 +1387,11 @@ namespace LootValue
                 var drawPosition = new Vector2(
                     position.X + this.Settings.SlotOffsetX,
                     position.Y + slot.Size.Y - fontSize + this.Settings.SlotOffsetY);
+                var bg = ImGui.ColorConvertFloat4ToU32(this.Settings.BackgroundColor);
                 foreground.AddRectFilled(
                     drawPosition - new Vector2(3f, 1f),
                     drawPosition + new Vector2(textWidth + 3f, fontSize + 1f),
-                    0xB0000000u,
+                    bg,
                     3f);
                 foreground.AddText(font, fontSize, drawPosition + new Vector2(1f, 1f), 0xCC000000u, slot.ValueText);
                 foreground.AddText(font, fontSize, drawPosition, color, slot.ValueText);

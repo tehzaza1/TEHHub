@@ -128,6 +128,9 @@ namespace LootValue
         /// <summary>Highlight label text color (RGBA 0-1) for high-value drops.</summary>
         public Vector4 HighlightColor = new Vector4(0.4f, 1f, 0.4f, 1f);
 
+        /// <summary>Background color (RGBA 0-1) for value label chips.</summary>
+        public Vector4 BackgroundColor = new Vector4(0f, 0f, 0f, 0.7f);
+
         /// <summary>Show 3D world badge above PoE 2 Expedition Runeshape Monoliths.</summary>
         public bool EnableExpeditionWorldOverlay = true;
 
