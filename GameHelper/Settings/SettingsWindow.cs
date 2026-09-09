@@ -742,8 +742,12 @@ namespace GameHelper.Settings
                 ImGui.SameLine();
                 if (ImGui.Button($"{L.T("settings.common.add", "Add")}##specialNPCPath") && !string.IsNullOrEmpty(specialNpcPath))
                 {
-                    Core.GHSettings.SpecialNPCPaths.Add(specialNpcPath);
-                    specialNpcPath = string.Empty;
+                    if (!Core.GHSettings.SpecialNPCPaths.Any(p =>
+                            string.Equals(p, specialNpcPath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Core.GHSettings.SpecialNPCPaths.Add(specialNpcPath);
+                        specialNpcPath = string.Empty;
+                    }
                 }
 
                 for (var i = Core.GHSettings.SpecialNPCPaths.Count - 1; i >= 0; i--)
@@ -786,9 +790,14 @@ namespace GameHelper.Settings
                 ImGui.SameLine();
                 if (ImGui.Button($"{L.T("settings.common.add_lower", "add")}##MiscObjadd"))
                 {
-                    Core.GHSettings.SpecialMiscObjPaths.Add(new(specialMiscObjPath, filterGroup));
-                    specialMiscObjPath = string.Empty;
-                    filterGroup = 0;
+                    if (!string.IsNullOrEmpty(specialMiscObjPath) &&
+                        !Core.GHSettings.SpecialMiscObjPaths.Any(p =>
+                            string.Equals(p.path, specialMiscObjPath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Core.GHSettings.SpecialMiscObjPaths.Add(new(specialMiscObjPath, filterGroup));
+                        specialMiscObjPath = string.Empty;
+                        filterGroup = 0;
+                    }
                 }
 
                 for (var i = Core.GHSettings.SpecialMiscObjPaths.Count - 1; i >= 0; i--)

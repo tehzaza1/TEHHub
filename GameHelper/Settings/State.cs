@@ -295,15 +295,30 @@ namespace GameHelper.Settings
         ///     Gets a value indicating if user is running Taiwan client or not.
         /// </summary>
         [OnDeserialized]
-private void OnDeserialized(StreamingContext context)
-{
-    if (MonstersPathsToIgnore != null)
-    {
-        MonstersPathsToIgnore = MonstersPathsToIgnore
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-}
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (MonstersPathsToIgnore != null)
+            {
+                MonstersPathsToIgnore = MonstersPathsToIgnore
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            if (SpecialMiscObjPaths != null)
+            {
+                SpecialMiscObjPaths = SpecialMiscObjPaths
+                    .GroupBy(x => x.path, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .ToList();
+            }
+
+            if (SpecialNPCPaths != null)
+            {
+                SpecialNPCPaths = SpecialNPCPaths
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+        }
 
 
         // ── Entity Staleness Fixes (toggleable) ──
