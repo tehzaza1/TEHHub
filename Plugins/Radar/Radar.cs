@@ -111,6 +111,12 @@ namespace Radar
 
         private string StairsTgtPathName => Path.Join(this.DllDirectory, "stairs_tgt_files.txt");
 
+        private readonly Dictionary<string, List<PoiTarget>> poiDatabase = new();
+
+        private string ActsJsonPath => Path.Join(this.DllDirectory, "json", "acts.json");
+
+        private string EndgameJsonPath => Path.Join(this.DllDirectory, "json", "endgame.json");
+
         /// <inheritdoc/>
         public override void DrawSettings()
         {
@@ -562,6 +568,8 @@ namespace Radar
                     ?? new Dictionary<string, Dictionary<string, string>>();
             }
 
+            this.LoadPoiDatabase();
+
             if (File.Exists(this.BossArenaTgtPathName))
             {
                 var bossfiles = File.ReadAllText(this.BossArenaTgtPathName);
@@ -616,6 +624,62 @@ namespace Radar
                 var stairsfiles = JsonConvert.SerializeObject(
                     this.Settings.StairsTgts, Formatting.Indented);
                 File.WriteAllText(this.StairsTgtPathName, stairsfiles);
+            }
+        }
+
+        private void LoadPoiDatabase()
+        {
+            this.poiDatabase.Clear();
+
+            void LoadFile(string path)
+            {
+                if (!File.Exists(path))
+                {
+                    return;
+                }
+
+                try
+                {
+                    var text = File.ReadAllText(path);
+                    var dict = JsonConvert.DeserializeObject<Dictionary<string, List<PoiTarget>>>(text);
+                    if (dict != null)
+                    {
+                        foreach (var kv in dict)
+                        {
+                            var areaKey = kv.Key == "*" ? "common" : kv.Key;
+                            if (!this.poiDatabase.TryGetValue(areaKey, out var list))
+                            {
+                                list = new List<PoiTarget>();
+                                this.poiDatabase[areaKey] = list;
+                            }
+
+                            list.AddRange(kv.Value);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Radar] Error loading POI database from {path}: {ex.Message}");
+                }
+            }
+
+            LoadFile(this.ActsJsonPath);
+            LoadFile(this.EndgameJsonPath);
+
+            // Sync into Settings.ImportantTgts for UI compatibility
+            if (this.poiDatabase.Count > 0)
+            {
+                this.Settings.ImportantTgts.Clear();
+                foreach (var kv in this.poiDatabase)
+                {
+                    var dict = new Dictionary<string, string>();
+                    foreach (var item in kv.Value)
+                    {
+                        dict[item.Path] = item.Name;
+                    }
+
+                    this.Settings.ImportantTgts[kv.Key] = dict;
+                }
             }
         }
 
@@ -691,13 +755,14 @@ namespace Radar
             var clipMin = ImGui.GetWindowPos();
             var clipMax = clipMin + ImGui.GetWindowSize();
 
-            void drawString(string text, Vector2 location, Vector2 stringImGuiSize, bool drawBackground)
+            void drawString(string text, Vector2 location, Vector2 stringImGuiSize, bool drawBackground, uint? customColor = null)
             {
                 float height = 0;
-                if (location.X < currentAreaInstance.GridHeightData[0].Length &&
-                    location.Y < currentAreaInstance.GridHeightData.Length)
+                if (currentAreaInstance.GridHeightData.Length > 0 && currentAreaInstance.GridHeightData[0].Length > 0)
                 {
-                    height = currentAreaInstance.GridHeightData[(int)location.Y][(int)location.X];
+                    var locY = (int)Math.Clamp(location.Y, 0, currentAreaInstance.GridHeightData.Length - 1);
+                    var locX = (int)Math.Clamp(location.X, 0, currentAreaInstance.GridHeightData[0].Length - 1);
+                    height = currentAreaInstance.GridHeightData[locY][locX];
                 }
 
                 var fpos = Helper.DeltaInWorldToMapDelta(
@@ -721,7 +786,7 @@ namespace Radar
                     ImGui.GetFont(),
                     ImGui.GetFontSize(),
                     textMin,
-                    col,
+                    customColor ?? col,
                     text);
             }
 
@@ -750,34 +815,55 @@ namespace Radar
             }
             else if (this.Settings.ShowImportantPOI)
             {
-                if (this.Settings.ImportantTgts.TryGetValue(this.currentAreaName, out var importantTgtsOfCurrentArea))
+                var drawnPositions = new List<Vector2>();
+
+                void RenderPoiTargets(List<PoiTarget> targets)
                 {
-                    foreach (var tile in importantTgtsOfCurrentArea)
+                    for (int t = 0; t < targets.Count; t++)
                     {
-                        if (currentAreaInstance.TgtTilesLocations.TryGetValue(tile.Key, out var locations))
+                        var target = targets[t];
+                        if (!target.Enabled || target.ExpectedCount <= 0)
                         {
-                            var strSize = this.GetTextHalfSize(tile.Value);
-                            for (var i = 0; i < locations.Count; i++)
+                            continue;
+                        }
+
+                        if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, target.Path, out var rawLocations) && rawLocations.Count > 0)
+                        {
+                            var resolved = ResolvePoiLocations(rawLocations, target.ExpectedCount);
+                            var strSize = this.GetTextHalfSize(target.Name);
+                            var nameColor = target.ParsedNameColor;
+
+                            for (var i = 0; i < resolved.Count; i++)
                             {
-                                drawString(tile.Value, locations[i], strSize, this.Settings.EnablePOIBackground);
+                                var loc = resolved[i];
+                                bool duplicate = false;
+                                for (int d = 0; d < drawnPositions.Count; d++)
+                                {
+                                    if (Vector2.DistanceSquared(loc, drawnPositions[d]) < 400.0f)
+                                    {
+                                        duplicate = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!duplicate)
+                                {
+                                    drawnPositions.Add(loc);
+                                    drawString(target.Name, loc, strSize, this.Settings.EnablePOIBackground, nameColor);
+                                }
                             }
                         }
                     }
                 }
 
-                if (this.Settings.ImportantTgts.TryGetValue("common", out var importantTgtsOfAllAreas))
+                if (this.poiDatabase.TryGetValue(this.currentAreaName, out var areaPois))
                 {
-                    foreach (var tile in importantTgtsOfAllAreas)
-                    {
-                        if (currentAreaInstance.TgtTilesLocations.TryGetValue(tile.Key, out var locations))
-                        {
-                            var strSize = this.GetTextHalfSize(tile.Value);
-                            for (var i = 0; i < locations.Count; i++)
-                            {
-                                drawString(tile.Value, locations[i], strSize, this.Settings.EnablePOIBackground);
-                            }
-                        }
-                    }
+                    RenderPoiTargets(areaPois);
+                }
+
+                if (this.poiDatabase.TryGetValue("common", out var commonPois))
+                {
+                    RenderPoiTargets(commonPois);
                 }
             }
         }
@@ -846,31 +932,54 @@ namespace Radar
 
             // --- Collect POI snapshot ---
             var poiSnapshot = new List<(string cacheKey, Vector2 gridPos)>();
+            var collectedPositions = new List<Vector2>();
 
-            void CollectFrom(Dictionary<string, string> tileDict, string prefix)
+            void CollectFromTargets(List<PoiTarget> targets, string prefix)
             {
-                foreach (var tile in tileDict)
+                for (int t = 0; t < targets.Count; t++)
                 {
-                    if (currentAreaInstance.TgtTilesLocations.TryGetValue(tile.Key, out var locations))
+                    var target = targets[t];
+                    if (!target.Enabled || !target.DrawPath || target.ExpectedCount <= 0)
                     {
-                        for (var i = 0; i < locations.Count; i++)
+                        continue;
+                    }
+
+                    if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, target.Path, out var rawLocations) && rawLocations.Count > 0)
+                    {
+                        var resolved = ResolvePoiLocations(rawLocations, target.ExpectedCount);
+                        for (var i = 0; i < resolved.Count; i++)
                         {
-                            var poiKey = $"{prefix}|{tile.Key}|{i}";
-                            this.MarkReachedIfClose(poiKey, pPos, locations[i]);
-                            poiSnapshot.Add((poiKey, locations[i]));
+                            var loc = resolved[i];
+                            bool duplicate = false;
+                            for (int c = 0; c < collectedPositions.Count; c++)
+                            {
+                                if (Vector2.DistanceSquared(loc, collectedPositions[c]) < 400.0f)
+                                {
+                                    duplicate = true;
+                                    break;
+                                }
+                            }
+
+                            if (!duplicate)
+                            {
+                                collectedPositions.Add(loc);
+                                var poiKey = $"{prefix}|{target.Path}|{i}";
+                                this.MarkReachedIfClose(poiKey, pPos, loc);
+                                poiSnapshot.Add((poiKey, loc));
+                            }
                         }
                     }
                 }
             }
 
-            if (this.Settings.ImportantTgts.TryGetValue(this.currentAreaName, out var importantTgtsOfCurrentArea))
+            if (this.poiDatabase.TryGetValue(this.currentAreaName, out var areaPoisForPath))
             {
-                CollectFrom(importantTgtsOfCurrentArea, "area");
+                CollectFromTargets(areaPoisForPath, "area");
             }
 
-            if (this.Settings.ImportantTgts.TryGetValue("common", out var importantTgtsOfAllAreas))
+            if (this.poiDatabase.TryGetValue("common", out var commonPoisForPath))
             {
-                CollectFrom(importantTgtsOfAllAreas, "common");
+                CollectFromTargets(commonPoisForPath, "common");
             }
 
             if (poiSnapshot.Count == 0)
@@ -2596,6 +2705,162 @@ namespace Radar
         private string DelveChestPathToIcon(string path)
         {
             return path.Replace(this.delveChestStarting, null, StringComparison.Ordinal);
+        }
+
+        private static bool TryGetTgtLocations(
+            Dictionary<string, List<Vector2>> tgtTilesLocations,
+            string pattern,
+            out List<Vector2> locations)
+        {
+            locations = new();
+            if (tgtTilesLocations == null || tgtTilesLocations.Count == 0 || string.IsNullOrEmpty(pattern))
+            {
+                return false;
+            }
+
+            // 1. Fast path: exact match
+            if (tgtTilesLocations.TryGetValue(pattern, out var exactList))
+            {
+                locations = exactList;
+                return true;
+            }
+
+            // 2. Clean pattern: strip :[] or :X-y:Y rotation suffix
+            string cleanPattern = pattern;
+            if (cleanPattern.EndsWith(":[]", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanPattern = cleanPattern.Substring(0, cleanPattern.Length - 3);
+            }
+            else
+            {
+                var colonIdx = cleanPattern.LastIndexOf(':');
+                if (colonIdx > 0 && cleanPattern.IndexOf("-y:", colonIdx, StringComparison.OrdinalIgnoreCase) > 0)
+                {
+                    cleanPattern = cleanPattern.Substring(0, colonIdx);
+                }
+            }
+
+            List<Vector2>? matched = null;
+            bool hasWildcard = cleanPattern.Contains('*');
+
+            if (hasWildcard)
+            {
+                var parts = cleanPattern.Split('*', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var kv in tgtTilesLocations)
+                {
+                    if (MatchesWildcardParts(kv.Key, parts))
+                    {
+                        matched ??= new List<Vector2>();
+                        matched.AddRange(kv.Value);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var kv in tgtTilesLocations)
+                {
+                    if (kv.Key.StartsWith(cleanPattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (kv.Key.Length == cleanPattern.Length || kv.Key[cleanPattern.Length] == ':' || kv.Key[cleanPattern.Length] == 'x' || cleanPattern.EndsWith(".tdtx", StringComparison.OrdinalIgnoreCase))
+                        {
+                            matched ??= new List<Vector2>();
+                            matched.AddRange(kv.Value);
+                        }
+                    }
+                }
+            }
+
+            if (matched != null && matched.Count > 0)
+            {
+                locations = matched;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool MatchesWildcardParts(string key, string[] parts)
+        {
+            int currentIdx = 0;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                int foundIdx = key.IndexOf(parts[i], currentIdx, StringComparison.OrdinalIgnoreCase);
+                if (foundIdx < 0)
+                {
+                    return false;
+                }
+
+                currentIdx = foundIdx + parts[i].Length;
+            }
+
+            return true;
+        }
+
+        private static List<Vector2> DeduplicateLocations(List<Vector2> locations, float minDistance = 20.0f)
+        {
+            if (locations.Count <= 1)
+            {
+                return locations;
+            }
+
+            var result = new List<Vector2>(locations.Count);
+            float minDistSq = minDistance * minDistance;
+
+            for (int i = 0; i < locations.Count; i++)
+            {
+                var pt = locations[i];
+                bool isDupe = false;
+                for (int j = 0; j < result.Count; j++)
+                {
+                    if (Vector2.DistanceSquared(pt, result[j]) < minDistSq)
+                    {
+                        isDupe = true;
+                        break;
+                    }
+                }
+
+                if (!isDupe)
+                {
+                    result.Add(pt);
+                }
+            }
+
+            return result;
+        }
+
+        private static List<Vector2> ResolvePoiLocations(List<Vector2> rawLocations, int expectedCount)
+        {
+            if (rawLocations == null || rawLocations.Count == 0 || expectedCount <= 0)
+            {
+                return new List<Vector2>();
+            }
+
+            if (expectedCount == 1)
+            {
+                if (rawLocations.Count == 1)
+                {
+                    return rawLocations;
+                }
+
+                // Centroid of all matching tiles (prevents dozens of overlapping labels in boss arenas/rooms)
+                float sumX = 0;
+                float sumY = 0;
+                for (int i = 0; i < rawLocations.Count; i++)
+                {
+                    sumX += rawLocations[i].X;
+                    sumY += rawLocations[i].Y;
+                }
+
+                return new List<Vector2> { new Vector2(sumX / rawLocations.Count, sumY / rawLocations.Count) };
+            }
+
+            var deduped = DeduplicateLocations(rawLocations, minDistance: 40.0f);
+            if (deduped.Count > expectedCount)
+            {
+                return deduped.Take(expectedCount).ToList();
+            }
+
+            return deduped;
         }
 
         private void DrawEntityPathEnding(string path, ImDrawListPtr fgDraw, Vector2 pos)
