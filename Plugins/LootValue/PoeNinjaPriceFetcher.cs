@@ -588,6 +588,8 @@ namespace LootValue
                 add(basename);
             }
 
+            // Real in-game item name takes highest priority (unless generic like 'Boots')
+            add(itemName);
             add(scoutText);
             addPathBasename(internalPathBasename);
 
@@ -600,7 +602,6 @@ namespace LootValue
                     addPathBasename(segment);
             }
 
-            add(itemName);
             return candidates;
         }
 
