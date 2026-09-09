@@ -8,11 +8,13 @@ namespace GameHelper.Settings
     using System.IO;
     using ClickableTransparentOverlay;
     using System.Linq;
-using System.Runtime.Serialization;
+    using System;
+    using System.Runtime.Serialization;
     using GameHelper.Localization;
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
     using Newtonsoft.Json;
+    using ClickableTransparentOverlay.Win32;
 
     /// <summary>
     ///     Game Helper Core Settings.
@@ -127,7 +129,10 @@ using System.Runtime.Serialization;
         /// <summary>
         ///     Gets or sets hotKey to show/hide the main menu.
         /// </summary>
-        public VK MainMenuHotKey = VK.F12;
+        public ClickableTransparentOverlay.Win32.VK MainMenuHotKey = ClickableTransparentOverlay.Win32.VK.F12;
+
+        // Added property for Taiwan client flag (used in UI)
+        public bool IsTaiwanClient = false;
 
         /// <summary>
         ///     Gets or sets a value indicating whether
@@ -228,12 +233,12 @@ using System.Runtime.Serialization;
         /// <summary>
         ///     Gets or sets hotKey to disable/enable all rendering.
         /// </summary>
-        public VK DisableAllRenderingKey = VK.F9;
+        public ClickableTransparentOverlay.Win32.VK DisableAllRenderingKey = ClickableTransparentOverlay.Win32.VK.F9;
 
         /// <summary>
         ///     Gets or sets hotKey to trigger Element Finder search under cursor.
         /// </summary>
-        public VK ElementFinderHotKey = VK.F10;
+        public ClickableTransparentOverlay.Win32.VK ElementFinderHotKey = ClickableTransparentOverlay.Win32.VK.F10;
 
         /// <summary>
         ///     Gets or sets the important NPC Paths.
