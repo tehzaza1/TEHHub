@@ -7,7 +7,8 @@ namespace GameHelper.Settings
     using System.Collections.Generic;
     using System.IO;
     using ClickableTransparentOverlay;
-    using ClickableTransparentOverlay.Win32;
+    using System.Linq;
+using System.Runtime.Serialization;
     using GameHelper.Localization;
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
@@ -288,7 +289,17 @@ namespace GameHelper.Settings
         /// <summary>
         ///     Gets a value indicating if user is running Taiwan client or not.
         /// </summary>
-        public bool IsTaiwanClient = false;
+        [OnDeserialized]
+private void OnDeserialized(StreamingContext context)
+{
+    if (MonstersPathsToIgnore != null)
+    {
+        MonstersPathsToIgnore = MonstersPathsToIgnore
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+}
+
 
         // ── Entity Staleness Fixes (toggleable) ──
 

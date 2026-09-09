@@ -1,4 +1,4 @@
-﻿// <copyright file="SettingsWindow.cs" company="None">
+// <copyright file="SettingsWindow.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -701,7 +701,11 @@ namespace GameHelper.Settings
                 ImGui.SameLine();
                 if (ImGui.Button($"{L.T("settings.common.add", "Add")}##monsterPathToRemove") && !string.IsNullOrEmpty(monterPathToIgnore))
                 {
-                    Core.GHSettings.MonstersPathsToIgnore.Add(monterPathToIgnore);
+                    // Prevent duplicate entries (case‑insensitive)
+                    if (!Core.GHSettings.MonstersPathsToIgnore.Any(p => string.Equals(p, monterPathToIgnore, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Core.GHSettings.MonstersPathsToIgnore.Add(monterPathToIgnore);
+                    }
                     monterPathToIgnore = string.Empty;
                 }
 
