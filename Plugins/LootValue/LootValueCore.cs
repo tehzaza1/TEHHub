@@ -116,6 +116,15 @@ namespace LootValue
                     var settingsJson = File.ReadAllText(this.SettingPathname);
                     shouldMigrateStashSettings = JObject.Parse(settingsJson)[nameof(LootValueSettings.ShowStashOverlay)] == null;
                     this.Settings = JsonConvert.DeserializeObject<LootValueSettings>(settingsJson) ?? new LootValueSettings();
+
+                    // Migrate legacy single-currency values if newly added per-currency values are default
+                    if (this.Settings.DisplayCurrency == 2)
+                    {
+                        if (this.Settings.MinValueChaos == 0f && this.Settings.MinValueEx > 0f)
+                            this.Settings.MinValueChaos = Math.Clamp(this.Settings.MinValueEx, 0f, 1f);
+                        if (this.Settings.HighlightMinChaos == 10f && this.Settings.HighlightMinEx > 0f)
+                            this.Settings.HighlightMinChaos = Math.Clamp(this.Settings.HighlightMinEx, 1f, 100f);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -309,6 +318,44 @@ namespace LootValue
             }
         }
 
+        private float CurrentMinValue
+        {
+            get => this.Settings.DisplayCurrency switch
+            {
+                0 => this.Settings.MinValueDiv,
+                2 => this.Settings.MinValueChaos,
+                _ => this.Settings.MinValueEx
+            };
+            set
+            {
+                switch (this.Settings.DisplayCurrency)
+                {
+                    case 0: this.Settings.MinValueDiv = value; break;
+                    case 2: this.Settings.MinValueChaos = value; break;
+                    default: this.Settings.MinValueEx = value; break;
+                }
+            }
+        }
+
+        private float CurrentHighlightMin
+        {
+            get => this.Settings.DisplayCurrency switch
+            {
+                0 => this.Settings.HighlightMinDiv,
+                2 => this.Settings.HighlightMinChaos,
+                _ => this.Settings.HighlightMinEx
+            };
+            set
+            {
+                switch (this.Settings.DisplayCurrency)
+                {
+                    case 0: this.Settings.HighlightMinDiv = value; break;
+                    case 2: this.Settings.HighlightMinChaos = value; break;
+                    default: this.Settings.HighlightMinEx = value; break;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public override void SaveSettings()
         {
@@ -353,25 +400,45 @@ namespace LootValue
                 _ => "ex"
             };
 
-            var maxMinVal = this.Settings.DisplayCurrency switch
+            var (minMinVal, maxMinVal) = this.Settings.DisplayCurrency switch
             {
-                0 => 20f,
-                2 => 500f,
-                _ => 50f
+                0 => (0f, 10f),
+                2 => (0f, 1f),
+                _ => (0f, 50f)
             };
 
-            var maxHighlight = this.Settings.DisplayCurrency switch
+            var (minHighlight, maxHighlight) = this.Settings.DisplayCurrency switch
             {
-                0 => 100f,
-                2 => 5000f,
-                _ => 200f
+                0 => (0f, 100f),
+                2 => (1f, 100f),
+                _ => (50f, 1000f)
             };
 
-            var minFormat = this.Settings.DisplayCurrency == 2 ? "%.1f" : "%.2f";
-            var hlFormat = this.Settings.DisplayCurrency == 2 ? "%.0f" : "%.1f";
+            var minFormat = this.Settings.DisplayCurrency switch
+            {
+                0 => "%.2f",
+                2 => "%.2f",
+                _ => "%.1f"
+            };
 
-            ImGui.SliderFloat($"Min value to show ({curSymbol})###LootValueMinValueToShow", ref this.Settings.MinValueEx, 0f, maxMinVal, minFormat);
-            ImGui.SliderFloat($"Highlight from ({curSymbol})###LootValueHighlightFrom", ref this.Settings.HighlightMinEx, 0f, maxHighlight, hlFormat);
+            var hlFormat = this.Settings.DisplayCurrency switch
+            {
+                0 => "%.1f",
+                2 => "%.0f",
+                _ => "%.0f"
+            };
+
+            var curMinVal = this.CurrentMinValue;
+            if (ImGui.SliderFloat($"Min value to show ({curSymbol})###LootValueMinValueToShow", ref curMinVal, minMinVal, maxMinVal, minFormat))
+            {
+                this.CurrentMinValue = curMinVal;
+            }
+
+            var curHlVal = this.CurrentHighlightMin;
+            if (ImGui.SliderFloat($"Highlight from ({curSymbol})###LootValueHighlightFrom", ref curHlVal, minHighlight, maxHighlight, hlFormat))
+            {
+                this.CurrentHighlightMin = curHlVal;
+            }
             ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Font size", "LootValueFontSize"), ref this.Settings.FontSize, 8f, 48f, "%.0f");
             ImGui.SliderFloat(this.PluginText.Label("settings.highlight_font_size", "Highlight font size", "LootValueHighlightFontSize"), ref this.Settings.HighlightFontSize, 8f, 64f, "%.0f");
             ImGui.Checkbox(this.PluginText.Label("settings.highlight_bold", "Highlight bold", "LootValueHighlightBold"), ref this.Settings.HighlightBold);
@@ -573,9 +640,9 @@ namespace LootValue
                 if (item == null) continue;
 
                 if (!this.TryPriceItem(item, out var valueEx, out var label)) continue;
-                if (valueEx < this.Settings.MinValueEx) continue;
+                if (valueEx < this.CurrentMinValue) continue;
 
-                var highlight = valueEx >= this.Settings.HighlightMinEx;
+                var highlight = valueEx >= this.CurrentHighlightMin;
                 var color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
                 this.cachedLabels.Add(new LootLabel(entity.Id, render, label, color, highlight));
             }
@@ -753,10 +820,10 @@ namespace LootValue
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * Math.Max(1, count) };
             var (disp, cur) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
-            if (disp < this.Settings.MinValueEx) return false;
+            if (disp < this.CurrentMinValue) return false;
 
             chipText = FormatValue(disp, cur);
-            highlight = disp >= this.Settings.HighlightMinEx;
+            highlight = disp >= this.CurrentHighlightMin;
             color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
             return true;
         }
@@ -980,10 +1047,10 @@ namespace LootValue
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * amount };
             var (displayValue, displayCurrency) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
-            if (displayValue < this.Settings.MinValueEx) return false;
+            if (displayValue < this.CurrentMinValue) return false;
 
             text = FormatValue(displayValue, displayCurrency);
-            highlight = displayValue >= this.Settings.HighlightMinEx;
+            highlight = displayValue >= this.CurrentHighlightMin;
             color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
             return true;
         }
@@ -1205,10 +1272,10 @@ namespace LootValue
 
                 report.ValidItems++;
                 if (!this.TryPriceItem(item, out var valueEx, out var valueText, includeUniqueName: false) ||
-                    valueEx < this.Settings.MinValueEx) continue;
+                    valueEx < this.CurrentMinValue) continue;
                 report.PricedCandidates++;
 
-                var highlight = valueEx >= this.Settings.HighlightMinEx;
+                var highlight = valueEx >= this.CurrentHighlightMin;
                 slots.Add(new SlotInfo(itemAddress, position, size, valueText, selectedScroll, highlight));
             }
 
@@ -1489,13 +1556,13 @@ namespace LootValue
                 if (ok)
                 {
                     priced++;
-                    if (ex < this.Settings.MinValueEx) belowFloor++;
+                    if (ex < this.CurrentMinValue) belowFloor++;
                 }
 
                 if (this.diagSamples.Count < 20)
                 {
                     this.diagSamples.Add(ok
-                        ? $"{rarity} {baseName} [art={art}] -> {lbl} ({ex:0.##} ex)"
+                        ? $"{rarity} {baseName} [art={art}] -> {lbl} ({ex:0.##})"
                         : $"{rarity} {baseName} [art={art}] -> {this.PluginText.T("diagnostics.no_price", "NO PRICE")}");
                 }
             }
@@ -1505,7 +1572,7 @@ namespace LootValue
                 this.PluginText.F("diagnostics.summary.awake_entities", "AwakeEntities={0}", total) + "\n" +
                 this.PluginText.F("diagnostics.summary.paths", "path contains 'WorldItem'={0}    path starts 'Metadata/Items'={1}", wiPath, metaItemsPath) + "\n" +
                 this.PluginText.F("diagnostics.summary.components", "WorldItem component (inner!=0)={0}    inner item read OK={1}", wiComp, innerOk) + "\n" +
-                this.PluginText.F("diagnostics.summary.pricing", "priced={0}    belowFloor(<{1}ex)={2}    would draw={3}", priced, this.Settings.MinValueEx, belowFloor, priced - belowFloor) + "\n" +
+                this.PluginText.F("diagnostics.summary.pricing", "priced={0}    belowFloor(<{1})={2}    would draw={3}", priced, this.CurrentMinValue, belowFloor, priced - belowFloor) + "\n" +
                 this.PluginText.F("diagnostics.summary.price_db", "priceDB items={0}  fetching={1}", PoeNinjaPriceFetcher.LoadedItemCount, PoeNinjaPriceFetcher.IsFetching);
         }
 

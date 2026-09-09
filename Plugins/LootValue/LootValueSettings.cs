@@ -59,7 +59,19 @@ namespace LootValue
         public float MinValueEx = 0f;
 
         /// <summary>Value (in Exalted) at/above which a label is drawn in the highlight color.</summary>
-        public float HighlightMinEx = 10f;
+        public float HighlightMinEx = 100f;
+
+        /// <summary>Minimum value (in Chaos) for a drop to get a label. Hides chaff.</summary>
+        public float MinValueChaos = 0f;
+
+        /// <summary>Value (in Chaos) at/above which a label is drawn in the highlight color.</summary>
+        public float HighlightMinChaos = 10f;
+
+        /// <summary>Minimum value (in Divine) for a drop to get a label. Hides chaff.</summary>
+        public float MinValueDiv = 0f;
+
+        /// <summary>Value (in Divine) at/above which a label is drawn in the highlight color.</summary>
+        public float HighlightMinDiv = 1f;
 
         /// <summary>Play sound when a valuable drop is detected.</summary>
         public bool EnableAlertSound = true;
