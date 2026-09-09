@@ -15,6 +15,12 @@
     <EmbeddedResource Include="WebServer\wwwroot\index.html">
       <LogicalName>webui.index.html</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="WebServer\wwwroot\style.css">
+      <LogicalName>webui.style.css</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="WebServer\wwwroot\settings.js">
+      <LogicalName>webui.settings.js</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -34,7 +40,10 @@
           DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)"
           SkipUnchangedFiles="true"
           ContinueOnError="true" />
-    <Copy SourceFiles="WebServer\wwwroot\index.html"
+    <ItemGroup>
+      <WebFiles Include="WebServer\wwwroot\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WebFiles)"
           DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)\WebServer\wwwroot"
           SkipUnchangedFiles="true"
           ContinueOnError="true" />

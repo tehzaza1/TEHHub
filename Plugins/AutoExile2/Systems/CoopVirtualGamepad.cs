@@ -347,10 +347,11 @@ namespace AutoExile2.Systems
         /// <summary>
         /// Presses a button on Player 2's controller for a specified hold duration.
         /// </summary>
-        public void PressFollowerButton(CoopPadButton button, int holdMs = 120)
+        public void PressFollowerButton(CoopPadButton button, int holdMs = 60)
         {
             if (this.followerXbox == null || button == CoopPadButton.None) return;
 
+            var controller = this.followerXbox;
             Task.Run(async () =>
             {
                 try
@@ -360,11 +361,23 @@ namespace AutoExile2.Systems
                         this.followerBotActiveButtons.Add(button);
                     }
 
-                    await Task.Delay(Math.Max(100, holdMs));
+                    lock (controller)
+                    {
+                        this.ApplyButton(controller, button, true);
+                        controller.SubmitReport();
+                    }
+
+                    await Task.Delay(Math.Max(30, holdMs));
 
                     lock (this.followerBotActiveButtons)
                     {
                         this.followerBotActiveButtons.Remove(button);
+                    }
+
+                    lock (controller)
+                    {
+                        this.ApplyButton(controller, button, false);
+                        controller.SubmitReport();
                     }
                 }
                 catch
@@ -375,10 +388,8 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Triggers Auto Flask on Player 2 (LB for Life, LT for Mana).
-        /// </summary>
-        /// <summary>
         /// Triggers Auto Flask on Player 2 (D-Pad Left for Life, D-Pad Right for Mana - PoE 2 Default).
+        /// Submits immediately to ViGEm virtual controller for instant in-game reaction.
         /// </summary>
         public void PressFollowerFlask(bool isLife, int cooldownMs = 3000)
         {
@@ -386,21 +397,37 @@ namespace AutoExile2.Systems
             if (this.followerFlaskTimer.ElapsedMilliseconds < cooldownMs) return;
 
             this.followerFlaskTimer.Restart();
-            if (isLife)
+            var button = isLife ? Xbox360Button.Left : Xbox360Button.Right;
+            var controller = this.followerXbox;
+
+            Task.Run(async () =>
             {
-                // D-Pad Left = Life Flask
-                this.PressFollowerButton(CoopPadButton.DPadLeft, 80);
-            }
-            else
-            {
-                // D-Pad Right = Mana Flask
-                this.PressFollowerButton(CoopPadButton.DPadRight, 80);
-            }
+                try
+                {
+                    lock (controller)
+                    {
+                        controller.SetButtonState(button, true);
+                        controller.SubmitReport();
+                    }
+
+                    await Task.Delay(50);
+
+                    lock (controller)
+                    {
+                        controller.SetButtonState(button, false);
+                        controller.SubmitReport();
+                    }
+                }
+                catch
+                {
+                    // Ignore transient
+                }
+            });
         }
 
         /// <summary>
         /// Triggers Auto Flask on Player 1 (D-Pad Left for Life, D-Pad Right for Mana - PoE 2 Default).
-        /// Injects into Leader passthrough stream.
+        /// Submits immediately to ViGEm virtual controller for instant in-game reaction.
         /// </summary>
         public void PressLeaderFlask(bool isLife, int cooldownMs = 3000)
         {
@@ -408,21 +435,31 @@ namespace AutoExile2.Systems
             if (this.leaderFlaskTimer.ElapsedMilliseconds < cooldownMs) return;
 
             this.leaderFlaskTimer.Restart();
+            var button = isLife ? Xbox360Button.Left : Xbox360Button.Right;
+            var controller = this.leaderXbox;
+
             Task.Run(async () =>
             {
                 try
                 {
-                    if (isLife)
+                    if (isLife) this.leaderActiveFlaskLife = true;
+                    else this.leaderActiveFlaskMana = true;
+
+                    lock (controller)
                     {
-                        this.leaderActiveFlaskLife = true;
-                        await Task.Delay(80);
-                        this.leaderActiveFlaskLife = false;
+                        controller.SetButtonState(button, true);
+                        controller.SubmitReport();
                     }
-                    else
+
+                    await Task.Delay(50);
+
+                    if (isLife) this.leaderActiveFlaskLife = false;
+                    else this.leaderActiveFlaskMana = false;
+
+                    lock (controller)
                     {
-                        this.leaderActiveFlaskMana = true;
-                        await Task.Delay(80);
-                        this.leaderActiveFlaskMana = false;
+                        controller.SetButtonState(button, false);
+                        controller.SubmitReport();
                     }
                 }
                 catch
@@ -434,19 +471,32 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Injects an Auto Buff or Guard skill into Player 1's controller.
+        /// Injects an Auto Buff or Guard skill into Player 1's controller immediately.
         /// </summary>
-        public void PressLeaderBuff(CoopPadButton button, int holdMs = 60)
+        public void PressLeaderBuff(CoopPadButton button, int holdMs = 50)
         {
             if (this.leaderXbox == null || button == CoopPadButton.None) return;
 
+            var controller = this.leaderXbox;
             Task.Run(async () =>
             {
                 try
                 {
                     this.leaderActiveOverrideButton = button;
-                    await Task.Delay(holdMs);
+                    lock (controller)
+                    {
+                        this.ApplyButton(controller, button, true);
+                        controller.SubmitReport();
+                    }
+
+                    await Task.Delay(Math.Max(30, holdMs));
+
                     this.leaderActiveOverrideButton = CoopPadButton.None;
+                    lock (controller)
+                    {
+                        this.ApplyButton(controller, button, false);
+                        controller.SubmitReport();
+                    }
                 }
                 catch
                 {

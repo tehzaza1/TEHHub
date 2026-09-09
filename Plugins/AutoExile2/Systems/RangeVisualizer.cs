@@ -60,6 +60,8 @@ namespace AutoExile2.Systems
         /// </summary>
         public static RangePreviewRequest? GetActivePreview()
         {
+            if (activePreview == null) return null;
+
             lock (LockObj)
             {
                 if (activePreview == null) return null;

@@ -90,7 +90,7 @@ namespace GameHelper.Utils
                 {
                     var type = kv.Value.Value<string>("type") ?? "normal";
                     var tagsArr = kv.Value["tags"] as JArray;
-                    var tags = tagsArr?.Select(t => t.Value<string>()).Where(s => !string.IsNullOrEmpty(s)).ToList()
+                    var tags = tagsArr?.Select(t => t.Value<string>()).Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToList()
                                ?? new List<string>();
                     result[kv.Key] = new WorldAreaMeta(type, tags);
                 }

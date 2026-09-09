@@ -66,6 +66,17 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         private static readonly int[] ControllerAtlasPanelChildPath = { 24, 2, 3, 0, 0, 6 };
         private static readonly int[] ControllerAtlasSkillsPanelChildPath = { 24, 2, 3, 4 };
         private static readonly int[] ControllerPassiveSkillTreeNodesChildPath = { 24, 2, 2, 0 };
+
+        // Controller Mode Relative Subpaths (under dynamic player container)
+        private static readonly int[] ControllerWorldMapPanelSubPath = { 2, 3 };
+        private static readonly int[] ControllerAct1PanelSubPath = { 2, 3, 0, 0, 0 };
+        private static readonly int[] ControllerAct2PanelSubPath = { 2, 3, 0, 0, 1 };
+        private static readonly int[] ControllerAct3PanelSubPath = { 2, 3, 0, 0, 2 };
+        private static readonly int[] ControllerAct4PanelSubPath = { 2, 3, 0, 0, 3 };
+        private static readonly int[] ControllerInterludePanelSubPath = { 2, 3, 0, 0, 5 };
+        private static readonly int[] ControllerAtlasPanelSubPath = { 2, 3, 0, 0, 6 };
+        private static readonly int[] ControllerAtlasSkillsPanelSubPath = { 2, 3, 4 };
+        private static readonly int[] ControllerPassiveSkillTreeNodesSubPath = { 2, 2, 0 };
         private const int AtlasMapCacheRefreshFrames = 20;
         private const int AtlasNodeBiomeIdOffset = 0x2BE;
         private const int AtlasNodeStatusByteOffset = 0x2BF;
@@ -522,7 +533,15 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     this.RightPanel.Address = IntPtr.Zero;
                 }
                 this.ChatParent.Address = IntPtr.Zero;
-                this.passiveskilltreenodes.Address = ResolveChildAddress(this.Address, ControllerPassiveSkillTreeNodesChildPath);
+                var containerAddr = GetControllerContainerAddress(this.Address);
+                if (containerAddr != IntPtr.Zero)
+                {
+                    this.passiveskilltreenodes.Address = ResolveChildAddress(containerAddr, ControllerPassiveSkillTreeNodesSubPath);
+                }
+                else
+                {
+                    this.passiveskilltreenodes.Address = ResolveChildAddress(this.Address, ControllerPassiveSkillTreeNodesChildPath);
+                }
                 this.updatePassiveSkillTreeData();
                 this.sekhemasTrialMapPanel.Address = IntPtr.Zero;
             }
@@ -568,14 +587,30 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         {
             if (Core.GHSettings.EnableControllerMode)
             {
-                this.WorldMapPanel.Address = ResolveChildAddress(this.Address, ControllerWorldMapPanelChildPath);
-                this.Act1.Address = ResolveChildAddress(this.Address, ControllerAct1PanelChildPath);
-                this.Act2.Address = ResolveChildAddress(this.Address, ControllerAct2PanelChildPath);
-                this.Act3.Address = ResolveChildAddress(this.Address, ControllerAct3PanelChildPath);
-                this.Act4.Address = ResolveChildAddress(this.Address, ControllerAct4PanelChildPath);
-                this.Interlude.Address = ResolveChildAddress(this.Address, ControllerInterludePanelChildPath);
-                this.Atlas.Address = ResolveChildAddress(this.Address, ControllerAtlasPanelChildPath);
-                this.AtlasSkillsPanel.Address = ResolveChildAddress(this.Address, ControllerAtlasSkillsPanelChildPath);
+                var containerAddr = GetControllerContainerAddress(this.Address);
+                if (containerAddr != IntPtr.Zero)
+                {
+                    this.WorldMapPanel.Address = ResolveChildAddress(containerAddr, ControllerWorldMapPanelSubPath);
+                    this.Act1.Address = ResolveChildAddress(containerAddr, ControllerAct1PanelSubPath);
+                    this.Act2.Address = ResolveChildAddress(containerAddr, ControllerAct2PanelSubPath);
+                    this.Act3.Address = ResolveChildAddress(containerAddr, ControllerAct3PanelSubPath);
+                    this.Act4.Address = ResolveChildAddress(containerAddr, ControllerAct4PanelSubPath);
+                    this.Interlude.Address = ResolveChildAddress(containerAddr, ControllerInterludePanelSubPath);
+                    this.Atlas.Address = ResolveChildAddress(containerAddr, ControllerAtlasPanelSubPath);
+                    this.AtlasSkillsPanel.Address = ResolveChildAddress(containerAddr, ControllerAtlasSkillsPanelSubPath);
+                }
+                else
+                {
+                    this.WorldMapPanel.Address = ResolveChildAddress(this.Address, ControllerWorldMapPanelChildPath);
+                    this.Act1.Address = ResolveChildAddress(this.Address, ControllerAct1PanelChildPath);
+                    this.Act2.Address = ResolveChildAddress(this.Address, ControllerAct2PanelChildPath);
+                    this.Act3.Address = ResolveChildAddress(this.Address, ControllerAct3PanelChildPath);
+                    this.Act4.Address = ResolveChildAddress(this.Address, ControllerAct4PanelChildPath);
+                    this.Interlude.Address = ResolveChildAddress(this.Address, ControllerInterludePanelChildPath);
+                    this.Atlas.Address = ResolveChildAddress(this.Address, ControllerAtlasPanelChildPath);
+                    this.AtlasSkillsPanel.Address = ResolveChildAddress(this.Address, ControllerAtlasSkillsPanelChildPath);
+                }
+
                 this.TempleConsole.Address = ResolveChildAddress(this.Address, TempleConsoleChildPath);
             }
             else
@@ -594,7 +629,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
         private void UpdateAtlasMapData()
         {
-            if (this.Atlas.Address == IntPtr.Zero || !this.Atlas.IsVisible)
+            var isController = Core.GHSettings.EnableControllerMode;
+            var isAtlasVisible = this.Atlas.IsVisible || (isController && this.Atlas.Address != IntPtr.Zero && (Core.Process.Handle.ReadMemory<UiElementBaseOffset>(this.Atlas.Address).Flags & IsVisibleMask) != 0);
+            if (this.Atlas.Address == IntPtr.Zero || !isAtlasVisible)
             {
                 this.atlasMaps.Clear();
                 this.atlasOceanButtons.Clear();
@@ -1104,6 +1141,112 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
             // Only hand back addresses that are actually Ui elements (see ValidUiElementOrZero).
             return ValidUiElementOrZero(currentAddress);
+        }
+
+        private static int cachedControllerContainerIndex = -1;
+
+        private static IntPtr GetControllerContainerAddress(IntPtr rootAddress)
+        {
+            if (rootAddress == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            var reader = Core.Process.Handle;
+            if (!reader.TryReadMemory<UiElementBaseOffset>(rootAddress, out var rootOff))
+            {
+                return IntPtr.Zero;
+            }
+
+            int count = (int)rootOff.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (count <= 0 || rootOff.ChildrensPtr.First == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            // Quick check cached index if still active
+            if (cachedControllerContainerIndex >= 0 && cachedControllerContainerIndex < count)
+            {
+                var cachedChild = reader.ReadMemory<IntPtr>(rootOff.ChildrensPtr.First + (cachedControllerContainerIndex * IntPtr.Size));
+                if (IsValidControllerContainer(reader, cachedChild, out bool isActive) && isActive)
+                {
+                    return cachedChild;
+                }
+            }
+
+            IntPtr firstCandidate = IntPtr.Zero;
+            int firstCandidateIdx = -1;
+            for (int i = 0; i < count; i++)
+            {
+                var child = reader.ReadMemory<IntPtr>(rootOff.ChildrensPtr.First + (i * IntPtr.Size));
+                if (child == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                if (IsValidControllerContainer(reader, child, out bool isActive))
+                {
+                    if (firstCandidate == IntPtr.Zero)
+                    {
+                        firstCandidate = child;
+                        firstCandidateIdx = i;
+                    }
+
+                    if (isActive)
+                    {
+                        cachedControllerContainerIndex = i;
+                        return child;
+                    }
+                }
+            }
+
+            if (firstCandidate != IntPtr.Zero)
+            {
+                cachedControllerContainerIndex = firstCandidateIdx;
+                return firstCandidate;
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private static bool IsValidControllerContainer(SafeMemoryHandle reader, IntPtr containerAddr, out bool isActive)
+        {
+            isActive = false;
+            if (containerAddr == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            var c2 = ResolveChildAddress(containerAddr, [2]);
+            if (c2 == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            var wm = ResolveChildAddress(c2, [3]);
+            if (wm == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            if (!reader.TryReadMemory<UiElementBaseOffset>(wm, out var wmOff))
+            {
+                return false;
+            }
+
+            int wmChildren = (int)wmOff.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (wmChildren < 4)
+            {
+                return false;
+            }
+
+            var cFlags = reader.ReadMemory<uint>(containerAddr + UiElementBaseFlagsOffset);
+            if ((wmOff.Flags & IsVisibleMask) != 0 || (cFlags & IsVisibleMask) != 0)
+            {
+                isActive = true;
+            }
+
+            return true;
         }
 
         // Returns the address only if it points to a real Ui element (its self-pointer matches),

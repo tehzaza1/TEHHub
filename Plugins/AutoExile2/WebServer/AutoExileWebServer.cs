@@ -170,9 +170,9 @@ namespace AutoExile2.WebServer
                     return;
                 }
 
-                if (path == "" || path == "/index.html")
+                if (path == "" || path == "/" || path == "/index.html" || path.EndsWith(".js") || path.EndsWith(".css") || path.EndsWith(".png") || path.EndsWith(".ico") || path.EndsWith(".svg"))
                 {
-                    await StaticFileHandler.ServeDashboardHtml(ctx);
+                    await StaticFileHandler.ServeStaticFile(ctx, path);
                     return;
                 }
 
@@ -180,6 +180,19 @@ namespace AutoExile2.WebServer
                 {
                     var snap = this.statusProvider();
                     await this.SendJson(ctx, snap);
+                    return;
+                }
+
+                if (path == "/api/players/nearby" && method == "GET")
+                {
+                    var snap = this.statusProvider();
+                    await this.SendJson(ctx, new
+                    {
+                        leader = snap.LeaderPlayerName,
+                        currentLock = this.settings.FollowerCharacterName,
+                        players = snap.NearbyPlayers,
+                        playerNames = snap.NearbyPlayerNames
+                    });
                     return;
                 }
 
@@ -614,6 +627,8 @@ namespace AutoExile2.WebServer
         public List<DetectedSkillInfo> P2DetectedSkills { get; set; } = new();
         public string LeaderPlayerName { get; set; } = string.Empty;
         public string FollowerPlayerName { get; set; } = string.Empty;
+        public List<string> NearbyPlayerNames { get; set; } = new();
+        public List<NearbyPlayerDetail> NearbyPlayers { get; set; } = new();
         public List<ActiveBuffInfo> DetectedBuffs { get; set; } = new();
         public List<ActiveBuffInfo> DetectedDebuffs { get; set; } = new();
         public int ActiveTotems { get; set; }
@@ -647,5 +662,13 @@ namespace AutoExile2.WebServer
         public string Name { get; set; } = string.Empty;
         public float TimeLeft { get; set; }
         public int Charges { get; set; }
+    }
+
+    public class NearbyPlayerDetail
+    {
+        public string Name { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public float Distance { get; set; }
+        public int HpPercent { get; set; } = 100;
     }
 }

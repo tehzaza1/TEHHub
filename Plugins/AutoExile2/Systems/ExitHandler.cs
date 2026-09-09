@@ -46,7 +46,7 @@ namespace AutoExile2.Systems
             if (!this.portalKeyPressed)
             {
                 // Press portal key from settings (default B in PoE 2)
-                BotInput.TapKey(ctx.Settings.PortalKey);
+                BotInput.FastPressKey(ctx.Settings.PortalKey);
                 this.portalKeyPressed = true;
                 this.portalKeyTime = DateTime.Now;
                 this.lastPortalClickTime = DateTime.MinValue;

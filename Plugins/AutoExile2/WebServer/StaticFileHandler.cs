@@ -14,39 +14,72 @@ namespace AutoExile2.WebServer
     using System.Threading.Tasks;
 
     /// <summary>
-    /// Handles static file serving for the dashboard HTML and dump artifacts.
+    /// Handles static file serving for the dashboard HTML, styles, scripts, and dump artifacts.
     /// </summary>
     public static class StaticFileHandler
     {
-        public static async Task ServeDashboardHtml(HttpListenerContext ctx)
+        private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
         {
-            string htmlContent = "";
-            string localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins", "AutoExile2", "WebServer", "wwwroot", "index.html");
+            { ".html", "text/html; charset=utf-8" },
+            { ".htm", "text/html; charset=utf-8" },
+            { ".js", "application/javascript; charset=utf-8" },
+            { ".css", "text/css; charset=utf-8" },
+            { ".json", "application/json; charset=utf-8" },
+            { ".png", "image/png" },
+            { ".jpg", "image/jpeg" },
+            { ".jpeg", "image/jpeg" },
+            { ".svg", "image/svg+xml" },
+            { ".ico", "image/x-icon" },
+        };
 
+        public static async Task ServeStaticFile(HttpListenerContext ctx, string requestPath)
+        {
+            string fileName = requestPath.TrimStart('/');
+            if (string.IsNullOrEmpty(fileName) || fileName.Equals("index.html", StringComparison.OrdinalIgnoreCase))
+            {
+                fileName = "index.html";
+            }
+
+            string ext = Path.GetExtension(fileName);
+            string contentType = MimeTypes.TryGetValue(ext, out var mime) ? mime : "application/octet-stream";
+
+            string localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins", "AutoExile2", "WebServer", "wwwroot", fileName);
+
+            byte[]? contentBytes = null;
             if (File.Exists(localPath))
             {
-                htmlContent = await File.ReadAllTextAsync(localPath);
+                contentBytes = await File.ReadAllBytesAsync(localPath);
             }
             else
             {
+                string resName = $"webui.{fileName}";
                 var asm = Assembly.GetExecutingAssembly();
-                using var stream = asm.GetManifestResourceStream("webui.index.html");
+                using var stream = asm.GetManifestResourceStream(resName);
                 if (stream != null)
                 {
-                    using var reader = new StreamReader(stream);
-                    htmlContent = await reader.ReadToEndAsync();
-                }
-                else
-                {
-                    htmlContent = "<!DOCTYPE html><html><head><title>AutoExile 2</title></head><body>Dashboard</body></html>";
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+                    contentBytes = ms.ToArray();
                 }
             }
 
-            byte[] bytes = Encoding.UTF8.GetBytes(htmlContent);
-            ctx.Response.ContentType = "text/html; charset=utf-8";
-            ctx.Response.ContentLength64 = bytes.Length;
-            await ctx.Response.OutputStream.WriteAsync(bytes);
-            ctx.Response.Close();
+            if (contentBytes != null)
+            {
+                ctx.Response.ContentType = contentType;
+                ctx.Response.ContentLength64 = contentBytes.Length;
+                await ctx.Response.OutputStream.WriteAsync(contentBytes);
+                ctx.Response.Close();
+            }
+            else
+            {
+                ctx.Response.StatusCode = 404;
+                ctx.Response.Close();
+            }
+        }
+
+        public static Task ServeDashboardHtml(HttpListenerContext ctx)
+        {
+            return ServeStaticFile(ctx, "index.html");
         }
 
         public static async Task ServeDumpsList(HttpListenerContext ctx, Func<object, Task> sendJson)

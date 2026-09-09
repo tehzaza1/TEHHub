@@ -120,6 +120,12 @@ namespace AutoExile2.WebServer
                     case "manaflaskcooldownms":
                         settings.ManaFlaskCooldownMs = val.Value<int>();
                         break;
+                    case "checkflaskactiveeffect":
+                        settings.CheckFlaskActiveEffect = val.Value<bool>();
+                        break;
+                    case "checkflaskcharges":
+                        settings.CheckFlaskCharges = val.Value<bool>();
+                        break;
                     case "skills":
                         try
                         {
@@ -163,8 +169,9 @@ namespace AutoExile2.WebServer
                             Console.WriteLine($"[SettingsHandler] Failed to parse p2skills: {ex.Message}");
                         }
                         break;
+                    case "followercharactername":
                     case "followerleadername":
-                        settings.FollowerLeaderName = val.ToString();
+                        settings.FollowerCharacterName = val.ToString();
                         break;
                     case "followdistance":
                         settings.FollowDistance = val.Value<float>();
@@ -368,6 +375,9 @@ namespace AutoExile2.WebServer
                         var lowHpToken = item["OnlyOnLowHp"] ?? item["onlyOnLowHp"];
                         if (lowHpToken != null) slot.OnlyOnLowHp = SafeBool(lowHpToken, false);
 
+                        var vitalCondToken = item["VitalCondition"] ?? item["vitalCondition"];
+                        if (vitalCondToken != null) slot.VitalCondition = ParseVitalCondition(vitalCondToken.ToString());
+
                         var hpThreshToken = item["LowHpThresholdPercent"] ?? item["lowHpThresholdPercent"];
                         if (hpThreshToken != null) slot.LowHpThresholdPercent = SafeFloat(hpThreshToken, 60f);
 
@@ -456,6 +466,25 @@ namespace AutoExile2.WebServer
             if (Enum.TryParse<AutoExile2.Systems.CoopPadButton>(s, true, out var parsed)) return parsed;
             if (int.TryParse(s, out int intVal) && Enum.IsDefined(typeof(AutoExile2.Systems.CoopPadButton), intVal)) return (AutoExile2.Systems.CoopPadButton)intVal;
             return AutoExile2.Systems.CoopPadButton.RightShoulder;
+        }
+
+        public static VitalConditionType ParseVitalCondition(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return VitalConditionType.CombinedHpEs;
+            s = s.Trim();
+            if (int.TryParse(s, out int intVal))
+            {
+                if (Enum.IsDefined(typeof(VitalConditionType), intVal))
+                    return (VitalConditionType)intVal;
+            }
+            if (Enum.TryParse<VitalConditionType>(s, true, out var parsed))
+                return parsed;
+
+            if (s.Equals("hp", StringComparison.OrdinalIgnoreCase) || s.Equals("hponly", StringComparison.OrdinalIgnoreCase)) return VitalConditionType.HpOnly;
+            if (s.Equals("es", StringComparison.OrdinalIgnoreCase) || s.Equals("esonly", StringComparison.OrdinalIgnoreCase)) return VitalConditionType.EsOnly;
+            if (s.Equals("combined", StringComparison.OrdinalIgnoreCase) || s.Equals("hpes", StringComparison.OrdinalIgnoreCase) || s.Equals("hp+es", StringComparison.OrdinalIgnoreCase) || s.Equals("combinedhpes", StringComparison.OrdinalIgnoreCase)) return VitalConditionType.CombinedHpEs;
+
+            return VitalConditionType.CombinedHpEs;
         }
     }
 }

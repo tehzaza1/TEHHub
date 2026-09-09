@@ -232,7 +232,8 @@ namespace AutoExile2.Modes.WaveFarm
                 var playerPos = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
                 renderPoints.Add(playerPos);
 
-                for (int i = this.wave.CurrentWaypointIndex; i < this.wave.CurrentNavPath.Count; i++)
+                int maxRenderWp = Math.Min(this.wave.CurrentNavPath.Count, this.wave.CurrentWaypointIndex + 25);
+                for (int i = this.wave.CurrentWaypointIndex; i < maxRenderWp; i++)
                 {
                     renderPoints.Add(this.wave.CurrentNavPath[i]);
                 }
@@ -270,7 +271,7 @@ namespace AutoExile2.Modes.WaveFarm
                 }
 
                 // 3. Draw waypoint dots at each actual waypoint node
-                for (int i = this.wave.CurrentWaypointIndex; i < this.wave.CurrentNavPath.Count; i++)
+                for (int i = this.wave.CurrentWaypointIndex; i < maxRenderWp; i++)
                 {
                     var wp = this.wave.CurrentNavPath[i];
                     float wpZ = Pathfinding.GetTerrainHeight(heightData, (int)wp.X, (int)wp.Y, playerTerrainZ);

@@ -157,8 +157,8 @@ namespace AutoExile2
         /// <summary>Life flask HP percentage trigger threshold.</summary>
         public float LifeFlaskThresholdPercent = 50f;
 
-        /// <summary>Cooldown between life flask presses in milliseconds.</summary>
-        public int LifeFlaskCooldownMs = 3000;
+        /// <summary>Debounce cooldown between life flask presses in milliseconds (Default: 200ms).</summary>
+        public int LifeFlaskCooldownMs = 200;
 
         /// <summary>Enable automatic mana flask usage when low on mana.</summary>
         public bool AutoManaFlask = true;
@@ -169,11 +169,24 @@ namespace AutoExile2
         /// <summary>Mana flask percentage trigger threshold.</summary>
         public float ManaFlaskThresholdPercent = 30f;
 
-        /// <summary>Cooldown between mana flask presses in milliseconds.</summary>
-        public int ManaFlaskCooldownMs = 3000;
+        /// <summary>Debounce cooldown between mana flask presses in milliseconds (Default: 200ms).</summary>
+        public int ManaFlaskCooldownMs = 200;
 
-        /// <summary>Party leader character name to follow in Follower mode.</summary>
-        public string FollowerLeaderName = string.Empty;
+        /// <summary>Check if flask effect is currently active on the player (do not waste flask if already drinking).</summary>
+        public bool CheckFlaskActiveEffect = true;
+
+        /// <summary>Check if flask has enough charges before attempting to drink.</summary>
+        public bool CheckFlaskCharges = true;
+
+        /// <summary>Party follower character name in Co-op mode (locks strictly onto this specific character).</summary>
+        public string FollowerCharacterName = string.Empty;
+
+        /// <summary>Party leader character name to follow in Follower mode (alias for FollowerCharacterName).</summary>
+        public string FollowerLeaderName
+        {
+            get => this.FollowerCharacterName;
+            set => this.FollowerCharacterName = value;
+        }
 
         /// <summary>Distance to leader before following in Follower mode.</summary>
         public float FollowDistance = 25f;

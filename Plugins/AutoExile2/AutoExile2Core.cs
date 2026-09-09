@@ -7,6 +7,7 @@ namespace AutoExile2
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.IO;
     using System.Numerics;
     using ClickableTransparentOverlay.Win32;
@@ -22,6 +23,7 @@ namespace AutoExile2
     using AutoExile2.Modes;
     using AutoExile2.Systems;
     using AutoExile2.WebServer;
+    using Coroutine;
     using Newtonsoft.Json;
 
     /// <summary>
@@ -41,6 +43,11 @@ namespace AutoExile2
         private readonly ProfileManager profileManager = new();
         private readonly CoopVirtualGamepad coopGamepad = new();
         private AutoExileWebServer? webServer;
+
+        // Coroutine & cached execution contexts to eliminate GC allocation
+        private ActiveCoroutine? botCoroutine;
+        private BotContext? renderCtx;
+        private BotContext? botCtx;
 
         // Modes architecture (Matching AutoExile 1)
         private readonly Dictionary<AutoExileMode, IBotMode> modes = new();
@@ -96,11 +103,16 @@ namespace AutoExile2
             {
                 this.StartWebServer();
             }
+
+            this.botCoroutine = CoroutineHandler.Start(this.BotLogicCoroutine());
         }
 
         /// <inheritdoc/>
         public override void OnDisable()
         {
+            this.botCoroutine?.Cancel();
+            this.botCoroutine = null;
+
             this.Settings.IsRunning = false;
             this.combatSystem.StopAllChannels();
             BotInput.ReleaseAllMovementKeys(this.Settings);
@@ -294,8 +306,20 @@ namespace AutoExile2
                 leaderPlayerName = pComp.Name;
             }
 
+            var nearbyPlayerNames = new List<string>();
+            var nearbyPlayers = new List<NearbyPlayerDetail>();
+            Entity? targetFollowerEntity = null;
+
+            Vector2 leaderPos = Vector2.Zero;
+            if (player != null && player.TryGetComponent<Render>(out var lRnd))
+            {
+                leaderPos = new Vector2(lRnd.GridPosition.X, lRnd.GridPosition.Y);
+            }
+
             if (currentArea?.AwakeEntities != null && player != null)
             {
+                var candidates = new List<(Entity ent, string name)>();
+
                 foreach (var kvp in currentArea.AwakeEntities)
                 {
                     var ent = kvp.Value;
@@ -303,35 +327,98 @@ namespace AutoExile2
 
                     if (ent.EntityType == EntityTypes.Player || (ent.Path != null && ent.Path.StartsWith("Metadata/Characters/")))
                     {
-                        followerFound = true;
-                        if (ent.TryGetComponent<Player>(out var fPlayerComp))
+                        string pName = ent.TryGetComponent<Player>(out var fPlayerComp) ? fPlayerComp.Name : string.Empty;
+                        candidates.Add((ent, pName));
+                        if (!string.IsNullOrWhiteSpace(pName) && !nearbyPlayerNames.Contains(pName))
                         {
-                            followerPlayerName = fPlayerComp.Name;
-                        }
+                            nearbyPlayerNames.Add(pName);
 
-                        if (ent.TryGetComponent<Life>(out var fLife) && fLife.Health.Total > 0)
-                        {
-                            followerHp = (int)((float)fLife.Health.Current / fLife.Health.Total * 100f);
-                            followerMana = fLife.Mana.Total > 0 ? (int)((float)fLife.Mana.Current / fLife.Mana.Total * 100f) : 100;
-                        }
-
-                        if (ent.TryGetComponent<Actor>(out var fActor) && fActor.ActiveSkills != null)
-                        {
-                            foreach (var (skillName, details) in fActor.ActiveSkills)
+                            float dist = 0f;
+                            if (ent.TryGetComponent<Render>(out var eRnd))
                             {
-                                if (string.IsNullOrWhiteSpace(skillName)) continue;
-                                string cat = SkillClassifier.Classify(skillName);
-                                bool usable = fActor.IsSkillUsable.Contains(skillName);
-                                p2DetectedSkills.Add(new DetectedSkillInfo
-                                {
-                                    Name = skillName,
-                                    Category = cat,
-                                    CooldownMs = details.TotalCooldownTimeInMs,
-                                    CanBeUsed = usable,
-                                });
+                                dist = Vector2.Distance(leaderPos, new Vector2(eRnd.GridPosition.X, eRnd.GridPosition.Y));
                             }
+
+                            int php = 100;
+                            if (ent.TryGetComponent<Life>(out var eLife) && eLife.Health.Total > 0)
+                            {
+                                php = (int)((float)eLife.Health.Current / eLife.Health.Total * 100f);
+                            }
+
+                            string cls = ParseCharacterClass(ent.Path);
+
+                            nearbyPlayers.Add(new NearbyPlayerDetail
+                            {
+                                Name = pName,
+                                ClassName = cls,
+                                Distance = (float)Math.Round(dist, 1),
+                                HpPercent = php,
+                            });
                         }
-                        break;
+                    }
+                }
+
+                string targetFilter = this.Settings.FollowerCharacterName?.Trim() ?? string.Empty;
+
+                if (!string.IsNullOrEmpty(targetFilter))
+                {
+                    var exact = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Equals(targetFilter, StringComparison.OrdinalIgnoreCase));
+                    if (exact.ent != null)
+                    {
+                        targetFollowerEntity = exact.ent;
+                        followerPlayerName = exact.name;
+                    }
+                    else
+                    {
+                        var partial = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Contains(targetFilter, StringComparison.OrdinalIgnoreCase));
+                        if (partial.ent != null)
+                        {
+                            targetFollowerEntity = partial.ent;
+                            followerPlayerName = partial.name;
+                        }
+                    }
+                }
+                else if (candidates.Count == 1)
+                {
+                    targetFollowerEntity = candidates[0].ent;
+                    followerPlayerName = candidates[0].name;
+
+                    // Auto-lock onto buddy when in 2-player private instance
+                    if (!string.IsNullOrEmpty(candidates[0].name) && string.IsNullOrEmpty(this.Settings.FollowerCharacterName))
+                    {
+                        this.Settings.FollowerCharacterName = candidates[0].name;
+                    }
+                }
+
+                if (targetFollowerEntity != null)
+                {
+                    followerFound = true;
+                    if (string.IsNullOrEmpty(followerPlayerName) && targetFollowerEntity.TryGetComponent<Player>(out var fPlayerComp))
+                    {
+                        followerPlayerName = fPlayerComp.Name;
+                    }
+
+                    if (targetFollowerEntity.TryGetComponent<Life>(out var fLife) && fLife.Health.Total > 0)
+                    {
+                        followerHp = (int)((float)fLife.Health.Current / fLife.Health.Total * 100f);
+                        followerMana = fLife.Mana.Total > 0 ? (int)((float)fLife.Mana.Current / fLife.Mana.Total * 100f) : 100;
+                    }
+
+                    if (targetFollowerEntity.TryGetComponent<Actor>(out var fActor) && fActor.ActiveSkills != null)
+                    {
+                        foreach (var (skillName, details) in fActor.ActiveSkills)
+                        {
+                            if (string.IsNullOrWhiteSpace(skillName)) continue;
+                            string cat = SkillClassifier.Classify(skillName);
+                            bool usable = fActor.IsSkillUsable.Contains(skillName);
+                            p2DetectedSkills.Add(new DetectedSkillInfo
+                            {
+                                Name = skillName,
+                                Category = cat,
+                                CooldownMs = details.TotalCooldownTimeInMs,
+                                CanBeUsed = usable,
+                            });
+                        }
                     }
                 }
             }
@@ -342,6 +429,10 @@ namespace AutoExile2
                 Mode = this.activeMode.Name,
                 State = this.activeMode.CurrentState,
                 AreaName = currentWorld?.AreaDetails.Name ?? "Unknown",
+                FollowerPlayerName = followerPlayerName,
+                LeaderPlayerName = leaderPlayerName,
+                NearbyPlayerNames = nearbyPlayerNames,
+                NearbyPlayers = nearbyPlayers,
                 ExplorationCoverage = this.explorationMap.Coverage,
                 HostileCount = this.combatSystem.NearbyHostileCount,
                 PlayerHpPercent = hpPct,
@@ -350,8 +441,6 @@ namespace AutoExile2
                 ActiveDuration = this.runtime.FormattedDuration,
                 DetectedSkills = detectedSkills,
                 P2DetectedSkills = p2DetectedSkills,
-                LeaderPlayerName = leaderPlayerName,
-                FollowerPlayerName = followerPlayerName,
                 DetectedBuffs = detectedBuffs,
                 DetectedDebuffs = detectedDebuffs,
                 ActiveTotems = activeTotems,
@@ -463,28 +552,7 @@ namespace AutoExile2
         /// <inheritdoc/>
         public override void DrawUI()
         {
-            // 0. Update active runtime accounting
-            this.runtime.Tick(this.Settings.IsRunning);
-
-            // 0.1 Edge detection: if bot was stopped, reset virtual gamepad inputs to neutral (keep gamepads connected!)
-            if (!this.Settings.IsRunning && this.lastIsRunning)
-            {
-                this.combatSystem.StopAllChannels();
-                BotInput.ReleaseAllMovementKeys(this.Settings);
-                this.coopGamepad.ResetAllInputs();
-            }
-            this.lastIsRunning = this.Settings.IsRunning;
-
-            // 0.2 Auto-connect gamepads whenever bot is running in Follower mode
-            if (this.Settings.IsRunning && this.Settings.Mode == AutoExileMode.Follower)
-            {
-                if (!this.coopGamepad.IsLeaderConnected || !this.coopGamepad.IsFollowerConnected)
-                {
-                    this.coopGamepad.EnsureConnected(true, this.Settings.CoopPhysicalPadIndex, true);
-                }
-            }
-
-            // 1. Hotkey edge trigger polling
+            // 1. Hotkey edge trigger polling (instant sub-microsecond response)
             bool isToggleDown = BotInput.IsKeyDown(this.Settings.ToggleKey);
             if (isToggleDown && !this.lastToggleKeyDown)
             {
@@ -505,101 +573,154 @@ namespace AutoExile2
             }
             this.lastDumpKeyDown = isDumpDown;
 
-            var inGameState = Core.States.InGameStateObject;
-            var currentArea = inGameState?.CurrentAreaInstance;
-            var currentWorld = inGameState?.CurrentWorldInstance;
-            var player = currentArea?.Player;
+            // 2. High-speed Emergency Vitals & Flasks (Zero-delay frame reaction, matching AutoHotKeyTrigger)
+            this.TickEmergencyRecovery();
 
-            // 2. Draw overlay badge & active mode visuals
+            // 3. Draw overlay badge & active mode visuals ONLY (no heavy bot AI or entity loops!)
             if (this.Settings.ShowOverlay)
             {
-                this.RenderOverlay(currentWorld, player);
+                var inGameState = Core.States.InGameStateObject;
+                var currentArea = inGameState?.CurrentAreaInstance;
+                var currentWorld = inGameState?.CurrentWorldInstance;
+                var player = currentArea?.Player;
+
+                this.RenderOverlay(currentWorld, player, currentArea);
             }
-
-            if (!this.Settings.IsRunning)
-            {
-                return;
-            }
-
-            if (Core.States.GameCurrentState is not (GameStateTypes.InGameState or GameStateTypes.EscapeState))
-            {
-                BotInput.ReleaseAllMovementKeys(this.Settings);
-                return;
-            }
-
-            if (currentWorld == null || currentArea == null || player == null)
-            {
-                return;
-            }
-
-            if (!player.TryGetComponent<Render>(out var pRender))
-            {
-                return;
-            }
-
-            var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
-            float deltaSec = (float)(DateTime.Now - this.lastTickTime).TotalSeconds;
-            this.lastTickTime = DateTime.Now;
-
-            int playerHp = 0, playerMaxHp = 0, playerMana = 0, playerMaxMana = 0;
-            bool isAlive = true;
-            if (player.TryGetComponent<Life>(out var pLife))
-            {
-                playerHp = pLife.Health.Current;
-                playerMaxHp = pLife.Health.Total;
-                playerMana = pLife.Mana.Current;
-                playerMaxMana = pLife.Mana.Total;
-                isAlive = playerHp > 0;
-            }
-
-            // 3. Build context for the active mode
-            var ctx = new BotContext
-            {
-                Area = currentArea,
-                World = currentWorld,
-                Player = player,
-                PlayerGrid = playerGrid,
-                DeltaTime = deltaSec,
-                Settings = this.Settings,
-                Combat = this.combatSystem,
-                Exploration = this.explorationMap,
-                ThreatMap = this.threatMap,
-                Perf = this.perf,
-                Runtime = this.runtime,
-                Recorder = this.recorder,
-                CoopGamepad = this.coopGamepad,
-                Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
-            };
-
-            // Switch active mode if settings changed
-            this.CheckModeSwitch(ctx);
-
-            // 4. Record this frame into rolling flight recorder buffer (BotRecorder)
-            this.recorder.RecordTick(
-                currentArea,
-                currentWorld.AreaDetails.Name ?? currentArea.AreaHash ?? "UnknownArea",
-                playerGrid,
-                playerHp,
-                playerMaxHp,
-                playerMana,
-                playerMaxMana,
-                isAlive,
-                this.activeMode.Name,
-                this.activeMode.CurrentState,
-                this.activeMode.CurrentAction,
-                this.combatSystem,
-                this.explorationMap,
-                this.activeMode.CurrentNavPath,
-                this.activeMode.CurrentWaypointIndex,
-                this.activeMode.CurrentDestination,
-                0f,
-                deltaSec);
-
-            // 5. Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
-            this.activeMode.Tick(ctx);
         }
 
-        private void RenderOverlay(WorldData? world, Entity? player)
+        /// <summary>
+        /// Evaluated on EVERY render frame (~60-144 FPS) inside DrawUI with ZERO artificial delay or sleep.
+        /// Directly mirrors AutoHotKeyTrigger's ultra-responsive emergency rule triggers for Life/Mana flasks
+        /// and emergency defense guard skills as soon as player health drops.
+        /// </summary>
+        private void TickEmergencyRecovery()
+        {
+            if (Core.States.GameCurrentState != GameStateTypes.InGameState)
+            {
+                return;
+            }
+
+            if (!Core.Process.Foreground)
+            {
+                return;
+            }
+
+            var inGameState = Core.States.InGameStateObject;
+            if (inGameState == null)
+            {
+                return;
+            }
+
+            // Do not drink flasks or trigger skills while chatting
+            if (inGameState.GameUi?.ChatParent?.IsChatActive == true)
+            {
+                return;
+            }
+
+            var currentArea = inGameState.CurrentAreaInstance;
+            var currentWorld = inGameState.CurrentWorldInstance;
+            if (currentArea == null || currentWorld == null)
+            {
+                return;
+            }
+
+            // Do not drink flasks in town
+            if (currentWorld.AreaDetails.IsTown)
+            {
+                return;
+            }
+
+            var player = currentArea.Player;
+            if (player == null || !player.IsValid)
+            {
+                return;
+            }
+
+            if (!player.TryGetComponent<Life>(out var pLife) || pLife.Health.Current <= 0)
+            {
+                return; // Player dead or no life component
+            }
+
+            // Check grace period (invulnerability after entering area)
+            if (player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
+            {
+                if (pBuffs.StatusEffects.ContainsKey("grace_period"))
+                {
+                    return;
+                }
+            }
+
+            float hpPercent = pLife.Health.Total > 0 ? ((float)pLife.Health.Current / pLife.Health.Total) * 100f : 100f;
+            float esPercent = pLife.EnergyShield.Total > 0 ? ((float)pLife.EnergyShield.Current / pLife.EnergyShield.Total) * 100f : 0f;
+            int maxPool = pLife.Health.Total + pLife.EnergyShield.Total;
+            int curPool = pLife.Health.Current + pLife.EnergyShield.Current;
+            float combinedPercent = maxPool > 0 ? ((float)curPool / maxPool) * 100f : 100f;
+            float manaPercent = pLife.Mana.Total > 0 ? ((float)pLife.Mana.Current / pLife.Mana.Total) * 100f : 100f;
+
+            // 1. Instant Auto Flasks
+            if (this.Settings.Mode == AutoExileMode.Follower)
+            {
+                var now = DateTime.Now;
+                if (this.Settings.P1AutoLifeFlask && hpPercent <= this.Settings.P1LifeFlaskThresholdPercent)
+                {
+                    int lifeSlot = CombatSystem.GetFlaskSlotFromKey(this.Settings.LifeFlaskKey, 0);
+                    bool active = this.Settings.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(player, lifeSlot, isLife: true);
+                    bool hasCharges = !this.Settings.CheckFlaskCharges || CombatSystem.HasFlaskCharges(currentArea.ServerDataObject, lifeSlot);
+
+                    if (!active && hasCharges)
+                    {
+                        const int debounceMs = CombatSystem.FlaskDebounceMs;
+
+                        if ((now - this.combatSystem.LastLifeFlaskAt).TotalMilliseconds >= debounceMs)
+                        {
+                            this.combatSystem.LastLifeFlaskAt = now;
+                            if (this.coopGamepad.IsLeaderConnected)
+                            {
+                                this.coopGamepad.PressLeaderFlask(true, debounceMs);
+                            }
+                            else
+                            {
+                                BotInput.FastPressKey(this.Settings.LifeFlaskKey);
+                            }
+                        }
+                    }
+                }
+
+                if (this.Settings.P1AutoManaFlask && manaPercent <= this.Settings.P1ManaFlaskThresholdPercent)
+                {
+                    int manaSlot = CombatSystem.GetFlaskSlotFromKey(this.Settings.ManaFlaskKey, 1);
+                    bool active = this.Settings.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(player, manaSlot, isLife: false);
+                    bool hasCharges = !this.Settings.CheckFlaskCharges || CombatSystem.HasFlaskCharges(currentArea.ServerDataObject, manaSlot);
+
+                    if (!active && hasCharges)
+                    {
+                        const int debounceMs = CombatSystem.FlaskDebounceMs;
+
+                        if ((now - this.combatSystem.LastManaFlaskAt).TotalMilliseconds >= debounceMs)
+                        {
+                            this.combatSystem.LastManaFlaskAt = now;
+                            if (this.coopGamepad.IsLeaderConnected)
+                            {
+                                this.coopGamepad.PressLeaderFlask(false, debounceMs);
+                            }
+                            else
+                            {
+                                BotInput.FastPressKey(this.Settings.ManaFlaskKey);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                this.combatSystem.TickAutoFlasks(player, currentArea.ServerDataObject, this.Settings, hpPercent, manaPercent, this.coopGamepad);
+            }
+
+            // 2. Instant Emergency Low-HP SelfBuffGuard Skills
+            this.combatSystem.TickEmergencyLowHpSkills(player, this.Settings, hpPercent, esPercent, combinedPercent, manaPercent, this.coopGamepad);
+        }
+
+        private void RenderOverlay(WorldData? world, Entity? player, AreaInstance? currentArea)
         {
             var draw = ImGui.GetForegroundDrawList();
 
@@ -619,19 +740,17 @@ namespace AutoExile2
             draw.AddText(pos + new Vector2(8, 5), badgeTextCol, badgeText);
 
             // Delegate in-game visual overlay to active mode (rendered running or paused)
-            if (world != null)
+            if (world != null && currentArea != null && player != null)
             {
-                var inGameState = Core.States.InGameStateObject;
-                var currentArea = inGameState?.CurrentAreaInstance;
-                if (currentArea != null && player != null)
+                Vector2 pGrid = Vector2.Zero;
+                if (player.TryGetComponent<Render>(out var pR))
                 {
-                    Vector2 pGrid = Vector2.Zero;
-                    if (player.TryGetComponent<Render>(out var pR))
-                    {
-                        pGrid = new Vector2(pR.GridPosition.X, pR.GridPosition.Y);
-                    }
+                    pGrid = new Vector2(pR.GridPosition.X, pR.GridPosition.Y);
+                }
 
-                    var ctx = new BotContext
+                if (this.renderCtx == null)
+                {
+                    this.renderCtx = new BotContext
                     {
                         Area = currentArea,
                         World = world,
@@ -647,12 +766,172 @@ namespace AutoExile2
                         Recorder = this.recorder,
                         CoopGamepad = this.coopGamepad,
                     };
-                    this.activeMode.Render(ctx);
-
-                    // Render Real-time Distance & Range Circles (3D Terrain projection)
-                    RangeVisualizer.Render(draw, ctx, this.activeMode);
                 }
+                else
+                {
+                    this.renderCtx.Area = currentArea;
+                    this.renderCtx.World = world;
+                    this.renderCtx.Player = player;
+                    this.renderCtx.PlayerGrid = pGrid;
+                    this.renderCtx.Settings = this.Settings;
+                }
+
+                this.activeMode.Render(this.renderCtx);
+
+                // Render Real-time Distance & Range Circles (3D Terrain projection)
+                RangeVisualizer.Render(draw, this.renderCtx, this.activeMode);
             }
+        }
+
+        private IEnumerator<Wait> BotLogicCoroutine()
+        {
+            while (true)
+            {
+                // 0. Update active runtime accounting
+                this.runtime.Tick(this.Settings.IsRunning);
+
+                // 0.1 Edge detection: if bot was stopped, reset virtual gamepad inputs to neutral (keep gamepads connected!)
+                if (!this.Settings.IsRunning && this.lastIsRunning)
+                {
+                    this.combatSystem.StopAllChannels();
+                    BotInput.ReleaseAllMovementKeys(this.Settings);
+                    this.coopGamepad.ResetAllInputs();
+                }
+                this.lastIsRunning = this.Settings.IsRunning;
+
+                if (!this.Settings.IsRunning)
+                {
+                    yield return new Wait(0.05d); // 20 Hz low-power check when paused
+                    continue;
+                }
+
+                if (Core.States.GameCurrentState is not (GameStateTypes.InGameState or GameStateTypes.EscapeState))
+                {
+                    BotInput.ReleaseAllMovementKeys(this.Settings);
+                    yield return new Wait(0.05d);
+                    continue;
+                }
+
+                // 0.2 Auto-connect gamepads whenever bot is running in Follower mode
+                if (this.Settings.Mode == AutoExileMode.Follower)
+                {
+                    if (!this.coopGamepad.IsLeaderConnected || !this.coopGamepad.IsFollowerConnected)
+                    {
+                        this.coopGamepad.EnsureConnected(true, this.Settings.CoopPhysicalPadIndex, true);
+                    }
+                }
+
+                var inGameState = Core.States.InGameStateObject;
+                var currentArea = inGameState?.CurrentAreaInstance;
+                var currentWorld = inGameState?.CurrentWorldInstance;
+                var player = currentArea?.Player;
+
+                if (currentWorld == null || currentArea == null || player == null)
+                {
+                    yield return new Wait(0.05d);
+                    continue;
+                }
+
+                if (!player.TryGetComponent<Render>(out var pRender))
+                {
+                    yield return new Wait(0.025d);
+                    continue;
+                }
+
+                var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
+                float deltaSec = (float)(DateTime.Now - this.lastTickTime).TotalSeconds;
+                this.lastTickTime = DateTime.Now;
+
+                int playerHp = 0, playerMaxHp = 0, playerMana = 0, playerMaxMana = 0;
+                bool isAlive = true;
+                if (player.TryGetComponent<Life>(out var pLife))
+                {
+                    playerHp = pLife.Health.Current;
+                    playerMaxHp = pLife.Health.Total;
+                    playerMana = pLife.Mana.Current;
+                    playerMaxMana = pLife.Mana.Total;
+                    isAlive = playerHp > 0;
+                }
+
+                // Reuse or allocate cached BotContext
+                if (this.botCtx == null)
+                {
+                    this.botCtx = new BotContext
+                    {
+                        Area = currentArea,
+                        World = currentWorld,
+                        Player = player,
+                        PlayerGrid = playerGrid,
+                        DeltaTime = deltaSec,
+                        Settings = this.Settings,
+                        Combat = this.combatSystem,
+                        Exploration = this.explorationMap,
+                        ThreatMap = this.threatMap,
+                        Perf = this.perf,
+                        Runtime = this.runtime,
+                        Recorder = this.recorder,
+                        CoopGamepad = this.coopGamepad,
+                        Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
+                    };
+                }
+                else
+                {
+                    this.botCtx.Area = currentArea;
+                    this.botCtx.World = currentWorld;
+                    this.botCtx.Player = player;
+                    this.botCtx.PlayerGrid = playerGrid;
+                    this.botCtx.DeltaTime = deltaSec;
+                    this.botCtx.Settings = this.Settings;
+                }
+
+                // Switch active mode if settings changed
+                this.CheckModeSwitch(this.botCtx);
+
+                // Record this frame into rolling flight recorder buffer (BotRecorder)
+                this.recorder.RecordTick(
+                    currentArea,
+                    currentWorld.AreaDetails.Name ?? currentArea.AreaHash ?? "UnknownArea",
+                    playerGrid,
+                    playerHp,
+                    playerMaxHp,
+                    playerMana,
+                    playerMaxMana,
+                    isAlive,
+                    this.activeMode.Name,
+                    this.activeMode.CurrentState,
+                    this.activeMode.CurrentAction,
+                    this.combatSystem,
+                    this.explorationMap,
+                    this.activeMode.CurrentNavPath,
+                    this.activeMode.CurrentWaypointIndex,
+                    this.activeMode.CurrentDestination,
+                    0f,
+                    deltaSec);
+
+                // Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
+                this.activeMode.Tick(this.botCtx);
+
+                // Yield ~40 Hz tick rate (25ms)
+                yield return new Wait(0.025d);
+            }
+        }
+
+        private static string ParseCharacterClass(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return "Player";
+            string clean = path;
+            int idx = clean.LastIndexOf('/');
+            if (idx >= 0 && idx < clean.Length - 1) clean = clean.Substring(idx + 1);
+            return clean switch
+            {
+                "Str" => "Warrior / Marauder",
+                "Dex" => "Ranger / Huntress",
+                "Int" => "Sorceress / Witch",
+                "StrDex" => "Mercenary / Duelist",
+                "StrInt" => "Monk / Templar",
+                "DexInt" => "Shadow",
+                _ => clean
+            };
         }
     }
 }

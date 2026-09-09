@@ -15,6 +15,7 @@ namespace AutoExile2.Systems
     using GameHelper.RemoteObjects.Components;
     using GameHelper.RemoteObjects.States.InGameStateObjects;
     using GameOffsets.Natives;
+    using ClickableTransparentOverlay.Win32;
     using AutoExile2.WebServer;
 
     /// <summary>
@@ -24,9 +25,15 @@ namespace AutoExile2.Systems
     /// </summary>
     public class CombatSystem
     {
+        /// <summary>
+        /// Hardcoded debounce cooldown for life and mana flasks in milliseconds (200ms).
+        /// Prevents duplicate key triggers within the same server tick while effect/charges are evaluated.
+        /// </summary>
+        public const int FlaskDebounceMs = 200;
+
         private DateTime nextAttackAllowed = DateTime.MinValue;
-        private DateTime lastLifeFlaskAt = DateTime.MinValue;
-        private DateTime lastManaFlaskAt = DateTime.MinValue;
+        public DateTime LastLifeFlaskAt { get; set; } = DateTime.MinValue;
+        public DateTime LastManaFlaskAt { get; set; } = DateTime.MinValue;
 
         // Target focus tracking (AutoExile 1 target timeout prevention)
         private uint lastTargetId = 0;
@@ -187,8 +194,10 @@ namespace AutoExile2.Systems
                 return false;
             }
 
-            // 1. Player Vitals (HP and Mana percentages)
+            // 1. Player Vitals (HP, ES, Combined, and Mana percentages)
             float hpPercent = 100f;
+            float esPercent = 0f;
+            float combinedPercent = 100f;
             float manaPercent = 100f;
             if (player.TryGetComponent<Life>(out var pLife))
             {
@@ -196,6 +205,15 @@ namespace AutoExile2.Systems
                 {
                     hpPercent = ((float)pLife.Health.Current / pLife.Health.Total) * 100f;
                 }
+
+                if (pLife.EnergyShield.Total > 0)
+                {
+                    esPercent = ((float)pLife.EnergyShield.Current / pLife.EnergyShield.Total) * 100f;
+                }
+
+                int maxPool = pLife.Health.Total + pLife.EnergyShield.Total;
+                int curPool = pLife.Health.Current + pLife.EnergyShield.Current;
+                combinedPercent = maxPool > 0 ? ((float)curPool / maxPool) * 100f : 100f;
 
                 if (pLife.Mana.Total > 0)
                 {
@@ -317,7 +335,7 @@ namespace AutoExile2.Systems
             }
 
             // 4. Tick Self-Cast Skills (Buffs, Guards, Cries) independently of target
-            bool executedSelfSkill = this.TickSelfSkills(player, settings, hpPercent, manaPercent);
+            bool executedSelfSkill = this.TickSelfSkills(player, settings, hpPercent, esPercent, combinedPercent, manaPercent);
 
             if (bestTarget == null)
             {
@@ -369,32 +387,275 @@ namespace AutoExile2.Systems
                 bestTargetRarity,
                 hostileCount,
                 hpPercent,
+                esPercent,
+                combinedPercent,
                 manaPercent,
                 settings);
         }
 
-        private void TickAutoFlasks(AutoExile2Settings settings, float hpPercent, float manaPercent)
+        /// <summary>
+        /// Determines 0-indexed flask slot (0 to 4) from virtual key.
+        /// </summary>
+        public static int GetFlaskSlotFromKey(VK key, int defaultSlot)
         {
-            if (settings.AutoLifeFlask && hpPercent <= settings.LifeFlaskThresholdPercent)
+            return key switch
             {
-                if ((DateTime.Now - this.lastLifeFlaskAt).TotalMilliseconds >= settings.LifeFlaskCooldownMs)
+                VK.KEY_1 => 0,
+                VK.KEY_2 => 1,
+                VK.KEY_3 => 2,
+                VK.KEY_4 => 3,
+                VK.KEY_5 => 4,
+                _ => defaultSlot,
+            };
+        }
+
+        /// <summary>
+        /// Checks whether the flask in the given slot is currently active on the player.
+        /// Uses GameHelper's parsed Buffs.FlaskActive array (identical to AutoHotKeyTrigger's FlaskInfo.Active)
+        /// and status effects scan to prevent drinking while the effect is running.
+        /// </summary>
+        public static bool IsFlaskActive(Entity? player, int slot, bool isLife)
+        {
+            if (player == null || !player.IsValid)
+            {
+                return false;
+            }
+
+            if (player.TryGetComponent<Buffs>(out var buffs))
+            {
+                // 1. Direct slot check from GameHelper's parsed FlaskActive array
+                if (slot >= 0 && slot < buffs.FlaskActive.Length && buffs.FlaskActive[slot])
                 {
-                    BotInput.TapKey(settings.LifeFlaskKey, 40);
-                    this.lastLifeFlaskAt = DateTime.Now;
+                    return true;
+                }
+
+                // 2. Fallback scan on active status effects
+                if (buffs.StatusEffects != null && buffs.StatusEffects.Count > 0)
+                {
+                    string target = isLife ? "life" : "mana";
+                    foreach (var kvp in buffs.StatusEffects)
+                    {
+                        if (kvp.Value.FlaskSlot == slot)
+                        {
+                            return true;
+                        }
+
+                        string name = kvp.Key.ToLowerInvariant();
+                        if (name.Contains("flask") && name.Contains(target))
+                        {
+                            return true;
+                        }
+                    }
                 }
             }
 
+            return false;
+        }
+
+        /// <summary>
+        /// Checks whether the flask item in the specified inventory slot has enough charges to use.
+        /// Directly mirrors AutoHotKeyTrigger's FlaskInfo.IsUsable implementation.
+        /// </summary>
+        public static bool HasFlaskCharges(ServerData? serverData, int slot)
+        {
+            if (serverData == null || slot < 0 || slot >= 5)
+            {
+                return true;
+            }
+
+            try
+            {
+                var flaskItem = serverData.FlaskInventory[0, slot];
+                if (flaskItem == null || flaskItem.Address == IntPtr.Zero)
+                {
+                    return true; // Empty slot or not loaded yet, allow trigger
+                }
+
+                if (flaskItem.TryGetComponent<Charges>(out var chargesComp))
+                {
+                    if (chargesComp.PerUseCharge > 0)
+                    {
+                        return chargesComp.Current >= chargesComp.PerUseCharge;
+                    }
+
+                    return chargesComp.Current > 0;
+                }
+            }
+            catch
+            {
+                // Fallback to true if read fails
+            }
+
+            return true;
+        }
+
+        public void TickAutoFlasks(AutoExile2Settings settings, float hpPercent, float manaPercent, CoopVirtualGamepad? pad = null)
+        {
+            var inGameState = GameHelper.Core.States.InGameStateObject;
+            var area = inGameState?.CurrentAreaInstance;
+            this.TickAutoFlasks(area?.Player, area?.ServerDataObject, settings, hpPercent, manaPercent, pad);
+        }
+
+        public void TickAutoFlasks(
+            Entity? player,
+            ServerData? serverData,
+            AutoExile2Settings settings,
+            float hpPercent,
+            float manaPercent,
+            CoopVirtualGamepad? pad = null)
+        {
+            var now = DateTime.Now;
+
+            // 1. Auto Life Flask
+            if (settings.AutoLifeFlask && hpPercent <= settings.LifeFlaskThresholdPercent)
+            {
+                int lifeSlot = GetFlaskSlotFromKey(settings.LifeFlaskKey, 0);
+
+                // Check active effect: do NOT drink if flask effect is already active!
+                bool active = settings.CheckFlaskActiveEffect && IsFlaskActive(player, lifeSlot, isLife: true);
+
+                // Check charges: do NOT drink if not enough charges!
+                bool hasCharges = !settings.CheckFlaskCharges || HasFlaskCharges(serverData, lifeSlot);
+
+                if (!active && hasCharges)
+                {
+                    const int debounceMs = FlaskDebounceMs;
+
+                    if ((now - this.LastLifeFlaskAt).TotalMilliseconds >= debounceMs)
+                    {
+                        this.LastLifeFlaskAt = now;
+                        if (pad != null && pad.IsLeaderConnected)
+                        {
+                            pad.PressLeaderFlask(true, debounceMs);
+                        }
+                        else
+                        {
+                            BotInput.FastPressKey(settings.LifeFlaskKey);
+                        }
+                    }
+                }
+            }
+
+            // 2. Auto Mana Flask
             if (settings.AutoManaFlask && manaPercent <= settings.ManaFlaskThresholdPercent)
             {
-                if ((DateTime.Now - this.lastManaFlaskAt).TotalMilliseconds >= settings.ManaFlaskCooldownMs)
+                int manaSlot = GetFlaskSlotFromKey(settings.ManaFlaskKey, 1);
+
+                // Check active effect: do NOT drink if flask effect is already active!
+                bool active = settings.CheckFlaskActiveEffect && IsFlaskActive(player, manaSlot, isLife: false);
+
+                // Check charges: do NOT drink if not enough charges!
+                bool hasCharges = !settings.CheckFlaskCharges || HasFlaskCharges(serverData, manaSlot);
+
+                if (!active && hasCharges)
                 {
-                    BotInput.TapKey(settings.ManaFlaskKey, 40);
-                    this.lastManaFlaskAt = DateTime.Now;
+                    const int debounceMs = FlaskDebounceMs;
+
+                    if ((now - this.LastManaFlaskAt).TotalMilliseconds >= debounceMs)
+                    {
+                        this.LastManaFlaskAt = now;
+                        if (pad != null && pad.IsLeaderConnected)
+                        {
+                            pad.PressLeaderFlask(false, debounceMs);
+                        }
+                        else
+                        {
+                            BotInput.FastPressKey(settings.ManaFlaskKey);
+                        }
+                    }
                 }
             }
         }
 
-        private bool TickSelfSkills(Entity player, AutoExile2Settings settings, float hpPercent, float manaPercent)
+        /// <summary>
+        /// Instantly checks and fires emergency low-HP guard / panic defense skills (e.g. Steelskin, Molten Shell)
+        /// with zero delay, directly mirroring AutoHotKeyTrigger's emergency rule triggers.
+        /// </summary>
+        public bool TickEmergencyLowHpSkills(
+            Entity player,
+            AutoExile2Settings settings,
+            float hpPercent,
+            float esPercent,
+            float combinedPercent,
+            float manaPercent,
+            CoopVirtualGamepad? pad = null)
+        {
+            if (settings.Skills == null || settings.Skills.Count == 0)
+            {
+                return false;
+            }
+
+            var now = DateTime.Now;
+            foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard && s.OnlyOnLowHp).OrderByDescending(s => s.Priority))
+            {
+                if (!IsLowVital(slot, hpPercent, esPercent, combinedPercent))
+                {
+                    continue;
+                }
+
+                if (slot.MinManaPercent > 0 && manaPercent < slot.MinManaPercent)
+                {
+                    continue;
+                }
+
+                if (slot.MinCastIntervalMs > 0 && (now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs)
+                {
+                    continue;
+                }
+
+                // Check if buff is already active on the player
+                if (slot.OnlyWhenBuffMissing)
+                {
+                    string buffToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
+                        ? slot.BuffDebuffName
+                        : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
+
+                    if (!string.IsNullOrWhiteSpace(buffToMatch) && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
+                    {
+                        string clean = buffToMatch.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
+                        bool hasBuff = pBuffs.StatusEffects.Any(kv => kv.Key.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Contains(clean));
+                        if (hasBuff)
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                slot.LastCastAt = now;
+                this.LastSkillAction = $"Panic Guard: {slot.Name}";
+
+                if (pad != null && pad.IsLeaderConnected && slot.GamepadButton != CoopPadButton.None)
+                {
+                    pad.PressLeaderBuff(slot.GamepadButton, Math.Max(30, slot.HoldDurationMs));
+                }
+                else if (slot.InputType == AttackInputType.KeyboardKey)
+                {
+                    BotInput.FastPressKey(slot.Key);
+                }
+                else
+                {
+                    BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Min(30, slot.HoldDurationMs));
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsLowVital(SkillSlotConfig slot, float hpPercent, float esPercent, float combinedPercent)
+        {
+            if (!slot.OnlyOnLowHp) return false;
+            float eval = slot.VitalCondition switch
+            {
+                VitalConditionType.HpOnly => hpPercent,
+                VitalConditionType.EsOnly => esPercent,
+                _ => combinedPercent,
+            };
+            return eval <= slot.LowHpThresholdPercent;
+        }
+
+        public bool TickSelfSkills(Entity player, AutoExile2Settings settings, float hpPercent, float esPercent, float combinedPercent, float manaPercent)
         {
             if (settings.Skills == null || settings.Skills.Count == 0)
             {
@@ -403,7 +664,7 @@ namespace AutoExile2.Systems
 
             foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard).OrderByDescending(s => s.Priority))
             {
-                if (slot.OnlyOnLowHp && hpPercent > slot.LowHpThresholdPercent)
+                if (slot.OnlyOnLowHp && !IsLowVital(slot, hpPercent, esPercent, combinedPercent))
                 {
                     continue;
                 }
@@ -441,7 +702,15 @@ namespace AutoExile2.Systems
                     }
                 }
 
-                BotInput.ExecuteAttack(slot.InputType, slot.Key, slot.HoldDurationMs);
+                if (slot.InputType == AttackInputType.KeyboardKey)
+                {
+                    BotInput.FastPressKey(slot.Key);
+                }
+                else
+                {
+                    BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Min(30, slot.HoldDurationMs));
+                }
+
                 slot.LastCastAt = DateTime.Now;
                 this.LastSkillAction = $"Buff: {slot.Name}";
                 return true;
@@ -460,6 +729,8 @@ namespace AutoExile2.Systems
             Rarity bestTargetRarity,
             int hostileCount,
             float hpPercent,
+            float esPercent,
+            float combinedPercent,
             float manaPercent,
             AutoExile2Settings settings)
         {
@@ -569,8 +840,8 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                // Low HP condition check
-                if (slot.OnlyOnLowHp && hpPercent > slot.LowHpThresholdPercent)
+                // Low HP / Vital condition check
+                if (slot.OnlyOnLowHp && !IsLowVital(slot, hpPercent, esPercent, combinedPercent))
                 {
                     continue;
                 }

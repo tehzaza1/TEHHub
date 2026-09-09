@@ -444,7 +444,23 @@ namespace LootValue
             ImGui.Separator();
             ImGui.Text(this.PluginText.T("section.expedition", "PoE 2 Expedition (Runeshape Monolith & Crafting)"));
             ImGui.Checkbox(this.PluginText.Label("settings.expedition_world_overlay", "Show 3D World Badge Above Monoliths", "LootValueExpeditionWorld"), ref this.Settings.EnableExpeditionWorldOverlay);
+            if (this.Settings.EnableExpeditionWorldOverlay)
+            {
+                ImGui.Indent();
+                ImGui.SliderFloat(this.PluginText.Label("settings.expedition_badge_offset_x", "Monolith badge horizontal offset (X: Left/Right)", "LootValueExpeditionBadgeOffsetX"), ref this.Settings.ExpeditionBadgeOffsetX, -600f, 600f);
+                ImGui.SliderFloat(this.PluginText.Label("settings.expedition_badge_offset_y", "Monolith badge vertical offset (Y: Up/Down)", "LootValueExpeditionBadgeOffsetY"), ref this.Settings.ExpeditionBadgeOffsetY, -600f, 600f);
+                ImGui.Unindent();
+            }
+
             ImGui.Checkbox(this.PluginText.Label("settings.runeshape_ui_prices", "Show Prices in Runeshape UI Panel", "LootValueRuneshapeUi"), ref this.Settings.EnableRuneshapeUiPrices);
+            if (this.Settings.EnableRuneshapeUiPrices)
+            {
+                ImGui.Indent();
+                ImGui.SliderFloat(this.PluginText.Label("settings.runeshape_ui_offset_x", "Runeshape UI horizontal offset (X: Left/Right)", "LootValueRuneshapeUiOffsetX"), ref this.Settings.RuneshapeUiOffsetX, -300f, 300f);
+                ImGui.SliderFloat(this.PluginText.Label("settings.runeshape_ui_offset_y", "Runeshape UI vertical offset (Y: Up/Down)", "LootValueRuneshapeUiOffsetY"), ref this.Settings.RuneshapeUiOffsetY, -300f, 300f);
+                ImGui.Unindent();
+            }
+
             ImGui.Checkbox(this.PluginText.Label("settings.hide_completed_monoliths", "Hide Completed Monoliths", "LootValueHideCompletedMonoliths"), ref this.Settings.HideCompletedMonoliths);
 
             ImGui.Separator();
@@ -2182,6 +2198,9 @@ namespace LootValue
                 var screenPos = world.WorldToScreen(worldPos, worldPos.Z);
                 if (screenPos == Vector2.Zero) continue;
 
+                screenPos.X += this.Settings.ExpeditionBadgeOffsetX;
+                screenPos.Y += this.Settings.ExpeditionBadgeOffsetY;
+
                 this.DrawMonolithBadge(fg, screenPos, m);
             }
         }
@@ -2346,7 +2365,9 @@ namespace LootValue
                 if (rowSize.X <= 0f || rowSize.Y <= 0f) continue;
 
                 var chipText = dispVal >= 100 ? $"{dispVal:F0} {dispCur}" : $"{dispVal:F1} {dispCur}";
-                var chipPos = new Vector2(rowPos.X + rowSize.X + 8f, rowPos.Y + (rowSize.Y - 20f) / 2f);
+                var chipPos = new Vector2(
+                    rowPos.X + rowSize.X + 8f + this.Settings.RuneshapeUiOffsetX,
+                    rowPos.Y + (rowSize.Y - 20f) / 2f + this.Settings.RuneshapeUiOffsetY);
 
                 var chaosDiv = PoeNinjaPriceFetcher.ChaosPerDivine > 0 ? PoeNinjaPriceFetcher.ChaosPerDivine : 200.0;
                 var isHigh = (totalChaos / chaosDiv) >= 1.0;

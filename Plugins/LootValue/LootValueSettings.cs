@@ -143,8 +143,20 @@ namespace LootValue
         /// <summary>Show 3D world badge above PoE 2 Expedition Runeshape Monoliths.</summary>
         public bool EnableExpeditionWorldOverlay = true;
 
+        /// <summary>Horizontal pixel offset for Expedition monolith world badges (Left/Right).</summary>
+        public float ExpeditionBadgeOffsetX = 0f;
+
+        /// <summary>Vertical pixel offset for Expedition monolith world badges (Up/Down).</summary>
+        public float ExpeditionBadgeOffsetY = 0f;
+
         /// <summary>Show prices on the in-game Runeshape Combinations recipe panel.</summary>
         public bool EnableRuneshapeUiPrices = true;
+
+        /// <summary>Horizontal pixel offset for Runeshape UI price chips.</summary>
+        public float RuneshapeUiOffsetX = 0f;
+
+        /// <summary>Vertical pixel offset for Runeshape UI price chips.</summary>
+        public float RuneshapeUiOffsetY = 0f;
 
         /// <summary>Hide monolith badge if the encounter was already completed / claimed.</summary>
         public bool HideCompletedMonoliths = true;

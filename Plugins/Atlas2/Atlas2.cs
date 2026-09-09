@@ -472,10 +472,9 @@ namespace Atlas2
             var atlasUi = Core.States.InGameStateObject.GameUi.Atlas;
             var isController = Settings.ControllerMode || Core.GHSettings.EnableControllerMode;
 
-            // The path-resolved atlas address ({22,0,6}) has a correctly-working IsVisible bit
-            // in controller mode — confirmed by dump: flags flip 0x502EF3↔0x5026F3 on open/close.
-            // Use it directly as the open/close gate; no bypass needed.
-            bool panelIsOpen = atlasUi.Address != IntPtr.Zero && atlasUi.IsVisible;
+            // In controller mode, atlasUi.IsVisible or direct 0x800 flag check handles both full cache
+            // and frame-1 transition states.
+            bool panelIsOpen = atlasUi.Address != IntPtr.Zero && (atlasUi.IsVisible || (isController && (Read<uint>(atlasUi.Address + 0x168) & 0x800) != 0));
             if (!panelIsOpen)
                 return;
 

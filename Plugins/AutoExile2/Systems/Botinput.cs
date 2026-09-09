@@ -33,6 +33,14 @@ namespace AutoExile2.Systems
         private const int MOUSEEVENTF_MIDDLEDOWN = 0x0020;
         private const int MOUSEEVENTF_MIDDLEUP = 0x0040;
         private const int KEYEVENTF_KEYUP = 0x0002;
+        private const uint WM_KEYUP = 0x0101;
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
 
         [DllImport("user32.dll")]
         private static extern bool SetCursorPos(int x, int y);
@@ -248,62 +256,107 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Presses a key with humanized hold duration.
+        /// Instantly fires a key release/tap with ZERO artificial delay or sleep.
+        /// Sends WM_KEYUP directly to PoE's window message queue (matching AutoHotKeyTrigger's ultra-responsive input)
+        /// combined with an immediate keybd_event sequence to register without any 40-60ms hold delay.
         /// </summary>
-        public static void TapKey(VK key, int baseHoldMs = 50)
+        public static void FastPressKey(VK key)
         {
+            if ((int)key <= 0)
+            {
+                return;
+            }
+
+            try
+            {
+                // 1. Post directly to PoE window message queue (identical to AutoHotKeyTrigger / MiscHelper)
+                IntPtr hWnd = GameHelper.Core.Process.MainWindowHandle;
+                if (hWnd == IntPtr.Zero)
+                {
+                    hWnd = GetForegroundWindow();
+                }
+
+                if (hWnd != IntPtr.Zero)
+                {
+                    PostMessage(hWnd, WM_KEYUP, (IntPtr)(int)key, IntPtr.Zero);
+                }
+
+                // 2. Also send immediate keybd_event down & up with 0ms hold for any DirectInput/GetAsyncKeyState listeners
+                keybd_event((byte)key, 0, 0, 0);
+                keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                lastInputEvent = DateTime.Now;
+            }
+            catch
+            {
+                // Ignore transient errors
+            }
+        }
+
+        public static void FastPressKey(int vKey) => FastPressKey((VK)vKey);
+
+        /// <summary>
+        /// Presses a key. Uses fast instant press for responsive triggers (hold &lt;= 25ms),
+        /// or short hold duration if explicitly requested.
+        /// </summary>
+        public static void TapKey(VK key, int baseHoldMs = 25)
+        {
+            if (baseHoldMs <= 25)
+            {
+                FastPressKey(key);
+                return;
+            }
+
             Task.Run(async () =>
             {
-                await SendDelayAsync();
                 keybd_event((byte)key, 0, 0, 0);
-                int hold = GaussianDelay(baseHoldMs, 8f);
+                int hold = Math.Max(10, GaussianDelay(baseHoldMs, 5f));
                 await Task.Delay(hold);
-                await SendDelayAsync();
                 keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                lastInputEvent = DateTime.Now;
             });
         }
 
-        public static void TapKey(int vKey, int baseHoldMs = 50) => TapKey((VK)vKey, baseHoldMs);
-        public static void SendKey(VK key, int baseHoldMs = 50) => TapKey(key, baseHoldMs);
-        public static void SendKey(int vKey, int baseHoldMs = 50) => TapKey((VK)vKey, baseHoldMs);
+        public static void TapKey(int vKey, int baseHoldMs = 25) => TapKey((VK)vKey, baseHoldMs);
+        public static void SendKey(VK key, int baseHoldMs = 25) => TapKey(key, baseHoldMs);
+        public static void SendKey(int vKey, int baseHoldMs = 25) => TapKey((VK)vKey, baseHoldMs);
 
         /// <summary>
-        /// Executes attack action with Gaussian timing variance.
+        /// Executes attack action immediately with zero pre-delay and snappy execution.
         /// </summary>
-        public static void ExecuteAttack(AttackInputType type, VK key, int baseHoldMs = 100)
+        public static void ExecuteAttack(AttackInputType type, VK key, int baseHoldMs = 50)
         {
+            if (type == AttackInputType.KeyboardKey && baseHoldMs <= 30)
+            {
+                FastPressKey(key);
+                return;
+            }
+
             Task.Run(async () =>
             {
-                await SendDelayAsync();
-                int hold = GaussianDelay(baseHoldMs, 10f);
+                int hold = Math.Max(15, GaussianDelay(baseHoldMs, 5f));
 
                 switch (type)
                 {
                     case AttackInputType.MouseRight:
                         mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
                         await Task.Delay(hold);
-                        await SendDelayAsync();
                         mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
                         break;
                     case AttackInputType.MouseLeft:
                         mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
                         await Task.Delay(hold);
-                        await SendDelayAsync();
                         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
                         break;
                     case AttackInputType.MouseMiddle:
                         mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0);
                         await Task.Delay(hold);
-                        await SendDelayAsync();
                         mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
                         break;
                     case AttackInputType.KeyboardKey:
-                        keybd_event((byte)key, 0, 0, 0);
-                        await Task.Delay(hold);
-                        await SendDelayAsync();
-                        keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                        FastPressKey(key);
                         break;
                 }
+                lastInputEvent = DateTime.Now;
             });
         }
 
@@ -540,6 +593,8 @@ namespace AutoExile2.Systems
         public static void HumanClick(Vector2 screenPos, bool rightClick = false) => BotInput.HumanClick(screenPos, rightClick);
         public static void KeyDown(VK key) => BotInput.KeyDown(key);
         public static void KeyUp(VK key) => BotInput.KeyUp(key);
+        public static void FastPressKey(VK key) => BotInput.FastPressKey(key);
+        public static void FastPressKey(int vKey) => BotInput.FastPressKey(vKey);
         public static void TapKey(VK key, int baseHoldMs = 50) => BotInput.TapKey(key, baseHoldMs);
         public static void ExecuteAttack(AttackInputType type, VK key, int baseHoldMs = 100) => BotInput.ExecuteAttack(type, key, baseHoldMs);
         public static void StartChannel(AttackInputType type, VK key) => BotInput.StartChannel(type, key);
@@ -562,12 +617,14 @@ namespace AutoExile2.Systems
         public static int GaussianDelay(float mean, float stdDev) => BotInput.GaussianDelay(mean, stdDev);
         public static int RandSettle() => BotInput.RandSettle();
         public static int RandHold() => BotInput.RandHold();
-        public static Vector2 RandomizeWithinRect(float cx, float cy, float hw, float hh) => BotInput.RandomizeWithinRect(cx, cy, hw, hh);
+        public static Vector2 RandomizeWithinRect(float cx, float cy, float hw, float hh) => BotInput.RandomizeWithinRect(cx, cy, hw, hw);
         public static void MoveCursor(Vector2 screenPos) => BotInput.MoveCursor(screenPos);
         public static Task MoveCursorOrganic(Vector2 target) => BotInput.MoveCursorOrganic(target);
         public static void HumanClick(Vector2 screenPos, bool rightClick = false) => BotInput.HumanClick(screenPos, rightClick);
         public static void KeyDown(VK key) => BotInput.KeyDown(key);
         public static void KeyUp(VK key) => BotInput.KeyUp(key);
+        public static void FastPressKey(VK key) => BotInput.FastPressKey(key);
+        public static void FastPressKey(int vKey) => BotInput.FastPressKey(vKey);
         public static void TapKey(VK key, int baseHoldMs = 50) => BotInput.TapKey(key, baseHoldMs);
         public static void ExecuteAttack(AttackInputType type, VK key, int baseHoldMs = 100) => BotInput.ExecuteAttack(type, key, baseHoldMs);
         public static void StartChannel(AttackInputType type, VK key) => BotInput.StartChannel(type, key);

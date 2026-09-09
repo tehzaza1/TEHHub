@@ -122,11 +122,12 @@ namespace AutoExile2.Modes
             }
 
             // 3. Locate Player 2 (Follower Entity in AwakeEntities)
-            Entity? followerEntity = this.FindFollowerEntity(area, leader, s.FollowerLeaderName);
+            Entity? followerEntity = this.FindFollowerEntity(area, leader, s.FollowerCharacterName);
             if (followerEntity == null || !followerEntity.TryGetComponent<Render>(out var fRender))
             {
+                string target = !string.IsNullOrWhiteSpace(s.FollowerCharacterName) ? s.FollowerCharacterName : "Player 2";
                 this.CurrentState = "Searching Follower";
-                this.CurrentAction = "Waiting for Player 2 to enter area/screen...";
+                this.CurrentAction = $"Waiting for [{target}] to enter area...";
                 this.CurrentNavPath.Clear();
                 this.CurrentWaypointIndex = 0;
                 pad.SetFollowerMovement(Vector2.Zero);
@@ -207,26 +208,42 @@ namespace AutoExile2.Modes
                 // Leader Auto Life Flask
                 if (s.P1AutoLifeFlask && hpPct <= s.P1LifeFlaskThresholdPercent)
                 {
-                    if (pad.IsLeaderConnected)
+                    int lifeSlot = CombatSystem.GetFlaskSlotFromKey(s.LifeFlaskKey, 0);
+                    bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(leader, lifeSlot, isLife: true);
+                    bool hasCharges = !s.CheckFlaskCharges || CombatSystem.HasFlaskCharges(ctx.Area.ServerDataObject, lifeSlot);
+
+                    if (!active && hasCharges)
                     {
-                        pad.PressLeaderFlask(true, s.LifeFlaskCooldownMs);
-                    }
-                    else
-                    {
-                        BotInput.SendKey(s.LifeFlaskKey, 60);
+                        const int debounceMs = CombatSystem.FlaskDebounceMs;
+                        if (pad.IsLeaderConnected)
+                        {
+                            pad.PressLeaderFlask(true, debounceMs);
+                        }
+                        else
+                        {
+                            BotInput.FastPressKey(s.LifeFlaskKey);
+                        }
                     }
                 }
 
                 // Leader Auto Mana Flask
                 if (s.P1AutoManaFlask && manaPct <= s.P1ManaFlaskThresholdPercent)
                 {
-                    if (pad.IsLeaderConnected)
+                    int manaSlot = CombatSystem.GetFlaskSlotFromKey(s.ManaFlaskKey, 1);
+                    bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(leader, manaSlot, isLife: false);
+                    bool hasCharges = !s.CheckFlaskCharges || CombatSystem.HasFlaskCharges(ctx.Area.ServerDataObject, manaSlot);
+
+                    if (!active && hasCharges)
                     {
-                        pad.PressLeaderFlask(false, s.ManaFlaskCooldownMs);
-                    }
-                    else
-                    {
-                        BotInput.SendKey(s.ManaFlaskKey, 60);
+                        const int debounceMs = CombatSystem.FlaskDebounceMs;
+                        if (pad.IsLeaderConnected)
+                        {
+                            pad.PressLeaderFlask(false, debounceMs);
+                        }
+                        else
+                        {
+                            BotInput.FastPressKey(s.ManaFlaskKey);
+                        }
                     }
                 }
 
@@ -271,11 +288,11 @@ namespace AutoExile2.Modes
                         slot.LastCastAt = now;
                         if (pad.IsLeaderConnected)
                         {
-                            pad.PressLeaderBuff(slot.GamepadButton, Math.Max(60, slot.HoldDurationMs));
+                            pad.PressLeaderBuff(slot.GamepadButton, Math.Max(30, slot.HoldDurationMs));
                         }
                         else
                         {
-                            BotInput.SendKey(slot.Key, Math.Max(60, slot.HoldDurationMs));
+                            BotInput.FastPressKey(slot.Key);
                         }
                         break;
                     }
@@ -290,14 +307,24 @@ namespace AutoExile2.Modes
                 float hpPct = (float)fLife.Health.Current / fLife.Health.Total * 100f;
                 float manaPct = fLife.Mana.Total > 0 ? (float)fLife.Mana.Current / fLife.Mana.Total * 100f : 100f;
 
+                const int debounceMs = CombatSystem.FlaskDebounceMs;
+
                 if (s.P2AutoLifeFlask && hpPct <= s.P2LifeFlaskThresholdPercent)
                 {
-                    pad.PressFollowerFlask(true, 3000);
+                    bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(follower, 0, isLife: true);
+                    if (!active)
+                    {
+                        pad.PressFollowerFlask(true, debounceMs);
+                    }
                 }
 
                 if (s.P2AutoManaFlask && manaPct <= s.P2ManaFlaskThresholdPercent)
                 {
-                    pad.PressFollowerFlask(false, 3000);
+                    bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(follower, 1, isLife: false);
+                    if (!active)
+                    {
+                        pad.PressFollowerFlask(false, debounceMs);
+                    }
                 }
             }
         }
@@ -795,11 +822,13 @@ namespace AutoExile2.Modes
             return leaderGrid + offset;
         }
 
-        private Entity? FindFollowerEntity(AreaInstance area, Entity leader, string leaderNameFilter)
+        private Entity? FindFollowerEntity(AreaInstance area, Entity leader, string followerNameFilter)
         {
-            // In couch co-op on a single PC:
+            // In couch co-op on a single PC or party:
             // Area.Player is Player 1 (Leader).
-            // AwakeEntities contains Player 2 (Follower).
+            // AwakeEntities contains Player 2 (Follower) and any other players in the instance.
+            var candidates = new List<(Entity ent, string name)>();
+
             foreach (var kvp in area.AwakeEntities)
             {
                 var ent = kvp.Value;
@@ -807,10 +836,49 @@ namespace AutoExile2.Modes
 
                 if (ent.EntityType == EntityTypes.Player || (ent.Path != null && ent.Path.StartsWith("Metadata/Characters/")))
                 {
-                    return ent;
+                    string pName = ent.TryGetComponent<Player>(out var pComp) ? pComp.Name : string.Empty;
+                    candidates.Add((ent, pName));
                 }
             }
 
+            if (candidates.Count == 0)
+            {
+                return null;
+            }
+
+            // 1. If a specific follower name is configured, STRICTLY match by name!
+            if (!string.IsNullOrWhiteSpace(followerNameFilter))
+            {
+                string target = followerNameFilter.Trim();
+
+                // Exact match (case-insensitive)
+                var exact = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Equals(target, StringComparison.OrdinalIgnoreCase));
+                if (exact.ent != null)
+                {
+                    return exact.ent;
+                }
+
+                // Substring / partial match
+                var partial = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Contains(target, StringComparison.OrdinalIgnoreCase));
+                if (partial.ent != null)
+                {
+                    return partial.ent;
+                }
+
+                // Follower name was NOT found in this instance!
+                // DO NOT pick a stranger randomly, return null so the bot waits safely!
+                return null;
+            }
+
+            // 2. If NO name filter is configured:
+            // Only latch onto the other player if there is exactly 1 other player in the zone (private room / map).
+            if (candidates.Count == 1)
+            {
+                return candidates[0].ent;
+            }
+
+            // If there are multiple other players (e.g. crowded hideout or town) and NO name is configured,
+            // DO NOT guess a stranger randomly because it will break the bot!
             return null;
         }
 
@@ -843,7 +911,8 @@ namespace AutoExile2.Modes
                 {
                     var heightData = ctx.Area.GridHeightData;
                     Vector2 prevScreen = sFollower;
-                    for (int i = this.CurrentWaypointIndex; i < this.CurrentNavPath.Count; i++)
+                    int maxWp = Math.Min(this.CurrentNavPath.Count, this.CurrentWaypointIndex + 25);
+                    for (int i = this.CurrentWaypointIndex; i < maxWp; i++)
                     {
                         var wp = this.CurrentNavPath[i];
                         float wpZ = Pathfinding.GetTerrainHeight(heightData, (int)wp.X, (int)wp.Y, 0f);

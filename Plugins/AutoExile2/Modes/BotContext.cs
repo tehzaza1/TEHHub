@@ -17,19 +17,19 @@ namespace AutoExile2.Modes
     /// </summary>
     public sealed class BotContext
     {
-        public required AreaInstance Area { get; init; }
-        public required WorldData World { get; init; }
-        public required Entity Player { get; init; }
-        public required Vector2 PlayerGrid { get; init; }
-        public required float DeltaTime { get; init; }
-        public required AutoExile2Settings Settings { get; init; }
-        public required CombatSystem Combat { get; init; }
-        public required ExplorationMap Exploration { get; init; }
-        public required ThreatMap ThreatMap { get; init; }
-        public required PerformanceTracker Perf { get; init; }
-        public required RuntimeTracker Runtime { get; init; }
-        public required BotRecorder Recorder { get; init; }
-        public required CoopVirtualGamepad CoopGamepad { get; init; }
-        public Action<string> Log { get; init; } = _ => { };
+        public AreaInstance Area { get; set; } = null!;
+        public WorldData World { get; set; } = null!;
+        public Entity Player { get; set; } = null!;
+        public Vector2 PlayerGrid { get; set; }
+        public float DeltaTime { get; set; }
+        public AutoExile2Settings Settings { get; set; } = null!;
+        public CombatSystem Combat { get; set; } = null!;
+        public ExplorationMap Exploration { get; set; } = null!;
+        public ThreatMap ThreatMap { get; set; } = null!;
+        public PerformanceTracker Perf { get; set; } = null!;
+        public RuntimeTracker Runtime { get; set; } = null!;
+        public BotRecorder Recorder { get; set; } = null!;
+        public CoopVirtualGamepad CoopGamepad { get; set; } = null!;
+        public Action<string> Log { get; set; } = _ => { };
     }
 }
