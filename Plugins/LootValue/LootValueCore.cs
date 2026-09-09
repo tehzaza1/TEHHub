@@ -620,8 +620,12 @@ namespace LootValue
         private bool EnsureReflection()
         {
             if (this.handleObj != null) return true;
-            var handleProp = typeof(GameProcess).GetProperty("Handle", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.handleObj = handleProp?.GetValue(Core.Process);
+            this.handleObj = Core.Process?.Handle;
+            if (this.handleObj == null)
+            {
+                var handleProp = typeof(GameProcess).GetProperty("Handle", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                this.handleObj = handleProp?.GetValue(Core.Process);
+            }
             if (this.handleObj == null) return false;
 
             var methods = this.handleObj.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
@@ -1094,13 +1098,7 @@ namespace LootValue
                 if (element == IntPtr.Zero || !visited.Add(element)) continue;
                 report.VisitedElements++;
                 if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { element }) is not UiElementBaseOffset offset) continue;
-                if (!UiElementBaseFuncs.IsVisibleChecker(offset.Flags))
-{
-    // Skip only invisible leaf nodes (no children)
-    var childArray = this.readStdVectorMethod?.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) as IntPtr[];
-    if (childArray == null || childArray.Length == 0)
-        continue;
-}
+                if (!UiElementBaseFuncs.IsVisibleChecker(offset.Flags)) continue;
 
                 if (this.readStdVectorMethod.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) is IntPtr[] children)
                 {
