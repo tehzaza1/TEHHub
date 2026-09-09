@@ -42,6 +42,9 @@ namespace Atlas2
         private static readonly Dictionary<string, ContentInfo> MapPlain = [];
         private static readonly Dictionary<byte, BiomeInfo> Biomes = [];
         private static readonly Dictionary<string, (IntPtr Ptr, int W, int H)> IconCache = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, string> TokenMap = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, (string Rumour, string Rating, string Mods)> RumourMap = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<uint, (string Name, string Description, string Icon)> MapContentDb = [];
         private readonly List<((int X, int Y) Chunk, Vector2 Center, float Half)> fogShipIcons = [];
 
         // Named-map pathfinding categories — matched by exact (normalized, case-insensitive) display
@@ -779,6 +782,14 @@ namespace Atlas2
 
                     DrawSquares(drawList, contents, labelCenterX, ref nextRowTopY, rowGap, uiScale);
 
+                    if (RumourMap.TryGetValue(mapName, out var rInfo))
+                    {
+                        var ratingColor = rInfo.Rating.StartsWith("S", StringComparison.OrdinalIgnoreCase)
+                            ? new Vector4(1f, 0.84f, 0f, 1f)
+                            : new Vector4(0.3f, 0.8f, 1f, 1f);
+                        DrawContentLine(drawList, $"★ [{rInfo.Rating}] {rInfo.Rumour}", labelCenterX, ref nextRowTopY, rowGap, ratingColor);
+                    }
+
                     if (Settings.ShowMapCounts)
                     {
                         var countText = $"Links: {nd.ConnectedGridPositions.Count}  Badges: {nd.BadgeCount}";
@@ -896,6 +907,7 @@ namespace Atlas2
                             AtlasMapNodeEffect effect => effect.Icon,
                             _ => null,
                         })
+                        .Concat(map.BadgeContentIds.Select(id => MapContentDb.TryGetValue(id & 0xFFFFu, out var mItem) ? mItem.Icon : null))
                         .Where(icon => !string.IsNullOrWhiteSpace(icon)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                     Type = map.Type ?? "normal",
                     Tags = map.Tags.ToList(),
@@ -1210,6 +1222,144 @@ namespace Atlas2
             }
 
             ApplyContentOverrides();
+            LoadMapContentDb();
+            LoadTokensMap();
+            LoadRumoursMap();
+        }
+
+        private void LoadMapContentDb()
+        {
+            try
+            {
+                var path = Path.Join(DllDirectory, "json", "mapcontent.json");
+                if (!File.Exists(path)) return;
+
+                var json = File.ReadAllText(path);
+                var doc = JsonConvert.DeserializeObject<Dictionary<string, MapContentItem>>(json);
+                if (doc == null) return;
+
+                MapContentDb.Clear();
+                foreach (var (k, v) in doc)
+                {
+                    if (uint.TryParse(k, out var id))
+                    {
+                        MapContentDb[id] = (v.Name ?? string.Empty, v.Desc ?? string.Empty, v.Icon ?? string.Empty);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Atlas2] Failed to load mapcontent.json: {ex.Message}");
+            }
+        }
+
+        private void LoadTokensMap()
+        {
+            try
+            {
+                var path = Path.Join(DllDirectory, "json", "tokens.json");
+                if (!File.Exists(path)) return;
+
+                var json = File.ReadAllText(path);
+                var jObj = Newtonsoft.Json.Linq.JObject.Parse(json);
+                TokenMap.Clear();
+
+                if (jObj["exact"] is Newtonsoft.Json.Linq.JObject exact)
+                {
+                    foreach (var prop in exact.Properties())
+                    {
+                        var val = prop.Value.ToString();
+                        TokenMap[prop.Name] = val;
+                        TokenMap["0x" + prop.Name] = val;
+                        if (prop.Name.Length > 4)
+                        {
+                            var low16 = prop.Name.Substring(prop.Name.Length - 4);
+                            TokenMap[low16] = val;
+                            TokenMap["0x" + low16] = val;
+                        }
+                    }
+                }
+
+                if (jObj["name_contents"] is Newtonsoft.Json.Linq.JObject nc)
+                {
+                    foreach (var prop in nc.Properties())
+                    {
+                        TokenMap[prop.Name] = prop.Value.ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Atlas2] Failed to load tokens.json: {ex.Message}");
+            }
+        }
+
+        private void LoadRumoursMap()
+        {
+            try
+            {
+                var path = Path.Join(DllDirectory, "json", "rumours.json");
+                if (!File.Exists(path)) return;
+
+                var json = File.ReadAllText(path);
+                var doc = JsonConvert.DeserializeObject<RumoursRoot>(json);
+                if (doc?.Sections == null) return;
+
+                RumourMap.Clear();
+                foreach (var sec in doc.Sections)
+                {
+                    if (sec.Rows == null) continue;
+                    foreach (var row in sec.Rows)
+                    {
+                        if (string.IsNullOrWhiteSpace(row.Map)) continue;
+                        RumourMap[row.Map.Trim()] = (row.Rumour ?? string.Empty, row.Rating ?? string.Empty, row.Mods ?? string.Empty);
+                        ExpeditionMaps.Add(row.Map.Trim());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Atlas2] Failed to load rumours.json: {ex.Message}");
+            }
+        }
+
+        private class MapContentItem
+        {
+            [JsonProperty("name")]
+            public string Name { get; set; } = string.Empty;
+
+            [JsonProperty("desc")]
+            public string Desc { get; set; } = string.Empty;
+
+            [JsonProperty("icon")]
+            public string Icon { get; set; } = string.Empty;
+        }
+
+        private class RumoursRoot
+        {
+            [JsonProperty("sections")]
+            public List<RumourSection> Sections { get; set; } = new();
+        }
+
+        private class RumourSection
+        {
+            [JsonProperty("rows")]
+            public List<RumourRow> Rows { get; set; } = new();
+        }
+
+        private class RumourRow
+        {
+            [JsonProperty("rumour")]
+            public string Rumour { get; set; } = string.Empty;
+
+            [JsonProperty("map")]
+            public string Map { get; set; } = string.Empty;
+
+            [JsonProperty("rating")]
+            public string Rating { get; set; } = string.Empty;
+
+            [JsonProperty("mods")]
+            public string Mods { get; set; } = string.Empty;
         }
 
         private static float ComputeDisplayScale(float refW, float refH)
@@ -1481,8 +1631,17 @@ namespace Atlas2
 
         private static bool HasAtlasContent(NodeData node, string text)
         {
-            return node.ContentDisplay.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase)) ||
-                   node.RawContents.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase));
+            if (node.ContentDisplay.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase)) ||
+                node.RawContents.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            foreach (var raw in node.RawContents)
+            {
+                if (TokenMap.TryGetValue(raw, out var resolved) && resolved.Contains(text, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool MatchesCategory(MapGroupSettings category, NodeData node, string mapName,
@@ -1528,8 +1687,19 @@ namespace Atlas2
 
         private static bool MatchesSearch(NodeData node, string mapName, string searchTerm)
         {
-            return mapName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                   HasAtlasContent(node, searchTerm);
+            if (mapName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                HasAtlasContent(node, searchTerm))
+                return true;
+
+            if (RumourMap.TryGetValue(mapName, out var rInfo))
+            {
+                if (rInfo.Rumour.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    rInfo.Rating.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    rInfo.Mods.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool IsCorruptedNexus(NodeData node)
@@ -1548,6 +1718,9 @@ namespace Atlas2
 
             var normalized = contentName.Replace("\u00A0", " ").Trim();
 
+            if (TokenMap.TryGetValue(normalized, out var mappedToken))
+                normalized = mappedToken;
+
             int lb = normalized.IndexOf('[');
             int rb = lb >= 0 ? normalized.IndexOf(']', lb + 1) : -1;
             if (lb >= 0 && rb > lb + 1)
@@ -1555,6 +1728,9 @@ namespace Atlas2
                 var inside = normalized.Substring(lb + 1, rb - lb - 1);
                 var pipe = inside.IndexOf('|');
                 var tag = (pipe >= 0 ? inside[..pipe] : inside).Trim();
+
+                if (TokenMap.TryGetValue(tag, out var mappedTag))
+                    tag = mappedTag;
 
                 if (tagMap.TryGetValue(tag, out var tagInfo))
                     return tagInfo;
