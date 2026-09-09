@@ -5,7 +5,8 @@
     "Metadata/Terrain/islands/tiles/coraldungeon/features/area_transition_stww_01.tdtx:[]": "Transition",
     "Metadata/Terrain/islands/tiles/island/oceanledge/oceanledge_to_lowerledge_x_karui_01.tdtx:[]": "Lowerledge X Karui",
     "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01_ghost.tdtx:[]": "Boat",
-    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_*.tdtx:[]": "Kalguur town?"
+    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01.tdtx:[]": "Kalguur town?",
+    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_02.tdtx:[]": "Kalguur town?"
   },
   "Abyss_Intro": {
     "Metadata/Terrain/Gallows/Leagues/Abyss/AbyssHub/Tiles/AbyssPitFeature_01.tdtx:[]": "Rare Fight",
@@ -17,7 +18,6 @@
   "G1_11": {
     "Metadata/Terrain/Woods/AreaTransitions/Bramble_Cnr_transition_01.tdtx:[]": "Ogham Farmlands Or Deadend",
     "Metadata/Terrain/Woods/AreaTransitions/CanopyRoadTransition_*.tdtx:[]": "Freythorn (+30 Spirit)",
-    "Metadata/Terrain/Woods/AreaTransitions/CanopyRoadTransition_01.tdtx:[]": "Freythorn",
     "Metadata/Terrain/Woods/AreaTransitions/CliffRoad_Cnr_transition_01.tdtx:[]": "Cemetery of the Eternals",
     "Metadata/Terrain/Woods/Features_Cairns/CairnBrecon.tdtx:[]": "Crowbell Start (+2 Passive)",
     "Metadata/Terrain/Woods/Features_Cairns/DolmenDeAzutan_03.tdtx:[]": "Crowbell Arena (+2 Passive)",
@@ -204,7 +204,6 @@
   },
   "G3_17": {
     "Metadata/Terrain/Dungeon/DoryanisSanctum/Features/Doryani_Arena_*.tdtx:[]": "Doryani Arena",
-    "Metadata/Terrain/Dungeon/DoryanisSanctum/Features/Doryani_Arena_01.tdtx:[]": "Arena",
     "Metadata/Terrain/Jungle/AreaTransitions/DoryanisSanctumEntranceInt_01_01.tdtx:[]": "Aggorat"
   },
   "G3_2_1": {
@@ -290,9 +289,7 @@
   "G4_2_1": {
     "Metadata/Terrain/Islands/Tiles/Island/Features/UnwalkableCliff_Transition_Up_*.tdtx:[]": "Journey's end",
     "Metadata/Terrain/Islands/Tiles/Island/KedgeBay/BossArena_*.tdtx:[]": "Tidal Key (Orb of Alchemy)",
-    "Metadata/Terrain/Islands/Tiles/Island/KedgeBay/BossArena_01.tdtx:[]": "Arena - Orb of Alchemy?",
-    "Metadata/Terrain/Islands/Tiles/Island/UnwalkableCliff/KedgeBay/UnwalkableCliff_CaveEntrance_*.tdtx:[]": "Deadman Chest (Map Piece)",
-    "Metadata/Terrain/Islands/Tiles/Island/UnwalkableCliff/KedgeBay/UnwalkableCliff_CaveEntrance_01.tdtx:[]": "Quest - deadman chest"
+    "Metadata/Terrain/Islands/Tiles/Island/UnwalkableCliff/KedgeBay/UnwalkableCliff_CaveEntrance_*.tdtx:[]": "Deadman Chest (Map Piece)"
   },
   "G4_2_2": {
     "Metadata/Terrain/Islands/Tiles/Island/Features/UnwalkableCliff_Transition_Up_02.tdtx:[]": "Kedge Bay",
@@ -452,7 +449,8 @@
     "Metadata/Terrain/islands/tiles/bloodfever/wharewall/alleyway_to_smallalley_ccst_01.tdtx:[]": "Smallalley Ccst",
     "Metadata/Terrain/islands/tiles/coraldungeon/features/area_transition_stww_01.tdtx:[]": "Transition",
     "Metadata/Terrain/islands/tiles/island/oceanledge/oceanledge_to_lowerledge_x_karui_01.tdtx:[]": "Lowerledge X Karui",
-    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_*.tdtx:[]": "Kalguur town?",
-    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01_ghost.tdtx:[]": "Boat"
+    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01_ghost.tdtx:[]": "Boat",
+    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_01.tdtx:[]": "Kalguur town?",
+    "Metadata/Terrain/islands/tiles/kalguurship/kalguurship_town_02.tdtx:[]": "Kalguur town?"
   }
 }
