@@ -111,12 +111,6 @@ namespace Radar
 
         private string StairsTgtPathName => Path.Join(this.DllDirectory, "stairs_tgt_files.txt");
 
-        private readonly Dictionary<string, List<PoiTarget>> poiDatabase = new();
-
-        private string ActsJsonPath => Path.Join(this.DllDirectory, "json", "acts.json");
-
-        private string EndgameJsonPath => Path.Join(this.DllDirectory, "json", "endgame.json");
-
         /// <inheritdoc/>
         public override void DrawSettings()
         {
@@ -568,8 +562,6 @@ namespace Radar
                     ?? new Dictionary<string, Dictionary<string, string>>();
             }
 
-            this.LoadPoiDatabase();
-
             if (File.Exists(this.BossArenaTgtPathName))
             {
                 var bossfiles = File.ReadAllText(this.BossArenaTgtPathName);
@@ -624,62 +616,6 @@ namespace Radar
                 var stairsfiles = JsonConvert.SerializeObject(
                     this.Settings.StairsTgts, Formatting.Indented);
                 File.WriteAllText(this.StairsTgtPathName, stairsfiles);
-            }
-        }
-
-        private void LoadPoiDatabase()
-        {
-            this.poiDatabase.Clear();
-
-            void LoadFile(string path)
-            {
-                if (!File.Exists(path))
-                {
-                    return;
-                }
-
-                try
-                {
-                    var text = File.ReadAllText(path);
-                    var dict = JsonConvert.DeserializeObject<Dictionary<string, List<PoiTarget>>>(text);
-                    if (dict != null)
-                    {
-                        foreach (var kv in dict)
-                        {
-                            var areaKey = kv.Key == "*" ? "common" : kv.Key;
-                            if (!this.poiDatabase.TryGetValue(areaKey, out var list))
-                            {
-                                list = new List<PoiTarget>();
-                                this.poiDatabase[areaKey] = list;
-                            }
-
-                            list.AddRange(kv.Value);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Radar] Error loading POI database from {path}: {ex.Message}");
-                }
-            }
-
-            LoadFile(this.ActsJsonPath);
-            LoadFile(this.EndgameJsonPath);
-
-            // Sync into Settings.ImportantTgts for UI compatibility
-            if (this.poiDatabase.Count > 0)
-            {
-                this.Settings.ImportantTgts.Clear();
-                foreach (var kv in this.poiDatabase)
-                {
-                    var dict = new Dictionary<string, string>();
-                    foreach (var item in kv.Value)
-                    {
-                        dict[item.Path] = item.Name;
-                    }
-
-                    this.Settings.ImportantTgts[kv.Key] = dict;
-                }
             }
         }
 
@@ -817,25 +753,18 @@ namespace Radar
             {
                 var drawnPositions = new List<Vector2>();
 
-                void RenderPoiTargets(List<PoiTarget> targets)
+                void RenderPoiDict(Dictionary<string, string> tgts)
                 {
-                    for (int t = 0; t < targets.Count; t++)
+                    foreach (var tile in tgts)
                     {
-                        var target = targets[t];
-                        if (!target.Enabled || target.ExpectedCount <= 0)
+                        if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
                         {
-                            continue;
-                        }
+                            var clusters = ClusterTileLocations(rawLocations, 80.0f);
+                            var strSize = this.GetTextHalfSize(tile.Value);
 
-                        if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, target.Path, out var rawLocations) && rawLocations.Count > 0)
-                        {
-                            var resolved = ResolvePoiLocations(rawLocations, target.ExpectedCount);
-                            var strSize = this.GetTextHalfSize(target.Name);
-                            var nameColor = target.ParsedNameColor;
-
-                            for (var i = 0; i < resolved.Count; i++)
+                            for (var i = 0; i < clusters.Count; i++)
                             {
-                                var loc = resolved[i];
+                                var loc = clusters[i];
                                 bool duplicate = false;
                                 for (int d = 0; d < drawnPositions.Count; d++)
                                 {
@@ -849,21 +778,21 @@ namespace Radar
                                 if (!duplicate)
                                 {
                                     drawnPositions.Add(loc);
-                                    drawString(target.Name, loc, strSize, this.Settings.EnablePOIBackground, nameColor);
+                                    drawString(tile.Value, loc, strSize, this.Settings.EnablePOIBackground);
                                 }
                             }
                         }
                     }
                 }
 
-                if (this.poiDatabase.TryGetValue(this.currentAreaName, out var areaPois))
+                if (this.Settings.ImportantTgts.TryGetValue(this.currentAreaName, out var importantTgtsOfCurrentArea))
                 {
-                    RenderPoiTargets(areaPois);
+                    RenderPoiDict(importantTgtsOfCurrentArea);
                 }
 
-                if (this.poiDatabase.TryGetValue("common", out var commonPois))
+                if (this.Settings.ImportantTgts.TryGetValue("common", out var importantTgtsOfAllAreas))
                 {
-                    RenderPoiTargets(commonPois);
+                    RenderPoiDict(importantTgtsOfAllAreas);
                 }
             }
         }
@@ -934,22 +863,16 @@ namespace Radar
             var poiSnapshot = new List<(string cacheKey, Vector2 gridPos)>();
             var collectedPositions = new List<Vector2>();
 
-            void CollectFromTargets(List<PoiTarget> targets, string prefix)
+            void CollectFrom(Dictionary<string, string> tileDict, string prefix)
             {
-                for (int t = 0; t < targets.Count; t++)
+                foreach (var tile in tileDict)
                 {
-                    var target = targets[t];
-                    if (!target.Enabled || !target.DrawPath || target.ExpectedCount <= 0)
+                    if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
                     {
-                        continue;
-                    }
-
-                    if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, target.Path, out var rawLocations) && rawLocations.Count > 0)
-                    {
-                        var resolved = ResolvePoiLocations(rawLocations, target.ExpectedCount);
-                        for (var i = 0; i < resolved.Count; i++)
+                        var clusters = ClusterTileLocations(rawLocations, 80.0f);
+                        for (var i = 0; i < clusters.Count; i++)
                         {
-                            var loc = resolved[i];
+                            var loc = clusters[i];
                             bool duplicate = false;
                             for (int c = 0; c < collectedPositions.Count; c++)
                             {
@@ -963,7 +886,7 @@ namespace Radar
                             if (!duplicate)
                             {
                                 collectedPositions.Add(loc);
-                                var poiKey = $"{prefix}|{target.Path}|{i}";
+                                var poiKey = $"{prefix}|{tile.Key}|{i}";
                                 this.MarkReachedIfClose(poiKey, pPos, loc);
                                 poiSnapshot.Add((poiKey, loc));
                             }
@@ -972,14 +895,14 @@ namespace Radar
                 }
             }
 
-            if (this.poiDatabase.TryGetValue(this.currentAreaName, out var areaPoisForPath))
+            if (this.Settings.ImportantTgts.TryGetValue(this.currentAreaName, out var importantTgtsOfCurrentArea))
             {
-                CollectFromTargets(areaPoisForPath, "area");
+                CollectFrom(importantTgtsOfCurrentArea, "area");
             }
 
-            if (this.poiDatabase.TryGetValue("common", out var commonPoisForPath))
+            if (this.Settings.ImportantTgts.TryGetValue("common", out var importantTgtsOfAllAreas))
             {
-                CollectFromTargets(commonPoisForPath, "common");
+                CollectFrom(importantTgtsOfAllAreas, "common");
             }
 
             if (poiSnapshot.Count == 0)
@@ -2828,39 +2751,71 @@ namespace Radar
             return result;
         }
 
-        private static List<Vector2> ResolvePoiLocations(List<Vector2> rawLocations, int expectedCount)
+        private static List<Vector2> ClusterTileLocations(List<Vector2> rawLocations, float clusterDistance = 80.0f)
         {
-            if (rawLocations == null || rawLocations.Count == 0 || expectedCount <= 0)
+            if (rawLocations == null || rawLocations.Count == 0)
             {
                 return new List<Vector2>();
             }
 
-            if (expectedCount == 1)
+            if (rawLocations.Count == 1)
             {
-                if (rawLocations.Count == 1)
+                return rawLocations;
+            }
+
+            var clusterDistSq = clusterDistance * clusterDistance;
+            var clusters = new List<List<Vector2>>();
+
+            for (int i = 0; i < rawLocations.Count; i++)
+            {
+                var pt = rawLocations[i];
+                List<Vector2>? targetCluster = null;
+
+                for (int c = 0; c < clusters.Count; c++)
                 {
-                    return rawLocations;
+                    var cluster = clusters[c];
+                    for (int j = 0; j < cluster.Count; j++)
+                    {
+                        if (Vector2.DistanceSquared(pt, cluster[j]) < clusterDistSq)
+                        {
+                            targetCluster = cluster;
+                            break;
+                        }
+                    }
+
+                    if (targetCluster != null)
+                    {
+                        break;
+                    }
                 }
 
-                // Centroid of all matching tiles (prevents dozens of overlapping labels in boss arenas/rooms)
+                if (targetCluster != null)
+                {
+                    targetCluster.Add(pt);
+                }
+                else
+                {
+                    clusters.Add(new List<Vector2> { pt });
+                }
+            }
+
+            // Centroid of each spatial cluster (prevents dozens of overlapping labels in boss arenas / multi-tile rooms)
+            var centroids = new List<Vector2>(clusters.Count);
+            for (int c = 0; c < clusters.Count; c++)
+            {
+                var cluster = clusters[c];
                 float sumX = 0;
                 float sumY = 0;
-                for (int i = 0; i < rawLocations.Count; i++)
+                for (int j = 0; j < cluster.Count; j++)
                 {
-                    sumX += rawLocations[i].X;
-                    sumY += rawLocations[i].Y;
+                    sumX += cluster[j].X;
+                    sumY += cluster[j].Y;
                 }
 
-                return new List<Vector2> { new Vector2(sumX / rawLocations.Count, sumY / rawLocations.Count) };
+                centroids.Add(new Vector2(sumX / cluster.Count, sumY / cluster.Count));
             }
 
-            var deduped = DeduplicateLocations(rawLocations, minDistance: 40.0f);
-            if (deduped.Count > expectedCount)
-            {
-                return deduped.Take(expectedCount).ToList();
-            }
-
-            return deduped;
+            return centroids;
         }
 
         private void DrawEntityPathEnding(string path, ImDrawListPtr fgDraw, Vector2 pos)
