@@ -37,6 +37,7 @@ public static class MemoryReadDiagnostics
     private const int MaxTrackedAddressesPerKey = 1024;
     private static readonly ConcurrentDictionary<string, FailureStat> Stats = new();
     private static readonly ConcurrentDictionary<string, ReadRegionStat> ReadRegions = new();
+    private static readonly AsyncLocal<ReadRegionContext?> CurrentReadRegion = new();
 
     private static DateTime lastUpdate = DateTime.MinValue;
     private static List<DiagnosticRow> cachedRows = [];
@@ -119,6 +120,15 @@ public static class MemoryReadDiagnostics
         {
             Interlocked.Increment(ref bufferReadCalls);
         }
+
+        // Attribute the read to the current logical operation. AsyncLocal flows into the
+        // Parallel/Task workers used by entity and UI traversal, unlike a global before/after
+        // counter which also captured unrelated work running at the same time.
+        for (var region = CurrentReadRegion.Value; region != null; region = region.Parent)
+        {
+            Interlocked.Increment(ref region.ReadCalls);
+            Interlocked.Add(ref region.RequestedBytes, requestedBytes);
+        }
     }
 
     /// <summary>
@@ -144,20 +154,22 @@ public static class MemoryReadDiagnostics
             return default;
         }
 
-        return new MemoryReadRegionScope(
-            name,
-            Interlocked.Read(ref totalReadCalls),
-            Interlocked.Read(ref totalReadBytes));
+        var context = new ReadRegionContext(name, CurrentReadRegion.Value);
+        CurrentReadRegion.Value = context;
+        return new MemoryReadRegionScope(context);
     }
 
-    internal static void CompleteRegion(string name, long startCalls, long startBytes)
+    internal static void CompleteRegion(ReadRegionContext context)
     {
-        var calls = Math.Max(0, Interlocked.Read(ref totalReadCalls) - startCalls);
-        var bytes = Math.Max(0, Interlocked.Read(ref totalReadBytes) - startBytes);
-        var stat = ReadRegions.GetOrAdd(name, static _ => new ReadRegionStat());
+        if (ReferenceEquals(CurrentReadRegion.Value, context))
+        {
+            CurrentReadRegion.Value = context.Parent;
+        }
+
+        var stat = ReadRegions.GetOrAdd(context.Name, static _ => new ReadRegionStat());
         Interlocked.Increment(ref stat.Invocations);
-        Interlocked.Add(ref stat.ReadCalls, calls);
-        Interlocked.Add(ref stat.RequestedBytes, bytes);
+        Interlocked.Add(ref stat.ReadCalls, Interlocked.Read(ref context.ReadCalls));
+        Interlocked.Add(ref stat.RequestedBytes, Interlocked.Read(ref context.RequestedBytes));
     }
 
     private static IEnumerator<Wait> RenderWindow()
@@ -630,6 +642,23 @@ public static class MemoryReadDiagnostics
         public long ReadCalls;
         public long RequestedBytes;
     }
+
+    internal sealed class ReadRegionContext
+    {
+        internal ReadRegionContext(string name, ReadRegionContext? parent)
+        {
+            this.Name = name;
+            this.Parent = parent;
+        }
+
+        internal string Name { get; }
+
+        internal ReadRegionContext? Parent { get; }
+
+        internal long ReadCalls;
+
+        internal long RequestedBytes;
+    }
 }
 
 /// <summary>
@@ -637,22 +666,18 @@ public static class MemoryReadDiagnostics
 /// </summary>
 public readonly struct MemoryReadRegionScope : IDisposable
 {
-    private readonly string? name;
-    private readonly long startCalls;
-    private readonly long startBytes;
+    private readonly MemoryReadDiagnostics.ReadRegionContext? context;
 
-    internal MemoryReadRegionScope(string name, long startCalls, long startBytes)
+    internal MemoryReadRegionScope(MemoryReadDiagnostics.ReadRegionContext context)
     {
-        this.name = name;
-        this.startCalls = startCalls;
-        this.startBytes = startBytes;
+        this.context = context;
     }
 
     public void Dispose()
     {
-        if (this.name != null)
+        if (this.context != null)
         {
-            MemoryReadDiagnostics.CompleteRegion(this.name, this.startCalls, this.startBytes);
+            MemoryReadDiagnostics.CompleteRegion(this.context);
         }
     }
 }

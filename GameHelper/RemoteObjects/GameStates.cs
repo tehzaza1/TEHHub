@@ -154,6 +154,7 @@ namespace GameHelper.RemoteObjects
                     {
                         lock (this.gameStatesLock)
                         {
+                            using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Core.GameStates");
                             this.UpdateData(false);
                         }
                     }

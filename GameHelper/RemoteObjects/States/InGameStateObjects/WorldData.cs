@@ -182,6 +182,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 yield return new Wait(GameHelperEvents.PostPerFrameDataUpdate);
                 if (this.Address != IntPtr.Zero)
                 {
+                    using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Core.WorldData");
                     this.UpdateData(false);
                 }
             }

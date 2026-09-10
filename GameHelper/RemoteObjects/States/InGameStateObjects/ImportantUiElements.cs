@@ -1459,6 +1459,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     if (this.Address != IntPtr.Zero &&
                         Core.States.GameCurrentState is GameStateTypes.InGameState or GameStateTypes.EscapeState)
                     {
+                        using var memoryReadRegion = Ui.MemoryReadDiagnostics.MeasureRegion("Core.ImportantUiElements");
                         // sending false because "true" use-case is handled
                         // by UpdateData function when address actually gets changed.
                         this.UpdateData(false);

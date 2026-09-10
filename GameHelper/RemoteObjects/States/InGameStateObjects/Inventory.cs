@@ -208,6 +208,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 {
                     if (this.Address != IntPtr.Zero)
                     {
+                        using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Core.Inventory");
                         this.UpdateData(false);
                     }
                 }
