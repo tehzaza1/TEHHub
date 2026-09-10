@@ -221,38 +221,65 @@ namespace GameHelper.Utils
             }
 
             var buffer = new T[nsize];
+            return this.TryReadMemoryArray(address, buffer, out _)
+                ? buffer
+                : Array.Empty<T>();
+        }
+
+        /// <summary>
+        ///     Reads into a caller-owned array without allocating a second buffer.
+        ///     Exposed for plugins that need bulk reads while sharing the process handle,
+        ///     validation and diagnostics owned by GameHelper.
+        /// </summary>
+        /// <typeparam name="T">unmanaged array element type.</typeparam>
+        /// <param name="address">source address in the target process.</param>
+        /// <param name="buffer">destination array.</param>
+        /// <param name="bytesRead">number of bytes copied by Windows.</param>
+        /// <returns>true only when the complete requested buffer was read.</returns>
+        public bool TryReadMemoryArray<T>(IntPtr address, T[] buffer, out nuint bytesRead)
+            where T : unmanaged
+        {
+            ArgumentNullException.ThrowIfNull(buffer);
+            bytesRead = 0;
+            if (buffer.Length == 0)
+            {
+                return true;
+            }
+
+            if (this.IsInvalid || !IsValidAddress(address))
+            {
+                RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
+                return false;
+            }
+
             try
             {
-                // Array/blob/string reads are inherently speculative — the source pointer comes
-                // from a container (std::vector/string) that may be torn or stale, so failures
-                // and short reads are routine and recoverable. Record them for the diagnostics
-                // window but keep the console clean, matching TryReadMemory (audit: torn-read noise).
-                var expectedBytes = (long)nsize * Unsafe.SizeOf<T>();
+                var expectedBytes = checked((nuint)buffer.Length * (nuint)Unsafe.SizeOf<T>());
                 var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
                 var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
-                var succeeded = NativeProcessMemory.TryRead(this.handle, address, buffer, out var numBytesRead);
+                var succeeded = NativeProcessMemory.TryRead(this.handle, address, buffer, out bytesRead);
+                var complete = succeeded && bytesRead == expectedBytes;
                 if (measureRead)
                 {
                     Ui.MemoryReadDiagnostics.RecordRead(
                         Ui.MemoryReadKind.Buffer,
-                        expectedBytes,
+                        (long)expectedBytes,
                         Stopwatch.GetTimestamp() - startedAt,
-                        succeeded && numBytesRead >= (nuint)expectedBytes);
+                        complete);
                 }
 
-                if (!succeeded ||
-                    numBytesRead < (nuint)expectedBytes)
+                if (!complete)
                 {
                     RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
-                    return Array.Empty<T>();
+                    return false;
                 }
 
-                return buffer;
+                return true;
             }
             catch
             {
                 RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
-                return Array.Empty<T>();
+                return false;
             }
         }
 
