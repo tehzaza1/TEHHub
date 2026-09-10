@@ -80,23 +80,39 @@ Baseline ใน Hideout/UI ก่อนเปลี่ยน wrapper (`memory_di
 
 Commit: `b4c9a2c perf: migrate core memory reads to LibraryImport`
 
+Runtime validation หลังย้าย core reader (`memory_diagnostics_20260911_042754.tsv`):
+
+- อ่านหน่วยความจำต่อเนื่องสำเร็จ 7,551,461 calls
+- total failed reads ลดจาก 392,874 ในรอบแรกเหลือ 6 ในรอบตรวจนี้
+- ช่วงเวลาขณะกด dump มีภาระ 336,694 calls/วินาที และ 133.04 MiB/วินาที จึงไม่ควรนำเวลา 1.91 microseconds/call ไปเทียบตรง ๆ กับ snapshot รอบแรกที่มีเพียง 16,283 calls/วินาที
+- สรุปได้ว่า runtime correctness ผ่าน แต่ยังไม่สรุปว่าตัว interop ใหม่เร็วกว่าโดยอาศัย snapshot ต่างภาระ
+
+### 5.2 ย้าย Atlas2 และถอด ProcessMemoryUtilities.Net
+
+- ลบ process handle แยกของ Atlas2 และใช้ `Core.Process.Handle` ร่วมกับโปรแกรมหลัก
+- เพิ่ม bulk-read API ที่อ่านลง buffer ของผู้เรียกโดยไม่สร้างสำเนาอีกชุด
+- Atlas2 ใช้ validation, short-read detection และ diagnostics กลางเหมือนส่วนอื่น
+- ถอด package reference `ProcessMemoryUtilities.Net 1.3.4`
+- restore ยืนยันว่า package หายจาก dependency graph
+- ตรวจ output แล้วไม่มี `ProcessMemoryUtilities.dll` เก่าค้าง
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `941cee1 refactor: remove legacy process memory package`
+
 ## กำลังทำ
 
-เฟส 5 — แทนที่ ProcessMemoryUtilities.Net: core reader ย้ายแล้ว กำลังรอ runtime validation ด้วย GameHelper/PoE2 ก่อนย้าย Atlas2 และถอด package
+เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
 
 ## ลำดับถัดไป
 
-### 5. แทนที่ ProcessMemoryUtilities.Net
+### 5. ลดต้นทุนของ memory reader ต่อ
 
-แพ็กเกจ `ProcessMemoryUtilities.Net 1.3.4` เป็น dependency เก่าจากปี 2020 และอยู่ในเส้นทางสำคัญของโปรแกรม แผนคือ:
+การย้าย wrapper และถอด package เสร็จแล้ว งานที่เหลือในเฟส memory reader คือ:
 
-1. สร้าง native memory reader ภายในโปรเจกต์ด้วย `LibraryImport`
-2. คง API ของ `SafeMemoryHandle` ไว้ก่อน เพื่อไม่ให้ส่วนอื่นต้องเปลี่ยนพร้อมกัน
-3. เทียบความถูกต้อง จำนวน calls, throughput, latency และ failures กับของเดิม
-4. ลด allocation ของ array/string reads และใช้ buffer ซ้ำในจุดที่ปลอดภัย
-5. รวม read ที่อยู่ติดกันเพื่อลดจำนวนการข้ามจาก .NET ไป Windows
-6. ย้าย Atlas2 ซึ่งยังเรียก wrapper เก่าโดยตรง
-7. ถอด package หลังทุกจุดผ่านการทดสอบ
+1. เพิ่มค่าเฉลี่ยทั้ง session แยกจาก snapshot ณ เวลาที่กด Dump เพื่อให้การเปรียบเทียบแม่นยำขึ้น
+2. ลด allocation ของ array/string reads และใช้ buffer ซ้ำในจุดที่ปลอดภัย
+3. รวม read ที่อยู่ติดกันเพื่อลดจำนวนการข้ามจาก .NET ไป Windows
+4. หา call site ที่เรียกถี่ผิดปกติ แล้วเพิ่ม cache/throttle โดยไม่ทำให้ข้อมูลสำคัญล่าช้า
 
 ประโยชน์หลักจะมาจากการลดจำนวน native calls และ allocation ไม่ใช่เพียงการเปลี่ยนชื่อ wrapper
 
