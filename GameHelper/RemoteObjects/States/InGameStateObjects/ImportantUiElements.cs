@@ -136,6 +136,8 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         private readonly List<PlayerMarker> atlasMarkers = new();
         private int atlasMapCacheFrameCounter = int.MaxValue;
         private int cachedAtlasMapCount = -1;
+        private string lastAreaHash = string.Empty;
+        private bool isCoopLatched = false;
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct AtlasNodeConnectionEdgeOffsets
@@ -1090,6 +1092,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         {
             if (!Core.GHSettings.EnableControllerMode)
             {
+                this.isCoopLatched = false;
                 return false;
             }
 
@@ -1105,33 +1108,130 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            // 1. Direct engine check: LocalPlayerCount on this machine.
-            // When 2 players play local co-op sharing the screen, LocalPlayerCount is >= 2.
-            // In Town or Hideout, other online players are NOT local players, so LocalPlayerCount is 1!
-            if (currentArea.LocalPlayerCount >= 2)
+            // Reset latch on area transition
+            if (this.lastAreaHash != currentArea.AreaHash)
+            {
+                this.lastAreaHash = currentArea.AreaHash;
+                this.isCoopLatched = false;
+            }
+
+            // Check if any other player entity is present in AwakeEntities
+            var hasOtherPlayer = false;
+            foreach (var entity in currentArea.AwakeEntities.Values)
+            {
+                if (entity.EntitySubtype == GameHelper.RemoteEnums.Entity.EntitySubtypes.PlayerOther)
+                {
+                    hasOtherPlayer = true;
+                    break;
+                }
+            }
+
+            // If we are already latched in this area and another player is still present, maintain Co-op
+            if (this.isCoopLatched && hasOtherPlayer)
             {
                 return true;
             }
-            if (currentArea.LocalPlayerCount == 1)
+
+            // If another player is present:
+            if (hasOtherPlayer)
             {
+                var worldData = inGameState.CurrentWorldInstance;
+                var areaDetails = worldData?.AreaDetails;
+                bool isTown = areaDetails != null && areaDetails.IsTown;
+
+                // Outside of Town (Maps, Expeditions, Combat Zones, Hideout):
+                // Having another player in controller mode is definitively Co-op.
+                if (!isTown)
+                {
+                    this.isCoopLatched = true;
+                    return true;
+                }
+
+                // In Town: check if camera is shifted away from dead center (> 12 pixels)
+                // In solo mode, camera is locked at 0-2 pixels from screen center.
+                if (worldData != null && worldData.Address != IntPtr.Zero &&
+                    currentArea.Player.TryGetComponent<Render>(out var playerRender))
+                {
+                    var screenPos = worldData.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
+                    if (screenPos != Vector2.Zero)
+                    {
+                        var screenCenter = new Vector2(
+                            Core.Process.WindowArea.Width / 2f,
+                            Core.Process.WindowArea.Height / 2f);
+                        if (Vector2.Distance(screenPos, screenCenter) > 12f)
+                        {
+                            this.isCoopLatched = true;
+                            return true;
+                        }
+                    }
+                }
+
+                // In Town: check if Co-op split containers (Child 22 / 23) have any active visible panel
+                var child22 = ResolveChildAddress(this.Address, LeftPanelCoopPath);
+                var child23 = ResolveChildAddress(this.Address, RightPanelCoopPath);
+                if (IsContainerActive(child22) || IsContainerActive(child23))
+                {
+                    this.isCoopLatched = true;
+                    return true;
+                }
+
                 return false;
             }
 
-            // 2. Fallback camera offset check:
-            // When 2 players play co-op sharing the same screen, the camera is shared/midpoint-tracked.
-            // Player 1 is shifted away from the dead screen-center (> 35 pixels).
-            // In solo mode, even in Town with 50 other players, Player 1 is always locked at screen center (distance < 5).
-            var worldData = inGameState.CurrentWorldInstance;
-            if (worldData != null && worldData.Address != IntPtr.Zero &&
-                currentArea.Player.TryGetComponent<Render>(out var playerRender))
+            // Even if AwakeEntities didn't report PlayerOther (e.g. initial frames or town entity disable),
+            // camera offset > 15px in controller mode only happens with shared Co-op camera
+            var wd = inGameState.CurrentWorldInstance;
+            if (wd != null && wd.Address != IntPtr.Zero &&
+                currentArea.Player.TryGetComponent<Render>(out var pRender))
             {
-                var screenPos = worldData.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
+                var screenPos = wd.WorldToScreen(pRender.WorldPosition, pRender.TerrainHeight);
                 if (screenPos != Vector2.Zero)
                 {
                     var screenCenter = new Vector2(
                         Core.Process.WindowArea.Width / 2f,
                         Core.Process.WindowArea.Height / 2f);
-                    if (Vector2.Distance(screenPos, screenCenter) > 35f)
+                    if (Vector2.Distance(screenPos, screenCenter) > 15f)
+                    {
+                        this.isCoopLatched = true;
+                        return true;
+                    }
+                }
+            }
+
+            this.isCoopLatched = false;
+            return false;
+        }
+
+        private static bool IsContainerActive(IntPtr address)
+        {
+            if (address == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            var reader = Core.Process.Handle;
+            if (!reader.TryReadMemory<UiElementBaseOffset>(address, out var off) || off.Self != address)
+            {
+                return false;
+            }
+
+            if ((off.Flags & IsVisibleMask) != 0 && off.UnscaledSize.X > 50 && off.UnscaledSize.Y > 50)
+            {
+                return true;
+            }
+
+            var childCount = (int)off.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (childCount > 0 && childCount < 100 && off.ChildrensPtr.First != IntPtr.Zero)
+            {
+                var children = reader.ReadMemoryArray<IntPtr>(off.ChildrensPtr.First, childCount);
+                for (int i = 0; i < children.Length; i++)
+                {
+                    var c = children[i];
+                    if (c == IntPtr.Zero) continue;
+                    if (reader.TryReadMemory<UiElementBaseOffset>(c, out var cOff) &&
+                        cOff.Self == c &&
+                        (cOff.Flags & IsVisibleMask) != 0 &&
+                        cOff.UnscaledSize.X > 100 && cOff.UnscaledSize.Y > 100)
                     {
                         return true;
                     }
