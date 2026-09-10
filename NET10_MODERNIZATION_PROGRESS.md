@@ -379,6 +379,14 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - การย้ายค่าสี Vector จาก config เก่าคง field format เดิมไว้ (`X`, `Y`, `Z`, `W`)
 - ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
 
+### 6.9 ย้าย Atlas2 ออกจาก Newtonsoft.Json
+
+- Atlas2 settings ใช้ source-generated `System.Text.Json` metadata
+- biome/content/ritual catalog, token map และ rumours ย้ายไป `JsonSerializer`/`JsonDocument`
+- ritual pool และ JSONL diagnostics ใช้ System.Text.Json โดยยังคงรูปแบบข้อมูลเดิม
+- ไม่แก้ memory-reader, node cache, parent-climbing หรือ draw path ของ Atlas2 ในชุดนี้
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

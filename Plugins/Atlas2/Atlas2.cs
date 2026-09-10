@@ -9,7 +9,6 @@ namespace Atlas2
     using GameOffsets.Natives;
     using GameOffsets.Objects.UiElement;
     using ImGuiNET;
-    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
@@ -20,6 +19,8 @@ namespace Atlas2
     using System.Numerics;
     using System.Runtime.InteropServices;
     using System.Text;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
 
     public sealed partial class Atlas2 : PCore<Atlas2Settings>
     {
@@ -29,6 +30,12 @@ namespace Atlas2
         private const uint CompletedNodeDotColor = 0xFF00FF00;
         private const uint DotOutlineColor = 0xFF000000;
         private static readonly Vector4 VaalBeaconBorderColor = new(1f, 0.84f, 0f, 1f);
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            IncludeFields = true,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true,
+        };
 
         private const int ChannelGrid = 0;
         private const int ChannelLines = 1;
@@ -120,8 +127,7 @@ namespace Atlas2
             if (File.Exists(SettingPathname))
             {
                 var content = File.ReadAllText(SettingPathname);
-                var serializerSettings = new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace };
-                Settings = JsonConvert.DeserializeObject<Atlas2Settings>(content, serializerSettings);
+                Settings = JsonSerializer.Deserialize(content, Atlas2JsonContext.Default.Atlas2Settings) ?? new Atlas2Settings();
             }
 
             if (Settings.CategorySettingsVersion != 10 || Settings.MapGroups == null
@@ -145,7 +151,7 @@ namespace Atlas2
             if (!string.IsNullOrEmpty(dir))
                 Directory.CreateDirectory(dir);
 
-            var settingsData = JsonConvert.SerializeObject(Settings, Formatting.Indented);
+            var settingsData = JsonSerializer.Serialize(Settings, Atlas2JsonContext.Default.Atlas2Settings);
             File.WriteAllText(SettingPathname, settingsData);
         }
 
@@ -1183,7 +1189,7 @@ namespace Atlas2
                 return;
 
             var json = File.ReadAllText(path);
-            var contents = JsonConvert.DeserializeObject<Dictionary<string, BiomeInfo>>(json);
+            var contents = JsonSerializer.Deserialize<Dictionary<string, BiomeInfo>>(json, JsonOptions);
 
             Biomes.Clear();
 
@@ -1206,7 +1212,7 @@ namespace Atlas2
                 return;
 
             var json = File.ReadAllText(path);
-            var contents = JsonConvert.DeserializeObject<Dictionary<string, ContentInfo>>(json);
+            var contents = JsonSerializer.Deserialize<Dictionary<string, ContentInfo>>(json, JsonOptions);
 
             MapTags.Clear();
             MapPlain.Clear();
@@ -1236,7 +1242,7 @@ namespace Atlas2
                 if (!File.Exists(path)) return;
 
                 var json = File.ReadAllText(path);
-                var doc = JsonConvert.DeserializeObject<Dictionary<string, MapContentItem>>(json);
+                var doc = JsonSerializer.Deserialize<Dictionary<string, MapContentItem>>(json, JsonOptions);
                 if (doc == null) return;
 
                 MapContentDb.Clear();
@@ -1261,15 +1267,15 @@ namespace Atlas2
                 var path = Path.Join(DllDirectory, "json", "tokens.json");
                 if (!File.Exists(path)) return;
 
-                var json = File.ReadAllText(path);
-                var jObj = Newtonsoft.Json.Linq.JObject.Parse(json);
+                using var document = JsonDocument.Parse(File.ReadAllText(path));
+                var root = document.RootElement;
                 TokenMap.Clear();
 
-                if (jObj["exact"] is Newtonsoft.Json.Linq.JObject exact)
+                if (root.TryGetProperty("exact", out var exact) && exact.ValueKind == JsonValueKind.Object)
                 {
-                    foreach (var prop in exact.Properties())
+                    foreach (var prop in exact.EnumerateObject())
                     {
-                        var val = prop.Value.ToString();
+                        var val = prop.Value.GetString() ?? string.Empty;
                         TokenMap[prop.Name] = val;
                         TokenMap["0x" + prop.Name] = val;
                         if (prop.Name.Length > 4)
@@ -1281,11 +1287,11 @@ namespace Atlas2
                     }
                 }
 
-                if (jObj["name_contents"] is Newtonsoft.Json.Linq.JObject nc)
+                if (root.TryGetProperty("name_contents", out var nameContents) && nameContents.ValueKind == JsonValueKind.Object)
                 {
-                    foreach (var prop in nc.Properties())
+                    foreach (var prop in nameContents.EnumerateObject())
                     {
-                        TokenMap[prop.Name] = prop.Value.ToString();
+                        TokenMap[prop.Name] = prop.Value.GetString() ?? string.Empty;
                     }
                 }
             }
@@ -1303,7 +1309,7 @@ namespace Atlas2
                 if (!File.Exists(path)) return;
 
                 var json = File.ReadAllText(path);
-                var doc = JsonConvert.DeserializeObject<RumoursRoot>(json);
+                var doc = JsonSerializer.Deserialize<RumoursRoot>(json, JsonOptions);
                 if (doc?.Sections == null) return;
 
                 RumourMap.Clear();
@@ -1326,40 +1332,40 @@ namespace Atlas2
 
         private class MapContentItem
         {
-            [JsonProperty("name")]
+            [JsonPropertyName("name")]
             public string Name { get; set; } = string.Empty;
 
-            [JsonProperty("desc")]
+            [JsonPropertyName("desc")]
             public string Desc { get; set; } = string.Empty;
 
-            [JsonProperty("icon")]
+            [JsonPropertyName("icon")]
             public string Icon { get; set; } = string.Empty;
         }
 
         private class RumoursRoot
         {
-            [JsonProperty("sections")]
+            [JsonPropertyName("sections")]
             public List<RumourSection> Sections { get; set; } = new();
         }
 
         private class RumourSection
         {
-            [JsonProperty("rows")]
+            [JsonPropertyName("rows")]
             public List<RumourRow> Rows { get; set; } = new();
         }
 
         private class RumourRow
         {
-            [JsonProperty("rumour")]
+            [JsonPropertyName("rumour")]
             public string Rumour { get; set; } = string.Empty;
 
-            [JsonProperty("map")]
+            [JsonPropertyName("map")]
             public string Map { get; set; } = string.Empty;
 
-            [JsonProperty("rating")]
+            [JsonPropertyName("rating")]
             public string Rating { get; set; } = string.Empty;
 
-            [JsonProperty("mods")]
+            [JsonPropertyName("mods")]
             public string Mods { get; set; } = string.Empty;
         }
 

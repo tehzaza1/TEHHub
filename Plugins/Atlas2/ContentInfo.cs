@@ -1,5 +1,5 @@
 ﻿using System.Numerics;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace Atlas2
 {

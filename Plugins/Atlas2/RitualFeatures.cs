@@ -7,7 +7,6 @@ namespace Atlas2
     using GameOffsets.Natives;
     using GameOffsets.Objects.UiElement;
     using ImGuiNET;
-    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.Drawing;
@@ -17,6 +16,7 @@ namespace Atlas2
     using System.Numerics;
     using System.Runtime.CompilerServices;
     using System.Text;
+    using System.Text.Json;
 
     public sealed partial class Atlas2
     {
@@ -350,7 +350,7 @@ namespace Atlas2
             {
                 var path = Path.Join(DllDirectory, "json", "ritualmods.json");
                 ritualPool = File.Exists(path)
-                    ? (JsonConvert.DeserializeObject<RitualPoolFile>(File.ReadAllText(path))?.Rows ?? new())
+                    ? (JsonSerializer.Deserialize<RitualPoolFile>(File.ReadAllText(path), JsonOptions)?.Rows ?? new())
                     : new();
             }
             catch { ritualPool = new(); }
@@ -1452,7 +1452,7 @@ namespace Atlas2
                         "// Ritual Rite-mod roll ground-truth. One JSON snapshot per line state.\n");
                 ritualLogHeaderDone = true;
                 File.AppendAllText(RitualRollLogPathname,
-                    JsonConvert.SerializeObject(snapshot) + "\n");
+                    JsonSerializer.Serialize(snapshot, JsonOptions) + "\n");
             }
             catch { /* logging must never break the overlay */ }
         }
