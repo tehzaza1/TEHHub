@@ -63,8 +63,11 @@ namespace AutoExile2.Brain
             // 5. Scan Loot for fly-by pickup and attack-move
             this.Loot.Scan(ctx, followerGrid);
 
-            // 6. Scan Telegraphs for incoming monster slams/charges
-            this.Telegraph.Scan(ctx, followerGrid);
+            // 6. Scan Telegraphs for incoming monster slams/charges (Disabled by default pending monster skill research)
+            if (this.Telegraph.Enabled)
+            {
+                this.Telegraph.Scan(ctx, followerGrid);
+            }
         }
     }
 
@@ -516,6 +519,12 @@ namespace AutoExile2.Brain
     /// </summary>
     public class TelegraphVision
     {
+        /// <summary>
+        /// Gets or sets a value indicating whether Telegraph Vision is enabled.
+        /// Kept disabled for now during the planning phase pending monster skill research.
+        /// </summary>
+        public bool Enabled { get; set; } = false;
+
         public bool HasIncomingSlam { get; private set; }
 
         public Entity? SlamSourceEntity { get; private set; }
@@ -536,6 +545,11 @@ namespace AutoExile2.Brain
             this.EvadeVector = Vector2.Zero;
             this.DistanceToSlamSource = float.MaxValue;
             this.SlamAnimation = Animation.Idle;
+
+            if (!this.Enabled)
+            {
+                return;
+            }
 
             var area = ctx.Area;
             if (area?.AwakeEntities == null)
