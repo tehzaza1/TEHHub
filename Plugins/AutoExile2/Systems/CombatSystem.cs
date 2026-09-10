@@ -588,6 +588,15 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
+                // Check if in-game skill is currently usable (not on game cooldown)
+                if (player.TryGetComponent<Actor>(out var pActor) && !string.IsNullOrWhiteSpace(slot.AssignedSkillName) && pActor.ActiveSkills != null && pActor.ActiveSkills.ContainsKey(slot.AssignedSkillName))
+                {
+                    if (pActor.IsSkillUsable != null && !pActor.IsSkillUsable.Contains(slot.AssignedSkillName))
+                    {
+                        continue;
+                    }
+                }
+
                 // Check if buff is already active on the player
                 if (slot.OnlyWhenBuffMissing && HasBuff(player, slot))
                 {
@@ -655,6 +664,15 @@ namespace AutoExile2.Systems
                 if (slot.MinCastIntervalMs > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs)
                 {
                     continue;
+                }
+
+                // Check if in-game skill is currently usable (not on game cooldown)
+                if (player.TryGetComponent<Actor>(out var pActor) && !string.IsNullOrWhiteSpace(slot.AssignedSkillName) && pActor.ActiveSkills != null && pActor.ActiveSkills.ContainsKey(slot.AssignedSkillName))
+                {
+                    if (pActor.IsSkillUsable != null && !pActor.IsSkillUsable.Contains(slot.AssignedSkillName))
+                    {
+                        continue;
+                    }
                 }
 
                 // Check if buff is already active on the player

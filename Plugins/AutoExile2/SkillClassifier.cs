@@ -40,7 +40,7 @@ namespace AutoExile2
         private static readonly string[] GuardKeywords =
         {
             "steelskin", "moltenshell", "immortalcall", "bonearmour", "arcanecloak",
-            "frostshield", "defiancebanner"
+            "frostshield", "defiancebanner", "convalescence"
         };
 
         private static readonly string[] WarcryKeywords =
@@ -179,6 +179,10 @@ namespace AutoExile2
                     slot.MinNearbyEnemies = 0;
                     slot.MaxTargetRange = 0f;
                     slot.OnlyWhenBuffMissing = true;
+                    if (slot.AssignedSkillName.Contains("Convalescence", StringComparison.OrdinalIgnoreCase))
+                    {
+                        slot.VitalCondition = VitalConditionType.EsOnly;
+                    }
                     break;
 
                 case CategoryBuff:
