@@ -248,6 +248,19 @@ Runtime validation (`memory_diagnostics_20260911_051957.tsv`):
 
 ผลหลักของเฟสนี้คือทำให้ overlay รอ Windows/kernel เพื่ออ่าน memory น้อยลง จึงลดโอกาสหน่วงและทำให้ UI ตอบสนองสม่ำเสมอขึ้น ไม่ได้ตั้งใจเพิ่ม FPS ของตัวเกม
 
+### 5.11 Batch reading สำหรับ cached Root UI parents
+
+- Dump ยืนยันว่า Root UI parent ใช้ 1,989 reads/frame ขณะที่ Passive Tree ใช้ 0 ในสถานะทดสอบ
+- เพิ่ม Batch Reading สำหรับ parent ที่ address อยู่ติดกันใน memory: อ่าน span เดียวแล้วแยก `UiElementBaseOffset` ใน GameHelper
+- จำกัด gap และขนาดก้อนสูงสุดเพื่อไม่อ่านข้าม heap region ขนาดใหญ่
+- หาก Windows อ่านก้อนไม่ครบ จะ fallback ไปอ่าน parent แต่ละตัวด้วยกลไกเดิมทันที จึงยังได้ข้อมูล UI ชุดเดิม
+- ใช้ `ArrayPool<byte>` และ overload read ที่ระบุความยาวจริง เพื่อไม่สร้าง allocation ใหญ่ทุกเฟรมและไม่อ่านพื้นที่เกินก้อนที่ต้องการ
+- การเปลี่ยนนี้ไม่ลด update rate ของตำแหน่ง, visibility หรือ scale
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+- รอ runtime/visual validation เพื่อวัดผล calls/frame และยืนยันว่าไม่มี fallback/failure ผิดปกติ
+
+Commit: `5ca1df1 perf: batch adjacent UI parent memory reads`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
