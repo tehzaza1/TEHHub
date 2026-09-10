@@ -57,9 +57,32 @@ Commit: `702a8d4 perf: add low-overhead latency and allocation profiling`
 
 Commit: `85a136e perf: measure native memory read throughput`
 
+Baseline ใน Hideout/UI ก่อนเปลี่ยน wrapper (`memory_diagnostics_20260911_041848.tsv`):
+
+- 6,109,918 native reads ระหว่างช่วงทดสอบ
+- 16,283 calls/วินาที ณ เวลาที่ dump
+- 8.76 MiB/วินาที
+- 1.24 microseconds/native call โดยเฉลี่ย
+- 5,123,972 scalar calls และ 985,946 buffer/array calls
+- ปริมาณข้อมูลที่ร้องขอรวม 2,256.88 MiB
+
+ตัวเลขนี้ชี้ว่าการลดจำนวน calls จะให้ผลมากกว่าการเปลี่ยนกลไก P/Invoke เพียงอย่างเดียว
+
+### 5.1 ย้าย core memory reader ไป LibraryImport
+
+- สร้าง `NativeProcessMemory` ด้วย source-generated `LibraryImport` ของ .NET 10
+- ย้าย OpenProcess, scalar read, array read และ CloseHandle ของ `SafeMemoryHandle`
+- ตรวจ byte count ทุกครั้ง ป้องกัน short read ถูกนับเป็นผลสำเร็จ
+- เปลี่ยนการหาขนาด unmanaged type จาก `Marshal.SizeOf<T>()` เป็น `Unsafe.SizeOf<T>()` ใน hot path
+- self-test อ่านค่า 32-bit จากหน่วยความจำของโปรเซสทดสอบสำเร็จและได้ครบ 4 ไบต์
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+- ยังเก็บ package เก่าไว้ชั่วคราว เพราะ Atlas2 มีการเรียกโดยตรงและต้องย้ายแยก
+
+Commit: `b4c9a2c perf: migrate core memory reads to LibraryImport`
+
 ## กำลังทำ
 
-เฟส 5 — แทนที่ ProcessMemoryUtilities.Net: สำรวจจุดใช้งานครบแล้วและมี baseline instrumentation พร้อม กำลังเริ่มสร้าง native memory reader ภายในโปรเจกต์
+เฟส 5 — แทนที่ ProcessMemoryUtilities.Net: core reader ย้ายแล้ว กำลังรอ runtime validation ด้วย GameHelper/PoE2 ก่อนย้าย Atlas2 และถอด package
 
 ## ลำดับถัดไป
 
