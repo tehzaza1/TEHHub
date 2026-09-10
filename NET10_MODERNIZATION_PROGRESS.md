@@ -172,6 +172,27 @@ Commit: `8de6e70 perf: attribute memory reads to Atlas regions`
 
 Commit: `7fd6936 perf: preserve stable Atlas node cache`
 
+Runtime validation หลังเก็บ cache (`memory_diagnostics_20260911_045604.tsv`):
+
+- `Atlas2.DrawUI` ลดจาก 2,431.4 เหลือ 91.3 reads/ครั้ง หรือลดลง 96.2%
+- ทั้งโปรแกรมลดจาก 12,297 เหลือ 11,660 reads/frame หรือลดลง 5.2%
+- ค่าเฉลี่ยทั้ง session ลดจาก 700,611 เหลือ 660,789 reads/วินาที
+- buffer/array calls ลดจาก 7,195,958 เหลือ 6,107,064 ในช่วงทดสอบประมาณ 30 วินาที
+- native failures ยังเป็นศูนย์
+
+ผลนี้ยืนยันว่า cache ทำงานจริงและ Atlas2 ไม่ใช่แหล่ง read หลักอีกต่อไป ส่วนตัวเลข region เดิมใช้ผลต่างของ counter รวมทั้งโปรเซส จึงมี read จากงานขนานปะปนและยังใช้ชี้คอขวดที่เหลือไม่ได้แม่นยำ
+
+### 5.8 แยก memory read ตาม logical operation และ thread
+
+- เปลี่ยน read-region attribution ให้ใช้ context ของงานซึ่งไหลต่อไปยัง `Task`/งานขนาน
+- แต่ละ native read ถูกนับเข้า operation ที่เป็นเจ้าของโดยตรง แทนการหัก counter รวมก่อนและหลัง operation
+- เพิ่ม region ของ GameStates, InGameState, AreaInstance, ImportantUiElements, Inventory, ServerData, WorldData และ plugin แต่ละตัว
+- bookkeeping นี้ทำงานเฉพาะเมื่อเปิด Memory Read Diagnostics
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+- รอ dump รอบถัดไปเพื่อจัดอันดับแหล่งของ read ที่เหลือประมาณ 11,660 reads/frame แล้วจึงทำ batch/cache จุดที่คุ้มที่สุด
+
+Commit: `d14c1de perf: attribute memory reads by logical operation`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
