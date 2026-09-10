@@ -707,9 +707,15 @@ namespace AutoExile2.Systems
             foreach (var kv in pBuffs.StatusEffects)
             {
                 string keyClean = CleanBuffString(kv.Key);
+                string keyCleanNoDigits = System.Text.RegularExpressions.Regex.Replace(keyClean, @"\d+$", "");
+
                 for (int i = 0; i < aliases.Count; i++)
                 {
-                    if (keyClean.Contains(aliases[i], StringComparison.OrdinalIgnoreCase))
+                    string alias = aliases[i];
+                    string aliasNoDigits = System.Text.RegularExpressions.Regex.Replace(alias, @"\d+$", "");
+
+                    if (keyClean.Contains(alias, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrEmpty(keyCleanNoDigits) && !string.IsNullOrEmpty(aliasNoDigits) && (keyCleanNoDigits.Contains(aliasNoDigits, StringComparison.OrdinalIgnoreCase) || aliasNoDigits.Contains(keyCleanNoDigits, StringComparison.OrdinalIgnoreCase))))
                     {
                         return true;
                     }
@@ -745,7 +751,25 @@ namespace AutoExile2.Systems
         private static List<string> GetBuffAliases(string clean)
         {
             var list = new List<string> { clean };
-            if (clean.Contains("steelskin"))
+
+            // Strip trailing "active" or "triggered" from skill gem names (e.g. ConvalescenceActive -> convalescence)
+            if (clean.EndsWith("active", StringComparison.OrdinalIgnoreCase) && clean.Length > 6)
+            {
+                string baseName = clean.Substring(0, clean.Length - 6);
+                if (!list.Contains(baseName)) list.Add(baseName);
+            }
+            if (clean.EndsWith("triggered", StringComparison.OrdinalIgnoreCase) && clean.Length > 9)
+            {
+                string baseName = clean.Substring(0, clean.Length - 9);
+                if (!list.Contains(baseName)) list.Add(baseName);
+            }
+
+            if (clean.Contains("convalescence"))
+            {
+                list.Add("convalescence");
+                list.Add("convalescenceenergyshield");
+            }
+            else if (clean.Contains("steelskin"))
             {
                 list.Add("quickguard");
             }

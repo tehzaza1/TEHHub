@@ -228,25 +228,25 @@ namespace AutoExile2
             int unreservedHp = life.Health.Unreserved > 0 ? life.Health.Unreserved : life.Health.Total;
             this.MaxHp = Math.Max(0, unreservedHp);
             this.CurrentHp = Math.Clamp(life.Health.Current, 0, this.MaxHp);
-            this.HpPercent = this.MaxHp > 0 ? ((float)this.CurrentHp / this.MaxHp) * 100f : 100f;
+            this.HpPercent = this.MaxHp > 0 ? (float)life.Health.CurrentInPercent() : 100f;
 
-            // Unreserved Energy Shield
+            // Unreserved Energy Shield (matching AutoHotKeyTrigger Vital.From)
             int unreservedEs = life.EnergyShield.Unreserved > 0 ? life.EnergyShield.Unreserved : life.EnergyShield.Total;
             this.HasEs = unreservedEs > 0;
             this.MaxEs = this.HasEs ? unreservedEs : 0;
             this.CurrentEs = this.HasEs ? Math.Clamp(life.EnergyShield.Current, 0, this.MaxEs) : 0;
-            this.EsPercent = this.HasEs && this.MaxEs > 0 ? ((float)this.CurrentEs / this.MaxEs) * 100f : 100f;
+            this.EsPercent = this.HasEs ? (float)life.EnergyShield.CurrentInPercent() : 100f;
 
             // Combined effective health pool (unreserved HP + unreserved ES)
             int totalMaxPool = this.MaxHp + this.MaxEs;
             int totalCurPool = this.CurrentHp + this.CurrentEs;
             this.CombinedPercent = totalMaxPool > 0 ? ((float)totalCurPool / totalMaxPool) * 100f : 100f;
 
-            // Unreserved Mana
+            // Unreserved Mana (matching AutoHotKeyTrigger Vital.From)
             int unreservedMana = life.Mana.Unreserved > 0 ? life.Mana.Unreserved : life.Mana.Total;
             this.MaxMana = Math.Max(0, unreservedMana);
             this.CurrentMana = Math.Clamp(life.Mana.Current, 0, this.MaxMana);
-            this.ManaPercent = this.MaxMana > 0 ? ((float)this.CurrentMana / this.MaxMana) * 100f : 100f;
+            this.ManaPercent = this.MaxMana > 0 ? (float)life.Mana.CurrentInPercent() : 100f;
         }
 
         public bool IsLowVital(SkillSlotConfig slot)
