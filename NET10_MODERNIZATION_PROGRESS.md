@@ -126,13 +126,27 @@ Commit: `df168aa fix: allow zero-failure memory metric dumps`
 - native failures เป็นศูนย์ และพบ null address validation เพียง 1 ครั้ง
 - ยืนยันว่า LibraryImport, shared process handle และ Atlas2 ทำงานร่วมกันได้
 
-พบสาเหตุของ call rate ที่สูง: ค่า `FPSLimit = 60` ถูกโหลดจาก settings แต่ไม่ได้ส่งให้ overlay ตอนเริ่มโปรแกรม ทำให้ event/update loop อาจทำงานไม่จำกัดจนกว่าผู้ใช้จะแก้ค่าในหน้าตั้งค่า
+ตอนแรกสงสัยว่าค่า `FPSLimit = 60` ถูกโหลดจาก settings แต่ไม่ได้ส่งให้ overlay ตอนเริ่มโปรแกรม จึงแก้ให้ค่าที่ผู้ใช้บันทึกถูกนำไปใช้เสมอ
 
 - แก้ `GameOverlay.Run()` ให้ใช้ FPS limit ที่บันทึกไว้ตั้งแต่เริ่ม
 - การจำกัดนี้มีผลเฉพาะ GameHelper overlay ไม่ได้จำกัด FPS ของเกม
 - ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
 
 Commit: `7e2956f perf: apply overlay frame limit at startup`
+
+ผลทดสอบถัดมา (`memory_diagnostics_20260911_044408.tsv`) พบว่า read rate ยังสูงถึง 550,153 calls/วินาที จึงตรวจ source ของ ClickableTransparentOverlay 11.1.0 เพิ่มและพบว่าตัวไลบรารีตั้งค่าเริ่มต้นไว้ที่ 60 FPS อยู่แล้ว สรุปว่า frame-limit fix ทำให้ custom setting ถูกต้อง แต่ไม่ใช่คำอธิบายหลักของ read rate ที่สูง
+
+### 5.6 เพิ่ม reads/frame และ read-region attribution
+
+- เพิ่มจำนวน frame, frames/วินาที และ reads/frame ในรายงาน
+- แก้ให้ `PerformanceProfiler.EndFrame()` ถูกเรียกจริงหลังจบรอบ render
+- เพิ่ม scope วัดจำนวน read แยกระหว่าง `Core.AtlasMapUpdate` และ `Atlas2.DrawUI`
+- scope เก็บผลเฉพาะตอนเปิด diagnostics และไม่ stack-walk ทุก read
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `643a2e6 perf: report memory reads per overlay frame`
+
+Commit: `8de6e70 perf: attribute memory reads to Atlas regions`
 
 ## กำลังทำ
 
