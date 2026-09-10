@@ -8,7 +8,7 @@ namespace GameHelper.Localization
     using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
-    using Newtonsoft.Json;
+    using System.Text.Json;
 
     /// <summary>
     ///     Languages supported by the main overlay UI.
@@ -76,6 +76,11 @@ namespace GameHelper.Localization
     /// </summary>
     public static class OverlayLocalization
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+
         private static readonly object SyncRoot = new();
         private static readonly Dictionary<OverlayLanguage, IReadOnlyDictionary<string, string>> Cache = new();
 
@@ -197,7 +202,7 @@ namespace GameHelper.Localization
                 try
                 {
                     var content = File.ReadAllText(path);
-                    return JsonConvert.DeserializeObject<Dictionary<string, string>>(content) ??
+                    return JsonSerializer.Deserialize<Dictionary<string, string>>(content, JsonOptions) ??
                            new Dictionary<string, string>(StringComparer.Ordinal);
                 }
                 catch (IOException ex)

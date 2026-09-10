@@ -8,13 +8,18 @@ namespace GameHelper.Localization
     using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
-    using Newtonsoft.Json;
+    using System.Text.Json;
 
     /// <summary>
     ///     Loads localized UI text from a plugin-owned Localization directory.
     /// </summary>
     public sealed class PluginLocalization
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+
         private readonly object syncRoot = new();
         private readonly string localizationDirectory;
         private readonly Dictionary<OverlayLanguage, IReadOnlyDictionary<string, string>> cache = new();
@@ -106,7 +111,7 @@ namespace GameHelper.Localization
                 try
                 {
                     var content = File.ReadAllText(path);
-                    return JsonConvert.DeserializeObject<Dictionary<string, string>>(content) ??
+                    return JsonSerializer.Deserialize<Dictionary<string, string>>(content, JsonOptions) ??
                            new Dictionary<string, string>(StringComparer.Ordinal);
                 }
                 catch (IOException ex)
