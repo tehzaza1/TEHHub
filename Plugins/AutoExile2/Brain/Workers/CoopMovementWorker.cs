@@ -32,6 +32,9 @@ namespace AutoExile2.Brain.Workers
         private Vector2 lastRepathLeaderPos = Vector2.Zero;
         private DateTime lastFollowerRollTime = DateTime.MinValue;
         private DateTime lastPickupTapTime = DateTime.MinValue;
+        private DateTime sprintStartUtc = DateTime.MinValue;
+        private DateTime lastSprintResetUtc = DateTime.MinValue;
+        private bool wasSprintRequested = false;
 
         public void Reset()
         {
@@ -43,6 +46,9 @@ namespace AutoExile2.Brain.Workers
             this.lastRepathLeaderPos = Vector2.Zero;
             this.lastFollowerRollTime = DateTime.MinValue;
             this.lastPickupTapTime = DateTime.MinValue;
+            this.sprintStartUtc = DateTime.MinValue;
+            this.lastSprintResetUtc = DateTime.MinValue;
+            this.wasSprintRequested = false;
         }
 
         /// <summary>
@@ -206,6 +212,43 @@ namespace AutoExile2.Brain.Workers
                 : (goal.Type == BotGoalType.HardCatchup);
             this.IsSprinting = shouldSprint;
 
+            // Sprint recovery watchdog:
+            // When colliding with an obstacle, getting bumped, or transitioning terrains, PoE 2 cancels sprint
+            // and drops the character back into walking/running animation even while B is held down.
+            // If the Brain wants to sprint (shouldSprint = true) but the actual animation is NOT sprint (AnimId != 0x368),
+            // briefly release B (for 1 tick / 50ms) so the next tick re-engages a fresh Sprint hold!
+            bool effectiveSprint = shouldSprint;
+            if (shouldSprint)
+            {
+                if (!this.wasSprintRequested)
+                {
+                    this.sprintStartUtc = now;
+                    this.wasSprintRequested = true;
+                }
+
+                // Give 250ms initial grace period for sprint hold to begin playing ANIM_SPRINT
+                double msSinceSprintStart = (now - this.sprintStartUtc).TotalMilliseconds;
+                double msSinceLastReset = (now - this.lastSprintResetUtc).TotalMilliseconds;
+
+                if (msSinceSprintStart >= 250 && msSinceLastReset >= 350)
+                {
+                    bool isActuallySprinting = p.FollowerAnimId == ANIM_SPRINT;
+                    if (!isActuallySprinting)
+                    {
+                        // Animation dropped to walk/run or hit an obstacle!
+                        // Pulse release B this tick so PoE 2 can register a fresh hold
+                        effectiveSprint = false;
+                        this.lastSprintResetUtc = now;
+                        this.sprintStartUtc = now; // reset grace timer for next hold
+                    }
+                }
+            }
+            else
+            {
+                this.wasSprintRequested = false;
+                this.sprintStartUtc = DateTime.MinValue;
+            }
+
             // 4. Send steering vector to gamepad
             var moveDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, steerGridPos, p.FollowerGrid, p.GridToWorld);
 
@@ -231,7 +274,7 @@ namespace AutoExile2.Brain.Workers
             }
 
             pad.SetFollowerMovement(moveDir);
-            pad.SetFollowerSprint(shouldSprint);
+            pad.SetFollowerSprint(effectiveSprint);
 
             // 5. Attack, Roll & Evasion Synergy (Multitasking Defense):
             // - Micro-Dodge Slam: Dodge roll perpendicular/away from monster slam telegraphs
