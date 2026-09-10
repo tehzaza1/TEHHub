@@ -31,6 +31,7 @@ namespace AutoExile2.Brain.Workers
         private DateTime lastRepathTime = DateTime.MinValue;
         private Vector2 lastRepathLeaderPos = Vector2.Zero;
         private DateTime lastFollowerRollTime = DateTime.MinValue;
+        private DateTime lastPickupTapTime = DateTime.MinValue;
 
         public void Reset()
         {
@@ -41,10 +42,11 @@ namespace AutoExile2.Brain.Workers
             this.lastRepathTime = DateTime.MinValue;
             this.lastRepathLeaderPos = Vector2.Zero;
             this.lastFollowerRollTime = DateTime.MinValue;
+            this.lastPickupTapTime = DateTime.MinValue;
         }
 
         /// <summary>
-        /// Executes movement commands based on the active BotGoal from the Central Brain.
+        /// Executes movement commands based on the active BotGoal and BrainDirective from the Central Brain.
         /// </summary>
         public void Execute(
             BotGoal goal,
@@ -52,7 +54,8 @@ namespace AutoExile2.Brain.Workers
             CoopVirtualGamepad pad,
             AutoExile2Settings s,
             BotContext ctx,
-            bool didCombat)
+            bool didCombat,
+            BrainDirective? directive = null)
         {
             // 0. Manual Player Keyboard Override (Arrow Keys)
             if (pad.IsFollowerManualMoving)
@@ -77,8 +80,31 @@ namespace AutoExile2.Brain.Workers
                 return;
             }
 
-            Vector2 targetPos = goal.TargetPosition ?? p.FormationTarget;
             var now = DateTime.Now;
+
+            // 1.2 Stop if directive indicates no movement desired (unless unstuck)
+            if (directive != null && !directive.Locomotion.ShouldMove && goal.Type != BotGoalType.Unstuck)
+            {
+                this.CurrentNavPath.Clear();
+                this.CurrentWaypointIndex = 0;
+                this.CurrentDestination = null;
+                this.IsSprinting = false;
+                pad.SetFollowerMovement(Vector2.Zero);
+                pad.SetFollowerSprint(false);
+                return;
+            }
+
+            // 1.3 Fly-by Ground Item Pickup (Button A)
+            bool canPickup = (directive != null && directive.Loot.CanPickupNow) || (goal.Type == BotGoalType.Loot && p.CanPickupNow);
+            if (canPickup && (now - this.lastPickupTapTime).TotalMilliseconds >= 250)
+            {
+                pad.PressFollowerButton(CoopPadButton.A, 40);
+                this.lastPickupTapTime = now;
+            }
+
+            Vector2 targetPos = (directive != null && directive.Locomotion.Destination != Vector2.Zero)
+                ? directive.Locomotion.Destination
+                : (goal.TargetPosition ?? p.FormationTarget);
 
             // 1.5 Autonomous Unstuck Maneuver (Evasive Dodge Roll out of corner/trap)
             if (goal.Type == BotGoalType.Unstuck)
@@ -175,7 +201,7 @@ namespace AutoExile2.Brain.Workers
 
             // 3. Sprint State Control:
             // Sprint is strictly reserved for HardCatchup (50+ units away)
-            bool shouldSprint = goal.Type == BotGoalType.HardCatchup;
+            bool shouldSprint = (directive != null && directive.Locomotion.Sprint) || (goal.Type == BotGoalType.HardCatchup);
             this.IsSprinting = shouldSprint;
 
             // 4. Send steering vector to gamepad
@@ -183,7 +209,8 @@ namespace AutoExile2.Brain.Workers
             pad.SetFollowerMovement(moveDir);
             pad.SetFollowerSprint(shouldSprint);
 
-            // 5. Attack, Roll & Corridor Phasing Synergy:
+            // 5. Attack, Roll & Evasion Synergy (Multitasking Defense):
+            // - Micro-Dodge Slam: Dodge roll perpendicular/away from monster slam telegraphs
             // - Phasing Roll: If hostiles are blocking the movement corridor ahead, Dodge Roll phases straight through them!
             // - Danger Evade Roll: Roll out of lethal ground damage (~600ms)
             // - Formation Gap-Closing Roll: Periodic roll into combat without sprint (~850ms)
@@ -194,12 +221,18 @@ namespace AutoExile2.Brain.Workers
             if (!isActuallySprintingAnim && moveDir.LengthSquared() > 0.05f)
             {
                 double msSinceRoll = (now - this.lastFollowerRollTime).TotalMilliseconds;
-                bool isCorridorBlockedRoll = p.HasBlockingMonstersInPath && msSinceRoll >= 500;
+                bool isMicroDodge = ((directive != null && directive.Locomotion.Maneuver == EvadeManeuver.MicroDodge) || p.HasIncomingSlam) && msSinceRoll >= 450;
+                bool isCorridorBlockedRoll = ((directive != null && directive.Locomotion.Maneuver == EvadeManeuver.CorridorPhasingRoll) || p.HasBlockingMonstersInPath) && msSinceRoll >= 500;
                 bool isDangerEvadeRoll = goal.Type == BotGoalType.DangerEvade && msSinceRoll >= 600;
                 bool isFormationRoll = !shouldSprint && p.DistanceToLeader > (safeDist + 3f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 850;
 
-                if ((isCorridorBlockedRoll || isDangerEvadeRoll || isFormationRoll) && p.FollowerAnimId != ANIM_ROLL)
+                if ((isMicroDodge || isCorridorBlockedRoll || isDangerEvadeRoll || isFormationRoll) && p.FollowerAnimId != ANIM_ROLL)
                 {
+                    if (isMicroDodge && directive != null && directive.Locomotion.EvadeDirection != Vector2.Zero)
+                    {
+                        pad.SetFollowerMovement(directive.Locomotion.EvadeDirection);
+                    }
+
                     pad.TapFollowerDodgeRoll();
                     this.lastFollowerRollTime = now;
                 }

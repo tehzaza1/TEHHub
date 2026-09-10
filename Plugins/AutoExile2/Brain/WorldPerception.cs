@@ -74,6 +74,28 @@ namespace AutoExile2.Brain
 
         public float GridToWorld { get; set; } = 10.87f;
 
+        // ── Loot Sensory Shortcuts ──
+        public bool HasLootNearby => this.Vision.Loot.HasValuableLootNearby;
+
+        public Entity? NearestLootEntity => this.Vision.Loot.NearestLootEntity;
+
+        public Vector2? NearestLootPosition => this.Vision.Loot.NearestLootPosition;
+
+        public float NearestLootDistance => this.Vision.Loot.NearestLootDistance;
+
+        public string NearestLootName => this.Vision.Loot.NearestLootName;
+
+        public bool CanPickupNow => this.Vision.Loot.CanPickupNow;
+
+        // ── Telegraph & Slam Sensory Shortcuts ──
+        public bool HasIncomingSlam => this.Vision.Telegraph.HasIncomingSlam;
+
+        public Entity? SlamSourceEntity => this.Vision.Telegraph.SlamSourceEntity;
+
+        public Vector2? SlamEpicenter => this.Vision.Telegraph.SlamEpicenter;
+
+        public Vector2 SlamEvadeVector => this.Vision.Telegraph.EvadeVector;
+
         /// <summary>
         /// Collects current sensory data for Co-op Follower mode.
         /// </summary>

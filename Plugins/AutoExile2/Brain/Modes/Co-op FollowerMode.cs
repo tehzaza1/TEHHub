@@ -248,15 +248,16 @@ namespace AutoExile2.Modes
                 closestDist,
                 bestTarget);
 
-            // 7. Central Decision Brain (Goal Selection)
+            // 7. Central Decision Brain (Goal Selection & Concurrent Directive Synthesis)
             var activeGoal = this.brain.EvaluateCoopGoal(perception, s, this.movementWorker.IsSprinting);
+            var activeDirective = this.brain.CurrentDirective;
 
-            // 8. Specialized Workers Execution
-            // 8.1 Combat Worker
-            bool didCombat = this.combatWorker.Execute(activeGoal, perception, pad, s, ctx);
+            // 8. Specialized Workers Execution (Concurrent Multitasking Execution)
+            // 8.1 Combat Worker (Attack-Moving, Aiming & Continuous Culling)
+            bool didCombat = this.combatWorker.Execute(activeGoal, perception, pad, s, ctx, activeDirective);
 
-            // 8.2 Movement Worker
-            this.movementWorker.Execute(activeGoal, perception, pad, s, ctx, didCombat);
+            // 8.2 Movement Worker (Pathing, Fly-by Loot Pickup & Micro-Dodge Slams)
+            this.movementWorker.Execute(activeGoal, perception, pad, s, ctx, didCombat, activeDirective);
 
             // 9. Telemetry & State Reporting
             this.CurrentState = $"[Brain: {activeGoal.Type}]";

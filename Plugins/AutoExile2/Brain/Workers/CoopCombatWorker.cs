@@ -33,15 +33,17 @@ namespace AutoExile2.Brain.Workers
         }
 
         /// <summary>
-        /// Executes combat actions based on the active BotGoal from the Central Brain.
+        /// Executes combat actions based on the active BotGoal and BrainDirective from the Central Brain.
         /// Returns true if a skill was fired this tick.
+        /// Supports concurrent attack-moving (firing while walking to loot or formation).
         /// </summary>
         public bool Execute(
             BotGoal goal,
             WorldPerception p,
             CoopVirtualGamepad pad,
             AutoExile2Settings s,
-            BotContext ctx)
+            BotContext ctx,
+            BrainDirective? directive = null)
         {
             if (p.FollowerEntity == null || !s.P2EnableCombat || p.IsPeacefulZone)
             {
@@ -87,10 +89,26 @@ namespace AutoExile2.Brain.Workers
                 }
             }
 
-            // 2. Only perform offensive attacks if Brain determined Goal is Combat
-            if (goal.Type != BotGoalType.Combat || s.P2Skills == null)
+            // 2. Perform offensive attacks if Brain determined Combat is desired
+            // (Enables concurrent attack-moving while walking towards loot or following formation)
+            bool shouldAttack = (directive != null && directive.Combat.ShouldAttack) ||
+                                goal.Type == BotGoalType.Combat ||
+                                (goal.Type == BotGoalType.Loot && p.NearbyEnemyCount > 0);
+
+            if (!shouldAttack || s.P2Skills == null)
             {
                 return false;
+            }
+
+            // Aim handling: If directive provides explicit aim, point Right Stick in that direction; otherwise rely on auto-aim
+            if (directive?.Combat.AimPosition != null && ctx.World != null)
+            {
+                var aimDir = BotInput.GridToScreenDirection(ctx.World, follower, directive.Combat.AimPosition.Value, p.FollowerGrid, p.GridToWorld);
+                pad.SetFollowerAim(aimDir);
+            }
+            else
+            {
+                pad.SetFollowerAim(Vector2.Zero);
             }
 
             // 2.1 Culler Skills (Focused fire ahead of Leader)
@@ -107,9 +125,6 @@ namespace AutoExile2.Brain.Workers
 
                 if (cullerSkill.CullerRequireMonsters && p.NearbyEnemyCount == 0) continue;
 
-                // Native PoE 2 Gamepad Auto-Aim handles targeting
-                pad.SetFollowerAim(Vector2.Zero);
-
                 cullerSkill.LastCastAt = now;
                 this.LastAttackTime = now;
                 this.ActiveSkillName = $"Culler: {cullerSkill.Name}";
@@ -120,8 +135,6 @@ namespace AutoExile2.Brain.Workers
             // 2.2 Regular Targeted Skills
             if (p.BestCombatTarget != null && p.BestCombatTarget.TryGetComponent<Render>(out var targetRender))
             {
-                pad.SetFollowerAim(Vector2.Zero);
-
                 Rarity targetRarity = Rarity.Normal;
                 if (p.BestCombatTarget.TryGetComponent<ObjectMagicProperties>(out var omp))
                 {

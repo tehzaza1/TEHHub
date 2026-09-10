@@ -28,6 +28,10 @@ namespace AutoExile2.Brain
 
         public SpatialVision Spatial { get; } = new();
 
+        public LootVision Loot { get; } = new();
+
+        public TelegraphVision Telegraph { get; } = new();
+
         /// <summary>
         /// Scans and populates all vision subsystems from the current BotContext and game state.
         /// </summary>
@@ -55,6 +59,12 @@ namespace AutoExile2.Brain
 
             // 4. Scan Exploration via ExplorationMap
             this.Exploration.Scan(ctx, followerGrid);
+
+            // 5. Scan Loot for fly-by pickup and attack-move
+            this.Loot.Scan(ctx, followerGrid);
+
+            // 6. Scan Telegraphs for incoming monster slams/charges
+            this.Telegraph.Scan(ctx, followerGrid);
         }
     }
 
@@ -297,6 +307,201 @@ namespace AutoExile2.Brain
                             break;
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Loot Vision: Detects valuable dropped items on the ground within player proximity.
+    /// Enables attack-moving towards loot and fly-by pickup.
+    /// </summary>
+    public class LootVision
+    {
+        public Entity? NearestLootEntity { get; private set; }
+
+        public Vector2? NearestLootPosition { get; private set; }
+
+        public float NearestLootDistance { get; private set; } = float.MaxValue;
+
+        public string NearestLootName { get; private set; } = string.Empty;
+
+        public bool HasValuableLootNearby => this.NearestLootEntity != null && this.NearestLootDistance <= 45f;
+
+        public bool CanPickupNow => this.NearestLootEntity != null && this.NearestLootDistance <= 7.5f;
+
+        public int TotalLootCount { get; private set; }
+
+        public void Scan(BotContext ctx, Vector2 playerGrid)
+        {
+            this.NearestLootEntity = null;
+            this.NearestLootPosition = null;
+            this.NearestLootDistance = float.MaxValue;
+            this.NearestLootName = string.Empty;
+            this.TotalLootCount = 0;
+
+            var area = ctx.Area;
+            if (area?.AwakeEntities == null)
+            {
+                return;
+            }
+
+            foreach (var kvp in area.AwakeEntities)
+            {
+                var ent = kvp.Value;
+                if (!ent.IsValid) continue;
+
+                // Check if ground item
+                if (!ent.TryGetComponent<WorldItem>(out var worldItem))
+                {
+                    continue;
+                }
+
+                if (!ent.TryGetComponent<Render>(out var render))
+                {
+                    continue;
+                }
+
+                var itemPos = new Vector2(render.GridPosition.X, render.GridPosition.Y);
+                float dist = Vector2.Distance(playerGrid, itemPos);
+                if (dist > 55f)
+                {
+                    continue;
+                }
+
+                string path = worldItem.ItemPath ?? ent.Path ?? string.Empty;
+                string name = worldItem.ItemName;
+                if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(path))
+                {
+                    int lastSlash = path.LastIndexOf('/');
+                    name = lastSlash >= 0 ? path.Substring(lastSlash + 1) : path;
+                }
+
+                // Filter for valuable items
+                bool isValuable = false;
+                if (path.Contains("Currency") ||
+                    path.Contains("DivinationCards") ||
+                    path.Contains("Quest") ||
+                    path.Contains("Maps") ||
+                    path.Contains("Waystones") ||
+                    path.Contains("Gems") ||
+                    path.Contains("Jewels") ||
+                    path.Contains("Uncut"))
+                {
+                    isValuable = true;
+                }
+                else if (worldItem.Item != null && worldItem.Item.TryGetComponent<Mods>(out var mods))
+                {
+                    isValuable = mods.Rarity is Rarity.Rare or Rarity.Unique;
+                }
+                else
+                {
+                    isValuable = dist <= 15f;
+                }
+
+                if (!isValuable)
+                {
+                    continue;
+                }
+
+                this.TotalLootCount++;
+                if (dist < this.NearestLootDistance)
+                {
+                    this.NearestLootDistance = dist;
+                    this.NearestLootEntity = ent;
+                    this.NearestLootPosition = itemPos;
+                    this.NearestLootName = name;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Telegraph Vision: Observes enemy animation states to detect incoming heavy slams, charges,
+    /// and telegraphed AoE attacks before they hit, enabling tactical micro-dodging while maintaining combat.
+    /// </summary>
+    public class TelegraphVision
+    {
+        public bool HasIncomingSlam { get; private set; }
+
+        public Entity? SlamSourceEntity { get; private set; }
+
+        public Vector2? SlamEpicenter { get; private set; }
+
+        public Vector2 EvadeVector { get; private set; } = Vector2.Zero;
+
+        public float DistanceToSlamSource { get; private set; } = float.MaxValue;
+
+        public Animation SlamAnimation { get; private set; } = Animation.Idle;
+
+        public void Scan(BotContext ctx, Vector2 playerGrid)
+        {
+            this.HasIncomingSlam = false;
+            this.SlamSourceEntity = null;
+            this.SlamEpicenter = null;
+            this.EvadeVector = Vector2.Zero;
+            this.DistanceToSlamSource = float.MaxValue;
+            this.SlamAnimation = Animation.Idle;
+
+            var area = ctx.Area;
+            if (area?.AwakeEntities == null)
+            {
+                return;
+            }
+
+            foreach (var kvp in area.AwakeEntities)
+            {
+                var ent = kvp.Value;
+                if (!ent.IsValid || ent.Address == ctx.Player.Address) continue;
+                if (!CombatSystem.IsHostileMonster(ent, ctx.Player.Address)) continue;
+                if (!ent.TryGetComponent<Render>(out var render)) continue;
+                if (!ent.TryGetComponent<Actor>(out var actor)) continue;
+
+                var mPos = new Vector2(render.GridPosition.X, render.GridPosition.Y);
+                float dist = Vector2.Distance(playerGrid, mPos);
+                if (dist > 30f) continue;
+
+                var anim = actor.Animation;
+                bool isSlamAnim = anim is Animation.GroundSlam
+                    or Animation.LeapSlam
+                    or Animation.LeapSlamNear
+                    or Animation.MoltenCrash
+                    or Animation.MoltenCrashNear
+                    or Animation.MoltenCrashMoving
+                    or Animation.MoltenCrashMovingNear
+                    or Animation.ShapeshiftMoltenCrash
+                    or Animation.ShapeshiftMoltenCrashNear
+                    or Animation.Charge
+                    or Animation.Cleave
+                    or Animation.Stomp
+                    or Animation.SpellAreaOfEffect
+                    or Animation.SpellAreaOfEffectFire
+                    or Animation.SpellAreaOfEffectCold
+                    or Animation.SpellAreaOfEffectLightning
+                    or Animation.SpellAreaOfEffectChaos
+                    or Animation.Sweep;
+
+                if (isSlamAnim)
+                {
+                    this.HasIncomingSlam = true;
+                    this.SlamSourceEntity = ent;
+                    this.SlamEpicenter = mPos;
+                    this.DistanceToSlamSource = dist;
+                    this.SlamAnimation = anim;
+
+                    // Calculate evade vector:
+                    // Primary: outward away from monster
+                    Vector2 away = playerGrid - mPos;
+                    if (away.LengthSquared() < 0.1f)
+                    {
+                        away = new Vector2(0, 1);
+                    }
+
+                    // Also add slight perpendicular angle (sidestep) so we don't roll in a straight line back into a linear beam/charge
+                    var normAway = Vector2.Normalize(away);
+                    var perpendicular = new Vector2(-normAway.Y, normAway.X);
+                    this.EvadeVector = Vector2.Normalize(normAway + (perpendicular * 0.7f));
+                    break;
                 }
             }
         }

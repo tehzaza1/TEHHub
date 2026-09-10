@@ -22,6 +22,8 @@ namespace AutoExile2.Brain
 
         public BotGoalType LastGoalType { get; private set; } = BotGoalType.Idle;
 
+        public BrainDirective CurrentDirective { get; private set; } = new();
+
         public DateTime LastGoalChangeTime { get; private set; } = DateTime.Now;
 
         public double SecondsInCurrentGoal => (DateTime.Now - this.LastGoalChangeTime).TotalSeconds;
@@ -43,6 +45,7 @@ namespace AutoExile2.Brain
         {
             this.CurrentGoal = BotGoal.Idle();
             this.LastGoalType = BotGoalType.Idle;
+            this.CurrentDirective.Reset();
             this.LastGoalChangeTime = DateTime.Now;
             this.lastRecordedGrid = Vector2.Zero;
             this.lastPositionChangeTime = DateTime.Now;
@@ -64,6 +67,7 @@ namespace AutoExile2.Brain
             if (p.IsPeacefulZone)
             {
                 var idleGoal = BotGoal.Idle("In Town/Hideout — standing by");
+                this.SynthesizeCoopDirective(p, s, idleGoal, isCurrentlySprinting);
                 return this.UpdateGoal(idleGoal);
             }
 
@@ -71,12 +75,14 @@ namespace AutoExile2.Brain
             if (p.IsFollowerDead)
             {
                 var deadGoal = BotGoal.DeadOrRevive("Follower dead (HP: 0) — halting actions", p.FollowerEntity, p.FollowerGrid);
+                this.SynthesizeCoopDirective(p, s, deadGoal, isCurrentlySprinting);
                 return this.UpdateGoal(deadGoal);
             }
 
             if (p.IsLeaderDead)
             {
                 var reviveGoal = BotGoal.DeadOrRevive("Leader dead (HP: 0) — ready to revive", p.LeaderEntity, p.LeaderGrid);
+                this.SynthesizeCoopDirective(p, s, reviveGoal, isCurrentlySprinting);
                 return this.UpdateGoal(reviveGoal);
             }
 
@@ -85,6 +91,7 @@ namespace AutoExile2.Brain
             if (now < this.unstuckUntil)
             {
                 var unstuckGoal = BotGoal.Unstuck("Obstacle collision detected — executing escape roll", this.currentUnstuckTarget);
+                this.SynthesizeCoopDirective(p, s, unstuckGoal, isCurrentlySprinting);
                 return this.UpdateGoal(unstuckGoal);
             }
 
@@ -206,7 +213,142 @@ namespace AutoExile2.Brain
 
             // 5. Select Candidate with Maximum Utility Score
             var winner = candidates.OrderByDescending(c => c.Score).First();
-            return this.UpdateGoal(winner.Goal);
+            var winnerGoal = winner.Goal;
+
+            // Multitasking Enhancement (Human-like behavior):
+            // If in combat and an incoming slam is detected, execute Micro-Dodge while keeping combat lock!
+            if (p.HasIncomingSlam && winnerGoal.Type == BotGoalType.Combat)
+            {
+                winnerGoal = BotGoal.Combat($"Micro-dodging {p.Vision.Telegraph.SlamAnimation} while maintaining combat lock", p.BestCombatTarget, p.FormationTarget);
+            }
+
+            this.SynthesizeCoopDirective(p, s, winnerGoal, isCurrentlySprinting);
+            return this.UpdateGoal(winnerGoal);
+        }
+
+        /// <summary>
+        /// Synthesizes concurrent multi-channel directives (Legs, Hands, Reflexes)
+        /// mirroring a human player multitasking in Co-op mode:
+        /// - Walking in formation while continuously culling/shooting enemies ahead
+        /// - Micro-dodging boss/monster slams without dropping combat lock
+        /// (Note: In Co-op mode, Follower stays strictly in formation and leaves looting to Leader).
+        /// </summary>
+        private BrainDirective SynthesizeCoopDirective(
+            WorldPerception p,
+            AutoExile2Settings s,
+            BotGoal narrativeGoal,
+            bool isCurrentlySprinting)
+        {
+            var dir = this.CurrentDirective;
+            dir.Reset();
+
+            if (p.IsPeacefulZone || p.IsFollowerDead)
+            {
+                dir.Locomotion.ShouldMove = false;
+                dir.Combat.ShouldAttack = false;
+                dir.Summary = p.IsFollowerDead ? "Dead — Halting" : "Town/Hideout Standby";
+                return dir;
+            }
+
+            // 1. Reflex Channel (Flasks & Immediate Life Support)
+            if (p.FollowerHpPercent < s.P2LifeFlaskThresholdPercent)
+            {
+                dir.Reflex.TriggerLifeFlask = true;
+                dir.Reflex.Reason = $"Low HP ({p.FollowerHpPercent:F0}% < {s.P2LifeFlaskThresholdPercent}%)";
+            }
+
+            if (p.FollowerManaPercent < s.P2ManaFlaskThresholdPercent)
+            {
+                dir.Reflex.TriggerManaFlask = true;
+                dir.Reflex.Reason = $"Low Mana ({p.FollowerManaPercent:F0}% < {s.P2ManaFlaskThresholdPercent}%)";
+            }
+
+            // 2. Combat Channel (Attack & Cast Intent - Works concurrently while moving with Leader!)
+            bool sprintMode = narrativeGoal.Type == BotGoalType.HardCatchup || isCurrentlySprinting;
+            if (s.P2EnableCombat && s.P2Skills != null && !sprintMode)
+            {
+                bool hasTargets = p.NearbyEnemyCount > 0 || p.BestCombatTarget != null;
+                if (hasTargets)
+                {
+                    dir.Combat.ShouldAttack = true;
+                    dir.Combat.TargetEntity = p.BestCombatTarget;
+                    if (p.BestCombatTarget != null && p.BestCombatTarget.TryGetComponent<Render>(out var bR))
+                    {
+                        dir.Combat.AimPosition = new Vector2(bR.GridPosition.X, bR.GridPosition.Y);
+                    }
+                    else
+                    {
+                        dir.Combat.AimPosition = p.LeaderGrid + (p.LeaderHeading * 25f);
+                    }
+
+                    dir.Combat.AllowOffensiveCast = true;
+                    dir.Combat.IsCullerPriority = p.Vision.Entities.HasDangerousRareOrBoss;
+                    dir.Combat.Reason = $"Targeting {p.NearbyEnemyCount} enemies (Aim: {dir.Combat.AimPosition})";
+                }
+            }
+
+            // 3. Locomotion Channel (Escort Formation & Tactical Evasion)
+            float safeStopDist = Math.Max(2f, s.CoopStopDistance);
+
+            if (narrativeGoal.Type == BotGoalType.Unstuck)
+            {
+                dir.Locomotion.ShouldMove = true;
+                dir.Locomotion.Destination = this.currentUnstuckTarget;
+                dir.Locomotion.Maneuver = EvadeManeuver.UnstuckRoll;
+                dir.Locomotion.Reason = "Unstuck collision maneuver";
+            }
+            else if (sprintMode)
+            {
+                dir.Locomotion.ShouldMove = true;
+                dir.Locomotion.Destination = p.FormationTarget;
+                dir.Locomotion.Sprint = true;
+                dir.Locomotion.Maneuver = EvadeManeuver.None;
+                dir.Locomotion.Reason = $"Sprinting catch-up to leader ({p.DistanceToLeader:F0}g)";
+            }
+            else
+            {
+                // 3.1 Evasion Maneuver (Micro-Dodge slam, Hazard reposition, or Corridor Phasing)
+                if (p.HasIncomingSlam)
+                {
+                    dir.Locomotion.Maneuver = EvadeManeuver.MicroDodge;
+                    dir.Locomotion.EvadeDirection = p.SlamEvadeVector;
+                    dir.Locomotion.Reason = $"Micro-dodging slam {p.Vision.Telegraph.SlamAnimation}";
+                }
+                else if (p.HasBlockingMonstersInPath)
+                {
+                    dir.Locomotion.Maneuver = EvadeManeuver.CorridorPhasingRoll;
+                    dir.Locomotion.Reason = "Corridor phasing roll through monsters";
+                }
+                else if (p.Vision.Hazard.IsHighDangerArea)
+                {
+                    dir.Locomotion.Maneuver = EvadeManeuver.MicroDodge;
+                    dir.Locomotion.EvadeDirection = p.Vision.Hazard.NearestMonsterCluster != null
+                        ? Vector2.Normalize(p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value)
+                        : new Vector2(0, 1);
+                    dir.Locomotion.Reason = "Repositioning out of hazard threat";
+                }
+
+                // 3.2 Destination: Follower always escorts and stays in formation with Leader!
+                if (p.DistanceToFormationTarget > safeStopDist)
+                {
+                    dir.Locomotion.ShouldMove = true;
+                    dir.Locomotion.Destination = p.FormationTarget;
+                    dir.Locomotion.Sprint = false;
+                    dir.Locomotion.Reason = $"Following formation ({p.DistanceToLeader:F0}g)";
+                }
+                else
+                {
+                    dir.Locomotion.ShouldMove = false;
+                    dir.Locomotion.Destination = p.FollowerGrid;
+                    dir.Locomotion.Reason = "Holding formation in safe zone";
+                }
+            }
+
+            string combatPart = dir.Combat.ShouldAttack ? $"Combat: #{dir.Combat.TargetEntity?.Id ?? 0}" : "Combat: Idle";
+            string dodgePart = dir.Locomotion.Maneuver != EvadeManeuver.None ? $" | Dodge: {dir.Locomotion.Maneuver}" : "";
+            dir.Summary = $"{dir.Locomotion.Reason} | {combatPart}{dodgePart}";
+
+            return dir;
         }
 
         /// <summary>
@@ -233,7 +375,16 @@ namespace AutoExile2.Brain
                 return this.UpdateGoal(BotGoal.Unstuck("Obstacle collision detected — rolling unstuck", this.currentUnstuckTarget));
             }
 
-            // Evade
+            // 1. Slam Telegraph Evasion (Micro-dodge while maintaining combat lock)
+            if (p.HasIncomingSlam && p.BestCombatTarget != null)
+            {
+                return this.UpdateGoal(BotGoal.Combat(
+                    $"Micro-dodging {p.Vision.Telegraph.SlamAnimation} while maintaining combat lock",
+                    p.BestCombatTarget,
+                    p.FollowerGrid + (p.SlamEvadeVector * 15f)));
+            }
+
+            // 2. Critical Hazard Evade
             if (p.Vision.Hazard.IsHighDangerArea && p.FollowerHpPercent < 45f)
             {
                 var safePos = p.Vision.Hazard.NearestMonsterCluster != null
@@ -243,6 +394,16 @@ namespace AutoExile2.Brain
                 return this.UpdateGoal(BotGoal.DangerEvade(
                     $"Critical threat level ({p.Vision.Hazard.ThreatInProximity:F0}) — disengaging",
                     safePos));
+            }
+
+            // 3. Attack-Move to Loot (Solo Mode human-like multitasking: walk to loot while firing at enemies)
+            if (p.HasLootNearby && p.NearestLootPosition.HasValue && p.NearestLootDistance <= 40f)
+            {
+                string combatNote = p.NearbyEnemyCount > 0 ? " [Firing on hostiles]" : "";
+                return this.UpdateGoal(BotGoal.Loot(
+                    $"Attack-moving to loot [{p.NearestLootName}] ({p.NearestLootDistance:F0}g){combatNote}",
+                    p.NearestLootEntity,
+                    p.NearestLootPosition));
             }
 
             // Map Complete -> Exit Map
