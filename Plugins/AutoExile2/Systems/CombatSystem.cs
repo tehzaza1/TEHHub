@@ -766,35 +766,7 @@ namespace AutoExile2.Systems
                 return true;
             }
 
-            string name1 = slot.AssignedSkillName ?? string.Empty;
-            string name2 = slot.Name ?? string.Empty;
-
-            string? matchedKey = null;
-            ActiveSkillDetails matchedDetails = default;
-
-            string clean1 = CleanBuffString(name1);
-            string clean2 = CleanBuffString(name2);
-
-            foreach (var (k, details) in actor.ActiveSkills)
-            {
-                if (k.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
-                    k.Equals(name2, StringComparison.OrdinalIgnoreCase))
-                {
-                    matchedKey = k;
-                    matchedDetails = details;
-                    break;
-                }
-
-                string cleanK = CleanBuffString(k);
-                if ((!string.IsNullOrEmpty(clean1) && (cleanK.Contains(clean1) || clean1.Contains(cleanK))) ||
-                    (!string.IsNullOrEmpty(clean2) && (cleanK.Contains(clean2) || clean2.Contains(cleanK))))
-                {
-                    matchedKey = k;
-                    matchedDetails = details;
-                    break;
-                }
-            }
-
+            var (matchedKey, matchedDetails) = FindMatchingSkill(actor, slot);
             if (matchedKey == null)
             {
                 return true; // Not in actor.ActiveSkills (e.g. basic item action), allow through
@@ -811,7 +783,8 @@ namespace AutoExile2.Systems
                 }
             }
 
-            // 2. Check game engine usability flag (IsSkillUsable)
+            // 2. Check game engine usability flag (IsSkillUsable / "Can use skills" list)
+            // In GameHelper's "Can use skills" list, if a skill is on cooldown or unusable, it disappears from IsSkillUsable.
             if (actor.IsSkillUsable != null)
             {
                 if (!actor.IsSkillUsable.Contains(matchedKey))
@@ -841,28 +814,72 @@ namespace AutoExile2.Systems
             if (player == null || slot == null) return false;
             if (!player.TryGetComponent<Actor>(out var actor) || actor.ActiveSkills == null) return false;
 
+            var (matchedKey, matchedDetails) = FindMatchingSkill(actor, slot);
+            if (matchedKey == null) return false;
+
+            if (actor.ActiveSkillCooldowns != null &&
+                actor.ActiveSkillCooldowns.TryGetValue(matchedDetails.UnknownIdAndEquipmentInfo, out var cdInfo))
+            {
+                return cdInfo.MaxUses > 1 && cdInfo.TotalActiveCooldowns() < cdInfo.MaxUses;
+            }
+
+            return false;
+        }
+
+        private static (string? key, ActiveSkillDetails details) FindMatchingSkill(Actor actor, SkillSlotConfig slot)
+        {
+            if (actor.ActiveSkills == null || actor.ActiveSkills.Count == 0)
+                return (null, default);
+
             string name1 = slot.AssignedSkillName ?? string.Empty;
             string name2 = slot.Name ?? string.Empty;
             string clean1 = CleanBuffString(name1);
             string clean2 = CleanBuffString(name2);
 
+            var candidates = new List<(string key, ActiveSkillDetails details)>();
             foreach (var (k, details) in actor.ActiveSkills)
             {
-                string cleanK = CleanBuffString(k);
                 if (k.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
-                    k.Equals(name2, StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrEmpty(clean1) && (cleanK.Contains(clean1) || clean1.Contains(cleanK))) ||
+                    k.Equals(name2, StringComparison.OrdinalIgnoreCase))
+                {
+                    candidates.Add((k, details));
+                    continue;
+                }
+
+                string cleanK = CleanBuffString(k);
+                if ((!string.IsNullOrEmpty(clean1) && (cleanK.Contains(clean1) || clean1.Contains(cleanK))) ||
                     (!string.IsNullOrEmpty(clean2) && (cleanK.Contains(clean2) || clean2.Contains(cleanK))))
                 {
-                    if (actor.ActiveSkillCooldowns != null &&
-                        actor.ActiveSkillCooldowns.TryGetValue(details.UnknownIdAndEquipmentInfo, out var cdInfo))
-                    {
-                        return cdInfo.MaxUses > 1 && cdInfo.TotalActiveCooldowns() < cdInfo.MaxUses;
-                    }
-                    break;
+                    candidates.Add((k, details));
                 }
             }
-            return false;
+
+            if (candidates.Count == 0)
+                return (null, default);
+
+            // 1. Prefer candidate that has an entry in ActiveSkillCooldowns (e.g. ConvalescenceActive over Convalescence)
+            if (actor.ActiveSkillCooldowns != null && actor.ActiveSkillCooldowns.Count > 0)
+            {
+                var withCooldown = candidates.FirstOrDefault(c =>
+                    actor.ActiveSkillCooldowns.ContainsKey(c.details.UnknownIdAndEquipmentInfo));
+                if (withCooldown.key != null)
+                    return withCooldown;
+            }
+
+            // 2. Prefer candidate that ends with "Active" if search term was base
+            var activeCandidate = candidates.FirstOrDefault(c =>
+                c.key.EndsWith("Active", StringComparison.OrdinalIgnoreCase));
+            if (activeCandidate.key != null)
+                return activeCandidate;
+
+            // 3. Prefer exact match
+            var exact = candidates.FirstOrDefault(c =>
+                c.key.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
+                c.key.Equals(name2, StringComparison.OrdinalIgnoreCase));
+            if (exact.key != null)
+                return exact;
+
+            return candidates[0];
         }
 
         private static string CleanBuffString(string s)
