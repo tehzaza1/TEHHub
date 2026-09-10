@@ -1,7 +1,7 @@
 ﻿namespace PreloadAlert
 {
     using System.Numerics;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
 
     internal struct PreloadInfo
     {
@@ -13,7 +13,6 @@
         [JsonIgnore]
         public int Priority;
 
-        [JsonConstructor]
         public PreloadInfo(string name, Vector4 color, bool log, bool enabled)
         {
             this.DisplayName = name;

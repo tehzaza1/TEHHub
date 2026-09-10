@@ -10,6 +10,7 @@ namespace PreloadAlert
     using System.IO;
     using System.Linq;
     using System.Numerics;
+    using System.Text.Json;
     using Coroutine;
     using GameHelper;
     using GameHelper.CoroutineEvents;
@@ -17,7 +18,6 @@ namespace PreloadAlert
     using GameHelper.RemoteEnums;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
 
     /// <summary>
     ///     Displays important preload on the screen.
@@ -64,7 +64,9 @@ namespace PreloadAlert
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<PreloadSettings>(content) ?? new PreloadSettings();
+                this.Settings = JsonSerializer.Deserialize(
+                    content,
+                    PreloadAlertJsonContext.Default.PreloadSettings) ?? new PreloadSettings();
             }
 
             this.preloads.Load(this.PreloadFileName);
@@ -80,7 +82,9 @@ namespace PreloadAlert
             var lockStatus = this.Settings.Locked;
             this.Settings.Locked = true;
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-            var settingsData = JsonConvert.SerializeObject(this.Settings, Formatting.Indented);
+            var settingsData = JsonSerializer.Serialize(
+                this.Settings,
+                PreloadAlertJsonContext.Default.PreloadSettings);
             File.WriteAllText(this.SettingPathname, settingsData);
             this.Settings.Locked = lockStatus;
             this.preloads.Save(this.PreloadFileName);

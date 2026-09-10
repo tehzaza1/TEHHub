@@ -358,6 +358,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ถอด Newtonsoft attributes ออกจาก `Rarity` และ `EntityFilterType`; conversion ของ State ใช้ string-enum converter ของ System.Text.Json แทน
 - ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
 
+### 6.6 ย้าย PlayerBuffBar และ PreloadAlert
+
+- ย้าย settings และ data list ของ PlayerBuffBar/PreloadAlert ไปใช้ source-generated `System.Text.Json` metadata โดยรองรับ fields และ Vector เดิม
+- ย้าย PlayerBuffBar icon map จาก `JObject` เป็น `JsonDocument` เพื่อลด allocation ของ DOM mutable
+- ย้าย `GetForegroundWindow` ใน PlayerBuffBar จาก `DllImport` ไป `LibraryImport`; source หลักจึงไม่มี `DllImport` เหลือแล้ว (ไม่นับ Backup)
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
