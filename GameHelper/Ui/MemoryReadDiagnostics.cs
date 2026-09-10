@@ -46,6 +46,7 @@ public static class MemoryReadDiagnostics
     private static long totalReadFailures;
     private static long scalarReadCalls;
     private static long bufferReadCalls;
+    private static long firstReadTimestamp;
     private static long previousReadCalls;
     private static long previousReadBytes;
     private static long previousReadTicks;
@@ -95,6 +96,11 @@ public static class MemoryReadDiagnostics
     /// </summary>
     internal static void RecordRead(MemoryReadKind kind, long requestedBytes, long elapsedTicks, bool succeeded)
     {
+        if (Volatile.Read(ref firstReadTimestamp) == 0)
+        {
+            Interlocked.CompareExchange(ref firstReadTimestamp, Stopwatch.GetTimestamp(), 0);
+        }
+
         Interlocked.Increment(ref totalReadCalls);
         Interlocked.Add(ref totalReadBytes, requestedBytes);
         Interlocked.Add(ref totalReadTicks, elapsedTicks);
@@ -166,13 +172,18 @@ public static class MemoryReadDiagnostics
                 }
 
                 ImGui.Text(
-                    $"Native reads: {cachedReadRate.TotalCalls:N0} total  |  " +
-                    $"{cachedReadRate.CallsPerSecond:N0} calls/s  |  " +
+                    $"Recent: {cachedReadRate.CallsPerSecond:N0} calls/s  |  " +
                     $"{cachedReadRate.MebibytesPerSecond:F2} MiB/s  |  " +
                     $"{cachedReadRate.MicrosecondsPerCall:F2} us/call  |  " +
                     $"fail {cachedReadRate.FailuresPerSecond:N0}/s");
+                ImGui.Text(
+                    $"Session ({cachedReadRate.SessionSeconds:F1}s): {cachedReadRate.TotalCalls:N0} calls  |  " +
+                    $"{cachedReadRate.AverageCallsPerSecond:N0} calls/s  |  " +
+                    $"{cachedReadRate.AverageMebibytesPerSecond:F2} MiB/s  |  " +
+                    $"{cachedReadRate.AverageMicrosecondsPerCall:F2} us/call  |  " +
+                    $"fail {cachedReadRate.TotalFailures:N0}");
                 ImGui.TextDisabled(
-                    $"Scalar: {cachedReadRate.ScalarCalls:N0}    Buffer/array: {cachedReadRate.BufferCalls:N0}    " +
+                    $"Breakdown: Scalar {cachedReadRate.ScalarCalls:N0}    Buffer/array {cachedReadRate.BufferCalls:N0}    " +
                     $"Requested: {cachedReadRate.TotalMebibytes:F2} MiB");
 
                 if (ImGui.BeginTable("memDiagTable", 6,
@@ -297,6 +308,10 @@ public static class MemoryReadDiagnostics
         var bytesDelta = bytes - previousReadBytes;
         var ticksDelta = ticks - previousReadTicks;
         var failuresDelta = failures - previousReadFailures;
+        var firstTimestamp = Volatile.Read(ref firstReadTimestamp);
+        var sessionSeconds = firstTimestamp == 0
+            ? 0
+            : Math.Max(0, (nowTimestamp - firstTimestamp) / (double)Stopwatch.Frequency);
 
         cachedReadRate = new ReadRateSnapshot(
             calls,
@@ -306,7 +321,12 @@ public static class MemoryReadDiagnostics
             callsDelta / elapsedSeconds,
             bytesDelta / 1048576.0 / elapsedSeconds,
             callsDelta > 0 ? ticksDelta * 1_000_000.0 / Stopwatch.Frequency / callsDelta : 0,
-            failuresDelta / elapsedSeconds);
+            failuresDelta / elapsedSeconds,
+            sessionSeconds,
+            sessionSeconds > 0 ? calls / sessionSeconds : 0,
+            sessionSeconds > 0 ? bytes / 1048576.0 / sessionSeconds : 0,
+            calls > 0 ? ticks * 1_000_000.0 / Stopwatch.Frequency / calls : 0,
+            failures);
 
         previousReadCalls = calls;
         previousReadBytes = bytes;
@@ -323,6 +343,7 @@ public static class MemoryReadDiagnostics
         Interlocked.Exchange(ref totalReadFailures, 0);
         Interlocked.Exchange(ref scalarReadCalls, 0);
         Interlocked.Exchange(ref bufferReadCalls, 0);
+        Interlocked.Exchange(ref firstReadTimestamp, 0);
         previousReadCalls = 0;
         previousReadBytes = 0;
         previousReadTicks = 0;
@@ -340,11 +361,17 @@ public static class MemoryReadDiagnostics
         var sb = new StringBuilder();
         sb.AppendLine($"# Memory Read Diagnostics — {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine(
-            $"# Native reads: {cachedReadRate.TotalCalls}, " +
+            $"# Recent: " +
             $"{cachedReadRate.CallsPerSecond:F0} calls/s, " +
             $"{cachedReadRate.MebibytesPerSecond:F2} MiB/s, " +
             $"{cachedReadRate.MicrosecondsPerCall:F2} us/call, " +
             $"{cachedReadRate.FailuresPerSecond:F0} failures/s");
+        sb.AppendLine(
+            $"# Session ({cachedReadRate.SessionSeconds:F1}s): {cachedReadRate.TotalCalls} calls, " +
+            $"{cachedReadRate.AverageCallsPerSecond:F0} calls/s, " +
+            $"{cachedReadRate.AverageMebibytesPerSecond:F2} MiB/s, " +
+            $"{cachedReadRate.AverageMicrosecondsPerCall:F2} us/call, " +
+            $"{cachedReadRate.TotalFailures} failures");
         sb.AppendLine(
             $"# Scalar calls: {cachedReadRate.ScalarCalls}, Buffer/array calls: {cachedReadRate.BufferCalls}, " +
             $"Total requested: {cachedReadRate.TotalMebibytes:F2} MiB");
@@ -546,7 +573,12 @@ internal readonly record struct ReadRateSnapshot(
     double CallsPerSecond,
     double MebibytesPerSecond,
     double MicrosecondsPerCall,
-    double FailuresPerSecond);
+    double FailuresPerSecond,
+    double SessionSeconds,
+    double AverageCallsPerSecond,
+    double AverageMebibytesPerSecond,
+    double AverageMicrosecondsPerCall,
+    long TotalFailures);
 
 /// <summary>
 ///     A snapshot row for the diagnostics table.
