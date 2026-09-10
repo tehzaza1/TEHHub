@@ -219,6 +219,25 @@ Commit: `d14c1de perf: attribute memory reads by logical operation`
 
 Commit: `7f76145 perf: avoid redundant cached parent UI reads`
 
+Runtime validation (`memory_diagnostics_20260911_051517.tsv`):
+
+- ทั้งโปรแกรมลดจาก 11,656 เหลือ 4,111 reads/frame หรือลด 64.7%
+- read rate ลดจาก 661,811 เหลือ 246,286 reads/วินาที
+- overlay จาก 56.8 เป็น 59.9 FPS
+- native failures เป็นศูนย์
+- `Core.UiElementParents` ยังใช้ 1,647 reads/frame และ Atlas2 ใช้ 1,476 reads/frame เพราะตำแหน่ง node ต้องสดทุกเฟรม
+
+### 5.10 Refresh Atlas node สดทุกเฟรมโดยไม่อ่าน child vector ซ้ำ
+
+- ยกเลิกแนวทาง cache ข้อมูล node นาน 20 เฟรมแล้ว เพราะทำให้ label ตามโหนดไม่ทัน
+- เก็บ object cache เฉพาะ child ที่ address เดิมเท่านั้น และ refresh position/scale/flags ของ node ที่ materialize แล้วทุกเฟรม
+- ไม่อ่าน child vector ของ node ระหว่าง refresh เพราะ Atlas2 ใช้เฉพาะข้อมูลตำแหน่งและ visibility
+- เมื่อ address หรือ index เปลี่ยน cache slot จะถูกทิ้งและสร้างใหม่ตามปกติ
+- เป้าหมายคือรักษาการเคลื่อนไหว label ให้ตรง node แบบเดิม พร้อมลด read ของ Atlas2 จาก struct + child vector เหลือ struct เดียวต่อ node
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `4e46ee9 perf: refresh Atlas nodes without child vector reads`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
