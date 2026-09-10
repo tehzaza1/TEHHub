@@ -1149,7 +1149,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
         private static int cachedControllerContainerIndex = -1;
 
-        private static IntPtr GetControllerContainerAddress(IntPtr rootAddress)
+        public static IntPtr GetControllerContainerAddress(IntPtr rootAddress)
         {
             if (rootAddress == IntPtr.Zero)
             {

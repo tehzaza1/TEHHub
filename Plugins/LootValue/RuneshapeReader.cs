@@ -185,8 +185,212 @@ namespace LootValue
                 return IntPtr.Zero;
             }
 
+            if (Core.GHSettings.EnableControllerMode)
+            {
+                cachedRecipesContainer = ResolveControllerRuneforgeContainer(gameUiAddress, readUiOffset, readStdVec);
+                return cachedRecipesContainer;
+            }
+
             cachedRecipesContainer = WalkRuneforgeUi(gameUiAddress, 0, readUiOffset, readStdVec);
             return cachedRecipesContainer;
+        }
+
+        private static IntPtr ResolveControllerRuneforgeContainer(
+            IntPtr gameUiAddress,
+            Func<IntPtr, UiElementBaseOffset?> readUiOffset,
+            Func<StdVector, IntPtr[]?> readStdVec)
+        {
+            if (readUiOffset == null || readStdVec == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            // Fast path: Check RightPanel and LeftPanel from ImportantUiElements
+            var importantUi = Core.States.InGameStateObject?.GameUi;
+            if (importantUi != null)
+            {
+                var win = FindRuneforgeInPanel(importantUi.RightPanel.Address, readUiOffset, readStdVec);
+                if (win == IntPtr.Zero)
+                {
+                    win = FindRuneforgeInPanel(importantUi.LeftPanel.Address, readUiOffset, readStdVec);
+                }
+
+                if (win != IntPtr.Zero)
+                {
+                    return WalkRuneforgeUi(win, 1, readUiOffset, readStdVec);
+                }
+            }
+
+            // Fallback: search controller container
+            var container = ImportantUiElements.GetControllerContainerAddress(gameUiAddress);
+            if (container != IntPtr.Zero)
+            {
+                var win = FindRuneforgeInContainer(container, readUiOffset, readStdVec);
+                if (win != IntPtr.Zero)
+                {
+                    return WalkRuneforgeUi(win, 1, readUiOffset, readStdVec);
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private static IntPtr FindRuneforgeInPanel(
+            IntPtr panel,
+            Func<IntPtr, UiElementBaseOffset?> readUiOffset,
+            Func<StdVector, IntPtr[]?> readStdVec)
+        {
+            if (panel == IntPtr.Zero || readUiOffset == null || readStdVec == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            var off = readUiOffset(panel);
+            if (off == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            var targetFp = PanelFlagFingerprints[0] & ~UiVisibleMask;
+            if ((off.Value.Flags & UiVisibleMask) != 0 && (off.Value.Flags & ~UiVisibleMask) == targetFp)
+            {
+                return panel;
+            }
+
+            var kids = readStdVec(off.Value.ChildrensPtr);
+            if (kids == null || kids.Length == 0 || kids.Length > 10)
+            {
+                return IntPtr.Zero;
+            }
+
+            foreach (var child in kids)
+            {
+                if (child == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                var coff = readUiOffset(child);
+                if (coff == null)
+                {
+                    continue;
+                }
+
+                if ((coff.Value.Flags & UiVisibleMask) != 0 && (coff.Value.Flags & ~UiVisibleMask) == targetFp)
+                {
+                    return child;
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private static IntPtr FindRuneforgeInContainer(
+            IntPtr container,
+            Func<IntPtr, UiElementBaseOffset?> readUiOffset,
+            Func<StdVector, IntPtr[]?> readStdVec)
+        {
+            if (container == IntPtr.Zero || readUiOffset == null || readStdVec == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            var cOff = readUiOffset(container);
+            if (cOff == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            var cKids = readStdVec(cOff.Value.ChildrensPtr);
+            if (cKids == null || cKids.Length <= 2)
+            {
+                return IntPtr.Zero;
+            }
+
+            var c2 = cKids[2];
+            if (c2 == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            var c2Off = readUiOffset(c2);
+            if (c2Off == null)
+            {
+                return IntPtr.Zero;
+            }
+
+            var c2Kids = readStdVec(c2Off.Value.ChildrensPtr);
+            if (c2Kids == null || c2Kids.Length == 0)
+            {
+                return IntPtr.Zero;
+            }
+
+            var targetFp = PanelFlagFingerprints[0] & ~UiVisibleMask;
+            int searchLimit = Math.Min(c2Kids.Length, 4);
+            for (int i = 0; i < searchLimit; i++)
+            {
+                var panelMgr = c2Kids[i];
+                if (panelMgr == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                var pmOff = readUiOffset(panelMgr);
+                if (pmOff == null)
+                {
+                    continue;
+                }
+
+                var panels = readStdVec(pmOff.Value.ChildrensPtr);
+                if (panels == null || panels.Length == 0 || panels.Length > 100)
+                {
+                    continue;
+                }
+
+                foreach (var cand in panels)
+                {
+                    if (cand == IntPtr.Zero)
+                    {
+                        continue;
+                    }
+
+                    var candOff = readUiOffset(cand);
+                    if (candOff == null || (candOff.Value.Flags & UiVisibleMask) == 0)
+                    {
+                        continue;
+                    }
+
+                    if ((candOff.Value.Flags & ~UiVisibleMask) == targetFp)
+                    {
+                        return cand;
+                    }
+
+                    var candKids = readStdVec(candOff.Value.ChildrensPtr);
+                    if (candKids != null && candKids.Length > 0 && candKids.Length <= 4)
+                    {
+                        foreach (var inner in candKids)
+                        {
+                            if (inner == IntPtr.Zero)
+                            {
+                                continue;
+                            }
+
+                            var inOff = readUiOffset(inner);
+                            if (inOff == null || (inOff.Value.Flags & UiVisibleMask) == 0)
+                            {
+                                continue;
+                            }
+
+                            if ((inOff.Value.Flags & ~UiVisibleMask) == targetFp)
+                            {
+                                return inner;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return IntPtr.Zero;
         }
 
         private static IntPtr WalkRuneforgeUi(
