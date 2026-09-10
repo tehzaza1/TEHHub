@@ -160,7 +160,7 @@ Commit: `8de6e70 perf: attribute memory reads to Atlas regions`
 
 ตัวเลขนี้ยืนยันว่าจำนวนการเรียก Windows สูงถึงหลักแสนต่อวินาทีจริง และคอขวดที่ควรแก้ก่อนคือ read ซ้ำต่อเฟรม ไม่ใช่ marshaller หรือ FPS limit
 
-### 5.7 เก็บ Atlas node cache ข้ามเฟรม
+### 5.7 ทดลองเก็บ Atlas node cache ข้ามเฟรม (ยกเลิกแล้ว)
 
 - พบว่า Atlas panel อ่านรายชื่อ child แบบ batch อยู่แล้ว แต่ล้าง object cache ของลูกประมาณ 751 โหนดทุกเฟรม
 - Atlas2 จึงต้องสร้าง `UiElementBase` และอ่านข้อมูล node เดิมซ้ำเมื่อคำนวณตำแหน่งวาด
@@ -182,6 +182,10 @@ Runtime validation หลังเก็บ cache (`memory_diagnostics_20260911_
 
 ผลนี้ยืนยันว่า cache ทำงานจริงและ Atlas2 ไม่ใช่แหล่ง read หลักอีกต่อไป ส่วนตัวเลข region เดิมใช้ผลต่างของ counter รวมทั้งโปรเซส จึงมี read จากงานขนานปะปนและยังใช้ชี้คอขวดที่เหลือไม่ได้แม่นยำ
 
+Runtime visual validation พบว่าตัวหนังสือ Atlas2 ตาม node ไม่ทันระหว่างเลื่อนแผนที่ เพราะ relative position ของ node ถูก refresh ตามรอบ cache 20 เฟรมแทนทุกเฟรม จึงยกเลิก optimization นี้ทั้งหมดและคืนการอัปเดตตำแหน่งทุกเฟรม ความถูกต้องและ responsiveness สำคัญกว่าตัวเลข read ที่ลดลง
+
+Rollback commit: `8d16125 Revert "perf: preserve stable Atlas node cache"`
+
 ### 5.8 แยก memory read ตาม logical operation และ thread
 
 - เปลี่ยน read-region attribution ให้ใช้ context ของงานซึ่งไหลต่อไปยัง `Task`/งานขนาน
@@ -192,6 +196,17 @@ Runtime validation หลังเก็บ cache (`memory_diagnostics_20260911_
 - รอ dump รอบถัดไปเพื่อจัดอันดับแหล่งของ read ที่เหลือประมาณ 11,660 reads/frame แล้วจึงทำ batch/cache จุดที่คุ้มที่สุด
 
 Commit: `d14c1de perf: attribute memory reads by logical operation`
+
+ผลจากตัววัดใหม่ (`memory_diagnostics_20260911_050050.tsv`):
+
+- ทั้งโปรแกรม 11,656 reads/frame, 661,811 reads/วินาที และไม่มี failure
+- `Core.ImportantUiElements`: 11,440 reads/ครั้ง หรือประมาณ 98.1% ของทั้งเฟรม
+- `Core.AtlasMapUpdate`: 1,478 reads/ครั้ง ซึ่งเป็นส่วนย่อยของ ImportantUiElements
+- `Core.AreaInstance`: 125 reads/ครั้ง
+- `Atlas2`: 91 reads/ครั้งในช่วงที่ทดลองใช้ cache
+- Inventory, InGameState, GameStates และ WorldData รวมกันมีสัดส่วนน้อยมาก
+
+เป้าหมายถัดไปจึงเป็นการลด read ซ้ำภายใน parent/UI-path refresh โดยต้องรักษาการ refresh ตำแหน่ง Atlas node ทุกเฟรม ไม่ใช้ cache ตำแหน่งแบบรอบละ 20 เฟรมอีก
 
 ## กำลังทำ
 
