@@ -183,10 +183,17 @@ namespace AutoExile2.Brain
             float followScore = 0f;
             string followReason = string.Empty;
 
-            if (p.DistanceToFormationTarget > 2.5f || p.DistanceToLeader > (safeStopDist + 1f))
+            float followTriggerDist = Math.Max(safeStopDist + 1f, s.CoopFollowDistance);
+            bool wasFollowing = this.CurrentGoal.Type == BotGoalType.FormationFollow;
+
+            bool shouldFollow = wasFollowing
+                ? (p.DistanceToLeader > safeStopDist)
+                : (p.DistanceToLeader > followTriggerDist);
+
+            if (shouldFollow)
             {
                 followScore = 40f + Math.Min(15f, p.DistanceToFormationTarget * 0.5f);
-                followReason = $"Walking in formation ({p.DistanceToLeader:F0}g from leader)";
+                followReason = $"Walking in formation ({p.DistanceToLeader:F0}/{followTriggerDist:F0}g from leader)";
                 candidates.Add((BotGoal.FormationFollow(followReason, p.FormationTarget), followScore, followReason));
             }
 
@@ -333,9 +340,18 @@ namespace AutoExile2.Brain
                     dir.Locomotion.Reason = "Repositioning out of hazard threat";
                 }
 
-                // 3.2 Destination: Follower walks with Leader in ready-to-cast stance (slow walk)
-                // Does NOT freeze dead far away — allows smooth pacing and casting while moving
-                if (!isAtExactSpot || (dir.Combat.ShouldAttack && p.DistanceToLeader > 3.5f))
+                // 3.2 Destination: Follower walks with Leader only when outside safe stop distance / beyond follow distance
+                float followTrigger = Math.Max(safeStopDist + 1f, s.CoopFollowDistance);
+                bool needsMovement = narrativeGoal.Type switch
+                {
+                    BotGoalType.HardCatchup => true,
+                    BotGoalType.DangerEvade => true,
+                    BotGoalType.FormationFollow => p.DistanceToLeader > safeStopDist,
+                    BotGoalType.Combat => p.DistanceToLeader > followTrigger,
+                    _ => p.DistanceToLeader > followTrigger
+                };
+
+                if (needsMovement && !isAtExactSpot)
                 {
                     dir.Locomotion.ShouldMove = true;
                     dir.Locomotion.Destination = p.FormationTarget;
@@ -349,7 +365,7 @@ namespace AutoExile2.Brain
                     dir.Locomotion.ShouldMove = false;
                     dir.Locomotion.Destination = p.FollowerGrid;
                     dir.Locomotion.Sprint = false;
-                    dir.Locomotion.Reason = "At formation spot";
+                    dir.Locomotion.Reason = $"Holding formation ({p.DistanceToLeader:F0}g <= {followTrigger:F0}g)";
                 }
             }
 

@@ -248,9 +248,8 @@ namespace AutoExile2.Brain.Workers
                 bool isMicroDodge = ((directive != null && directive.Locomotion.Maneuver == EvadeManeuver.MicroDodge) || p.HasIncomingSlam) && msSinceRoll >= 450;
                 bool isCorridorBlockedRoll = ((directive != null && directive.Locomotion.Maneuver == EvadeManeuver.CorridorPhasingRoll) || p.HasBlockingMonstersInPath) && msSinceRoll >= 500;
                 bool isDangerEvadeRoll = goal.Type == BotGoalType.DangerEvade && msSinceRoll >= 600;
-                bool isFormationRoll = !shouldSprint && p.DistanceToLeader > (safeDist + 6f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 1200;
 
-                if ((isMicroDodge || isCorridorBlockedRoll || isDangerEvadeRoll || isFormationRoll) && p.FollowerAnimId != ANIM_ROLL)
+                if ((isMicroDodge || isCorridorBlockedRoll || isDangerEvadeRoll) && p.FollowerAnimId != ANIM_ROLL)
                 {
                     if (isMicroDodge && directive != null && directive.Locomotion.EvadeDirection != Vector2.Zero)
                     {
