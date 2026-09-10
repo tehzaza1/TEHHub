@@ -116,6 +116,24 @@ Commit: `5a967fa perf: add session-wide memory read metrics`
 
 Commit: `df168aa fix: allow zero-failure memory metric dumps`
 
+### 5.5 ตรวจ Atlas2 หลังถอด wrapper และแก้ frame limit ตอนเริ่มโปรแกรม
+
+ผลทดสอบ Atlas2-only (`memory_diagnostics_20260911_044050.tsv`):
+
+- Session 67.0 วินาที อ่านสำเร็จ 25,820,661 calls
+- เฉลี่ย 385,151 calls/วินาที และ 145.28 MiB/วินาที
+- เวลา native call เฉลี่ยทั้ง session 1.76 microseconds
+- native failures เป็นศูนย์ และพบ null address validation เพียง 1 ครั้ง
+- ยืนยันว่า LibraryImport, shared process handle และ Atlas2 ทำงานร่วมกันได้
+
+พบสาเหตุของ call rate ที่สูง: ค่า `FPSLimit = 60` ถูกโหลดจาก settings แต่ไม่ได้ส่งให้ overlay ตอนเริ่มโปรแกรม ทำให้ event/update loop อาจทำงานไม่จำกัดจนกว่าผู้ใช้จะแก้ค่าในหน้าตั้งค่า
+
+- แก้ `GameOverlay.Run()` ให้ใช้ FPS limit ที่บันทึกไว้ตั้งแต่เริ่ม
+- การจำกัดนี้มีผลเฉพาะ GameHelper overlay ไม่ได้จำกัด FPS ของเกม
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `7e2956f perf: apply overlay frame limit at startup`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
