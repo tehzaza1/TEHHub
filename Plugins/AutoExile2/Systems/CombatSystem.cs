@@ -609,13 +609,9 @@ namespace AutoExile2.Systems
                 {
                     pad.PressLeaderBuff(slot.GamepadButton, Math.Max(30, slot.HoldDurationMs));
                 }
-                else if (slot.InputType == AttackInputType.KeyboardKey)
-                {
-                    BotInput.FastPressKey(slot.Key);
-                }
                 else
                 {
-                    BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Min(30, slot.HoldDurationMs));
+                    BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Max(30, slot.HoldDurationMs));
                 }
 
                 return true;
@@ -661,7 +657,8 @@ namespace AutoExile2.Systems
                 }
 
                 int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
-                if (effectiveInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < effectiveInterval)
+                int totalInterval = effectiveInterval + Math.Max(30, slot.HoldDurationMs);
+                if (totalInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < totalInterval)
                 {
                     continue;
                 }
@@ -678,14 +675,7 @@ namespace AutoExile2.Systems
                     continue; // Buff already present on player! Do not recast!
                 }
 
-                if (slot.InputType == AttackInputType.KeyboardKey)
-                {
-                    BotInput.FastPressKey(slot.Key);
-                }
-                else
-                {
-                    BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Min(30, slot.HoldDurationMs));
-                }
+                BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Max(30, slot.HoldDurationMs));
 
                 slot.LastCastAt = DateTime.Now;
                 this.LastSkillAction = $"Buff: {slot.Name}";
@@ -1015,7 +1005,8 @@ namespace AutoExile2.Systems
             {
                 // Cooldown / Cast Interval check
                 int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
-                if (effectiveInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < effectiveInterval)
+                int totalInterval = effectiveInterval + Math.Max(30, slot.HoldDurationMs);
+                if (totalInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < totalInterval)
                 {
                     continue;
                 }
@@ -1137,7 +1128,7 @@ namespace AutoExile2.Systems
                     }
 
                     BotInput.ExecuteAttack(slot.InputType, slot.Key, slot.HoldDurationMs);
-                    this.nextAttackAllowed = DateTime.Now.AddMilliseconds(slot.HoldDurationMs + 20);
+                    this.nextAttackAllowed = DateTime.Now.AddMilliseconds(slot.HoldDurationMs + Math.Max(20, slot.MinCastIntervalMs));
                 }
 
                 slot.LastCastAt = DateTime.Now;

@@ -196,8 +196,11 @@
               <select id="SprintKey" class="form-control key-select" onchange="saveSettings()"></select>
             </div>
             <div class="form-group">
-              <label>Sprint Min Distance: <span id="sprintDistVal" class="slider-val">40</span> grid units</label>
-              <input id="SprintMinDistance" type="range" min="15" max="120" value="40" class="form-control" oninput="document.getElementById('sprintDistVal').innerText=this.value" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Sprint Min Distance (g)</label>
+                <input id="SprintMinDistance_num" type="number" min="5" max="200" step="1" value="40" class="num-input" oninput="document.getElementById('SprintMinDistance').value=this.value;" onchange="document.getElementById('SprintMinDistance').value=this.value; saveSettings();" />
+              </div>
+              <input id="SprintMinDistance" type="range" min="15" max="120" value="40" class="form-control" oninput="document.getElementById('SprintMinDistance_num').value=this.value;" onchange="saveSettings()" />
             </div>
           </div>
         </div>
@@ -215,12 +218,18 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Fight Range: <span id="fightRangeVal" class="slider-val">45</span> grid units</label>
-            <input id="FightRange" type="range" min="10" max="90" value="45" class="form-control" oninput="document.getElementById('fightRangeVal').innerText=this.value; previewRange('FightRange', this.value, 'grid', 'Fight Range: ' + this.value + 'g', '#ef4444', 'Player');" onchange="saveSettings()" />
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="margin-bottom:0;">Fight Range (g)</label>
+              <input id="FightRange_num" type="number" min="5" max="200" step="1" value="45" class="num-input" oninput="document.getElementById('FightRange').value=this.value; previewRange('FightRange', this.value, 'grid', 'Fight Range: ' + this.value + 'g', '#ef4444', 'Player');" onchange="document.getElementById('FightRange').value=this.value; saveSettings();" />
+            </div>
+            <input id="FightRange" type="range" min="10" max="90" value="45" class="form-control" oninput="document.getElementById('FightRange_num').value=this.value; previewRange('FightRange', this.value, 'grid', 'Fight Range: ' + this.value + 'g', '#ef4444', 'Player');" onchange="saveSettings()" />
           </div>
           <div class="form-group">
-            <label>Combat Range: <span id="combatRangeVal" class="slider-val">65</span> grid units</label>
-            <input id="CombatRange" type="range" min="20" max="150" value="65" class="form-control" oninput="document.getElementById('combatRangeVal').innerText=this.value; previewRange('CombatRange', this.value, 'grid', 'Combat Range: ' + this.value + 'g', '#f59e0b', 'Player');" onchange="saveSettings()" />
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="margin-bottom:0;">Combat Range (g)</label>
+              <input id="CombatRange_num" type="number" min="10" max="250" step="1" value="65" class="num-input" oninput="document.getElementById('CombatRange').value=this.value; previewRange('CombatRange', this.value, 'grid', 'Combat Range: ' + this.value + 'g', '#f59e0b', 'Player');" onchange="document.getElementById('CombatRange').value=this.value; saveSettings();" />
+            </div>
+            <input id="CombatRange" type="range" min="20" max="150" value="65" class="form-control" oninput="document.getElementById('CombatRange_num').value=this.value; previewRange('CombatRange', this.value, 'grid', 'Combat Range: ' + this.value + 'g', '#f59e0b', 'Player');" onchange="saveSettings()" />
           </div>
         </div>
       </div>
@@ -295,8 +304,14 @@
               </label>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label>Trigger Below Life: <span id="p1LifeThreshVal" class="slider-val">50%</span></label>
-              <input id="P1LifeFlaskThresholdPercent" type="range" min="15" max="90" value="50" class="form-control" oninput="document.getElementById('p1LifeThreshVal').innerText=this.value + '%'" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Trigger Below Life</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input id="P1LifeFlaskThresholdPercent_num" type="number" min="1" max="100" step="1" value="50" class="num-input" style="width:55px;" oninput="document.getElementById('P1LifeFlaskThresholdPercent').value=this.value;" onchange="document.getElementById('P1LifeFlaskThresholdPercent').value=this.value; saveSettings();" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">%</span>
+                </div>
+              </div>
+              <input id="P1LifeFlaskThresholdPercent" type="range" min="15" max="90" value="50" class="form-control" oninput="document.getElementById('P1LifeFlaskThresholdPercent_num').value=this.value;" onchange="saveSettings()" />
             </div>
           </div>
 
@@ -310,8 +325,14 @@
               </label>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label>Trigger Below Mana: <span id="p1ManaThreshVal" class="slider-val">30%</span></label>
-              <input id="P1ManaFlaskThresholdPercent" type="range" min="10" max="80" value="30" class="form-control" oninput="document.getElementById('p1ManaThreshVal').innerText=this.value + '%'" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Trigger Below Mana</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input id="P1ManaFlaskThresholdPercent_num" type="number" min="1" max="100" step="1" value="30" class="num-input" style="width:55px;" oninput="document.getElementById('P1ManaFlaskThresholdPercent').value=this.value;" onchange="document.getElementById('P1ManaFlaskThresholdPercent').value=this.value; saveSettings();" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">%</span>
+                </div>
+              </div>
+              <input id="P1ManaFlaskThresholdPercent" type="range" min="10" max="80" value="30" class="form-control" oninput="document.getElementById('P1ManaFlaskThresholdPercent_num').value=this.value;" onchange="saveSettings()" />
             </div>
           </div>
         </div>
@@ -526,18 +547,36 @@
           <div style="font-weight:700; font-size:12px; color:#38bdf8; text-transform:uppercase; margin-bottom:12px;">🕹️ Left Thumbstick: Analog Steering & Formation</div>
           <div class="grid3">
             <div class="form-group">
-              <label>Safe Distance (ระยะหยุดชิดหัว): <span id="coopStopDistVal" class="slider-val">10</span>g</label>
-              <input id="CoopStopDistance" type="range" min="3" max="30" value="10" class="form-control" oninput="document.getElementById('coopStopDistVal').innerText=this.value + 'g'; previewRange('CoopStopDistance', this.value, 'grid', 'Safe Distance (Stop): ' + this.value + 'g', '#10b981', 'Leader');" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Safe Distance (Stop)</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input id="CoopStopDistance_num" type="number" min="1" max="100" step="1" value="10" class="num-input" style="width:55px;" oninput="document.getElementById('CoopStopDistance').value=this.value; previewRange('CoopStopDistance', this.value, 'grid', 'Safe Distance (Stop): ' + this.value + 'g', '#10b981', 'Leader');" onchange="document.getElementById('CoopStopDistance').value=this.value; saveSettings();" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">g</span>
+                </div>
+              </div>
+              <input id="CoopStopDistance" type="range" min="3" max="30" value="10" class="form-control" oninput="document.getElementById('CoopStopDistance_num').value=this.value; previewRange('CoopStopDistance', this.value, 'grid', 'Safe Distance (Stop): ' + this.value + 'g', '#10b981', 'Leader');" onchange="saveSettings()" />
               <small style="font-size:10px; color:var(--text-dim);">หยุดเดินเมื่อถึงระยะนี้ (อยู่นิ่ง/ยืนตีสบาย)</small>
             </div>
             <div class="form-group">
-              <label>Follow Distance (ระยะเริ่มเดินตาม): <span id="coopFollowDistVal" class="slider-val">20</span>g</label>
-              <input id="CoopFollowDistance" type="range" min="6" max="60" value="20" class="form-control" oninput="document.getElementById('coopFollowDistVal').innerText=this.value + 'g'; previewRange('CoopFollowDistance', this.value, 'grid', 'Follow Trigger: ' + this.value + 'g', '#06b6d4', 'Leader');" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Follow Distance</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input id="CoopFollowDistance_num" type="number" min="1" max="150" step="1" value="20" class="num-input" style="width:55px;" oninput="document.getElementById('CoopFollowDistance').value=this.value; previewRange('CoopFollowDistance', this.value, 'grid', 'Follow Trigger: ' + this.value + 'g', '#06b6d4', 'Leader');" onchange="document.getElementById('CoopFollowDistance').value=this.value; saveSettings();" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">g</span>
+                </div>
+              </div>
+              <input id="CoopFollowDistance" type="range" min="6" max="60" value="20" class="form-control" oninput="document.getElementById('CoopFollowDistance_num').value=this.value; previewRange('CoopFollowDistance', this.value, 'grid', 'Follow Trigger: ' + this.value + 'g', '#06b6d4', 'Leader');" onchange="saveSettings()" />
               <small style="font-size:10px; color:var(--text-dim);">เมื่อหัวเดินห่างเกินระยะนี้ จะเริ่มก้าวตาม</small>
             </div>
             <div class="form-group">
-              <label>Sprint Catchup (Button B): <span id="coopSprintDistVal" class="slider-val">40</span>g</label>
-              <input id="CoopSprintDistance" type="range" min="20" max="100" value="40" class="form-control" oninput="document.getElementById('coopSprintDistVal').innerText=this.value + 'g'; previewRange('CoopSprintDistance', this.value, 'grid', 'Sprint Catchup: ' + this.value + 'g', '#eab308', 'Leader');" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Sprint Catchup (B)</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input id="CoopSprintDistance_num" type="number" min="5" max="200" step="1" value="40" class="num-input" style="width:55px;" oninput="document.getElementById('CoopSprintDistance').value=this.value; previewRange('CoopSprintDistance', this.value, 'grid', 'Sprint Catchup: ' + this.value + 'g', '#eab308', 'Leader');" onchange="document.getElementById('CoopSprintDistance').value=this.value; saveSettings();" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">g</span>
+                </div>
+              </div>
+              <input id="CoopSprintDistance" type="range" min="20" max="100" value="40" class="form-control" oninput="document.getElementById('CoopSprintDistance_num').value=this.value; previewRange('CoopSprintDistance', this.value, 'grid', 'Sprint Catchup: ' + this.value + 'g', '#eab308', 'Leader');" onchange="saveSettings()" />
               <small style="font-size:10px; color:var(--text-dim);">ห่างเกินระยะนี้จะกดวิ่ง Sprint สปีดตาม</small>
             </div>
           </div>
@@ -555,8 +594,14 @@
               </label>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label>Trigger Below Life: <span id="p2LifeThreshVal" class="slider-val">50%</span></label>
-              <input id="P2LifeFlaskThresholdPercent" type="range" min="15" max="90" value="50" class="form-control" oninput="document.getElementById('p2LifeThreshVal').innerText=this.value + '%'" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Trigger Below Life</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input id="P2LifeFlaskThresholdPercent_num" type="number" min="1" max="100" step="1" value="50" class="num-input" style="width:55px;" oninput="document.getElementById('P2LifeFlaskThresholdPercent').value=this.value;" onchange="document.getElementById('P2LifeFlaskThresholdPercent').value=this.value; saveSettings();" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">%</span>
+                </div>
+              </div>
+              <input id="P2LifeFlaskThresholdPercent" type="range" min="15" max="90" value="50" class="form-control" oninput="document.getElementById('P2LifeFlaskThresholdPercent_num').value=this.value;" onchange="saveSettings()" />
             </div>
           </div>
 
@@ -570,8 +615,14 @@
               </label>
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <label>Trigger Below Mana: <span id="p2ManaThreshVal" class="slider-val">30%</span></label>
-              <input id="P2ManaFlaskThresholdPercent" type="range" min="10" max="80" value="30" class="form-control" oninput="document.getElementById('p2ManaThreshVal').innerText=this.value + '%'" onchange="saveSettings()" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Trigger Below Mana</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input id="P2ManaFlaskThresholdPercent_num" type="number" min="1" max="100" step="1" value="30" class="num-input" style="width:55px;" oninput="document.getElementById('P2ManaFlaskThresholdPercent').value=this.value;" onchange="document.getElementById('P2ManaFlaskThresholdPercent').value=this.value; saveSettings();" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">%</span>
+                </div>
+              </div>
+              <input id="P2ManaFlaskThresholdPercent" type="range" min="10" max="80" value="30" class="form-control" oninput="document.getElementById('P2ManaFlaskThresholdPercent_num').value=this.value;" onchange="saveSettings()" />
             </div>
           </div>
         </div>
@@ -625,8 +676,14 @@
             <select id="LifeFlaskKey" class="form-control key-select" onchange="saveSettings()"></select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label>Trigger Below Life: <span id="lifeThreshVal" class="slider-val">50%</span></label>
-            <input id="LifeFlaskThresholdPercent" type="range" min="15" max="90" value="50" class="form-control" oninput="document.getElementById('lifeThreshVal').innerText=this.value + '%'" onchange="saveSettings()" />
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="margin-bottom:0;">Trigger Below Life</label>
+              <div style="display:flex; align-items:center; gap:2px;">
+                <input id="LifeFlaskThresholdPercent_num" type="number" min="1" max="100" step="1" value="50" class="num-input" style="width:55px;" oninput="document.getElementById('LifeFlaskThresholdPercent').value=this.value;" onchange="document.getElementById('LifeFlaskThresholdPercent').value=this.value; saveSettings();" />
+                <span style="font-size:11px; color:var(--accent); font-weight:700;">%</span>
+              </div>
+            </div>
+            <input id="LifeFlaskThresholdPercent" type="range" min="15" max="90" value="50" class="form-control" oninput="document.getElementById('LifeFlaskThresholdPercent_num').value=this.value;" onchange="saveSettings()" />
           </div>
         </div>
 
@@ -644,8 +701,14 @@
             <select id="ManaFlaskKey" class="form-control key-select" onchange="saveSettings()"></select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label>Trigger Below Mana: <span id="manaThreshVal" class="slider-val">30%</span></label>
-            <input id="ManaFlaskThresholdPercent" type="range" min="10" max="80" value="30" class="form-control" oninput="document.getElementById('manaThreshVal').innerText=this.value + '%'" onchange="saveSettings()" />
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="margin-bottom:0;">Trigger Below Mana</label>
+              <div style="display:flex; align-items:center; gap:2px;">
+                <input id="ManaFlaskThresholdPercent_num" type="number" min="1" max="100" step="1" value="30" class="num-input" style="width:55px;" oninput="document.getElementById('ManaFlaskThresholdPercent').value=this.value;" onchange="document.getElementById('ManaFlaskThresholdPercent').value=this.value; saveSettings();" />
+                <span style="font-size:11px; color:var(--accent); font-weight:700;">%</span>
+              </div>
+            </div>
+            <input id="ManaFlaskThresholdPercent" type="range" min="10" max="80" value="30" class="form-control" oninput="document.getElementById('ManaFlaskThresholdPercent_num').value=this.value;" onchange="saveSettings()" />
           </div>
         </div>
       </div>

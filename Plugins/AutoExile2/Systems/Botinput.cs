@@ -353,7 +353,9 @@ namespace AutoExile2.Systems
                         mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
                         break;
                     case AttackInputType.KeyboardKey:
-                        FastPressKey(key);
+                        keybd_event((byte)key, 0, 0, 0);
+                        await Task.Delay(hold);
+                        keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
                         break;
                 }
                 lastInputEvent = DateTime.Now;

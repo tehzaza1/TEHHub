@@ -658,8 +658,11 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
               </select>
             </div>
             <div class="form-group">
-              <label>Max Deploy Range: <span id="${listName}_totemRangeVal_${i}" class="slider-val">${slot.MaxTargetRange || 65}</span>g</label>
-              <input type="range" min="20" max="100" value="${slot.MaxTargetRange || 65}" class="form-control" oninput="document.getElementById('${listName}_totemRangeVal_${i}').innerText=this.value; currentSettings['${listName}'][${i}].MaxTargetRange=parseFloat(this.value); previewRange('SkillRange', this.value, 'grid', 'Totem Range: ' + this.value + 'g', '#f59e0b', isGamepad ? 'Follower' : 'Player');" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Max Deploy Range (g)</label>
+                <input type="number" id="${listName}_totemRangeNum_${i}" min="0" max="200" step="1" value="${slot.MaxTargetRange || 65}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const sl=document.getElementById('${listName}_totemRangeSlider_${i}'); if(sl) sl.value=v; previewRange('SkillRange', v, 'grid', 'Totem Range: ' + v + 'g', '#f59e0b', isGamepad ? 'Follower' : 'Player');" />
+              </div>
+              <input type="range" id="${listName}_totemRangeSlider_${i}" min="20" max="100" value="${slot.MaxTargetRange || 65}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const num=document.getElementById('${listName}_totemRangeNum_${i}'); if(num) num.value=v; previewRange('SkillRange', v, 'grid', 'Totem Range: ' + v + 'g', '#f59e0b', isGamepad ? 'Follower' : 'Player');" />
             </div>
           </div>
           <div style="margin-top:6px;">${renderTotemDetailsHtml(i)}</div>
@@ -678,15 +681,19 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <label style="margin-bottom:0;"><input type="checkbox" id="${listName}_onlyOnLowHp_${i}" ${slot.OnlyOnLowHp ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyOnLowHp = this.checked;" /> Only on Low Vital (<span id="${listName}_hpThresh_${i}">${slot.LowHpThresholdPercent || 60}%</span>)</label>
+                <label style="margin-bottom:0;"><input type="checkbox" id="${listName}_onlyOnLowHp_${i}" ${slot.OnlyOnLowHp ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyOnLowHp = this.checked;" /> Only on Low Vital</label>
+                <div style="display:flex; align-items:center; gap:2px;">
+                  <input type="number" id="${listName}_hpThreshNum_${i}" min="1" max="100" step="1" value="${slot.LowHpThresholdPercent || 60}" class="num-input" style="width:55px;" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].LowHpThresholdPercent=v; currentSettings['${listName}'][${i}].OnlyOnLowHp = true; const cb = document.getElementById('${listName}_onlyOnLowHp_${i}'); if (cb) cb.checked = true; const sl=document.getElementById('${listName}_hpThreshSlider_${i}'); if(sl) sl.value=v;" />
+                  <span style="font-size:11px; color:var(--accent); font-weight:700;">%</span>
+                </div>
               </div>
               <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
-                <select class="form-control" style="width:130px; padding:2px 6px; font-size:11px; height:28px;" onchange="currentSettings['${listName}'][${i}].VitalCondition = parseInt(this.value); currentSettings['${listName}'][${i}].OnlyOnLowHp = true; const cb = document.getElementById('${listName}_onlyOnLowHp_${i}'); if (cb) cb.checked = true;">
+                <select class="form-control" style="width:120px; padding:2px 6px; font-size:11px; height:28px;" onchange="currentSettings['${listName}'][${i}].VitalCondition = parseInt(this.value); currentSettings['${listName}'][${i}].OnlyOnLowHp = true; const cb = document.getElementById('${listName}_onlyOnLowHp_${i}'); if (cb) cb.checked = true;">
                   <option value="2" ${slot.VitalCondition === 2 || slot.VitalCondition === '2' || slot.VitalCondition === 'CombinedHpEs' || slot.VitalCondition === undefined ? 'selected' : ''}>🛡️ HP + ES</option>
                   <option value="0" ${slot.VitalCondition === 0 || slot.VitalCondition === '0' || slot.VitalCondition === 'HpOnly' ? 'selected' : ''}>❤️ HP Only</option>
                   <option value="1" ${slot.VitalCondition === 1 || slot.VitalCondition === '1' || slot.VitalCondition === 'EsOnly' ? 'selected' : ''}>⚡ ES Only</option>
                 </select>
-                <input type="range" min="15" max="90" value="${slot.LowHpThresholdPercent || 60}" class="form-control" style="flex:1;" oninput="document.getElementById('${listName}_hpThresh_${i}').innerText=this.value + '%'; currentSettings['${listName}'][${i}].LowHpThresholdPercent=parseFloat(this.value); currentSettings['${listName}'][${i}].OnlyOnLowHp = true; const cb = document.getElementById('${listName}_onlyOnLowHp_${i}'); if (cb) cb.checked = true;" />
+                <input type="range" id="${listName}_hpThreshSlider_${i}" min="15" max="90" value="${slot.LowHpThresholdPercent || 60}" class="form-control" style="flex:1;" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].LowHpThresholdPercent=v; currentSettings['${listName}'][${i}].OnlyOnLowHp = true; const cb = document.getElementById('${listName}_onlyOnLowHp_${i}'); if (cb) cb.checked = true; const num=document.getElementById('${listName}_hpThreshNum_${i}'); if(num) num.value=v;" />
               </div>
             </div>
             <div class="form-group">
@@ -709,8 +716,11 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
               </select>
             </div>
             <div class="form-group">
-              <label>Max Cast Range: <span id="${listName}_curseRangeVal_${i}" class="slider-val">${slot.MaxTargetRange || 70}</span>g</label>
-              <input type="range" min="20" max="100" value="${slot.MaxTargetRange || 70}" class="form-control" oninput="document.getElementById('${listName}_curseRangeVal_${i}').innerText=this.value; currentSettings['${listName}'][${i}].MaxTargetRange=parseFloat(this.value); previewRange('SkillRange', this.value, 'grid', 'Curse Range: ' + this.value + 'g', '#a855f7', isGamepad ? 'Follower' : 'Player');" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Max Cast Range (g)</label>
+                <input type="number" id="${listName}_curseRangeNum_${i}" min="0" max="200" step="1" value="${slot.MaxTargetRange || 70}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const sl=document.getElementById('${listName}_curseRangeSlider_${i}'); if(sl) sl.value=v; previewRange('SkillRange', v, 'grid', 'Curse Range: ' + v + 'g', '#a855f7', isGamepad ? 'Follower' : 'Player');" />
+              </div>
+              <input type="range" id="${listName}_curseRangeSlider_${i}" min="20" max="100" value="${slot.MaxTargetRange || 70}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const num=document.getElementById('${listName}_curseRangeNum_${i}'); if(num) num.value=v; previewRange('SkillRange', v, 'grid', 'Curse Range: ' + v + 'g', '#a855f7', isGamepad ? 'Follower' : 'Player');" />
             </div>
             <div class="form-group">
               <label><input type="checkbox" ${slot.OnlyWhenBuffMissing ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyWhenBuffMissing = this.checked;" /> Target Lacking Curse</label>
@@ -728,8 +738,11 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
           </div>
           <div class="grid2">
             <div class="form-group">
-              <label>Distance from host to start attacking: <span id="${listName}_cullerStartVal_${i}" class="slider-val">${slot.CullerStartAttackDistance > 150 ? Math.round(slot.CullerStartAttackDistance/10.87) : (slot.CullerStartAttackDistance || 35)}</span>g</label>
-              <input type="range" min="10" max="100" step="1" value="${slot.CullerStartAttackDistance > 150 ? Math.round(slot.CullerStartAttackDistance/10.87) : (slot.CullerStartAttackDistance || 35)}" class="form-control" oninput="document.getElementById('${listName}_cullerStartVal_${i}').innerText=this.value; currentSettings['${listName}'][${i}].CullerStartAttackDistance=parseFloat(this.value); previewRange('CullerStart', this.value, 'grid', '🎯 Culler Start: ' + this.value + 'g', '#f43f5e', 'Leader');" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Distance to Attack (g)</label>
+                <input type="number" id="${listName}_cullerStartNum_${i}" min="5" max="200" step="1" value="${slot.CullerStartAttackDistance > 150 ? Math.round(slot.CullerStartAttackDistance/10.87) : (slot.CullerStartAttackDistance || 35)}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].CullerStartAttackDistance=v; const sl=document.getElementById('${listName}_cullerStartSlider_${i}'); if(sl) sl.value=v; previewRange('CullerStart', v, 'grid', '🎯 Culler Start: ' + v + 'g', '#f43f5e', 'Leader');" />
+              </div>
+              <input type="range" id="${listName}_cullerStartSlider_${i}" min="10" max="100" step="1" value="${slot.CullerStartAttackDistance > 150 ? Math.round(slot.CullerStartAttackDistance/10.87) : (slot.CullerStartAttackDistance || 35)}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].CullerStartAttackDistance=v; const num=document.getElementById('${listName}_cullerStartNum_${i}'); if(num) num.value=v; previewRange('CullerStart', v, 'grid', '🎯 Culler Start: ' + v + 'g', '#f43f5e', 'Leader');" />
             </div>
             <div class="form-group" style="display:flex; flex-direction:column; justify-content:center;">
               <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:14px;">
@@ -754,8 +767,11 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
               </select>
             </div>
             <div class="form-group">
-              <label>Max Range: <span id="${listName}_rangeVal_${i}" class="slider-val">${slot.MaxTargetRange || 0}</span>g (0 = Auto)</label>
-              <input type="range" min="0" max="120" value="${slot.MaxTargetRange || 0}" class="form-control" oninput="document.getElementById('${listName}_rangeVal_${i}').innerText=this.value; currentSettings['${listName}'][${i}].MaxTargetRange=parseFloat(this.value); if(parseFloat(this.value)>0) previewRange('SkillRange', this.value, 'grid', (slot.Name || 'Skill') + ' Range: ' + this.value + 'g', '#38bdf8', isGamepad ? 'Follower' : 'Player');" />
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Max Range (g, 0=Auto)</label>
+                <input type="number" id="${listName}_rangeNum_${i}" min="0" max="200" step="1" value="${slot.MaxTargetRange || 0}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const sl=document.getElementById('${listName}_rangeSlider_${i}'); if(sl) sl.value=v; if(v>0) previewRange('SkillRange', v, 'grid', (slot.Name || 'Skill') + ' Range: ' + v + 'g', '#38bdf8', isGamepad ? 'Follower' : 'Player');" />
+              </div>
+              <input type="range" id="${listName}_rangeSlider_${i}" min="0" max="120" value="${slot.MaxTargetRange || 0}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const num=document.getElementById('${listName}_rangeNum_${i}'); if(num) num.value=v; if(v>0) previewRange('SkillRange', v, 'grid', (slot.Name || 'Skill') + ' Range: ' + v + 'g', '#38bdf8', isGamepad ? 'Follower' : 'Player');" />
             </div>
             <div class="form-group">
               <label>Min Nearby Hostiles: <span id="${listName}_atkEnemiesVal_${i}" class="slider-val">${slot.MinNearbyEnemies || 0}</span></label>
@@ -775,10 +791,6 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
           <select class="form-control" style="font-weight:700; color:#93c5fd; border-color:#3b82f6;" onchange="currentSettings['${listName}'][${i}].GamepadButton = this.value; renderSkillSlotList('${listName}', '${containerId}', ${isGamepad});">
             ${renderGamepadButtonOptions(slot.GamepadButton || 'RightShoulder')}
           </select>
-        </div>
-        <div class="form-group">
-          <label>Hold Duration: <span id="${listName}_holdVal_${i}" class="slider-val">${slot.HoldDurationMs || 150} ms</span></label>
-          <input type="range" min="50" max="1000" step="25" value="${slot.HoldDurationMs || 150}" class="form-control" oninput="document.getElementById('${listName}_holdVal_${i}').innerText=this.value + ' ms'; currentSettings['${listName}'][${i}].HoldDurationMs=parseInt(this.value);" />
         </div>
       `;
     } else {
@@ -835,16 +847,26 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
         </div>
       </div>
 
-      <!-- ROW 2: Input / Gamepad, Priority, Cooldown -->
+      <!-- ROW 2: Input / Gamepad, Hold Duration, Priority, Cooldown -->
       <div class="grid4" style="margin-bottom:10px;">
         ${row2InputHtml}
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin-bottom:0;">Hold (ms)</label>
+            <input type="number" id="${listName}_holdNum_${i}" min="0" max="30000" step="25" value="${slot.HoldDurationMs || 150}" class="num-input" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].HoldDurationMs=v; const sl=document.getElementById('${listName}_holdSlider_${i}'); if(sl) sl.value=v;" />
+          </div>
+          <input type="range" id="${listName}_holdSlider_${i}" min="0" max="5000" step="25" value="${slot.HoldDurationMs || 150}" class="form-control" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].HoldDurationMs=v; const num=document.getElementById('${listName}_holdNum_${i}'); if(num) num.value=v;" />
+        </div>
         <div class="form-group">
           <label>Priority (1-10): <span id="${listName}_priVal_${i}" class="slider-val">${slot.Priority}</span></label>
           <input type="range" min="1" max="10" value="${slot.Priority}" class="form-control" oninput="document.getElementById('${listName}_priVal_${i}').innerText=this.value; currentSettings['${listName}'][${i}].Priority=parseInt(this.value);" />
         </div>
         <div class="form-group">
-          <label>Cooldown (ms): <span id="${listName}_cdVal_${i}" class="slider-val">${slot.MinCastIntervalMs} ms</span></label>
-          <input type="range" min="0" max="60000" step="100" value="${slot.MinCastIntervalMs}" class="form-control" oninput="document.getElementById('${listName}_cdVal_${i}').innerText=this.value + ' ms'; currentSettings['${listName}'][${i}].MinCastIntervalMs=parseInt(this.value);" />
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin-bottom:0;">Cooldown (ms)</label>
+            <input type="number" id="${listName}_cdNum_${i}" min="0" max="300000" step="50" value="${slot.MinCastIntervalMs}" class="num-input" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].MinCastIntervalMs=v; const sl=document.getElementById('${listName}_cdSlider_${i}'); if(sl) sl.value=v;" />
+          </div>
+          <input type="range" id="${listName}_cdSlider_${i}" min="0" max="60000" step="100" value="${slot.MinCastIntervalMs}" class="form-control" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].MinCastIntervalMs=v; const num=document.getElementById('${listName}_cdNum_${i}'); if(num) num.value=v;" />
         </div>
       </div>
 
@@ -1287,6 +1309,8 @@ async function loadSettings() {
 
     for (let k in currentSettings) {
       const el = document.getElementById(k);
+      const numEl = document.getElementById(k + '_num');
+      if (numEl) numEl.value = currentSettings[k];
       if (!el) continue;
       if (el.type === 'checkbox') {
         el.checked = currentSettings[k];
@@ -1314,29 +1338,70 @@ async function loadSettings() {
     const statBadge = document.getElementById('statModeBadge');
     if (statBadge) statBadge.innerText = `MODE: ${display}`;
 
-    // Update Slider Value Texts
+    // Update Slider & Number Box Values
     if (document.getElementById('CombatRange')) {
       if (document.getElementById('CombatStyle')) document.getElementById('CombatStyle').value = currentSettings.CombatStyle || 'Ranged';
-      if (document.getElementById('FightRange')) {
-        document.getElementById('fightRangeVal').innerText = currentSettings.FightRange || 45;
-        document.getElementById('FightRange').value = currentSettings.FightRange || 45;
-      }
-      document.getElementById('combatRangeVal').innerText = currentSettings.CombatRange || 65;
-      document.getElementById('sprintDistVal').innerText = currentSettings.SprintMinDistance || 40;
-      document.getElementById('lifeThreshVal').innerText = (currentSettings.LifeFlaskThresholdPercent || 50) + '%';
-      document.getElementById('manaThreshVal').innerText = (currentSettings.ManaFlaskThresholdPercent || 30) + '%';
+      const fVal = currentSettings.FightRange || 45;
+      if (document.getElementById('FightRange')) document.getElementById('FightRange').value = fVal;
+      if (document.getElementById('FightRange_num')) document.getElementById('FightRange_num').value = fVal;
+      if (document.getElementById('fightRangeVal')) document.getElementById('fightRangeVal').innerText = fVal;
+
+      const cVal = currentSettings.CombatRange || 65;
+      if (document.getElementById('CombatRange')) document.getElementById('CombatRange').value = cVal;
+      if (document.getElementById('CombatRange_num')) document.getElementById('CombatRange_num').value = cVal;
+      if (document.getElementById('combatRangeVal')) document.getElementById('combatRangeVal').innerText = cVal;
+
+      const spVal = currentSettings.SprintMinDistance || 40;
+      if (document.getElementById('SprintMinDistance')) document.getElementById('SprintMinDistance').value = spVal;
+      if (document.getElementById('SprintMinDistance_num')) document.getElementById('SprintMinDistance_num').value = spVal;
+      if (document.getElementById('sprintDistVal')) document.getElementById('sprintDistVal').innerText = spVal;
+
+      const lfVal = currentSettings.LifeFlaskThresholdPercent || 50;
+      if (document.getElementById('LifeFlaskThresholdPercent')) document.getElementById('LifeFlaskThresholdPercent').value = lfVal;
+      if (document.getElementById('LifeFlaskThresholdPercent_num')) document.getElementById('LifeFlaskThresholdPercent_num').value = lfVal;
+      if (document.getElementById('lifeThreshVal')) document.getElementById('lifeThreshVal').innerText = lfVal + '%';
+
+      const mfVal = currentSettings.ManaFlaskThresholdPercent || 30;
+      if (document.getElementById('ManaFlaskThresholdPercent')) document.getElementById('ManaFlaskThresholdPercent').value = mfVal;
+      if (document.getElementById('ManaFlaskThresholdPercent_num')) document.getElementById('ManaFlaskThresholdPercent_num').value = mfVal;
+      if (document.getElementById('manaThreshVal')) document.getElementById('manaThreshVal').innerText = mfVal + '%';
     }
 
-    // Co-op Sliders
-    if (document.getElementById('p1LifeThreshVal')) {
-      document.getElementById('p1LifeThreshVal').innerText = (currentSettings.P1LifeFlaskThresholdPercent || 50) + '%';
-      document.getElementById('p1ManaThreshVal').innerText = (currentSettings.P1ManaFlaskThresholdPercent || 30) + '%';
-      document.getElementById('p2LifeThreshVal').innerText = (currentSettings.P2LifeFlaskThresholdPercent || 50) + '%';
-      document.getElementById('p2ManaThreshVal').innerText = (currentSettings.P2ManaFlaskThresholdPercent || 30) + '%';
-      if (document.getElementById('coopStopDistVal')) document.getElementById('coopStopDistVal').innerText = (currentSettings.CoopStopDistance || 10) + 'g';
-      document.getElementById('coopFollowDistVal').innerText = (currentSettings.CoopFollowDistance || 20) + 'g';
-      document.getElementById('coopSprintDistVal').innerText = (currentSettings.CoopSprintDistance || 40) + 'g';
-    }
+    // Co-op Sliders & Number Boxes
+    const p1Lf = currentSettings.P1LifeFlaskThresholdPercent || 50;
+    if (document.getElementById('P1LifeFlaskThresholdPercent')) document.getElementById('P1LifeFlaskThresholdPercent').value = p1Lf;
+    if (document.getElementById('P1LifeFlaskThresholdPercent_num')) document.getElementById('P1LifeFlaskThresholdPercent_num').value = p1Lf;
+    if (document.getElementById('p1LifeThreshVal')) document.getElementById('p1LifeThreshVal').innerText = p1Lf + '%';
+
+    const p1Mf = currentSettings.P1ManaFlaskThresholdPercent || 30;
+    if (document.getElementById('P1ManaFlaskThresholdPercent')) document.getElementById('P1ManaFlaskThresholdPercent').value = p1Mf;
+    if (document.getElementById('P1ManaFlaskThresholdPercent_num')) document.getElementById('P1ManaFlaskThresholdPercent_num').value = p1Mf;
+    if (document.getElementById('p1ManaThreshVal')) document.getElementById('p1ManaThreshVal').innerText = p1Mf + '%';
+
+    const p2Lf = currentSettings.P2LifeFlaskThresholdPercent || 50;
+    if (document.getElementById('P2LifeFlaskThresholdPercent')) document.getElementById('P2LifeFlaskThresholdPercent').value = p2Lf;
+    if (document.getElementById('P2LifeFlaskThresholdPercent_num')) document.getElementById('P2LifeFlaskThresholdPercent_num').value = p2Lf;
+    if (document.getElementById('p2LifeThreshVal')) document.getElementById('p2LifeThreshVal').innerText = p2Lf + '%';
+
+    const p2Mf = currentSettings.P2ManaFlaskThresholdPercent || 30;
+    if (document.getElementById('P2ManaFlaskThresholdPercent')) document.getElementById('P2ManaFlaskThresholdPercent').value = p2Mf;
+    if (document.getElementById('P2ManaFlaskThresholdPercent_num')) document.getElementById('P2ManaFlaskThresholdPercent_num').value = p2Mf;
+    if (document.getElementById('p2ManaThreshVal')) document.getElementById('p2ManaThreshVal').innerText = p2Mf + '%';
+
+    const stopD = currentSettings.CoopStopDistance || 10;
+    if (document.getElementById('CoopStopDistance')) document.getElementById('CoopStopDistance').value = stopD;
+    if (document.getElementById('CoopStopDistance_num')) document.getElementById('CoopStopDistance_num').value = stopD;
+    if (document.getElementById('coopStopDistVal')) document.getElementById('coopStopDistVal').innerText = stopD + 'g';
+
+    const folD = currentSettings.CoopFollowDistance || 20;
+    if (document.getElementById('CoopFollowDistance')) document.getElementById('CoopFollowDistance').value = folD;
+    if (document.getElementById('CoopFollowDistance_num')) document.getElementById('CoopFollowDistance_num').value = folD;
+    if (document.getElementById('coopFollowDistVal')) document.getElementById('coopFollowDistVal').innerText = folD + 'g';
+
+    const sprD = currentSettings.CoopSprintDistance || 40;
+    if (document.getElementById('CoopSprintDistance')) document.getElementById('CoopSprintDistance').value = sprD;
+    if (document.getElementById('CoopSprintDistance_num')) document.getElementById('CoopSprintDistance_num').value = sprD;
+    if (document.getElementById('coopSprintDistVal')) document.getElementById('coopSprintDistVal').innerText = sprD + 'g';
 
     // Position Helper
     const posVal = currentSettings.FollowerPosition || 'Back';
@@ -1515,8 +1580,11 @@ async function saveSettings() {
   ];
 
   simpleFields.forEach(f => {
+    const numEl = document.getElementById(f + '_num');
     const el = document.getElementById(f);
-    if (el) {
+    if (numEl && numEl.value !== '') {
+      payload[f] = parseFloat(numEl.value);
+    } else if (el) {
       if (el.type === 'checkbox') payload[f] = el.checked;
       else if (el.type === 'number' || el.type === 'range') payload[f] = parseFloat(el.value);
       else payload[f] = el.value;
