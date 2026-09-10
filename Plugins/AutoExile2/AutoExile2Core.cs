@@ -532,6 +532,8 @@ namespace AutoExile2
             ImGui.SameLine();
             ImGui.Text($"Mode: {this.activeMode.Name} | State: {this.activeMode.CurrentState} ({this.activeMode.CurrentAction})");
 
+            ImGui.TextColored(new Vector4(0.35f, 0.85f, 1f, 1f), "[Brain Tick Rate: 60 Hz (16.6ms) - High Performance]");
+
             ImGui.Separator();
 
             ImGui.Checkbox("Show Circles On Adjust (All Modes)", ref this.Settings.ShowDistanceCircles);
