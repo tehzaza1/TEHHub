@@ -108,6 +108,14 @@ Commit: `941cee1 refactor: remove legacy process memory package`
 
 Commit: `5a967fa perf: add session-wide memory read metrics`
 
+### 5.4 แก้การ Dump เมื่อไม่มี failed reads
+
+- เดิมปุ่ม Copy/Dump ไม่สร้างรายงานเมื่อ failure table ว่าง แม้ Session metrics มีข้อมูล
+- แก้ให้บันทึกรายงานได้เมื่อมี successful reads และ failures เป็นศูนย์
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `df168aa fix: allow zero-failure memory metric dumps`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
