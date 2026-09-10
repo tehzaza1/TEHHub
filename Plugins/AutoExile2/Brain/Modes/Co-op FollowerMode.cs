@@ -474,9 +474,28 @@ namespace AutoExile2.Modes
 
         private Entity? FindFollowerEntity(AreaInstance area, Entity leader, string followerNameFilter)
         {
-            // In couch co-op on a single PC or party:
-            // Area.Player is Player 1 (Leader).
-            // AwakeEntities contains Player 2 (Follower) and any other players in the instance.
+            // 1. Direct Couch Co-op Player 2 from GameHelper Engine (Instant, Zero-Lag, 100% Reliable!)
+            if (area.Player2 != null && area.Player2.Address != IntPtr.Zero && area.Player2.IsValid)
+            {
+                // If a specific name filter is configured and Player component is populated, verify name
+                if (!string.IsNullOrWhiteSpace(followerNameFilter) &&
+                    area.Player2.TryGetComponent<Player>(out var p2PlayerComp) &&
+                    !string.IsNullOrEmpty(p2PlayerComp.Name))
+                {
+                    if (p2PlayerComp.Name.Equals(followerNameFilter.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                        p2PlayerComp.Name.Contains(followerNameFilter.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        return area.Player2;
+                    }
+                }
+                else
+                {
+                    // Couch Co-op Player 2 instance verified directly
+                    return area.Player2;
+                }
+            }
+
+            // 2. Fallback: Search AwakeEntities (for LAN/Network party or before Player2 pointer links)
             var candidates = new List<(Entity ent, string name)>();
 
             foreach (var kvp in area.AwakeEntities)

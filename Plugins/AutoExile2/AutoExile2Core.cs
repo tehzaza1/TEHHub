@@ -339,6 +339,19 @@ namespace AutoExile2
                 leaderPos = new Vector2(lRnd.GridPosition.X, lRnd.GridPosition.Y);
             }
 
+            if (currentArea?.Player2 != null && currentArea.Player2.Address != IntPtr.Zero && currentArea.Player2.IsValid)
+            {
+                targetFollowerEntity = currentArea.Player2;
+                if (targetFollowerEntity.TryGetComponent<Player>(out var fPlayerComp) && !string.IsNullOrEmpty(fPlayerComp.Name))
+                {
+                    followerPlayerName = fPlayerComp.Name;
+                    if (!nearbyPlayerNames.Contains(followerPlayerName))
+                    {
+                        nearbyPlayerNames.Add(followerPlayerName);
+                    }
+                }
+            }
+
             if (currentArea?.AwakeEntities != null && player != null)
             {
                 var candidates = new List<(Entity ent, string name)>();
@@ -383,33 +396,36 @@ namespace AutoExile2
 
                 string targetFilter = this.Settings.FollowerCharacterName?.Trim() ?? string.Empty;
 
-                if (!string.IsNullOrEmpty(targetFilter))
+                if (targetFollowerEntity == null)
                 {
-                    var exact = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Equals(targetFilter, StringComparison.OrdinalIgnoreCase));
-                    if (exact.ent != null)
+                    if (!string.IsNullOrEmpty(targetFilter))
                     {
-                        targetFollowerEntity = exact.ent;
-                        followerPlayerName = exact.name;
-                    }
-                    else
-                    {
-                        var partial = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Contains(targetFilter, StringComparison.OrdinalIgnoreCase));
-                        if (partial.ent != null)
+                        var exact = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Equals(targetFilter, StringComparison.OrdinalIgnoreCase));
+                        if (exact.ent != null)
                         {
-                            targetFollowerEntity = partial.ent;
-                            followerPlayerName = partial.name;
+                            targetFollowerEntity = exact.ent;
+                            followerPlayerName = exact.name;
+                        }
+                        else
+                        {
+                            var partial = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Contains(targetFilter, StringComparison.OrdinalIgnoreCase));
+                            if (partial.ent != null)
+                            {
+                                targetFollowerEntity = partial.ent;
+                                followerPlayerName = partial.name;
+                            }
                         }
                     }
-                }
-                else if (candidates.Count == 1)
-                {
-                    targetFollowerEntity = candidates[0].ent;
-                    followerPlayerName = candidates[0].name;
-
-                    // Auto-lock onto buddy when in 2-player private instance
-                    if (!string.IsNullOrEmpty(candidates[0].name) && string.IsNullOrEmpty(this.Settings.FollowerCharacterName))
+                    else if (candidates.Count == 1)
                     {
-                        this.Settings.FollowerCharacterName = candidates[0].name;
+                        targetFollowerEntity = candidates[0].ent;
+                        followerPlayerName = candidates[0].name;
+
+                        // Auto-lock onto buddy when in 2-player private instance
+                        if (!string.IsNullOrEmpty(candidates[0].name) && string.IsNullOrEmpty(this.Settings.FollowerCharacterName))
+                        {
+                            this.Settings.FollowerCharacterName = candidates[0].name;
+                        }
                     }
                 }
 
@@ -534,6 +550,14 @@ namespace AutoExile2
             ImGui.Text($"Mode: {this.activeMode.Name} | State: {this.activeMode.CurrentState} ({this.activeMode.CurrentAction})");
 
             ImGui.TextColored(new Vector4(0.35f, 0.85f, 1f, 1f), "[Brain Tick Rate: 60 Hz (16.6ms) - High Performance]");
+
+            var inGameState = Core.States.InGameStateObject;
+            var curArea = inGameState?.CurrentAreaInstance;
+            if (curArea != null && curArea.Player2.Address != IntPtr.Zero)
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1f), "[Couch Co-op: Connected (Player 2)]");
+            }
 
             ImGui.Separator();
 
