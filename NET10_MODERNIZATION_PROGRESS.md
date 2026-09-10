@@ -402,7 +402,7 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ย้าย `PlaySound` ของ LootValue จาก `DllImport` ไป `LibraryImport`; source หลักไม่มี `DllImport` เหลือแล้ว (ไม่นับ `Backup`)
 - เอา generic JSON helper ของ Newtonsoft และ package `Newtonsoft.Json` ออกจาก GameHelper
 - ตรวจด้วย source scan แล้วไม่มี `Newtonsoft` ใน source/project ที่ถูก build และ Release build แบบ `--no-restore` ผ่านทั้ง solution: 0 warning / 0 error
-- ต้องรัน restore ปกติอีกครั้งก่อนแจก build เพื่อให้ output directory ที่เคยสร้างไว้ล้าง `Newtonsoft.Json.dll` เก่าตาม dependency graph ใหม่
+- ยืนยันด้วย restore ปกติและ Release build สะอาดแล้ว: 0 warning / 0 error และไม่มี `Newtonsoft.Json.dll` ใน output
 
 ## การตัดสินใจเรื่อง Native AOT
 
