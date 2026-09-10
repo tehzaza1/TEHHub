@@ -875,122 +875,152 @@ namespace AutoExile2
 
                 if (!this.Settings.IsRunning)
                 {
+                    if (this.activeMode is CoopFollowerMode coopPaused && coopPaused.CurrentState != "Standby")
+                    {
+                        coopPaused.SetStatus("Standby", $"Press {this.Settings.ToggleKey} to Start");
+                    }
                     yield return new Wait(0.05d); // 20 Hz low-power check when paused
                     continue;
                 }
 
-                var inGameState = Core.States.InGameStateObject;
-                var currentArea = inGameState?.CurrentAreaInstance;
-                var currentWorld = inGameState?.CurrentWorldInstance;
-                var player = currentArea?.Player;
-
-                bool isPlayerValid = player != null && player.IsValid;
-                bool isInGameState = Core.States.GameCurrentState is GameStateTypes.InGameState or GameStateTypes.EscapeState;
-
-                if ((!isInGameState && !isPlayerValid) || currentWorld == null || currentArea == null || player == null)
-                {
-                    BotInput.ReleaseAllMovementKeys(this.Settings);
-                    yield return new Wait(0.05d);
-                    continue;
-                }
-
-                // 0.2 Auto-connect gamepads whenever bot is running in Follower mode
-                if (this.Settings.Mode == AutoExileMode.Follower)
-                {
-                    if (!this.coopGamepad.IsLeaderConnected || !this.coopGamepad.IsFollowerConnected)
-                    {
-                        this.coopGamepad.EnsureConnected(true, this.Settings.CoopPhysicalPadIndex, true);
-                    }
-                }
-
-                if (!player.TryGetComponent<Render>(out var pRender))
-                {
-                    yield return new Wait(0.0166d);
-                    continue;
-                }
-
+                Wait waitResult;
                 try
                 {
-                    var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
-                    float deltaSec = (float)(DateTime.Now - this.lastTickTime).TotalSeconds;
-                    this.lastTickTime = DateTime.Now;
+                    var inGameState = Core.States.InGameStateObject;
+                    var currentArea = inGameState?.CurrentAreaInstance;
+                    var currentWorld = inGameState?.CurrentWorldInstance;
+                    var player = currentArea?.Player;
 
-                    int playerHp = 0, playerMaxHp = 0, playerMana = 0, playerMaxMana = 0;
-                    bool isAlive = true;
-                    if (player.TryGetComponent<Life>(out var pLife))
-                    {
-                        playerHp = pLife.Health.Current;
-                        playerMaxHp = pLife.Health.Total;
-                        playerMana = pLife.Mana.Current;
-                        playerMaxMana = pLife.Mana.Total;
-                        isAlive = playerHp > 0;
-                    }
+                    bool isPlayerValid = player != null && player.IsValid;
+                    bool isInGameState = Core.States.GameCurrentState is GameStateTypes.InGameState or GameStateTypes.EscapeState;
 
-                    // Reuse or allocate cached BotContext
-                    if (this.botCtx == null)
+                    if ((!isInGameState && !isPlayerValid) || currentWorld == null || currentArea == null || player == null)
                     {
-                        this.botCtx = new BotContext
+                        BotInput.ReleaseAllMovementKeys(this.Settings);
+                        if (this.activeMode is CoopFollowerMode coopWait)
                         {
-                            Area = currentArea,
-                            World = currentWorld,
-                            Player = player,
-                            PlayerGrid = playerGrid,
-                            DeltaTime = deltaSec,
-                            Settings = this.Settings,
-                            Combat = this.combatSystem,
-                            Exploration = this.explorationMap,
-                            ThreatMap = this.threatMap,
-                            Perf = this.perf,
-                            Runtime = this.runtime,
-                            Recorder = this.recorder,
-                            CoopGamepad = this.coopGamepad,
-                            Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
-                        };
+                            coopWait.SetStatus("[Waiting for Game]", "Waiting for Area / Player to load...");
+                        }
+                        waitResult = new Wait(0.05d);
                     }
                     else
                     {
-                        this.botCtx.Area = currentArea;
-                        this.botCtx.World = currentWorld;
-                        this.botCtx.Player = player;
-                        this.botCtx.PlayerGrid = playerGrid;
-                        this.botCtx.DeltaTime = deltaSec;
-                        this.botCtx.Settings = this.Settings;
+                        // 0.2 Auto-connect gamepads whenever bot is running in Follower mode
+                        if (this.Settings.Mode == AutoExileMode.Follower)
+                        {
+                            if (!this.coopGamepad.IsLeaderConnected || !this.coopGamepad.IsFollowerConnected)
+                            {
+                                if (this.activeMode is CoopFollowerMode coopConnecting)
+                                {
+                                    coopConnecting.SetStatus("[Connecting Controls]", "Connecting Dual Virtual Controllers (ViGEm)...");
+                                }
+
+                                bool ok = this.coopGamepad.EnsureConnected(true, this.Settings.CoopPhysicalPadIndex, true);
+                                if (!ok && this.coopGamepad.LastError != null && this.activeMode is CoopFollowerMode coopErr)
+                                {
+                                    coopErr.SetStatus("[ViGEm Error]", $"ViGEm: {this.coopGamepad.LastError}");
+                                }
+                            }
+                        }
+
+                        if (!player.TryGetComponent<Render>(out var pRender))
+                        {
+                            if (this.activeMode is CoopFollowerMode coopRender)
+                            {
+                                coopRender.SetStatus("[Waiting for Render]", "Waiting for Player Model...");
+                            }
+                            waitResult = new Wait(0.0166d);
+                        }
+                        else
+                        {
+                            var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
+                            float deltaSec = (float)(DateTime.Now - this.lastTickTime).TotalSeconds;
+                            this.lastTickTime = DateTime.Now;
+
+                            int playerHp = 0, playerMaxHp = 0, playerMana = 0, playerMaxMana = 0;
+                            bool isAlive = true;
+                            if (player.TryGetComponent<Life>(out var pLife))
+                            {
+                                playerHp = pLife.Health.Current;
+                                playerMaxHp = pLife.Health.Total;
+                                playerMana = pLife.Mana.Current;
+                                playerMaxMana = pLife.Mana.Total;
+                                isAlive = playerHp > 0;
+                            }
+
+                            // Reuse or allocate cached BotContext
+                            if (this.botCtx == null)
+                            {
+                                this.botCtx = new BotContext
+                                {
+                                    Area = currentArea,
+                                    World = currentWorld,
+                                    Player = player,
+                                    PlayerGrid = playerGrid,
+                                    DeltaTime = deltaSec,
+                                    Settings = this.Settings,
+                                    Combat = this.combatSystem,
+                                    Exploration = this.explorationMap,
+                                    ThreatMap = this.threatMap,
+                                    Perf = this.perf,
+                                    Runtime = this.runtime,
+                                    Recorder = this.recorder,
+                                    CoopGamepad = this.coopGamepad,
+                                    Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
+                                };
+                            }
+                            else
+                            {
+                                this.botCtx.Area = currentArea;
+                                this.botCtx.World = currentWorld;
+                                this.botCtx.Player = player;
+                                this.botCtx.PlayerGrid = playerGrid;
+                                this.botCtx.DeltaTime = deltaSec;
+                                this.botCtx.Settings = this.Settings;
+                            }
+
+                            // Switch active mode if settings changed
+                            this.CheckModeSwitch(this.botCtx);
+
+                            // Record this frame into rolling flight recorder buffer (BotRecorder)
+                            this.recorder.RecordTick(
+                                currentArea,
+                                currentWorld.AreaDetails.Name ?? currentArea.AreaHash ?? "UnknownArea",
+                                playerGrid,
+                                playerHp,
+                                playerMaxHp,
+                                playerMana,
+                                playerMaxMana,
+                                isAlive,
+                                this.activeMode.Name,
+                                this.activeMode.CurrentState,
+                                this.activeMode.CurrentAction,
+                                this.combatSystem,
+                                this.explorationMap,
+                                this.activeMode.CurrentNavPath,
+                                this.activeMode.CurrentWaypointIndex,
+                                this.activeMode.CurrentDestination,
+                                0f,
+                                deltaSec);
+
+                            // Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
+                            this.activeMode.Tick(this.botCtx);
+                            waitResult = new Wait(0.0166d);
+                        }
                     }
-
-                    // Switch active mode if settings changed
-                    this.CheckModeSwitch(this.botCtx);
-
-                    // Record this frame into rolling flight recorder buffer (BotRecorder)
-                    this.recorder.RecordTick(
-                        currentArea,
-                        currentWorld.AreaDetails.Name ?? currentArea.AreaHash ?? "UnknownArea",
-                        playerGrid,
-                        playerHp,
-                        playerMaxHp,
-                        playerMana,
-                        playerMaxMana,
-                        isAlive,
-                        this.activeMode.Name,
-                        this.activeMode.CurrentState,
-                        this.activeMode.CurrentAction,
-                        this.combatSystem,
-                        this.explorationMap,
-                        this.activeMode.CurrentNavPath,
-                        this.activeMode.CurrentWaypointIndex,
-                        this.activeMode.CurrentDestination,
-                        0f,
-                        deltaSec);
-
-                    // Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
-                    this.activeMode.Tick(this.botCtx);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[AutoExile2] BotLogicCoroutine exception: {ex.Message}");
+                    if (this.activeMode is CoopFollowerMode coopErr)
+                    {
+                        coopErr.SetStatus("[Bot Error]", $"Error: {ex.Message}");
+                    }
+                    waitResult = new Wait(0.05d);
                 }
 
                 // Yield ~60 Hz tick rate (16.6ms)
-                yield return new Wait(0.0166d);
+                yield return waitResult;
             }
         }
 

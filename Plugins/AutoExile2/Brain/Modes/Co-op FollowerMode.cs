@@ -43,6 +43,12 @@ namespace AutoExile2.Modes
 
         public string CurrentAction { get; private set; } = "Initializing Follower Controls...";
 
+        public void SetStatus(string state, string action)
+        {
+            this.CurrentState = state;
+            this.CurrentAction = action;
+        }
+
         public List<Vector2> CurrentNavPath => this.movementWorker.CurrentNavPath;
 
         public int CurrentWaypointIndex => this.movementWorker.CurrentWaypointIndex;

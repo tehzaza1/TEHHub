@@ -58,6 +58,7 @@ namespace AutoExile2.Systems
         public int LeaderSlotIndex { get; private set; } = -1;
         public bool IsFollowerConnected => this.followerXbox != null;
         public bool IsLeaderConnected => this.leaderXbox != null;
+        public string? LastError { get; private set; }
         public bool IsFollowerManualMoving { get; private set; } = false;
         public bool IsFollowerManualAiming { get; private set; } = false;
         private CancellationTokenSource? followerPassthroughCts;
@@ -172,6 +173,7 @@ namespace AutoExile2.Systems
             }
             catch (Exception ex)
             {
+                this.LastError = ex.Message;
                 Console.WriteLine($"[CoopVirtualGamepad] Initialization error: {ex.Message}");
                 return false;
             }
