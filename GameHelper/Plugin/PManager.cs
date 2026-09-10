@@ -266,7 +266,9 @@ namespace GameHelper.Plugin
 
         private static void LoadPluginMetadata(IEnumerable<PluginWithName> plugins)
         {
-            var savedMetadata = JsonHelper.CreateOrLoadJsonFile<Dictionary<string, PluginMetadata>>(State.PluginsMetadataFile);
+            var savedMetadata = JsonHelper.CreateOrLoadJsonFile(
+                State.PluginsMetadataFile,
+                PluginMetadataJsonContext.Default.DictionaryStringPluginMetadata);
 
             lock (Plugins)
             {
@@ -530,7 +532,10 @@ namespace GameHelper.Plugin
                     StringComparer.OrdinalIgnoreCase);
             }
 
-            JsonHelper.SafeToFile(snapshot, State.PluginsMetadataFile);
+            JsonHelper.SafeToFile(
+                snapshot,
+                State.PluginsMetadataFile,
+                PluginMetadataJsonContext.Default.DictionaryStringPluginMetadata);
         }
 
         private static IEnumerator<Wait> SavePluginMetadataCoroutine()

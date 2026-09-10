@@ -9,7 +9,7 @@ namespace Launcher
     using System.IO;
     using System.Linq;
     using System.Reflection;
-    using Newtonsoft.Json;
+    using System.Text.Json;
 
     /// <summary>
     ///     A helper class to manage the temporary executables created by the <see cref="Launcher"/>.
@@ -65,7 +65,7 @@ namespace Launcher
                 }
 
                 var fileContent = File.ReadAllText(tempFileName);
-                return JsonConvert.DeserializeObject<List<string>>(fileContent) ?? (IReadOnlyList<string>)Array.Empty<string>();
+                return JsonSerializer.Deserialize<List<string>>(fileContent) ?? (IReadOnlyList<string>)Array.Empty<string>();
             }
             catch (Exception ex)
             {
@@ -76,7 +76,7 @@ namespace Launcher
 
         private static void WriteFileList(IEnumerable<string> list)
         {
-            File.WriteAllText(GetFullTemporaryFileName(), JsonConvert.SerializeObject(list.Distinct()));
+            File.WriteAllText(GetFullTemporaryFileName(), JsonSerializer.Serialize(list.Distinct()));
         }
 
         private static string GetFullTemporaryFileName()
