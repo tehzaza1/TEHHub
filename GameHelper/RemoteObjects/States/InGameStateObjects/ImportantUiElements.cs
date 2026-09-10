@@ -182,6 +182,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             this.Act4 = new(IntPtr.Zero, this.rootCache);
             this.Interlude = new(IntPtr.Zero, this.rootCache);
             this.Atlas = new(IntPtr.Zero, this.rootCache);
+            this.Atlas.PreserveStableChildren = true;
             this.AtlasSkillsPanel = new(IntPtr.Zero, this.rootCache);
             this.TempleConsole = new(IntPtr.Zero, this.rootCache);
             this.CurrencyExchangePanel = new(IntPtr.Zero, this.rootCache);
@@ -649,6 +650,11 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 this.atlasMapCacheFrameCounter = int.MaxValue;
                 return;
             }
+
+            // The Atlas overlay needs every node's live transformed position every frame. Keep
+            // the child objects, but refresh their scalar UI data now; do not defer this to the
+            // 20-frame topology cache and do not re-read each node's unused child vector.
+            this.Atlas.RefreshMaterializedChildren();
 
             var atlasCount = this.Atlas.TotalChildrens;
             if (atlasCount <= 0 || atlasCount > 10000)
