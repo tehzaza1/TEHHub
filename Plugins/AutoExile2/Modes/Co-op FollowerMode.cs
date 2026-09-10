@@ -137,6 +137,25 @@ namespace AutoExile2.Modes
             }
 
             var followerGrid = new Vector2(fRender.GridPosition.X, fRender.GridPosition.Y);
+
+            // Dead Corpse Protection: If Follower HP <= 0, halt all follower actions and flasks immediately!
+            if (followerEntity.TryGetComponent<Life>(out var fLife) && fLife.Health.Total > 0 && fLife.Health.Current <= 0)
+            {
+                float distToCorpse = Vector2.Distance(leaderGrid, followerGrid);
+                this.CurrentState = "Follower Dead";
+                this.CurrentAction = distToCorpse <= 10f
+                    ? $"💀 Follower dead (HP: 0) - Leader nearby ({distToCorpse:F0}g), ready to revive"
+                    : $"💀 Follower dead (HP: 0) - {distToCorpse:F0}g from Leader";
+                this.CurrentNavPath.Clear();
+                this.CurrentWaypointIndex = 0;
+                this.isFollowerSprinting = false;
+                this.isHoldingFormation = false;
+                pad.SetFollowerMovement(Vector2.Zero);
+                pad.SetFollowerAim(Vector2.Zero);
+                pad.SetFollowerSprint(false);
+                return;
+            }
+
             if (this.lastKnownLeaderGrid.HasValue)
             {
                 var lDelta = leaderGrid - this.lastKnownLeaderGrid.Value;
@@ -197,6 +216,7 @@ namespace AutoExile2.Modes
         {
             if (leader.TryGetComponent<Life>(out var life) && life.Health.Total > 0)
             {
+                if (life.Health.Current <= 0) return; // Leader is dead, do not spam flasks or buffs
                 var lVitals = new PlayerVitals(life);
 
                 // Leader Auto Life Flask
@@ -291,6 +311,7 @@ namespace AutoExile2.Modes
         {
             if (follower.TryGetComponent<Life>(out var fLife) && fLife.Health.Total > 0)
             {
+                if (fLife.Health.Current <= 0) return; // Follower is dead, do not waste flasks
                 var fVitals = new PlayerVitals(fLife);
 
                 const int debounceMs = CombatSystem.FlaskDebounceMs;
