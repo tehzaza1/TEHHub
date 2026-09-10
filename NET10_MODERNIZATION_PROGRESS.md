@@ -320,6 +320,16 @@ Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 
 Commit: `a5a1bed refactor: use System.Text.Json for localization`
 
+### 6.2 ย้าย P/Invoke ที่เหลือของ Atlas2
+
+- ย้าย `GetForegroundWindow` จาก `DllImport` เป็น source-generated `LibraryImport`
+- เปิด `AllowUnsafeBlocks` เฉพาะโปรเจกต์ Atlas2 ตามข้อกำหนดของ LibraryImport generator
+- ตรวจ source หลักแล้วไม่มี `DllImport` คงเหลือ (ไม่รวมโฟลเดอร์ Backup)
+- ไม่เปลี่ยนเงื่อนไข foreground ของ Atlas2 หรือพฤติกรรมการวาด
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `7357fd9 refactor: migrate Atlas foreground interop`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
