@@ -8,6 +8,7 @@ namespace HealthBars
     using System.Collections.Generic;
     using System.IO;
     using System.Numerics;
+    using System.Text.Json;
     using Coroutine;
     using GameHelper;
     using GameHelper.CoroutineEvents;
@@ -18,7 +19,6 @@ namespace HealthBars
     using GameHelper.RemoteObjects.States.InGameStateObjects;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
 
     /// <summary>
     ///     <see cref="HealthBars" /> plugin.
@@ -276,7 +276,9 @@ namespace HealthBars
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<HealthBarsSettings>(content) ?? new HealthBarsSettings();
+                this.Settings = JsonSerializer.Deserialize(
+                    content,
+                    HealthBarsJsonContext.Default.HealthBarsSettings) ?? new HealthBarsSettings();
             }
 
             for (var i = 0; i < this.textureToValidate.Count; i++)
@@ -294,7 +296,9 @@ namespace HealthBars
         public override void SaveSettings()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-            var settingsData = JsonConvert.SerializeObject(this.Settings, Formatting.Indented);
+            var settingsData = JsonSerializer.Serialize(
+                this.Settings,
+                HealthBarsJsonContext.Default.HealthBarsSettings);
             File.WriteAllText(this.SettingPathname, settingsData);
         }
 

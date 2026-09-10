@@ -372,6 +372,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - หลังโหลด PickupHelper จะสร้าง hash set/dictionary ด้วย comparer ไม่สนตัวพิมพ์เล็กใหญ่กลับคืน เพื่อคงพฤติกรรม filter เดิม
 - ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
 
+### 6.8 ย้าย HealthBars และ RitualWispAlert
+
+- ย้าย HealthBars settings/config ไปใช้ generated metadata ของ `System.Text.Json`
+- ย้าย RitualWispAlert settings และตัวนำเข้าค่า legacy จาก RitualHelper จาก `JObject` เป็น `JsonDocument`
+- การย้ายค่าสี Vector จาก config เก่าคง field format เดิมไว้ (`X`, `Y`, `Z`, `W`)
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
