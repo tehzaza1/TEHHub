@@ -877,7 +877,7 @@ namespace AutoExile2
 
                 if (!player.TryGetComponent<Render>(out var pRender))
                 {
-                    yield return new Wait(0.025d);
+                    yield return new Wait(0.0166d);
                     continue;
                 }
 
@@ -954,8 +954,8 @@ namespace AutoExile2
                 // Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
                 this.activeMode.Tick(this.botCtx);
 
-                // Yield ~40 Hz tick rate (25ms)
-                yield return new Wait(0.025d);
+                // Yield ~60 Hz tick rate (16.6ms)
+                yield return new Wait(0.0166d);
             }
         }
 
