@@ -330,6 +330,15 @@ Commit: `a5a1bed refactor: use System.Text.Json for localization`
 
 Commit: `7357fd9 refactor: migrate Atlas foreground interop`
 
+### 6.3 Source-generated metadata สำหรับ localization JSON
+
+- เพิ่ม `LocalizationJsonContext` ด้วย `JsonSerializable` ของ .NET 10 สำหรับ schema `Dictionary<string, string>`
+- เปลี่ยน localization loader ให้ deserialize ผ่าน generated `JsonTypeInfo` แทน reflection metadata
+- การเปลี่ยนนี้ใช้เฉพาะไฟล์ภาษา schema ตายตัว จึงไม่กระทบ config ที่มี tuple, Vector หรือ legacy Newtonsoft attributes
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `8cd48a3 perf: source-generate localization JSON metadata`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
