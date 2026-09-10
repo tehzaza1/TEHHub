@@ -53,6 +53,7 @@ namespace AutoExile2
         private readonly Dictionary<AutoExileMode, IBotMode> modes = new();
         private IBotMode activeMode;
         private AutoExileMode lastModeType = AutoExileMode.MapFarm;
+        private bool isModeInitialized = false;
 
         private string SettingsPath => Path.Join(this.DllDirectory, "config", "settings.txt");
 
@@ -580,15 +581,19 @@ namespace AutoExile2
 
         private void CheckModeSwitch(BotContext? ctx)
         {
-            if (this.Settings.Mode != this.lastModeType)
+            if (this.Settings.Mode != this.lastModeType || !this.isModeInitialized)
             {
                 if (this.modes.TryGetValue(this.Settings.Mode, out var newMode))
                 {
                     if (ctx != null)
                     {
-                        this.activeMode.OnExit(ctx);
+                        if (this.isModeInitialized)
+                        {
+                            this.activeMode.OnExit(ctx);
+                        }
                         this.activeMode = newMode;
                         this.activeMode.OnEnter(ctx);
+                        this.isModeInitialized = true;
                     }
                     else
                     {
@@ -850,7 +855,15 @@ namespace AutoExile2
                     continue;
                 }
 
-                if (Core.States.GameCurrentState is not (GameStateTypes.InGameState or GameStateTypes.EscapeState))
+                var inGameState = Core.States.InGameStateObject;
+                var currentArea = inGameState?.CurrentAreaInstance;
+                var currentWorld = inGameState?.CurrentWorldInstance;
+                var player = currentArea?.Player;
+
+                bool isPlayerValid = player != null && player.IsValid;
+                bool isInGameState = Core.States.GameCurrentState is GameStateTypes.InGameState or GameStateTypes.EscapeState;
+
+                if ((!isInGameState && !isPlayerValid) || currentWorld == null || currentArea == null || player == null)
                 {
                     BotInput.ReleaseAllMovementKeys(this.Settings);
                     yield return new Wait(0.05d);
@@ -866,95 +879,91 @@ namespace AutoExile2
                     }
                 }
 
-                var inGameState = Core.States.InGameStateObject;
-                var currentArea = inGameState?.CurrentAreaInstance;
-                var currentWorld = inGameState?.CurrentWorldInstance;
-                var player = currentArea?.Player;
-
-                if (currentWorld == null || currentArea == null || player == null)
-                {
-                    yield return new Wait(0.05d);
-                    continue;
-                }
-
                 if (!player.TryGetComponent<Render>(out var pRender))
                 {
                     yield return new Wait(0.0166d);
                     continue;
                 }
 
-                var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
-                float deltaSec = (float)(DateTime.Now - this.lastTickTime).TotalSeconds;
-                this.lastTickTime = DateTime.Now;
-
-                int playerHp = 0, playerMaxHp = 0, playerMana = 0, playerMaxMana = 0;
-                bool isAlive = true;
-                if (player.TryGetComponent<Life>(out var pLife))
+                try
                 {
-                    playerHp = pLife.Health.Current;
-                    playerMaxHp = pLife.Health.Total;
-                    playerMana = pLife.Mana.Current;
-                    playerMaxMana = pLife.Mana.Total;
-                    isAlive = playerHp > 0;
-                }
+                    var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
+                    float deltaSec = (float)(DateTime.Now - this.lastTickTime).TotalSeconds;
+                    this.lastTickTime = DateTime.Now;
 
-                // Reuse or allocate cached BotContext
-                if (this.botCtx == null)
-                {
-                    this.botCtx = new BotContext
+                    int playerHp = 0, playerMaxHp = 0, playerMana = 0, playerMaxMana = 0;
+                    bool isAlive = true;
+                    if (player.TryGetComponent<Life>(out var pLife))
                     {
-                        Area = currentArea,
-                        World = currentWorld,
-                        Player = player,
-                        PlayerGrid = playerGrid,
-                        DeltaTime = deltaSec,
-                        Settings = this.Settings,
-                        Combat = this.combatSystem,
-                        Exploration = this.explorationMap,
-                        ThreatMap = this.threatMap,
-                        Perf = this.perf,
-                        Runtime = this.runtime,
-                        Recorder = this.recorder,
-                        CoopGamepad = this.coopGamepad,
-                        Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
-                    };
+                        playerHp = pLife.Health.Current;
+                        playerMaxHp = pLife.Health.Total;
+                        playerMana = pLife.Mana.Current;
+                        playerMaxMana = pLife.Mana.Total;
+                        isAlive = playerHp > 0;
+                    }
+
+                    // Reuse or allocate cached BotContext
+                    if (this.botCtx == null)
+                    {
+                        this.botCtx = new BotContext
+                        {
+                            Area = currentArea,
+                            World = currentWorld,
+                            Player = player,
+                            PlayerGrid = playerGrid,
+                            DeltaTime = deltaSec,
+                            Settings = this.Settings,
+                            Combat = this.combatSystem,
+                            Exploration = this.explorationMap,
+                            ThreatMap = this.threatMap,
+                            Perf = this.perf,
+                            Runtime = this.runtime,
+                            Recorder = this.recorder,
+                            CoopGamepad = this.coopGamepad,
+                            Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
+                        };
+                    }
+                    else
+                    {
+                        this.botCtx.Area = currentArea;
+                        this.botCtx.World = currentWorld;
+                        this.botCtx.Player = player;
+                        this.botCtx.PlayerGrid = playerGrid;
+                        this.botCtx.DeltaTime = deltaSec;
+                        this.botCtx.Settings = this.Settings;
+                    }
+
+                    // Switch active mode if settings changed
+                    this.CheckModeSwitch(this.botCtx);
+
+                    // Record this frame into rolling flight recorder buffer (BotRecorder)
+                    this.recorder.RecordTick(
+                        currentArea,
+                        currentWorld.AreaDetails.Name ?? currentArea.AreaHash ?? "UnknownArea",
+                        playerGrid,
+                        playerHp,
+                        playerMaxHp,
+                        playerMana,
+                        playerMaxMana,
+                        isAlive,
+                        this.activeMode.Name,
+                        this.activeMode.CurrentState,
+                        this.activeMode.CurrentAction,
+                        this.combatSystem,
+                        this.explorationMap,
+                        this.activeMode.CurrentNavPath,
+                        this.activeMode.CurrentWaypointIndex,
+                        this.activeMode.CurrentDestination,
+                        0f,
+                        deltaSec);
+
+                    // Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
+                    this.activeMode.Tick(this.botCtx);
                 }
-                else
+                catch (Exception ex)
                 {
-                    this.botCtx.Area = currentArea;
-                    this.botCtx.World = currentWorld;
-                    this.botCtx.Player = player;
-                    this.botCtx.PlayerGrid = playerGrid;
-                    this.botCtx.DeltaTime = deltaSec;
-                    this.botCtx.Settings = this.Settings;
+                    Console.WriteLine($"[AutoExile2] BotLogicCoroutine exception: {ex.Message}");
                 }
-
-                // Switch active mode if settings changed
-                this.CheckModeSwitch(this.botCtx);
-
-                // Record this frame into rolling flight recorder buffer (BotRecorder)
-                this.recorder.RecordTick(
-                    currentArea,
-                    currentWorld.AreaDetails.Name ?? currentArea.AreaHash ?? "UnknownArea",
-                    playerGrid,
-                    playerHp,
-                    playerMaxHp,
-                    playerMana,
-                    playerMaxMana,
-                    isAlive,
-                    this.activeMode.Name,
-                    this.activeMode.CurrentState,
-                    this.activeMode.CurrentAction,
-                    this.combatSystem,
-                    this.explorationMap,
-                    this.activeMode.CurrentNavPath,
-                    this.activeMode.CurrentWaypointIndex,
-                    this.activeMode.CurrentDestination,
-                    0f,
-                    deltaSec);
-
-                // Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
-                this.activeMode.Tick(this.botCtx);
 
                 // Yield ~60 Hz tick rate (16.6ms)
                 yield return new Wait(0.0166d);

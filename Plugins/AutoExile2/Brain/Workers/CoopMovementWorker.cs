@@ -201,11 +201,22 @@ namespace AutoExile2.Brain.Workers
 
             // 3. Sprint State Control:
             // Sprint is strictly reserved for HardCatchup (50+ units away)
-            bool shouldSprint = (directive != null && directive.Locomotion.Sprint) || (goal.Type == BotGoalType.HardCatchup);
+            bool shouldSprint = (directive != null)
+                ? (directive.Locomotion.Sprint && goal.Type == BotGoalType.HardCatchup)
+                : (goal.Type == BotGoalType.HardCatchup);
             this.IsSprinting = shouldSprint;
 
             // 4. Send steering vector to gamepad
             var moveDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, steerGridPos, p.FollowerGrid, p.GridToWorld);
+
+            // Analog speed modulation: slow down smoothly when approaching destination to prevent overshoot
+            float distToTarget = Vector2.Distance(p.FollowerGrid, targetPos);
+            if (!shouldSprint && distToTarget < 10f)
+            {
+                float speedFactor = Math.Clamp(distToTarget / 8f, 0.35f, 1.0f);
+                moveDir *= speedFactor;
+            }
+
             pad.SetFollowerMovement(moveDir);
             pad.SetFollowerSprint(shouldSprint);
 
@@ -213,7 +224,7 @@ namespace AutoExile2.Brain.Workers
             // - Micro-Dodge Slam: Dodge roll perpendicular/away from monster slam telegraphs
             // - Phasing Roll: If hostiles are blocking the movement corridor ahead, Dodge Roll phases straight through them!
             // - Danger Evade Roll: Roll out of lethal ground damage (~600ms)
-            // - Formation Gap-Closing Roll: Periodic roll into combat without sprint (~850ms)
+            // - Formation Gap-Closing Roll: Periodic roll into combat without sprint (~1200ms)
             float safeDist = Math.Max(2f, s.CoopStopDistance);
             float sprintThreshold = Math.Max(50f, s.CoopSprintDistance);
             bool isActuallySprintingAnim = p.FollowerAnimId == ANIM_SPRINT;
@@ -224,7 +235,7 @@ namespace AutoExile2.Brain.Workers
                 bool isMicroDodge = ((directive != null && directive.Locomotion.Maneuver == EvadeManeuver.MicroDodge) || p.HasIncomingSlam) && msSinceRoll >= 450;
                 bool isCorridorBlockedRoll = ((directive != null && directive.Locomotion.Maneuver == EvadeManeuver.CorridorPhasingRoll) || p.HasBlockingMonstersInPath) && msSinceRoll >= 500;
                 bool isDangerEvadeRoll = goal.Type == BotGoalType.DangerEvade && msSinceRoll >= 600;
-                bool isFormationRoll = !shouldSprint && p.DistanceToLeader > (safeDist + 3f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 850;
+                bool isFormationRoll = !shouldSprint && p.DistanceToLeader > (safeDist + 6f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 1200;
 
                 if ((isMicroDodge || isCorridorBlockedRoll || isDangerEvadeRoll || isFormationRoll) && p.FollowerAnimId != ANIM_ROLL)
                 {

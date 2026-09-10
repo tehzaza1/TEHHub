@@ -116,16 +116,17 @@ namespace AutoExile2.Brain
             // 3.2 HardCatchup Utility (S-curve distance pull + Hysteresis)
             float sprintThreshold = Math.Max(50f, s.CoopSprintDistance);
             float safeStopDist = Math.Max(2f, s.CoopStopDistance);
+            float sprintReleaseThreshold = Math.Min(sprintThreshold - 5f, Math.Max(safeStopDist + 10f, sprintThreshold - 15f));
             float catchupScore = 0f;
             string catchupReason = string.Empty;
 
-            bool wasInSprint = this.CurrentGoal.Type == BotGoalType.HardCatchup || isCurrentlySprinting;
+            bool wasInHardCatchup = this.CurrentGoal.Type == BotGoalType.HardCatchup;
 
-            if (wasInSprint && p.DistanceToLeader > safeStopDist)
+            if (wasInHardCatchup && p.DistanceToLeader > sprintReleaseThreshold)
             {
-                // Hysteresis latch: once sprinting, hold high utility until arriving at leader safe distance
+                // Hysteresis latch: once sprinting, hold high utility until safely inside catch-up range
                 catchupScore = 84f;
-                catchupReason = $"Sprinting catch-up in progress ({p.DistanceToLeader:F0}/{safeStopDist:F0}g)";
+                catchupReason = $"Sprinting catch-up in progress ({p.DistanceToLeader:F0}/{sprintReleaseThreshold:F0}g)";
             }
             else if (p.DistanceToLeader >= sprintThreshold)
             {
@@ -264,7 +265,7 @@ namespace AutoExile2.Brain
             }
 
             // 2. Combat Channel (Attack & Cast Intent - Works concurrently while moving with Leader!)
-            bool sprintMode = narrativeGoal.Type == BotGoalType.HardCatchup || isCurrentlySprinting;
+            bool sprintMode = narrativeGoal.Type == BotGoalType.HardCatchup;
             if (s.P2EnableCombat && s.P2Skills != null && !sprintMode)
             {
                 bool hasTargets = p.NearbyEnemyCount > 0 || p.BestCombatTarget != null;
@@ -289,6 +290,7 @@ namespace AutoExile2.Brain
 
             // 3. Locomotion Channel (Escort Formation & Tactical Evasion)
             float safeStopDist = Math.Max(2f, s.CoopStopDistance);
+            bool isAtSafeDistance = p.DistanceToFormationTarget <= safeStopDist && p.DistanceToLeader <= (safeStopDist + 3f);
 
             if (narrativeGoal.Type == BotGoalType.Unstuck)
             {
@@ -297,7 +299,7 @@ namespace AutoExile2.Brain
                 dir.Locomotion.Maneuver = EvadeManeuver.UnstuckRoll;
                 dir.Locomotion.Reason = "Unstuck collision maneuver";
             }
-            else if (sprintMode)
+            else if (sprintMode && !isAtSafeDistance)
             {
                 dir.Locomotion.ShouldMove = true;
                 dir.Locomotion.Destination = p.FormationTarget;
@@ -332,7 +334,7 @@ namespace AutoExile2.Brain
                 }
 
                 // 3.2 Destination: Follower always escorts and stays in formation with Leader!
-                if (p.DistanceToFormationTarget > safeStopDist)
+                if (!isAtSafeDistance && (p.DistanceToFormationTarget > safeStopDist || p.DistanceToLeader > (safeStopDist + 1f)))
                 {
                     dir.Locomotion.ShouldMove = true;
                     dir.Locomotion.Destination = p.FormationTarget;
@@ -343,6 +345,7 @@ namespace AutoExile2.Brain
                 {
                     dir.Locomotion.ShouldMove = false;
                     dir.Locomotion.Destination = p.FollowerGrid;
+                    dir.Locomotion.Sprint = false;
                     dir.Locomotion.Reason = "Holding formation in safe zone";
                 }
             }
