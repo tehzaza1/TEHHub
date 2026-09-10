@@ -208,6 +208,17 @@ Commit: `d14c1de perf: attribute memory reads by logical operation`
 
 เป้าหมายถัดไปจึงเป็นการลด read ซ้ำภายใน parent/UI-path refresh โดยต้องรักษาการ refresh ตำแหน่ง Atlas node ทุกเฟรม ไม่ใช้ cache ตำแหน่งแบบรอบละ 20 เฟรมอีก
 
+### 5.9 ลด read ซ้ำของ cached UI parent โดยไม่ลดความสดของตำแหน่ง
+
+- พบว่า cached UI parent ถูกอ่านโครงสร้างหนึ่งรอบเพื่อ validate แล้วถูกอ่านซ้ำอีกครั้งผ่าน `Address` setter
+- การ refresh ปกติยังอ่าน child vector ของทุก parent แม้ผู้ใช้ cache นี้ต้องการเพียง position, scale, flags และ parent pointer เพื่อวาด/คำนวณตำแหน่ง
+- ให้ `ImportantUiElements` ใช้ snapshot เดียวทั้ง validate และ refresh ฟิลด์ที่จำเป็น โดยไม่อ่าน child vector ของ parent cache
+- Atlas panel และ Atlas node หลักยัง refresh ตาม path ปกติทุกเฟรม จึงต้องไม่มีอาการ text ตาม node ไม่ทันแบบ optimization ก่อนหน้า
+- เพิ่ม region `Core.UiElementParents` เพื่อยืนยันผลของจุดนี้ใน dump รอบถัดไป
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `7f76145 perf: avoid redundant cached parent UI reads`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
