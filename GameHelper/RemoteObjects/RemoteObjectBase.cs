@@ -101,7 +101,7 @@ namespace GameHelper.RemoteObjects
                         }
                         else
                         {
-                            using var _ = PerformanceProfiler.Profile(GetType().FullName ?? string.Empty, "UpdateData");
+                            using var _ = PerformanceProfiler.Measure(GetType().FullName ?? string.Empty, "UpdateData");
                             this.UpdateData(hasAddressChanged);
                         }
                     }

@@ -638,7 +638,7 @@ namespace GameHelper.Plugin
                     {
                         try
                         {
-                            using var _ = PerformanceProfiler.Profile(container.Plugin.GetType().FullName ?? string.Empty, "DrawUI");
+                            using var _ = PerformanceProfiler.Measure(container.Plugin.GetType().FullName ?? string.Empty, "DrawUI");
                             container.Plugin.DrawUI();
                         }
                         catch (Exception ex)
