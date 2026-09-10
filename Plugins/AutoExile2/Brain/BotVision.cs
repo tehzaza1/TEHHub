@@ -313,8 +313,30 @@ namespace AutoExile2.Brain
     }
 
     /// <summary>
+    /// Economic valuation tiers for items on the ground.
+    /// Determines whether an item is worth picking up immediately or if it can wait until combat is cleared.
+    /// </summary>
+    public enum LootTier
+    {
+        /// <summary>Scrolls, scraps, common items - always wait during combat.</summary>
+        Trash = 0,
+
+        /// <summary>Minor currency (Transmutes, Augments) - can wait during combat.</summary>
+        Low = 1,
+
+        /// <summary>Mid-value (Alchemy, Regals, Vaal, good Rares) - grab if close &amp; safe.</summary>
+        Medium = 2,
+
+        /// <summary>High value (Chaos, Exalted, Greater Gems, Tier 15+ Maps, Uniques) - attack-move to grab.</summary>
+        High = 3,
+
+        /// <summary>Top value (Divine, Mirror, Tier 0/1 Uniques) - urgent priority.</summary>
+        Godly = 4,
+    }
+
+    /// <summary>
     /// Loot Vision: Detects valuable dropped items on the ground within player proximity.
-    /// Enables attack-moving towards loot and fly-by pickup.
+    /// Performs economic cost-benefit tradeoff to prevent rushing after low-value items during combat.
     /// </summary>
     public class LootVision
     {
@@ -326,11 +348,82 @@ namespace AutoExile2.Brain
 
         public string NearestLootName { get; private set; } = string.Empty;
 
+        public LootTier NearestLootTier { get; private set; } = LootTier.Trash;
+
+        public double NearestLootEstimatedValue { get; private set; } = 0.0;
+
         public bool HasValuableLootNearby => this.NearestLootEntity != null && this.NearestLootDistance <= 45f;
 
         public bool CanPickupNow => this.NearestLootEntity != null && this.NearestLootDistance <= 7.5f;
 
         public int TotalLootCount { get; private set; }
+
+        /// <summary>
+        /// Evaluates whether the bot should rush to pick up the item now or wait:
+        /// "สู้อยู่แต่ของไม่มีราคาหรือ ราคา แทบไม่มี นี้ก็ไม่ควร รีบไปเก็บมัน รอได้"
+        /// If in active combat, items of Trash or Low value are deferred until threats are neutralized.
+        /// </summary>
+        public bool ShouldLootNow(bool inActiveCombat, float threatLevel)
+        {
+            if (this.NearestLootEntity == null)
+            {
+                return false;
+            }
+
+            // Not in active combat -> Safe to pick up anything
+            if (!inActiveCombat)
+            {
+                return true;
+            }
+
+            // In active combat: evaluate cost-benefit tradeoff
+            return this.NearestLootTier switch
+            {
+                LootTier.Trash or LootTier.Low => false, // ของไม่มีราคาหรือราคาแทบไม่มี ไม่ควรรีบไปเก็บ รอได้
+                LootTier.Medium => this.NearestLootDistance <= 8f && threatLevel < 40f, // เก็บเฉพาะเมื่ออยู่ใต้ฝ่าเท้าและปลอดภัยพอ
+                LootTier.High => threatLevel < 75f, // ของมีราคา (Chaos/Exalt) เดินยิงไปเก็บได้ แต่ไม่วิ่งเข้าดงระเบิดรุนแรง
+                LootTier.Godly => true, // Divine / Mirror -> สำคัญสูงสุด
+                _ => false,
+            };
+        }
+
+        public static (LootTier Tier, double EstimatedValue) EvaluateItemValue(string path, string name, Rarity rarity)
+        {
+            string p = path.ToLowerInvariant();
+            string n = name.ToLowerInvariant();
+
+            // Godly Tier (Divine, Mirror, top tier)
+            if (p.Contains("divine") || p.Contains("mirror") || n.Contains("divine") || n.Contains("mirror") || n.Contains("hinekora"))
+            {
+                return (LootTier.Godly, 160.0);
+            }
+
+            // High Tier (Chaos, Exalted, Greater Gems, valuable Maps, Uniques)
+            if (p.Contains("chaos") || p.Contains("exalt") || p.Contains("greaterjeweller") ||
+                p.Contains("perfectjeweller") || p.Contains("logbook") || rarity == Rarity.Unique ||
+                n.Contains("chaos orb") || n.Contains("exalted orb"))
+            {
+                return (LootTier.High, 20.0);
+            }
+
+            // Medium Tier (Alchemy, Regal, Vaal, Chance, good Rares, Waystones)
+            if (p.Contains("alchemy") || p.Contains("regal") || p.Contains("vaal") ||
+                p.Contains("chance") || p.Contains("artificer") || p.Contains("waystone") ||
+                rarity == Rarity.Rare || n.Contains("orb of alchemy") || n.Contains("regal orb"))
+            {
+                return (LootTier.Medium, 2.0);
+            }
+
+            // Low Tier (Transmutes, Augments, Alterations)
+            if (p.Contains("transmut") || p.Contains("augment") || p.Contains("alteration") ||
+                n.Contains("transmutation") || n.Contains("augmentation"))
+            {
+                return (LootTier.Low, 0.1);
+            }
+
+            // Trash Tier (Scrolls, Whetstones, Scraps, common items)
+            return (LootTier.Trash, 0.01);
+        }
 
         public void Scan(BotContext ctx, Vector2 playerGrid)
         {
@@ -338,6 +431,8 @@ namespace AutoExile2.Brain
             this.NearestLootPosition = null;
             this.NearestLootDistance = float.MaxValue;
             this.NearestLootName = string.Empty;
+            this.NearestLootTier = LootTier.Trash;
+            this.NearestLootEstimatedValue = 0.0;
             this.TotalLootCount = 0;
 
             var area = ctx.Area;
@@ -377,27 +472,24 @@ namespace AutoExile2.Brain
                     name = lastSlash >= 0 ? path.Substring(lastSlash + 1) : path;
                 }
 
-                // Filter for valuable items
-                bool isValuable = false;
-                if (path.Contains("Currency") ||
+                Rarity rarity = Rarity.Normal;
+                if (worldItem.Item != null && worldItem.Item.TryGetComponent<Mods>(out var mods))
+                {
+                    rarity = mods.Rarity;
+                }
+
+                var (tier, estVal) = EvaluateItemValue(path, name, rarity);
+
+                // Filter for eligible ground items
+                bool isValuable = tier >= LootTier.Low ||
+                    path.Contains("Currency") ||
                     path.Contains("DivinationCards") ||
                     path.Contains("Quest") ||
                     path.Contains("Maps") ||
                     path.Contains("Waystones") ||
                     path.Contains("Gems") ||
                     path.Contains("Jewels") ||
-                    path.Contains("Uncut"))
-                {
-                    isValuable = true;
-                }
-                else if (worldItem.Item != null && worldItem.Item.TryGetComponent<Mods>(out var mods))
-                {
-                    isValuable = mods.Rarity is Rarity.Rare or Rarity.Unique;
-                }
-                else
-                {
-                    isValuable = dist <= 15f;
-                }
+                    dist <= 12f;
 
                 if (!isValuable)
                 {
@@ -411,6 +503,8 @@ namespace AutoExile2.Brain
                     this.NearestLootEntity = ent;
                     this.NearestLootPosition = itemPos;
                     this.NearestLootName = name;
+                    this.NearestLootTier = tier;
+                    this.NearestLootEstimatedValue = estVal;
                 }
             }
         }
