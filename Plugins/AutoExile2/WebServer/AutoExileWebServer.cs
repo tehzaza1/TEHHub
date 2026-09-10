@@ -732,6 +732,8 @@ namespace AutoExile2.WebServer
         public string Category { get; set; } = string.Empty;
         public int CooldownMs { get; set; }
         public bool CanBeUsed { get; set; }
+        public int MaxUses { get; set; } = 1;
+        public int ActiveCooldowns { get; set; } = 0;
     }
 
     public class DeployedObjectInfo

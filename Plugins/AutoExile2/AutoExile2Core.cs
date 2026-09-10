@@ -210,12 +210,22 @@ namespace AutoExile2
                         if (string.IsNullOrWhiteSpace(skillName)) continue;
                         string cat = SkillClassifier.Classify(skillName);
                         bool usable = actor.IsSkillUsable.Contains(skillName);
+                        int maxUses = 1;
+                        int activeCds = 0;
+                        if (actor.ActiveSkillCooldowns != null && actor.ActiveSkillCooldowns.TryGetValue(details.UnknownIdAndEquipmentInfo, out var cdInfo))
+                        {
+                            maxUses = cdInfo.MaxUses;
+                            activeCds = cdInfo.TotalActiveCooldowns();
+                        }
+
                         detectedSkills.Add(new DetectedSkillInfo
                         {
                             Name = skillName,
                             Category = cat,
                             CooldownMs = details.TotalCooldownTimeInMs,
                             CanBeUsed = usable,
+                            MaxUses = maxUses,
+                            ActiveCooldowns = activeCds,
                         });
                     }
                 }
@@ -429,12 +439,22 @@ namespace AutoExile2
                             if (string.IsNullOrWhiteSpace(skillName)) continue;
                             string cat = SkillClassifier.Classify(skillName);
                             bool usable = fActor.IsSkillUsable.Contains(skillName);
+                            int maxUses = 1;
+                            int activeCds = 0;
+                            if (fActor.ActiveSkillCooldowns != null && fActor.ActiveSkillCooldowns.TryGetValue(details.UnknownIdAndEquipmentInfo, out var cdInfo))
+                            {
+                                maxUses = cdInfo.MaxUses;
+                                activeCds = cdInfo.TotalActiveCooldowns();
+                            }
+
                             p2DetectedSkills.Add(new DetectedSkillInfo
                             {
                                 Name = skillName,
                                 Category = cat,
                                 CooldownMs = details.TotalCooldownTimeInMs,
                                 CanBeUsed = usable,
+                                MaxUses = maxUses,
+                                ActiveCooldowns = activeCds,
                             });
                         }
                     }

@@ -249,7 +249,9 @@ namespace AutoExile2.Modes
 
                     foreach (var slot in s.P1Skills.Where(x => x.Enabled && (x.Role == SkillRole.SelfBuffGuard || x.Category == "Buff" || x.Category == "Guard" || x.Category == "Warcry")).OrderByDescending(x => x.Priority))
                     {
-                        if ((now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs) continue;
+                        int effectiveInterval = CombatSystem.HasAvailableCharges(leader, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                        if ((now - slot.LastCastAt).TotalMilliseconds < effectiveInterval) continue;
+                        if (!CombatSystem.IsSkillReadyInGame(leader, slot)) continue;
 
                         if (slot.OnlyOnLowHp && !lVitals.IsLowVital(slot)) continue;
 
@@ -356,7 +358,9 @@ namespace AutoExile2.Modes
             // 1. Tick SelfBuffGuard skills on Follower (independent of hostiles)
             foreach (var slot in s.P2Skills.Where(x => x.Enabled && (x.Role == SkillRole.SelfBuffGuard || x.Category == "Buff" || x.Category == "Guard" || x.Category == "Warcry")).OrderByDescending(x => x.Priority))
             {
-                if ((now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs) continue;
+                int effectiveInterval = CombatSystem.HasAvailableCharges(follower, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                if ((now - slot.LastCastAt).TotalMilliseconds < effectiveInterval) continue;
+                if (!CombatSystem.IsSkillReadyInGame(follower, slot)) continue;
                 if (slot.OnlyOnLowHp && !fVitals.IsLowVital(slot)) continue;
                 if (slot.MinManaPercent > 0 && fVitals.ManaPercent < slot.MinManaPercent) continue;
                 if (slot.MinNearbyEnemies > 0 && nearbyEnemies < slot.MinNearbyEnemies) continue;
@@ -433,7 +437,9 @@ namespace AutoExile2.Modes
 
                 foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role != SkillRole.SelfBuffGuard && x.Role != SkillRole.Culler && x.Category != "Buff" && x.Category != "Guard" && x.Category != "Warcry" && x.Category != "Culler" && x.Role != SkillRole.Disabled).OrderByDescending(x => x.Priority))
                 {
-                    if ((now - skill.LastCastAt).TotalMilliseconds < skill.MinCastIntervalMs) continue;
+                    int effectiveInterval = CombatSystem.HasAvailableCharges(follower, skill) ? Math.Min(skill.MinCastIntervalMs, 300) : skill.MinCastIntervalMs;
+                    if ((now - skill.LastCastAt).TotalMilliseconds < effectiveInterval) continue;
+                    if (!CombatSystem.IsSkillReadyInGame(follower, skill)) continue;
                     if (skill.OnlyOnLowHp && !fVitals.IsLowVital(skill)) continue;
                     if (skill.MinManaPercent > 0 && fVitals.ManaPercent < skill.MinManaPercent) continue;
 

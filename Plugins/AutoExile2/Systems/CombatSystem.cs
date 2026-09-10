@@ -15,6 +15,7 @@ namespace AutoExile2.Systems
     using GameHelper.RemoteObjects.Components;
     using GameHelper.RemoteObjects.States.InGameStateObjects;
     using GameOffsets.Natives;
+    using GameOffsets.Objects.Components;
     using ClickableTransparentOverlay.Win32;
     using AutoExile2.WebServer;
 
@@ -583,18 +584,16 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                if (slot.MinCastIntervalMs > 0 && (now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs)
+                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                if (effectiveInterval > 0 && (now - slot.LastCastAt).TotalMilliseconds < effectiveInterval)
                 {
                     continue;
                 }
 
-                // Check if in-game skill is currently usable (not on game cooldown)
-                if (player.TryGetComponent<Actor>(out var pActor) && !string.IsNullOrWhiteSpace(slot.AssignedSkillName) && pActor.ActiveSkills != null && pActor.ActiveSkills.ContainsKey(slot.AssignedSkillName))
+                // In-game dynamic cooldown check (directly from PoE 2 engine memory)
+                if (!IsSkillReadyInGame(player, slot))
                 {
-                    if (pActor.IsSkillUsable != null && !pActor.IsSkillUsable.Contains(slot.AssignedSkillName))
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 // Check if buff is already active on the player
@@ -661,18 +660,16 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                if (slot.MinCastIntervalMs > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs)
+                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                if (effectiveInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < effectiveInterval)
                 {
                     continue;
                 }
 
-                // Check if in-game skill is currently usable (not on game cooldown)
-                if (player.TryGetComponent<Actor>(out var pActor) && !string.IsNullOrWhiteSpace(slot.AssignedSkillName) && pActor.ActiveSkills != null && pActor.ActiveSkills.ContainsKey(slot.AssignedSkillName))
+                // In-game dynamic cooldown check (directly from PoE 2 engine memory)
+                if (!IsSkillReadyInGame(player, slot))
                 {
-                    if (pActor.IsSkillUsable != null && !pActor.IsSkillUsable.Contains(slot.AssignedSkillName))
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 // Check if buff is already active on the player
@@ -759,6 +756,113 @@ namespace AutoExile2.Systems
                 }
             }
             return count;
+        }
+
+        public static bool IsSkillReadyInGame(Entity? player, SkillSlotConfig slot)
+        {
+            if (player == null || slot == null) return true;
+            if (!player.TryGetComponent<Actor>(out var actor) || actor.ActiveSkills == null || actor.ActiveSkills.Count == 0)
+            {
+                return true;
+            }
+
+            string name1 = slot.AssignedSkillName ?? string.Empty;
+            string name2 = slot.Name ?? string.Empty;
+
+            string? matchedKey = null;
+            ActiveSkillDetails matchedDetails = default;
+
+            string clean1 = CleanBuffString(name1);
+            string clean2 = CleanBuffString(name2);
+
+            foreach (var (k, details) in actor.ActiveSkills)
+            {
+                if (k.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals(name2, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchedKey = k;
+                    matchedDetails = details;
+                    break;
+                }
+
+                string cleanK = CleanBuffString(k);
+                if ((!string.IsNullOrEmpty(clean1) && (cleanK.Contains(clean1) || clean1.Contains(cleanK))) ||
+                    (!string.IsNullOrEmpty(clean2) && (cleanK.Contains(clean2) || clean2.Contains(cleanK))))
+                {
+                    matchedKey = k;
+                    matchedDetails = details;
+                    break;
+                }
+            }
+
+            if (matchedKey == null)
+            {
+                return true; // Not in actor.ActiveSkills (e.g. basic item action), allow through
+            }
+
+            // 1. Check in-game cooldown charges directly from Actor.ActiveSkillCooldowns
+            if (actor.ActiveSkillCooldowns != null &&
+                actor.ActiveSkillCooldowns.TryGetValue(matchedDetails.UnknownIdAndEquipmentInfo, out var cdInfo))
+            {
+                // If all cooldown charges are currently exhausted, the skill CANNOT be used!
+                if (cdInfo.CannotBeUsed())
+                {
+                    return false;
+                }
+            }
+
+            // 2. Check game engine usability flag (IsSkillUsable)
+            if (actor.IsSkillUsable != null)
+            {
+                if (!actor.IsSkillUsable.Contains(matchedKey))
+                {
+                    bool anyUsable = false;
+                    string cleanMatched = CleanBuffString(matchedKey);
+                    foreach (var usableName in actor.IsSkillUsable)
+                    {
+                        if (CleanBuffString(usableName) == cleanMatched)
+                        {
+                            anyUsable = true;
+                            break;
+                        }
+                    }
+                    if (!anyUsable)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public static bool HasAvailableCharges(Entity? player, SkillSlotConfig slot)
+        {
+            if (player == null || slot == null) return false;
+            if (!player.TryGetComponent<Actor>(out var actor) || actor.ActiveSkills == null) return false;
+
+            string name1 = slot.AssignedSkillName ?? string.Empty;
+            string name2 = slot.Name ?? string.Empty;
+            string clean1 = CleanBuffString(name1);
+            string clean2 = CleanBuffString(name2);
+
+            foreach (var (k, details) in actor.ActiveSkills)
+            {
+                string cleanK = CleanBuffString(k);
+                if (k.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals(name2, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(clean1) && (cleanK.Contains(clean1) || clean1.Contains(cleanK))) ||
+                    (!string.IsNullOrEmpty(clean2) && (cleanK.Contains(clean2) || clean2.Contains(cleanK))))
+                {
+                    if (actor.ActiveSkillCooldowns != null &&
+                        actor.ActiveSkillCooldowns.TryGetValue(details.UnknownIdAndEquipmentInfo, out var cdInfo))
+                    {
+                        return cdInfo.MaxUses > 1 && cdInfo.TotalActiveCooldowns() < cdInfo.MaxUses;
+                    }
+                    break;
+                }
+            }
+            return false;
         }
 
         private static string CleanBuffString(string s)
@@ -893,7 +997,14 @@ namespace AutoExile2.Systems
             foreach (var slot in candidateSkills)
             {
                 // Cooldown / Cast Interval check
-                if (slot.MinCastIntervalMs > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs)
+                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                if (effectiveInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < effectiveInterval)
+                {
+                    continue;
+                }
+
+                // In-game dynamic cooldown check (directly from PoE 2 engine memory)
+                if (!IsSkillReadyInGame(player, slot))
                 {
                     continue;
                 }
