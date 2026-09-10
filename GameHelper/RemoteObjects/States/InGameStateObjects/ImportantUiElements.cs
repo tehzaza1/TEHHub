@@ -522,6 +522,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             {
                 this.UpdateMapAddresses();
                 this.UpdateWorldMapPanelAddresses();
+                var containerAddr = GetControllerContainerAddress(this.Address);
                 if (this.IsCoopMode())
                 {
                     this.LeftPanel.Address = ResolveChildAddress(this.Address, LeftPanelCoopPath);
@@ -529,11 +530,14 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 }
                 else
                 {
-                    this.LeftPanel.Address = IntPtr.Zero;
-                    this.RightPanel.Address = IntPtr.Zero;
+                    this.LeftPanel.Address = containerAddr != IntPtr.Zero
+                        ? GetControllerVisiblePanel(containerAddr, 0)
+                        : IntPtr.Zero;
+                    this.RightPanel.Address = containerAddr != IntPtr.Zero
+                        ? GetControllerVisiblePanel(containerAddr, 1)
+                        : IntPtr.Zero;
                 }
                 this.ChatParent.Address = IntPtr.Zero;
-                var containerAddr = GetControllerContainerAddress(this.Address);
                 if (containerAddr != IntPtr.Zero)
                 {
                     this.passiveskilltreenodes.Address = ResolveChildAddress(containerAddr, ControllerPassiveSkillTreeNodesSubPath);
@@ -1204,6 +1208,56 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             {
                 cachedControllerContainerIndex = firstCandidateIdx;
                 return firstCandidate;
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private static IntPtr GetControllerVisiblePanel(IntPtr containerAddr, int panelIndex)
+        {
+            if (containerAddr == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            var parent = ResolveChildAddress(containerAddr, [2, panelIndex]);
+            if (parent == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            var reader = Core.Process.Handle;
+            if (!reader.TryReadMemory<UiElementBaseOffset>(parent, out var parentOff))
+            {
+                return IntPtr.Zero;
+            }
+
+            int count = (int)parentOff.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (count > 0 && parentOff.ChildrensPtr.First != IntPtr.Zero)
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    var child = reader.ReadMemory<IntPtr>(parentOff.ChildrensPtr.First + (i * IntPtr.Size));
+                    if (child == IntPtr.Zero)
+                    {
+                        continue;
+                    }
+
+                    if (reader.TryReadMemory<UiElementBaseOffset>(child, out var childOff) &&
+                        childOff.Self == child &&
+                        (childOff.Flags & IsVisibleMask) != 0 &&
+                        childOff.UnscaledSize.X > 0 && childOff.UnscaledSize.Y > 0)
+                    {
+                        return child;
+                    }
+                }
+            }
+
+            if (parentOff.Self == parent &&
+                (parentOff.Flags & IsVisibleMask) != 0 &&
+                parentOff.UnscaledSize.X > 0 && parentOff.UnscaledSize.Y > 0)
+            {
+                return parent;
             }
 
             return IntPtr.Zero;
