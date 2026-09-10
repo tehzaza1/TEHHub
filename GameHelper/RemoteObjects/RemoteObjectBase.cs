@@ -20,8 +20,8 @@ namespace GameHelper.RemoteObjects
     public abstract class RemoteObjectBase
     {
         private readonly bool forceUpdate;
-        private readonly object updateLock = new();
-        private readonly object updateExecutionLock = new();
+        private readonly System.Threading.Lock updateLock = new();
+        private readonly System.Threading.Lock updateExecutionLock = new();
         private IntPtr address;
 
         /// <summary>

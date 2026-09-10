@@ -9,6 +9,7 @@ namespace GameHelper.Plugin
     using System.IO;
     using System.Linq;
     using System.Reflection;
+    using System.Threading;
     using System.Threading.Tasks;
     using Coroutine;
     using CoroutineEvents;
@@ -35,6 +36,10 @@ namespace GameHelper.Plugin
         internal static readonly List<string> PluginNames = new();
 #endif
         internal static readonly List<PluginContainer> Plugins = new();
+        // DrawPluginUiRenderCoroutine runs once per overlay frame. Keep an immutable
+        // snapshot so it doesn't allocate Plugins.ToArray() or take the collection
+        // lock on every frame; refresh it only when the plugin collection changes.
+        private static PluginContainer[] pluginRenderSnapshot = [];
 
         /// <summary>
         ///     Initlizes the plugin manager by loading all the plugins and their Metadata.
@@ -119,6 +124,7 @@ namespace GameHelper.Plugin
             lock (Plugins)
             {
                 Plugins.Remove(target);
+                RefreshPluginRenderSnapshot();
             }
 
             // F-075: actually unload the assembly via the collectible ALC tracked
@@ -281,6 +287,7 @@ namespace GameHelper.Plugin
                 }).ToList();
 
                 Plugins.AddRange(newContainers);
+                RefreshPluginRenderSnapshot();
             }
 
             SavePluginMetadata();
@@ -373,6 +380,7 @@ namespace GameHelper.Plugin
                 }
 
                 Plugins.Clear();
+                RefreshPluginRenderSnapshot();
             }
 
             foreach (var container in oldPlugins)
@@ -539,11 +547,7 @@ namespace GameHelper.Plugin
             while (true)
             {
                 yield return new Wait(GameHelperEvents.TimeToSaveAllSettings);
-                PluginContainer[] snapshot;
-                lock (Plugins)
-                {
-                    snapshot = Plugins.ToArray();
-                }
+                var snapshot = Volatile.Read(ref pluginRenderSnapshot);
 
                 foreach (var container in snapshot)
                 {
@@ -626,11 +630,7 @@ namespace GameHelper.Plugin
                     continue;
                 }
 
-                PluginContainer[] snapshot;
-                lock (Plugins)
-                {
-                    snapshot = Plugins.ToArray();
-                }
+                var snapshot = Volatile.Read(ref pluginRenderSnapshot);
 
                 foreach (var container in snapshot)
                 {
@@ -648,6 +648,11 @@ namespace GameHelper.Plugin
                     }
                 }
             }
+        }
+
+        private static void RefreshPluginRenderSnapshot()
+        {
+            Volatile.Write(ref pluginRenderSnapshot, Plugins.ToArray());
         }
 
         private sealed class PendingPluginUnload
