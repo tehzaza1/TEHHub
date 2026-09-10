@@ -6,13 +6,14 @@ namespace PickupHelper
 {
     using System;
     using System.Collections.Generic;
+    using System.Text.Json.Serialization;
     using ClickableTransparentOverlay.Win32;
     using GameHelper.Plugin;
 
     /// <summary>
     ///     Settings for the <see cref="PickupHelperCore" /> plugin.
     /// </summary>
-    public sealed class PickupHelperSettings : IPSettings
+    public sealed class PickupHelperSettings : IPSettings, IJsonOnDeserialized
     {
         /// <summary>
         ///     Gets or sets a value indicating whether the pickup key must be held for clicks to happen.
@@ -107,5 +108,12 @@ namespace PickupHelper
         ///     Gets or sets a value indicating whether the debug window is shown.
         /// </summary>
         public bool ShowDebugWindow = false;
+
+        void IJsonOnDeserialized.OnDeserialized()
+        {
+            this.EnabledCategories = new HashSet<string>(this.EnabledCategories, StringComparer.OrdinalIgnoreCase);
+            this.KnownCategories = new HashSet<string>(this.KnownCategories, StringComparer.OrdinalIgnoreCase);
+            this.Whitelist = new Dictionary<string, string>(this.Whitelist, StringComparer.OrdinalIgnoreCase);
+        }
     }
 }

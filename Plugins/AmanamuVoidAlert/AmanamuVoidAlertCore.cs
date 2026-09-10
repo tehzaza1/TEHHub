@@ -9,6 +9,7 @@ namespace AmanamuVoidAlert
     using System.Diagnostics;
     using System.IO;
     using System.Numerics;
+    using System.Text.Json;
     using GameHelper;
     using GameHelper.Plugin;
     using GameHelper.RemoteEnums;
@@ -19,7 +20,6 @@ namespace AmanamuVoidAlert
     using GameHelper.Utils;
     using GameOffsets.Natives;
     using ImGuiNET;
-    using Newtonsoft.Json;
 
     /// <summary>
     /// Core class for Amanamu Void Alert plugin.
@@ -72,8 +72,9 @@ namespace AmanamuVoidAlert
             {
                 try
                 {
-                    this.Settings = JsonConvert.DeserializeObject<AmanamuVoidAlertSettings>(
-                        File.ReadAllText(this.SettingsPath)) ?? new AmanamuVoidAlertSettings();
+                    this.Settings = JsonSerializer.Deserialize(
+                        File.ReadAllText(this.SettingsPath),
+                        AmanamuVoidAlertJsonContext.Default.AmanamuVoidAlertSettings) ?? new AmanamuVoidAlertSettings();
                 }
                 catch (Exception ex)
                 {
@@ -99,7 +100,9 @@ namespace AmanamuVoidAlert
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(this.SettingsPath) ?? string.Empty);
-                File.WriteAllText(this.SettingsPath, JsonConvert.SerializeObject(this.Settings, Formatting.Indented));
+                File.WriteAllText(
+                    this.SettingsPath,
+                    JsonSerializer.Serialize(this.Settings, AmanamuVoidAlertJsonContext.Default.AmanamuVoidAlertSettings));
             }
             catch (Exception ex)
             {

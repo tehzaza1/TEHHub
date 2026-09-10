@@ -365,6 +365,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ย้าย `GetForegroundWindow` ใน PlayerBuffBar จาก `DllImport` ไป `LibraryImport`; source หลักจึงไม่มี `DllImport` เหลือแล้ว (ไม่นับ Backup)
 - ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
 
+### 6.7 ย้าย AmanamuVoidAlert, PickupHelper และ WorldDrawing
+
+- ย้าย plugin settings ทั้งสามชุดไปใช้ source-generated `System.Text.Json` metadata
+- `WorldDrawing` รองรับ array ของ tuple/Vector ใน config เดิมด้วย `IncludeFields`
+- หลังโหลด PickupHelper จะสร้าง hash set/dictionary ด้วย comparer ไม่สนตัวพิมพ์เล็กใหญ่กลับคืน เพื่อคงพฤติกรรม filter เดิม
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

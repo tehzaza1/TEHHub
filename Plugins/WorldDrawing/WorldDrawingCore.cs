@@ -9,6 +9,7 @@ namespace WorldDrawing
     using System.Diagnostics;
     using System.IO;
     using System.Numerics;
+    using System.Text.Json;
     using Coroutine;
     using GameHelper;
     using GameHelper.CoroutineEvents;
@@ -18,7 +19,6 @@ namespace WorldDrawing
     using GameHelper.RemoteObjects.Components;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
 
 
     /// <summary>
@@ -56,7 +56,9 @@ namespace WorldDrawing
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<WorldDrawingSettings>(content);
+                this.Settings = JsonSerializer.Deserialize(
+                    content,
+                    WorldDrawingJsonContext.Default.WorldDrawingSettings) ?? new WorldDrawingSettings();
             }
 
             this.onAreaChangeCoroutine = CoroutineHandler.Start(this.onAreaChange());
@@ -66,7 +68,9 @@ namespace WorldDrawing
         public override void SaveSettings()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname));
-            var settingsData = JsonConvert.SerializeObject(this.Settings, Formatting.Indented);
+            var settingsData = JsonSerializer.Serialize(
+                this.Settings,
+                WorldDrawingJsonContext.Default.WorldDrawingSettings);
             File.WriteAllText(this.SettingPathname, settingsData);
         }
 
