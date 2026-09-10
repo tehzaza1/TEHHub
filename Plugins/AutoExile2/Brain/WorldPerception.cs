@@ -14,9 +14,12 @@ namespace AutoExile2.Brain
 
     /// <summary>
     /// Captures a clean, unified perception snapshot of the game state for the Central Decision Brain.
+    /// Incorporates the BotVision sensory aggregator.
     /// </summary>
     public class WorldPerception
     {
+        public BotVision Vision { get; set; } = new();
+
         public bool IsPeacefulZone { get; set; }
 
         public Entity? LeaderEntity { get; set; }
@@ -89,35 +92,96 @@ namespace AutoExile2.Brain
             var world = ctx.World;
             var area = ctx.Area;
 
+            // 1. Run full sensory scan through BotVision (Eyes)
+            p.Vision.Scan(
+                ctx,
+                leader,
+                leaderGrid,
+                follower,
+                followerGrid,
+                leaderHeading,
+                followerAnimId,
+                formationTarget,
+                nearbyEnemies,
+                closestDist,
+                bestTarget);
+
+            // 2. Mirror properties for backward compatibility
             p.IsPeacefulZone = world.AreaDetails.IsTown || world.AreaDetails.IsHideout;
-            p.LeaderEntity = leader;
-            p.LeaderGrid = leaderGrid;
-            p.LeaderHeading = leaderHeading;
-            p.IsLeaderSprinting = ctx.CoopGamepad.IsLeaderSprinting;
+            p.LeaderEntity = p.Vision.Entities.LeaderEntity;
+            p.LeaderGrid = p.Vision.Entities.LeaderGrid;
+            p.LeaderHeading = p.Vision.Entities.LeaderHeading;
+            p.IsLeaderSprinting = p.Vision.Entities.IsLeaderSprinting;
+            p.IsLeaderDead = p.Vision.Entities.IsLeaderDead;
+            p.LeaderHpPercent = p.Vision.Entities.LeaderHpPercent;
+
+            p.FollowerEntity = p.Vision.Entities.FollowerEntity;
+            p.FollowerGrid = p.Vision.Entities.FollowerGrid;
+            p.FollowerAnimId = p.Vision.Entities.FollowerAnimId;
+            p.IsFollowerDead = p.Vision.Entities.IsFollowerDead;
+            p.FollowerHpPercent = p.Vision.Entities.FollowerHpPercent;
+            p.FollowerManaPercent = p.Vision.Entities.FollowerManaPercent;
+
             p.GridToWorld = area.WorldToGridConvertor > 0 ? area.WorldToGridConvertor : 10.87f;
-
-            if (leader.TryGetComponent<Life>(out var lLife) && lLife.Health.Total > 0)
-            {
-                p.IsLeaderDead = lLife.Health.Current <= 0;
-                p.LeaderHpPercent = (float)lLife.Health.Current / lLife.Health.Total * 100f;
-            }
-
-            p.FollowerEntity = follower;
-            p.FollowerGrid = followerGrid;
-            p.FollowerAnimId = followerAnimId;
-
-            if (follower != null && follower.TryGetComponent<Life>(out var fLife) && fLife.Health.Total > 0)
-            {
-                p.IsFollowerDead = fLife.Health.Current <= 0;
-                p.FollowerHpPercent = (float)fLife.Health.Current / fLife.Health.Total * 100f;
-                p.FollowerManaPercent = fLife.Mana.Total > 0 ? ((float)fLife.Mana.Current / fLife.Mana.Total * 100f) : 100f;
-            }
-
-            p.DistanceToLeader = Vector2.Distance(followerGrid, leaderGrid);
+            p.DistanceToLeader = p.Vision.Spatial.DistanceToLeader;
             p.DistanceToLeaderWorld = p.DistanceToLeader * p.GridToWorld;
 
             p.FormationTarget = formationTarget;
-            p.DistanceToFormationTarget = Vector2.Distance(followerGrid, formationTarget);
+            p.DistanceToFormationTarget = p.Vision.Spatial.DistanceToFormation;
+
+            p.NearbyEnemyCount = p.Vision.Entities.NearbyEnemyCount;
+            p.ClosestEnemyDistance = p.Vision.Entities.ClosestEnemyDistance;
+            p.BestCombatTarget = p.Vision.Entities.BestCombatTarget;
+
+            p.WalkableData = area.GridWalkableData;
+            p.BytesPerRow = area.TerrainMetadata.BytesPerRow;
+            p.Rows = p.WalkableData != null && p.BytesPerRow > 0 ? p.WalkableData.Length / p.BytesPerRow : 0;
+            p.Cols = p.BytesPerRow * 2;
+            p.HasLosToFormation = p.Vision.Spatial.HasLosToFormation;
+
+            return p;
+        }
+
+        /// <summary>
+        /// Collects sensory data for Solo or WaveFarm modes.
+        /// </summary>
+        public static WorldPerception CollectSolo(
+            BotContext ctx,
+            Entity player,
+            Vector2 playerGrid,
+            int nearbyEnemies,
+            float closestDist,
+            Entity? bestTarget)
+        {
+            var p = new WorldPerception();
+            var world = ctx.World;
+            var area = ctx.Area;
+
+            p.Vision.Scan(
+                ctx,
+                leader: null,
+                leaderGrid: playerGrid,
+                follower: player,
+                followerGrid: playerGrid,
+                leaderHeading: Vector2.Zero,
+                followerAnimId: 0,
+                formationTarget: playerGrid,
+                nearbyEnemies: nearbyEnemies,
+                closestDist: closestDist,
+                bestTarget: bestTarget);
+
+            p.IsPeacefulZone = world.AreaDetails.IsTown || world.AreaDetails.IsHideout;
+            p.FollowerEntity = player;
+            p.FollowerGrid = playerGrid;
+            p.IsFollowerDead = p.Vision.Entities.IsFollowerDead;
+            p.FollowerHpPercent = p.Vision.Entities.FollowerHpPercent;
+            p.FollowerManaPercent = p.Vision.Entities.FollowerManaPercent;
+
+            p.GridToWorld = area.WorldToGridConvertor > 0 ? area.WorldToGridConvertor : 10.87f;
+            p.DistanceToLeader = 0f;
+            p.DistanceToLeaderWorld = 0f;
+            p.FormationTarget = playerGrid;
+            p.DistanceToFormationTarget = 0f;
 
             p.NearbyEnemyCount = nearbyEnemies;
             p.ClosestEnemyDistance = closestDist;
@@ -127,11 +191,7 @@ namespace AutoExile2.Brain
             p.BytesPerRow = area.TerrainMetadata.BytesPerRow;
             p.Rows = p.WalkableData != null && p.BytesPerRow > 0 ? p.WalkableData.Length / p.BytesPerRow : 0;
             p.Cols = p.BytesPerRow * 2;
-
-            if (p.WalkableData != null && p.BytesPerRow > 0)
-            {
-                p.HasLosToFormation = Pathfinding.HasLineOfSight(p.WalkableData, p.BytesPerRow, followerGrid, formationTarget, p.Rows, p.Cols, 3);
-            }
+            p.HasLosToFormation = true;
 
             return p;
         }

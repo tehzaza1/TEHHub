@@ -19,6 +19,9 @@ namespace AutoExile2.Brain
         /// <summary>Highest priority: Player is dead (respawn) or partner is dead (revive).</summary>
         DeadOrRevive,
 
+        /// <summary>Standing in extreme hazard or critical damage zone -> Reposition to safe ground immediately.</summary>
+        DangerEvade,
+
         /// <summary>Leader is far ahead (> 50g) -> Prioritize sprint catch-up over combat.</summary>
         HardCatchup,
 
@@ -30,6 +33,9 @@ namespace AutoExile2.Brain
 
         /// <summary>Maintaining safe escort / formation position relative to leader.</summary>
         FormationFollow,
+
+        /// <summary>No immediate hostiles -> Navigate towards unexplored fog-of-war frontiers.</summary>
+        Explore,
 
         /// <summary>Map objective completed -> Open portal and return to hideout.</summary>
         ExitMap,
@@ -56,6 +62,9 @@ namespace AutoExile2.Brain
         public static BotGoal DeadOrRevive(string reason, Entity? target = null, Vector2? pos = null) =>
             new() { Type = BotGoalType.DeadOrRevive, Priority = 100, Reason = reason, TargetEntity = target, TargetPosition = pos };
 
+        public static BotGoal DangerEvade(string reason, Vector2 safePos) =>
+            new() { Type = BotGoalType.DangerEvade, Priority = 90, Reason = reason, TargetPosition = safePos };
+
         public static BotGoal HardCatchup(string reason, Vector2 targetPos) =>
             new() { Type = BotGoalType.HardCatchup, Priority = 80, Reason = reason, TargetPosition = targetPos };
 
@@ -68,8 +77,11 @@ namespace AutoExile2.Brain
         public static BotGoal FormationFollow(string reason, Vector2 targetPos) =>
             new() { Type = BotGoalType.FormationFollow, Priority = 40, Reason = reason, TargetPosition = targetPos };
 
-        public static BotGoal ExitMap(string reason) =>
-            new() { Type = BotGoalType.ExitMap, Priority = 30, Reason = reason };
+        public static BotGoal Explore(string reason, Vector2 frontierPos) =>
+            new() { Type = BotGoalType.Explore, Priority = 35, Reason = reason, TargetPosition = frontierPos };
+
+        public static BotGoal ExitMap(string reason, Entity? portal = null) =>
+            new() { Type = BotGoalType.ExitMap, Priority = 30, Reason = reason, TargetEntity = portal };
 
         public override string ToString() => $"[{this.Type}] {this.Reason} (Prio: {this.Priority})";
     }

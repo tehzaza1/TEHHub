@@ -167,9 +167,9 @@ namespace AutoExile2.Brain.Workers
             pad.SetFollowerMovement(moveDir);
             pad.SetFollowerSprint(shouldSprint);
 
-            // 5. Attack & Roll Synergy (Dodge Roll Gap-Closing):
+            // 5. Attack & Roll Synergy (Dodge Roll Gap-Closing & Danger Evade):
             // When moving to close distance without sprinting, tap Dodge Roll (B for 50ms) periodically (~850ms)
-            // This propels the bot into attack range while keeping weapons drawn!
+            // If in DangerEvade, tap Dodge Roll more aggressively (~600ms) to escape high-damage ground
             float safeDist = Math.Max(2f, s.CoopStopDistance);
             float sprintThreshold = Math.Max(50f, s.CoopSprintDistance);
             bool isActuallySprintingAnim = p.FollowerAnimId == ANIM_SPRINT;
@@ -177,13 +177,13 @@ namespace AutoExile2.Brain.Workers
             if (!shouldSprint && !isActuallySprintingAnim && moveDir.LengthSquared() > 0.05f)
             {
                 double msSinceRoll = (now - this.lastFollowerRollTime).TotalMilliseconds;
-                if (p.DistanceToLeader > (safeDist + 3f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 850)
+                bool isDangerEvadeRoll = goal.Type == BotGoalType.DangerEvade && msSinceRoll >= 600;
+                bool isFormationRoll = p.DistanceToLeader > (safeDist + 3f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 850;
+
+                if ((isDangerEvadeRoll || isFormationRoll) && p.FollowerAnimId != ANIM_ROLL)
                 {
-                    if (p.FollowerAnimId != ANIM_ROLL)
-                    {
-                        pad.TapFollowerDodgeRoll();
-                        this.lastFollowerRollTime = now;
-                    }
+                    pad.TapFollowerDodgeRoll();
+                    this.lastFollowerRollTime = now;
                 }
             }
         }

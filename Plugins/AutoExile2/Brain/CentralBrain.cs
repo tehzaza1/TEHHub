@@ -6,6 +6,7 @@ namespace AutoExile2.Brain
 {
     using System;
     using System.Linq;
+    using System.Numerics;
     using AutoExile2.Modes;
 
     /// <summary>
@@ -53,6 +54,15 @@ namespace AutoExile2.Brain
             if (p.IsLeaderDead)
             {
                 goal = BotGoal.DeadOrRevive("Leader dead (HP: 0) — ready to revive", p.LeaderEntity, p.LeaderGrid);
+                return this.UpdateGoal(goal);
+            }
+
+            // 2.5 Danger Evade (High Hazard Threat + Low HP)
+            if (p.Vision.Hazard.IsHighDangerArea && p.FollowerHpPercent < 50f)
+            {
+                goal = BotGoal.DangerEvade(
+                    $"High threat hazard ({p.Vision.Hazard.ThreatInProximity:F0}, HP: {p.FollowerHpPercent:F0}%) — falling back to leader",
+                    p.FormationTarget);
                 return this.UpdateGoal(goal);
             }
 
@@ -118,6 +128,68 @@ namespace AutoExile2.Brain
 
             // 6. Holding Formation in Safe Zone
             goal = BotGoal.Idle($"In formation safe zone ({p.DistanceToLeader:F0}g <= {safeStopDist:F0}g)");
+            return this.UpdateGoal(goal);
+        }
+
+        /// <summary>
+        /// Evaluates perception and settings for Solo / Exploration / WaveFarm modes.
+        /// </summary>
+        public BotGoal EvaluateSoloGoal(WorldPerception p, AutoExile2Settings s, bool mapClearComplete = false)
+        {
+            BotGoal goal;
+
+            if (p.IsPeacefulZone)
+            {
+                goal = BotGoal.Idle("In Town/Hideout — standing by");
+                return this.UpdateGoal(goal);
+            }
+
+            if (p.IsFollowerDead)
+            {
+                goal = BotGoal.DeadOrRevive("Player dead (HP: 0) — halting actions", p.FollowerEntity, p.FollowerGrid);
+                return this.UpdateGoal(goal);
+            }
+
+            // Hazard check: Evade if high danger and wounded
+            if (p.Vision.Hazard.IsHighDangerArea && p.FollowerHpPercent < 45f)
+            {
+                var safePos = p.Vision.Hazard.NearestMonsterCluster != null
+                    ? p.FollowerGrid + Vector2.Normalize(p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value) * 15f
+                    : p.FollowerGrid;
+
+                goal = BotGoal.DangerEvade(
+                    $"Critical threat level ({p.Vision.Hazard.ThreatInProximity:F0}) — disengaging",
+                    safePos);
+                return this.UpdateGoal(goal);
+            }
+
+            // Map Complete -> Exit Map
+            if (mapClearComplete || (p.Vision.Exploration.IsMapFullyExplored && p.NearbyEnemyCount == 0))
+            {
+                goal = BotGoal.ExitMap("Map clear complete — opening exit portal", p.Vision.Entities.NearestPortal);
+                return this.UpdateGoal(goal);
+            }
+
+            // Hostiles present -> Combat
+            if (p.NearbyEnemyCount > 0 && p.BestCombatTarget != null)
+            {
+                goal = BotGoal.Combat(
+                    $"Engaging hostiles ({p.NearbyEnemyCount} nearby, closest: {p.ClosestEnemyDistance:F0}g)",
+                    p.BestCombatTarget,
+                    p.BestCombatTarget.TryGetComponent<GameHelper.RemoteObjects.Components.Render>(out var r) ? new Vector2(r.GridPosition.X, r.GridPosition.Y) : null);
+                return this.UpdateGoal(goal);
+            }
+
+            // Exploration Frontier
+            if (p.Vision.Exploration.NextUnexploredTarget != null)
+            {
+                goal = BotGoal.Explore(
+                    $"Exploring fog of war (Coverage: {p.Vision.Exploration.MapCoverage:F1}%)",
+                    p.Vision.Exploration.NextUnexploredTarget.Value);
+                return this.UpdateGoal(goal);
+            }
+
+            goal = BotGoal.Idle("No active exploration or combat target");
             return this.UpdateGoal(goal);
         }
 
