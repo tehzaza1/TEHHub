@@ -6,6 +6,7 @@ namespace GameHelper.Utils
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading;
@@ -120,7 +121,19 @@ namespace GameHelper.Utils
 
             try
             {
-                if (!NativeWrapper.ReadProcessMemory(this.handle, address, ref result))
+                var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
+                var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
+                var succeeded = NativeWrapper.ReadProcessMemory(this.handle, address, ref result);
+                if (measureRead)
+                {
+                    Ui.MemoryReadDiagnostics.RecordRead(
+                        Ui.MemoryReadKind.Scalar,
+                        Marshal.SizeOf<T>(),
+                        Stopwatch.GetTimestamp() - startedAt,
+                        succeeded);
+                }
+
+                if (!succeeded)
                 {
                     result = default;
                     RecordDiagnosticFailure(typeof(T).Name, address);
@@ -215,7 +228,19 @@ namespace GameHelper.Utils
                 // and short reads are routine and recoverable. Record them for the diagnostics
                 // window but keep the console clean, matching TryReadMemory (audit: torn-read noise).
                 var expectedBytes = (long)nsize * Marshal.SizeOf<T>();
-                if (!NativeWrapper.ReadProcessMemoryArray(this.handle, address, buffer, out var numBytesRead) ||
+                var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
+                var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
+                var succeeded = NativeWrapper.ReadProcessMemoryArray(this.handle, address, buffer, out var numBytesRead);
+                if (measureRead)
+                {
+                    Ui.MemoryReadDiagnostics.RecordRead(
+                        Ui.MemoryReadKind.Buffer,
+                        expectedBytes,
+                        Stopwatch.GetTimestamp() - startedAt,
+                        succeeded && numBytesRead.ToInt64() >= expectedBytes);
+                }
+
+                if (!succeeded ||
                     numBytesRead.ToInt64() < expectedBytes)
                 {
                     RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
