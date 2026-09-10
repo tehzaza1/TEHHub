@@ -277,7 +277,7 @@ namespace AutoHotKeyTrigger.ProfileManager
 
         private void DrawCooldownWidget()
         {
-            ImGui.DragFloat(AhkText.Label("rule.cooldown", "Cooldown time (seconds)", "DelayTimerConditionDelay"), ref this.delayBetweenRuns, 0.1f, 0.0f, 30.0f);
+            ImGui.DragFloat(AhkText.Label("rule.cooldown", "Cooldown time (seconds)", "DelayTimerConditionDelay"), ref this.delayBetweenRuns, 0.1f, 0.0f, 120.0f);
             if (this.delayBetweenRuns > 0)
             {
                 var cooldownTimeFraction = this.delayBetweenRuns <= 0f ? 1f :

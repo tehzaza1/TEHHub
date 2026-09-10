@@ -840,7 +840,7 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
         </div>
         <div class="form-group">
           <label>Cooldown (ms): <span id="${listName}_cdVal_${i}" class="slider-val">${slot.MinCastIntervalMs} ms</span></label>
-          <input type="range" min="0" max="10000" step="50" value="${slot.MinCastIntervalMs}" class="form-control" oninput="document.getElementById('${listName}_cdVal_${i}').innerText=this.value + ' ms'; currentSettings['${listName}'][${i}].MinCastIntervalMs=parseInt(this.value);" />
+          <input type="range" min="0" max="60000" step="100" value="${slot.MinCastIntervalMs}" class="form-control" oninput="document.getElementById('${listName}_cdVal_${i}').innerText=this.value + ' ms'; currentSettings['${listName}'][${i}].MinCastIntervalMs=parseInt(this.value);" />
         </div>
       </div>
 

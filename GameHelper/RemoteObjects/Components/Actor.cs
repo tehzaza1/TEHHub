@@ -1,4 +1,4 @@
-﻿// <copyright file="Actor.cs" company="None">
+// <copyright file="Actor.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -19,7 +19,7 @@ namespace GameHelper.RemoteObjects.Components
     {
         // private Dictionary<IntPtr, VaalSoulStructure> ActiveSkillsVaalSouls { get; } = new();
 
-        private Dictionary<uint, ActiveSkillCooldown> ActiveSkillCooldowns { get; } = new();
+        public Dictionary<uint, ActiveSkillCooldown> ActiveSkillCooldowns { get; } = new();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Actor" /> class.

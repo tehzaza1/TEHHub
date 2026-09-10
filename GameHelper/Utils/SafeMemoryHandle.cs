@@ -73,7 +73,7 @@ namespace GameHelper.Utils
         /// <typeparam name="T">type of data structure to read.</typeparam>
         /// <param name="address">address to read the data from.</param>
         /// <returns>data from the process in T format.</returns>
-        internal T ReadMemory<T>(IntPtr address)
+        public T ReadMemory<T>(IntPtr address)
             where T : unmanaged
         {
             if (this.TryReadMemory<T>(address, out var result))
@@ -108,7 +108,7 @@ namespace GameHelper.Utils
         /// <param name="address">address to read the data from.</param>
         /// <param name="result">data read from the process, or default on failure.</param>
         /// <returns>true if the read succeeded; otherwise false.</returns>
-        internal bool TryReadMemory<T>(IntPtr address, out T result)
+        public bool TryReadMemory<T>(IntPtr address, out T result)
             where T : unmanaged
         {
             result = default;

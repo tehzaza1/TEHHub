@@ -14,6 +14,8 @@ namespace AutoExile2.WebServer
     using System.Threading.Tasks;
     using AutoExile2.Systems;
     using ClickableTransparentOverlay.Win32;
+    using GameHelper;
+    using GameHelper.RemoteObjects.Components;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
     using Newtonsoft.Json.Linq;
@@ -180,6 +182,78 @@ namespace AutoExile2.WebServer
                 {
                     var snap = this.statusProvider();
                     await this.SendJson(ctx, snap);
+                    return;
+                }
+
+                if (path == "/api/cooldowns" && method == "GET")
+                {
+                    var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                    var player = area?.Player;
+                    var result = new List<object>();
+                    var buffsList = new List<object>();
+
+                    if (player != null && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
+                    {
+                        foreach (var (bName, sEff) in pBuffs.StatusEffects)
+                        {
+                            buffsList.Add(new
+                            {
+                                name = bName,
+                                charges = sEff.Charges,
+                                timeLeft = sEff.TimeLeft,
+                                totalTime = sEff.TotalTime,
+                                effectiveness = sEff.Effectiveness
+                            });
+                        }
+                    }
+
+                    if (player != null && player.TryGetComponent<Actor>(out var actor))
+                    {
+                        var reader = Core.Process.Handle;
+                        foreach (var (skillName, details) in actor.ActiveSkills)
+                        {
+                            var cdData = new Dictionary<string, object>();
+                            cdData["skillName"] = skillName;
+                            cdData["unknownId"] = $"0x{details.UnknownIdAndEquipmentInfo:X}";
+                            cdData["totalCooldownTimeMs"] = details.TotalCooldownTimeInMs;
+                            cdData["totalCooldownTimeSec"] = details.TotalCooldownTimeInMs / 1000.0;
+                            cdData["totalUses"] = details.TotalUses;
+                            cdData["isUsable"] = actor.IsSkillUsable.Contains(skillName);
+
+                            if (actor.ActiveSkillCooldowns.TryGetValue(details.UnknownIdAndEquipmentInfo, out var cd))
+                            {
+                                cdData["cd_activeSkillDatId"] = cd.ActiveSkillsDatId;
+                                cdData["cd_maxUses"] = cd.MaxUses;
+                                cdData["cd_totalCooldownMs"] = cd.TotalCooldownTimeInMs;
+                                cdData["cd_activeCooldownCount"] = cd.TotalActiveCooldowns();
+                                cdData["cd_cannotBeUsed"] = cd.CannotBeUsed();
+
+                                var entries = new List<object>();
+                                int activeCount = cd.TotalActiveCooldowns();
+                                if (activeCount > 0 && cd.CooldownsList.First != IntPtr.Zero)
+                                {
+                                    for (int e = 0; e < Math.Min(activeCount, 10); e++)
+                                    {
+                                        IntPtr elemPtr = cd.CooldownsList.First + (e * 0x10);
+                                        int i0 = reader.ReadMemory<int>(elemPtr);
+                                        int i1 = reader.ReadMemory<int>(elemPtr + 4);
+                                        int i2 = reader.ReadMemory<int>(elemPtr + 8);
+                                        int i3 = reader.ReadMemory<int>(elemPtr + 12);
+                                        float f0 = reader.ReadMemory<float>(elemPtr);
+                                        float f1 = reader.ReadMemory<float>(elemPtr + 4);
+                                        float f2 = reader.ReadMemory<float>(elemPtr + 8);
+                                        float f3 = reader.ReadMemory<float>(elemPtr + 12);
+                                        entries.Add(new { ints = new[] { i0, i1, i2, i3 }, floats = new[] { f0, f1, f2, f3 } });
+                                    }
+                                }
+                                cdData["cd_entries"] = entries;
+                            }
+
+                            result.Add(cdData);
+                        }
+                    }
+
+                    await this.SendJson(ctx, new { skills = result, buffs = buffsList });
                     return;
                 }
 
