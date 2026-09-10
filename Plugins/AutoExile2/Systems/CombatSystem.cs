@@ -195,34 +195,10 @@ namespace AutoExile2.Systems
             }
 
             // 1. Player Vitals (HP, ES, Combined, and Mana percentages)
-            float hpPercent = 100f;
-            float esPercent = 0f;
-            float combinedPercent = 100f;
-            float manaPercent = 100f;
-            if (player.TryGetComponent<Life>(out var pLife))
-            {
-                if (pLife.Health.Total > 0)
-                {
-                    hpPercent = ((float)pLife.Health.Current / pLife.Health.Total) * 100f;
-                }
-
-                if (pLife.EnergyShield.Total > 0)
-                {
-                    esPercent = ((float)pLife.EnergyShield.Current / pLife.EnergyShield.Total) * 100f;
-                }
-
-                int maxPool = pLife.Health.Total + pLife.EnergyShield.Total;
-                int curPool = pLife.Health.Current + pLife.EnergyShield.Current;
-                combinedPercent = maxPool > 0 ? ((float)curPool / maxPool) * 100f : 100f;
-
-                if (pLife.Mana.Total > 0)
-                {
-                    manaPercent = ((float)pLife.Mana.Current / pLife.Mana.Total) * 100f;
-                }
-            }
+            PlayerVitals vitals = player.TryGetComponent<Life>(out var pLife) ? new PlayerVitals(pLife) : default;
 
             // 2. Auto Flasks (AutoExile 1 automated recovery)
-            this.TickAutoFlasks(settings, hpPercent, manaPercent);
+            this.TickAutoFlasks(settings, vitals.HpPercent, vitals.ManaPercent);
 
             // 3. Scan Threats & Select Best Target
             var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
@@ -335,7 +311,7 @@ namespace AutoExile2.Systems
             }
 
             // 4. Tick Self-Cast Skills (Buffs, Guards, Cries) independently of target
-            bool executedSelfSkill = this.TickSelfSkills(player, settings, hpPercent, esPercent, combinedPercent, manaPercent);
+            bool executedSelfSkill = this.TickSelfSkills(player, settings, vitals, hostileCount);
 
             if (bestTarget == null)
             {
@@ -386,10 +362,7 @@ namespace AutoExile2.Systems
                 bestTarget,
                 bestTargetRarity,
                 hostileCount,
-                hpPercent,
-                esPercent,
-                combinedPercent,
-                manaPercent,
+                vitals,
                 settings);
         }
 
@@ -574,11 +547,9 @@ namespace AutoExile2.Systems
         public bool TickEmergencyLowHpSkills(
             Entity player,
             AutoExile2Settings settings,
-            float hpPercent,
-            float esPercent,
-            float combinedPercent,
-            float manaPercent,
-            CoopVirtualGamepad? pad = null)
+            PlayerVitals vitals,
+            CoopVirtualGamepad? pad = null,
+            AreaInstance? area = null)
         {
             if (settings.Skills == null || settings.Skills.Count == 0)
             {
@@ -588,12 +559,26 @@ namespace AutoExile2.Systems
             var now = DateTime.Now;
             foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard && s.OnlyOnLowHp).OrderByDescending(s => s.Priority))
             {
-                if (!IsLowVital(slot, hpPercent, esPercent, combinedPercent))
+                if (!vitals.IsLowVital(slot))
                 {
                     continue;
                 }
 
-                if (slot.MinManaPercent > 0 && manaPercent < slot.MinManaPercent)
+                if (slot.MinNearbyEnemies > 0)
+                {
+                    int hostiles = this.NearbyHostileCount;
+                    if (hostiles < slot.MinNearbyEnemies && area != null && player.TryGetComponent<Render>(out var pRend))
+                    {
+                        hostiles = CountHostilesInRange(area, new Vector2(pRend.GridPosition.X, pRend.GridPosition.Y), settings.CombatRange);
+                    }
+
+                    if (hostiles < slot.MinNearbyEnemies)
+                    {
+                        continue;
+                    }
+                }
+
+                if (slot.MinManaPercent > 0 && vitals.ManaPercent < slot.MinManaPercent)
                 {
                     continue;
                 }
@@ -604,21 +589,9 @@ namespace AutoExile2.Systems
                 }
 
                 // Check if buff is already active on the player
-                if (slot.OnlyWhenBuffMissing)
+                if (slot.OnlyWhenBuffMissing && HasBuff(player, slot))
                 {
-                    string buffToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
-                        ? slot.BuffDebuffName
-                        : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
-
-                    if (!string.IsNullOrWhiteSpace(buffToMatch) && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
-                    {
-                        string clean = buffToMatch.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
-                        bool hasBuff = pBuffs.StatusEffects.Any(kv => kv.Key.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Contains(clean));
-                        if (hasBuff)
-                        {
-                            continue;
-                        }
-                    }
+                    continue;
                 }
 
                 slot.LastCastAt = now;
@@ -643,19 +616,19 @@ namespace AutoExile2.Systems
             return false;
         }
 
-        private static bool IsLowVital(SkillSlotConfig slot, float hpPercent, float esPercent, float combinedPercent)
+        public static bool IsLowVital(SkillSlotConfig slot, float hpPercent, float esPercent, float combinedPercent, bool hasEs = true)
         {
             if (!slot.OnlyOnLowHp) return false;
             float eval = slot.VitalCondition switch
             {
                 VitalConditionType.HpOnly => hpPercent,
-                VitalConditionType.EsOnly => esPercent,
+                VitalConditionType.EsOnly => hasEs ? esPercent : 100f,
                 _ => combinedPercent,
             };
             return eval <= slot.LowHpThresholdPercent;
         }
 
-        public bool TickSelfSkills(Entity player, AutoExile2Settings settings, float hpPercent, float esPercent, float combinedPercent, float manaPercent)
+        public bool TickSelfSkills(Entity player, AutoExile2Settings settings, PlayerVitals vitals, int nearbyHostiles)
         {
             if (settings.Skills == null || settings.Skills.Count == 0)
             {
@@ -664,12 +637,17 @@ namespace AutoExile2.Systems
 
             foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard).OrderByDescending(s => s.Priority))
             {
-                if (slot.OnlyOnLowHp && !IsLowVital(slot, hpPercent, esPercent, combinedPercent))
+                if (slot.OnlyOnLowHp && !vitals.IsLowVital(slot))
                 {
                     continue;
                 }
 
-                if (slot.MinManaPercent > 0 && manaPercent < slot.MinManaPercent)
+                if (slot.MinNearbyEnemies > 0 && nearbyHostiles < slot.MinNearbyEnemies)
+                {
+                    continue;
+                }
+
+                if (slot.MinManaPercent > 0 && vitals.ManaPercent < slot.MinManaPercent)
                 {
                     continue;
                 }
@@ -680,26 +658,9 @@ namespace AutoExile2.Systems
                 }
 
                 // Check if buff is already active on the player
-                if (slot.OnlyWhenBuffMissing)
+                if (slot.OnlyWhenBuffMissing && HasBuff(player, slot))
                 {
-                    string buffToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
-                        ? slot.BuffDebuffName
-                        : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
-
-                    if (!string.IsNullOrWhiteSpace(buffToMatch) && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
-                    {
-                        string clean = buffToMatch.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
-                        bool hasBuff = pBuffs.StatusEffects.Any(kv =>
-                        {
-                            string k = kv.Key.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
-                            return k.Contains(clean);
-                        });
-
-                        if (hasBuff)
-                        {
-                            continue; // Buff already present on player! Do not recast!
-                        }
-                    }
+                    continue; // Buff already present on player! Do not recast!
                 }
 
                 if (slot.InputType == AttackInputType.KeyboardKey)
@@ -719,6 +680,106 @@ namespace AutoExile2.Systems
             return false;
         }
 
+        public static bool HasBuff(Entity entity, SkillSlotConfig slot)
+        {
+            if (slot == null) return false;
+            string rawName = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
+                ? slot.BuffDebuffName
+                : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
+            return HasBuff(entity, rawName);
+        }
+
+        public static bool HasBuff(Entity entity, string buffName)
+        {
+            if (entity == null || string.IsNullOrWhiteSpace(buffName) || !entity.TryGetComponent<Buffs>(out var pBuffs) || pBuffs.StatusEffects == null || pBuffs.StatusEffects.IsEmpty)
+            {
+                return false;
+            }
+
+            string clean = CleanBuffString(buffName);
+            if (string.IsNullOrWhiteSpace(clean))
+            {
+                return false;
+            }
+
+            var aliases = GetBuffAliases(clean);
+
+            foreach (var kv in pBuffs.StatusEffects)
+            {
+                string keyClean = CleanBuffString(kv.Key);
+                for (int i = 0; i < aliases.Count; i++)
+                {
+                    if (keyClean.Contains(aliases[i], StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static int CountHostilesInRange(AreaInstance area, Vector2 playerGrid, float maxRange)
+        {
+            if (area == null || area.AwakeEntities == null) return 0;
+            int count = 0;
+            float maxDistSq = maxRange > 0 ? maxRange * maxRange : 50f * 50f;
+            foreach (var entity in area.AwakeEntities.Values)
+            {
+                if (!IsHostileMonster(entity, IntPtr.Zero)) continue;
+                if (!entity.TryGetComponent<Render>(out var render)) continue;
+                var eg = new Vector2(render.GridPosition.X, render.GridPosition.Y);
+                if (Vector2.DistanceSquared(playerGrid, eg) <= maxDistSq)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static string CleanBuffString(string s)
+        {
+            return s.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
+        }
+
+        private static List<string> GetBuffAliases(string clean)
+        {
+            var list = new List<string> { clean };
+            if (clean.Contains("steelskin"))
+            {
+                list.Add("quickguard");
+            }
+            else if (clean.Contains("quickguard"))
+            {
+                list.Add("steelskin");
+            }
+            else if (clean.Contains("moltenshell"))
+            {
+                list.Add("fireshield");
+            }
+            else if (clean.Contains("fireshield"))
+            {
+                list.Add("moltenshell");
+            }
+            else if (clean.Contains("immortalcall"))
+            {
+                list.Add("mortalcall");
+            }
+            else if (clean.Contains("mortalcall"))
+            {
+                list.Add("immortalcall");
+            }
+            else if (clean.Contains("witheringstep"))
+            {
+                list.Add("slither");
+            }
+            else if (clean.Contains("tempestshield"))
+            {
+                list.Add("lightningbarrier");
+            }
+            return list;
+        }
+
         private bool TickTargetedSkills(
             AreaInstance? area,
             WorldData world,
@@ -728,10 +789,7 @@ namespace AutoExile2.Systems
             Entity bestTarget,
             Rarity bestTargetRarity,
             int hostileCount,
-            float hpPercent,
-            float esPercent,
-            float combinedPercent,
-            float manaPercent,
+            PlayerVitals vitals,
             AutoExile2Settings settings)
         {
             // Calculate screen position of target
@@ -841,13 +899,13 @@ namespace AutoExile2.Systems
                 }
 
                 // Low HP / Vital condition check
-                if (slot.OnlyOnLowHp && !IsLowVital(slot, hpPercent, esPercent, combinedPercent))
+                if (slot.OnlyOnLowHp && !vitals.IsLowVital(slot))
                 {
                     continue;
                 }
 
                 // Min Mana check
-                if (slot.MinManaPercent > 0 && manaPercent < slot.MinManaPercent)
+                if (slot.MinManaPercent > 0 && vitals.ManaPercent < slot.MinManaPercent)
                 {
                     continue;
                 }

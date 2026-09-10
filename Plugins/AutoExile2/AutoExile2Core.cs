@@ -185,20 +185,14 @@ namespace AutoExile2
 
             if (player != null && player.TryGetComponent<Life>(out var life))
             {
-                hpCur = life.Health.Current;
-                hpTot = life.Health.Total;
-                esCur = life.EnergyShield.Current;
-                esTot = life.EnergyShield.Total;
-
-                if (hpTot > 0)
-                {
-                    hpPct = Math.Clamp((int)((float)hpCur / hpTot * 100f), 0, 100);
-                }
-                if (esTot > 0)
-                {
-                    esPct = Math.Clamp((int)((float)esCur / esTot * 100f), 0, 100);
-                }
-                manaPct = life.Mana.Total > 0 ? Math.Clamp((int)((float)life.Mana.Current / life.Mana.Total * 100f), 0, 100) : 100;
+                var vitals = new PlayerVitals(life);
+                hpCur = vitals.CurrentHp;
+                hpTot = vitals.MaxHp;
+                hpPct = (int)vitals.HpPercent;
+                esCur = vitals.CurrentEs;
+                esTot = vitals.MaxEs;
+                esPct = vitals.HasEs ? (int)vitals.EsPercent : 0;
+                manaPct = (int)vitals.ManaPercent;
             }
 
             var detectedSkills = new List<DetectedSkillInfo>();
@@ -418,20 +412,14 @@ namespace AutoExile2
 
                     if (targetFollowerEntity.TryGetComponent<Life>(out var fLife))
                     {
-                        fHpCur = fLife.Health.Current;
-                        fHpTot = fLife.Health.Total;
-                        fEsCur = fLife.EnergyShield.Current;
-                        fEsTot = fLife.EnergyShield.Total;
-
-                        if (fHpTot > 0)
-                        {
-                            followerHp = Math.Clamp((int)((float)fHpCur / fHpTot * 100f), 0, 100);
-                        }
-                        if (fEsTot > 0)
-                        {
-                            followerEs = Math.Clamp((int)((float)fEsCur / fEsTot * 100f), 0, 100);
-                        }
-                        followerMana = fLife.Mana.Total > 0 ? Math.Clamp((int)((float)fLife.Mana.Current / fLife.Mana.Total * 100f), 0, 100) : 100;
+                        var fVitals = new PlayerVitals(fLife);
+                        fHpCur = fVitals.CurrentHp;
+                        fHpTot = fVitals.MaxHp;
+                        fEsCur = fVitals.CurrentEs;
+                        fEsTot = fVitals.MaxEs;
+                        followerHp = (int)fVitals.HpPercent;
+                        followerEs = fVitals.HasEs ? (int)fVitals.EsPercent : 0;
+                        followerMana = (int)fVitals.ManaPercent;
                     }
 
                     if (targetFollowerEntity.TryGetComponent<Actor>(out var fActor) && fActor.ActiveSkills != null)
@@ -690,18 +678,13 @@ namespace AutoExile2
                 }
             }
 
-            float hpPercent = pLife.Health.Total > 0 ? ((float)pLife.Health.Current / pLife.Health.Total) * 100f : 100f;
-            float esPercent = pLife.EnergyShield.Total > 0 ? ((float)pLife.EnergyShield.Current / pLife.EnergyShield.Total) * 100f : 0f;
-            int maxPool = pLife.Health.Total + pLife.EnergyShield.Total;
-            int curPool = pLife.Health.Current + pLife.EnergyShield.Current;
-            float combinedPercent = maxPool > 0 ? ((float)curPool / maxPool) * 100f : 100f;
-            float manaPercent = pLife.Mana.Total > 0 ? ((float)pLife.Mana.Current / pLife.Mana.Total) * 100f : 100f;
+            var vitals = new PlayerVitals(pLife);
 
             // 1. Instant Auto Flasks
             if (this.Settings.Mode == AutoExileMode.Follower)
             {
                 var now = DateTime.Now;
-                if (this.Settings.P1AutoLifeFlask && hpPercent <= this.Settings.P1LifeFlaskThresholdPercent)
+                if (this.Settings.P1AutoLifeFlask && vitals.HpPercent <= this.Settings.P1LifeFlaskThresholdPercent)
                 {
                     int lifeSlot = CombatSystem.GetFlaskSlotFromKey(this.Settings.LifeFlaskKey, 0);
                     bool active = this.Settings.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(player, lifeSlot, isLife: true);
@@ -726,7 +709,7 @@ namespace AutoExile2
                     }
                 }
 
-                if (this.Settings.P1AutoManaFlask && manaPercent <= this.Settings.P1ManaFlaskThresholdPercent)
+                if (this.Settings.P1AutoManaFlask && vitals.ManaPercent <= this.Settings.P1ManaFlaskThresholdPercent)
                 {
                     int manaSlot = CombatSystem.GetFlaskSlotFromKey(this.Settings.ManaFlaskKey, 1);
                     bool active = this.Settings.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(player, manaSlot, isLife: false);
@@ -753,11 +736,11 @@ namespace AutoExile2
             }
             else
             {
-                this.combatSystem.TickAutoFlasks(player, currentArea.ServerDataObject, this.Settings, hpPercent, manaPercent, this.coopGamepad);
+                this.combatSystem.TickAutoFlasks(player, currentArea.ServerDataObject, this.Settings, vitals.HpPercent, vitals.ManaPercent, this.coopGamepad);
             }
 
             // 2. Instant Emergency Low-HP SelfBuffGuard Skills
-            this.combatSystem.TickEmergencyLowHpSkills(player, this.Settings, hpPercent, esPercent, combinedPercent, manaPercent, this.coopGamepad);
+            this.combatSystem.TickEmergencyLowHpSkills(player, this.Settings, vitals, this.coopGamepad, currentArea);
         }
 
         private void RenderOverlay(WorldData? world, Entity? player, AreaInstance? currentArea)

@@ -197,16 +197,10 @@ namespace AutoExile2.Modes
         {
             if (leader.TryGetComponent<Life>(out var life) && life.Health.Total > 0)
             {
-                float hpPct = (float)life.Health.Current / life.Health.Total * 100f;
-                float esPct = life.EnergyShield.Total > 0 ? (float)life.EnergyShield.Current / life.EnergyShield.Total * 100f : 0f;
-                int maxPool = life.Health.Total + life.EnergyShield.Total;
-                int curPool = life.Health.Current + life.EnergyShield.Current;
-                float combinedPct = maxPool > 0 ? (float)curPool / maxPool * 100f : 100f;
-
-                float manaPct = life.Mana.Total > 0 ? (float)life.Mana.Current / life.Mana.Total * 100f : 100f;
+                var lVitals = new PlayerVitals(life);
 
                 // Leader Auto Life Flask
-                if (s.P1AutoLifeFlask && hpPct <= s.P1LifeFlaskThresholdPercent)
+                if (s.P1AutoLifeFlask && lVitals.HpPercent <= s.P1LifeFlaskThresholdPercent)
                 {
                     int lifeSlot = CombatSystem.GetFlaskSlotFromKey(s.LifeFlaskKey, 0);
                     bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(leader, lifeSlot, isLife: true);
@@ -227,7 +221,7 @@ namespace AutoExile2.Modes
                 }
 
                 // Leader Auto Mana Flask
-                if (s.P1AutoManaFlask && manaPct <= s.P1ManaFlaskThresholdPercent)
+                if (s.P1AutoManaFlask && lVitals.ManaPercent <= s.P1ManaFlaskThresholdPercent)
                 {
                     int manaSlot = CombatSystem.GetFlaskSlotFromKey(s.ManaFlaskKey, 1);
                     bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(leader, manaSlot, isLife: false);
@@ -251,37 +245,28 @@ namespace AutoExile2.Modes
                 if (s.P1Skills != null && s.P1Skills.Count > 0)
                 {
                     var now = DateTime.Now;
-                    var statusEffects = leader.TryGetComponent<Buffs>(out var pBuffs) ? pBuffs.StatusEffects : null;
+                    var buffs = leader.TryGetComponent<Buffs>(out var pBuffs) ? pBuffs : null;
 
-                    foreach (var slot in s.P1Skills.Where(x => x.Enabled).OrderByDescending(x => x.Priority))
+                    foreach (var slot in s.P1Skills.Where(x => x.Enabled && (x.Role == SkillRole.SelfBuffGuard || x.Category == "Buff" || x.Category == "Guard" || x.Category == "Warcry")).OrderByDescending(x => x.Priority))
                     {
                         if ((now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs) continue;
 
-                        if (slot.OnlyOnLowHp)
+                        if (slot.OnlyOnLowHp && !lVitals.IsLowVital(slot)) continue;
+
+                        if (slot.MinManaPercent > 0 && lVitals.ManaPercent < slot.MinManaPercent) continue;
+
+                        if (slot.MinNearbyEnemies > 0)
                         {
-                            float evalPct = slot.VitalCondition switch
-                            {
-                                VitalConditionType.HpOnly => hpPct,
-                                VitalConditionType.EsOnly => esPct,
-                                _ => combinedPct
-                            };
-                            if (evalPct > slot.LowHpThresholdPercent) continue;
+                            Vector2 lGrid = leader.TryGetComponent<Render>(out var lRend)
+                                ? new Vector2(lRend.GridPosition.X, lRend.GridPosition.Y)
+                                : ctx.PlayerGrid;
+                            int nearby = CombatSystem.CountHostilesInRange(ctx.Area, lGrid, 65f);
+                            if (nearby < slot.MinNearbyEnemies) continue;
                         }
 
-                        if (slot.MinManaPercent > 0 && manaPct < slot.MinManaPercent) continue;
-
-                        if (slot.OnlyWhenBuffMissing)
+                        if (slot.OnlyWhenBuffMissing && CombatSystem.HasBuff(leader, slot))
                         {
-                            string buffToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
-                                ? slot.BuffDebuffName
-                                : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
-
-                            if (!string.IsNullOrWhiteSpace(buffToMatch) && statusEffects != null)
-                            {
-                                string clean = buffToMatch.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
-                                bool hasBuff = statusEffects.Any(kv => kv.Key.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Contains(clean));
-                                if (hasBuff) continue;
-                            }
+                            continue;
                         }
 
                         // Cast on Virtual Controller #1 or via Keyboard Hotkey if on Physical Gamepad
@@ -304,12 +289,11 @@ namespace AutoExile2.Modes
         {
             if (follower.TryGetComponent<Life>(out var fLife) && fLife.Health.Total > 0)
             {
-                float hpPct = (float)fLife.Health.Current / fLife.Health.Total * 100f;
-                float manaPct = fLife.Mana.Total > 0 ? (float)fLife.Mana.Current / fLife.Mana.Total * 100f : 100f;
+                var fVitals = new PlayerVitals(fLife);
 
                 const int debounceMs = CombatSystem.FlaskDebounceMs;
 
-                if (s.P2AutoLifeFlask && hpPct <= s.P2LifeFlaskThresholdPercent)
+                if (s.P2AutoLifeFlask && fVitals.HpPercent <= s.P2LifeFlaskThresholdPercent)
                 {
                     bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(follower, 0, isLife: true);
                     if (!active)
@@ -318,7 +302,7 @@ namespace AutoExile2.Modes
                     }
                 }
 
-                if (s.P2AutoManaFlask && manaPct <= s.P2ManaFlaskThresholdPercent)
+                if (s.P2AutoManaFlask && fVitals.ManaPercent <= s.P2ManaFlaskThresholdPercent)
                 {
                     bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(follower, 1, isLife: false);
                     if (!active)
@@ -364,54 +348,22 @@ namespace AutoExile2.Modes
             this.nearbyEnemyCount = nearbyEnemies;
 
             var now = DateTime.Now;
-            var buffs = follower.TryGetComponent<Buffs>(out var fBuffs) ? fBuffs.StatusEffects : null;
-            bool hasLife = follower.TryGetComponent<Life>(out var fl) && fl != null;
-            float fHpPct = hasLife && fl!.Health.Total > 0
-                ? (float)fl.Health.Current / fl.Health.Total * 100f
-                : 100f;
-            float fEsPct = hasLife && fl!.EnergyShield.Total > 0
-                ? (float)fl.EnergyShield.Current / fl.EnergyShield.Total * 100f
-                : 0f;
-            int fMaxPool = hasLife ? fl!.Health.Total + fl.EnergyShield.Total : 0;
-            int fCurPool = hasLife ? fl!.Health.Current + fl.EnergyShield.Current : 0;
-            float fCombinedPct = fMaxPool > 0 ? (float)fCurPool / fMaxPool * 100f : 100f;
-
-            float fManaPct = hasLife && fl!.Mana.Total > 0
-                ? (float)fl.Mana.Current / fl.Mana.Total * 100f
-                : 100f;
-
-            // Helper lambda for evaluating vital condition
-            bool IsLowVital(SkillSlotConfig slotCfg)
-            {
-                if (!slotCfg.OnlyOnLowHp) return false;
-                float evalPct = slotCfg.VitalCondition switch
-                {
-                    VitalConditionType.HpOnly => fHpPct,
-                    VitalConditionType.EsOnly => fEsPct,
-                    _ => fCombinedPct
-                };
-                return evalPct <= slotCfg.LowHpThresholdPercent;
-            }
+            var buffs = follower.TryGetComponent<Buffs>(out var fBuffs) ? fBuffs : null;
+            var fVitals = follower.TryGetComponent<Life>(out var fl) && fl != null
+                ? new PlayerVitals(fl)
+                : default;
 
             // 1. Tick SelfBuffGuard skills on Follower (independent of hostiles)
-            foreach (var slot in s.P2Skills.Where(x => x.Enabled && x.Role == SkillRole.SelfBuffGuard).OrderByDescending(x => x.Priority))
+            foreach (var slot in s.P2Skills.Where(x => x.Enabled && (x.Role == SkillRole.SelfBuffGuard || x.Category == "Buff" || x.Category == "Guard" || x.Category == "Warcry")).OrderByDescending(x => x.Priority))
             {
                 if ((now - slot.LastCastAt).TotalMilliseconds < slot.MinCastIntervalMs) continue;
-                if (slot.OnlyOnLowHp && !IsLowVital(slot)) continue;
-                if (slot.MinManaPercent > 0 && fManaPct < slot.MinManaPercent) continue;
+                if (slot.OnlyOnLowHp && !fVitals.IsLowVital(slot)) continue;
+                if (slot.MinManaPercent > 0 && fVitals.ManaPercent < slot.MinManaPercent) continue;
+                if (slot.MinNearbyEnemies > 0 && nearbyEnemies < slot.MinNearbyEnemies) continue;
 
-                if (slot.OnlyWhenBuffMissing)
+                if (slot.OnlyWhenBuffMissing && CombatSystem.HasBuff(follower, slot))
                 {
-                    string buffToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
-                        ? slot.BuffDebuffName
-                        : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
-
-                    if (!string.IsNullOrWhiteSpace(buffToMatch) && buffs != null)
-                    {
-                        string clean = buffToMatch.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
-                        bool hasBuff = buffs.Any(kv => kv.Key.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Contains(clean));
-                        if (hasBuff) continue;
-                    }
+                    continue;
                 }
 
                 slot.LastCastAt = now;
@@ -443,7 +395,7 @@ namespace AutoExile2.Modes
                 // Enforce minimum 300ms between Culler casts to prevent input spam
                 int effectiveCullerInterval = Math.Max(300, cullerSkill.MinCastIntervalMs);
                 if ((now - cullerSkill.LastCastAt).TotalMilliseconds < effectiveCullerInterval) continue;
-                if (cullerSkill.MinManaPercent > 0 && fManaPct < cullerSkill.MinManaPercent) continue;
+                if (cullerSkill.MinManaPercent > 0 && fVitals.ManaPercent < cullerSkill.MinManaPercent) continue;
 
                 // "ให้ตีเมื่ออยู่ใกล้ๆหัว" - อิงตาม Distance from host to start attacking (หน่วย g) ที่ผู้ใช้ปรับไว้
                 float rawStartDist = cullerSkill.CullerStartAttackDistance > 0 ? cullerSkill.CullerStartAttackDistance : 35f;
@@ -479,11 +431,11 @@ namespace AutoExile2.Modes
                     targetRarity = omp.Rarity;
                 }
 
-                foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role != SkillRole.SelfBuffGuard && x.Role != SkillRole.Culler && x.Category != "Culler" && x.Role != SkillRole.Disabled).OrderByDescending(x => x.Priority))
+                foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role != SkillRole.SelfBuffGuard && x.Role != SkillRole.Culler && x.Category != "Buff" && x.Category != "Guard" && x.Category != "Warcry" && x.Category != "Culler" && x.Role != SkillRole.Disabled).OrderByDescending(x => x.Priority))
                 {
                     if ((now - skill.LastCastAt).TotalMilliseconds < skill.MinCastIntervalMs) continue;
-                    if (skill.OnlyOnLowHp && !IsLowVital(skill)) continue;
-                    if (skill.MinManaPercent > 0 && fManaPct < skill.MinManaPercent) continue;
+                    if (skill.OnlyOnLowHp && !fVitals.IsLowVital(skill)) continue;
+                    if (skill.MinManaPercent > 0 && fVitals.ManaPercent < skill.MinManaPercent) continue;
 
                     // Filter by target rarity
                     if (skill.TargetFilter == SkillTargetFilter.NormalOnly && targetRarity != Rarity.Normal) continue;
@@ -495,15 +447,9 @@ namespace AutoExile2.Modes
                     float effectiveRange = skill.MaxTargetRange > 0 ? skill.MaxTargetRange : 75f;
                     if (closestDist > effectiveRange) continue;
 
-                    if (skill.OnlyWhenBuffMissing && !string.IsNullOrWhiteSpace(skill.BuffDebuffName))
+                    if (skill.OnlyWhenBuffMissing && CombatSystem.HasBuff(follower, skill))
                     {
-                        bool hasBuff = false;
-                        if (buffs != null)
-                        {
-                            string clean = skill.BuffDebuffName.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
-                            hasBuff = buffs.Any(kv => kv.Key.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Contains(clean));
-                        }
-                        if (hasBuff) continue;
+                        continue;
                     }
 
                     // Execute skill on Follower (Virtual Gamepad #2)

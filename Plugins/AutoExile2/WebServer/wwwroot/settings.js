@@ -57,7 +57,7 @@ const CATEGORY_PRESETS = {
   },
   Buff: {
     role: 'SelfBuffGuard', priority: 5, interval: 8000, hold: 100, filter: 'Any',
-    lowHp: false, lowHpThresh: 60, minEnemies: 0, maxRange: 0,
+    lowHp: false, lowHpThresh: 60, vitalCondition: 2, minEnemies: 0, maxRange: 0,
     onlyWhenBuffMissing: true,
     label: '✨ Buff', color: '#10b981', bg: 'rgba(16,185,129,0.15)'
   },
@@ -674,15 +674,15 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <label style="margin-bottom:0;"><input type="checkbox" ${slot.OnlyOnLowHp ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyOnLowHp = this.checked;" /> Only on Low Vital (<span id="${listName}_hpThresh_${i}">${slot.LowHpThresholdPercent || 60}%</span>)</label>
+                <label style="margin-bottom:0;"><input type="checkbox" id="${listName}_onlyOnLowHp_${i}" ${slot.OnlyOnLowHp ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyOnLowHp = this.checked;" /> Only on Low Vital (<span id="${listName}_hpThresh_${i}">${slot.LowHpThresholdPercent || 60}%</span>)</label>
               </div>
               <div style="display:flex; gap:6px; align-items:center; margin-top:4px;">
-                <select class="form-control" style="width:130px; padding:2px 6px; font-size:11px; height:28px;" onchange="currentSettings['${listName}'][${i}].VitalCondition = parseInt(this.value);">
+                <select class="form-control" style="width:130px; padding:2px 6px; font-size:11px; height:28px;" onchange="currentSettings['${listName}'][${i}].VitalCondition = parseInt(this.value); currentSettings['${listName}'][${i}].OnlyOnLowHp = true; const cb = document.getElementById('${listName}_onlyOnLowHp_${i}'); if (cb) cb.checked = true;">
                   <option value="2" ${slot.VitalCondition === 2 || slot.VitalCondition === '2' || slot.VitalCondition === 'CombinedHpEs' || slot.VitalCondition === undefined ? 'selected' : ''}>🛡️ HP + ES</option>
                   <option value="0" ${slot.VitalCondition === 0 || slot.VitalCondition === '0' || slot.VitalCondition === 'HpOnly' ? 'selected' : ''}>❤️ HP Only</option>
                   <option value="1" ${slot.VitalCondition === 1 || slot.VitalCondition === '1' || slot.VitalCondition === 'EsOnly' ? 'selected' : ''}>⚡ ES Only</option>
                 </select>
-                <input type="range" min="15" max="90" value="${slot.LowHpThresholdPercent || 60}" class="form-control" style="flex:1;" oninput="document.getElementById('${listName}_hpThresh_${i}').innerText=this.value + '%'; currentSettings['${listName}'][${i}].LowHpThresholdPercent=parseFloat(this.value);" />
+                <input type="range" min="15" max="90" value="${slot.LowHpThresholdPercent || 60}" class="form-control" style="flex:1;" oninput="document.getElementById('${listName}_hpThresh_${i}').innerText=this.value + '%'; currentSettings['${listName}'][${i}].LowHpThresholdPercent=parseFloat(this.value); currentSettings['${listName}'][${i}].OnlyOnLowHp = true; const cb = document.getElementById('${listName}_onlyOnLowHp_${i}'); if (cb) cb.checked = true;" />
               </div>
             </div>
             <div class="form-group">

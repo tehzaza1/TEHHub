@@ -7,6 +7,7 @@ namespace AutoExile2
     using System;
     using System.Collections.Generic;
     using ClickableTransparentOverlay.Win32;
+    using GameHelper.RemoteObjects.Components;
     using Newtonsoft.Json;
 
     /// <summary>
@@ -184,6 +185,85 @@ namespace AutoExile2
         public static List<SkillSlotConfig> GetDefaultP2Skills()
         {
             return new List<SkillSlotConfig>();
+        }
+    }
+
+    /// <summary>
+    /// Real-time snapshot of player/follower vitals (HP, ES, Mana, Combined Pool).
+    /// Properly handles reserved vitals (Unreserved vs Total) and characters without Energy Shield.
+    /// </summary>
+    public readonly struct PlayerVitals
+    {
+        public readonly float HpPercent;
+        public readonly float EsPercent;
+        public readonly float CombinedPercent;
+        public readonly float ManaPercent;
+        public readonly bool HasEs;
+        public readonly int CurrentHp;
+        public readonly int MaxHp;
+        public readonly int CurrentEs;
+        public readonly int MaxEs;
+        public readonly int CurrentMana;
+        public readonly int MaxMana;
+
+        public PlayerVitals(Life? life)
+        {
+            if (life == null)
+            {
+                this.HpPercent = 100f;
+                this.EsPercent = 100f;
+                this.CombinedPercent = 100f;
+                this.ManaPercent = 100f;
+                this.HasEs = false;
+                this.CurrentHp = 0;
+                this.MaxHp = 0;
+                this.CurrentEs = 0;
+                this.MaxEs = 0;
+                this.CurrentMana = 0;
+                this.MaxMana = 0;
+                return;
+            }
+
+            // Unreserved Life (fallback to Total if Unreserved <= 0)
+            int unreservedHp = life.Health.Unreserved > 0 ? life.Health.Unreserved : life.Health.Total;
+            this.MaxHp = Math.Max(0, unreservedHp);
+            this.CurrentHp = Math.Clamp(life.Health.Current, 0, this.MaxHp);
+            this.HpPercent = this.MaxHp > 0 ? ((float)this.CurrentHp / this.MaxHp) * 100f : 100f;
+
+            // Unreserved Energy Shield
+            int unreservedEs = life.EnergyShield.Unreserved > 0 ? life.EnergyShield.Unreserved : life.EnergyShield.Total;
+            this.HasEs = unreservedEs > 0;
+            this.MaxEs = this.HasEs ? unreservedEs : 0;
+            this.CurrentEs = this.HasEs ? Math.Clamp(life.EnergyShield.Current, 0, this.MaxEs) : 0;
+            this.EsPercent = this.HasEs && this.MaxEs > 0 ? ((float)this.CurrentEs / this.MaxEs) * 100f : 100f;
+
+            // Combined effective health pool (unreserved HP + unreserved ES)
+            int totalMaxPool = this.MaxHp + this.MaxEs;
+            int totalCurPool = this.CurrentHp + this.CurrentEs;
+            this.CombinedPercent = totalMaxPool > 0 ? ((float)totalCurPool / totalMaxPool) * 100f : 100f;
+
+            // Unreserved Mana
+            int unreservedMana = life.Mana.Unreserved > 0 ? life.Mana.Unreserved : life.Mana.Total;
+            this.MaxMana = Math.Max(0, unreservedMana);
+            this.CurrentMana = Math.Clamp(life.Mana.Current, 0, this.MaxMana);
+            this.ManaPercent = this.MaxMana > 0 ? ((float)this.CurrentMana / this.MaxMana) * 100f : 100f;
+        }
+
+        public bool IsLowVital(SkillSlotConfig slot)
+        {
+            if (!slot.OnlyOnLowHp)
+            {
+                return false;
+            }
+
+            float eval = slot.VitalCondition switch
+            {
+                VitalConditionType.HpOnly => this.HpPercent,
+                VitalConditionType.EsOnly => this.HasEs ? this.EsPercent : 100f,
+                _ => this.CombinedPercent,
+            };
+
+            return eval <= slot.LowHpThresholdPercent;
         }
     }
 }
