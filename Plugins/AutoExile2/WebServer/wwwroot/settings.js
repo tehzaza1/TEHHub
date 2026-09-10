@@ -28,7 +28,11 @@ const GAMEPAD_BUTTON_OPTIONS = [
   { value: "A", num: 1, label: "Button A" },
   { value: "B", num: 2, label: "Button B" },
   { value: "LeftShoulder", num: 5, label: "LB (Left Bumper)" },
-  { value: "LeftTrigger", num: 7, label: "LT (Left Trigger)" }
+  { value: "LeftTrigger", num: 7, label: "LT (Left Trigger)" },
+  { value: "DPadUp", num: 11, label: "⬆️ D-Pad Up (ลูกศรขึ้น)" },
+  { value: "DPadDown", num: 12, label: "⬇️ D-Pad Down (ลูกศรลง)" },
+  { value: "DPadLeft", num: 13, label: "⬅️ D-Pad Left (ลูกศรซ้าย)" },
+  { value: "DPadRight", num: 14, label: "➡️ D-Pad Right (ลูกศรขวา)" }
 ];
 
 function renderGamepadButtonOptions(selected) {
@@ -43,6 +47,9 @@ function getGamepadButtonLabel(btn) {
     b.value === btn || b.num === btn || String(b.num) === String(btn) || (btn && b.value.toLowerCase() === String(btn).toLowerCase())
   );
   if (match) {
+    if (match.value.startsWith('DPad')) {
+      return match.label.split(' (')[0];
+    }
     return match.label.split(' ')[0];
   }
   return btn || 'RB';

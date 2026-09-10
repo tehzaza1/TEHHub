@@ -465,6 +465,13 @@ namespace AutoExile2.WebServer
             s = s.Trim();
             if (Enum.TryParse<AutoExile2.Systems.CoopPadButton>(s, true, out var parsed)) return parsed;
             if (int.TryParse(s, out int intVal) && Enum.IsDefined(typeof(AutoExile2.Systems.CoopPadButton), intVal)) return (AutoExile2.Systems.CoopPadButton)intVal;
+
+            string lower = s.ToLowerInvariant().Replace(" ", "").Replace("-", "").Replace("_", "");
+            if (lower == "up" || lower == "dup" || lower == "dpadup" || lower == "arrowup") return AutoExile2.Systems.CoopPadButton.DPadUp;
+            if (lower == "down" || lower == "ddown" || lower == "dpaddown" || lower == "arrowdown") return AutoExile2.Systems.CoopPadButton.DPadDown;
+            if (lower == "left" || lower == "dleft" || lower == "dpadleft" || lower == "arrowleft") return AutoExile2.Systems.CoopPadButton.DPadLeft;
+            if (lower == "right" || lower == "dright" || lower == "dpadright" || lower == "arrowright") return AutoExile2.Systems.CoopPadButton.DPadRight;
+
             return AutoExile2.Systems.CoopPadButton.RightShoulder;
         }
 
