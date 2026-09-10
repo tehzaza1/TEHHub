@@ -63,13 +63,6 @@ namespace LootValue
         private readonly List<TagChip> cachedTagChips = new();
         private readonly Dictionary<IntPtr, Tracked> trackTag = new();
         private DateTime nextTagScanUtc = DateTime.MinValue;
-        private object? handleObj;
-        private object? uiParentsObj;
-        private MethodInfo? readUiOffsetMethod;
-        private MethodInfo? readStdVectorMethod;
-        private MethodInfo? readStdWStringStructMethod;
-        private MethodInfo? readStdWStringMethod;
-        private MethodInfo? readIntPtrMethod;
         private readonly HashSet<string> groundTagNames = new(StringComparer.OrdinalIgnoreCase);
         private SlotScanReport leftSlotReport = new(IntPtr.Zero);
         private SlotScanReport rightSlotReport = new(IntPtr.Zero);
@@ -208,13 +201,6 @@ namespace LootValue
             this.trackTag.Clear();
             this.nextRecomputeUtc = DateTime.MinValue;
             this.nextTagScanUtc = DateTime.MinValue;
-            this.handleObj = null;
-            this.uiParentsObj = null;
-            this.readUiOffsetMethod = null;
-            this.readStdVectorMethod = null;
-            this.readStdWStringStructMethod = null;
-            this.readStdWStringMethod = null;
-            this.readIntPtrMethod = null;
             this.groundTagNames.Clear();
             this.cachedLeftSlots.Clear();
             this.cachedRightSlots.Clear();
@@ -687,33 +673,17 @@ namespace LootValue
 
         private bool EnsureReflection()
         {
-            if (this.handleObj != null) return true;
-            this.handleObj = Core.Process?.Handle;
-            if (this.handleObj == null)
-            {
-                var handleProp = typeof(GameProcess).GetProperty("Handle", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                this.handleObj = handleProp?.GetValue(Core.Process);
-            }
-            if (this.handleObj == null) return false;
-
-            var methods = this.handleObj.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            var readMem = methods.First(m => m.Name == "ReadMemory" && m.IsGenericMethod && m.GetParameters().Length == 1);
-            var readVec = methods.First(m => m.Name == "ReadStdVector" && m.IsGenericMethod);
-            this.readUiOffsetMethod = readMem.MakeGenericMethod(typeof(UiElementBaseOffset));
-            this.readStdVectorMethod = readVec.MakeGenericMethod(typeof(IntPtr));
-            this.readStdWStringStructMethod = readMem.MakeGenericMethod(typeof(StdWString));
-            this.readStdWStringMethod = methods.First(m => m.Name == "ReadStdWString" && m.GetParameters().Length == 1);
-            this.readIntPtrMethod = readMem.MakeGenericMethod(typeof(IntPtr));
-            return true;
+            return Core.Process?.Handle != null;
         }
 
         private string ReadUiElementText(IntPtr element)
         {
             try
             {
-                var ws = this.readStdWStringStructMethod!.Invoke(this.handleObj, new object[] { element + UiElementTextOffset });
-                if (ws == null) return string.Empty;
-                return this.readStdWStringMethod!.Invoke(this.handleObj, new object[] { ws }) as string ?? string.Empty;
+                var handle = Core.Process?.Handle;
+                if (handle == null) return string.Empty;
+                var ws = handle.ReadMemory<StdWString>(element + UiElementTextOffset);
+                return handle.ReadStdWString(ws);
             }
             catch
             {
@@ -731,7 +701,8 @@ namespace LootValue
             var root = gameUi.Address;
             var leftPanel = gameUi.LeftPanel.Address;
             var rightPanel = gameUi.RightPanel.Address;
-            if (root == IntPtr.Zero || this.readUiOffsetMethod == null || this.readStdVectorMethod == null) return;
+            var handle = Core.Process?.Handle;
+            if (root == IntPtr.Zero || handle == null) return;
 
             var queue = new Queue<IntPtr>();
             var visited = new HashSet<IntPtr>();
@@ -743,10 +714,11 @@ namespace LootValue
                 // Stash, inventory, vendor, and other large-panel text cannot be a ground loot label.
                 // Do not traverse those potentially enormous subtrees when a panel is open.
                 if (el != root && (el == leftPanel || el == rightPanel)) continue;
-                if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { el }) is not UiElementBaseOffset off) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(el, out var off)) continue;
                 if (el != root && !UiElementBaseFuncs.IsVisibleChecker(off.Flags)) continue;
 
-                if (this.readStdVectorMethod.Invoke(this.handleObj, new object[] { off.ChildrensPtr }) is IntPtr[] kids)
+                var kids = handle.ReadStdVector<IntPtr>(off.ChildrensPtr);
+                if (kids.Length > 0)
                 {
                     foreach (var k in kids) queue.Enqueue(k);
                 }
@@ -806,8 +778,8 @@ namespace LootValue
         private void DrawTagChips()
         {
             if (this.cachedTagChips.Count == 0) return;
-            this.uiParentsObj ??= PluginUiElementReflection.CreateParents();
-            if (this.uiParentsObj == null) return;
+            var handle = Core.Process?.Handle;
+            if (handle == null) return;
 
             var fg = ImGui.GetBackgroundDrawList();
             var font = ImGui.GetFont();
@@ -819,7 +791,7 @@ namespace LootValue
                 // UI element is self-referential (Self == its own address). If the element was freed since
                 // the scan (e.g. item picked up), this no longer holds — skip it so CreateUiElement (which
                 // would THROW on an invalid address) is never reached. try/catch remains as a backstop.
-                if (this.readUiOffsetMethod!.Invoke(this.handleObj, new object[] { chip.ElementAddress }) is not UiElementBaseOffset off) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(chip.ElementAddress, out var off)) continue;
                 if (off.Self != IntPtr.Zero && off.Self != chip.ElementAddress) continue; // exact inverse of the game's "not a Ui Element" guard
                 if (!UiElementBaseFuncs.IsVisibleChecker(off.Flags)) continue;
 
@@ -978,11 +950,12 @@ namespace LootValue
         private bool TryGetChildren(IntPtr address, bool requireVisible, out IntPtr[] children)
         {
             children = Array.Empty<IntPtr>();
-            if (address == IntPtr.Zero || this.readUiOffsetMethod == null || this.readStdVectorMethod == null ||
-                this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { address }) is not UiElementBaseOffset offset ||
+            var handle = Core.Process?.Handle;
+            if (address == IntPtr.Zero || handle == null ||
+                !handle.TryReadMemory<UiElementBaseOffset>(address, out var offset) ||
                 (requireVisible && !UiElementBaseFuncs.IsVisibleChecker(offset.Flags))) return false;
 
-            children = this.readStdVectorMethod.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) as IntPtr[] ?? Array.Empty<IntPtr>();
+            children = handle.ReadStdVector<IntPtr>(offset.ChildrensPtr);
             return true;
         }
 
@@ -1150,10 +1123,13 @@ namespace LootValue
 
             // The fixed path is only accepted while at least one direct reward tile carries a valid
             // item pointer. This prevents a future UI-tree shift from pricing an unrelated panel.
+            var handle = Core.Process?.Handle;
+            if (handle == null) return IntPtr.Zero;
+
             foreach (var tile in tiles)
             {
-                var pointerValue = this.readIntPtrMethod?.Invoke(this.handleObj, new object[] { tile + UiElementItemAddressOffset });
-                if (pointerValue is IntPtr itemAddress && itemAddress != IntPtr.Zero &&
+                var itemAddress = handle.ReadMemory<IntPtr>(tile + UiElementItemAddressOffset);
+                if (itemAddress != IntPtr.Zero &&
                     PluginUiElementReflection.TryValidateItemAddress(itemAddress, out _, out _))
                 {
                     return candidate;
@@ -1171,8 +1147,8 @@ namespace LootValue
         {
             report = new SlotScanReport(panelAddress);
             var candidatesByItem = new Dictionary<IntPtr, List<SlotElementCandidate>>();
-            if (panelAddress == IntPtr.Zero || this.readUiOffsetMethod == null ||
-                this.readStdVectorMethod == null || this.readIntPtrMethod == null) return new List<SlotInfo>();
+            var handle = Core.Process?.Handle;
+            if (panelAddress == IntPtr.Zero || handle == null) return new List<SlotInfo>();
 
             var queue = new Queue<(IntPtr Address, IntPtr Parent, ScrollBinding Scroll)>();
             var visited = new HashSet<IntPtr>();
@@ -1183,10 +1159,11 @@ namespace LootValue
                 var (element, parent, scroll) = queue.Dequeue();
                 if (element == IntPtr.Zero || !visited.Add(element)) continue;
                 report.VisitedElements++;
-                if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { element }) is not UiElementBaseOffset offset) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(element, out var offset)) continue;
                 if (!UiElementBaseFuncs.IsVisibleChecker(offset.Flags)) continue;
 
-                if (this.readStdVectorMethod.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) is IntPtr[] children)
+                var children = handle.ReadStdVector<IntPtr>(offset.ChildrensPtr);
+                if (children.Length > 0)
                 {
                     var hasScrollContainer = this.TryGetScrollContainer(
                         children,
@@ -1212,8 +1189,7 @@ namespace LootValue
                 }
 
                 // Slot discovery/rendering adapted from StashValueByZx0 by zx0CF1.
-                var pointerValue = this.readIntPtrMethod.Invoke(this.handleObj, new object[] { element + UiElementItemAddressOffset });
-                var itemAddress = pointerValue is IntPtr pointer ? pointer : IntPtr.Zero;
+                var itemAddress = handle.ReadMemory<IntPtr>(element + UiElementItemAddressOffset);
                 if (itemAddress == IntPtr.Zero) continue;
                 report.NonZeroPointers++;
 
@@ -1289,15 +1265,16 @@ namespace LootValue
         {
             itemsAddress = IntPtr.Zero;
             scroll = default;
-            if (children.Length <= 2 || children[1] == IntPtr.Zero || children[2] == IntPtr.Zero ||
-                this.readUiOffsetMethod == null || this.readStdVectorMethod == null) return false;
+            var handle = Core.Process?.Handle;
+            if (children.Length <= 2 || children[1] == IntPtr.Zero || children[2] == IntPtr.Zero || handle == null) return false;
 
             var contentAddress = children[1];
             var holderAddress = children[2];
-            if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { holderAddress }) is not UiElementBaseOffset holderOffset ||
-                !UiElementBaseFuncs.IsVisibleChecker(holderOffset.Flags) ||
-                this.readStdVectorMethod.Invoke(this.handleObj, new object[] { holderOffset.ChildrensPtr }) is not IntPtr[] holderChildren ||
-                holderChildren.Length == 0 || holderChildren[0] == IntPtr.Zero) return false;
+            if (!handle.TryReadMemory<UiElementBaseOffset>(holderAddress, out var holderOffset) ||
+                !UiElementBaseFuncs.IsVisibleChecker(holderOffset.Flags)) return false;
+
+            var holderChildren = handle.ReadStdVector<IntPtr>(holderOffset.ChildrensPtr);
+            if (holderChildren.Length == 0 || holderChildren[0] == IntPtr.Zero) return false;
 
             var thumbAddress = holderChildren[0];
             if (!PluginUiElementReflection.TryGetAbsoluteRect(contentAddress, out var contentPosition, out var contentSize) ||
@@ -2346,33 +2323,32 @@ namespace LootValue
 
         private void DrawRuneshapeUiOverlay()
         {
-            if (!this.EnsureReflection()) return;
+            var handle = Core.Process?.Handle;
+            if (handle == null) return;
             var gameUi = Core.States.InGameStateObject.GameUi;
             if (gameUi.Address == IntPtr.Zero) return;
 
             var container = RuneshapeReader.ResolveRuneforgeContainer(
                 gameUi.Address,
-                addr => this.readUiOffsetMethod!.Invoke(this.handleObj, new object[] { addr }) as UiElementBaseOffset?,
-                vec => this.readStdVectorMethod!.Invoke(this.handleObj, new object[] { vec }) as IntPtr[]);
+                addr => handle.TryReadMemory<UiElementBaseOffset>(addr, out var off) ? off : null,
+                vec => handle.ReadStdVector<IntPtr>(vec));
 
             if (container == IntPtr.Zero) return;
 
-            var off = this.readUiOffsetMethod!.Invoke(this.handleObj, new object[] { container }) as UiElementBaseOffset?;
-            if (off == null) return;
+            if (!handle.TryReadMemory<UiElementBaseOffset>(container, out var off)) return;
 
-            var rows = this.readStdVectorMethod!.Invoke(this.handleObj, new object[] { off.Value.ChildrensPtr }) as IntPtr[];
-            if (rows == null || rows.Length == 0) return;
+            var rows = handle.ReadStdVector<IntPtr>(off.ChildrensPtr);
+            if (rows.Length == 0) return;
 
             var fg = ImGui.GetForegroundDrawList();
 
             foreach (var row in rows)
             {
                 if (row == IntPtr.Zero) continue;
-                var rowOff = this.readUiOffsetMethod!.Invoke(this.handleObj, new object[] { row }) as UiElementBaseOffset?;
-                if (rowOff == null || !UiElementBaseFuncs.IsVisibleChecker(rowOff.Value.Flags)) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(row, out var rowOff) || !UiElementBaseFuncs.IsVisibleChecker(rowOff.Flags)) continue;
 
-                var rowKids = this.readStdVectorMethod!.Invoke(this.handleObj, new object[] { rowOff.Value.ChildrensPtr }) as IntPtr[];
-                if (rowKids == null || rowKids.Length == 0) continue;
+                var rowKids = handle.ReadStdVector<IntPtr>(rowOff.ChildrensPtr);
+                if (rowKids.Length == 0) continue;
 
                 var label = rowKids[0];
                 var rawText = this.ReadUiElementText(label);
