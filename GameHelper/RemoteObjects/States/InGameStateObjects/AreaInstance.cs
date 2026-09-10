@@ -1,4 +1,4 @@
-﻿// <copyright file="AreaInstance.cs" company="None">
+// <copyright file="AreaInstance.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -103,6 +103,11 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         ///     This value is sent to the client from the server.
         /// </summary>
         public string AreaHash { get; private set; }
+
+        /// <summary>
+        ///     Gets the count of local players registered on this machine (1 = Solo, 2 = Local Co-op).
+        /// </summary>
+        public int LocalPlayerCount { get; private set; } = 1;
 
         /// <summary>
         ///     Gets the data related to the player the user is playing.
@@ -284,6 +289,8 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             this.UpdateEnvironmentAndCaches(data.Environments);
             this.ServerDataObject.Address = data.PlayerInfo.ServerDataPtr;
             this.Player.Address = data.PlayerInfo.LocalPlayerPtr;
+            var localPlayerCount = (int)data.PlayerInfo.LocalPlayers.TotalElements(16);
+            this.LocalPlayerCount = (localPlayerCount is >= 1 and <= 8) ? localPlayerCount : 1;
             this.UpdateEntities(data.Entities.AwakeEntities, this.AwakeEntities, true);
             this.AddEntityBackedPlayerBuffs();
         }
@@ -729,6 +736,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 this.GridHeightData = Array.Empty<float[]>();
                 this.GridWalkableData = Array.Empty<byte>();
                 this.TgtTilesLocations.Clear();
+                this.LocalPlayerCount = 1;
             }
         }
 

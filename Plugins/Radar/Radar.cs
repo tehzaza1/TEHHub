@@ -147,7 +147,10 @@ namespace Radar
             var isControllerDetected = Core.GHSettings.EnableControllerMode;
             if (isControllerDetected)
             {
-                ImGui.TextColored(new Vector4(0.2f, 1f, 0.2f, 1f), this.PluginText.T("settings.controller_detected", "[Controller Mode: Auto-Detected Active]"));
+                var modeText = Core.GHSettings.IsCoopMode
+                    ? "[Controller Co-op Mode: Auto-Detected Active]"
+                    : "[Controller Solo Mode: Auto-Detected Active]";
+                ImGui.TextColored(new Vector4(0.2f, 1f, 0.2f, 1f), modeText);
             }
             else
             {
@@ -2978,27 +2981,7 @@ namespace Radar
                 return this.Settings.EnableCoopMode;
             }
 
-            if (!Core.GHSettings.EnableControllerMode || !hasOtherPlayer)
-            {
-                return false;
-            }
-
-            var worldData = Core.States.InGameStateObject.CurrentWorldInstance;
-            if (worldData == null || worldData.Address == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            var screenPos = worldData.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
-            if (screenPos == Vector2.Zero)
-            {
-                return false;
-            }
-
-            var screenCenter = new Vector2(
-                Core.Process.WindowArea.Width / 2f,
-                Core.Process.WindowArea.Height / 2f);
-            return Vector2.Distance(screenPos, screenCenter) > 35f;
+            return Core.GHSettings.IsCoopMode;
         }
     }
 }

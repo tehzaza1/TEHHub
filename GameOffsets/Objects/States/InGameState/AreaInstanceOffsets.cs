@@ -46,6 +46,7 @@ namespace GameOffsets.Objects.States.InGameState
     public struct LocalPlayerStruct
     {
         [FieldOffset(0x00)] public IntPtr ServerDataPtr;
+        [FieldOffset(0x08)] public StdVector LocalPlayers;
         [FieldOffset(0x20)] public IntPtr LocalPlayerPtr;
     }
 

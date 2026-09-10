@@ -21,6 +21,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
     using ImGuiNET;
     using RemoteEnums;
     using UiElement;
+    using Components;
 
     /// <summary>
     ///     This is actually UiRoot main child which contains
@@ -520,10 +521,11 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             var data1 = reader.ReadMemory<ImportantUiElementsOffsets>(Core.GHSettings.IsTaiwanClient ? this.Address - 0x08 : this.Address);
             if (Core.GHSettings.EnableControllerMode)
             {
+                Core.GHSettings.IsCoopMode = this.IsCoopMode();
                 this.UpdateMapAddresses();
                 this.UpdateWorldMapPanelAddresses();
                 var containerAddr = GetControllerContainerAddress(this.Address);
-                if (this.IsCoopMode())
+                if (Core.GHSettings.IsCoopMode)
                 {
                     this.LeftPanel.Address = ResolveChildAddress(this.Address, LeftPanelCoopPath);
                     this.RightPanel.Address = ResolveChildAddress(this.Address, RightPanelCoopPath);
@@ -551,6 +553,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             }
             else
             {
+                Core.GHSettings.IsCoopMode = false;
                 this.UpdateMapAddresses();
                 this.UpdateWorldMapPanelAddresses();
                 this.LeftPanel.Address = ValidUiElementOrZero(data1.LeftPanelPtr);
@@ -1102,11 +1105,36 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            foreach (var entity in currentArea.AwakeEntities.Values)
+            // 1. Direct engine check: LocalPlayerCount on this machine.
+            // When 2 players play local co-op sharing the screen, LocalPlayerCount is >= 2.
+            // In Town or Hideout, other online players are NOT local players, so LocalPlayerCount is 1!
+            if (currentArea.LocalPlayerCount >= 2)
             {
-                if (entity.EntitySubtype == GameHelper.RemoteEnums.Entity.EntitySubtypes.PlayerOther)
+                return true;
+            }
+            if (currentArea.LocalPlayerCount == 1)
+            {
+                return false;
+            }
+
+            // 2. Fallback camera offset check:
+            // When 2 players play co-op sharing the same screen, the camera is shared/midpoint-tracked.
+            // Player 1 is shifted away from the dead screen-center (> 35 pixels).
+            // In solo mode, even in Town with 50 other players, Player 1 is always locked at screen center (distance < 5).
+            var worldData = inGameState.CurrentWorldInstance;
+            if (worldData != null && worldData.Address != IntPtr.Zero &&
+                currentArea.Player.TryGetComponent<Render>(out var playerRender))
+            {
+                var screenPos = worldData.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
+                if (screenPos != Vector2.Zero)
                 {
-                    return true;
+                    var screenCenter = new Vector2(
+                        Core.Process.WindowArea.Width / 2f,
+                        Core.Process.WindowArea.Height / 2f);
+                    if (Vector2.Distance(screenPos, screenCenter) > 35f)
+                    {
+                        return true;
+                    }
                 }
             }
 

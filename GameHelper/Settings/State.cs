@@ -226,6 +226,20 @@ namespace GameHelper.Settings
         public bool EnableControllerMode = false;
 
         /// <summary>
+        ///     Gets a value indicating if local Co-op mode (2 players sharing the same screen) is active.
+        /// </summary>
+        public bool IsCoopMode = false;
+
+        /// <summary>
+        ///     Gets the current detected game input mode.
+        /// </summary>
+        [JsonIgnore]
+        public GameInputMode CurrentGameMode =>
+            !this.EnableControllerMode
+                ? GameInputMode.KeyboardMouse
+                : (this.IsCoopMode ? GameInputMode.ControllerCoop : GameInputMode.ControllerSolo);
+
+        /// <summary>
         ///     Gets the party leader name.
         /// </summary>
         public string LeaderName = string.Empty;
