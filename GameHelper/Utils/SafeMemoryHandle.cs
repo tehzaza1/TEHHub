@@ -240,8 +240,25 @@ namespace GameHelper.Utils
             where T : unmanaged
         {
             ArgumentNullException.ThrowIfNull(buffer);
+            return this.TryReadMemoryArray(address, buffer, buffer.Length, out bytesRead);
+        }
+
+        /// <summary>
+        ///     Reads a prefix of a caller-owned buffer. This permits pooled buffers to be used
+        ///     for an exact native read without exposing unused trailing capacity to the target.
+        /// </summary>
+        internal bool TryReadMemoryArray<T>(IntPtr address, T[] buffer, int elementCount, out nuint bytesRead)
+            where T : unmanaged
+        {
+            ArgumentNullException.ThrowIfNull(buffer);
             bytesRead = 0;
-            if (buffer.Length == 0)
+            ArgumentOutOfRangeException.ThrowIfNegative(elementCount);
+            if (elementCount > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(elementCount));
+            }
+
+            if (elementCount == 0)
             {
                 return true;
             }
@@ -254,10 +271,10 @@ namespace GameHelper.Utils
 
             try
             {
-                var expectedBytes = checked((nuint)buffer.Length * (nuint)Unsafe.SizeOf<T>());
+                var expectedBytes = checked((nuint)elementCount * (nuint)Unsafe.SizeOf<T>());
                 var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
                 var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
-                var succeeded = NativeProcessMemory.TryRead(this.handle, address, buffer, out bytesRead);
+                var succeeded = NativeProcessMemory.TryRead(this.handle, address, buffer, elementCount, out bytesRead);
                 var complete = succeeded && bytesRead == expectedBytes;
                 if (measureRead)
                 {

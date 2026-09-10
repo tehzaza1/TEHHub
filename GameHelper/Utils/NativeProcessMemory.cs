@@ -42,13 +42,19 @@ internal static partial class NativeProcessMemory
         nint processHandle,
         nint address,
         T[] buffer,
+        int elementCount,
         out nuint bytesRead)
         where T : unmanaged
     {
-        if (buffer.Length == 0)
+        if (elementCount <= 0)
         {
             bytesRead = 0;
             return true;
+        }
+
+        if (elementCount > buffer.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(elementCount));
         }
 
         fixed (T* bufferPointer = buffer)
@@ -57,7 +63,7 @@ internal static partial class NativeProcessMemory
                 processHandle,
                 address,
                 bufferPointer,
-                checked((nuint)buffer.Length * (nuint)sizeof(T)),
+                checked((nuint)elementCount * (nuint)sizeof(T)),
                 out bytesRead);
         }
     }
