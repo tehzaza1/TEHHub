@@ -234,16 +234,25 @@ namespace AutoExile2.Systems
                 string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Dumps");
                 Directory.CreateDirectory(outputDir);
 
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string safeArea = Regex.Replace(string.IsNullOrWhiteSpace(areaName) ? "Unknown" : areaName, @"[^a-zA-Z0-9_\-]", "_");
-                string fileName = $"Recording_{reason}_{safeArea}_{timestamp}.json";
+                string fileName;
+                if (string.Equals(reason, "MANUAL", StringComparison.OrdinalIgnoreCase))
+                {
+                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                    string safeArea = Regex.Replace(string.IsNullOrWhiteSpace(areaName) ? "Unknown" : areaName, @"[^a-zA-Z0-9_\-]", "_");
+                    fileName = $"Recording_MANUAL_{safeArea}_{timestamp}.json";
+                }
+                else
+                {
+                    fileName = "Recording_Latest.json";
+                }
+
                 string filePath = Path.Combine(outputDir, fileName);
 
                 var dump = new
                 {
                     incident = reason,
                     recordedAt = DateTime.Now.ToString("o"),
-                    area = areaName,
+                    area = string.Equals(reason, "MANUAL", StringComparison.OrdinalIgnoreCase) ? areaName : null,
                     totalTicks = ordered.Count,
                     durationSeconds = Math.Round(ordered.Sum(s => s.DeltaSec), 2),
                     timeline = ordered,
@@ -257,7 +266,25 @@ namespace AutoExile2.Systems
 
                 Task.Run(() =>
                 {
-                    try { File.WriteAllText(filePath, json); } catch { }
+                    try
+                    {
+                        File.WriteAllText(filePath, json);
+
+                        // If auto dump, remove old historical auto dumps to keep only the latest
+                        if (!string.Equals(reason, "MANUAL", StringComparison.OrdinalIgnoreCase))
+                        {
+                            foreach (var oldFile in Directory.GetFiles(outputDir, "Recording_*.json"))
+                            {
+                                var name = Path.GetFileName(oldFile);
+                                if (!name.Equals("Recording_Latest.json", StringComparison.OrdinalIgnoreCase) &&
+                                    !name.StartsWith("Recording_MANUAL_", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    try { File.Delete(oldFile); } catch { }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
                 });
 
                 this.LastDumpStatus = $"Recording dumped: {fileName} ({ordered.Count} ticks, {reason})";
