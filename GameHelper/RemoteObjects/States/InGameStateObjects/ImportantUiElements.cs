@@ -146,6 +146,20 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             public StdTuple2D<int> Target;
         }
 
+        // Read the fields that classify an Atlas child and identify a map node in one native
+        // operation. The map-node and region-button layouts share the same UiElement allocation,
+        // so one intentionally sparse header covers both without following their data pointers.
+        [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 0x328)]
+        private struct AtlasNodeUiHeader
+        {
+            [FieldOffset(0x010)] public IntPtr NodeDataStorage;
+            [FieldOffset(UiElementBaseFlagsOffset)] public uint Flags;
+            [FieldOffset(AtlasRegionButtonRowPtrOffset)] public IntPtr RegionButtonRowPtr;
+            [FieldOffset(AtlasNodeGridPositionOffset)] public StdTuple2D<int> MapGridPosition;
+            [FieldOffset(AtlasRegionButtonGridOffset)] public StdTuple2D<int> RegionButtonGrid;
+            [FieldOffset(AtlasRegionButtonRowIndexOffset)] public int RegionButtonRowIndex;
+        }
+
         /// <summary>
         ///     Passive skill tree node Parent UI element.
         ///     GameUi -> child 24 -> child 2.
@@ -693,7 +707,8 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 // actual map nodes — other children (markers, sub-containers, decorative elements) have
                 // unrelated layouts, and chasing the map-node pointer chain on them dereferences garbage
                 // (huge bogus child counts → multi-MB reads), which is what froze the overlay.
-                var flags = reader.ReadMemory<uint>(nodeUi.Address + UiElementBaseFlagsOffset);
+                var nodeHeader = reader.ReadMemory<AtlasNodeUiHeader>(nodeUi.Address);
+                var flags = nodeHeader.Flags;
                 var fpMasked = flags & ~IsVisibleMask;
                 if (fpMasked == markerFpMasked && (flags & IsVisibleMask) != 0)
                 {
@@ -704,21 +719,18 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 if (fpMasked != (AtlasMapNodeFp & ~IsVisibleMask) &&
                     fpMasked != (AtlasMistNodeFp & ~IsVisibleMask))
                 {
-                    if (reader.TryReadMemory<int>(nodeUi.Address + AtlasRegionButtonRowIndexOffset, out var rowIndex) &&
-                        rowIndex == AtlasOceanRegionButtonRow &&
-                        reader.TryReadMemory<IntPtr>(nodeUi.Address + AtlasRegionButtonRowPtrOffset, out var rowPtr) &&
-                        rowPtr != IntPtr.Zero &&
-                        reader.TryReadMemory<StdTuple2D<int>>(nodeUi.Address + AtlasRegionButtonGridOffset, out var buttonGrid) &&
-                        buttonGrid.X is >= -0x80000 and <= 0x80000 &&
-                        buttonGrid.Y is >= -0x80000 and <= 0x80000)
+                    if (nodeHeader.RegionButtonRowIndex == AtlasOceanRegionButtonRow &&
+                        nodeHeader.RegionButtonRowPtr != IntPtr.Zero &&
+                        nodeHeader.RegionButtonGrid.X is >= -0x80000 and <= 0x80000 &&
+                        nodeHeader.RegionButtonGrid.Y is >= -0x80000 and <= 0x80000)
                     {
-                        oceanButtons.Add(new AtlasRegionButton(i, nodeUi.Address, buttonGrid, (flags & IsVisibleMask) != 0));
+                        oceanButtons.Add(new AtlasRegionButton(i, nodeUi.Address, nodeHeader.RegionButtonGrid, (flags & IsVisibleMask) != 0));
                     }
 
                     continue;
                 }
 
-                var map = ReadAtlasMapNode(i, nodeUi, connections);
+                var map = ReadAtlasMapNode(i, nodeUi, nodeHeader, connections);
                 if (map != null)
                 {
                     maps.Add(map);
@@ -770,6 +782,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         private static AtlasMapNode? ReadAtlasMapNode(
             int index,
             UiElementBase nodeUi,
+            AtlasNodeUiHeader nodeHeader,
             Dictionary<StdTuple2D<int>, List<StdTuple2D<int>>> connections)
         {
             var nodeAddr = nodeUi.Address;
@@ -783,20 +796,19 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             // those expected, recoverable failures don't flood the log (and stall the app) — bail and
             // skip the node instead. A real map node reads cleanly through the whole chain.
             var reader = Core.Process.Handle;
-            if (!reader.TryReadMemory<IntPtr>(nodeAddr + 0x10, out var nodeDataStorage) || nodeDataStorage == IntPtr.Zero)
+            if (nodeHeader.NodeDataStorage == IntPtr.Zero)
             {
                 return null;
             }
 
-            if (!reader.TryReadMemory<IntPtr>(nodeDataStorage + 0x20, out var nodeData) || nodeData == IntPtr.Zero)
+            if (!reader.TryReadMemory<IntPtr>(nodeHeader.NodeDataStorage + 0x20, out var nodeData) || nodeData == IntPtr.Zero)
             {
                 return null;
             }
 
             // +0x310 is the atlas-wide coordinate used by the panel's connection edges. The
             // superficially similar pair at +0x320 is only local to the node's generated region.
-            if (!reader.TryReadMemory<StdTuple2D<int>>(nodeAddr + AtlasNodeGridPositionOffset, out var gridPosition) ||
-                !reader.TryReadMemory<byte>(nodeData + AtlasNodeBiomeIdOffset, out var biomeId) ||
+            if (!reader.TryReadMemory<byte>(nodeData + AtlasNodeBiomeIdOffset, out var biomeId) ||
                 !reader.TryReadMemory<byte>(nodeData + AtlasNodeStatusByteOffset, out var status))
             {
                 return null;
@@ -829,7 +841,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 index,
                 nodeAddr,
                 mapId,
-                gridPosition,
+                nodeHeader.MapGridPosition,
                 biomeId,
                 status,
                 state,
@@ -837,7 +849,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 badgeAddresses,
                 contentTokens,
                 badgeContentIds,
-                connections.TryGetValue(gridPosition, out var connected) ? connected : []);
+                connections.TryGetValue(nodeHeader.MapGridPosition, out var connected) ? connected : []);
         }
 
         private static string BuildAtlasNodeLayoutReport(AtlasMapNode map)
