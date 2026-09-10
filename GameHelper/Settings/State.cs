@@ -9,17 +9,16 @@ namespace GameHelper.Settings
     using ClickableTransparentOverlay;
     using System.Linq;
     using System;
-    using System.Runtime.Serialization;
+    using System.Text.Json.Serialization;
     using GameHelper.Localization;
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
-    using Newtonsoft.Json;
     using ClickableTransparentOverlay.Win32;
 
     /// <summary>
     ///     Game Helper Core Settings.
     /// </summary>
-    public class State
+    public class State : IJsonOnDeserialized
     {
         /// <summary>
         ///     Core Setting File Information.
@@ -308,8 +307,7 @@ namespace GameHelper.Settings
         /// <summary>
         ///     Gets a value indicating if user is running Taiwan client or not.
         /// </summary>
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
+        void IJsonOnDeserialized.OnDeserialized()
         {
             if (MonstersPathsToIgnore != null)
             {

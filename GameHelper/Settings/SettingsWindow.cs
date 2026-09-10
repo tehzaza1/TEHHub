@@ -1113,7 +1113,10 @@ namespace GameHelper.Settings
             while (true)
             {
                 yield return new Wait(GameHelperEvents.TimeToSaveAllSettings);
-                JsonHelper.SafeToFile(Core.GHSettings, State.CoreSettingFile);
+                JsonHelper.SafeToFile(
+                    Core.GHSettings,
+                    State.CoreSettingFile,
+                    StateJsonContext.Default.State);
             }
         }
     }

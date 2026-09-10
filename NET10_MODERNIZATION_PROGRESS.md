@@ -350,6 +350,14 @@ Commit: `8cd48a3 perf: source-generate localization JSON metadata`
 
 Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 
+### 6.5 ย้าย core settings จาก Newtonsoft.Json
+
+- `core_settings.json` ใช้ `StateJsonContext` ที่ source-generate โดย .NET 10 แล้ว
+- รองรับ public fields, enum ทั้งตัวเลขและชื่อ, รวมถึง tuple รูปแบบ legacy (`Item1`, `Item2`, …) จึงอ่าน config เดิมของผู้ใช้ได้โดยไม่ต้องลบไฟล์
+- ย้าย `[JsonIgnore]` และ callback หลัง deserialize ไปเป็น API ของ `System.Text.Json` (`IJsonOnDeserialized`)
+- ถอด Newtonsoft attributes ออกจาก `Rarity` และ `EntityFilterType`; conversion ของ State ใช้ string-enum converter ของ System.Text.Json แทน
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

@@ -57,7 +57,9 @@ namespace GameHelper
         /// <summary>
         ///     Gets the GameHelper settings.
         /// </summary>
-        public static State GHSettings { get; } = JsonHelper.CreateOrLoadJsonFile<State>(State.CoreSettingFile);
+        public static State GHSettings { get; } = JsonHelper.CreateOrLoadJsonFile(
+            State.CoreSettingFile,
+            StateJsonContext.Default.State);
 
         /// <summary>
         ///     Gets a value indicating whether the GameHelper settings window is currently open.
