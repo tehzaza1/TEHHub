@@ -1115,7 +1115,39 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 this.isCoopLatched = false;
             }
 
-            // Check if any other player entity is present in AwakeEntities
+            // 1. Native LocalPlayerCount (Couch Co-op has >= 2 local controllers/players)
+            if (currentArea.LocalPlayerCount > 1)
+            {
+                this.isCoopLatched = true;
+                return true;
+            }
+
+            // 2. Direct read from memory vector in case AreaInstance hasn't completed its frame update
+            var reader = Core.Process.Handle;
+            var playerInfo = reader.ReadMemory<LocalPlayerStruct>(currentArea.Address + 0x5B0);
+            if ((int)playerInfo.LocalPlayers.TotalElements(8) > 1)
+            {
+                this.isCoopLatched = true;
+                return true;
+            }
+
+            // 3. Gamepad UI Indicator: Co-op split containers (Child 22 & 23)
+            // In Couch Co-op, Child 22 (P1) and Child 23 (P2) are split panels with size.X > 500 and >= 7 children.
+            var child22 = ResolveChildAddress(this.Address, LeftPanelCoopPath);
+            var child23 = ResolveChildAddress(this.Address, RightPanelCoopPath);
+            if (child22 != IntPtr.Zero && child23 != IntPtr.Zero)
+            {
+                var c22Off = reader.ReadMemory<UiElementBaseOffset>(child22);
+                var c23Off = reader.ReadMemory<UiElementBaseOffset>(child23);
+                if (c22Off.ChildrensPtr.TotalElements(8) >= 7 && c23Off.ChildrensPtr.TotalElements(8) >= 7 &&
+                    c22Off.UnscaledSize.X > 500 && c23Off.UnscaledSize.X > 500)
+                {
+                    this.isCoopLatched = true;
+                    return true;
+                }
+            }
+
+            // 4. Check if any other player entity is present in AwakeEntities
             var hasOtherPlayer = false;
             foreach (var entity in currentArea.AwakeEntities.Values)
             {
@@ -1132,7 +1164,6 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 return true;
             }
 
-            // If another player is present:
             if (hasOtherPlayer)
             {
                 var worldData = inGameState.CurrentWorldInstance;
@@ -1148,7 +1179,6 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 }
 
                 // In Town: check if camera is shifted away from dead center (> 12 pixels)
-                // In solo mode, camera is locked at 0-2 pixels from screen center.
                 if (worldData != null && worldData.Address != IntPtr.Zero &&
                     currentArea.Player.TryGetComponent<Render>(out var playerRender))
                 {
@@ -1166,9 +1196,6 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     }
                 }
 
-                // In Town: check if Co-op split containers (Child 22 / 23) have any active visible panel
-                var child22 = ResolveChildAddress(this.Address, LeftPanelCoopPath);
-                var child23 = ResolveChildAddress(this.Address, RightPanelCoopPath);
                 if (IsContainerActive(child22) || IsContainerActive(child23))
                 {
                     this.isCoopLatched = true;
@@ -1178,8 +1205,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            // Even if AwakeEntities didn't report PlayerOther (e.g. initial frames or town entity disable),
-            // camera offset > 15px in controller mode only happens with shared Co-op camera
+            // Even if AwakeEntities didn't report PlayerOther, camera offset > 15px in controller mode only happens with shared Co-op camera
             var wd = inGameState.CurrentWorldInstance;
             if (wd != null && wd.Address != IntPtr.Zero &&
                 currentArea.Player.TryGetComponent<Render>(out var pRender))

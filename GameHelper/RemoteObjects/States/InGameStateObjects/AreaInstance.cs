@@ -75,6 +75,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
             this.ServerDataObject = new(IntPtr.Zero);
             this.Player = new();
+            this.Player2 = new();
             this.AwakeEntities = new();
             this.SleepingEntities = new();
             this.EntityCaches = new()
@@ -118,6 +119,11 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         ///     Gets the player Entity.
         /// </summary>
         public Entity Player { get; }
+
+        /// <summary>
+        ///     Gets the player 2 Entity in Couch Co-op mode.
+        /// </summary>
+        public Entity Player2 { get; }
 
         /// <summary>
         ///     Gets the Awake Entities of the current Area/Zone.
@@ -289,8 +295,18 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             this.UpdateEnvironmentAndCaches(data.Environments);
             this.ServerDataObject.Address = data.PlayerInfo.ServerDataPtr;
             this.Player.Address = data.PlayerInfo.LocalPlayerPtr;
-            var localPlayerCount = (int)data.PlayerInfo.LocalPlayers.TotalElements(16);
+            var localPlayerCount = (int)data.PlayerInfo.LocalPlayers.TotalElements(8);
             this.LocalPlayerCount = (localPlayerCount is >= 1 and <= 8) ? localPlayerCount : 1;
+            if (this.LocalPlayerCount > 1 && data.PlayerInfo.LocalPlayers.First != IntPtr.Zero)
+            {
+                var p2Ptr = reader.ReadMemory<IntPtr>(data.PlayerInfo.LocalPlayers.First + 8);
+                this.Player2.Address = p2Ptr;
+            }
+            else
+            {
+                this.Player2.Address = IntPtr.Zero;
+            }
+
             this.UpdateEntities(data.Entities.AwakeEntities, this.AwakeEntities, true);
             this.AddEntityBackedPlayerBuffs();
         }
@@ -731,6 +747,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 this.AreaHash = string.Empty;
                 this.ServerDataObject.Address = IntPtr.Zero;
                 this.Player.Address = IntPtr.Zero;
+                this.Player2.Address = IntPtr.Zero;
                 this.NetworkBubbleEntityCount = 0;
                 this.TerrainMetadata = default;
                 this.GridHeightData = Array.Empty<float[]>();

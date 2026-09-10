@@ -433,9 +433,18 @@ namespace Radar
 
             var playerOther = currentAreaInstance.AwakeEntities.Values
                 .FirstOrDefault(e => e.EntitySubtype == EntitySubtypes.PlayerOther);
-            if (this.IsLocalCoopActive(playerRender, playerOther != null))
+            var hasCoopPartner = currentAreaInstance.LocalPlayerCount > 1 ||
+                                 currentAreaInstance.Player2.Address != IntPtr.Zero ||
+                                 playerOther != null;
+            if (this.IsLocalCoopActive(playerRender, hasCoopPartner))
             {
-                if (playerOther != null && playerOther.TryGetComponent<Render>(out var pOtherRender))
+                if (currentAreaInstance.Player2.Address != IntPtr.Zero &&
+                    currentAreaInstance.Player2.TryGetComponent<Render>(out var p2Render))
+                {
+                    trackingPos = (trackingPos + new Vector2(p2Render.GridPosition.X, p2Render.GridPosition.Y)) / 2f;
+                    trackingHeight = (trackingHeight + p2Render.TerrainHeight) / 2f;
+                }
+                else if (playerOther != null && playerOther.TryGetComponent<Render>(out var pOtherRender))
                 {
                     trackingPos = (trackingPos + new Vector2(pOtherRender.GridPosition.X, pOtherRender.GridPosition.Y)) / 2f;
                     trackingHeight = (trackingHeight + pOtherRender.TerrainHeight) / 2f;
