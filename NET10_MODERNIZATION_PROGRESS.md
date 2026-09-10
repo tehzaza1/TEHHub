@@ -310,6 +310,16 @@ Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 - ทยอยเปลี่ยน `DllImport` ที่เหมาะสมเป็น `LibraryImport`
 - ตรวจ package เก่าและ API ที่เลิกแนะนำทีละกลุ่ม
 
+### 6.1 ย้าย localization JSON ไป System.Text.Json
+
+- `PluginLocalization` และ `OverlayLocalization` อ่านไฟล์ localization ที่มี schema ตายตัวเป็น `Dictionary<string, string>`
+- ย้ายสองจุดนี้จาก Newtonsoft ไป `System.Text.Json` ที่มากับ .NET 10 แล้ว
+- ใช้ options เดียวที่รองรับชื่อ property ต่างตัวพิมพ์เพื่อคง tolerance เดิมของไฟล์ภาษา
+- ยังไม่ถอด package Newtonsoft จาก GameHelper เพราะยังมี JSON DOM (`JObject`) และ enum converter ในส่วนอื่นที่ต้องย้ายแยกอย่างปลอดภัย
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `a5a1bed refactor: use System.Text.Json for localization`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
