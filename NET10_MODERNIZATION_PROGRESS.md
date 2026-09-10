@@ -99,6 +99,15 @@ Runtime validation หลังย้าย core reader (`memory_diagnostics_202
 
 Commit: `941cee1 refactor: remove legacy process memory package`
 
+### 5.3 เพิ่มค่าเฉลี่ย memory reads ทั้ง session
+
+- แยกตัวเลข `Recent` ช่วง 0.5 วินาทีล่าสุดออกจาก `Session`
+- Session แสดงระยะเวลา, calls/วินาที, MiB/วินาที, เวลาเฉลี่ย/call และ failures รวม
+- ทำให้ dump จากภาระต่างช่วงเปรียบเทียบกันได้แม่นยำขึ้น
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `5a967fa perf: add session-wide memory read metrics`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
@@ -109,7 +118,7 @@ Commit: `941cee1 refactor: remove legacy process memory package`
 
 การย้าย wrapper และถอด package เสร็จแล้ว งานที่เหลือในเฟส memory reader คือ:
 
-1. เพิ่มค่าเฉลี่ยทั้ง session แยกจาก snapshot ณ เวลาที่กด Dump เพื่อให้การเปรียบเทียบแม่นยำขึ้น
+1. ~~เพิ่มค่าเฉลี่ยทั้ง session แยกจาก snapshot ณ เวลาที่กด Dump~~
 2. ลด allocation ของ array/string reads และใช้ buffer ซ้ำในจุดที่ปลอดภัย
 3. รวม read ที่อยู่ติดกันเพื่อลดจำนวนการข้ามจาก .NET ไป Windows
 4. หา call site ที่เรียกถี่ผิดปกติ แล้วเพิ่ม cache/throttle โดยไม่ทำให้ข้อมูลสำคัญล่าช้า
