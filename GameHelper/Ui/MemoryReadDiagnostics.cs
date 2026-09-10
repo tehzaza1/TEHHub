@@ -46,6 +46,7 @@ public static class MemoryReadDiagnostics
     private static long totalReadFailures;
     private static long scalarReadCalls;
     private static long bufferReadCalls;
+    private static long totalFrames;
     private static long firstReadTimestamp;
     private static long previousReadCalls;
     private static long previousReadBytes;
@@ -119,6 +120,17 @@ public static class MemoryReadDiagnostics
         }
     }
 
+    /// <summary>
+    ///     Records one completed overlay frame while memory diagnostics are enabled.
+    /// </summary>
+    internal static void RecordFrame()
+    {
+        if (Core.GHSettings.ShowMemoryDiagnostics)
+        {
+            Interlocked.Increment(ref totalFrames);
+        }
+    }
+
     private static IEnumerator<Wait> RenderWindow()
     {
         while (true)
@@ -182,6 +194,10 @@ public static class MemoryReadDiagnostics
                     $"{cachedReadRate.AverageMebibytesPerSecond:F2} MiB/s  |  " +
                     $"{cachedReadRate.AverageMicrosecondsPerCall:F2} us/call  |  " +
                     $"fail {cachedReadRate.TotalFailures:N0}");
+                ImGui.Text(
+                    $"Frames: {cachedReadRate.TotalFrames:N0}  |  " +
+                    $"{cachedReadRate.AverageFramesPerSecond:F1} frames/s  |  " +
+                    $"{cachedReadRate.AverageCallsPerFrame:N0} reads/frame");
                 ImGui.TextDisabled(
                     $"Breakdown: Scalar {cachedReadRate.ScalarCalls:N0}    Buffer/array {cachedReadRate.BufferCalls:N0}    " +
                     $"Requested: {cachedReadRate.TotalMebibytes:F2} MiB");
@@ -304,6 +320,7 @@ public static class MemoryReadDiagnostics
         var bytes = Interlocked.Read(ref totalReadBytes);
         var ticks = Interlocked.Read(ref totalReadTicks);
         var failures = Interlocked.Read(ref totalReadFailures);
+        var frames = Interlocked.Read(ref totalFrames);
         var callsDelta = calls - previousReadCalls;
         var bytesDelta = bytes - previousReadBytes;
         var ticksDelta = ticks - previousReadTicks;
@@ -326,7 +343,10 @@ public static class MemoryReadDiagnostics
             sessionSeconds > 0 ? calls / sessionSeconds : 0,
             sessionSeconds > 0 ? bytes / 1048576.0 / sessionSeconds : 0,
             calls > 0 ? ticks * 1_000_000.0 / Stopwatch.Frequency / calls : 0,
-            failures);
+            failures,
+            frames,
+            sessionSeconds > 0 ? frames / sessionSeconds : 0,
+            frames > 0 ? (double)calls / frames : 0);
 
         previousReadCalls = calls;
         previousReadBytes = bytes;
@@ -343,6 +363,7 @@ public static class MemoryReadDiagnostics
         Interlocked.Exchange(ref totalReadFailures, 0);
         Interlocked.Exchange(ref scalarReadCalls, 0);
         Interlocked.Exchange(ref bufferReadCalls, 0);
+        Interlocked.Exchange(ref totalFrames, 0);
         Interlocked.Exchange(ref firstReadTimestamp, 0);
         previousReadCalls = 0;
         previousReadBytes = 0;
@@ -372,6 +393,10 @@ public static class MemoryReadDiagnostics
             $"{cachedReadRate.AverageMebibytesPerSecond:F2} MiB/s, " +
             $"{cachedReadRate.AverageMicrosecondsPerCall:F2} us/call, " +
             $"{cachedReadRate.TotalFailures} failures");
+        sb.AppendLine(
+            $"# Frames: {cachedReadRate.TotalFrames}, " +
+            $"{cachedReadRate.AverageFramesPerSecond:F1} frames/s, " +
+            $"{cachedReadRate.AverageCallsPerFrame:F0} reads/frame");
         sb.AppendLine(
             $"# Scalar calls: {cachedReadRate.ScalarCalls}, Buffer/array calls: {cachedReadRate.BufferCalls}, " +
             $"Total requested: {cachedReadRate.TotalMebibytes:F2} MiB");
@@ -578,7 +603,10 @@ internal readonly record struct ReadRateSnapshot(
     double AverageCallsPerSecond,
     double AverageMebibytesPerSecond,
     double AverageMicrosecondsPerCall,
-    long TotalFailures);
+    long TotalFailures,
+    long TotalFrames,
+    double AverageFramesPerSecond,
+    double AverageCallsPerFrame);
 
 /// <summary>
 ///     A snapshot row for the diagnostics table.

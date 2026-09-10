@@ -96,6 +96,9 @@ namespace GameHelper
             try { CoroutineHandler.RaiseEvent(GameHelperEvents.OnPostRender); }
             catch (Exception ex) { Console.WriteLine($"[GameOverlay.Render.OnPostRender] {ex}"); }
 
+            PerformanceProfiler.EndFrame();
+            MemoryReadDiagnostics.RecordFrame();
+
             if (!Core.GHSettings.IsOverlayRunning)
             {
                 this.Close();
