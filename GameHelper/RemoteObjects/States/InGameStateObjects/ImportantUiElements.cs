@@ -137,7 +137,6 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         private int atlasMapCacheFrameCounter = int.MaxValue;
         private int cachedAtlasMapCount = -1;
         private string lastAreaHash = string.Empty;
-        private bool isCoopLatched = false;
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct AtlasNodeConnectionEdgeOffsets
@@ -1092,7 +1091,6 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         {
             if (!Core.GHSettings.EnableControllerMode)
             {
-                this.isCoopLatched = false;
                 return false;
             }
 
@@ -1108,17 +1106,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            // Reset latch on area transition
-            if (this.lastAreaHash != currentArea.AreaHash)
-            {
-                this.lastAreaHash = currentArea.AreaHash;
-                this.isCoopLatched = false;
-            }
-
             // 1. Native LocalPlayerCount (Couch Co-op has >= 2 local controllers/players)
             if (currentArea.LocalPlayerCount > 1)
             {
-                this.isCoopLatched = true;
                 return true;
             }
 
@@ -1127,104 +1117,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             var playerInfo = reader.ReadMemory<LocalPlayerStruct>(currentArea.Address + 0x5B0);
             if ((int)playerInfo.LocalPlayers.TotalElements(8) > 1)
             {
-                this.isCoopLatched = true;
                 return true;
             }
 
-            // 3. Gamepad UI Indicator: Co-op split containers (Child 22 & 23)
-            // In Couch Co-op, Child 22 (P1) and Child 23 (P2) are split panels with size.X > 500 and >= 7 children.
-            var child22 = ResolveChildAddress(this.Address, LeftPanelCoopPath);
-            var child23 = ResolveChildAddress(this.Address, RightPanelCoopPath);
-            if (child22 != IntPtr.Zero && child23 != IntPtr.Zero)
-            {
-                var c22Off = reader.ReadMemory<UiElementBaseOffset>(child22);
-                var c23Off = reader.ReadMemory<UiElementBaseOffset>(child23);
-                if (c22Off.ChildrensPtr.TotalElements(8) >= 7 && c23Off.ChildrensPtr.TotalElements(8) >= 7 &&
-                    c22Off.UnscaledSize.X > 500 && c23Off.UnscaledSize.X > 500)
-                {
-                    this.isCoopLatched = true;
-                    return true;
-                }
-            }
-
-            // 4. Check if any other player entity is present in AwakeEntities
-            var hasOtherPlayer = false;
-            foreach (var entity in currentArea.AwakeEntities.Values)
-            {
-                if (entity.EntitySubtype == GameHelper.RemoteEnums.Entity.EntitySubtypes.PlayerOther)
-                {
-                    hasOtherPlayer = true;
-                    break;
-                }
-            }
-
-            // If we are already latched in this area and another player is still present, maintain Co-op
-            if (this.isCoopLatched && hasOtherPlayer)
-            {
-                return true;
-            }
-
-            if (hasOtherPlayer)
-            {
-                var worldData = inGameState.CurrentWorldInstance;
-                var areaDetails = worldData?.AreaDetails;
-                bool isTown = areaDetails != null && areaDetails.IsTown;
-
-                // Outside of Town (Maps, Expeditions, Combat Zones, Hideout):
-                // Having another player in controller mode is definitively Co-op.
-                if (!isTown)
-                {
-                    this.isCoopLatched = true;
-                    return true;
-                }
-
-                // In Town: check if camera is shifted away from dead center (> 12 pixels)
-                if (worldData != null && worldData.Address != IntPtr.Zero &&
-                    currentArea.Player.TryGetComponent<Render>(out var playerRender))
-                {
-                    var screenPos = worldData.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
-                    if (screenPos != Vector2.Zero)
-                    {
-                        var screenCenter = new Vector2(
-                            Core.Process.WindowArea.Width / 2f,
-                            Core.Process.WindowArea.Height / 2f);
-                        if (Vector2.Distance(screenPos, screenCenter) > 12f)
-                        {
-                            this.isCoopLatched = true;
-                            return true;
-                        }
-                    }
-                }
-
-                if (IsContainerActive(child22) || IsContainerActive(child23))
-                {
-                    this.isCoopLatched = true;
-                    return true;
-                }
-
-                return false;
-            }
-
-            // Even if AwakeEntities didn't report PlayerOther, camera offset > 15px in controller mode only happens with shared Co-op camera
-            var wd = inGameState.CurrentWorldInstance;
-            if (wd != null && wd.Address != IntPtr.Zero &&
-                currentArea.Player.TryGetComponent<Render>(out var pRender))
-            {
-                var screenPos = wd.WorldToScreen(pRender.WorldPosition, pRender.TerrainHeight);
-                if (screenPos != Vector2.Zero)
-                {
-                    var screenCenter = new Vector2(
-                        Core.Process.WindowArea.Width / 2f,
-                        Core.Process.WindowArea.Height / 2f);
-                    if (Vector2.Distance(screenPos, screenCenter) > 15f)
-                    {
-                        this.isCoopLatched = true;
-                        return true;
-                    }
-                }
-            }
-
-            this.isCoopLatched = false;
             return false;
         }
 
