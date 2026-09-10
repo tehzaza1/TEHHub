@@ -445,9 +445,6 @@ function selectBuffForSlot(listName, slotIdx, buffName) {
   if (currentSettings[listName] && currentSettings[listName][slotIdx]) {
     currentSettings[listName][slotIdx].BuffDebuffName = buffName;
     currentSettings[listName][slotIdx].OnlyWhenBuffMissing = true;
-        if (document.getElementById('ShowDistanceCircles')) {
-      document.getElementById('ShowDistanceCircles').checked = currentSettings.ShowDistanceCircles !== undefined ? currentSettings.ShowDistanceCircles : true;
-    }
     renderAllSkillLists();
     showToast(`Set condition: Buff "${buffName}" missing`);
   }
@@ -670,7 +667,7 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
           <div class="grid3">
             <div class="form-group">
               <label><input type="checkbox" ${slot.OnlyWhenBuffMissing ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyWhenBuffMissing = this.checked;" /> Only When Buff Missing</label>
-              <input type="text" class="form-control" value="${esc(slot.BuffDebuffName || slot.AssignedSkillName || '')}" placeholder="Buff Name in BuffBar (e.g. Steelskin)" onchange="currentSettings['${listName}'][${i}].BuffDebuffName = this.value;" />
+              <input type="text" class="form-control" value="${esc(slot.BuffDebuffName ?? '')}" placeholder="Buff Name in BuffBar (leave blank to use skill name)" oninput="currentSettings['${listName}'][${i}].BuffDebuffName = this.value;" onchange="currentSettings['${listName}'][${i}].BuffDebuffName = this.value;" />
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -710,7 +707,7 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
             </div>
             <div class="form-group">
               <label><input type="checkbox" ${slot.OnlyWhenBuffMissing ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyWhenBuffMissing = this.checked;" /> Target Lacking Curse</label>
-              <input type="text" class="form-control" value="${esc(slot.BuffDebuffName || slot.AssignedSkillName || '')}" placeholder="Curse / Debuff Name" onchange="currentSettings['${listName}'][${i}].BuffDebuffName = this.value;" />
+              <input type="text" class="form-control" value="${esc(slot.BuffDebuffName ?? '')}" placeholder="Curse / Debuff Name (leave blank to use skill name)" oninput="currentSettings['${listName}'][${i}].BuffDebuffName = this.value;" onchange="currentSettings['${listName}'][${i}].BuffDebuffName = this.value;" />
             </div>
           </div>
           <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${renderDebuffBadgesForSlot(listName, i)}</div>
@@ -923,7 +920,7 @@ function addPresetSkill(listName, skillName, cat, button, cooldownMs, onlyBuffMi
     MinManaPercent: 0,
     IsChannel: false,
     OnlyWhenBuffMissing: onlyBuffMissing !== undefined ? onlyBuffMissing : (catDef.onlyWhenBuffMissing || false),
-    BuffDebuffName: onlyBuffMissing ? skillName : "",
+    BuffDebuffName: "",
     MaxTotemCount: catDef.maxTotems || 1,
     MaxMinionCount: catDef.maxMinions || 3,
     CullerAimDistance: catDef.cullerAimDist || 75,
@@ -979,7 +976,7 @@ function addSkillFromDetected(skillName, cat, listName = 'Skills') {
     MinManaPercent: 0,
     IsChannel: false,
     OnlyWhenBuffMissing: catDef.onlyWhenBuffMissing || false,
-    BuffDebuffName: (cat === 'Buff' || cat === 'Guard') ? skillName : "",
+    BuffDebuffName: "",
     MaxTotemCount: catDef.maxTotems || 1,
     MaxMinionCount: catDef.maxMinions || 3,
     CullerAimDistance: catDef.cullerAimDist || 75,
