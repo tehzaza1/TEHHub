@@ -5,8 +5,8 @@
     using System.IO;
     using System.IO.Compression;
     using System.Net.Http;
+    using System.Text.Json;
     using System.Threading.Tasks;
-    using Newtonsoft.Json.Linq;
 
     public static class AutoUpdate
     {
@@ -76,10 +76,13 @@
             try
             {
                 var response = await HttpClient.GetStringAsync(ReleasesApiUrl);
-                var releases = JArray.Parse(response);
-                if (releases.Count > 0)
+                using var document = JsonDocument.Parse(response);
+                if (document.RootElement.ValueKind == JsonValueKind.Array && document.RootElement.GetArrayLength() > 0)
                 {
-                    return releases[0]["tag_name"]?.ToString();
+                    var latestRelease = document.RootElement[0];
+                    return latestRelease.TryGetProperty("tag_name", out var tagName)
+                        ? tagName.GetString()
+                        : null;
                 }
                 return null;
             }
@@ -163,18 +166,32 @@
             try
             {
                 var response = await HttpClient.GetStringAsync(ReleasesApiUrl);
-                var releases = JArray.Parse(response);
-
-                foreach (var release in releases)
+                using var document = JsonDocument.Parse(response);
+                if (document.RootElement.ValueKind != JsonValueKind.Array)
                 {
-                    var tagName = release["tag_name"]?.ToString();
-                    if (tagName == version)
+                    return null;
+                }
+
+                foreach (var release in document.RootElement.EnumerateArray())
+                {
+                    if (!release.TryGetProperty("tag_name", out var tagNameElement) ||
+                        tagNameElement.GetString() != version)
                     {
-                        var links = release["assets"]?["links"] as JArray;
-                        if (links?.Count > 0)
-                        {
-                            return links[0]["url"]?.ToString();
-                        }
+                        continue;
+                    }
+
+                    if (!release.TryGetProperty("assets", out var assets) ||
+                        !assets.TryGetProperty("links", out var links) ||
+                        links.ValueKind != JsonValueKind.Array ||
+                        links.GetArrayLength() == 0)
+                    {
+                        continue;
+                    }
+
+                    var firstLink = links[0];
+                    if (firstLink.TryGetProperty("url", out var url))
+                    {
+                        return url.GetString();
                     }
                 }
 

@@ -339,6 +339,17 @@ Commit: `7357fd9 refactor: migrate Atlas foreground interop`
 
 Commit: `8cd48a3 perf: source-generate localization JSON metadata`
 
+### 6.4 เริ่มย้าย JSON runtime ออกจาก Newtonsoft.Json
+
+- ย้าย metadata ของปลั๊กอินไปใช้ source-generated `System.Text.Json` และยังคงการกู้คืนไฟล์ config เสียแบบเดิม
+- ย้ายตัวจัดการ temporary files, ตัวตรวจ/ดาวน์โหลดอัปเดตของ Launcher และถอด package Newtonsoft ออกจากโปรเจกต์ Launcher ทั้งหมด
+- ย้าย WorldAreaTags ที่เป็น embedded resource ให้ parse แบบ allocation ต่ำด้วย `JsonDocument`
+- ย้าย Krangled Passive Detector (เครื่องมือ DEBUG) จาก `JObject` ไปใช้ `JsonNode` พร้อมคงผลลัพธ์ JSON แบบ pretty-print
+- เป้าหมายสุดท้ายคือ source ที่ถูก build ทุกส่วนใช้ `System.Text.Json`; โฟลเดอร์ `Backup` จะเก็บของเก่าไว้ตามที่ตกลง และไม่ถูกนำมา build
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
+Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

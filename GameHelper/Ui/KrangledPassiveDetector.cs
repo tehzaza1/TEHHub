@@ -7,11 +7,12 @@ namespace GameHelper.Ui
     using Coroutine;
     using GameHelper.CoroutineEvents;
     using ImGuiNET;
-    using Newtonsoft.Json.Linq;
     using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Numerics;
+    using System.Text.Json;
+    using System.Text.Json.Nodes;
 
     /// <summary>
     ///     Detect Krangled Passive in the POE event and
@@ -190,38 +191,41 @@ namespace GameHelper.Ui
                     ImGui.InputText("Data.json file path", ref dataJsonFilePath, 300);
                     if (ImGui.Button("Generate krangled data.json"))
                     {
-                        // TODO: see audit F-001 — JObject access chain assumes specific JSON
-                        // shape ("nodes" key, per-skill object with "skill"/"group"/"orbit"/"orbitIndex"/"out"/"in"
-                        // children). All intermediate JToken indexers can return null, but the surrounding
-                        // logic predates nullable annotations and trusts the file layout produced by the POB tool.
+                        // This intentionally trusts the Path of Building file shape: a "nodes" object
+                        // containing per-skill objects with the copied fields below.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                        var dataReader = JObject.Parse(File.ReadAllText(dataJsonFilePath));
-                        var dataWriter = dataReader.DeepClone().ToObject<JObject>();
-                        foreach (JProperty skillStruct in dataReader["nodes"])
+                        var dataReader = JsonNode.Parse(File.ReadAllText(dataJsonFilePath)).AsObject();
+                        var dataWriter = dataReader.DeepClone().AsObject();
+                        var sourceNodes = dataReader["nodes"].AsObject();
+                        var targetNodes = dataWriter["nodes"].AsObject();
+                        foreach (var skillStruct in sourceNodes)
                         {
-                            if (skillStruct.Name == "root")
+                            if (skillStruct.Key == "root")
                             {
                                 continue;
                             }
 
-                            var skillId = int.Parse(skillStruct.Name);
+                            var skillId = int.Parse(skillStruct.Key);
                             if (!skillConvertor.ContainsKey(skillId))
                             {
                                 continue;
                             }
 
                             var krangledSkillId = skillConvertor[skillId];
-                            var krangledValue = dataReader["nodes"][krangledSkillId.ToString()];
-                            dataWriter["nodes"][skillStruct.Name] = krangledValue.DeepClone();
-                            dataWriter["nodes"][skillStruct.Name]["skill"] = skillStruct.Value["skill"].DeepClone();
-                            dataWriter["nodes"][skillStruct.Name]["group"] = skillStruct.Value["group"].DeepClone();
-                            dataWriter["nodes"][skillStruct.Name]["orbit"] = skillStruct.Value["orbit"].DeepClone();
-                            dataWriter["nodes"][skillStruct.Name]["orbitIndex"] = skillStruct.Value["orbitIndex"].DeepClone();
-                            dataWriter["nodes"][skillStruct.Name]["out"] = skillStruct.Value["out"].DeepClone();
-                            dataWriter["nodes"][skillStruct.Name]["in"] = skillStruct.Value["in"].DeepClone();
+                            var sourceNode = skillStruct.Value.AsObject();
+                            targetNodes[skillStruct.Key] = sourceNodes[krangledSkillId.ToString()].DeepClone();
+                            var targetNode = targetNodes[skillStruct.Key].AsObject();
+                            targetNode["skill"] = sourceNode["skill"].DeepClone();
+                            targetNode["group"] = sourceNode["group"].DeepClone();
+                            targetNode["orbit"] = sourceNode["orbit"].DeepClone();
+                            targetNode["orbitIndex"] = sourceNode["orbitIndex"].DeepClone();
+                            targetNode["out"] = sourceNode["out"].DeepClone();
+                            targetNode["in"] = sourceNode["in"].DeepClone();
                         }
 
-                        File.WriteAllText(dataJsonFilePath.Replace(".json", "_krangled.json"), dataWriter.ToString(Newtonsoft.Json.Formatting.Indented));
+                        File.WriteAllText(
+                            dataJsonFilePath.Replace(".json", "_krangled.json"),
+                            dataWriter.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 #pragma warning restore CS8602
                         messageToDisplay = $"{dataJsonFilePath.Replace(".json", "_krangled.json")} generated.";
                         ImGui.OpenPopup("KrangledPassiveDetectorPopUp");
