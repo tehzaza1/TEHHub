@@ -5,6 +5,7 @@
 namespace GameHelper.Utils
 {
     using System;
+    using System.Buffers;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Runtime.CompilerServices;
@@ -383,14 +384,22 @@ namespace GameHelper.Utils
         /// <returns>string read.</returns>
         internal string ReadString(IntPtr address)
         {
-            var buffer = this.ReadMemoryArray<byte>(address, 128);
-            var count = Array.IndexOf<byte>(buffer, 0x00, 0);
-            if (count > 0)
+            const int bufferLength = 128;
+            var buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+            try
             {
-                return Encoding.ASCII.GetString(buffer, 0, count);
-            }
+                if (!this.TryReadMemoryArray(address, buffer, bufferLength, out _))
+                {
+                    return string.Empty;
+                }
 
-            return string.Empty;
+                var count = Array.IndexOf(buffer, (byte)0, 0, bufferLength);
+                return count > 0 ? Encoding.ASCII.GetString(buffer, 0, count) : string.Empty;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         /// <summary>
@@ -401,25 +410,32 @@ namespace GameHelper.Utils
         /// <returns>string read from the memory.</returns>
         internal string ReadUnicodeString(IntPtr address)
         {
-            var buffer = this.ReadMemoryArray<byte>(address, 256);
-            var count = 0x00;
-            for (var i = 0; i < buffer.Length - 2; i++)
+            const int bufferLength = 256;
+            var buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+            try
             {
-                if (buffer[i] == 0x00 && buffer[i + 1] == 0x00 && buffer[i + 2] == 0x00)
+                if (!this.TryReadMemoryArray(address, buffer, bufferLength, out _))
                 {
-                    count = i % 2 == 0 ? i : i + 1;
-                    break;
+                    return string.Empty;
                 }
-            }
 
-            // let's not return a string if null isn't found.
-            if (count == 0)
+                var count = 0;
+                for (var i = 0; i < bufferLength - 2; i++)
+                {
+                    if (buffer[i] == 0x00 && buffer[i + 1] == 0x00 && buffer[i + 2] == 0x00)
+                    {
+                        count = i % 2 == 0 ? i : i + 1;
+                        break;
+                    }
+                }
+
+                // Let's not return a string if a terminator isn't found.
+                return count == 0 ? string.Empty : Encoding.Unicode.GetString(buffer, 0, count);
+            }
+            finally
             {
-                return string.Empty;
+                ArrayPool<byte>.Shared.Return(buffer);
             }
-
-            var ret = Encoding.Unicode.GetString(buffer, 0, count);
-            return ret;
         }
 
         /// <summary>

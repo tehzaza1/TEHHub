@@ -48,7 +48,10 @@ namespace GameHelper.RemoteObjects
         protected override void UpdateData(bool hasAddressChanged)
         {
             var reader = Core.Process.Handle;
-            this.Values = reader.ReadMemoryArray<byte>(this.Address, this.Values.Length);
+            if (!reader.TryReadMemoryArray(this.Address, this.Values, out _))
+            {
+                Array.Clear(this.Values);
+            }
         }
     }
 }

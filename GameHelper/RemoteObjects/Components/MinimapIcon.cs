@@ -5,6 +5,7 @@
 namespace GameHelper.RemoteObjects.Components
 {
     using System;
+    using System.Buffers;
     using GameOffsets.Objects.Components;
     using ImGuiNET;
 
@@ -34,11 +35,17 @@ namespace GameHelper.RemoteObjects.Components
 
         private string? TryReadUtf16String(IntPtr address)
         {
+            const int bufferLength = 512;
+            var bytes = ArrayPool<byte>.Shared.Rent(bufferLength);
             try
             {
                 var reader = Core.Process.Handle;
-                var bytes = reader.ReadMemoryArray<byte>(address, 512);
-                for (var i = 0; i < bytes.Length - 1; i += 2)
+                if (!reader.TryReadMemoryArray(address, bytes, bufferLength, out _))
+                {
+                    return null;
+                }
+
+                for (var i = 0; i < bufferLength - 1; i += 2)
                 {
                     if (bytes[i] == 0 && bytes[i + 1] == 0)
                     {
@@ -50,6 +57,10 @@ namespace GameHelper.RemoteObjects.Components
             catch (Exception ex)
             {
                 Console.WriteLine($"[MinimapIcon.TryReadUtf16String] {address.ToInt64():X}: {ex.Message}");
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(bytes);
             }
 
             return null;

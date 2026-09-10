@@ -286,6 +286,13 @@ Commit: `caa0424 perf: combine Atlas node header reads`
 
 Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 
+### 5.13 ลด allocation จาก fixed-size memory buffers
+
+- การอ่าน ASCII/UTF-16 ที่ปลายทางยังคงขนาดและจำนวน native reads เดิม แต่เช่า buffer จาก `ArrayPool<byte>` แทนการสร้าง byte array ใหม่ทุกครั้ง
+- Terrain height refresh อ่านลง array เดิมของ object โดยตรง; หากอ่านไม่สำเร็จจะล้างค่าเป็นศูนย์เหมือนผลลัพธ์ปลอดภัยเดิม
+- Minimap icon ใช้ buffer ที่เช่าจาก pool ขนาด 512 bytes และคืนทุกกรณี รวมถึงกรณี read หรือ parse ล้มเหลว
+- ไม่เปลี่ยนการ refresh, cache หรือข้อมูลที่นำไปวาด จึงไม่ทำให้ Atlas/minimap ตามข้อมูลช้าลง
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
