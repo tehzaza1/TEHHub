@@ -1441,8 +1441,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
         private void UpdateParentsCache()
         {
-            this.rootCache.UpdateAllParentsParallel();
-            this.passiveSkillTreeCache.UpdateAllParentsParallel();
+            using var memoryReadRegion = Ui.MemoryReadDiagnostics.MeasureRegion("Core.UiElementParents");
+            this.rootCache.UpdateAllParentsParallel(refreshChildren: false);
+            this.passiveSkillTreeCache.UpdateAllParentsParallel(refreshChildren: false);
         }
 
         private IEnumerator<Wait> OnPerFrame()

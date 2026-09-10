@@ -115,7 +115,7 @@ namespace GameHelper.Cache
             return false;
         }
 
-        public void UpdateAllParentsParallel()
+        public void UpdateAllParentsParallel(bool refreshChildren = true)
         {
             KeyValuePair<IntPtr, UiElementBase>[] snapshot;
             lock (this.cache)
@@ -124,11 +124,10 @@ namespace GameHelper.Cache
                 ((ICollection<KeyValuePair<IntPtr, UiElementBase>>)this.cache).CopyTo(snapshot, 0);
             }
 
-            // A cached parent can be freed/reused by the game after we cached it (the atlas, for
-            // example, churns through many node-container parents). Re-validate each parent's
-            // self-pointer before updating: if it's no longer a Ui element, prune it instead of
-            // re-assigning its Address — the forceUpdate setter would otherwise throw "not a Ui
-            // Element" and spam the log every frame for every stale entry.
+            // A cached parent can be freed/reused by the game after we cached it. For ordinary
+            // tree navigation preserve the historic full refresh. ImportantUiElements only uses
+            // this cache for parent-chain position/visibility, so it can reuse the validation
+            // snapshot and skip child-vector reads without making node positions stale.
             var stale = new ConcurrentBag<IntPtr>();
             Parallel.ForEach(snapshot, (data) =>
             {
@@ -141,7 +140,14 @@ namespace GameHelper.Cache
                         return;
                     }
 
-                    data.Value.Address = data.Key;
+                    if (refreshChildren)
+                    {
+                        data.Value.Address = data.Key;
+                    }
+                    else if (!data.Value.TryRefreshParentData(offsets))
+                    {
+                        stale.Add(data.Key);
+                    }
                 }
                 catch (Exception e)
                 {

@@ -220,12 +220,33 @@ namespace GameHelper.RemoteObjects.UiElement
         }
 
         /// <summary>
+        ///     Refreshes a cached parent from one already-read snapshot. Parent-chain position
+        ///     and visibility need these scalar fields, but never the parent's child vector.
+        /// </summary>
+        /// <returns>false when the address now identifies another Ui element.</returns>
+        internal bool TryRefreshParentData(UiElementBaseOffset data)
+        {
+            if (data.Self != IntPtr.Zero && data.Self != this.Address)
+            {
+                return false;
+            }
+
+            this.UpdateData(data, false, false);
+            return true;
+        }
+
+        /// <summary>
         ///     Updates the UiElement data.
         /// </summary>
         /// <param name="data">UiElementBaseOffset structure read from the game memory.</param>
         /// <param name="hasAddressChanged">has the address of this object changed or not.</param>
         /// <exception cref="Exception">Throws an exception if it detects invalid UiElement.</exception>
         protected void UpdateData(UiElementBaseOffset data, bool hasAddressChanged)
+        {
+            this.UpdateData(data, hasAddressChanged, true);
+        }
+
+        private void UpdateData(UiElementBaseOffset data, bool hasAddressChanged, bool refreshChildren)
         {
             if (data.Self != IntPtr.Zero && data.Self != this.Address)
             {
@@ -235,11 +256,14 @@ namespace GameHelper.RemoteObjects.UiElement
 
             this.parentAddress = data.ParentPtr;
             this.parents.AddIfNotExists(data.ParentPtr);
-            this.childrenAddresses = Core.Process.Handle.ReadStdVector<IntPtr>(data.ChildrensPtr);
-            // F-136: rebuild cache slots to match the new childrenAddresses length.
-            // Existing materialised children are dropped; they'll be re-allocated
-            // lazily on next this[int] access if still needed.
-            this.childrenCache = new UiElementBase?[this.childrenAddresses.Length];
+            if (refreshChildren)
+            {
+                this.childrenAddresses = Core.Process.Handle.ReadStdVector<IntPtr>(data.ChildrensPtr);
+                // F-136: rebuild cache slots to match the new childrenAddresses length.
+                // Existing materialised children are dropped; they'll be re-allocated
+                // lazily on next this[int] access if still needed.
+                this.childrenCache = new UiElementBase?[this.childrenAddresses.Length];
+            }
 
             this.positionModifier.X = data.PositionModifier.X;
             this.positionModifier.Y = data.PositionModifier.Y;
