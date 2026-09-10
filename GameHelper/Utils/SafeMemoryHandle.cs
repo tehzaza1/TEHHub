@@ -7,14 +7,13 @@ namespace GameHelper.Utils
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using GameOffsets.Natives;
     using Microsoft.Win32.SafeHandles;
-    using ProcessMemoryUtilities.Managed;
-    using ProcessMemoryUtilities.Native;
 
     /// <summary>
     ///     Handle to a process.
@@ -54,11 +53,11 @@ namespace GameHelper.Utils
         internal SafeMemoryHandle(int processId)
             : base(true)
         {
-            var handle = NativeWrapper.OpenProcess(ProcessAccessFlags.VirtualMemoryRead, processId);
-            if (NativeWrapper.HasError)
+            var handle = NativeProcessMemory.OpenForRead(processId);
+            if (handle == IntPtr.Zero)
             {
                 Console.WriteLine($"Failed to open a new handle 0x{handle:X}" +
-                                  $" due to ErrorNo: {NativeWrapper.LastError}");
+                                  $" due to ErrorNo: {NativeProcessMemory.LastError}");
             }
             else
             {
@@ -88,7 +87,7 @@ namespace GameHelper.Utils
             if (!this.IsInvalid && IsValidAddress(address))
             {
                 Console.WriteLine("ERROR: Failed To Read the Memory (T)" +
-                                  $" due to Error Number: 0x{NativeWrapper.LastError:X} on " +
+                                  $" due to Error Number: 0x{NativeProcessMemory.LastError:X} on " +
                                   $"adress 0x{address.ToInt64():X} for type {typeof(T).Name}" +
                                   $" [caller: {DescribeCaller()}]");
             }
@@ -123,17 +122,18 @@ namespace GameHelper.Utils
             {
                 var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
                 var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
-                var succeeded = NativeWrapper.ReadProcessMemory(this.handle, address, ref result);
+                var succeeded = NativeProcessMemory.TryRead(this.handle, address, out result, out var bytesRead);
+                var expectedBytes = (nuint)Unsafe.SizeOf<T>();
                 if (measureRead)
                 {
                     Ui.MemoryReadDiagnostics.RecordRead(
                         Ui.MemoryReadKind.Scalar,
-                        Marshal.SizeOf<T>(),
+                        (long)expectedBytes,
                         Stopwatch.GetTimestamp() - startedAt,
-                        succeeded);
+                        succeeded && bytesRead == expectedBytes);
                 }
 
-                if (!succeeded)
+                if (!succeeded || bytesRead != expectedBytes)
                 {
                     result = default;
                     RecordDiagnosticFailure(typeof(T).Name, address);
@@ -188,7 +188,7 @@ namespace GameHelper.Utils
         internal T[] ReadStdVector<T>(StdVector nativeContainer)
             where T : unmanaged
         {
-            var typeSize = Marshal.SizeOf<T>();
+            var typeSize = Unsafe.SizeOf<T>();
             var length = nativeContainer.Last.ToInt64() - nativeContainer.First.ToInt64();
             if (length <= 0 || length % typeSize != 0 || length > 50_000_000)
             {
@@ -227,21 +227,21 @@ namespace GameHelper.Utils
                 // from a container (std::vector/string) that may be torn or stale, so failures
                 // and short reads are routine and recoverable. Record them for the diagnostics
                 // window but keep the console clean, matching TryReadMemory (audit: torn-read noise).
-                var expectedBytes = (long)nsize * Marshal.SizeOf<T>();
+                var expectedBytes = (long)nsize * Unsafe.SizeOf<T>();
                 var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
                 var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
-                var succeeded = NativeWrapper.ReadProcessMemoryArray(this.handle, address, buffer, out var numBytesRead);
+                var succeeded = NativeProcessMemory.TryRead(this.handle, address, buffer, out var numBytesRead);
                 if (measureRead)
                 {
                     Ui.MemoryReadDiagnostics.RecordRead(
                         Ui.MemoryReadKind.Buffer,
                         expectedBytes,
                         Stopwatch.GetTimestamp() - startedAt,
-                        succeeded && numBytesRead.ToInt64() >= expectedBytes);
+                        succeeded && numBytesRead >= (nuint)expectedBytes);
                 }
 
                 if (!succeeded ||
-                    numBytesRead.ToInt64() < expectedBytes)
+                    numBytesRead < (nuint)expectedBytes)
                 {
                     RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
                     return Array.Empty<T>();
@@ -593,7 +593,7 @@ namespace GameHelper.Utils
         protected override bool ReleaseHandle()
         {
             Console.WriteLine($"Releasing handle on 0x{this.handle:X}\n");
-            return NativeWrapper.CloseHandle(this.handle);
+            return NativeProcessMemory.Close(this.handle);
         }
     }
 }
