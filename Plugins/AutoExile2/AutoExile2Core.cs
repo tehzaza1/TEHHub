@@ -553,15 +553,10 @@ namespace AutoExile2
 
             var inGameState = Core.States.InGameStateObject;
             var curArea = inGameState?.CurrentAreaInstance;
-            if (curArea != null && curArea.Player2 != null && curArea.Player2.Address != IntPtr.Zero && curArea.Player2.IsValid)
+            if (curArea?.Player2 != null && curArea.Player2.Address != IntPtr.Zero && curArea.Player2.IsValid)
             {
                 ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1f), "[Couch Co-op: Connected (Player 2)]");
-            }
-            else
-            {
-                ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f), "[Couch Co-op: Offline (Solo)]");
+                ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1f), "[Co-op: Connected]");
             }
 
             ImGui.Separator();

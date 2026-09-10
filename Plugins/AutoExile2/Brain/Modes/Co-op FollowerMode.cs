@@ -128,11 +128,8 @@ namespace AutoExile2.Modes
             Entity? followerEntity = this.FindFollowerEntity(area, leader, s.FollowerCharacterName);
             if (followerEntity == null || !followerEntity.TryGetComponent<Render>(out var fRender))
             {
-                string target = !string.IsNullOrWhiteSpace(s.FollowerCharacterName) ? s.FollowerCharacterName : "Player 2";
                 this.CurrentState = "[Brain: Idle]";
-                this.CurrentAction = (area.Player2 != null && area.Player2.Address == IntPtr.Zero)
-                    ? "Co-op inactive: Waiting for Player 2 to join (Press Start on Pad 2)..."
-                    : $"Waiting for [{target}] to enter area...";
+                this.CurrentAction = "Waiting for Player 2...";
                 this.movementWorker.Reset();
                 pad.SetFollowerMovement(Vector2.Zero);
                 pad.SetFollowerAim(Vector2.Zero);
