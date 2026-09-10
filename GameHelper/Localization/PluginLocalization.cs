@@ -15,11 +15,6 @@ namespace GameHelper.Localization
     /// </summary>
     public sealed class PluginLocalization
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true,
-        };
-
         private readonly object syncRoot = new();
         private readonly string localizationDirectory;
         private readonly Dictionary<OverlayLanguage, IReadOnlyDictionary<string, string>> cache = new();
@@ -111,7 +106,7 @@ namespace GameHelper.Localization
                 try
                 {
                     var content = File.ReadAllText(path);
-                    return JsonSerializer.Deserialize<Dictionary<string, string>>(content, JsonOptions) ??
+                    return JsonSerializer.Deserialize(content, LocalizationJsonContext.Default.DictionaryStringString) ??
                            new Dictionary<string, string>(StringComparer.Ordinal);
                 }
                 catch (IOException ex)

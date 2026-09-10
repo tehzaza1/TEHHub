@@ -76,11 +76,6 @@ namespace GameHelper.Localization
     /// </summary>
     public static class OverlayLocalization
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true,
-        };
-
         private static readonly object SyncRoot = new();
         private static readonly Dictionary<OverlayLanguage, IReadOnlyDictionary<string, string>> Cache = new();
 
@@ -202,7 +197,7 @@ namespace GameHelper.Localization
                 try
                 {
                     var content = File.ReadAllText(path);
-                    return JsonSerializer.Deserialize<Dictionary<string, string>>(content, JsonOptions) ??
+                    return JsonSerializer.Deserialize(content, LocalizationJsonContext.Default.DictionaryStringString) ??
                            new Dictionary<string, string>(StringComparer.Ordinal);
                 }
                 catch (IOException ex)
