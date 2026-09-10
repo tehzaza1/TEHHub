@@ -62,6 +62,8 @@ namespace AutoExile2.Brain
 
         public bool HasLosToFormation { get; set; }
 
+        public bool HasBlockingMonstersInPath { get; set; }
+
         public byte[]? WalkableData { get; set; }
 
         public int BytesPerRow { get; set; }
@@ -138,6 +140,7 @@ namespace AutoExile2.Brain
             p.Rows = p.WalkableData != null && p.BytesPerRow > 0 ? p.WalkableData.Length / p.BytesPerRow : 0;
             p.Cols = p.BytesPerRow * 2;
             p.HasLosToFormation = p.Vision.Spatial.HasLosToFormation;
+            p.HasBlockingMonstersInPath = p.Vision.Spatial.HasBlockingMonstersInPath;
 
             return p;
         }

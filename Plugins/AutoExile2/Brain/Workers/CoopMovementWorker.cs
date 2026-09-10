@@ -97,9 +97,9 @@ namespace AutoExile2.Brain.Workers
                 return;
             }
 
-            // Direct Line-of-Sight check up to 60g (Open terrain)
+            // Direct Line-of-Sight check up to 80g (Open terrain & wide chambers)
             Vector2 steerGridPos;
-            if (p.HasLosToFormation && p.DistanceToFormationTarget <= 60f)
+            if (p.HasLosToFormation && p.DistanceToFormationTarget <= 80f)
             {
                 this.CurrentNavPath.Clear();
                 this.CurrentWaypointIndex = 0;
@@ -108,17 +108,17 @@ namespace AutoExile2.Brain.Workers
             }
             else
             {
-                // Obstacle Navigation via A* Pathfinding
+                // Obstacle Navigation via A* Pathfinding across entire map
                 bool needRepath = false;
                 double timeSinceRepath = (now - this.lastRepathTime).TotalMilliseconds;
 
                 if (this.CurrentNavPath.Count == 0 || this.CurrentWaypointIndex >= this.CurrentNavPath.Count)
                 {
-                    needRepath = timeSinceRepath > 250;
+                    needRepath = timeSinceRepath > 200;
                 }
-                else if (Vector2.Distance(this.lastRepathLeaderPos, targetPos) > 15f)
+                else if (Vector2.Distance(this.lastRepathLeaderPos, targetPos) > 12f)
                 {
-                    needRepath = timeSinceRepath > 350;
+                    needRepath = timeSinceRepath > 300;
                 }
 
                 if (needRepath && p.WalkableData != null && p.BytesPerRow > 0)
@@ -136,10 +136,10 @@ namespace AutoExile2.Brain.Workers
                     }
                 }
 
-                // Follow A* path with Look-Ahead Raycast (Path Smoothing / Corner Cutting)
+                // Follow A* path with Look-Ahead Raycast (up to 10 waypoints for seamless corner cutting)
                 if (this.CurrentNavPath.Count > 0 && this.CurrentWaypointIndex < this.CurrentNavPath.Count)
                 {
-                    int maxLookAhead = Math.Min(this.CurrentNavPath.Count - 1, this.CurrentWaypointIndex + 6);
+                    int maxLookAhead = Math.Min(this.CurrentNavPath.Count - 1, this.CurrentWaypointIndex + 10);
                     for (int i = maxLookAhead; i > this.CurrentWaypointIndex; i--)
                     {
                         if (Pathfinding.HasLineOfSight(p.WalkableData, p.BytesPerRow, p.FollowerGrid, this.CurrentNavPath[i], p.Rows, p.Cols, 3))
@@ -152,7 +152,7 @@ namespace AutoExile2.Brain.Workers
                     var wp = this.CurrentNavPath[this.CurrentWaypointIndex];
                     float distToWp = Vector2.Distance(p.FollowerGrid, wp);
 
-                    if (distToWp <= 8f)
+                    if (distToWp <= 10f)
                     {
                         this.CurrentWaypointIndex++;
                         if (this.CurrentWaypointIndex < this.CurrentNavPath.Count)
@@ -183,20 +183,22 @@ namespace AutoExile2.Brain.Workers
             pad.SetFollowerMovement(moveDir);
             pad.SetFollowerSprint(shouldSprint);
 
-            // 5. Attack & Roll Synergy (Dodge Roll Gap-Closing & Danger Evade):
-            // When moving to close distance without sprinting, tap Dodge Roll (B for 50ms) periodically (~850ms)
-            // If in DangerEvade, tap Dodge Roll more aggressively (~600ms) to escape high-damage ground
+            // 5. Attack, Roll & Corridor Phasing Synergy:
+            // - Phasing Roll: If hostiles are blocking the movement corridor ahead, Dodge Roll phases straight through them!
+            // - Danger Evade Roll: Roll out of lethal ground damage (~600ms)
+            // - Formation Gap-Closing Roll: Periodic roll into combat without sprint (~850ms)
             float safeDist = Math.Max(2f, s.CoopStopDistance);
             float sprintThreshold = Math.Max(50f, s.CoopSprintDistance);
             bool isActuallySprintingAnim = p.FollowerAnimId == ANIM_SPRINT;
 
-            if (!shouldSprint && !isActuallySprintingAnim && moveDir.LengthSquared() > 0.05f)
+            if (!isActuallySprintingAnim && moveDir.LengthSquared() > 0.05f)
             {
                 double msSinceRoll = (now - this.lastFollowerRollTime).TotalMilliseconds;
+                bool isCorridorBlockedRoll = p.HasBlockingMonstersInPath && msSinceRoll >= 500;
                 bool isDangerEvadeRoll = goal.Type == BotGoalType.DangerEvade && msSinceRoll >= 600;
-                bool isFormationRoll = p.DistanceToLeader > (safeDist + 3f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 850;
+                bool isFormationRoll = !shouldSprint && p.DistanceToLeader > (safeDist + 3f) && p.DistanceToLeader < sprintThreshold && msSinceRoll >= 850;
 
-                if ((isDangerEvadeRoll || isFormationRoll) && p.FollowerAnimId != ANIM_ROLL)
+                if ((isCorridorBlockedRoll || isDangerEvadeRoll || isFormationRoll) && p.FollowerAnimId != ANIM_ROLL)
                 {
                     pad.TapFollowerDodgeRoll();
                     this.lastFollowerRollTime = now;

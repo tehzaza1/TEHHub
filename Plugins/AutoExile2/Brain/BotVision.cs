@@ -240,6 +240,8 @@ namespace AutoExile2.Brain
 
         public bool HasLosToFormation { get; private set; }
 
+        public bool HasBlockingMonstersInPath { get; private set; }
+
         public void Scan(BotContext ctx, Vector2 followerGrid, Vector2 leaderGrid, Vector2 formationTarget)
         {
             this.DistanceToLeader = Vector2.Distance(followerGrid, leaderGrid);
@@ -261,6 +263,41 @@ namespace AutoExile2.Brain
             {
                 this.HasLosToFormation = true;
                 this.HasLosToLeader = true;
+            }
+
+            // Corridor Monster Blocker Check (For Phasing Dodge Roll)
+            this.HasBlockingMonstersInPath = false;
+            Vector2 toTarget = formationTarget - followerGrid;
+            float targetDist = toTarget.Length();
+            if (targetDist > 4.5f && area?.AwakeEntities != null)
+            {
+                Vector2 moveDir = toTarget / targetDist;
+                float checkDist = Math.Min(targetDist, 22f);
+
+                foreach (var kvp in area.AwakeEntities)
+                {
+                    var ent = kvp.Value;
+                    if (!ent.IsValid || ent.Address == ctx.Player.Address) continue;
+                    if (!CombatSystem.IsHostileMonster(ent, ctx.Player.Address)) continue;
+                    if (!ent.TryGetComponent<Render>(out var mRender)) continue;
+
+                    var mPos = new Vector2(mRender.GridPosition.X, mRender.GridPosition.Y);
+                    Vector2 toMonster = mPos - followerGrid;
+
+                    // Projection along movement ray
+                    float proj = Vector2.Dot(toMonster, moveDir);
+                    if (proj >= 3.5f && proj <= checkDist)
+                    {
+                        // Perpendicular distance to movement line
+                        Vector2 projPoint = followerGrid + (moveDir * proj);
+                        float lateralDist = Vector2.Distance(mPos, projPoint);
+                        if (lateralDist <= 4.5f)
+                        {
+                            this.HasBlockingMonstersInPath = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
