@@ -490,7 +490,7 @@ public static class MemoryReadDiagnostics
 
     private static void CopyReportToClipboard()
     {
-        if (cachedRows.Count == 0)
+        if (cachedRows.Count == 0 && cachedReadRate.TotalCalls == 0)
         {
             lastActionMessage = "Nothing to copy.";
             return;
@@ -509,7 +509,7 @@ public static class MemoryReadDiagnostics
 
     private static void DumpReportToFile()
     {
-        if (cachedRows.Count == 0)
+        if (cachedRows.Count == 0 && cachedReadRate.TotalCalls == 0)
         {
             lastActionMessage = "Nothing to dump.";
             return;
