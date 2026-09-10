@@ -1,4 +1,4 @@
-﻿// <copyright file="BuffDictionary.cs" company="PlaceholderCompany">
+// <copyright file="BuffDictionary.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -37,6 +37,15 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
                     return new StatusEffect(true, value.TimeLeft, value.TotalTime, value.Charges, value.Effectiveness);
                 }
 
+                foreach (var kv in this.source)
+                {
+                    if (kv.Key.StartsWith(id + "_", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        var val = kv.Value;
+                        return new StatusEffect(true, val.TimeLeft, val.TotalTime, val.Charges, val.Effectiveness);
+                    }
+                }
+
                 return new StatusEffect(false, 0, 0, 0, 0);
             }
         }
@@ -47,7 +56,20 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
         /// <param name="id">The buff id</param>
         public bool Has(string id)
         {
-            return this.source.ContainsKey(id);
+            if (this.source.ContainsKey(id))
+            {
+                return true;
+            }
+
+            foreach (var k in this.source.Keys)
+            {
+                if (k.StartsWith(id + "_", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

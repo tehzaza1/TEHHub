@@ -813,6 +813,14 @@ namespace AutoExile2.Systems
             {
                 list.Add("arctic");
             }
+            else if (clean.Contains("exposure"))
+            {
+                list.Add("exposure");
+                list.Add("exposureelemental");
+                list.Add("exposurefire");
+                list.Add("exposurecold");
+                list.Add("exposurelightning");
+            }
             return list;
         }
 
@@ -909,15 +917,31 @@ namespace AutoExile2.Systems
                         string curseToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
                             ? slot.BuffDebuffName
                             : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
-                        if (!string.IsNullOrWhiteSpace(curseToMatch))
-                        {
-                            string cleanCurse = curseToMatch.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
-                            bool hasDebuff = tBuffs.StatusEffects.Any(kv => kv.Key.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Contains(cleanCurse));
+                            string cleanCurse = CleanBuffString(curseToMatch);
+                            var aliases = GetBuffAliases(cleanCurse);
+                            bool hasDebuff = false;
+                            foreach (var kv in tBuffs.StatusEffects)
+                            {
+                                string targetBuffClean = CleanBuffString(kv.Key);
+                                string targetBuffCleanNoDigits = System.Text.RegularExpressions.Regex.Replace(targetBuffClean, @"\d+$", "");
+                                for (int i = 0; i < aliases.Count; i++)
+                                {
+                                    string a = aliases[i];
+                                    string aNoDigits = System.Text.RegularExpressions.Regex.Replace(a, @"\d+$", "");
+                                    if (targetBuffClean.Contains(a, StringComparison.OrdinalIgnoreCase) ||
+                                        (!string.IsNullOrEmpty(targetBuffCleanNoDigits) && !string.IsNullOrEmpty(aNoDigits) &&
+                                         (targetBuffCleanNoDigits.Contains(aNoDigits, StringComparison.OrdinalIgnoreCase) || aNoDigits.Contains(targetBuffCleanNoDigits, StringComparison.OrdinalIgnoreCase))))
+                                    {
+                                        hasDebuff = true;
+                                        break;
+                                    }
+                                }
+                                if (hasDebuff) break;
+                            }
                             if (hasDebuff)
                             {
                                 continue; // Monster already has this curse/debuff!
                             }
-                        }
                     }
                 }
 

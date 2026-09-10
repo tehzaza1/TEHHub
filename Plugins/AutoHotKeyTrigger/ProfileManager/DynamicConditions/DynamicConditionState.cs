@@ -1,4 +1,4 @@
-﻿// <copyright file="DynamicConditionState.cs" company="PlaceholderCompany">
+// <copyright file="DynamicConditionState.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -35,7 +35,10 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
                 if (player.TryGetComponent<Buffs>(out var playerBuffs))
                 {
                     this.PlayerAilments = JsonDataHelper.StatusEffectGroups
-                                                  .Where(x => x.Value.Any(playerBuffs.StatusEffects.ContainsKey))
+                                                  .Where(x => x.Value.Any(effect =>
+                                                      playerBuffs.StatusEffects.ContainsKey(effect) ||
+                                                      playerBuffs.StatusEffects.Keys.Any(k =>
+                                                          k.StartsWith(effect + "_", StringComparison.OrdinalIgnoreCase))))
                                                   .Select(x => x.Key).ToHashSet();
                     this.PlayerBuffs = new BuffDictionary(playerBuffs.StatusEffects);
                 }

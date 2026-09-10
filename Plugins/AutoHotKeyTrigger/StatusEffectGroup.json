@@ -77,6 +77,11 @@
   "Exposed": [
     "reduced_cold_resistance_from_skill",
     "reduced_fire_resistance_from_skill",
-    "reduced_lightning_resistance_from_skill"
+    "reduced_lightning_resistance_from_skill",
+    "exposure_elemental",
+    "exposure_elemental_79",
+    "exposure_fire",
+    "exposure_cold",
+    "exposure_lightning"
   ]
 }
