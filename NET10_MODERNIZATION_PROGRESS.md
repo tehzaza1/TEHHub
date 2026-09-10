@@ -238,6 +238,16 @@ Runtime validation (`memory_diagnostics_20260911_051517.tsv`):
 
 Commit: `4e46ee9 perf: refresh Atlas nodes without child vector reads`
 
+Runtime validation (`memory_diagnostics_20260911_051957.tsv`):
+
+- ทั้งโปรแกรมลดเหลือ 3,849 reads/frame หรือ 229,726 reads/วินาที
+- เทียบ baseline ก่อนปรับ UI parent ที่ 11,656 reads/frame ลดลงรวม 67.0%
+- `Atlas2.DrawUI` ลดจาก 1,475.8 เหลือ 61.0 reads/ครั้ง หรือลด 95.9%
+- Atlas2 ยังคง refresh position/size/visibility ของ node ที่ใช้งานทุกเฟรม; การลดลงมาจากการไม่อ่าน child vector ที่ไม่ใช้
+- native failures เป็นศูนย์ และ overlay อยู่ที่ 59.7 FPS
+
+ผลหลักของเฟสนี้คือทำให้ overlay รอ Windows/kernel เพื่ออ่าน memory น้อยลง จึงลดโอกาสหน่วงและทำให้ UI ตอบสนองสม่ำเสมอขึ้น ไม่ได้ตั้งใจเพิ่ม FPS ของตัวเกม
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
