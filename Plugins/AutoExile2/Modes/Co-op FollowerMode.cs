@@ -59,6 +59,7 @@ namespace AutoExile2.Modes
         private int currentFollowerAnimId = 0;
         private int nearbyEnemyCount = 0;
         private DateTime lastFollowerAttackTime = DateTime.MinValue;
+        private DateTime lastFollowerRollTime = DateTime.MinValue;
         private DateTime lastSprintTapTime = DateTime.MinValue;
         private DateTime lastFollowerLifeFlaskTime = DateTime.MinValue;
         private DateTime lastFollowerManaFlaskTime = DateTime.MinValue;
@@ -82,6 +83,7 @@ namespace AutoExile2.Modes
             this.lastKnownFollowerGrid = null;
             this.lastRepathTime = DateTime.MinValue;
             this.lastRepathLeaderPos = Vector2.Zero;
+            this.lastFollowerRollTime = DateTime.MinValue;
             this.CurrentState = "Connecting Controls";
             this.CurrentAction = "Connecting Controls & Gamepads...";
 
@@ -93,6 +95,7 @@ namespace AutoExile2.Modes
             ctx.Log("Exiting Co-op FollowerMode - Releasing inputs (keeping gamepads connected)");
             this.CurrentNavPath.Clear();
             this.CurrentWaypointIndex = 0;
+            this.lastFollowerRollTime = DateTime.MinValue;
             ctx.CoopGamepad.ResetAllInputs();
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
         }
@@ -406,11 +409,13 @@ namespace AutoExile2.Modes
             float distToLeaderWorld = distToLeader * gridToWorld;
 
             // Priority System: Combat vs Following Leader
-            // - If follower is actively Sprinting (0x368) or Rolling (0x10C), don't stop animation to cast spells.
-            // - If follower is too far away (> 28g / s.CoopFollowDistance + 10g), prioritize catchup over attacking.
-            // - Within combat zone (<= 28g), follower can attack and move simultaneously!
-            bool isActuallySprinting = this.currentFollowerAnimId == ANIM_SPRINT || this.currentFollowerAnimId == ANIM_ROLL;
-            bool isFarBehind = distToLeader > Math.Max(28f, s.CoopFollowDistance + 10f);
+            // - If follower is actively Sprinting (0x368), weapons are sheathed, so attacks are disabled.
+            // - NOTE: Dodge Roll (0x10C) does NOT block attack! Player can queue attacks and roll simultaneously.
+            // - Prioritize pure sprint catchup only when truly far behind (>= 50g sprint threshold).
+            // - Within combat range (< 50g), follower can attack and move/roll simultaneously!
+            float sprintThreshold = Math.Max(50f, s.CoopSprintDistance);
+            bool isActuallySprinting = this.currentFollowerAnimId == ANIM_SPRINT || this.isFollowerSprinting;
+            bool isFarBehind = distToLeader >= sprintThreshold;
             if (isActuallySprinting || isFarBehind)
             {
                 return false;
@@ -588,7 +593,7 @@ namespace AutoExile2.Modes
 
             Vector2 targetGridPos;
 
-            if (hasLos && distToTarget <= followDist + 15f)
+            if (hasLos && distToTarget <= 60f)
             {
                 // Open terrain with Line-of-Sight: Direct steering towards formation target
                 this.CurrentNavPath.Clear();
@@ -629,11 +634,23 @@ namespace AutoExile2.Modes
                 // Follow next waypoint along the A* path
                 if (this.CurrentNavPath.Count > 0 && this.CurrentWaypointIndex < this.CurrentNavPath.Count)
                 {
+                    // Item 5: Look-ahead Raycast (Path Smoothing / String Pulling)
+                    // Raycast ahead up to 6 waypoints. If direct Line-of-Sight exists, shortcut immediately!
+                    int maxLookAhead = Math.Min(this.CurrentNavPath.Count - 1, this.CurrentWaypointIndex + 6);
+                    for (int i = maxLookAhead; i > this.CurrentWaypointIndex; i--)
+                    {
+                        if (Pathfinding.HasLineOfSight(walkableData, bytesPerRow, followerGrid, this.CurrentNavPath[i], rows, cols, 3))
+                        {
+                            this.CurrentWaypointIndex = i;
+                            break;
+                        }
+                    }
+
                     var wp = this.CurrentNavPath[this.CurrentWaypointIndex];
                     float distToWp = Vector2.Distance(followerGrid, wp);
 
-                    // Advance to next waypoint once within 10g
-                    if (distToWp <= 10f)
+                    // Advance to next waypoint once within 8g
+                    if (distToWp <= 8f)
                     {
                         this.CurrentWaypointIndex++;
                         if (this.CurrentWaypointIndex < this.CurrentNavPath.Count)
@@ -655,27 +672,27 @@ namespace AutoExile2.Modes
                 }
             }
 
-            // Sprint System with Hardware Memory Animation Verification (0x368 = Sprint, 0x10C = Roll):
+            // Sprint System: Only engage sprint when truly far behind (50+ units per user request)
+            float effectiveSprintDist = Math.Max(50f, s.CoopSprintDistance);
             bool isActuallySprintingAnim = this.currentFollowerAnimId == ANIM_SPRINT;
 
-            // Sprint based on distance and leader sprint status, regardless of monsters nearby.
-            // Follower maintains sprint until reaching the safe stop distance, ensuring it keeps up with the leader.
+            // Follower uses full Sprint (Hold B) only when truly far behind (50+ units).
+            // Once sprinting, disengage sprint as soon as distance closes back to combat range (<= 35g)
+            // so weapons are drawn and follower can attack + roll without waiting until safeDist (10g).
             bool shouldSprint;
             if (this.isFollowerSprinting || isActuallySprintingAnim)
             {
-                // Once sprinting, maintain sprint continuously until follower reaches the safe stop distance
-                shouldSprint = distToLeader > safeDist;
+                shouldSprint = distToLeader > 35f;
             }
             else
             {
-                // Start sprint when far behind or leader sprints
-                shouldSprint = (distToTarget >= sprintDist || pad.IsLeaderSprinting) && distToLeader > safeDist;
+                shouldSprint = distToLeader >= effectiveSprintDist;
             }
 
-            // If actively casting/attacking, halt sprint only when close to leader
+            // If actively casting/attacking, halt sprint when within combat zone
             double msSinceAttack = (now - this.lastFollowerAttackTime).TotalMilliseconds;
             bool isCastingNow = didCombat || msSinceAttack < 250;
-            if (isCastingNow && distToLeader <= (followDist + 4f))
+            if (isCastingNow && distToLeader <= 40f)
             {
                 shouldSprint = false;
             }
@@ -689,6 +706,23 @@ namespace AutoExile2.Modes
                 // PoE characters move at full fixed movement speed; always push stick at 100% (1.0f)
                 pad.SetFollowerMovement(moveDir);
                 pad.SetFollowerSprint(shouldSprint);
+
+                // Item 1: Attack & Roll Synergy (Dodge Roll Gap-Closing)
+                // When moving to close distance (safeDist + 3g to effectiveSprintDist) without sprinting,
+                // tap Dodge Roll (B for 50ms) forward periodically (~850ms) while holding movement stick.
+                // This closes the gap rapidly into attack range while keeping weapons drawn!
+                if (!shouldSprint && !isActuallySprintingAnim && moveDir.LengthSquared() > 0.05f)
+                {
+                    double msSinceRoll = (now - this.lastFollowerRollTime).TotalMilliseconds;
+                    if (distToLeader > (safeDist + 3f) && distToLeader < effectiveSprintDist && msSinceRoll >= 850)
+                    {
+                        if (this.currentFollowerAnimId != ANIM_ROLL)
+                        {
+                            pad.TapFollowerDodgeRoll();
+                            this.lastFollowerRollTime = now;
+                        }
+                    }
+                }
             }
 
             if (!didCombat)

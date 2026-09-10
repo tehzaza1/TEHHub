@@ -345,6 +345,19 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
+        /// Triggers a quick Dodge Roll on Player 2 (taps B for 50ms).
+        /// In PoE 2, tapping B triggers Dodge Roll (keeping weapons drawn and attack stance),
+        /// whereas holding B enters Sprint mode (which sheathes weapons).
+        /// </summary>
+        public void TapFollowerDodgeRoll(int tapMs = 50)
+        {
+            if (this.followerXbox == null) return;
+            if (this.followerSprintActive) return;
+
+            this.PressFollowerButton(CoopPadButton.B, Math.Max(30, tapMs));
+        }
+
+        /// <summary>
         /// Presses a button on Player 2's controller for a specified hold duration.
         /// </summary>
         public void PressFollowerButton(CoopPadButton button, int holdMs = 60)
