@@ -39,14 +39,15 @@ namespace AutoExile2
 
         private static readonly string[] GuardKeywords =
         {
-            "steelskin", "moltenshell", "immortalcall", "bonearmour", "arcanecloak",
-            "frostshield", "defiancebanner", "convalescence"
+            "convalescence", "encaseinjade", "fortifyingcry", "magmabarrier", "virtuousbarrier",
+            "glacialbarrier", "barrier", "bulwark", "shieldwall", "raiseshield", "arcticarmour",
+            "grimfeast", "guard", "aegis"
         };
 
         private static readonly string[] WarcryKeywords =
         {
-            "warcry", "shout", "enduringcry", "intimidatingcry", "rallyingcry",
-            "seismiccry", "battlemagescry", "infernalcry", "generalcry", "ancestralcry"
+            "warcry", "shout", "fortifyingcry", "infernalcry", "ancestralcry", "enduringcry",
+            "intimidatingcry", "rallyingcry", "seismiccry", "battlemagescry", "generalcry"
         };
 
         private static readonly string[] MinionKeywords =

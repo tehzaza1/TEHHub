@@ -787,37 +787,31 @@ namespace AutoExile2.Systems
                 list.Add("convalescence");
                 list.Add("convalescenceenergyshield");
             }
-            else if (clean.Contains("steelskin"))
+            else if (clean.Contains("encaseinjade") || clean.Contains("jade"))
             {
-                list.Add("quickguard");
+                list.Add("encaseinjade");
+                list.Add("jade");
             }
-            else if (clean.Contains("quickguard"))
+            else if (clean.Contains("fortifyingcry") || clean.Contains("fortify"))
             {
-                list.Add("steelskin");
+                list.Add("fortifyingcry");
+                list.Add("fortify");
             }
-            else if (clean.Contains("moltenshell"))
+            else if (clean.Contains("magmabarrier"))
             {
-                list.Add("fireshield");
+                list.Add("magma");
             }
-            else if (clean.Contains("fireshield"))
+            else if (clean.Contains("virtuousbarrier"))
             {
-                list.Add("moltenshell");
+                list.Add("virtuous");
             }
-            else if (clean.Contains("immortalcall"))
+            else if (clean.Contains("glacialbarrier"))
             {
-                list.Add("mortalcall");
+                list.Add("glacial");
             }
-            else if (clean.Contains("mortalcall"))
+            else if (clean.Contains("arcticarmour"))
             {
-                list.Add("immortalcall");
-            }
-            else if (clean.Contains("witheringstep"))
-            {
-                list.Add("slither");
-            }
-            else if (clean.Contains("tempestshield"))
-            {
-                list.Add("lightningbarrier");
+                list.Add("arctic");
             }
             return list;
         }
