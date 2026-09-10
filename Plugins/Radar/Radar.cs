@@ -10,6 +10,7 @@ namespace Radar
     using System.IO;
     using System.Linq;
     using System.Numerics;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Coroutine;
@@ -21,7 +22,6 @@ namespace Radar
     using GameHelper.RemoteObjects.Components;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
     using SixLabors.ImageSharp;
     using SixLabors.ImageSharp.PixelFormats;
     using SixLabors.ImageSharp.Processing.Processors.Transforms;
@@ -32,6 +32,12 @@ namespace Radar
     /// </summary>
     public sealed class Radar : PCore<RadarSettings>
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            IncludeFields = true,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true,
+        };
         private const string TempleTgtPrefix = "Metadata/Terrain/Leagues/Incursion/Tiles/Features/Waygates/WaygateDevice";
         private const string LoathsomeMirePath =
             "Metadata/MiscellaneousObjects/Delirium/DeliriumShardSeethingChyme";
@@ -563,29 +569,29 @@ namespace Radar
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<RadarSettings>(content) ?? new RadarSettings();
+                this.Settings = JsonSerializer.Deserialize(content, RadarJsonContext.Default.RadarSettings) ?? new RadarSettings();
             }
 
             if (File.Exists(this.ImportantTgtPathName))
             {
                 var tgtfiles = File.ReadAllText(this.ImportantTgtPathName);
-                this.Settings.ImportantTgts = JsonConvert.DeserializeObject
-                    <Dictionary<string, Dictionary<string, string>>>(tgtfiles)
+                this.Settings.ImportantTgts = JsonSerializer.Deserialize
+                    <Dictionary<string, Dictionary<string, string>>>(tgtfiles, JsonOptions)
                     ?? new Dictionary<string, Dictionary<string, string>>();
             }
 
             if (File.Exists(this.BossArenaTgtPathName))
             {
                 var bossfiles = File.ReadAllText(this.BossArenaTgtPathName);
-                this.Settings.BossArenaTgts = JsonConvert.DeserializeObject
-                    <Dictionary<string, string>>(bossfiles) ?? new Dictionary<string, string>();
+                this.Settings.BossArenaTgts = JsonSerializer.Deserialize
+                    <Dictionary<string, string>>(bossfiles, JsonOptions) ?? new Dictionary<string, string>();
             }
 
             if (File.Exists(this.StairsTgtPathName))
             {
                 var stairsfiles = File.ReadAllText(this.StairsTgtPathName);
-                this.Settings.StairsTgts = JsonConvert.DeserializeObject
-                    <Dictionary<string, string>>(stairsfiles) ?? new Dictionary<string, string>();
+                this.Settings.StairsTgts = JsonSerializer.Deserialize
+                    <Dictionary<string, string>>(stairsfiles, JsonOptions) ?? new Dictionary<string, string>();
             }
 
             this.Settings.AddDefaultIcons(this.DllDirectory);
@@ -606,27 +612,24 @@ namespace Radar
         public override void SaveSettings()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-            var settingsData = JsonConvert.SerializeObject(this.Settings, Formatting.Indented);
+            var settingsData = JsonSerializer.Serialize(this.Settings, RadarJsonContext.Default.RadarSettings);
             File.WriteAllText(this.SettingPathname, settingsData);
 
             if (this.Settings.ImportantTgts.Count > 0)
             {
-                var tgtfiles = JsonConvert.SerializeObject(
-                    this.Settings.ImportantTgts, Formatting.Indented);
+                var tgtfiles = JsonSerializer.Serialize(this.Settings.ImportantTgts, JsonOptions);
                 File.WriteAllText(this.ImportantTgtPathName, tgtfiles);
             }
 
             if (this.Settings.BossArenaTgts.Count > 0)
             {
-                var bossfiles = JsonConvert.SerializeObject(
-                    this.Settings.BossArenaTgts, Formatting.Indented);
+                var bossfiles = JsonSerializer.Serialize(this.Settings.BossArenaTgts, JsonOptions);
                 File.WriteAllText(this.BossArenaTgtPathName, bossfiles);
             }
 
             if (this.Settings.StairsTgts.Count > 0)
             {
-                var stairsfiles = JsonConvert.SerializeObject(
-                    this.Settings.StairsTgts, Formatting.Indented);
+                var stairsfiles = JsonSerializer.Serialize(this.Settings.StairsTgts, JsonOptions);
                 File.WriteAllText(this.StairsTgtPathName, stairsfiles);
             }
         }

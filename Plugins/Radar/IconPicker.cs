@@ -10,7 +10,7 @@ namespace Radar
     using GameHelper;
     using GameHelper.Localization;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
 
     /// <summary>
     /// A class to store the currently selected icon.

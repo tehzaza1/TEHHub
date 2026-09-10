@@ -10,7 +10,7 @@ namespace Radar
     using GameHelper.Localization;
     using GameHelper.Plugin;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
     using GameHelper.Utils;
 
     /// <summary>

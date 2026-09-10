@@ -387,6 +387,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ไม่แก้ memory-reader, node cache, parent-climbing หรือ draw path ของ Atlas2 ในชุดนี้
 - ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
 
+### 6.10 ย้าย Radar ออกจาก Newtonsoft.Json
+
+- Radar settings และ icon picker ใช้ generated `System.Text.Json` metadata
+- ไฟล์ target list (important, boss arena, stairs) ใช้ System.Text.Json พร้อมคงรูปแบบ JSON เดิม
+- ไม่แก้ pathfinding, cache, redraw interval หรือ logic วาด minimap/large map
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
