@@ -11,7 +11,7 @@ namespace AutoHotKeyTrigger.ProfileManager
     using GameHelper;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
 
     /// <summary>
     ///     A class containing the rules for triggering the actions.
@@ -35,7 +35,7 @@ namespace AutoHotKeyTrigger.ProfileManager
         /// <summary>
         ///     Gets the rules to trigger the actions on.
         /// </summary>
-        public List<Rule> Rules { get; } = new();
+        public List<Rule> Rules { get; set; } = new();
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Profile" /> class.

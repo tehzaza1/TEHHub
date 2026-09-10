@@ -8,7 +8,8 @@ namespace AutoExile2.WebServer
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using Newtonsoft.Json;
+    using System.Reflection;
+    using System.Text.Json;
 
     /// <summary>
     /// Manages multiple named build profiles for AutoExile 2.
@@ -97,7 +98,7 @@ namespace AutoExile2.WebServer
                 try
                 {
                     var text = File.ReadAllText(this.legacySettingsPath);
-                    var userSettings = JsonConvert.DeserializeObject<AutoExile2Settings>(text);
+                    var userSettings = JsonSerializer.Deserialize<AutoExile2Settings>(text, AutoExileJson.Options);
                     if (userSettings != null)
                     {
                         const string customProfileName = "Custom";
@@ -134,7 +135,7 @@ namespace AutoExile2.WebServer
                 try
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(this.legacySettingsPath) ?? string.Empty);
-                    File.WriteAllText(this.legacySettingsPath, JsonConvert.SerializeObject(settings, Formatting.Indented, new Newtonsoft.Json.Converters.StringEnumConverter()));
+                    File.WriteAllText(this.legacySettingsPath, JsonSerializer.Serialize(settings, AutoExileJson.Options));
                 }
                 catch { }
             }
@@ -280,7 +281,7 @@ namespace AutoExile2.WebServer
             try
             {
                 // Validate json deserializes into AutoExile2Settings
-                var parsed = JsonConvert.DeserializeObject<AutoExile2Settings>(jsonContent);
+                var parsed = JsonSerializer.Deserialize<AutoExile2Settings>(jsonContent, AutoExileJson.Options);
                 if (parsed == null) return false;
 
                 this.WriteProfileFile(parsed, clean);
@@ -296,11 +297,18 @@ namespace AutoExile2.WebServer
 
         private static void CopySettings(AutoExile2Settings src, AutoExile2Settings dst)
         {
-            var json = JsonConvert.SerializeObject(src);
-            JsonConvert.PopulateObject(json, dst, new JsonSerializerSettings
+            foreach (var field in typeof(AutoExile2Settings).GetFields(BindingFlags.Instance | BindingFlags.Public))
             {
-                ObjectCreationHandling = ObjectCreationHandling.Replace,
-            });
+                field.SetValue(dst, field.GetValue(src));
+            }
+
+            foreach (var property in typeof(AutoExile2Settings).GetProperties(BindingFlags.Instance | BindingFlags.Public))
+            {
+                if (property.CanRead && property.CanWrite)
+                {
+                    property.SetValue(dst, property.GetValue(src));
+                }
+            }
             dst.Skills = new List<SkillSlotConfig>(src.Skills ?? new List<SkillSlotConfig>());
             dst.P1Skills = new List<SkillSlotConfig>(src.P1Skills ?? new List<SkillSlotConfig>());
             dst.P2Skills = new List<SkillSlotConfig>(src.P2Skills ?? new List<SkillSlotConfig>());
@@ -321,7 +329,7 @@ namespace AutoExile2.WebServer
                 var path = this.PathFor(name);
                 if (!File.Exists(path)) return null;
                 var text = File.ReadAllText(path);
-                var loaded = JsonConvert.DeserializeObject<AutoExile2Settings>(text);
+                var loaded = JsonSerializer.Deserialize<AutoExile2Settings>(text, AutoExileJson.Options);
                 if (loaded != null)
                 {
                     loaded.Skills ??= new List<SkillSlotConfig>();
@@ -341,7 +349,7 @@ namespace AutoExile2.WebServer
         {
             Directory.CreateDirectory(this.profilesDir);
             var path = this.PathFor(name);
-            var json = JsonConvert.SerializeObject(settings, Formatting.Indented, new Newtonsoft.Json.Converters.StringEnumConverter());
+            var json = JsonSerializer.Serialize(settings, AutoExileJson.Options);
             File.WriteAllText(path, json);
         }
 
@@ -351,7 +359,7 @@ namespace AutoExile2.WebServer
             {
                 if (!File.Exists(this.metaPath)) return string.Empty;
                 var text = File.ReadAllText(this.metaPath);
-                var meta = JsonConvert.DeserializeObject<Dictionary<string, string>>(text);
+                var meta = JsonSerializer.Deserialize<Dictionary<string, string>>(text, AutoExileJson.Options);
                 if (meta != null && meta.TryGetValue("activeProfile", out var p) && !string.IsNullOrWhiteSpace(p))
                 {
                     return p;
@@ -371,7 +379,7 @@ namespace AutoExile2.WebServer
                     ["activeProfile"] = activeProfile,
                     ["lastSaved"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 };
-                File.WriteAllText(this.metaPath, JsonConvert.SerializeObject(dict, Formatting.Indented));
+                File.WriteAllText(this.metaPath, JsonSerializer.Serialize(dict, AutoExileJson.Options));
             }
             catch { }
         }

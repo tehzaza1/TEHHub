@@ -19,7 +19,7 @@ namespace AutoHotKeyTrigger
     using GameHelper.RemoteObjects.Components;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json;
     using AutoHotKeyTrigger.ProfileManager;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
 
@@ -423,19 +423,16 @@ namespace AutoHotKeyTrigger
         public override void OnEnable(bool isGameOpened)
         {
             var jsonData2 = File.ReadAllText(this.DllDirectory + @"/StatusEffectGroup.json");
-            JsonDataHelper.StatusEffectGroups = JsonConvert.DeserializeObject<
-                Dictionary<string, List<string>>>(jsonData2)
+            JsonDataHelper.StatusEffectGroups = JsonSerializer.Deserialize<
+                Dictionary<string, List<string>>>(jsonData2, AutoHotKeyJson.Options)
                 ?? new Dictionary<string, List<string>>();
 
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<AutoHotKeyTriggerSettings>(
+                this.Settings = JsonSerializer.Deserialize<AutoHotKeyTriggerSettings>(
                     content,
-                    new JsonSerializerSettings
-                    {
-                        TypeNameHandling = TypeNameHandling.Auto
-                    }) ?? new AutoHotKeyTriggerSettings();
+                    AutoHotKeyJson.Options) ?? new AutoHotKeyTriggerSettings();
             }
             else
             {
@@ -454,12 +451,7 @@ namespace AutoHotKeyTrigger
         public override void SaveSettings()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-            var settingsData = JsonConvert.SerializeObject(this.Settings,
-                Formatting.Indented,
-                new JsonSerializerSettings
-                {
-                    TypeNameHandling = TypeNameHandling.Auto
-                });
+            var settingsData = JsonSerializer.Serialize(this.Settings, AutoHotKeyJson.Options);
             File.WriteAllText(this.SettingPathname, settingsData);
         }
 

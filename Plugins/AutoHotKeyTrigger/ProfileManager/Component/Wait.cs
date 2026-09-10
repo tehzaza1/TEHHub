@@ -7,7 +7,7 @@ namespace AutoHotKeyTrigger.ProfileManager.Component
 {
     using AutoHotKeyTrigger;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
     using System.Diagnostics;
     using System.Numerics;
 
@@ -16,16 +16,17 @@ namespace AutoHotKeyTrigger.ProfileManager.Component
     /// </summary>
     public class Wait : IComponent
     {
-        [JsonProperty] private float duration;
+        [JsonInclude] private float duration;
         private Stopwatch sw;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Wait" /> class.
         /// </summary>
-        /// <param name="duation">duration in seconds to wait for.</param>
-        public Wait(float duation)
+        /// <param name="duration">duration in seconds to wait for.</param>
+        [JsonConstructor]
+        public Wait(float duration)
         {
-            this.duration = duation;
+            this.duration = duration;
             this.sw = new();
         }
 

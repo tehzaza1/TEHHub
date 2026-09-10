@@ -7,7 +7,6 @@ namespace AutoExile2
     using System;
     using System.Collections.Generic;
     using AutoExile2.Systems;
-    using Newtonsoft.Json;
 
     /// <summary>
     /// Configuration for an automated Buff / Guard skill on Player 1 (Leader).
@@ -32,7 +31,7 @@ namespace AutoExile2
 
         public float LowHpThresholdPercent { get; set; } = 60f;
 
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public DateTime LastCastAt { get; set; } = DateTime.MinValue;
 
         public static List<CoopLeaderBuffConfig> GetDefaults()
@@ -93,7 +92,7 @@ namespace AutoExile2
 
         public float LowHpThresholdPercent { get; set; } = 60f;
 
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public DateTime LastCastAt { get; set; } = DateTime.MinValue;
 
         public static List<CoopFollowerSkillConfig> GetDefaults()

@@ -9,7 +9,7 @@ namespace AutoHotKeyTrigger
     using AutoHotKeyTrigger.ProfileManager;
     using ClickableTransparentOverlay.Win32;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
 
     /// <summary>
     ///     <see cref="AutoHotKeyTrigger" /> plugin settings class.
@@ -68,7 +68,7 @@ namespace AutoHotKeyTrigger
         /// <summary>
         ///     Gets all the profiles containing rules on when to perform the action.
         /// </summary>
-        public readonly Dictionary<string, Profile> Profiles;
+        public Dictionary<string, Profile> Profiles;
 
         /// <summary>
         ///     Gets the currently selected profile.

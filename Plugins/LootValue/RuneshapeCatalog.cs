@@ -4,7 +4,7 @@ namespace LootValue
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using Newtonsoft.Json;
+    using System.Text.Json;
 
     /// <summary>
     /// Represents one recipe offer available from a Runeshape Monolith encounter.
@@ -217,7 +217,7 @@ namespace LootValue
                 }
 
                 var json = File.ReadAllText(foundPath);
-                var file = JsonConvert.DeserializeObject<CatalogFile>(json);
+                var file = JsonSerializer.Deserialize<CatalogFile>(json);
                 if (file?.recipes == null)
                 {
                     return Empty();

@@ -14,7 +14,6 @@ namespace AutoExile2.Systems
     using GameHelper.RemoteEnums.Entity;
     using GameHelper.RemoteObjects.Components;
     using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using Newtonsoft.Json;
     using SixLabors.ImageSharp;
     using SixLabors.ImageSharp.PixelFormats;
 
@@ -444,7 +443,7 @@ namespace AutoExile2.Systems
                     };
 
                     string jsonPath = Path.Combine(outputDir, $"{baseName}.json");
-                    File.WriteAllText(jsonPath, JsonConvert.SerializeObject(dumpJson, Formatting.Indented));
+                    File.WriteAllText(jsonPath, System.Text.Json.JsonSerializer.Serialize(dumpJson, AutoExileJson.Options));
 
                     // 4. Render map image (PNG) with AutoExile bounding-box cropping & layers
                     string? pngPath = null;

@@ -4,10 +4,14 @@
 
 namespace AutoHotKeyTrigger.ProfileManager.Component
 {
+    using System.Text.Json.Serialization;
+
     /// <summary>
     ///     A partial condition that can't be used on it's own and
     ///     adds more logic to a <see cref="DynamicConditions"/>.
     /// </summary>
+    [JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+    [JsonDerivedType(typeof(Wait), "AutoHotKeyTrigger.ProfileManager.Component.Wait, AutoHotKeyTrigger")]
     public interface IComponent
     {
         /// <summary>

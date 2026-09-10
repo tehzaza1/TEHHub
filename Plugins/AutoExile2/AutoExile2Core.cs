@@ -24,7 +24,6 @@ namespace AutoExile2
     using AutoExile2.Systems;
     using AutoExile2.WebServer;
     using Coroutine;
-    using Newtonsoft.Json;
 
     /// <summary>
     /// Core plugin class for AutoExile 2.

@@ -10,25 +10,23 @@ namespace AutoExile2.WebServer
     using System.Net;
     using System.Net.WebSockets;
     using System.Text;
+    using System.Text.Json;
+    using System.Text.Json.Nodes;
     using System.Threading;
     using System.Threading.Tasks;
     using AutoExile2.Systems;
     using ClickableTransparentOverlay.Win32;
     using GameHelper;
     using GameHelper.RemoteObjects.Components;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Converters;
-    using Newtonsoft.Json.Linq;
 
     /// <summary>
     /// Embedded HTTP and WebSocket server for AutoExile 2 live dashboard, settings, and profile management.
     /// </summary>
     public class AutoExileWebServer : IDisposable
     {
-        private static readonly JsonSerializerSettings JsonSettings = new()
+        private static readonly JsonSerializerOptions JsonSettings = new(AutoExileJson.Options)
         {
-            Converters = { new StringEnumConverter() },
-            Formatting = Formatting.None,
+            WriteIndented = false,
         };
 
         private HttpListener? listener;
@@ -354,7 +352,7 @@ namespace AutoExile2.WebServer
                 {
                     using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                     var body = await reader.ReadToEndAsync();
-                    var jObj = JObject.Parse(body);
+                    var jObj = JsonNode.Parse(body)?.AsObject() ?? throw new FormatException("Invalid preview payload.");
                     string type = jObj["type"]?.ToString() ?? "Generic";
                     float radius = jObj["radius"]?.Value<float>() ?? 0f;
                     string unit = jObj["unit"]?.ToString() ?? "world";
@@ -390,7 +388,7 @@ namespace AutoExile2.WebServer
                 {
                     using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                     var body = await reader.ReadToEndAsync();
-                    var jObj = JObject.Parse(body);
+                    var jObj = JsonNode.Parse(body)?.AsObject() ?? throw new FormatException("Invalid profile payload.");
                     string name = jObj["name"]?.ToString() ?? "";
                     bool ok = this.profileManager.SwitchProfile(ref this.settings, name);
                     if (!ok)
@@ -408,7 +406,7 @@ namespace AutoExile2.WebServer
                 {
                     using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                     var body = await reader.ReadToEndAsync();
-                    var jObj = JObject.Parse(body);
+                    var jObj = JsonNode.Parse(body)?.AsObject() ?? throw new FormatException("Invalid profile payload.");
                     string name = jObj["name"]?.ToString() ?? "";
                     bool switchTo = jObj["switchTo"]?.Value<bool>() ?? true;
                     bool ok = this.profileManager.CreateProfile(this.settings, name, switchTo);
@@ -427,7 +425,7 @@ namespace AutoExile2.WebServer
                 {
                     using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                     var body = await reader.ReadToEndAsync();
-                    var jObj = JObject.Parse(body);
+                    var jObj = JsonNode.Parse(body)?.AsObject() ?? throw new FormatException("Invalid profile payload.");
                     string from = jObj["from"]?.ToString() ?? "";
                     string to = jObj["to"]?.ToString() ?? "";
                     bool ok = this.profileManager.RenameProfile(from, to);
@@ -445,7 +443,7 @@ namespace AutoExile2.WebServer
                 {
                     using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                     var body = await reader.ReadToEndAsync();
-                    var jObj = JObject.Parse(body);
+                    var jObj = JsonNode.Parse(body)?.AsObject() ?? throw new FormatException("Invalid profile payload.");
                     string name = jObj["name"]?.ToString() ?? "";
                     bool ok = this.profileManager.DeleteProfile(name);
                     if (!ok)
@@ -480,7 +478,7 @@ namespace AutoExile2.WebServer
                 {
                     using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                     var body = await reader.ReadToEndAsync();
-                    var jObj = JObject.Parse(body);
+                    var jObj = JsonNode.Parse(body)?.AsObject() ?? throw new FormatException("Invalid profile payload.");
                     string name = jObj["name"]?.ToString() ?? "";
                     string content = jObj["content"]?.ToString() ?? "";
                     bool ok = this.profileManager.ImportProfile(name, content);
@@ -656,7 +654,7 @@ namespace AutoExile2.WebServer
                     if (clients.Count == 0) continue;
 
                     var snap = this.statusProvider();
-                    byte[] payload = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(snap, JsonSettings));
+                    byte[] payload = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(snap, JsonSettings));
 
                     foreach (var client in clients)
                     {
@@ -674,7 +672,7 @@ namespace AutoExile2.WebServer
 
         private async Task SendJson(HttpListenerContext ctx, object obj)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(obj, JsonSettings));
+            byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(obj, JsonSettings));
             ctx.Response.ContentType = "application/json; charset=utf-8";
             ctx.Response.ContentLength64 = bytes.Length;
             await ctx.Response.OutputStream.WriteAsync(bytes);

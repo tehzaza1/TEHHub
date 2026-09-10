@@ -394,6 +394,16 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ไม่แก้ pathfinding, cache, redraw interval หรือ logic วาด minimap/large map
 - ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
 
+### 6.11 ปิดการย้าย Newtonsoft.Json จาก source ที่ build ทั้งหมด
+
+- ย้าย LootValue จาก Newtonsoft ไป `System.Text.Json`: settings ใช้ generated metadata และการอ่าน API/catalog ใช้ `JsonDocument`/`JsonSerializer`
+- ย้าย AutoExile2 web dashboard, profile และ config ไป `System.Text.Json`; เปิด `IncludeFields` เพื่อคงรูปแบบ config แบบ public fields เดิมให้ครบ
+- ย้าย AutoHotKeyTrigger และโปรไฟล์ rule ไป `System.Text.Json`; คง discriminator `$type` เดิมของ `Wait` component จึงเปิดไฟล์ profile เก่าได้โดยไม่ต้องสร้างใหม่
+- ย้าย `PlaySound` ของ LootValue จาก `DllImport` ไป `LibraryImport`; source หลักไม่มี `DllImport` เหลือแล้ว (ไม่นับ `Backup`)
+- เอา generic JSON helper ของ Newtonsoft และ package `Newtonsoft.Json` ออกจาก GameHelper
+- ตรวจด้วย source scan แล้วไม่มี `Newtonsoft` ใน source/project ที่ถูก build และ Release build แบบ `--no-restore` ผ่านทั้ง solution: 0 warning / 0 error
+- ต้องรัน restore ปกติอีกครั้งก่อนแจก build เพื่อให้ output directory ที่เคยสร้างไว้ล้าง `Newtonsoft.Json.dll` เก่าตาม dependency graph ใหม่
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

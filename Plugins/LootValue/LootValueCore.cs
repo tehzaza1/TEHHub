@@ -12,6 +12,7 @@ namespace LootValue
     using System.Numerics;
     using System.Reflection;
     using System.Runtime.InteropServices;
+    using System.Text.Json;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Coroutine;
@@ -24,14 +25,12 @@ namespace LootValue
     using GameOffsets.Natives;
     using GameOffsets.Objects.UiElement;
     using ImGuiNET;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
 
     /// <summary>
     ///     LootValue plugin — prices ground, stash, inventory, Ritual reward, and Currency Exchange items.
     ///     Unidentified uniques are revealed by name via their icon art.
     /// </summary>
-    public sealed class LootValueCore : PCore<LootValueSettings>
+    public sealed partial class LootValueCore : PCore<LootValueSettings>
     {
         /// <inheritdoc/>
         public override IReadOnlyCollection<string> ConflictsWith => new[] { "RitualHelper" };
@@ -91,8 +90,9 @@ namespace LootValue
         private ScrollFrameState cachedRitualScroll = ScrollFrameState.None;
 
         // Valuable Drop Alerts
-        [DllImport("winmm.dll", EntryPoint = "PlaySound", SetLastError = true)]
-        private static extern bool WinMmPlaySound(byte[]? ptrToSound, IntPtr hmod, uint fdwSound);
+        [LibraryImport("winmm.dll", EntryPoint = "PlaySound", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool WinMmPlaySound(byte[]? ptrToSound, IntPtr hmod, uint fdwSound);
 
         private const uint SndAsync = 0x0001;
         private const uint SndMemory = 0x0004;
@@ -121,8 +121,12 @@ namespace LootValue
                 try
                 {
                     var settingsJson = File.ReadAllText(this.SettingPathname);
-                    shouldMigrateStashSettings = JObject.Parse(settingsJson)[nameof(LootValueSettings.ShowStashOverlay)] == null;
-                    this.Settings = JsonConvert.DeserializeObject<LootValueSettings>(settingsJson) ?? new LootValueSettings();
+                    using var settingsDocument = JsonDocument.Parse(settingsJson);
+                    shouldMigrateStashSettings = !settingsDocument.RootElement.TryGetProperty(
+                        nameof(LootValueSettings.ShowStashOverlay), out _);
+                    this.Settings = JsonSerializer.Deserialize(
+                        settingsJson,
+                        LootValueJsonContext.Default.LootValueSettings) ?? new LootValueSettings();
 
                     // Migrate legacy single-currency values if newly added per-currency values are default
                     if (this.Settings.DisplayCurrency == 2 && this.Settings.HighlightMinChaos == 10f && this.Settings.HighlightMinEx > 0f)
@@ -179,14 +183,22 @@ namespace LootValue
 
                 try
                 {
-                    var legacy = JObject.Parse(File.ReadAllText(legacyPath));
-                    this.Settings.ShowStashOverlay = legacy.Value<bool?>("ShowOverlay") ?? this.Settings.ShowStashOverlay;
-                    this.Settings.ShowInventoryOverlay = legacy.Value<bool?>("ShowInventoryOverlay") ?? this.Settings.ShowInventoryOverlay;
-                    this.Settings.HideSlotPricesOnHover = legacy.Value<bool?>("HidePriceOnHover") ?? this.Settings.HideSlotPricesOnHover;
-                    this.Settings.ShowSlotDebugInfo = legacy.Value<bool?>("ShowDebugInfo") ?? this.Settings.ShowSlotDebugInfo;
-                    this.Settings.SlotFontScale = legacy.Value<float?>("PriceFontScale") ?? this.Settings.SlotFontScale;
-                    this.Settings.SlotOffsetX = legacy.Value<float?>("PriceOffsetX") ?? this.Settings.SlotOffsetX;
-                    this.Settings.SlotOffsetY = legacy.Value<float?>("PriceOffsetY") ?? this.Settings.SlotOffsetY;
+                    using var legacyDocument = JsonDocument.Parse(File.ReadAllText(legacyPath));
+                    var legacy = legacyDocument.RootElement;
+                    if (legacy.TryGetProperty("ShowOverlay", out var showOverlay) && showOverlay.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.ShowStashOverlay = showOverlay.GetBoolean();
+                    if (legacy.TryGetProperty("ShowInventoryOverlay", out var showInventoryOverlay) && showInventoryOverlay.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.ShowInventoryOverlay = showInventoryOverlay.GetBoolean();
+                    if (legacy.TryGetProperty("HidePriceOnHover", out var hidePriceOnHover) && hidePriceOnHover.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.HideSlotPricesOnHover = hidePriceOnHover.GetBoolean();
+                    if (legacy.TryGetProperty("ShowDebugInfo", out var showDebugInfo) && showDebugInfo.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.ShowSlotDebugInfo = showDebugInfo.GetBoolean();
+                    if (legacy.TryGetProperty("PriceFontScale", out var priceFontScale) && priceFontScale.TryGetSingle(out var fontScale))
+                        this.Settings.SlotFontScale = fontScale;
+                    if (legacy.TryGetProperty("PriceOffsetX", out var priceOffsetX) && priceOffsetX.TryGetSingle(out var offsetX))
+                        this.Settings.SlotOffsetX = offsetX;
+                    if (legacy.TryGetProperty("PriceOffsetY", out var priceOffsetY) && priceOffsetY.TryGetSingle(out var offsetY))
+                        this.Settings.SlotOffsetY = offsetY;
                     return true;
                 }
                 catch (Exception ex)
@@ -353,7 +365,9 @@ namespace LootValue
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-                File.WriteAllText(this.SettingPathname, JsonConvert.SerializeObject(this.Settings, Formatting.Indented));
+                File.WriteAllText(
+                    this.SettingPathname,
+                    JsonSerializer.Serialize(this.Settings, LootValueJsonContext.Default.LootValueSettings));
             }
             catch (Exception ex)
             {

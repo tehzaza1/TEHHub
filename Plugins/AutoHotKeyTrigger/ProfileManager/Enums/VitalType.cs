@@ -4,13 +4,10 @@
 
 namespace AutoHotKeyTrigger.ProfileManager.Enums
 {
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Converters;
 
     /// <summary>
     ///     Different type of player PlayerVitals.
     /// </summary>
-    [JsonConverter(typeof(StringEnumConverter))]
     public enum VitalType
     {
         /// <summary>

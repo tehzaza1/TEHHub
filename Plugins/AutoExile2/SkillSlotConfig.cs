@@ -8,7 +8,6 @@ namespace AutoExile2
     using System.Collections.Generic;
     using ClickableTransparentOverlay.Win32;
     using GameHelper.RemoteObjects.Components;
-    using Newtonsoft.Json;
 
     /// <summary>
     /// Functional role for an individual skill slot in combat.
@@ -158,7 +157,7 @@ namespace AutoExile2
         public bool CullerRequireMonsters { get; set; } = false;
 
         /// <summary>Runtime timestamp of last cast (not persisted).</summary>
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public DateTime LastCastAt { get; set; } = DateTime.MinValue;
 
         /// <summary>

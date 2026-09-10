@@ -7,7 +7,7 @@ namespace AutoExile2.WebServer
     using System;
     using System.Collections.Generic;
     using ClickableTransparentOverlay.Win32;
-    using Newtonsoft.Json.Linq;
+    using System.Text.Json.Nodes;
 
     /// <summary>
     /// Handles parsing and updating of AutoExile2Settings from JSON requests.
@@ -16,11 +16,14 @@ namespace AutoExile2.WebServer
     {
         public static void UpdateSettingsFromJson(AutoExile2Settings settings, string body)
         {
-            var jObj = JObject.Parse(body);
-            foreach (var prop in jObj.Properties())
+            var jObj = JsonNode.Parse(body)?.AsObject() ?? throw new FormatException("Settings payload must be a JSON object.");
+            foreach (var prop in jObj)
             {
-                string name = prop.Name;
-                var val = prop.Value;
+                string name = prop.Key;
+                if (prop.Value is not JsonNode val)
+                {
+                    continue;
+                }
                 switch (name.ToLowerInvariant())
                 {
                     case "isrunning":
@@ -288,45 +291,45 @@ namespace AutoExile2.WebServer
             }
         }
 
-        private static bool SafeBool(Newtonsoft.Json.Linq.JToken? token, bool defaultVal = false)
+        private static bool SafeBool(JsonNode? token, bool defaultVal = false)
         {
-            if (token == null || token.Type == Newtonsoft.Json.Linq.JTokenType.Null) return defaultVal;
-            if (token.Type == Newtonsoft.Json.Linq.JTokenType.Boolean) return token.Value<bool>();
+            if (token == null) return defaultVal;
+            try { return token.Value<bool>(); } catch { }
             if (bool.TryParse(token.ToString(), out var b)) return b;
             return defaultVal;
         }
 
-        private static int SafeInt(Newtonsoft.Json.Linq.JToken? token, int defaultVal = 0)
+        private static int SafeInt(JsonNode? token, int defaultVal = 0)
         {
-            if (token == null || token.Type == Newtonsoft.Json.Linq.JTokenType.Null) return defaultVal;
-            if (token.Type == Newtonsoft.Json.Linq.JTokenType.Integer) return token.Value<int>();
+            if (token == null) return defaultVal;
+            try { return token.Value<int>(); } catch { }
             if (int.TryParse(token.ToString(), out var i)) return i;
             if (double.TryParse(token.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d)) return (int)Math.Round(d);
             return defaultVal;
         }
 
-        private static float SafeFloat(Newtonsoft.Json.Linq.JToken? token, float defaultVal = 0f)
+        private static float SafeFloat(JsonNode? token, float defaultVal = 0f)
         {
-            if (token == null || token.Type == Newtonsoft.Json.Linq.JTokenType.Null) return defaultVal;
-            if (token.Type == Newtonsoft.Json.Linq.JTokenType.Float || token.Type == Newtonsoft.Json.Linq.JTokenType.Integer) return token.Value<float>();
+            if (token == null) return defaultVal;
+            try { return token.Value<float>(); } catch { }
             if (float.TryParse(token.ToString(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var f)) return f;
             return defaultVal;
         }
 
-        private static string SafeString(Newtonsoft.Json.Linq.JToken? token, string defaultVal = "")
+        private static string SafeString(JsonNode? token, string defaultVal = "")
         {
-            if (token == null || token.Type == Newtonsoft.Json.Linq.JTokenType.Null) return defaultVal;
+            if (token == null) return defaultVal;
             return token.ToString();
         }
 
-        public static List<SkillSlotConfig> ParseSkillSlots(Newtonsoft.Json.Linq.JToken val)
+        public static List<SkillSlotConfig> ParseSkillSlots(JsonNode? val)
         {
             var skills = new List<SkillSlotConfig>();
-            if (val is Newtonsoft.Json.Linq.JArray arr)
+            if (val is JsonArray arr)
             {
                 foreach (var item in arr)
                 {
-                    if (item == null || item.Type == Newtonsoft.Json.Linq.JTokenType.Null) continue;
+                    if (item == null) continue;
                     try
                     {
                         var slot = new SkillSlotConfig();

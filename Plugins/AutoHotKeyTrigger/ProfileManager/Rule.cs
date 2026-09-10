@@ -13,7 +13,7 @@ namespace AutoHotKeyTrigger.ProfileManager
     using GameHelper;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
     using AutoHotKeyTrigger.ProfileManager.Enums;
     using AutoHotKeyTrigger.ProfileManager.Component;
     using ClickableTransparentOverlay.Win32;
@@ -31,10 +31,11 @@ namespace AutoHotKeyTrigger.ProfileManager
         private ConditionType newConditionType = ConditionType.AILMENT;
         private readonly Stopwatch cooldownStopwatch = Stopwatch.StartNew();
 
-        [JsonProperty("Conditions", NullValueHandling = NullValueHandling.Ignore)]
-        private readonly List<DynamicCondition> conditions = new();
+        [JsonInclude]
+        [JsonPropertyName("Conditions")]
+        private List<DynamicCondition> conditions = new();
 
-        [JsonProperty] private float delayBetweenRuns = 0;
+        [JsonInclude] private float delayBetweenRuns = 0;
 
         /// <summary>
         ///     Enable/Disable the rule.
