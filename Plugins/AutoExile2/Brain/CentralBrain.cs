@@ -322,8 +322,11 @@ namespace AutoExile2.Brain
                 else if (p.Vision.Hazard.IsHighDangerArea)
                 {
                     dir.Locomotion.Maneuver = EvadeManeuver.MicroDodge;
-                    dir.Locomotion.EvadeDirection = p.Vision.Hazard.NearestMonsterCluster != null
-                        ? Vector2.Normalize(p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value)
+                    Vector2 hazardDiff = p.Vision.Hazard.NearestMonsterCluster != null
+                        ? p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value
+                        : Vector2.Zero;
+                    dir.Locomotion.EvadeDirection = hazardDiff.LengthSquared() > 0.001f
+                        ? Vector2.Normalize(hazardDiff)
                         : new Vector2(0, 1);
                     dir.Locomotion.Reason = "Repositioning out of hazard threat";
                 }
@@ -387,9 +390,13 @@ namespace AutoExile2.Brain
             // 2. Critical Hazard Evade
             if (p.Vision.Hazard.IsHighDangerArea && p.FollowerHpPercent < 45f)
             {
-                var safePos = p.Vision.Hazard.NearestMonsterCluster != null
-                    ? p.FollowerGrid + (Vector2.Normalize(p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value) * 15f)
-                    : p.FollowerGrid;
+                Vector2 hazardDiff = p.Vision.Hazard.NearestMonsterCluster != null
+                    ? p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value
+                    : Vector2.Zero;
+                Vector2 hazardDir = hazardDiff.LengthSquared() > 0.001f
+                    ? Vector2.Normalize(hazardDiff)
+                    : new Vector2(0, 1);
+                var safePos = p.FollowerGrid + (hazardDir * 15f);
 
                 return this.UpdateGoal(BotGoal.DangerEvade(
                     $"Critical threat level ({p.Vision.Hazard.ThreatInProximity:F0}) — disengaging",

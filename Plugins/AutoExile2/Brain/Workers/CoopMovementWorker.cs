@@ -230,7 +230,12 @@ namespace AutoExile2.Brain.Workers
                 {
                     if (isMicroDodge && directive != null && directive.Locomotion.EvadeDirection != Vector2.Zero)
                     {
-                        pad.SetFollowerMovement(directive.Locomotion.EvadeDirection);
+                        var evadeTarget = p.FollowerGrid + (directive.Locomotion.EvadeDirection * 15f);
+                        var evadeScreenDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, evadeTarget, p.FollowerGrid, p.GridToWorld);
+                        if (evadeScreenDir.LengthSquared() > 0.01f)
+                        {
+                            pad.SetFollowerMovement(evadeScreenDir);
+                        }
                     }
 
                     pad.TapFollowerDodgeRoll();
