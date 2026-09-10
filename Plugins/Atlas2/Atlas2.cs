@@ -1981,8 +1981,8 @@ namespace Atlas2
             return false;
         }
 
-        [DllImport("user32.dll")]
-        private static extern nint GetForegroundWindow();
+        [LibraryImport("user32.dll")]
+        private static partial nint GetForegroundWindow();
 
     }
 }
