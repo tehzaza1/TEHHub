@@ -633,27 +633,11 @@ namespace AutoExile2.Modes
 
             // Sprint System with Hardware Memory Animation Verification (0x368 = Sprint, 0x10C = Roll):
             bool isActuallySprintingAnim = this.currentFollowerAnimId == ANIM_SPRINT;
-            bool isRollingAnim = this.currentFollowerAnimId == ANIM_ROLL;
 
-            // "ห้าม Sprint เวลามีมอน แต่ให้กลิ้งเข้าไปได้":
-            // When monsters are nearby, DO NOT sprint (hold B).
-            // Instead, if follower has fallen behind (> followDist + 8f), execute Dodge Roll (tap B) towards leader!
-            bool hasNearbyMonsters = this.nearbyEnemyCount > 0;
-
+            // Sprint based on distance and leader sprint status, regardless of monsters nearby.
+            // Follower maintains sprint until reaching the safe stop distance, ensuring it keeps up with the leader.
             bool shouldSprint;
-            if (hasNearbyMonsters)
-            {
-                shouldSprint = false;
-
-                // Dodge Roll (Tap B) catchup when falling behind amidst monsters:
-                double msSinceRoll = (now - this.lastSprintTapTime).TotalMilliseconds;
-                if (distToLeader > (followDist + 8f) && msSinceRoll > 1200 && !isRollingAnim)
-                {
-                    this.lastSprintTapTime = now;
-                    pad.PressFollowerButton(CoopPadButton.B, 200); // Tap B for Dodge Roll (200ms)
-                }
-            }
-            else if (this.isFollowerSprinting || isActuallySprintingAnim)
+            if (this.isFollowerSprinting || isActuallySprintingAnim)
             {
                 // Once sprinting, maintain sprint continuously until follower reaches the safe stop distance
                 shouldSprint = distToLeader > safeDist;
