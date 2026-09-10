@@ -270,6 +270,22 @@ Runtime validation (`memory_diagnostics_20260911_052900.tsv`):
 - requested bytes เพิ่มจาก 118.28 เป็น 130.49 MiB/วินาที เพราะ span ครอบช่องว่างระหว่าง allocation ที่ติดกัน แต่ยังคุ้มค่าจากการลดการข้าม Windows/kernel
 - overlay อยู่ที่ 60.9 FPS ระหว่างทดสอบ และผู้ใช้ตรวจ Atlas/minimap/panel แล้ว
 
+### 5.12 ทดลองรวม Atlas node header fields เป็นหนึ่ง native read (ยกเลิกแล้ว)
+
+- ตอน refresh Atlas topology เดิมอ่าน flags, node-data pointer และ grid position แยกกันในแต่ละ node
+- เพิ่ม `AtlasNodeUiHeader` แบบ explicit layout เพื่ออ่าน field เหล่านี้ (รวม region-button fields) ครั้งเดียวต่อ node
+- ใช้ค่าเดิมในการจำแนก marker/map/ship และตาม pointer chain เดิมทุกจุด
+- ลดจำนวน kernel calls โดยแลกกับการอ่าน header ที่กว้างขึ้น ซึ่งปลอดภัยเพราะอยู่ภายใน allocation ของ node UI เดียวกัน
+- ไม่ลดรอบ refresh 20 เฟรมของ topology และไม่ลดการ refresh ตำแหน่งทุกเฟรม
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+- Runtime validation (`memory_diagnostics_20260911_054324.tsv`) ไม่มี failure แต่
+  `Core.AtlasMapUpdate` อยู่ที่ 1,501 reads/ครั้ง เทียบกับ 1,432 ก่อนหน้า จึงไม่พบผลลด calls ที่มีนัยสำคัญภายใต้ workload นี้
+- เนื่องจาก optimization นี้เพิ่มขนาด read ต่อ node แต่ไม่ให้ผลที่วัดได้ชัด จึง revert เพื่อคงโค้ด Atlas ที่เรียบง่ายและเสี่ยงต่ำกว่า
+
+Commit: `caa0424 perf: combine Atlas node header reads`
+
+Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
