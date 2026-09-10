@@ -48,7 +48,7 @@ namespace LootValue
         private static readonly int[] CurrencyExchangeRootPath = { 114, 20, 6 };
         private static readonly int[] RitualRewardGridPath = { 76, 13 };
 
-        private readonly List<LootLabel> cachedLabels = new();
+        private List<LootLabel> cachedLabels = new();
         private readonly Dictionary<uint, Tracked> trackWorld = new();
         private DateTime nextRecomputeUtc = DateTime.MinValue;
 
@@ -60,7 +60,7 @@ namespace LootValue
         // PoE 0.5.5 moved inline text-element wstrings by -0x30: UiElementBase lost 0x18 and
         // the derived text class lost another 0x18. Verified live by RunecraftHelper as well.
         private const int UiElementTextOffset = 0x360;
-        private readonly List<TagChip> cachedTagChips = new();
+        private List<TagChip> cachedTagChips = new();
         private readonly Dictionary<IntPtr, Tracked> trackTag = new();
         private DateTime nextTagScanUtc = DateTime.MinValue;
         private readonly HashSet<string> groundTagNames = new(StringComparer.OrdinalIgnoreCase);
@@ -75,8 +75,20 @@ namespace LootValue
         private IntPtr cachedRitualGridAddress;
         private DateTime nextSlotScanUtc = DateTime.MinValue;
         private bool isSlotScanRunning = false;
-        private readonly List<ExchangePriceLabel> cachedExchangeLabels = new();
+        private List<ExchangePriceLabel> cachedExchangeLabels = new();
         private DateTime nextExchangeScanUtc = DateTime.MinValue;
+        private bool isRecomputeRunning = false;
+        private bool isTagScanRunning = false;
+        private bool isAlertScanRunning = false;
+        private bool isExchangeScanRunning = false;
+        private bool isMonolithScanRunning = false;
+        private bool isRuneshapeUiScanRunning = false;
+        private List<RuneshapeRowPriceLabel> cachedRuneshapeRows = new();
+        private DateTime nextRuneshapeUiScanUtc = DateTime.MinValue;
+        private DateTime nextScrollRefreshUtc = DateTime.MinValue;
+        private ScrollFrameState cachedLeftScroll = ScrollFrameState.None;
+        private ScrollFrameState cachedRightScroll = ScrollFrameState.None;
+        private ScrollFrameState cachedRitualScroll = ScrollFrameState.None;
 
         // Valuable Drop Alerts
         [DllImport("winmm.dll", EntryPoint = "PlaySound", SetLastError = true)]
@@ -92,7 +104,7 @@ namespace LootValue
 
         private ActiveCoroutine? onAreaChangeCoroutine;
         private readonly HashSet<uint> alertedEntityIds = new();
-        private readonly List<ActiveDropAlert> activeAlertDrops = new();
+        private List<ActiveDropAlert> activeAlertDrops = new();
         private readonly List<DropAlertBanner> activeAlertBanners = new();
         private DateTime nextAlertScanUtc = DateTime.MinValue;
         private DateTime lastAlertSoundUtc = DateTime.MinValue;
@@ -208,9 +220,22 @@ namespace LootValue
             this.cachedLeftPanelAddress = IntPtr.Zero;
             this.cachedRightPanelAddress = IntPtr.Zero;
             this.cachedRitualGridAddress = IntPtr.Zero;
-            this.nextSlotScanUtc = DateTime.MinValue;
             this.cachedExchangeLabels.Clear();
             this.nextExchangeScanUtc = DateTime.MinValue;
+            this.cachedMonoliths.Clear();
+            this.nextMonolithScanUtc = DateTime.MinValue;
+            this.cachedRuneshapeRows.Clear();
+            this.nextRuneshapeUiScanUtc = DateTime.MinValue;
+            this.isSlotScanRunning = false;
+            this.isRecomputeRunning = false;
+            this.isTagScanRunning = false;
+            this.isAlertScanRunning = false;
+            this.isExchangeScanRunning = false;
+            this.isMonolithScanRunning = false;
+            this.isRuneshapeUiScanRunning = false;
+            this.cachedLeftScroll = ScrollFrameState.None;
+            this.cachedRightScroll = ScrollFrameState.None;
+            this.cachedRitualScroll = ScrollFrameState.None;
         }
 
         private IEnumerable<Wait> OnAreaChange()
@@ -532,21 +557,55 @@ namespace LootValue
                 return;
             }
 
+            var now = DateTime.UtcNow;
+
             if (this.Settings.EnableAlertSound || this.Settings.EnableAlertBanner || this.Settings.EnableAlertBeam)
             {
-                this.ProcessDropAlerts();
+                if (now >= this.nextAlertScanUtc && !this.isAlertScanRunning)
+                {
+                    this.nextAlertScanUtc = now.AddMilliseconds(Math.Max(50, this.Settings.RescanIntervalMs));
+                    this.isAlertScanRunning = true;
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            this.ProcessDropAlerts();
+                        }
+                        catch
+                        {
+                        }
+                        finally
+                        {
+                            this.isAlertScanRunning = false;
+                        }
+                    });
+                }
+
                 this.DrawDropAlerts();
             }
 
-            var now = DateTime.UtcNow;
             if (this.Settings.ShowOverlay && this.Settings.AnchorToLootTags)
             {
                 if (this.EnsureReflection())
                 {
-                    if (now >= this.nextTagScanUtc)
+                    if (now >= this.nextTagScanUtc && !this.isTagScanRunning)
                     {
                         this.nextTagScanUtc = now.AddMilliseconds(Math.Max(16, this.Settings.RescanIntervalMs));
-                        this.ScanLootTags();
+                        this.isTagScanRunning = true;
+                        Task.Run(() =>
+                        {
+                            try
+                            {
+                                this.ScanLootTags();
+                            }
+                            catch
+                            {
+                            }
+                            finally
+                            {
+                                this.isTagScanRunning = false;
+                            }
+                        });
                     }
 
                     this.DrawTagChips();
@@ -554,10 +613,24 @@ namespace LootValue
             }
             else if (this.Settings.ShowOverlay)
             {
-                if (now >= this.nextRecomputeUtc)
+                if (now >= this.nextRecomputeUtc && !this.isRecomputeRunning)
                 {
                     this.nextRecomputeUtc = now.AddMilliseconds(Math.Max(16, this.Settings.RescanIntervalMs));
-                    this.RecomputeLabels();
+                    this.isRecomputeRunning = true;
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            this.RecomputeLabels();
+                        }
+                        catch
+                        {
+                        }
+                        finally
+                        {
+                            this.isRecomputeRunning = false;
+                        }
+                    });
                 }
 
                 this.DrawLabels();
@@ -588,9 +661,10 @@ namespace LootValue
         /// <summary>Re-reads + reprices every ground item; throttled. The drawn position is updated live each frame.</summary>
         private void RecomputeLabels()
         {
-            this.cachedLabels.Clear();
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+            if (area == null || area.AwakeEntities == null) return;
 
-            var area = Core.States.InGameStateObject.CurrentAreaInstance;
+            var newLabels = new List<LootLabel>();
             foreach (var entity in area.AwakeEntities.Values)
             {
                 // Ground drops are identified by the WorldItem component (path-independent — the wrapper
@@ -605,14 +679,16 @@ namespace LootValue
 
                 var highlight = valueEx >= this.CurrentHighlightMin;
                 var color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
-                this.cachedLabels.Add(new LootLabel(entity.Id, render, label, color, highlight));
+                newLabels.Add(new LootLabel(entity.Id, render, label, color, highlight));
             }
+
+            this.cachedLabels = newLabels;
 
             // Drop tracker state for items no longer present (picked up / left the area).
             if (this.trackWorld.Count > 0)
             {
-                var live = new HashSet<uint>(this.cachedLabels.Count);
-                foreach (var l in this.cachedLabels) live.Add(l.EntityId);
+                var live = new HashSet<uint>(newLabels.Count);
+                foreach (var l in newLabels) live.Add(l.EntityId);
                 this.trackWorld.Keys.Where(k => !live.Contains(k)).ToList().ForEach(k => this.trackWorld.Remove(k));
             }
         }
@@ -695,15 +771,16 @@ namespace LootValue
         /// anchored to that element. Throttled; the element's live rect is re-read each frame when drawing.</summary>
         private void ScanLootTags()
         {
-            this.cachedTagChips.Clear();
             this.RefreshGroundTagNames();
-            var gameUi = Core.States.InGameStateObject.GameUi;
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi == null) return;
             var root = gameUi.Address;
             var leftPanel = gameUi.LeftPanel.Address;
             var rightPanel = gameUi.RightPanel.Address;
             var handle = Core.Process?.Handle;
             if (root == IntPtr.Zero || handle == null) return;
 
+            var newTagChips = new List<TagChip>();
             var queue = new Queue<IntPtr>();
             var visited = new HashSet<IntPtr>();
             queue.Enqueue(root);
@@ -730,15 +807,17 @@ namespace LootValue
 
                 if (this.TryPriceTagText(firstLine, out var chipText, out var color, out var highlight))
                 {
-                    this.cachedTagChips.Add(new TagChip(el, chipText, color, highlight));
+                    newTagChips.Add(new TagChip(el, chipText, color, highlight));
                 }
             }
+
+            this.cachedTagChips = newTagChips;
 
             // Drop tracker state for labels that are gone (item picked up / left the area).
             if (this.trackTag.Count > 0)
             {
-                var live = new HashSet<IntPtr>(this.cachedTagChips.Count);
-                foreach (var c in this.cachedTagChips) live.Add(c.ElementAddress);
+                var live = new HashSet<IntPtr>(newTagChips.Count);
+                foreach (var c in newTagChips) live.Add(c.ElementAddress);
                 this.trackTag.Keys.Where(k => !live.Contains(k)).ToList().ForEach(k => this.trackTag.Remove(k));
             }
         }
@@ -869,10 +948,24 @@ namespace LootValue
             if (!this.EnsureReflection()) return;
 
             var now = DateTime.UtcNow;
-            if (now >= this.nextExchangeScanUtc)
+            if (now >= this.nextExchangeScanUtc && !this.isExchangeScanRunning)
             {
                 this.nextExchangeScanUtc = now.AddMilliseconds(Math.Clamp(this.Settings.SlotRescanIntervalMs, 100, 2000));
-                this.ScanCurrencyExchange();
+                this.isExchangeScanRunning = true;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        this.ScanCurrencyExchange();
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        this.isExchangeScanRunning = false;
+                    }
+                });
             }
 
             if (this.cachedExchangeLabels.Count == 0) return;
@@ -894,16 +987,28 @@ namespace LootValue
 
         private void ScanCurrencyExchange()
         {
-            this.cachedExchangeLabels.Clear();
             var root = this.ResolveUiPath(Core.States.InGameStateObject.GameUi.Address, CurrencyExchangeRootPath);
-            if (root == IntPtr.Zero || !this.TryGetVisibleChildren(root, out var rootChildren) || rootChildren.Length <= 1) return;
+            if (root == IntPtr.Zero || !this.TryGetVisibleChildren(root, out var rootChildren) || rootChildren.Length <= 1)
+            {
+                this.cachedExchangeLabels = new List<ExchangePriceLabel>();
+                return;
+            }
 
             // [114][20][6][1] is the complete item list. Its visibility is the reliable signal that
             // Currency Exchange is open; only categories enabled by the selected tab are visible below it.
             var listAddress = rootChildren[1];
-            if (!this.TryGetVisibleChildren(listAddress, out var categoryAddresses)) return;
-            if (!PluginUiElementReflection.TryGetAbsoluteRect(root, out var viewportPosition, out var viewportSize)) return;
+            if (!this.TryGetVisibleChildren(listAddress, out var categoryAddresses))
+            {
+                this.cachedExchangeLabels = new List<ExchangePriceLabel>();
+                return;
+            }
+            if (!PluginUiElementReflection.TryGetAbsoluteRect(root, out var viewportPosition, out var viewportSize))
+            {
+                this.cachedExchangeLabels = new List<ExchangePriceLabel>();
+                return;
+            }
             var viewportMax = viewportPosition + viewportSize;
+            var newLabels = new List<ExchangePriceLabel>();
 
             foreach (var categoryAddress in categoryAddresses)
             {
@@ -936,10 +1041,12 @@ namespace LootValue
                         var labelPosition = new Vector2(
                             iconPosition.X + this.Settings.SlotOffsetX,
                             iconPosition.Y + iconSize.Y - fontSize + this.Settings.SlotOffsetY);
-                        this.cachedExchangeLabels.Add(new ExchangePriceLabel(labelPosition, text, color, highlight));
+                        newLabels.Add(new ExchangePriceLabel(labelPosition, text, color, highlight));
                     }
                 }
             }
+
+            this.cachedExchangeLabels = newLabels;
         }
 
         private bool TryGetVisibleChildren(IntPtr address, out IntPtr[] children)
@@ -1097,9 +1204,17 @@ namespace LootValue
                 });
             }
 
-            var leftScroll = GetScrollFrameState(this.cachedLeftSlots);
-            var rightScroll = GetScrollFrameState(this.cachedRightSlots);
-            var ritualScroll = GetScrollFrameState(this.cachedRitualSlots);
+            if (now >= this.nextScrollRefreshUtc)
+            {
+                this.nextScrollRefreshUtc = now.AddMilliseconds(50);
+                this.cachedLeftScroll = GetScrollFrameState(this.cachedLeftSlots);
+                this.cachedRightScroll = GetScrollFrameState(this.cachedRightSlots);
+                this.cachedRitualScroll = GetScrollFrameState(this.cachedRitualSlots);
+            }
+
+            var leftScroll = this.cachedLeftScroll;
+            var rightScroll = this.cachedRightScroll;
+            var ritualScroll = this.cachedRitualScroll;
             var hidePrices = this.Settings.HideSlotPricesOnHover &&
                              (IsAnySlotHovered(this.cachedLeftSlots, leftScroll) ||
                               IsAnySlotHovered(this.cachedRightSlots, rightScroll) ||
@@ -1765,6 +1880,22 @@ namespace LootValue
             public bool Highlight { get; }
         }
 
+        private readonly struct RuneshapeRowPriceLabel
+        {
+            public RuneshapeRowPriceLabel(Vector2 position, string text, bool isHigh)
+            {
+                this.Position = position;
+                this.Text = text;
+                this.IsHigh = isHigh;
+            }
+
+            public Vector2 Position { get; }
+
+            public string Text { get; }
+
+            public bool IsHigh { get; }
+        }
+
         private readonly struct SlotElementCandidate
         {
             public SlotElementCandidate(
@@ -1918,13 +2049,10 @@ namespace LootValue
         private void ProcessDropAlerts()
         {
             var now = DateTime.UtcNow;
-            if (now < this.nextAlertScanUtc) return;
-            this.nextAlertScanUtc = now.AddMilliseconds(Math.Max(50, this.Settings.RescanIntervalMs));
-
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
             if (area == null || area.AwakeEntities == null) return;
 
-            this.activeAlertDrops.Clear();
+            var newAlertDrops = new List<ActiveDropAlert>();
 
             foreach (var entity in area.AwakeEntities.Values)
             {
@@ -1938,7 +2066,7 @@ namespace LootValue
                 if (displayVal < this.Settings.AlertMinDisplayValue) continue;
 
                 var highlightColor = ImGui.ColorConvertFloat4ToU32(this.Settings.HighlightColor);
-                this.activeAlertDrops.Add(new ActiveDropAlert(entity.Id, render, itemName, displayVal, displayCur, highlightColor));
+                newAlertDrops.Add(new ActiveDropAlert(entity.Id, render, itemName, displayVal, displayCur, highlightColor));
 
                 // If newly discovered drop above threshold: trigger sound and banner!
                 if (this.alertedEntityIds.Add(entity.Id))
@@ -1947,15 +2075,19 @@ namespace LootValue
 
                     if (this.Settings.EnableAlertBanner)
                     {
-                        this.activeAlertBanners.Add(new DropAlertBanner(entity.Id, itemName, displayVal, displayCur, now));
+                        lock (this.activeAlertBanners)
+                        {
+                            this.activeAlertBanners.Add(new DropAlertBanner(entity.Id, itemName, displayVal, displayCur, now));
+                            if (this.activeAlertBanners.Count > 5)
+                            {
+                                this.activeAlertBanners.RemoveRange(0, this.activeAlertBanners.Count - 5);
+                            }
+                        }
                     }
                 }
             }
 
-            if (this.activeAlertBanners.Count > 5)
-            {
-                this.activeAlertBanners.RemoveRange(0, this.activeAlertBanners.Count - 5);
-            }
+            this.activeAlertDrops = newAlertDrops;
         }
 
         private void DrawDropAlerts()
@@ -2054,12 +2186,14 @@ namespace LootValue
             // 2. Draw On-Screen Alert Banner
             if (this.Settings.EnableAlertBanner && this.activeAlertBanners.Count > 0)
             {
-                var bannerDuration = Math.Max(2f, this.Settings.AlertBannerDurationSec);
-                var bannerW = 460f;
-                var bannerH = 68f;
-                var startY = 110f;
+                lock (this.activeAlertBanners)
+                {
+                    var bannerDuration = Math.Max(2f, this.Settings.AlertBannerDurationSec);
+                    var bannerW = 460f;
+                    var bannerH = 68f;
+                    var startY = 110f;
 
-                for (var i = this.activeAlertBanners.Count - 1; i >= 0; i--)
+                    for (var i = this.activeAlertBanners.Count - 1; i >= 0; i--)
                 {
                     var banner = this.activeAlertBanners[i];
                     var elapsedSec = (float)(now - banner.CreatedUtc).TotalSeconds;
@@ -2116,6 +2250,7 @@ namespace LootValue
                 }
             }
         }
+    }
 
         private readonly struct ActiveDropAlert
         {
@@ -2169,15 +2304,29 @@ namespace LootValue
         // =========================================================================
 
         private DateTime nextMonolithScanUtc = DateTime.MinValue;
-        private readonly List<MonolithInfo> cachedMonoliths = new();
+        private List<MonolithInfo> cachedMonoliths = new();
 
         private void DrawExpeditionMonolithOverlay()
         {
             var now = DateTime.UtcNow;
-            if (now >= this.nextMonolithScanUtc)
+            if (now >= this.nextMonolithScanUtc && !this.isMonolithScanRunning)
             {
                 this.nextMonolithScanUtc = now.AddMilliseconds(350);
-                this.ScanExpeditionMonoliths();
+                this.isMonolithScanRunning = true;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        this.ScanExpeditionMonoliths();
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        this.isMonolithScanRunning = false;
+                    }
+                });
             }
 
             if (this.cachedMonoliths.Count == 0) return;
@@ -2210,11 +2359,11 @@ namespace LootValue
 
         private void ScanExpeditionMonoliths()
         {
-            this.cachedMonoliths.Clear();
-            var area = Core.States.InGameStateObject.CurrentAreaInstance;
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
             if (area == null || area.AwakeEntities == null) return;
 
             var areaLevel = area.CurrentAreaLevel;
+            var newMonoliths = new List<MonolithInfo>();
             foreach (var entity in area.AwakeEntities.Values)
             {
                 if (entity == null || entity.Address == IntPtr.Zero) continue;
@@ -2225,9 +2374,11 @@ namespace LootValue
 
                 if (RuneshapeReader.TryReadMonolith(entity, areaLevel, this.Settings.DisplayCurrency, out var info))
                 {
-                    this.cachedMonoliths.Add(info);
+                    newMonoliths.Add(info);
                 }
             }
+
+            this.cachedMonoliths = newMonoliths;
         }
 
         private void DrawMonolithBadge(ImDrawListPtr fg, Vector2 screenPos, MonolithInfo m)
@@ -2323,24 +2474,71 @@ namespace LootValue
 
         private void DrawRuneshapeUiOverlay()
         {
+            var now = DateTime.UtcNow;
+            if (now >= this.nextRuneshapeUiScanUtc && !this.isRuneshapeUiScanRunning)
+            {
+                this.nextRuneshapeUiScanUtc = now.AddMilliseconds(Math.Clamp(this.Settings.SlotRescanIntervalMs, 100, 2000));
+                this.isRuneshapeUiScanRunning = true;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        this.ScanRuneshapeUi();
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        this.isRuneshapeUiScanRunning = false;
+                    }
+                });
+            }
+
+            if (this.cachedRuneshapeRows.Count == 0) return;
+
+            var fg = ImGui.GetForegroundDrawList();
+            foreach (var row in this.cachedRuneshapeRows)
+            {
+                DrawRuneforgePriceChip(fg, row.Position, row.Text, row.IsHigh);
+            }
+        }
+
+        private void ScanRuneshapeUi()
+        {
             var handle = Core.Process?.Handle;
-            if (handle == null) return;
-            var gameUi = Core.States.InGameStateObject.GameUi;
-            if (gameUi.Address == IntPtr.Zero) return;
+            if (handle == null)
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi == null || gameUi.Address == IntPtr.Zero)
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
 
             var container = RuneshapeReader.ResolveRuneforgeContainer(
                 gameUi.Address,
                 addr => handle.TryReadMemory<UiElementBaseOffset>(addr, out var off) ? off : null,
                 vec => handle.ReadStdVector<IntPtr>(vec));
 
-            if (container == IntPtr.Zero) return;
-
-            if (!handle.TryReadMemory<UiElementBaseOffset>(container, out var off)) return;
+            if (container == IntPtr.Zero || !handle.TryReadMemory<UiElementBaseOffset>(container, out var off))
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
 
             var rows = handle.ReadStdVector<IntPtr>(off.ChildrensPtr);
-            if (rows.Length == 0) return;
+            if (rows.Length == 0)
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
 
-            var fg = ImGui.GetForegroundDrawList();
+            var newRows = new List<RuneshapeRowPriceLabel>();
+            var chaosDiv = PoeNinjaPriceFetcher.ChaosPerDivine > 0 ? PoeNinjaPriceFetcher.ChaosPerDivine : 200.0;
 
             foreach (var row in rows)
             {
@@ -2371,10 +2569,11 @@ namespace LootValue
                     rowPos.X + rowSize.X + 8f + this.Settings.RuneshapeUiOffsetX,
                     rowPos.Y + (rowSize.Y - 20f) / 2f + this.Settings.RuneshapeUiOffsetY);
 
-                var chaosDiv = PoeNinjaPriceFetcher.ChaosPerDivine > 0 ? PoeNinjaPriceFetcher.ChaosPerDivine : 200.0;
                 var isHigh = (totalChaos / chaosDiv) >= 1.0;
-                DrawRuneforgePriceChip(fg, chipPos, chipText, isHigh);
+                newRows.Add(new RuneshapeRowPriceLabel(chipPos, chipText, isHigh));
             }
+
+            this.cachedRuneshapeRows = newRows;
         }
 
         private static void ParseRuneforgeRowText(string raw, out int count, out string name)
