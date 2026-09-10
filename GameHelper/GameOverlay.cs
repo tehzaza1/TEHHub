@@ -50,6 +50,7 @@ namespace GameHelper
             Core.Initialize();
             Core.InitializeCororutines();
             this.VSync = Core.GHSettings.Vsync;
+            this.FPSLimit = Core.GHSettings.FPSLimit;
             await base.Run();
         }
 
