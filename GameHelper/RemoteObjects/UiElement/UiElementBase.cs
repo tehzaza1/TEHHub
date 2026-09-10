@@ -26,7 +26,6 @@ namespace GameHelper.RemoteObjects.UiElement
         // first accessed. Eliminates the per-indexer-call new+UpdateData(true) hit
         // that was O(N) per traversal in passive-skill-tree-sized trees.
         private UiElementBase?[] childrenCache = Array.Empty<UiElementBase?>();
-        private bool preserveStableChildren;
         protected uint flags; // IsVisible and ShouldModifyPosition information
         private float localScaleMultiplier;
         private Vector2 relativePosition;
@@ -120,17 +119,6 @@ namespace GameHelper.RemoteObjects.UiElement
         /// </summary>
         public int TotalChildrens => this.childrenAddresses.Length;
 
-        /// <summary>
-        ///     Gets or sets a value indicating whether materialized children whose addresses stay
-        ///     at the same index should survive a parent refresh. This is intended for very large,
-        ///     mostly-stable containers such as the Atlas node list.
-        /// </summary>
-        internal bool PreserveStableChildren
-        {
-            get => this.preserveStableChildren;
-            set => this.preserveStableChildren = value;
-        }
-
         public bool TryGetParent([NotNullWhen(true)] out UiElementBase? parent)
         {
             if (this.parentAddress == IntPtr.Zero)
@@ -151,35 +139,26 @@ namespace GameHelper.RemoteObjects.UiElement
         /// <returns>the child Ui Element.</returns>
         [SkipImGuiReflection]
         public UiElementBase? this[int i]
-            => this.GetChild(i, false);
-
-        /// <summary>
-        ///     Gets a child and optionally refreshes an already-materialized instance.
-        /// </summary>
-        /// <param name="i">index of the child Ui Element.</param>
-        /// <param name="refreshCached">whether an existing cached child should read fresh data.</param>
-        /// <returns>the child Ui Element, or null when the index is invalid.</returns>
-        internal UiElementBase? GetChild(int i, bool refreshCached)
         {
-            if (i < 0 || this.childrenAddresses.Length <= i)
+            get
             {
-                return null;
-            }
+                if (this.childrenAddresses.Length <= i)
+                {
+                    return null;
+                }
 
-            var cached = this.childrenCache[i];
-            if (cached == null)
-            {
-                cached = new UiElementBase(this.childrenAddresses[i], this.parents);
-                this.childrenCache[i] = cached;
-            }
-            else if (refreshCached)
-            {
-                // UiElementBase instances use forceUpdate=true, so assigning the same address
-                // performs one deliberate refresh without replacing the cached object.
-                cached.Address = this.childrenAddresses[i];
-            }
+                // F-136: lazy-cache child UiElementBase. First access constructs and
+                // caches; subsequent calls return the cached instance. Cache slots
+                // are reset whenever UpdateData re-reads childrenAddresses.
+                var cached = this.childrenCache[i];
+                if (cached == null)
+                {
+                    cached = new UiElementBase(this.childrenAddresses[i], this.parents);
+                    this.childrenCache[i] = cached;
+                }
 
-            return cached;
+                return cached;
+            }
         }
 
         /// <summary>
@@ -256,22 +235,11 @@ namespace GameHelper.RemoteObjects.UiElement
 
             this.parentAddress = data.ParentPtr;
             this.parents.AddIfNotExists(data.ParentPtr);
-            var nextChildrenAddresses = Core.Process.Handle.ReadStdVector<IntPtr>(data.ChildrensPtr);
-            var nextChildrenCache = new UiElementBase?[nextChildrenAddresses.Length];
-            if (this.preserveStableChildren && !hasAddressChanged)
-            {
-                var reusableCount = Math.Min(this.childrenAddresses.Length, nextChildrenAddresses.Length);
-                for (var i = 0; i < reusableCount; i++)
-                {
-                    if (this.childrenAddresses[i] == nextChildrenAddresses[i])
-                    {
-                        nextChildrenCache[i] = this.childrenCache[i];
-                    }
-                }
-            }
-
-            this.childrenAddresses = nextChildrenAddresses;
-            this.childrenCache = nextChildrenCache;
+            this.childrenAddresses = Core.Process.Handle.ReadStdVector<IntPtr>(data.ChildrensPtr);
+            // F-136: rebuild cache slots to match the new childrenAddresses length.
+            // Existing materialised children are dropped; they'll be re-allocated
+            // lazily on next this[int] access if still needed.
+            this.childrenCache = new UiElementBase?[this.childrenAddresses.Length];
 
             this.positionModifier.X = data.PositionModifier.X;
             this.positionModifier.Y = data.PositionModifier.Y;

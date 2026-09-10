@@ -182,7 +182,6 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             this.Act4 = new(IntPtr.Zero, this.rootCache);
             this.Interlude = new(IntPtr.Zero, this.rootCache);
             this.Atlas = new(IntPtr.Zero, this.rootCache);
-            this.Atlas.PreserveStableChildren = true;
             this.AtlasSkillsPanel = new(IntPtr.Zero, this.rootCache);
             this.TempleConsole = new(IntPtr.Zero, this.rootCache);
             this.CurrencyExchangePanel = new(IntPtr.Zero, this.rootCache);
@@ -677,10 +676,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             var markerFpMasked = AtlasCurrentNodeMarkerFp & ~IsVisibleMask;
             for (var i = 0; i < atlasCount; i++)
             {
-                // Atlas preserves stable child instances between parent updates. Refresh each
-                // materialized node only on the existing 20-frame data-cache cadence instead of
-                // rebuilding all ~751 nodes every render frame.
-                var nodeUi = this.Atlas.GetChild(i, true);
+                var nodeUi = this.Atlas[i];
                 if (nodeUi == null || nodeUi.Address == IntPtr.Zero)
                 {
                     continue;
