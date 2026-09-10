@@ -261,6 +261,15 @@ Runtime validation (`memory_diagnostics_20260911_051957.tsv`):
 
 Commit: `5ca1df1 perf: batch adjacent UI parent memory reads`
 
+Runtime validation (`memory_diagnostics_20260911_052900.tsv`):
+
+- ทั้งโปรแกรมลดจาก 3,908 เหลือ 2,947 reads/frame หรือลด 24.6%
+- Root UI parent ลดจาก 1,989 เหลือ 1,188 reads/frame หรือลด 40.3%
+- read rate เฉลี่ยลดจาก 236,863 เหลือ 179,475 reads/วินาที
+- native failures เป็นศูนย์ และไม่พบ batch fallback ผิดปกติ
+- requested bytes เพิ่มจาก 118.28 เป็น 130.49 MiB/วินาที เพราะ span ครอบช่องว่างระหว่าง allocation ที่ติดกัน แต่ยังคุ้มค่าจากการลดการข้าม Windows/kernel
+- overlay อยู่ที่ 60.9 FPS ระหว่างทดสอบ และผู้ใช้ตรวจ Atlas/minimap/panel แล้ว
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
