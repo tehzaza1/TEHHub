@@ -637,6 +637,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
         private void UpdateAtlasMapData()
         {
+            using var memoryReadRegion = Ui.MemoryReadDiagnostics.MeasureRegion("Core.AtlasMapUpdate");
             var isController = Core.GHSettings.EnableControllerMode;
             var isAtlasVisible = this.Atlas.IsVisible || (isController && this.Atlas.Address != IntPtr.Zero && (Core.Process.Handle.ReadMemory<UiElementBaseOffset>(this.Atlas.Address).Flags & IsVisibleMask) != 0);
             if (this.Atlas.Address == IntPtr.Zero || !isAtlasVisible)

@@ -460,6 +460,7 @@ namespace Atlas2
 
         public override void DrawUI()
         {
+            using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Atlas2.DrawUI");
             var inventoryPanel = InventoryPanel();
 
             var isGameHelperForeground = Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();

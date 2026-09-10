@@ -36,6 +36,7 @@ public static class MemoryReadDiagnostics
 {
     private const int MaxTrackedAddressesPerKey = 1024;
     private static readonly ConcurrentDictionary<string, FailureStat> Stats = new();
+    private static readonly ConcurrentDictionary<string, ReadRegionStat> ReadRegions = new();
 
     private static DateTime lastUpdate = DateTime.MinValue;
     private static List<DiagnosticRow> cachedRows = [];
@@ -131,6 +132,34 @@ public static class MemoryReadDiagnostics
         }
     }
 
+    /// <summary>
+    ///     Measures how many process-memory calls and requested bytes happen inside a
+    ///     high-level operation. Unlike caller stack walking, this adds bookkeeping only
+    ///     once at region entry and exit rather than once per native read.
+    /// </summary>
+    public static MemoryReadRegionScope MeasureRegion(string name)
+    {
+        if (!Core.GHSettings.ShowMemoryDiagnostics)
+        {
+            return default;
+        }
+
+        return new MemoryReadRegionScope(
+            name,
+            Interlocked.Read(ref totalReadCalls),
+            Interlocked.Read(ref totalReadBytes));
+    }
+
+    internal static void CompleteRegion(string name, long startCalls, long startBytes)
+    {
+        var calls = Math.Max(0, Interlocked.Read(ref totalReadCalls) - startCalls);
+        var bytes = Math.Max(0, Interlocked.Read(ref totalReadBytes) - startBytes);
+        var stat = ReadRegions.GetOrAdd(name, static _ => new ReadRegionStat());
+        Interlocked.Increment(ref stat.Invocations);
+        Interlocked.Add(ref stat.ReadCalls, calls);
+        Interlocked.Add(ref stat.RequestedBytes, bytes);
+    }
+
     private static IEnumerator<Wait> RenderWindow()
     {
         while (true)
@@ -151,6 +180,7 @@ public static class MemoryReadDiagnostics
                     if (ImGui.MenuItem("Reset"))
                     {
                         Stats.Clear();
+                        ReadRegions.Clear();
                         ResetReadMetrics();
                         cachedRows = [];
                         lastActionMessage = string.Empty;
@@ -400,6 +430,17 @@ public static class MemoryReadDiagnostics
         sb.AppendLine(
             $"# Scalar calls: {cachedReadRate.ScalarCalls}, Buffer/array calls: {cachedReadRate.BufferCalls}, " +
             $"Total requested: {cachedReadRate.TotalMebibytes:F2} MiB");
+        sb.AppendLine("# Read regions (regions can overlap):");
+        sb.AppendLine("# Region\tInvocations\tTotalReads\tAvgReads/Invocation\tRequestedMiB");
+        foreach (var entry in ReadRegions.OrderByDescending(static entry => Interlocked.Read(ref entry.Value.ReadCalls)))
+        {
+            var invocations = Interlocked.Read(ref entry.Value.Invocations);
+            var calls = Interlocked.Read(ref entry.Value.ReadCalls);
+            var bytes = Interlocked.Read(ref entry.Value.RequestedBytes);
+            var averageCalls = invocations > 0 ? (double)calls / invocations : 0;
+            sb.AppendLine($"# {entry.Key}\t{invocations}\t{calls}\t{averageCalls:F1}\t{bytes / 1048576.0:F2}");
+        }
+
         sb.AppendLine($"# Distinct call sites: {rows.Count}, Total failed reads: {rows.Sum(r => r.Total)}");
         sb.AppendLine("# Verdict guide: high Unique + low Max/Addr => races; low Unique + high Max/Addr => likely structural.");
         sb.AppendLine("Total\tUnique\tMax/Addr\tVerdict\tLastSeen(s)\tCaller(Type)\tTopAddresses");
@@ -581,6 +622,38 @@ public static class MemoryReadDiagnostics
         public long UntrackedAddressHits;
         public long LastTicks;
         public readonly ConcurrentDictionary<long, int> Addresses = new();
+    }
+
+    private sealed class ReadRegionStat
+    {
+        public long Invocations;
+        public long ReadCalls;
+        public long RequestedBytes;
+    }
+}
+
+/// <summary>
+///     Allocation-free scope returned by <see cref="MemoryReadDiagnostics.MeasureRegion"/>.
+/// </summary>
+public readonly struct MemoryReadRegionScope : IDisposable
+{
+    private readonly string? name;
+    private readonly long startCalls;
+    private readonly long startBytes;
+
+    internal MemoryReadRegionScope(string name, long startCalls, long startBytes)
+    {
+        this.name = name;
+        this.startCalls = startCalls;
+        this.startBytes = startBytes;
+    }
+
+    public void Dispose()
+    {
+        if (this.name != null)
+        {
+            MemoryReadDiagnostics.CompleteRegion(this.name, this.startCalls, this.startBytes);
+        }
     }
 }
 
