@@ -209,12 +209,25 @@ namespace AutoExile2.Brain.Workers
             // 4. Send steering vector to gamepad
             var moveDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, steerGridPos, p.FollowerGrid, p.GridToWorld);
 
-            // Analog speed modulation: slow down smoothly when approaching destination to prevent overshoot
+            // Analog speed modulation: slow down smoothly when approaching destination (ready-to-cast walk)
             float distToTarget = Vector2.Distance(p.FollowerGrid, targetPos);
-            if (!shouldSprint && distToTarget < 10f)
+            if (!shouldSprint)
             {
-                float speedFactor = Math.Clamp(distToTarget / 8f, 0.35f, 1.0f);
-                moveDir *= speedFactor;
+                if (distToTarget <= 2.0f)
+                {
+                    moveDir = Vector2.Zero;
+                }
+                else if (didCombat || (directive != null && directive.Combat.ShouldAttack))
+                {
+                    // While attacking or ready to cast, maintain deliberate cast-walking speed
+                    float speedFactor = Math.Clamp(distToTarget / 6f, 0.35f, 0.70f);
+                    moveDir *= speedFactor;
+                }
+                else if (distToTarget < 10f)
+                {
+                    float speedFactor = Math.Clamp(distToTarget / 8f, 0.35f, 1.0f);
+                    moveDir *= speedFactor;
+                }
             }
 
             pad.SetFollowerMovement(moveDir);

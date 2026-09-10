@@ -179,20 +179,20 @@ namespace AutoExile2.Brain
             }
 
             // 3.4 Formation Follow Utility
-            float followTriggerDist = Math.Max(safeStopDist + 1f, s.CoopFollowDistance);
+            // Follower walks with Leader in ready-to-cast stance to maintain formation
             float followScore = 0f;
             string followReason = string.Empty;
 
-            if (p.DistanceToLeader > followTriggerDist || p.DistanceToFormationTarget > safeStopDist)
+            if (p.DistanceToFormationTarget > 2.5f || p.DistanceToLeader > (safeStopDist + 1f))
             {
                 followScore = 40f + Math.Min(15f, p.DistanceToFormationTarget * 0.5f);
-                followReason = $"Escorting to {s.FollowerPosition} ({p.DistanceToLeader:F0}g from leader)";
+                followReason = $"Walking in formation ({p.DistanceToLeader:F0}g from leader)";
                 candidates.Add((BotGoal.FormationFollow(followReason, p.FormationTarget), followScore, followReason));
             }
 
-            // 3.5 Idle Utility (in safe zone)
+            // 3.5 Idle Utility (Only when physically at the exact formation spot)
             float idleScore = 15f;
-            string idleReason = $"Holding formation in safe zone ({p.DistanceToLeader:F0}g <= {safeStopDist:F0}g)";
+            string idleReason = $"Holding formation spot ({p.DistanceToLeader:F0}g)";
             candidates.Add((BotGoal.Idle(idleReason), idleScore, idleReason));
 
             // 4. Apply Action Commitment Hysteresis Bonus
@@ -290,7 +290,7 @@ namespace AutoExile2.Brain
 
             // 3. Locomotion Channel (Escort Formation & Tactical Evasion)
             float safeStopDist = Math.Max(2f, s.CoopStopDistance);
-            bool isAtSafeDistance = p.DistanceToFormationTarget <= safeStopDist && p.DistanceToLeader <= (safeStopDist + 3f);
+            bool isAtExactSpot = p.DistanceToFormationTarget <= 2.5f;
 
             if (narrativeGoal.Type == BotGoalType.Unstuck)
             {
@@ -299,7 +299,7 @@ namespace AutoExile2.Brain
                 dir.Locomotion.Maneuver = EvadeManeuver.UnstuckRoll;
                 dir.Locomotion.Reason = "Unstuck collision maneuver";
             }
-            else if (sprintMode && !isAtSafeDistance)
+            else if (sprintMode && p.DistanceToLeader > (safeStopDist + 15f))
             {
                 dir.Locomotion.ShouldMove = true;
                 dir.Locomotion.Destination = p.FormationTarget;
@@ -333,20 +333,23 @@ namespace AutoExile2.Brain
                     dir.Locomotion.Reason = "Repositioning out of hazard threat";
                 }
 
-                // 3.2 Destination: Follower always escorts and stays in formation with Leader!
-                if (!isAtSafeDistance && (p.DistanceToFormationTarget > safeStopDist || p.DistanceToLeader > (safeStopDist + 1f)))
+                // 3.2 Destination: Follower walks with Leader in ready-to-cast stance (slow walk)
+                // Does NOT freeze dead far away — allows smooth pacing and casting while moving
+                if (!isAtExactSpot || (dir.Combat.ShouldAttack && p.DistanceToLeader > 3.5f))
                 {
                     dir.Locomotion.ShouldMove = true;
                     dir.Locomotion.Destination = p.FormationTarget;
                     dir.Locomotion.Sprint = false;
-                    dir.Locomotion.Reason = $"Following formation ({p.DistanceToLeader:F0}g)";
+                    dir.Locomotion.Reason = dir.Combat.ShouldAttack
+                        ? $"Combat cast-walking in formation ({p.DistanceToLeader:F0}g)"
+                        : $"Walking in formation ({p.DistanceToLeader:F0}g)";
                 }
                 else
                 {
                     dir.Locomotion.ShouldMove = false;
                     dir.Locomotion.Destination = p.FollowerGrid;
                     dir.Locomotion.Sprint = false;
-                    dir.Locomotion.Reason = "Holding formation in safe zone";
+                    dir.Locomotion.Reason = "At formation spot";
                 }
             }
 
