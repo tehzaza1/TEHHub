@@ -37,6 +37,9 @@ namespace AutoExile2.Brain
         /// <summary>No immediate hostiles -> Navigate towards unexplored fog-of-war frontiers.</summary>
         Explore,
 
+        /// <summary>Bot detected as physically stuck/blocked -> Perform evasive roll or unstuck pulse.</summary>
+        Unstuck,
+
         /// <summary>Map objective completed -> Open portal and return to hideout.</summary>
         ExitMap,
     }
@@ -79,6 +82,9 @@ namespace AutoExile2.Brain
 
         public static BotGoal Explore(string reason, Vector2 frontierPos) =>
             new() { Type = BotGoalType.Explore, Priority = 35, Reason = reason, TargetPosition = frontierPos };
+
+        public static BotGoal Unstuck(string reason, Vector2 escapePos) =>
+            new() { Type = BotGoalType.Unstuck, Priority = 85, Reason = reason, TargetPosition = escapePos };
 
         public static BotGoal ExitMap(string reason, Entity? portal = null) =>
             new() { Type = BotGoalType.ExitMap, Priority = 30, Reason = reason, TargetEntity = portal };

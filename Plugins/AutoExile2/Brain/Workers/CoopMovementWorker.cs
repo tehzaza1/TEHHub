@@ -77,9 +77,25 @@ namespace AutoExile2.Brain.Workers
                 return;
             }
 
-            // 2. Determine target destination based on goal
             Vector2 targetPos = goal.TargetPosition ?? p.FormationTarget;
             var now = DateTime.Now;
+
+            // 1.5 Autonomous Unstuck Maneuver (Evasive Dodge Roll out of corner/trap)
+            if (goal.Type == BotGoalType.Unstuck)
+            {
+                this.CurrentNavPath.Clear();
+                this.CurrentWaypointIndex = 0;
+                this.CurrentDestination = targetPos;
+                var unstuckDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, targetPos, p.FollowerGrid, p.GridToWorld);
+                pad.SetFollowerMovement(unstuckDir);
+                pad.SetFollowerSprint(false);
+                if (p.FollowerAnimId != ANIM_ROLL)
+                {
+                    pad.TapFollowerDodgeRoll();
+                    this.lastFollowerRollTime = now;
+                }
+                return;
+            }
 
             // Direct Line-of-Sight check up to 60g (Open terrain)
             Vector2 steerGridPos;
