@@ -13,6 +13,7 @@ namespace LootValue
     using System.Reflection;
     using System.Runtime.InteropServices;
     using System.Text.RegularExpressions;
+    using System.Threading.Tasks;
     using Coroutine;
     using GameHelper;
     using GameHelper.CoroutineEvents;
@@ -80,6 +81,7 @@ namespace LootValue
         private IntPtr cachedRightPanelAddress;
         private IntPtr cachedRitualGridAddress;
         private DateTime nextSlotScanUtc = DateTime.MinValue;
+        private bool isSlotScanRunning = false;
         private readonly List<ExchangePriceLabel> cachedExchangeLabels = new();
         private DateTime nextExchangeScanUtc = DateTime.MinValue;
 
@@ -1051,51 +1053,75 @@ namespace LootValue
             }
 
             var now = DateTime.UtcNow;
-            if (now >= this.nextSlotScanUtc)
+            if (now >= this.nextSlotScanUtc && !this.isSlotScanRunning)
             {
                 this.nextSlotScanUtc = now.AddMilliseconds(Math.Clamp(this.Settings.SlotRescanIntervalMs, 100, 2000));
-                if (leftAddress != IntPtr.Zero)
-                {
-                    this.cachedLeftSlots = this.ScanItemSlots(
-                        leftAddress,
-                        gameUi.LeftPanel.Position,
-                        gameUi.LeftPanel.Size,
-                        out this.leftSlotReport);
-                }
-                else
-                {
-                    this.cachedLeftSlots.Clear();
-                    this.leftSlotReport = new SlotScanReport(IntPtr.Zero);
-                }
+                this.isSlotScanRunning = true;
 
-                if (rightAddress != IntPtr.Zero)
-                {
-                    this.cachedRightSlots = this.ScanItemSlots(
-                        rightAddress,
-                        gameUi.RightPanel.Position,
-                        gameUi.RightPanel.Size,
-                        out this.rightSlotReport);
-                }
-                else
-                {
-                    this.cachedRightSlots.Clear();
-                    this.rightSlotReport = new SlotScanReport(IntPtr.Zero);
-                }
+                var leftPos = gameUi.LeftPanel.Position;
+                var leftSize = gameUi.LeftPanel.Size;
+                var rightPos = gameUi.RightPanel.Position;
+                var rightSize = gameUi.RightPanel.Size;
+                var ritualPos = Vector2.Zero;
+                var ritualSize = Vector2.Zero;
+                var hasRitualRect = ritualAddress != IntPtr.Zero && PluginUiElementReflection.TryGetAbsoluteRect(ritualAddress, out ritualPos, out ritualSize);
 
-                if (ritualAddress != IntPtr.Zero &&
-                    PluginUiElementReflection.TryGetAbsoluteRect(ritualAddress, out var ritualPosition, out var ritualSize))
+                Task.Run(() =>
                 {
-                    this.cachedRitualSlots = this.ScanItemSlots(
-                        ritualAddress,
-                        ritualPosition,
-                        ritualSize,
-                        out this.ritualSlotReport);
-                }
-                else
-                {
-                    this.cachedRitualSlots.Clear();
-                    this.ritualSlotReport = new SlotScanReport(IntPtr.Zero);
-                }
+                    try
+                    {
+                        List<SlotInfo> newLeftSlots;
+                        SlotScanReport newLeftReport;
+                        if (leftAddress != IntPtr.Zero)
+                        {
+                            newLeftSlots = this.ScanItemSlots(leftAddress, leftPos, leftSize, out newLeftReport);
+                        }
+                        else
+                        {
+                            newLeftSlots = new List<SlotInfo>();
+                            newLeftReport = new SlotScanReport(IntPtr.Zero);
+                        }
+
+                        List<SlotInfo> newRightSlots;
+                        SlotScanReport newRightReport;
+                        if (rightAddress != IntPtr.Zero)
+                        {
+                            newRightSlots = this.ScanItemSlots(rightAddress, rightPos, rightSize, out newRightReport);
+                        }
+                        else
+                        {
+                            newRightSlots = new List<SlotInfo>();
+                            newRightReport = new SlotScanReport(IntPtr.Zero);
+                        }
+
+                        List<SlotInfo> newRitualSlots;
+                        SlotScanReport newRitualReport;
+                        if (hasRitualRect)
+                        {
+                            newRitualSlots = this.ScanItemSlots(ritualAddress, ritualPos, ritualSize, out newRitualReport);
+                        }
+                        else
+                        {
+                            newRitualSlots = new List<SlotInfo>();
+                            newRitualReport = new SlotScanReport(IntPtr.Zero);
+                        }
+
+                        this.cachedLeftSlots = newLeftSlots;
+                        this.leftSlotReport = newLeftReport;
+                        this.cachedRightSlots = newRightSlots;
+                        this.rightSlotReport = newRightReport;
+                        this.cachedRitualSlots = newRitualSlots;
+                        this.ritualSlotReport = newRitualReport;
+                    }
+                    catch
+                    {
+                        // Background scan error tolerance
+                    }
+                    finally
+                    {
+                        this.isSlotScanRunning = false;
+                    }
+                });
             }
 
             var leftScroll = GetScrollFrameState(this.cachedLeftSlots);
