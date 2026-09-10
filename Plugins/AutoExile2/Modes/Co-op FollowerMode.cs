@@ -677,22 +677,21 @@ namespace AutoExile2.Modes
             bool isActuallySprintingAnim = this.currentFollowerAnimId == ANIM_SPRINT;
 
             // Follower uses full Sprint (Hold B) only when truly far behind (50+ units).
-            // Once sprinting, disengage sprint as soon as distance closes back to combat range (<= 35g)
-            // so weapons are drawn and follower can attack + roll without waiting until safeDist (10g).
+            // Once sprinting, maintain sprint all the way until follower reaches close to the leader (safeDist).
             bool shouldSprint;
             if (this.isFollowerSprinting || isActuallySprintingAnim)
             {
-                shouldSprint = distToLeader > 35f;
+                shouldSprint = distToLeader > safeDist;
             }
             else
             {
                 shouldSprint = distToLeader >= effectiveSprintDist;
             }
 
-            // If actively casting/attacking, halt sprint when within combat zone
+            // If actively casting/attacking, halt sprint when close to leader
             double msSinceAttack = (now - this.lastFollowerAttackTime).TotalMilliseconds;
             bool isCastingNow = didCombat || msSinceAttack < 250;
-            if (isCastingNow && distToLeader <= 40f)
+            if (isCastingNow && distToLeader <= (followDist + 4f))
             {
                 shouldSprint = false;
             }
