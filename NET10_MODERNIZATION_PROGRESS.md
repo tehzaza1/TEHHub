@@ -148,6 +148,30 @@ Commit: `643a2e6 perf: report memory reads per overlay frame`
 
 Commit: `8de6e70 perf: attribute memory reads to Atlas regions`
 
+ผล baseline แบบ reads/frame (`memory_diagnostics_20260911_044950.tsv`):
+
+- Session 30.2 วินาที รวม 21,187,544 reads
+- เฉลี่ย 700,611 reads/วินาที, 255.04 MiB/วินาที และ 1.73 microseconds/call
+- overlay ทำงานเฉลี่ย 57.0 FPS หรือ 12,297 reads/frame
+- `Atlas2.DrawUI`: เฉลี่ย 2,431 reads ต่อการเรียก
+- `Core.AtlasMapUpdate`: เฉลี่ย 1,370 reads ต่อการเรียก
+- เหลือประมาณ 8,496 reads/frame จากระบบ UI/entity อื่น
+- native failures เป็นศูนย์
+
+ตัวเลขนี้ยืนยันว่าจำนวนการเรียก Windows สูงถึงหลักแสนต่อวินาทีจริง และคอขวดที่ควรแก้ก่อนคือ read ซ้ำต่อเฟรม ไม่ใช่ marshaller หรือ FPS limit
+
+### 5.7 เก็บ Atlas node cache ข้ามเฟรม
+
+- พบว่า Atlas panel อ่านรายชื่อ child แบบ batch อยู่แล้ว แต่ล้าง object cache ของลูกประมาณ 751 โหนดทุกเฟรม
+- Atlas2 จึงต้องสร้าง `UiElementBase` และอ่านข้อมูล node เดิมซ้ำเมื่อคำนวณตำแหน่งวาด
+- เพิ่มโหมดเก็บ cached child เฉพาะ container ขนาดใหญ่ที่ข้อมูลค่อนข้างคงที่ และเปิดใช้เฉพาะ Atlas เพื่อลดผลกระทบต่อ UI อื่น
+- ถ้า child address ที่ index เดิมเปลี่ยน cache จะถูกทิ้งทันทีเพื่อรักษาความถูกต้อง
+- refresh node จริงยังทำทุก 20 เฟรมตามรอบ Atlas data cache เดิม จึงไม่ลดความสดของข้อมูล topology/status จากพฤติกรรมเดิม
+- ตรวจ Release build ผ่านทุกโปรเจกต์ 0 warning / 0 error
+- รอ runtime dump รอบถัดไปเพื่อเทียบ `reads/frame` และ `Atlas2.DrawUI reads/invocation` กับ baseline ข้างต้น
+
+Commit: `7fd6936 perf: preserve stable Atlas node cache`
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
