@@ -221,6 +221,33 @@ namespace LootValue
                 }
             }
 
+            // Co-op mode split-screen roots: GamepadUiRoot child [22] (Player 1) and [23] (Player 2)
+            var rootOff = readUiOffset(gameUiAddress);
+            if (rootOff != null)
+            {
+                var rootKids = readStdVec(rootOff.Value.ChildrensPtr);
+                if (rootKids != null)
+                {
+                    if (rootKids.Length > 22 && rootKids[22] != IntPtr.Zero)
+                    {
+                        var win = FindRuneforgeInPanel(rootKids[22], readUiOffset, readStdVec);
+                        if (win != IntPtr.Zero)
+                        {
+                            return WalkRuneforgeUi(win, 1, readUiOffset, readStdVec);
+                        }
+                    }
+
+                    if (rootKids.Length > 23 && rootKids[23] != IntPtr.Zero)
+                    {
+                        var win = FindRuneforgeInPanel(rootKids[23], readUiOffset, readStdVec);
+                        if (win != IntPtr.Zero)
+                        {
+                            return WalkRuneforgeUi(win, 1, readUiOffset, readStdVec);
+                        }
+                    }
+                }
+            }
+
             // Fallback: search controller container
             var container = ImportantUiElements.GetControllerContainerAddress(gameUiAddress);
             if (container != IntPtr.Zero)
@@ -238,27 +265,29 @@ namespace LootValue
         private static IntPtr FindRuneforgeInPanel(
             IntPtr panel,
             Func<IntPtr, UiElementBaseOffset?> readUiOffset,
-            Func<StdVector, IntPtr[]?> readStdVec)
+            Func<StdVector, IntPtr[]?> readStdVec,
+            int depth = 0,
+            int maxDepth = 6)
         {
-            if (panel == IntPtr.Zero || readUiOffset == null || readStdVec == null)
+            if (panel == IntPtr.Zero || readUiOffset == null || readStdVec == null || depth > maxDepth)
             {
                 return IntPtr.Zero;
             }
 
             var off = readUiOffset(panel);
-            if (off == null)
+            if (off == null || (off.Value.Flags & UiVisibleMask) == 0)
             {
                 return IntPtr.Zero;
             }
 
             var targetFp = PanelFlagFingerprints[0] & ~UiVisibleMask;
-            if ((off.Value.Flags & UiVisibleMask) != 0 && (off.Value.Flags & ~UiVisibleMask) == targetFp)
+            if ((off.Value.Flags & ~UiVisibleMask) == targetFp)
             {
                 return panel;
             }
 
             var kids = readStdVec(off.Value.ChildrensPtr);
-            if (kids == null || kids.Length == 0 || kids.Length > 10)
+            if (kids == null || kids.Length == 0 || kids.Length > 100)
             {
                 return IntPtr.Zero;
             }
@@ -270,15 +299,10 @@ namespace LootValue
                     continue;
                 }
 
-                var coff = readUiOffset(child);
-                if (coff == null)
+                var found = FindRuneforgeInPanel(child, readUiOffset, readStdVec, depth + 1, maxDepth);
+                if (found != IntPtr.Zero)
                 {
-                    continue;
-                }
-
-                if ((coff.Value.Flags & UiVisibleMask) != 0 && (coff.Value.Flags & ~UiVisibleMask) == targetFp)
-                {
-                    return child;
+                    return found;
                 }
             }
 
