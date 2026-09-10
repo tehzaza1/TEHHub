@@ -94,8 +94,8 @@ namespace AutoExile2.Brain.Workers
                 return;
             }
 
-            // 1.3 Fly-by Ground Item Pickup (Button A)
-            bool canPickup = (directive != null && directive.Loot.CanPickupNow) || (goal.Type == BotGoalType.Loot && p.CanPickupNow);
+            // 1.3 Fly-by Ground Item Pickup (Button A - disabled in peaceful zone)
+            bool canPickup = !p.IsPeacefulZone && ((directive != null && directive.Loot.CanPickupNow) || (goal.Type == BotGoalType.Loot && p.CanPickupNow));
             if (canPickup && (now - this.lastPickupTapTime).TotalMilliseconds >= 250)
             {
                 pad.PressFollowerButton(CoopPadButton.A, 40);
@@ -115,7 +115,7 @@ namespace AutoExile2.Brain.Workers
                 var unstuckDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, targetPos, p.FollowerGrid, p.GridToWorld);
                 pad.SetFollowerMovement(unstuckDir);
                 pad.SetFollowerSprint(false);
-                if (p.FollowerAnimId != ANIM_ROLL)
+                if (!p.IsPeacefulZone && p.FollowerAnimId != ANIM_ROLL)
                 {
                     pad.TapFollowerDodgeRoll();
                     this.lastFollowerRollTime = now;
@@ -242,7 +242,7 @@ namespace AutoExile2.Brain.Workers
             float sprintThreshold = Math.Max(50f, s.CoopSprintDistance);
             bool isActuallySprintingAnim = p.FollowerAnimId == ANIM_SPRINT;
 
-            if (!isActuallySprintingAnim && moveDir.LengthSquared() > 0.05f)
+            if (!p.IsPeacefulZone && !isActuallySprintingAnim && moveDir.LengthSquared() > 0.05f)
             {
                 double msSinceRoll = (now - this.lastFollowerRollTime).TotalMilliseconds;
                 bool isMicroDodge = ((directive != null && directive.Locomotion.Maneuver == EvadeManeuver.MicroDodge) || p.HasIncomingSlam) && msSinceRoll >= 450;

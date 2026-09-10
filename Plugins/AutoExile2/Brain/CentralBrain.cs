@@ -63,14 +63,6 @@ namespace AutoExile2.Brain
             var now = DateTime.Now;
             this.LastEvaluationScores.Clear();
 
-            // 0. Peaceful Zone (Town / Hideout) -> Absolute Idle
-            if (p.IsPeacefulZone)
-            {
-                var idleGoal = BotGoal.Idle("In Town/Hideout — standing by");
-                this.SynthesizeCoopDirective(p, s, idleGoal, isCurrentlySprinting);
-                return this.UpdateGoal(idleGoal);
-            }
-
             // 1. Life & Death (Highest absolute priority: 100)
             if (p.IsFollowerDead)
             {
@@ -101,7 +93,7 @@ namespace AutoExile2.Brain
             // 3.1 DangerEvade Utility (Hazard Threat + Low HP)
             float dangerScore = 0f;
             string dangerReason = string.Empty;
-            if (p.Vision.Hazard.IsHighDangerArea)
+            if (!p.IsPeacefulZone && p.Vision.Hazard.IsHighDangerArea)
             {
                 float missingHpRatio = Math.Clamp((100f - p.FollowerHpPercent) / 100f, 0f, 1f);
                 dangerScore = 60f + (missingHpRatio * 35f); // 60 to 95 utility
@@ -126,13 +118,17 @@ namespace AutoExile2.Brain
             {
                 // Hysteresis latch: once sprinting, hold high utility until safely inside catch-up range
                 catchupScore = 84f;
-                catchupReason = $"Sprinting catch-up in progress ({p.DistanceToLeader:F0}/{sprintReleaseThreshold:F0}g)";
+                catchupReason = p.IsPeacefulZone
+                    ? $"Town/Hideout: Sprinting catch-up in progress ({p.DistanceToLeader:F0}/{sprintReleaseThreshold:F0}g)"
+                    : $"Sprinting catch-up in progress ({p.DistanceToLeader:F0}/{sprintReleaseThreshold:F0}g)";
             }
             else if (p.DistanceToLeader >= sprintThreshold)
             {
                 // Dynamic distance scaling: 80 base + additional up to 96
                 catchupScore = 80f + Math.Min(16f, (p.DistanceToLeader - sprintThreshold) * 0.4f);
-                catchupReason = $"Leader far ahead ({p.DistanceToLeader:F0}/{sprintThreshold:F0}g)";
+                catchupReason = p.IsPeacefulZone
+                    ? $"Town/Hideout: Leader far ahead ({p.DistanceToLeader:F0}/{sprintThreshold:F0}g)"
+                    : $"Leader far ahead ({p.DistanceToLeader:F0}/{sprintThreshold:F0}g)";
             }
 
             if (catchupScore > 0f)
@@ -143,7 +139,7 @@ namespace AutoExile2.Brain
             // 3.3 Combat Utility (Culling + Hostiles engagement)
             float combatScore = 0f;
             string combatReason = string.Empty;
-            if (s.P2EnableCombat && s.P2Skills != null)
+            if (!p.IsPeacefulZone && s.P2EnableCombat && s.P2Skills != null)
             {
                 bool hasEligibleCuller = false;
                 foreach (var skill in s.P2Skills.Where(x => x.Enabled && (x.Category == "Culler" || x.Role == SkillRole.Culler)))
@@ -193,13 +189,17 @@ namespace AutoExile2.Brain
             if (shouldFollow)
             {
                 followScore = 40f + Math.Min(15f, p.DistanceToFormationTarget * 0.5f);
-                followReason = $"Walking in formation ({p.DistanceToLeader:F0}/{followTriggerDist:F0}g from leader)";
+                followReason = p.IsPeacefulZone
+                    ? $"Town/Hideout: Walking with leader ({p.DistanceToLeader:F0}/{followTriggerDist:F0}g)"
+                    : $"Walking in formation ({p.DistanceToLeader:F0}/{followTriggerDist:F0}g from leader)";
                 candidates.Add((BotGoal.FormationFollow(followReason, p.FormationTarget), followScore, followReason));
             }
 
             // 3.5 Idle Utility (Only when physically at the exact formation spot)
             float idleScore = 15f;
-            string idleReason = $"Holding formation spot ({p.DistanceToLeader:F0}g)";
+            string idleReason = p.IsPeacefulZone
+                ? $"Town/Hideout: Standing by leader ({p.DistanceToLeader:F0}g)"
+                : $"Holding formation spot ({p.DistanceToLeader:F0}g)";
             candidates.Add((BotGoal.Idle(idleReason), idleScore, idleReason));
 
             // 4. Apply Action Commitment Hysteresis Bonus
@@ -250,30 +250,33 @@ namespace AutoExile2.Brain
             var dir = this.CurrentDirective;
             dir.Reset();
 
-            if (p.IsPeacefulZone || p.IsFollowerDead)
+            if (p.IsFollowerDead)
             {
                 dir.Locomotion.ShouldMove = false;
                 dir.Combat.ShouldAttack = false;
-                dir.Summary = p.IsFollowerDead ? "Dead — Halting" : "Town/Hideout Standby";
+                dir.Summary = "Dead — Halting";
                 return dir;
             }
 
-            // 1. Reflex Channel (Flasks & Immediate Life Support)
-            if (p.FollowerHpPercent < s.P2LifeFlaskThresholdPercent)
+            // 1. Reflex Channel (Flasks & Immediate Life Support - disabled in peaceful zone)
+            if (!p.IsPeacefulZone)
             {
-                dir.Reflex.TriggerLifeFlask = true;
-                dir.Reflex.Reason = $"Low HP ({p.FollowerHpPercent:F0}% < {s.P2LifeFlaskThresholdPercent}%)";
+                if (p.FollowerHpPercent < s.P2LifeFlaskThresholdPercent)
+                {
+                    dir.Reflex.TriggerLifeFlask = true;
+                    dir.Reflex.Reason = $"Low HP ({p.FollowerHpPercent:F0}% < {s.P2LifeFlaskThresholdPercent}%)";
+                }
+
+                if (p.FollowerManaPercent < s.P2ManaFlaskThresholdPercent)
+                {
+                    dir.Reflex.TriggerManaFlask = true;
+                    dir.Reflex.Reason = $"Low Mana ({p.FollowerManaPercent:F0}% < {s.P2ManaFlaskThresholdPercent}%)";
+                }
             }
 
-            if (p.FollowerManaPercent < s.P2ManaFlaskThresholdPercent)
-            {
-                dir.Reflex.TriggerManaFlask = true;
-                dir.Reflex.Reason = $"Low Mana ({p.FollowerManaPercent:F0}% < {s.P2ManaFlaskThresholdPercent}%)";
-            }
-
-            // 2. Combat Channel (Attack & Cast Intent - Works concurrently while moving with Leader!)
+            // 2. Combat Channel (Attack & Cast Intent - disabled in peaceful zone)
             bool sprintMode = narrativeGoal.Type == BotGoalType.HardCatchup;
-            if (s.P2EnableCombat && s.P2Skills != null && !sprintMode)
+            if (!p.IsPeacefulZone && s.P2EnableCombat && s.P2Skills != null && !sprintMode)
             {
                 bool hasTargets = p.NearbyEnemyCount > 0 || p.BestCombatTarget != null;
                 if (hasTargets)
@@ -303,7 +306,7 @@ namespace AutoExile2.Brain
             {
                 dir.Locomotion.ShouldMove = true;
                 dir.Locomotion.Destination = this.currentUnstuckTarget;
-                dir.Locomotion.Maneuver = EvadeManeuver.UnstuckRoll;
+                dir.Locomotion.Maneuver = p.IsPeacefulZone ? EvadeManeuver.None : EvadeManeuver.UnstuckRoll;
                 dir.Locomotion.Reason = "Unstuck collision maneuver";
             }
             else if (sprintMode && p.DistanceToLeader > (safeStopDist + 15f))
@@ -312,32 +315,37 @@ namespace AutoExile2.Brain
                 dir.Locomotion.Destination = p.FormationTarget;
                 dir.Locomotion.Sprint = true;
                 dir.Locomotion.Maneuver = EvadeManeuver.None;
-                dir.Locomotion.Reason = $"Sprinting catch-up to leader ({p.DistanceToLeader:F0}g)";
+                dir.Locomotion.Reason = p.IsPeacefulZone
+                    ? $"Town/Hideout: Sprinting catch-up to leader ({p.DistanceToLeader:F0}g)"
+                    : $"Sprinting catch-up to leader ({p.DistanceToLeader:F0}g)";
             }
             else
             {
-                // 3.1 Evasion Maneuver (Micro-Dodge slam, Hazard reposition, or Corridor Phasing)
-                if (p.HasIncomingSlam)
+                // 3.1 Evasion Maneuver (Micro-Dodge slam, Hazard reposition, or Corridor Phasing - disabled in peaceful zone)
+                if (!p.IsPeacefulZone)
                 {
-                    dir.Locomotion.Maneuver = EvadeManeuver.MicroDodge;
-                    dir.Locomotion.EvadeDirection = p.SlamEvadeVector;
-                    dir.Locomotion.Reason = $"Micro-dodging slam {p.Vision.Telegraph.SlamAnimation}";
-                }
-                else if (p.HasBlockingMonstersInPath)
-                {
-                    dir.Locomotion.Maneuver = EvadeManeuver.CorridorPhasingRoll;
-                    dir.Locomotion.Reason = "Corridor phasing roll through monsters";
-                }
-                else if (p.Vision.Hazard.IsHighDangerArea)
-                {
-                    dir.Locomotion.Maneuver = EvadeManeuver.MicroDodge;
-                    Vector2 hazardDiff = p.Vision.Hazard.NearestMonsterCluster != null
-                        ? p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value
-                        : Vector2.Zero;
-                    dir.Locomotion.EvadeDirection = hazardDiff.LengthSquared() > 0.001f
-                        ? Vector2.Normalize(hazardDiff)
-                        : new Vector2(0, 1);
-                    dir.Locomotion.Reason = "Repositioning out of hazard threat";
+                    if (p.HasIncomingSlam)
+                    {
+                        dir.Locomotion.Maneuver = EvadeManeuver.MicroDodge;
+                        dir.Locomotion.EvadeDirection = p.SlamEvadeVector;
+                        dir.Locomotion.Reason = $"Micro-dodging slam {p.Vision.Telegraph.SlamAnimation}";
+                    }
+                    else if (p.HasBlockingMonstersInPath)
+                    {
+                        dir.Locomotion.Maneuver = EvadeManeuver.CorridorPhasingRoll;
+                        dir.Locomotion.Reason = "Corridor phasing roll through monsters";
+                    }
+                    else if (p.Vision.Hazard.IsHighDangerArea)
+                    {
+                        dir.Locomotion.Maneuver = EvadeManeuver.MicroDodge;
+                        Vector2 hazardDiff = p.Vision.Hazard.NearestMonsterCluster != null
+                            ? p.FollowerGrid - p.Vision.Hazard.NearestMonsterCluster.Value
+                            : Vector2.Zero;
+                        dir.Locomotion.EvadeDirection = hazardDiff.LengthSquared() > 0.001f
+                            ? Vector2.Normalize(hazardDiff)
+                            : new Vector2(0, 1);
+                        dir.Locomotion.Reason = "Repositioning out of hazard threat";
+                    }
                 }
 
                 // 3.2 Destination: Follower walks with Leader only when outside safe stop distance / beyond follow distance
@@ -356,22 +364,28 @@ namespace AutoExile2.Brain
                     dir.Locomotion.ShouldMove = true;
                     dir.Locomotion.Destination = p.FormationTarget;
                     dir.Locomotion.Sprint = false;
-                    dir.Locomotion.Reason = dir.Combat.ShouldAttack
-                        ? $"Combat cast-walking in formation ({p.DistanceToLeader:F0}g)"
-                        : $"Walking in formation ({p.DistanceToLeader:F0}g)";
+                    dir.Locomotion.Reason = p.IsPeacefulZone
+                        ? $"Town/Hideout: Walking with leader ({p.DistanceToLeader:F0}g)"
+                        : (dir.Combat.ShouldAttack
+                            ? $"Combat cast-walking in formation ({p.DistanceToLeader:F0}g)"
+                            : $"Walking in formation ({p.DistanceToLeader:F0}g)");
                 }
                 else
                 {
                     dir.Locomotion.ShouldMove = false;
                     dir.Locomotion.Destination = p.FollowerGrid;
                     dir.Locomotion.Sprint = false;
-                    dir.Locomotion.Reason = $"Holding formation ({p.DistanceToLeader:F0}g <= {followTrigger:F0}g)";
+                    dir.Locomotion.Reason = p.IsPeacefulZone
+                        ? $"Town/Hideout: Standing by leader ({p.DistanceToLeader:F0}g <= {followTrigger:F0}g)"
+                        : $"Holding formation ({p.DistanceToLeader:F0}g <= {followTrigger:F0}g)";
                 }
             }
 
             string combatPart = dir.Combat.ShouldAttack ? $"Combat: #{dir.Combat.TargetEntity?.Id ?? 0}" : "Combat: Idle";
             string dodgePart = dir.Locomotion.Maneuver != EvadeManeuver.None ? $" | Dodge: {dir.Locomotion.Maneuver}" : "";
-            dir.Summary = $"{dir.Locomotion.Reason} | {combatPart}{dodgePart}";
+            dir.Summary = p.IsPeacefulZone
+                ? $"{dir.Locomotion.Reason}"
+                : $"{dir.Locomotion.Reason} | {combatPart}{dodgePart}";
 
             return dir;
         }
