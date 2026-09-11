@@ -253,58 +253,78 @@ namespace GameHelper.RemoteObjects.Components
             //     this.ActiveSkillsVaalSouls[skillsvaalsouls[i].ActiveSkillsDatPtr] = skillsvaalsouls[i];
             // }
 
-            var cooldowns = reader.ReadStdVector<ActiveSkillCooldown>(data.CooldownsPtr);
-            for (var i = 0; i < cooldowns.Length; i++)
+            PooledNativeVector.Read(reader, data.CooldownsPtr, out ActiveSkillCooldown[] cooldowns, out var cooldownCount);
+            try
             {
-                this.ActiveSkillCooldowns[cooldowns[i].UnknownIdAndEquipmentInf0] = cooldowns[i];
+                for (var i = 0; i < cooldownCount; i++)
+                {
+                    this.ActiveSkillCooldowns[cooldowns[i].UnknownIdAndEquipmentInf0] = cooldowns[i];
+                }
+            }
+            finally
+            {
+                PooledNativeVector.Return(cooldowns);
             }
 
-            var activeSkills = reader.ReadStdVector<ActiveSkillStructure>(data.ActiveSkillsPtr);
-            for (var i = 0; i < activeSkills.Length; i++)
+            PooledNativeVector.Read(reader, data.ActiveSkillsPtr, out ActiveSkillStructure[] activeSkills, out var activeSkillCount);
+            try
             {
-                var skillDetails = reader.ReadMemory<ActiveSkillDetails>(activeSkills[i].ActiveSkillPtr);
-                if (skillDetails.GrantedEffectsPerLevelDatRow == IntPtr.Zero ||
-                    (skillDetails.UnknownIdAndEquipmentInfo >> 0x10) < 0x8000)
+                for (var i = 0; i < activeSkillCount; i++)
                 {
-                    // No usecase for these skills.
-                    // this.ActiveSkills[i.ToString()] = skillDetails;
-                }
-                else
-                {
-                    (var name, skillDetails.ActiveSkillsDatPtr) = ((string, IntPtr))Core.GgpkObjectCache.
-                        AddOrGetExisting(skillDetails.GrantedEffectsPerLevelDatRow, (key) =>
+                    var skillDetails = reader.ReadMemory<ActiveSkillDetails>(activeSkills[i].ActiveSkillPtr);
+                    if (skillDetails.GrantedEffectsPerLevelDatRow == IntPtr.Zero ||
+                        (skillDetails.UnknownIdAndEquipmentInfo >> 0x10) < 0x8000)
+                    {
+                        // No usecase for these skills.
+                        // this.ActiveSkills[i.ToString()] = skillDetails;
+                    }
+                    else
+                    {
+                        (var name, skillDetails.ActiveSkillsDatPtr) = ((string, IntPtr))Core.GgpkObjectCache.
+                            AddOrGetExisting(
+                                skillDetails.GrantedEffectsPerLevelDatRow,
+                                static key => GetSkillName(key));
+
+                        // skillDetails.CurrentVaalSouls = -1;
+                        var cannotbeused = false;
+                        if (this.ActiveSkillCooldowns.TryGetValue(skillDetails.UnknownIdAndEquipmentInfo, out var cooldownInfo))
                         {
-                            return (reader.ReadUnicodeString(reader.ReadMemory<IntPtr>(key)), key);
-                        });
+                            cannotbeused |= cooldownInfo.CannotBeUsed();
+                        }
+                        // else if (this.ActiveSkillsVaalSouls.TryGetValue(skillDetails.ActiveSkillsDatPtr, out var vaalSoulInfo))
+                        // {
+                        //     skillDetails.CurrentVaalSouls = vaalSoulInfo.CurrentSouls;
+                        //     cannotbeused |= vaalSoulInfo.CannotBeUsed();
+                        // }
 
-                    // skillDetails.CurrentVaalSouls = -1;
-                    var cannotbeused = false;
-                    if (this.ActiveSkillCooldowns.TryGetValue(skillDetails.UnknownIdAndEquipmentInfo, out var cooldownInfo))
-                    {
-                        cannotbeused |= cooldownInfo.CannotBeUsed();
-                    }
-                    // else if (this.ActiveSkillsVaalSouls.TryGetValue(skillDetails.ActiveSkillsDatPtr, out var vaalSoulInfo))
-                    // {
-                    //     skillDetails.CurrentVaalSouls = vaalSoulInfo.CurrentSouls;
-                    //     cannotbeused |= vaalSoulInfo.CannotBeUsed();
-                    // }
-
-                    this.ActiveSkills[name] = skillDetails;
-                    if (!cannotbeused)
-                    {
-                        this.IsSkillUsable.Add(name);
+                        this.ActiveSkills[name] = skillDetails;
+                        if (!cannotbeused)
+                        {
+                            this.IsSkillUsable.Add(name);
+                        }
                     }
                 }
+            }
+            finally
+            {
+                PooledNativeVector.Return(activeSkills);
             }
 
             this.DeployedEntities.Clear();
-            var deployedEntities = reader.ReadStdVector<DeployedEntityStructure>(data.DeployedEntityArray);
-            for (var i = 0; i < deployedEntities.Length; i++)
+            PooledNativeVector.Read(reader, data.DeployedEntityArray, out DeployedEntityStructure[] deployedEntities, out var deployedEntityCount);
+            try
             {
-                this.DeployedEntities.Increment(deployedEntities[i].DeployedObjectType);
-            }
+                for (var i = 0; i < deployedEntityCount; i++)
+                {
+                    this.DeployedEntities.Increment(deployedEntities[i].DeployedObjectType);
+                }
 
-            this.UpdateMinionCommandSkills(deployedEntities);
+                this.UpdateMinionCommandSkills(deployedEntities, deployedEntityCount);
+            }
+            finally
+            {
+                PooledNativeVector.Return(deployedEntities);
+            }
         }
 
         /// <summary>
@@ -314,13 +334,14 @@ namespace GameHelper.RemoteObjects.Components
         ///     just clear their (empty) collections cheaply.
         /// </summary>
         /// <param name="deployedEntities">the deployed-entity array already read for this actor.</param>
-        private void UpdateMinionCommandSkills(DeployedEntityStructure[] deployedEntities)
+        /// <param name="deployedEntityCount">number of populated entries in the pooled array.</param>
+        private void UpdateMinionCommandSkills(DeployedEntityStructure[] deployedEntities, int deployedEntityCount)
         {
             this.MinionCommandSkills.Clear();
             this.UsableMinionCommandSkills.Clear();
 
             var area = Core.States.InGameStateObject.CurrentAreaInstance;
-            if (deployedEntities.Length == 0 ||
+            if (deployedEntityCount == 0 ||
                 this.OwnerEntityAddress == IntPtr.Zero ||
                 this.OwnerEntityAddress != area.Player.Address)
             {
@@ -328,7 +349,7 @@ namespace GameHelper.RemoteObjects.Components
             }
 
             var deployedIds = new HashSet<uint>();
-            for (var i = 0; i < deployedEntities.Length; i++)
+            for (var i = 0; i < deployedEntityCount; i++)
             {
                 deployedIds.Add((uint)deployedEntities[i].EntityId);
             }
@@ -393,12 +414,18 @@ namespace GameHelper.RemoteObjects.Components
                 // friendlier command-skill names, we'd need to map these via another dat table.
                 var (name, _) = ((string, IntPtr))Core.GgpkObjectCache.AddOrGetExisting(
                     skillDetails.GrantedEffectsPerLevelDatRow,
-                    key => (reader.ReadUnicodeString(reader.ReadMemory<IntPtr>(key)), key));
+                    static key => GetSkillName(key));
                 var usable = !(this.ActiveSkillCooldowns.TryGetValue(
                     skillDetails.UnknownIdAndEquipmentInfo, out var cooldown) && cooldown.CannotBeUsed());
 
                 aggregate[name] = aggregate.TryGetValue(name, out var existing) ? existing || usable : usable;
             }
+        }
+
+        private static (string, IntPtr) GetSkillName(IntPtr key)
+        {
+            var reader = Core.Process.Handle;
+            return (reader.ReadUnicodeString(reader.ReadMemory<IntPtr>(key)), key);
         }
 
     }

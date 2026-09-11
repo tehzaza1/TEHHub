@@ -584,6 +584,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `StatUpdator` จึงยืม `ArrayPool<StatArrayStruct>` เพื่ออ่าน buffer เป็นก้อนเดียว คัดลง dictionary เดิม แล้วคืน buffer ทันที
 - ไม่ลดความถี่/เนื้อหาของ stat และไม่เปลี่ยน public API ของปลั๊กอิน; กรณี vector หรือการอ่านผิดพลาดยัง clear dictionary เช่นพฤติกรรมเดิม
 
+### 6.33 ใช้ pooled buffer สำหรับ Actor vectors
+
+- `Actor.UpdateData` สร้าง array ใหม่เพื่ออ่าน cooldowns, active skills และ deployed entities ทุก update
+- เพิ่ม helper ภายในสำหรับอ่าน native vector ลง `ArrayPool` แล้วใช้กับทั้งสาม vector; คงจำนวน bulk read และข้อมูลที่ public API ของปลั๊กอินเห็นไว้เท่าเดิม
+- การค้นชื่อ active skill จาก GGPK cache ใช้ static factory เพื่อไม่สร้าง closure ในทุก active-skill lookup
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
