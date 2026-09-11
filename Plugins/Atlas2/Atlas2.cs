@@ -1189,7 +1189,9 @@ namespace Atlas2
                 return;
 
             var json = File.ReadAllText(path);
-            var contents = JsonSerializer.Deserialize<Dictionary<string, BiomeInfo>>(json, JsonOptions);
+            var contents = JsonSerializer.Deserialize(
+                json,
+                Atlas2JsonContext.Default.DictionaryStringBiomeInfo);
 
             Biomes.Clear();
 
@@ -1212,7 +1214,9 @@ namespace Atlas2
                 return;
 
             var json = File.ReadAllText(path);
-            var contents = JsonSerializer.Deserialize<Dictionary<string, ContentInfo>>(json, JsonOptions);
+            var contents = JsonSerializer.Deserialize(
+                json,
+                Atlas2JsonContext.Default.DictionaryStringContentInfo);
 
             MapTags.Clear();
             MapPlain.Clear();

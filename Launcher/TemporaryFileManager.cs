@@ -65,7 +65,8 @@ namespace Launcher
                 }
 
                 var fileContent = File.ReadAllText(tempFileName);
-                return JsonSerializer.Deserialize<List<string>>(fileContent) ?? (IReadOnlyList<string>)Array.Empty<string>();
+                return JsonSerializer.Deserialize(fileContent, LauncherJsonContext.Default.ListString) ??
+                    (IReadOnlyList<string>)Array.Empty<string>();
             }
             catch (Exception ex)
             {
@@ -76,7 +77,9 @@ namespace Launcher
 
         private static void WriteFileList(IEnumerable<string> list)
         {
-            File.WriteAllText(GetFullTemporaryFileName(), JsonSerializer.Serialize(list.Distinct()));
+            File.WriteAllText(
+                GetFullTemporaryFileName(),
+                JsonSerializer.Serialize(list.Distinct().ToList(), LauncherJsonContext.Default.ListString));
         }
 
         private static string GetFullTemporaryFileName()

@@ -467,6 +467,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - อัปเดต `System.Linq.Dynamic.Core` ของ AutoHotKeyTrigger จาก 1.7.1 เป็น 1.7.4 และตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
 - แยก ImageSharp 4.x, Vortice/renderer และ AsmResolver 6.x ออกจากชุดนี้ เพราะเป็น major upgrade ที่ต้องทดสอบภาพ overlay/launcher แยกต่างหาก ไม่ใช่ข้อกำหนดของ .NET 10 runtime
 
+### 6.16 ขยาย System.Text.Json source generation สำหรับข้อมูลคงที่
+
+- Launcher ใช้ source-generated metadata สำหรับรายการ temporary file
+- Atlas2 ใช้ metadata ที่ generate ล่วงหน้าสำหรับ biome และ content catalog ซึ่งเป็นไฟล์ schema คงที่
+- ไม่ย้าย JSON ที่เป็น dynamic profile/web payload แบบฝืน ๆ; เก็บ `JsonSerializerOptions` ไว้สำหรับกรณีเหล่านั้นเพื่อคง compatibility
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
