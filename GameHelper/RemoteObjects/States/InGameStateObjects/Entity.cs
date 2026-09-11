@@ -411,6 +411,11 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     "RefreshCachedComponents");
                 foreach (var kv in this.componentCache)
                 {
+                    if (!kv.Value.RequiresPerFrameRefresh)
+                    {
+                        continue;
+                    }
+
                     kv.Value.Address = kv.Value.Address;
                     if (!kv.Value.IsParentValid(this.Address))
                     {

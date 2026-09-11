@@ -564,6 +564,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เปลี่ยนเป็น pack float X/Y ลง `long` เดียวและใช้ `Interlocked` อ่าน/เขียน จึงคง atomic snapshot เดิมโดยไม่สร้าง object ใน hot path
 - profiler จากฉากมอนหนาแน่นแสดงว่า Render ถูก refresh ในเส้นทาง Entity อย่างต่อเนื่อง จึงลด GC pressure ของ `RefreshCachedComponents` ได้โดยไม่ลดความสดตำแหน่ง
 
+### 6.30 ข้าม ObjectMagicProperties ที่ข้อมูลคงที่
+
+- `ObjectMagicProperties` สร้าง rarity, mod names และ mod stats ใหม่เมื่อ component address เปลี่ยนเท่านั้น แต่เดิมยังอ่าน component header ซ้ำทุก entity frame
+- เพิ่ม contract ระบุ component ที่ต้อง refresh ทุกเฟรม แล้วให้ ObjectMagicProperties opt out หลัง initial/address-change read
+- การเปลี่ยนนี้ไม่ลดการอ่าน Render, Life, Positioned, Targetable, Stats หรือ Buffs ซึ่งมีข้อมูลสดระหว่างต่อสู้
+- Runtime validation ในจุดมอนหนาแน่นที่หยุดเกมไว้: entity update ราว 97 ตัวต่อเฟรมเท่าเดิม, `EntityUpdate` ลดจาก 12.4 เป็น 9.3 reads/entity, `AreaInstance.Entities` ลดจาก 1,479 เป็น 1,175 reads/frame และรวมลดจาก 1,664 เป็น 1,307 reads/frame โดยไม่มี read failure
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

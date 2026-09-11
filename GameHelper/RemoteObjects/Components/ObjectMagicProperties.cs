@@ -47,6 +47,11 @@ namespace GameHelper.RemoteObjects.Components
         /// </summary>
         public Dictionary<GameStats, int> ModStats = new();
 
+        // Rarity, mod names and mod-derived stats are reconstructed when the component address
+        // changes. Re-reading its header for the same entity every frame adds a kernel call but
+        // cannot alter the cached values exposed by this component.
+        internal override bool RequiresPerFrameRefresh => false;
+
         /// <summary>
         ///     Converts the <see cref="ObjectMagicProperties" /> class data to ImGui.
         /// </summary>

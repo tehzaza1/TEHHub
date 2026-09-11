@@ -32,6 +32,13 @@ namespace GameHelper.RemoteObjects.Components
         /// </summary>
         protected IntPtr OwnerEntityAddress;
 
+        /// <summary>
+        ///     Indicates whether the component has data that must be refreshed every entity frame.
+        ///     Components whose data is immutable for the lifetime of an entity still receive a
+        ///     complete read when their address is first discovered.
+        /// </summary>
+        internal virtual bool RequiresPerFrameRefresh => true;
+
         /// <inheritdoc />
         protected override void CleanUpData()
         {
