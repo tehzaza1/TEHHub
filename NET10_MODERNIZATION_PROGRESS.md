@@ -671,6 +671,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เมื่อปิด master switch จะกลับไปใช้เส้นทางเดิมทั้งหมด; flag ย่อยยังคงอยู่เพื่อ benchmark แยกผลและ rollback เฉพาะส่วน
 - ทุก batch ยังคงมี fallback scalar, address validation และ diagnostics เดิม จึงใช้ทดสอบแบบค่อยเป็นค่อยไปได้
 
+### 6.46 แยก orchestration เป็น `FrameMemoryReadPipeline`
+
+- ย้ายการสร้าง component read ranges และอายุของ `ReadCachePlan` ออกจาก `AreaInstance` มาไว้ใน `GameHelper/Utils/FrameMemoryReadPipeline.cs`
+- pipeline เป็นจุดกลางของ read phase ต่อเฟรม: planner รวบรวม address, reader เปิด pooled windows, แล้วจึงให้ entity update ใช้ snapshot; parser/entity code ยังใช้ object เดิม
+- `EnableNewMemoryRead` และ flag snapshot เดิมใช้ pipeline เดียวกัน ทำให้ปิด master แล้วกลับ legacy path ได้โดยไม่ต้องมีโค้ดสองชุดกระจายทั่วระบบ
+- นี่เป็นฐานสำหรับย้าย UI/entity readers ชุดถัดไปเข้า planner โดยไม่เปลี่ยน plugin API หรือความถี่การ update
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
