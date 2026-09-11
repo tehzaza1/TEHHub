@@ -36,6 +36,12 @@ namespace GameHelper.Utils
         /// </summary>
         private const long MinValidAddress = 0x10000;
 
+        // A per-worker read-through window used by hot object graphs that are known to be
+        // allocated close together. It is deliberately thread-local: Entity updates run in
+        // parallel and no worker may observe another worker's in-flight snapshot.
+        [ThreadStatic]
+        private static ReadCacheWindow? currentReadCacheWindow;
+
         /// <summary>
         ///     Required by SafeHandle infrastructure for finalizer / marshaling support.
         ///     Private to prevent callers accidentally constructing a zombie handle
@@ -117,6 +123,11 @@ namespace GameHelper.Utils
             {
                 RecordDiagnosticFailure(typeof(T).Name, address);
                 return false;
+            }
+
+            if (TryReadFromCurrentCache(address, out result))
+            {
+                return true;
             }
 
             try
@@ -388,6 +399,99 @@ namespace GameHelper.Utils
                     ArrayPool<byte>.Shared.Return(buffer);
                 }
             }
+        }
+
+        /// <summary>
+        ///     Reads one bounded memory range and makes complete scalar reads within that range
+        ///     available to the current worker without another kernel transition. A failed batch
+        ///     intentionally returns an inactive scope; callers then retain the usual scalar
+        ///     read behaviour.
+        /// </summary>
+        /// <remarks>
+        ///     The scope is meant for a short, coherent refresh operation only. It is not a
+        ///     general cache: disposing it restores the previous worker-local window and returns
+        ///     its pooled buffer immediately.
+        /// </remarks>
+        internal ReadCacheScope BeginReadCache(IntPtr startAddress, int byteCount)
+        {
+            if (byteCount <= 0 || this.IsInvalid || !IsValidAddress(startAddress))
+            {
+                return default;
+            }
+
+            var buffer = ArrayPool<byte>.Shared.Rent(byteCount);
+            if (!this.TryReadMemoryArray(startAddress, buffer, byteCount, out _))
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+                return default;
+            }
+
+            var previous = currentReadCacheWindow;
+            currentReadCacheWindow = new ReadCacheWindow(startAddress.ToInt64(), byteCount, buffer);
+            return new ReadCacheScope(buffer, previous);
+        }
+
+        private static bool TryReadFromCurrentCache<T>(IntPtr address, out T result)
+            where T : unmanaged
+        {
+            result = default;
+            var cache = currentReadCacheWindow;
+            if (cache is null)
+            {
+                return false;
+            }
+
+            var offset = address.ToInt64() - cache.StartAddress;
+            var size = Unsafe.SizeOf<T>();
+            if (offset < 0 || offset > cache.ByteCount - size)
+            {
+                return false;
+            }
+
+            result = MemoryMarshal.Read<T>(cache.Buffer.AsSpan((int)offset, size));
+            return true;
+        }
+
+        /// <summary>
+        ///     Owns one worker-local read-through window.
+        /// </summary>
+        internal readonly struct ReadCacheScope : IDisposable
+        {
+            private readonly byte[]? buffer;
+            private readonly ReadCacheWindow? previous;
+
+            internal ReadCacheScope(byte[] buffer, ReadCacheWindow? previous)
+            {
+                this.buffer = buffer;
+                this.previous = previous;
+            }
+
+            public void Dispose()
+            {
+                if (this.buffer is null)
+                {
+                    return;
+                }
+
+                currentReadCacheWindow = this.previous;
+                ArrayPool<byte>.Shared.Return(this.buffer);
+            }
+        }
+
+        internal sealed class ReadCacheWindow
+        {
+            internal ReadCacheWindow(long startAddress, int byteCount, byte[] buffer)
+            {
+                this.StartAddress = startAddress;
+                this.ByteCount = byteCount;
+                this.Buffer = buffer;
+            }
+
+            internal long StartAddress { get; }
+
+            internal int ByteCount { get; }
+
+            internal byte[] Buffer { get; }
         }
 
         /// <summary>

@@ -612,6 +612,14 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - การอ่าน `std::wstring` ที่อยู่นอก inline storage เคยสร้าง byte array ชั่วคราวก่อน decode เป็น string ทุกครั้ง
 - เปลี่ยน byte buffer เป็น `ArrayPool<byte>` โดยใช้ `TryReadMemoryArray` เดิมและคืน buffer ใน `finally`; string ผลลัพธ์และกรณีอ่านพลาดยังเหมือนเดิม
 
+### 6.38 รวม scalar reads ของ component ที่อยู่ติดกัน
+
+- เพิ่ม read-through window แบบ thread-local ใน `SafeMemoryHandle`: อ่านช่วง memory ที่อยู่ติดกันเป็น buffer ครั้งเดียว แล้วให้ `ReadMemory<T>`/`TryReadMemory<T>` ของ component ภายในช่วงใช้ข้อมูลจาก buffer โดยไม่ยิง kernel call ซ้ำ
+- `Entity.RefreshCachedComponents` จัดกลุ่ม component ที่ต้อง refresh ทุกเฟรมตาม address เฉพาะเมื่อมีอย่างน้อย 3 ตัว, gap ไม่เกิน `0x100` bytes และ span ไม่เกิน `0x8000` bytes; กลุ่มที่ไม่เข้าเงื่อนไขยังใช้ลูปเดิม
+- ถ้า batch read อ่านไม่ได้ จะกลับไป scalar read เดิมทันที จึงไม่ลดความถี่/ไม่เปลี่ยน public component หรือ plugin API และยังตรวจ `IsParentValid` ทุก component เหมือนเดิม
+- Runtime validation ฉากมอนหนาแน่น: รวมลดจาก `1327` เป็น `1295 reads/frame` (~2.4%), `EntityUpdate` จาก `8.3` เป็น `8.0 reads/entity`, 60.6 frames/s และ `0 failures`
+- เป็นการลดจำนวน kernel transition ไม่ใช่การลดรอบอัปเดตหรือการลดข้อมูลที่ปลั๊กอินได้รับ
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

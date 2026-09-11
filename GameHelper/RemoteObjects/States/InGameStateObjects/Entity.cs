@@ -5,6 +5,7 @@
 namespace GameHelper.RemoteObjects.States.InGameStateObjects
 {
     using System;
+    using System.Buffers;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
@@ -31,6 +32,13 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
         private const int DormantCheckInterval = 30;
         private const int MaxUnresolvedRetries = 5;
+        private const int MinComponentsPerReadBatch = 3;
+        private const int MaxGapBetweenComponentBytes = 0x100;
+        private const int ComponentReadBatchTailBytes = 0x800;
+        private const int MaxComponentReadBatchBytes = 0x8000;
+
+        private static readonly IComparer<ComponentBase> ComponentAddressComparer =
+            Comparer<ComponentBase>.Create(static (left, right) => left.Address.CompareTo(right.Address));
 
         private readonly ConcurrentDictionary<string, IntPtr> componentAddresses;
         private readonly ConcurrentDictionary<string, ComponentBase> componentCache;
@@ -429,18 +437,76 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 using var refreshCachedComponentsScope = PerformanceProfiler.Measure(
                     nameof(Entity),
                     "RefreshCachedComponents");
-                foreach (var kv in this.componentCache)
+
+                var components = ArrayPool<ComponentBase>.Shared.Rent(this.componentCache.Count);
+                var componentCount = 0;
+                try
                 {
-                    if (!kv.Value.RequiresPerFrameRefresh)
+                    foreach (var component in this.componentCache.Values)
                     {
-                        continue;
+                        if (component.RequiresPerFrameRefresh)
+                        {
+                            components[componentCount++] = component;
+                        }
                     }
 
-                    kv.Value.Address = kv.Value.Address;
-                    if (!kv.Value.IsParentValid(this.Address))
+                    Array.Sort(components, 0, componentCount, ComponentAddressComparer);
+                    var batchStart = 0;
+                    while (batchStart < componentCount)
                     {
-                        return false;
+                        var firstAddress = components[batchStart].Address.ToInt64();
+                        var previousAddress = firstAddress;
+                        var batchEnd = batchStart + 1;
+                        while (batchEnd < componentCount)
+                        {
+                            var nextAddress = components[batchEnd].Address.ToInt64();
+                            var gapAfterPrevious = nextAddress - previousAddress;
+                            var spanWithTail = nextAddress - firstAddress + ComponentReadBatchTailBytes;
+                            if (gapAfterPrevious < 0 ||
+                                gapAfterPrevious > MaxGapBetweenComponentBytes ||
+                                spanWithTail > MaxComponentReadBatchBytes)
+                            {
+                                break;
+                            }
+
+                            previousAddress = nextAddress;
+                            batchEnd++;
+                        }
+
+                        if (batchEnd - batchStart >= MinComponentsPerReadBatch)
+                        {
+                            var byteCount = checked((int)(previousAddress - firstAddress + ComponentReadBatchTailBytes));
+                            using var readCache = reader.BeginReadCache(new IntPtr(firstAddress), byteCount);
+                            for (var i = batchStart; i < batchEnd; i++)
+                            {
+                                var component = components[i];
+                                component.Address = component.Address;
+                                if (!component.IsParentValid(this.Address))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            for (var i = batchStart; i < batchEnd; i++)
+                            {
+                                var component = components[i];
+                                component.Address = component.Address;
+                                if (!component.IsParentValid(this.Address))
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+
+                        batchStart = batchEnd;
                     }
+                }
+                finally
+                {
+                    Array.Clear(components, 0, componentCount);
+                    ArrayPool<ComponentBase>.Shared.Return(components);
                 }
             }
 
