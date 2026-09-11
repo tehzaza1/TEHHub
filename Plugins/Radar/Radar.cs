@@ -81,6 +81,24 @@ namespace Radar
         private readonly Dictionary<string, Vector2> textHalfSizeCache = new(StringComparer.Ordinal);
         private readonly Dictionary<int, Vector2> poiIndexHalfSizeCache = new();
 
+        // Reused by the render-thread POI passes so the large/minimap draws do not
+        // allocate their working buffers every frame.
+        private readonly List<(string name, Vector2 pos)> drawnPoiPositions = new();
+        private readonly List<(string cacheKey, Vector2 gridPos)> poiPathSnapshot = new();
+        private readonly List<(string name, Vector2 pos)> collectedPoiPositions = new();
+
+        private static readonly uint[] PoiPathPalette =
+        {
+            ImGuiHelper.Color(0, 220, 255, 220),   // cyan
+            ImGuiHelper.Color(255, 200, 0, 220),   // gold
+            ImGuiHelper.Color(255, 105, 180, 220), // hot pink
+            ImGuiHelper.Color(0, 255, 127, 220),   // spring green
+            ImGuiHelper.Color(255, 99, 71, 220),   // tomato
+            ImGuiHelper.Color(123, 104, 238, 220), // medium slate blue
+            ImGuiHelper.Color(255, 165, 0, 220),   // orange
+            ImGuiHelper.Color(50, 205, 50, 220),   // lime green
+        };
+
         // Pathfinding: cache computed paths and throttle recomputation
         private long nextPoiRecomputeTime = 0;
         private long nextPoiFullRecomputeTime = 0;
@@ -814,7 +832,8 @@ namespace Radar
             }
             else if (this.Settings.ShowImportantPOI)
             {
-                var drawnPositions = new List<(string name, Vector2 pos)>();
+                var drawnPositions = this.drawnPoiPositions;
+                drawnPositions.Clear();
 
                 void RenderPoiDict(Dictionary<string, string> tgts)
                 {
@@ -916,23 +935,15 @@ namespace Radar
             var thickness = this.Settings.DirectionLineThickness;
             const float ArrowSize = 9f;
 
-            // Predefined palette of distinct colors for POI paths, cycled per POI
-            var poiPalette = new[]
-            {
-                ImGuiHelper.Color(0, 220, 255, 220),   // cyan
-                ImGuiHelper.Color(255, 200, 0, 220),    // gold
-                ImGuiHelper.Color(255, 105, 180, 220),  // hot pink
-                ImGuiHelper.Color(0, 255, 127, 220),    // spring green
-                ImGuiHelper.Color(255, 99, 71, 220),    // tomato
-                ImGuiHelper.Color(123, 104, 238, 220),  // medium slate blue
-                ImGuiHelper.Color(255, 165, 0, 220),    // orange
-                ImGuiHelper.Color(50, 205, 50, 220),    // lime green
-            };
+            // Reuse the palette and render-thread snapshots between frames.
+            var poiPalette = PoiPathPalette;
             var poiColorIndex = 0;
 
             // --- Collect POI snapshot ---
-            var poiSnapshot = new List<(string cacheKey, Vector2 gridPos)>();
-            var collectedPositions = new List<(string name, Vector2 pos)>();
+            var poiSnapshot = this.poiPathSnapshot;
+            poiSnapshot.Clear();
+            var collectedPositions = this.collectedPoiPositions;
+            collectedPositions.Clear();
 
             void CollectFrom(Dictionary<string, string> tileDict, string prefix)
             {
@@ -2714,7 +2725,9 @@ namespace Radar
             string pattern,
             out List<Vector2> locations)
         {
-            locations = new();
+            // The out value is only consumed when this method returns true.
+            // Avoid allocating a throwaway list for every failed or exact lookup.
+            locations = null!;
             if (tgtTilesLocations == null || tgtTilesLocations.Count == 0 || string.IsNullOrEmpty(pattern))
             {
                 return false;
