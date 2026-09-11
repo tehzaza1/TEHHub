@@ -571,6 +571,11 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - การเปลี่ยนนี้ไม่ลดการอ่าน Render, Life, Positioned, Targetable, Stats หรือ Buffs ซึ่งมีข้อมูลสดระหว่างต่อสู้
 - Runtime validation ในจุดมอนหนาแน่นที่หยุดเกมไว้: entity update ราว 97 ตัวต่อเฟรมเท่าเดิม, `EntityUpdate` ลดจาก 12.4 เป็น 9.3 reads/entity, `AreaInstance.Entities` ลดจาก 1,479 เป็น 1,175 reads/frame และรวมลดจาก 1,664 เป็น 1,307 reads/frame โดยไม่มี read failure
 
+### 6.31 ตัด closure allocation ระหว่างรวม Buffs
+
+- `Buffs.UpdateData` และ `AddSyntheticStatusEffect` ใช้ `ConcurrentDictionary.AddOrUpdate` ด้วย lambda ที่จับ status effect ของรอบนั้น ทำให้สร้าง closure ทุก effect
+- เปลี่ยนเป็น static factory ของ .NET สมัยใหม่ โดยส่ง status effect เป็น argument ตรง คง atomic update และกฎรวม stack/time-left เดิม
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

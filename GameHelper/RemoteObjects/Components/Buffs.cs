@@ -127,13 +127,17 @@ namespace GameHelper.RemoteObjects.Components
                     effectName += $"_{skillGemUnknownId:X}";
                 }
 
-                this.StatusEffects.AddOrUpdate(effectName, statusEffectData, (key, oldValue) =>
-                {
-                    var incomingStacks = statusEffectData.Charges > 0 ? statusEffectData.Charges : (short)1;
-                    statusEffectData.Charges = (short)(oldValue.Charges + incomingStacks);
-                    statusEffectData.TimeLeft = Math.Max(oldValue.TimeLeft, statusEffectData.TimeLeft);
-                    return statusEffectData;
-                });
+                this.StatusEffects.AddOrUpdate(
+                    effectName,
+                    static (_, incoming) => incoming,
+                    static (_, oldValue, incoming) =>
+                    {
+                        var incomingStacks = incoming.Charges > 0 ? incoming.Charges : (short)1;
+                        incoming.Charges = (short)(oldValue.Charges + incomingStacks);
+                        incoming.TimeLeft = Math.Max(oldValue.TimeLeft, incoming.TimeLeft);
+                        return incoming;
+                    },
+                    statusEffectData);
             }
         }
 
@@ -146,10 +150,11 @@ namespace GameHelper.RemoteObjects.Components
         /// <param name="statusEffectData">Status-effect data with its stage represented as charges.</param>
         internal void AddSyntheticStatusEffect(string effectName, StatusEffectStruct statusEffectData)
         {
-            this.StatusEffects.AddOrUpdate(effectName, statusEffectData, (_, oldValue) =>
-            {
-                return statusEffectData.Charges > oldValue.Charges ? statusEffectData : oldValue;
-            });
+            this.StatusEffects.AddOrUpdate(
+                effectName,
+                static (_, incoming) => incoming,
+                static (_, oldValue, incoming) => incoming.Charges > oldValue.Charges ? incoming : oldValue,
+                statusEffectData);
         }
 
         private (string, byte) GetNameFromBuffDefination(IntPtr addr)
