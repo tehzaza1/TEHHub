@@ -114,6 +114,38 @@ namespace GameHelper.RemoteObjects
         }
 
         /// <summary>
+        ///     Refreshes an existing remote object without re-entering the Address setter. This
+        ///     keeps the same serialized update and profiler/error boundaries while avoiding the
+        ///     address-change checks used only when an object is rebound to a new pointer.
+        /// </summary>
+        internal void RefreshDataNow()
+        {
+            lock (this.updateExecutionLock)
+            {
+                IntPtr currentAddress;
+                lock (this.updateLock)
+                {
+                    currentAddress = this.address;
+                }
+
+                if (currentAddress == IntPtr.Zero)
+                {
+                    return;
+                }
+
+                try
+                {
+                    using var _ = PerformanceProfiler.Measure(GetType().FullName ?? string.Empty, "UpdateData");
+                    this.UpdateData(false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[{this.GetType().Name}.Refresh] {ex}");
+                }
+            }
+        }
+
+        /// <summary>
         ///     Converts the <see cref="RemoteObjectBase" /> to ImGui Widget via reflection.
         ///     By default, only knows how to convert <see cref="address" /> field
         ///     and <see cref="RemoteObjectBase" /> properties of the calling class.

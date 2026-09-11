@@ -42,6 +42,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
         private readonly ConcurrentDictionary<string, IntPtr> componentAddresses;
         private readonly ConcurrentDictionary<string, ComponentBase> componentCache;
+        private ComponentBase[]? perFrameRefreshComponents;
 
         private NearbyZones zone;
         private int customGroup;
@@ -216,6 +217,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                             static (_, address) =>
                                 (ComponentBase)Activator.CreateInstance(typeof(T), address)!,
                             compAddr);
+                        this.perFrameRefreshComponents = null;
                         component = (T)cached;
                         return true;
                     }
@@ -371,6 +373,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     "RefreshComponentMap");
                 this.componentAddresses.Clear();
                 this.componentCache.Clear();
+                this.perFrameRefreshComponents = null;
 
                 // idata comes from a possibly-torn ItemBase read, so EntityDetailsPtr can be a
                 // garbage value. Fail quietly (caller retries) instead of logging an error.
@@ -438,75 +441,73 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     nameof(Entity),
                     "RefreshCachedComponents");
 
-                var components = ArrayPool<ComponentBase>.Shared.Rent(this.componentCache.Count);
-                var componentCount = 0;
-                try
+                var components = this.perFrameRefreshComponents;
+                if (components is null)
                 {
+                    var componentList = new List<ComponentBase>(this.componentCache.Count);
                     foreach (var component in this.componentCache.Values)
                     {
                         if (component.RequiresPerFrameRefresh)
                         {
-                            components[componentCount++] = component;
+                            componentList.Add(component);
                         }
                     }
 
-                    Array.Sort(components, 0, componentCount, ComponentAddressComparer);
-                    var batchStart = 0;
-                    while (batchStart < componentCount)
-                    {
-                        var firstAddress = components[batchStart].Address.ToInt64();
-                        var previousAddress = firstAddress;
-                        var batchEnd = batchStart + 1;
-                        while (batchEnd < componentCount)
-                        {
-                            var nextAddress = components[batchEnd].Address.ToInt64();
-                            var gapAfterPrevious = nextAddress - previousAddress;
-                            var spanWithTail = nextAddress - firstAddress + ComponentReadBatchTailBytes;
-                            if (gapAfterPrevious < 0 ||
-                                gapAfterPrevious > MaxGapBetweenComponentBytes ||
-                                spanWithTail > MaxComponentReadBatchBytes)
-                            {
-                                break;
-                            }
-
-                            previousAddress = nextAddress;
-                            batchEnd++;
-                        }
-
-                        if (batchEnd - batchStart >= MinComponentsPerReadBatch)
-                        {
-                            var byteCount = checked((int)(previousAddress - firstAddress + ComponentReadBatchTailBytes));
-                            using var readCache = reader.BeginReadCache(new IntPtr(firstAddress), byteCount);
-                            for (var i = batchStart; i < batchEnd; i++)
-                            {
-                                var component = components[i];
-                                component.Address = component.Address;
-                                if (!component.IsParentValid(this.Address))
-                                {
-                                    return false;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            for (var i = batchStart; i < batchEnd; i++)
-                            {
-                                var component = components[i];
-                                component.Address = component.Address;
-                                if (!component.IsParentValid(this.Address))
-                                {
-                                    return false;
-                                }
-                            }
-                        }
-
-                        batchStart = batchEnd;
-                    }
+                    components = componentList.ToArray();
+                    Array.Sort(components, ComponentAddressComparer);
+                    this.perFrameRefreshComponents = components;
                 }
-                finally
+
+                var batchStart = 0;
+                while (batchStart < components.Length)
                 {
-                    Array.Clear(components, 0, componentCount);
-                    ArrayPool<ComponentBase>.Shared.Return(components);
+                    var firstAddress = components[batchStart].Address.ToInt64();
+                    var previousAddress = firstAddress;
+                    var batchEnd = batchStart + 1;
+                    while (batchEnd < components.Length)
+                    {
+                        var nextAddress = components[batchEnd].Address.ToInt64();
+                        var gapAfterPrevious = nextAddress - previousAddress;
+                        var spanWithTail = nextAddress - firstAddress + ComponentReadBatchTailBytes;
+                        if (gapAfterPrevious < 0 ||
+                            gapAfterPrevious > MaxGapBetweenComponentBytes ||
+                            spanWithTail > MaxComponentReadBatchBytes)
+                        {
+                            break;
+                        }
+
+                        previousAddress = nextAddress;
+                        batchEnd++;
+                    }
+
+                    if (batchEnd - batchStart >= MinComponentsPerReadBatch)
+                    {
+                        var byteCount = checked((int)(previousAddress - firstAddress + ComponentReadBatchTailBytes));
+                        using var readCache = reader.BeginReadCache(new IntPtr(firstAddress), byteCount);
+                        for (var i = batchStart; i < batchEnd; i++)
+                        {
+                            var component = components[i];
+                            component.RefreshDataNow();
+                            if (!component.IsParentValid(this.Address))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (var i = batchStart; i < batchEnd; i++)
+                        {
+                            var component = components[i];
+                            component.RefreshDataNow();
+                            if (!component.IsParentValid(this.Address))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+
+                    batchStart = batchEnd;
                 }
             }
 

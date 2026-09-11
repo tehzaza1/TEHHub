@@ -629,6 +629,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - Runtime validation จุดมอนหนาแน่น: รวมระบบลดจาก `1327` เป็น `1083 reads/frame` (~18.4%), `60.2 frames/s`, `0 failures`; `EntityUpdate` อยู่ที่ `7.9 reads/entity`
 - ชุดทดลอง map แบบเริ่มต้นผิด root ทำให้เกิด sentinel loop ถูกถอดทิ้งแล้ว; โค้ดที่บันทึกใช้ root/sentinel guard และผ่าน build + runtime diagnostics แล้ว
 
+### 6.40 ลด overhead ของ component refresh ต่อเฟรม
+
+- เพิ่ม `RemoteObjectBase.RefreshDataNow()` สำหรับ refresh object ที่ address เดิม โดยยังใช้ execution lock, exception boundary และ profiler scope เดิม แต่ไม่ผ่าน `Address getter/setter` ที่ต้องตรวจ address ซ้ำ
+- `Entity` เก็บลำดับ component ที่ sort แล้วไว้จนกว่า component map/cache จะเปลี่ยน จึงไม่ sort และไม่ rent/clear array ใหม่ทุก entity frame
+- ไม่ลดจำนวน component, memory read หรือความถี่ update; ทุก component ที่ `RequiresPerFrameRefresh` ยังถูก refresh ทุกเฟรมและตรวจ owner entity เหมือนเดิม
+- Runtime profiler ที่ 165 FPS, 104 entities: `RefreshCachedComponents` `1.01 ms → 948 µs`, allocation `356 B → 203 B`; `UpdateComponentData` `1.28 → 1.22 ms`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
