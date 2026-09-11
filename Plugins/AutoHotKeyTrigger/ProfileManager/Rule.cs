@@ -129,7 +129,8 @@ namespace AutoHotKeyTrigger.ProfileManager
         {
             ImGui.Checkbox(AhkText.Label("rule.enable", "Enable", "AhkRuleEnable"), ref this.Enabled);
             ImGui.InputText(AhkText.Label("rule.name", "Name", "AhkRuleName"), ref this.Name, 100);
-            var isController = this.UseGamepadKey || Core.GHSettings.EnableControllerMode;
+            ImGui.Checkbox("Use controller button for this rule", ref this.UseGamepadKey);
+            var isController = this.UseGamepadKey;
             if (isController)
             {
                 var tmpGp = this.GamepadKey;
@@ -166,7 +167,9 @@ namespace AutoHotKeyTrigger.ProfileManager
                 return;
             }
 
-            var isController = forceController || this.UseGamepadKey || Core.GHSettings.EnableControllerMode;
+            // GameHelper's detected gamepad UI mode must never enable virtual-controller input.
+            // Only the plugin setting or this rule's explicit checkbox may do so.
+            var isController = forceController || this.UseGamepadKey;
             if (isController && this.GamepadKey != GamepadButton.None)
             {
                 // Simulate gamepad button via ViGEmBus

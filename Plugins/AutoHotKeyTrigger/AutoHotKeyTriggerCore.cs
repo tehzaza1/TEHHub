@@ -261,10 +261,9 @@ namespace AutoHotKeyTrigger
                 }
             }
 
-            if (Core.GHSettings.EnableControllerMode)
+            if (this.Settings.EnableControllerMode)
             {
-                // Controller mode: rules still execute but use ControllerInput
-                // to send keys (bypassing MiscHelper which blocks in this mode).
+                // Controller mode was explicitly enabled in this plugin.
                 this.debugMessage = string.Empty;
             }
 
