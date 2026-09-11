@@ -72,6 +72,7 @@ namespace GameHelper.Ui
             ["Charges"] = typeof(ChargesOffsets),
             ["Chest"] = typeof(ChestOffsets),
             ["Life"] = typeof(LifeOffset),
+            ["MinimapIcon"] = typeof(MinimapIconOffsets),
             ["Mods"] = typeof(ModsOffsets),
             ["ObjectMagicProperties"] = typeof(ObjectMagicPropertiesOffsets),
             ["Player"] = typeof(PlayerOffsets),

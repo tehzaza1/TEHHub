@@ -732,6 +732,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - การ sweep ยังตรวจโครงสร้าง `Life` ของมอนสเตอร์และ entity อื่นตามปกติ แต่ไม่เปรียบเทียบยอดพลังของ entity เหล่านั้นกับค่าตัวละครจนรายงาน `Degraded` ผิด
 - การค้นหา candidate offset ใช้ขอบเขต hint เดียวกัน จึงไม่ให้ข้อมูลของมอนสเตอร์โหวตทับ candidate ของ local player
 
+### 6.54 ลงทะเบียน layout ของ MinimapIcon ที่ใช้งานจริง
+
+- ย้าย offset `+0x20` ที่ `MinimapIcon` ใช้อ่านแถว `MinimapIcons.dat` ออกจากเลขที่ฝังใน runtime reader มาเป็น `MinimapIconOffsets`
+- ลงทะเบียน struct กับ OffsetHelper เพื่อให้ header owner pointer และ dat-row pointer ถูกตรวจจากหลาย entity ได้ทุกครั้งที่ sweep
+- Radar, LootValue และ AutoExile2 ยังได้รับ `IconName` ผ่าน API เดิม โดยไม่มีการเปลี่ยน plugin contract
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

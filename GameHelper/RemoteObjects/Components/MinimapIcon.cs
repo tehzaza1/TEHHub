@@ -70,16 +70,16 @@ namespace GameHelper.RemoteObjects.Components
         protected override void UpdateData(bool hasAddressChanged)
         {
             var reader = Core.Process.Handle;
-            var header = reader.ReadMemory<ComponentHeader>(this.Address);
-            this.OwnerEntityAddress = header.EntityPtr;
+            var data = reader.ReadMemory<MinimapIconOffsets>(this.Address);
+            this.OwnerEntityAddress = data.Header.EntityPtr;
 
             // Read icon name: offset 0x20 -> dat row pointer -> +0x00 -> UTF-16 string
             try
             {
-                var ptr20 = reader.ReadMemory<IntPtr>(this.Address + 0x20);
-                if (ptr20 != IntPtr.Zero && (long)ptr20 > 0x10000)
+                var datRowPtr = data.MinimapIconDatRowPtr;
+                if (datRowPtr != IntPtr.Zero && (long)datRowPtr > 0x10000)
                 {
-                    var namePtr = reader.ReadMemory<IntPtr>(ptr20);
+                    var namePtr = reader.ReadMemory<IntPtr>(datRowPtr);
                     if (namePtr != IntPtr.Zero && (long)namePtr > 0x10000)
                     {
                         this.IconName = this.TryReadUtf16String(namePtr);
