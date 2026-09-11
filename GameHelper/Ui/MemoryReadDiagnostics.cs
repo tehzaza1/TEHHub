@@ -56,6 +56,9 @@ public static class MemoryReadDiagnostics
     private static long previousReadFailures;
     private static long previousRateTimestamp = Stopwatch.GetTimestamp();
     private static ReadRateSnapshot cachedReadRate;
+    private static int apiResetRequested;
+    private static int apiDumpRequested;
+    private static string lastDumpPath = string.Empty;
 
     /// <summary>
     ///     Starts the window render coroutine.
@@ -64,6 +67,19 @@ public static class MemoryReadDiagnostics
     {
         CoroutineHandler.Start(RenderWindow());
     }
+
+    internal static void RequestReset() => Interlocked.Exchange(ref apiResetRequested, 1);
+
+    internal static void RequestDump() => Interlocked.Exchange(ref apiDumpRequested, 1);
+
+    internal static MemoryDiagnosticsStatus GetApiStatus() => new(
+        Core.GHSettings.ShowMemoryDiagnostics,
+        Volatile.Read(ref apiResetRequested) != 0,
+        Volatile.Read(ref apiDumpRequested) != 0,
+        Interlocked.Read(ref totalReadCalls),
+        Interlocked.Read(ref totalFrames),
+        lastDumpPath,
+        lastActionMessage);
 
     /// <summary>
     ///     Records a failed memory read. Callers must check
@@ -177,6 +193,19 @@ public static class MemoryReadDiagnostics
         while (true)
         {
             yield return new Wait(GameHelperEvents.OnPostRender);
+            if (Interlocked.Exchange(ref apiResetRequested, 0) != 0)
+            {
+                Core.GHSettings.ShowMemoryDiagnostics = true;
+                ResetDiagnostics();
+            }
+
+            if (Interlocked.Exchange(ref apiDumpRequested, 0) != 0)
+            {
+                Core.GHSettings.ShowMemoryDiagnostics = true;
+                RefreshRowsThrottled(force: true);
+                lastDumpPath = DumpReportToFile() ?? string.Empty;
+            }
+
             if (!Core.GHSettings.ShowMemoryDiagnostics)
             {
                 continue;
@@ -191,11 +220,7 @@ public static class MemoryReadDiagnostics
                 {
                     if (ImGui.MenuItem("Reset"))
                     {
-                        Stats.Clear();
-                        ReadRegions.Clear();
-                        ResetReadMetrics();
-                        cachedRows = [];
-                        lastActionMessage = string.Empty;
+                        ResetDiagnostics();
                     }
 
                     if (ImGui.MenuItem("Copy to Clipboard"))
@@ -205,7 +230,7 @@ public static class MemoryReadDiagnostics
 
                     if (ImGui.MenuItem("Dump to File"))
                     {
-                        DumpReportToFile();
+                        lastDumpPath = DumpReportToFile() ?? string.Empty;
                     }
 
                     ImGui.EndMenuBar();
@@ -312,10 +337,10 @@ public static class MemoryReadDiagnostics
         }
     }
 
-    private static void RefreshRowsThrottled()
+    private static void RefreshRowsThrottled(bool force = false)
     {
         var now = DateTime.Now;
-        if ((now - lastUpdate).TotalMilliseconds < 500)
+        if (!force && (now - lastUpdate).TotalMilliseconds < 500)
         {
             return;
         }
@@ -413,6 +438,16 @@ public static class MemoryReadDiagnostics
         previousReadFailures = 0;
         previousRateTimestamp = Stopwatch.GetTimestamp();
         cachedReadRate = default;
+    }
+
+    private static void ResetDiagnostics()
+    {
+        Stats.Clear();
+        ReadRegions.Clear();
+        ResetReadMetrics();
+        cachedRows = [];
+        lastDumpPath = string.Empty;
+        lastActionMessage = string.Empty;
     }
 
     /// <summary>
@@ -585,12 +620,12 @@ public static class MemoryReadDiagnostics
         }
     }
 
-    private static void DumpReportToFile()
+    private static string? DumpReportToFile()
     {
         if (cachedRows.Count == 0 && cachedReadRate.TotalCalls == 0)
         {
             lastActionMessage = "Nothing to dump.";
-            return;
+            return null;
         }
 
         try
@@ -600,10 +635,12 @@ public static class MemoryReadDiagnostics
             File.WriteAllText(path, BuildReport());
             lastActionMessage = $"Saved: {path}";
             Console.WriteLine($"[MemoryReadDiagnostics] Dumped table to {path}");
+            return path;
         }
         catch (Exception ex)
         {
             lastActionMessage = $"Save failed: {ex.Message}";
+            return null;
         }
     }
 
@@ -660,6 +697,15 @@ public static class MemoryReadDiagnostics
         internal long RequestedBytes;
     }
 }
+
+internal sealed record MemoryDiagnosticsStatus(
+    bool Enabled,
+    bool ResetQueued,
+    bool DumpQueued,
+    long TotalReadCalls,
+    long TotalFrames,
+    string LastDumpPath,
+    string LastAction);
 
 /// <summary>
 ///     Allocation-free scope returned by <see cref="MemoryReadDiagnostics.MeasureRegion"/>.

@@ -108,6 +108,26 @@ namespace GameHelper.Ui
                     return;
                 }
 
+                if (method == "GET" && path == "/api/diagnostics/memory-status")
+                {
+                    await WriteJsonAsync(context, 200, MemoryReadDiagnostics.GetApiStatus(), DiagnosticsApiJsonContext.Default.MemoryDiagnosticsStatus).ConfigureAwait(false);
+                    return;
+                }
+
+                if (method == "POST" && path == "/api/diagnostics/memory-reset")
+                {
+                    MemoryReadDiagnostics.RequestReset();
+                    await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Memory diagnostics reset queued."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+
+                if (method == "POST" && path == "/api/diagnostics/memory-dump")
+                {
+                    MemoryReadDiagnostics.RequestDump();
+                    await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Memory diagnostics dump queued."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+
                 await WriteJsonAsync(context, 404, new DiagnosticsApiResponse("Route not found."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -140,6 +160,7 @@ namespace GameHelper.Ui
 
     [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
     [JsonSerializable(typeof(OffsetHelper.OffsetVerificationStatus))]
+    [JsonSerializable(typeof(MemoryDiagnosticsStatus))]
     [JsonSerializable(typeof(DiagnosticsApiResponse))]
     internal sealed partial class DiagnosticsApiJsonContext : JsonSerializerContext
     {

@@ -526,6 +526,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - API ส่งเพียงสถานะ diagnostic และรับคำสั่งตรวจเท่านั้น; ไม่มีคำสั่งควบคุมเกม, ปลั๊กอิน หรือการรับ request จากเครือข่ายภายนอก
 - มีคู่มือใช้งานใน `LOCAL_DIAGNOSTICS_API.md`; ตรวจ Release build ของ GameHelper แบบ output แยกผ่าน 0 warning / 0 error ขณะตัวหลักกำลังรัน
 
+### 6.25 เก็บ Memory Diagnostics ผ่าน Local API
+
+- เพิ่มคำสั่ง loopback สำหรับ `memory-reset`, `memory-dump` และ `memory-status` เพื่อเริ่มรอบวัด/เขียน TSV/อ่านสถานะโดยไม่ต้องเปิดหน้าต่าง diagnostics
+- คำสั่งถูก queue แล้วทำงานใน render coroutine เดิม จึงไม่เพิ่มการอ่าน memory หรือ thread ใหม่ใน hot path และยังคง gate การบันทึกด้วย `ShowMemoryDiagnostics`
+- dump ใช้ค่า session average, reads/frame และ breakdown scalar/buffer ชุดเดียวกับหน้าต่าง Performance/Memory Diagnostics ทำให้เทียบ workload รอบต่อรอบได้ง่าย
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

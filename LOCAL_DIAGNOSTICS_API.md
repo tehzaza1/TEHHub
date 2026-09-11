@@ -38,3 +38,22 @@ curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/offset-verify
 - `rescan FAILED`: pattern สำคัญหาไม่เจอ ต้องตรวจ offset ก่อนเชื่อผลจากฟีเจอร์ที่เกี่ยวข้อง
 
 การตรวจนี้ยืนยัน static pattern และ sanity-check ของ struct ที่มีข้อมูลสดอยู่แล้ว ไม่ได้เดา offset ใหม่ทุก field โดยอัตโนมัติเมื่อ game patch เปลี่ยน layout อย่างมีนัยสำคัญ
+
+## Memory diagnostics แบบไม่ต้องกดหน้าต่าง
+
+API ชุดนี้ใช้เก็บจำนวนครั้งอ่าน memory และอัตราการอ่านจาก workload จริง โดยให้ GameHelper ทำงานผ่าน render loop ตามปกติ:
+
+เริ่มรอบใหม่:
+
+```powershell
+curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/memory-reset
+```
+
+ปล่อยเกมและปลั๊กอินทำงานตามสถานการณ์ที่ต้องการวัด แล้วสั่งเขียนไฟล์:
+
+```powershell
+curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/memory-dump
+curl.exe http://localhost:9877/api/diagnostics/memory-status
+```
+
+ไฟล์ `memory_diagnostics_YYYYMMDD_HHMMSS.tsv` จะถูกเขียนไว้ข้าง `GameHelper.exe` และสถานะ `lastDumpPath` จะบอก path เต็มให้ตรวจสอบได้ การส่ง `-d ""` สำคัญบน Windows เพราะทำให้ request มี Content-Length เป็นศูนย์และไม่ถูกตอบกลับด้วย HTTP 411
