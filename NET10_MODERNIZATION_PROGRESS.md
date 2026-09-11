@@ -707,6 +707,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ไม่ลดความถี่ update ของ entity ที่ valid และไม่เปลี่ยนข้อมูล plugin; ลดเฉพาะ duplicate recovery work จาก torn read
 - Stress validation หลัง reset: จากประมาณ `1,522 → 1,105 reads/frame`, รอบใหม่อยู่ราว `166 FPS` และ `0–2 native failures`; ค่า calls/s และ MiB/s เปลี่ยนตามจำนวน entity ที่ตื่นในช่วงวัด และ `Entity.UpdateComponentData` ลงมาราว `5.4 us/call`
 
+### 6.50 ทำให้ plugin loading deterministic และรองรับ native dependency
+
+- โหลดและสร้าง plugin ตามลำดับชื่อบน thread เดียว เพราะงานนี้เกิดเฉพาะตอนเริ่มหรือ reload และ constructor ของ plugin ไม่ควรถูกเรียกพร้อมกันโดยไม่แจ้งสัญญาไว้
+- unload collectible `AssemblyLoadContext` เมื่ออ่าน assembly หรือสร้าง plugin ล้มเหลว เพื่อลด assembly/file handle ที่ค้างหลัง reload
+- เพิ่ม `ResolveUnmanagedDllToPath` ให้ dependency native ที่อยู่ในโฟลเดอร์ plugin ถูกโหลดผ่าน resolver เดียวกับ managed dependency
+- คำสั่งโหลด plugin ใน Debug ใช้ชื่อเท่ากันแบบไม่สนตัวพิมพ์ แทนการจับชื่อบางส่วนที่อาจโหลดผิดโฟลเดอร์
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

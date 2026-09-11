@@ -76,11 +76,10 @@ namespace GameHelper.Plugin
         private static List<PluginWithName> LoadPlugins()
         {
             return GetPluginsDirectories()
-                  .AsParallel()
+                  .OrderBy(directory => directory.Name, StringComparer.OrdinalIgnoreCase)
                   .Select(LoadPlugin)
                   .Where(x => x != null)
                   .Select(x => x!)
-                  .OrderBy(x => x.Name)
                   .ToList();
         }
 
@@ -141,7 +140,7 @@ namespace GameHelper.Plugin
             try
             {
                 var container = GetPluginsDirectories()
-                                .Where(x => x.Name.Contains(name))
+                                .Where(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
                                 .Select(LoadPlugin)
                                 .Where(y => y != null)
                                 .Select(y => y!)
@@ -186,6 +185,7 @@ namespace GameHelper.Plugin
 
         private static (Assembly assembly, PluginAssemblyLoadContext alc)? ReadPluginFiles(DirectoryInfo pluginDirectory)
         {
+            PluginAssemblyLoadContext? alc = null;
             try
             {
                 var dllFile = pluginDirectory.GetFiles(
@@ -199,12 +199,13 @@ namespace GameHelper.Plugin
                     return null;
                 }
 
-                var alc = new PluginAssemblyLoadContext(dllFile.FullName);
+                alc = new PluginAssemblyLoadContext(dllFile.FullName);
                 var assembly = alc.LoadFromAssemblyPath(dllFile.FullName);
                 return (assembly, alc);
             }
             catch (Exception e)
             {
+                alc?.Unload();
                 Console.WriteLine($"Failed to load plugin {pluginDirectory.FullName} due to {e}");
                 return null;
             }
@@ -218,7 +219,13 @@ namespace GameHelper.Plugin
             {
                 var relativePluginDir = pluginDirectory.FullName.Replace(
                     State.PluginsDirectory.FullName, State.PluginsDirectory.Name);
-                return LoadPlugin(loaded.Value.assembly, loaded.Value.alc, relativePluginDir);
+                var plugin = LoadPlugin(loaded.Value.assembly, loaded.Value.alc, relativePluginDir);
+                if (plugin == null)
+                {
+                    loaded.Value.alc.Unload();
+                }
+
+                return plugin;
             }
 
             return null;
