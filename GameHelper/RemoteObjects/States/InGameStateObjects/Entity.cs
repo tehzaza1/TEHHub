@@ -583,14 +583,14 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             }
 
             // Cheap wake-up signals for dormant monsters using the same ptr/id.
-            if (this.TryGetStatValue(GameStats.is_dead, out var isDead) && isDead == 0)
+            if (this.TryGetStatValue(GameStats.is_dead, out var isDead, shouldCache: false) && isDead == 0)
             {
                 return true;
             }
 
             // For monsters marked dead via Life fallback (no is_dead stat),
             // check if Life becomes alive again.
-            if (!this.TryGetStatValue(GameStats.is_dead, out _) &&
+            if (!this.TryGetStatValue(GameStats.is_dead, out _, shouldCache: false) &&
                 this.TryGetComponent<Life>(out var lifeComp, false) && lifeComp.IsAlive)
             {
                 return true;
@@ -794,8 +794,12 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     this.customGroup = 0;
                     this.oldSubtypeWithoutPOI = EntitySubtypes.None;
 
-                    this.TryGetComponent<ObjectMagicProperties>(out var omp, false);
-                    this.TryGetComponent<Stats>(out var statcomp, false);
+                    // Keep the classification components. ObjectMagicProperties is immutable for
+                    // an entity lifetime and Stats is refreshed by UpdateComponentData every
+                    // entity frame; constructing uncached copies here duplicates their reads and
+                    // allocates their dictionaries again before CalculateEntityState runs.
+                    this.TryGetComponent<ObjectMagicProperties>(out var omp);
+                    this.TryGetComponent<Stats>(out var statcomp);
 
                     if (omp != null && omp.ModNames.Contains("PinnacleAtlasBoss"))
                     {
@@ -928,10 +932,13 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             }
         }
 
-        private bool TryGetStatValue(GameStats stat, out int value)
+        private bool TryGetStatValue(GameStats stat, out int value, bool shouldCache = true)
         {
             value = 0;
-            if (!this.TryGetComponent<Stats>(out var statsComp, false))
+            // Stats is live data, but the cached component is refreshed in
+            // UpdateComponentData earlier in this entity frame. Reusing it avoids constructing
+            // another Stats component (and two dictionaries) for every state calculation.
+            if (!this.TryGetComponent<Stats>(out var statsComp, shouldCache))
             {
                 return false;
             }

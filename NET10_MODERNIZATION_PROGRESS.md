@@ -590,6 +590,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เพิ่ม helper ภายในสำหรับอ่าน native vector ลง `ArrayPool` แล้วใช้กับทั้งสาม vector; คงจำนวน bulk read และข้อมูลที่ public API ของปลั๊กอินเห็นไว้เท่าเดิม
 - การค้นชื่อ active skill จาก GGPK cache ใช้ static factory เพื่อไม่สร้าง closure ในทุก active-skill lookup
 
+### 6.34 ใช้ cached Stats ระหว่างคำนวณสถานะ entity
+
+- `CalculateEntityState` เคยสร้าง `Stats` component ใหม่แบบไม่ cache ทุก entity frame เพียงเพื่อตรวจ `is_dead` แม้ `UpdateComponentData` สามารถ refresh cached component ในรอบเดียวกันได้
+- เปลี่ยนให้ใช้ cached `Stats`; เมื่อมีครั้งแรกจะสร้างและอ่านครบตามเดิม จากนั้น refresh instance เดิมก่อนคำนวณ state ทุก frame
+- ตอน classify monster ก็ cache `Stats` และ `ObjectMagicProperties` ตั้งแต่แรก เพื่อไม่สร้างข้อมูลเดิมซ้ำใน state calculation
+- มอนสเตอร์ที่ถูกพัก (`Useless`) ยังคงสร้าง `Stats` สดในรอบ wake-up ทุก 30 frames เช่นเดิม เพื่อไม่ใช้ค่า `is_dead` เก่าเมื่อมอนสเตอร์กลับมาใช้งาน
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
