@@ -597,6 +597,11 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ตอน classify monster ก็ cache `Stats` และ `ObjectMagicProperties` ตั้งแต่แรก เพื่อไม่สร้างข้อมูลเดิมซ้ำใน state calculation
 - มอนสเตอร์ที่ถูกพัก (`Useless`) ยังคงสร้าง `Stats` สดในรอบ wake-up ทุก 30 frames เช่นเดิม เพื่อไม่ใช้ค่า `is_dead` เก่าเมื่อมอนสเตอร์กลับมาใช้งาน
 
+### 6.35 cache ชื่อ component ตอนสร้าง component map
+
+- `RefreshComponentMap` อ่าน string ชื่อ component ซ้ำจาก native memory ทุกครั้งที่ entity ต้องสร้าง/รีเฟรช map
+- ชื่อ component อยู่ใน GGPK/static data จึงใช้ `GgpkStringCache` ที่ถูกล้างตาม area/game lifecycle อยู่แล้ว; ลดทั้ง read และ string allocation โดยไม่ลดรอบ refresh ของ entity
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

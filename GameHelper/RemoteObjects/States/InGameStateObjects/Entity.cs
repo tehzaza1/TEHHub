@@ -396,7 +396,10 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     var nameAndIndex = namesAndIndexes[i];
                     if (nameAndIndex.Index >= 0 && nameAndIndex.Index < entityComponent.Length)
                     {
-                        var name = reader.ReadString(nameAndIndex.NamePtr);
+                        var name = nameAndIndex.NamePtr == IntPtr.Zero ? string.Empty :
+                            Core.GgpkStringCache.AddOrGetExisting(
+                                nameAndIndex.NamePtr,
+                                static key => Core.Process.Handle.ReadString(key));
                         if (!string.IsNullOrEmpty(name))
                         {
                             this.componentAddresses[name] = entityComponent[nameAndIndex.Index];
