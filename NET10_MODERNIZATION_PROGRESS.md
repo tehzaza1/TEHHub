@@ -480,6 +480,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - คงรูปแบบ JSON เดิม (fields/case-insensitive/indentation) และไม่เปลี่ยน logic การอ่านหรือวาด Radar
 - ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
 
+### 6.18 ย้าย JSON cache และ mapping ของ LootValue เป็น source-generated JSON
+
+- unique-art mapping, path-basename mapping และ price cache ของ LootValue ใช้ metadata ที่ generate ล่วงหน้าจาก `LootValueJsonContext`
+- คง option เดิมครบ: อ่านชื่อ property แบบไม่สนตัวพิมพ์, field compatibility และเขียน cache แบบจัดย่อหน้า
+- schema ของ price cache และเงื่อนไขลบ/refetch cache เดิมไม่เปลี่ยน จึงยังรับมือไฟล์เก่าหรือไฟล์เสียได้เหมือนเดิม
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

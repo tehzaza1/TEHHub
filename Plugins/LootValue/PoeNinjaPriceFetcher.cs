@@ -49,11 +49,6 @@ namespace LootValue
 
     public static class PoeNinjaPriceFetcher
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = true,
-        };
         public const int SourcePoeNinja = 0;
         public const int SourcePoe2Scout = 1;
 
@@ -258,7 +253,7 @@ namespace LootValue
                 }
 
                 var json = File.ReadAllText(mappingPath);
-                var raw = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json, JsonOptions);
+                var raw = JsonSerializer.Deserialize(json, LootValueJsonContext.Default.DictionaryStringListString);
                 if (raw == null)
                 {
                     return;
@@ -317,7 +312,7 @@ namespace LootValue
                 }
 
                 var json = File.ReadAllText(mappingPath);
-                var raw = JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions);
+                var raw = JsonSerializer.Deserialize(json, LootValueJsonContext.Default.DictionaryStringString);
                 if (raw == null) return;
 
                 lock (Gate)
@@ -349,7 +344,7 @@ namespace LootValue
                     snapshot = new Dictionary<string, string>(pathBasenameToItemName, StringComparer.OrdinalIgnoreCase);
                 }
 
-                File.WriteAllText(pathBasenameMappingFilePath, JsonSerializer.Serialize(snapshot, JsonOptions));
+                File.WriteAllText(pathBasenameMappingFilePath, JsonSerializer.Serialize(snapshot, LootValueJsonContext.Default.DictionaryStringString));
             }
             catch { }
         }
@@ -1488,7 +1483,7 @@ namespace LootValue
 
             try
             {
-                var snapshot = JsonSerializer.Deserialize<PriceCacheSnapshot>(File.ReadAllText(cacheFilePath), JsonOptions);
+                var snapshot = JsonSerializer.Deserialize(File.ReadAllText(cacheFilePath), LootValueJsonContext.Default.PriceCacheSnapshot);
 
                 // Written by a different (older) plugin version, or missing required data: discard it
                 // entirely so we never trust a stale-schema cache. A fresh fetch rebuilds it.
@@ -1562,7 +1557,7 @@ namespace LootValue
                     };
                 }
 
-                File.WriteAllText(cacheFilePath, JsonSerializer.Serialize(snapshot, JsonOptions));
+                File.WriteAllText(cacheFilePath, JsonSerializer.Serialize(snapshot, LootValueJsonContext.Default.PriceCacheSnapshot));
             }
             catch { }
         }
