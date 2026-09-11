@@ -537,6 +537,7 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 
 - `ImportantUiElements` เคยอ่าน `UiElementBaseOffset` และ child pointer ซ้ำเมื่อหลาย path ใช้ prefix เดียวกัน เช่น world-map tabs และ minimap/แผนที่ใหญ่
 - เพิ่ม per-update path resolver ที่แชร์ offset/child pointer ภายในกลุ่มเดียวกัน โดยยัง validate `Self` ของปลายทางทุก path และไม่ลดความถี่การอัปเดต UI
+- cache ของ resolver ถูก reuse ต่อ object และ clear ต้นรอบ จึงไม่สร้าง dictionary ใหม่ทุกเฟรมเพิ่มภาระ GC
 - Runtime validation: `ImportantUiElements` ลดจากประมาณ 130 เป็น 97 reads/frame และรวมระบบลดจาก 267 เป็น 224 reads/frame; รอบทดสอบไม่มี read failure
 
 ## การตัดสินใจเรื่อง Native AOT

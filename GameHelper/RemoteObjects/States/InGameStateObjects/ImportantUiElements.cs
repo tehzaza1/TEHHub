@@ -134,6 +134,8 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         private readonly List<AtlasMapNode> atlasMaps = new();
         private readonly List<AtlasRegionButton> atlasOceanButtons = new();
         private readonly List<PlayerMarker> atlasMarkers = new();
+        private readonly Dictionary<IntPtr, UiElementBaseOffset> pathOffsetCache = new(64);
+        private readonly Dictionary<(IntPtr Address, int Index), IntPtr> childPathCache = new(128);
         private int atlasMapCacheFrameCounter = int.MaxValue;
         private int cachedAtlasMapCount = -1;
         private string lastAreaHash = string.Empty;
@@ -519,6 +521,8 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         protected override void UpdateData(bool hasAddressChanged)
         {
             this.UpdateParentsCache();
+            this.pathOffsetCache.Clear();
+            this.childPathCache.Clear();
             var reader = Core.Process.Handle;
             var data1 = reader.ReadMemory<ImportantUiElementsOffsets>(Core.GHSettings.IsTaiwanClient ? this.Address - 0x08 : this.Address);
             if (Core.GHSettings.EnableControllerMode)
@@ -1205,7 +1209,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             return false;
         }
 
-        private static IntPtr[] ResolveChildAddresses(IntPtr rootAddress, params int[][] childPaths)
+        private IntPtr[] ResolveChildAddresses(IntPtr rootAddress, params int[][] childPaths)
         {
             var results = new IntPtr[childPaths.Length];
             if (rootAddress == IntPtr.Zero)
@@ -1214,21 +1218,19 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             }
 
             var reader = Core.Process.Handle;
-            var offsets = new Dictionary<IntPtr, UiElementBaseOffset>();
-            var children = new Dictionary<(IntPtr Address, int Index), IntPtr>();
             for (var pathIndex = 0; pathIndex < childPaths.Length; pathIndex++)
             {
                 var currentAddress = rootAddress;
                 foreach (var childIndex in childPaths[pathIndex])
                 {
-                    if (childIndex < 0 || !offsets.TryGetValue(currentAddress, out var data) &&
+                    if (childIndex < 0 || !this.pathOffsetCache.TryGetValue(currentAddress, out var data) &&
                         !reader.TryReadMemory(currentAddress, out data))
                     {
                         currentAddress = IntPtr.Zero;
                         break;
                     }
 
-                    offsets[currentAddress] = data;
+                    this.pathOffsetCache[currentAddress] = data;
                     var childCount = data.ChildrensPtr.TotalElements(IntPtr.Size);
                     if (data.ChildrensPtr.First == IntPtr.Zero || childIndex >= childCount)
                     {
@@ -1237,10 +1239,10 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     }
 
                     var key = (currentAddress, childIndex);
-                    if (!children.TryGetValue(key, out var childAddress))
+                    if (!this.childPathCache.TryGetValue(key, out var childAddress))
                     {
                         childAddress = reader.ReadMemory<IntPtr>(data.ChildrensPtr.First + (childIndex * IntPtr.Size));
-                        children[key] = childAddress;
+                        this.childPathCache[key] = childAddress;
                     }
 
                     if (childAddress == IntPtr.Zero)
