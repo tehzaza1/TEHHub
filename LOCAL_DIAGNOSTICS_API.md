@@ -18,7 +18,7 @@ curl.exe http://localhost:9877/api/diagnostics/offset-status
 สั่งตรวจซ้ำหลังเกมอัปเดตหรือหลังเปลี่ยนพื้นที่:
 
 ```powershell
-curl.exe -X POST http://localhost:9877/api/diagnostics/offset-verify
+curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/offset-verify
 ```
 
 เรียกสถานะอีกครั้งจน `selfTestRunning` เป็น `false`:
