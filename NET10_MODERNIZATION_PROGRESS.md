@@ -738,6 +738,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ลงทะเบียน struct กับ OffsetHelper เพื่อให้ header owner pointer และ dat-row pointer ถูกตรวจจากหลาย entity ได้ทุกครั้งที่ sweep
 - Radar, LootValue และ AutoExile2 ยังได้รับ `IconName` ผ่าน API เดิม โดยไม่มีการเปลี่ยน plugin contract
 
+### 6.55 แยก marker component และเพิ่มตัวจับ raw diff
+
+- ลงทะเบียน `DiesAfterTime`, `Monster` และ `NPC` ด้วย `ComponentHeader` เพราะฟีเจอร์ปัจจุบันใช้เพียงการมีอยู่และ owner pointer ของ component เหล่านี้
+- เพิ่มการจับ baseline 512 bytes และเปรียบเทียบ Before/After ใน root ของ component ที่ยัง unmapped พร้อมรายงาน word ที่เปลี่ยนสำหรับส่งกลับมาวิเคราะห์
+- capture อยู่เฉพาะ session และผูกกับ address เดิม ผู้ใช้จึงต้องเทียบ component ตัวเดิมก่อนเปลี่ยนพื้นที่
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

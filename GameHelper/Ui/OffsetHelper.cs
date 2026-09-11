@@ -103,6 +103,12 @@ namespace GameHelper.Ui
         private const int MaxPinnedCards = 24;
         private const int BoxVerdictTtlFrames = 30;
         private const int BoxRecomputeBudgetPerFrame = 16;
+        private const int UnmappedCaptureLength = 0x200;
+
+        // Raw before/after captures for live components whose layout is not registered yet.
+        // These remain session-only because component addresses are invalid after an area change.
+        private static readonly Dictionary<IntPtr, RawComponentCapture> UnmappedCaptures = new();
+        private static IntPtr unmappedCaptureArea;
 
         private static readonly uint BoxYellow = ImGuiHelper.Color(255, 220, 60, 255);
         private static readonly uint BoxRed = ImGuiHelper.Color(255, 70, 70, 255);
@@ -168,6 +174,13 @@ namespace GameHelper.Ui
             while (true)
             {
                 yield return new Wait(GameHelperEvents.OnRender);
+                var currentArea = Core.States.InGameStateObject.CurrentAreaInstance?.Address ?? IntPtr.Zero;
+                if (currentArea != unmappedCaptureArea)
+                {
+                    UnmappedCaptures.Clear();
+                    unmappedCaptureArea = currentArea;
+                }
+
                 if (Interlocked.Exchange(ref verificationRequested, 0) == 1)
                 {
                     SafeSweep();
@@ -391,6 +404,11 @@ namespace GameHelper.Ui
                     }
                     else
                     {
+                        if (p.Unmapped)
+                        {
+                            DrawUnmappedCaptureTools(p.Name, root);
+                        }
+
                         DrawFieldTable(p.Name + i, root.Fields);
                     }
 
@@ -399,6 +417,106 @@ namespace GameHelper.Ui
             }
 
             ImGui.TreePop();
+        }
+
+        private static void DrawUnmappedCaptureTools(string componentName, RootResult root)
+        {
+            if (ImGui.SmallButton("Capture 512-byte baseline"))
+            {
+                var bytes = ReadUnmappedComponent(root.Address);
+                if (bytes != null)
+                {
+                    UnmappedCaptures[root.Address] = new RawComponentCapture(bytes);
+                }
+            }
+
+            ImGui.SameLine();
+            var hasBaseline = UnmappedCaptures.TryGetValue(root.Address, out var capture);
+            ImGui.BeginDisabled(!hasBaseline);
+            if (ImGui.SmallButton("Compare current"))
+            {
+                var current = ReadUnmappedComponent(root.Address);
+                if (current != null && capture != null)
+                {
+                    capture.Report = BuildUnmappedDiffReport(componentName, root, capture.Baseline, current);
+                }
+            }
+
+            ImGui.EndDisabled();
+
+            if (!hasBaseline || capture == null)
+            {
+                ImGui.TextDisabled("Capture a baseline, change one thing in-game, then compare this same component.");
+                return;
+            }
+
+            ImGui.TextDisabled($"Baseline captured ({capture.Baseline.Length} bytes). Component addresses reset when the area changes.");
+            if (string.IsNullOrEmpty(capture.Report))
+            {
+                return;
+            }
+
+            ImGui.TextWrapped(capture.Report.Split(Environment.NewLine)[2]);
+            if (ImGui.SmallButton("Copy before/after report"))
+            {
+                ImGui.SetClipboardText(capture.Report);
+            }
+        }
+
+        private static byte[]? ReadUnmappedComponent(IntPtr address)
+        {
+            var bytes = Core.Process.Handle.ReadMemoryArray<byte>(address, UnmappedCaptureLength);
+            return bytes.Length == UnmappedCaptureLength ? bytes : null;
+        }
+
+        private static string BuildUnmappedDiffReport(
+            string componentName,
+            RootResult root,
+            byte[] baseline,
+            byte[] current)
+        {
+            var changedBytes = new List<int>();
+            for (var i = 0; i < Math.Min(baseline.Length, current.Length); i++)
+            {
+                if (baseline[i] != current[i])
+                {
+                    changedBytes.Add(i);
+                }
+            }
+
+            var lines = new List<string>
+            {
+                $"OffsetHelper raw component diff for {componentName}",
+                $"Root: {root.Label} @ 0x{root.Address.ToInt64():X}",
+                $"Changed bytes: {changedBytes.Count}/{Math.Min(baseline.Length, current.Length)}",
+            };
+
+            if (changedBytes.Count == 0)
+            {
+                lines.Add("No bytes changed.");
+                return string.Join(Environment.NewLine, lines);
+            }
+
+            var alignedOffsets = changedBytes.Select(offset => offset & ~7).Distinct().Take(64).ToList();
+            lines.Add("Changed 8-byte words (little-endian):");
+            foreach (var offset in alignedOffsets)
+            {
+                if (offset + sizeof(ulong) > baseline.Length || offset + sizeof(ulong) > current.Length)
+                {
+                    continue;
+                }
+
+                var before = BitConverter.ToUInt64(baseline, offset);
+                var after = BitConverter.ToUInt64(current, offset);
+                lines.Add($"+0x{offset:X3}: 0x{before:X16} -> 0x{after:X16}");
+            }
+
+            if (changedBytes.Select(offset => offset & ~7).Distinct().Skip(64).Any())
+            {
+                lines.Add("... additional changed words omitted");
+            }
+
+            return string.Join(Environment.NewLine, lines);
         }
 
         private static void DrawRecoveries(ProbeResult probe)
@@ -461,6 +579,18 @@ namespace GameHelper.Ui
         private static string FormatShift(int shift)
         {
             return shift >= 0 ? $"+0x{shift:X}" : $"-0x{-shift:X}";
+        }
+
+        private sealed class RawComponentCapture
+        {
+            internal RawComponentCapture(byte[] baseline)
+            {
+                this.Baseline = baseline;
+            }
+
+            internal byte[] Baseline { get; }
+
+            internal string Report { get; set; } = string.Empty;
         }
 
         private static void DrawFieldTable(string id, List<FieldRow> fields)
