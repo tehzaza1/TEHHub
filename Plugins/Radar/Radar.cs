@@ -80,6 +80,7 @@ namespace Radar
         private Vector2 walkableMapDimension = Vector2.Zero;
         private readonly Dictionary<string, Vector2> textHalfSizeCache = new(StringComparer.Ordinal);
         private readonly Dictionary<int, Vector2> poiIndexHalfSizeCache = new();
+        private readonly Dictionary<string, List<Vector2>> poiClusterCache = new(StringComparer.Ordinal);
 
         // Reused by the render-thread POI passes so the large/minimap draws do not
         // allocate their working buffers every frame.
@@ -839,9 +840,9 @@ namespace Radar
                 {
                     foreach (var tile in tgts)
                     {
-                        if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
+                        var clusters = this.GetClusteredTileLocations(currentAreaInstance.TgtTilesLocations, tile.Key);
+                        if (clusters != null)
                         {
-                            var clusters = ClusterTileLocations(rawLocations, 350.0f);
                             var strSize = this.GetTextHalfSize(tile.Value);
 
                             for (var i = 0; i < clusters.Count; i++)
@@ -949,9 +950,9 @@ namespace Radar
             {
                 foreach (var tile in tileDict)
                 {
-                    if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
+                    var clusters = this.GetClusteredTileLocations(currentAreaInstance.TgtTilesLocations, tile.Key);
+                    if (clusters != null)
                     {
-                        var clusters = ClusterTileLocations(rawLocations, 350.0f);
                         for (var i = 0; i < clusters.Count; i++)
                         {
                             var loc = clusters[i];
@@ -2794,6 +2795,25 @@ namespace Radar
             return false;
         }
 
+        private List<Vector2>? GetClusteredTileLocations(
+            Dictionary<string, List<Vector2>> tgtTilesLocations,
+            string pattern)
+        {
+            if (this.poiClusterCache.TryGetValue(pattern, out var cachedClusters))
+            {
+                return cachedClusters;
+            }
+
+            if (!TryGetTgtLocations(tgtTilesLocations, pattern, out var rawLocations) || rawLocations.Count == 0)
+            {
+                return null;
+            }
+
+            var clusters = ClusterTileLocations(rawLocations, 350.0f);
+            this.poiClusterCache[pattern] = clusters;
+            return clusters;
+        }
+
         private static bool MatchesWildcardParts(string key, string[] parts)
         {
             int currentIdx = 0;
@@ -3030,6 +3050,7 @@ namespace Radar
             this.delveChestCache.Clear();
             this.textHalfSizeCache.Clear();
             this.poiIndexHalfSizeCache.Clear();
+            this.poiClusterCache.Clear();
             this.poiPathCache.Clear();
             this.nextPoiRecomputeTime = 0;
             this.nextPoiFullRecomputeTime = 0;

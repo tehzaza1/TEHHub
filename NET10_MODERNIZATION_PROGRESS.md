@@ -310,6 +310,13 @@ Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 - ยังเลือก `Current Frame Only` ได้จาก checkbox เมื่อจำเป็นต้องตรวจเฟรมเดียว
 - เปลี่ยนการเรียงลำดับเริ่มต้นเป็น `Alloc (Call)` จากมากไปน้อย เพื่อให้เห็นคอขวด allocation ในภาพเดียว
 
+### 5.17 Cache ผล clustering ของ Radar ต่อแผนที่
+
+- `DrawTgtFiles` และ `DrawDirectionLines` ไม่คำนวณ `ClusterTileLocations` ซ้ำทุกเฟรมสำหรับ POI เดิม
+- เก็บผล cluster ต่อ pattern ใน `poiClusterCache` และล้างเมื่อเปลี่ยน area instance
+- ไม่เปลี่ยนตำแหน่ง, ลำดับ, การกรอง label หรือ pathfinding ของ POI; เป็นการ reuse ผลคำนวณเท่านั้น
+- ตรวจ Release build ของ Radar ผ่าน 0 warning / 0 error; ต้องวัด runtime dump รอบถัดไปก่อนสรุปผลจริง
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
