@@ -82,6 +82,7 @@ namespace Radar
         private readonly Dictionary<string, Vector2> textHalfSizeCache = new(StringComparer.Ordinal);
         private readonly Dictionary<int, Vector2> poiIndexHalfSizeCache = new();
         private readonly Dictionary<string, List<Vector2>> poiClusterCache = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, CachedStraightLineResult> straightLineCache = new(StringComparer.Ordinal);
 
         // Reused by the render-thread POI passes so the large/minimap draws do not
         // allocate their working buffers every frame.
@@ -110,6 +111,7 @@ namespace Radar
         private IntPtr doorOverrideCacheAddress;
         private string doorOverrideCacheAreaHash = string.Empty;
         private int doorOverrideCacheEntityCount = -1;
+        private int doorOverrideVersion;
 
         // Entity pathfinding: cache and throttle for entity-icon-based paths
         private long nextEntityRecomputeTime = 0;
@@ -1077,7 +1079,13 @@ namespace Radar
                 // --- Straight-line arrow ---
                 if (showStraight)
                 {
-                    var lineResult = LineWalker.CheckLine(walkableData, bytesPerRow, pPos, gridPos, doorOverrides);
+                    var lineResult = this.GetStraightLineResult(
+                        cacheKey,
+                        walkableData,
+                        bytesPerRow,
+                        pPos,
+                        gridPos,
+                        doorOverrides);
                     var color = lineResult.IsClear ? clearColor : blockedColor;
 
                     fgDraw.AddLine(playerScreen, poiScreen, color, thickness);
@@ -2830,9 +2838,55 @@ namespace Radar
                 this.doorOverrideCacheAddress = areaInstance.Address;
                 this.doorOverrideCacheAreaHash = areaInstance.AreaHash;
                 this.doorOverrideCacheEntityCount = entityCount;
+                this.doorOverrideVersion++;
             }
 
             return this.doorOverrideCache;
+        }
+
+        private LineWalker.LineResult GetStraightLineResult(
+            string cacheKey,
+            byte[] walkableData,
+            int bytesPerRow,
+            Vector2 playerPosition,
+            Vector2 targetPosition,
+            HashSet<(int, int)>? doorOverrides)
+        {
+            var playerX = (int)Math.Round(playerPosition.X);
+            var playerY = (int)Math.Round(playerPosition.Y);
+            var targetX = (int)Math.Round(targetPosition.X);
+            var targetY = (int)Math.Round(targetPosition.Y);
+
+            if (this.straightLineCache.TryGetValue(cacheKey, out var cached) &&
+                cached.PlayerX == playerX &&
+                cached.PlayerY == playerY &&
+                cached.TargetX == targetX &&
+                cached.TargetY == targetY &&
+                cached.BytesPerRow == bytesPerRow &&
+                cached.DoorOverrideVersion == this.doorOverrideVersion &&
+                ReferenceEquals(cached.WalkableData, walkableData))
+            {
+                return cached.Result;
+            }
+
+            var result = LineWalker.CheckLine(
+                walkableData,
+                bytesPerRow,
+                playerX,
+                playerY,
+                targetX,
+                targetY,
+                doorOverrides);
+            this.straightLineCache[cacheKey] = new CachedStraightLineResult(
+                playerX,
+                playerY,
+                targetX,
+                targetY,
+                bytesPerRow,
+                this.doorOverrideVersion,
+                walkableData,
+                result);
+            return result;
         }
 
         private static bool MatchesWildcardParts(string key, string[] parts)
@@ -3072,10 +3126,12 @@ namespace Radar
             this.textHalfSizeCache.Clear();
             this.poiIndexHalfSizeCache.Clear();
             this.poiClusterCache.Clear();
+            this.straightLineCache.Clear();
             this.doorOverrideCache = null;
             this.doorOverrideCacheAddress = IntPtr.Zero;
             this.doorOverrideCacheAreaHash = string.Empty;
             this.doorOverrideCacheEntityCount = -1;
+            this.doorOverrideVersion = 0;
             this.poiPathCache.Clear();
             this.nextPoiRecomputeTime = 0;
             this.nextPoiFullRecomputeTime = 0;
@@ -3092,6 +3148,16 @@ namespace Radar
             this.observedAreaInstanceAddress = IntPtr.Zero;
             this.observedAreaHash = string.Empty;
         }
+
+        private readonly record struct CachedStraightLineResult(
+            int PlayerX,
+            int PlayerY,
+            int TargetX,
+            int TargetY,
+            int BytesPerRow,
+            int DoorOverrideVersion,
+            byte[] WalkableData,
+            LineWalker.LineResult Result);
 
         private bool IsLocalCoopActive(Render playerRender, bool hasOtherPlayer)
         {
