@@ -306,9 +306,10 @@ Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 
 ### 5.16 ปรับ Performance Profiler ให้ดูค่าเฉลี่ยสะสมเป็นค่าเริ่มต้น
 
-- เปลี่ยนค่าเริ่มต้นจาก `Current Frame Only` เป็น rolling window เพื่อไม่ให้ผลสลับไปมาตามเฟรมล่าสุด
+- เปลี่ยนค่าเริ่มต้นจาก `Current Frame Only` เป็นค่าเฉลี่ยสะสมตลอด session เพื่อไม่ให้ผลสะท้อนเฉพาะ call ล่าสุด
 - ยังเลือก `Current Frame Only` ได้จาก checkbox เมื่อจำเป็นต้องตรวจเฟรมเดียว
 - เปลี่ยนการเรียงลำดับเริ่มต้นเป็น `Alloc (Call)` จากมากไปน้อย เพื่อให้เห็นคอขวด allocation ในภาพเดียว
+- `P95/P99` ยังคงใช้หน้าต่างตัวอย่างล่าสุด 100 ค่า เพื่อจับ latency spike โดยไม่เก็บข้อมูลไม่จำกัด
 
 ### 5.17 Cache ผล clustering ของ Radar ต่อแผนที่
 

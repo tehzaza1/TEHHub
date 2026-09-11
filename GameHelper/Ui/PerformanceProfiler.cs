@@ -302,39 +302,37 @@ internal class ProfileData
 {
     private const int WindowSize = 100;
     private int totalCount;
-    private long sumTicks;
-    private long sumAllocatedBytes;
-    private double sumFrameNs;
+    private long sessionSumTicks;
+    private long sessionSumAllocatedBytes;
+    private double sessionSumFrameNs;
+    private int sessionFrameCount;
     private readonly ConcurrentQueue<long> recentTicks = new();
     private readonly ConcurrentQueue<long> recentAllocatedBytes = new();
     private readonly ConcurrentQueue<double> recentFrameNs = new();
     public int Count => totalCount;
 
-    public double AverageTicks => !recentTicks.IsEmpty ? (double)sumTicks / recentTicks.Count : 0.0;
-    public double AverageAllocatedBytes => !recentAllocatedBytes.IsEmpty ? (double)sumAllocatedBytes / recentAllocatedBytes.Count : 0.0;
-    public double AverageFrameNs => !recentFrameNs.IsEmpty ? sumFrameNs / recentFrameNs.Count : 0.0;
+    // Average columns intentionally cover the whole capture session. Only percentile
+    // calculations use the bounded recent window, so a long capture is not represented
+    // by the last few calls alone.
+    public double AverageTicks => totalCount > 0 ? (double)sessionSumTicks / totalCount : 0.0;
+    public double AverageAllocatedBytes => totalCount > 0 ? (double)sessionSumAllocatedBytes / totalCount : 0.0;
+    public double AverageFrameNs => sessionFrameCount > 0 ? sessionSumFrameNs / sessionFrameCount : 0.0;
 
     public void AddSample(long ticks, long allocatedBytes)
     {
         Interlocked.Increment(ref totalCount);
         recentTicks.Enqueue(ticks);
         recentAllocatedBytes.Enqueue(allocatedBytes);
-        Interlocked.Add(ref sumTicks, ticks);
-        Interlocked.Add(ref sumAllocatedBytes, allocatedBytes);
+        Interlocked.Add(ref sessionSumTicks, ticks);
+        Interlocked.Add(ref sessionSumAllocatedBytes, allocatedBytes);
         while (recentTicks.Count > WindowSize)
         {
-            if (recentTicks.TryDequeue(out var old))
-            {
-                Interlocked.Add(ref sumTicks, -old);
-            }
+            recentTicks.TryDequeue(out _);
         }
 
         while (recentAllocatedBytes.Count > WindowSize)
         {
-            if (recentAllocatedBytes.TryDequeue(out var old))
-            {
-                Interlocked.Add(ref sumAllocatedBytes, -old);
-            }
+            recentAllocatedBytes.TryDequeue(out _);
         }
     }
 
@@ -354,16 +352,14 @@ internal class ProfileData
     public void AddFrameSample(double ns)
     {
         recentFrameNs.Enqueue(ns);
+        Interlocked.Increment(ref sessionFrameCount);
         // F-182: atomic add - was raw `+=`, racy on parallel ProfileDisposable.Dispose
         // calls that update CurrentFrameNs from worker threads. Interlocked has no
         // double Add overload, so use the standard CompareExchange loop pattern.
-        InterlockedAddDouble(ref sumFrameNs, ns);
+        InterlockedAddDouble(ref sessionSumFrameNs, ns);
         while (recentFrameNs.Count > WindowSize)
         {
-            if (recentFrameNs.TryDequeue(out double old))
-            {
-                InterlockedAddDouble(ref sumFrameNs, -old);
-            }
+            recentFrameNs.TryDequeue(out _);
         }
     }
 
