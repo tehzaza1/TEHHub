@@ -539,6 +539,16 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เพิ่ม per-update path resolver ที่แชร์ offset/child pointer ภายในกลุ่มเดียวกัน โดยยัง validate `Self` ของปลายทางทุก path และไม่ลดความถี่การอัปเดต UI
 - cache ของ resolver ถูก reuse ต่อ object และ clear ต้นรอบ จึงไม่สร้าง dictionary ใหม่ทุกเฟรมเพิ่มภาระ GC
 - หลัง reuse cache แล้ว runtime ยัง validate offset ผ่าน (`6 unchanged, 0 relocated`) และรอบวัด 10 วินาทีไม่มี read failure; `ImportantUiElements` อยู่ราว 96 reads/frame
+
+### 6.27 Hotspots ที่เก็บไว้ทำต่อ
+
+จาก Performance Profiler snapshot ล่าสุด จุดที่ใช้เวลาต่อเฟรมสูงสุด 3 อันดับแรกเป็น pipeline เดียวกันของ entity:
+
+- `GameHelper.RemoteObjects.States.InGameStateObjects.Entity.UpdateData` — **3.36 ms/frame**
+- `Entity.UpdateComponentData` — **2.86 ms/frame**
+- `Entity.RefreshCachedComponents` — **2.28 ms/frame**
+
+รวมกันประมาณ **8.50 ms/frame** จึงเป็นเป้าหมายหลักของงานรอบถัดไป ควรเริ่มจากลดการ refresh component ซ้ำและพิจารณา batch entity header reads โดยต้องรักษาความสดของสถานะมอนสเตอร์ไว้ ส่วน Radar/ปลั๊กอินอื่นให้เป็นลำดับรองในรอบนี้
 - Runtime validation: `ImportantUiElements` ลดจากประมาณ 130 เป็น 97 reads/frame และรวมระบบลดจาก 267 เป็น 224 reads/frame; รอบทดสอบไม่มี read failure
 
 ## การตัดสินใจเรื่อง Native AOT
