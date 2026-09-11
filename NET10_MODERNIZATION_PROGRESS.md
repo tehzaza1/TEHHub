@@ -443,6 +443,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ตรวจด้วย source scan แล้วไม่มี `Newtonsoft` ใน source/project ที่ถูก build และ Release build แบบ `--no-restore` ผ่านทั้ง solution: 0 warning / 0 error
 - ยืนยันด้วย restore ปกติและ Release build สะอาดแล้ว: 0 warning / 0 error และไม่มี `Newtonsoft.Json.dll` ใน output
 
+### 6.12 ย้าย interop ของ GameHelper หลักเป็น LibraryImport
+
+- ย้าย Win32 window handling ใน `GameProcess` และ interop network/input ใน `MiscHelper` จาก `DllImport` เป็น source-generated `LibraryImport`
+- ใช้ `POINT` ที่เป็น blittable ภายในขอบเขต Win32 เพื่อไม่ต้องเปิด runtime marshalling ทั่วทั้งโปรแกรม
+- ตั้ง `LangVersion` จาก `Directory.Build.props` เพื่อให้ทุก project ที่ build ภายใต้ solution ใช้มาตรฐาน C# เดียวกัน
+- ตรวจ Release build ของ GameHelper ผ่าน 0 warning / 0 error; `DllImport` ไม่เหลือใน GameHelper หรือ Launcher
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

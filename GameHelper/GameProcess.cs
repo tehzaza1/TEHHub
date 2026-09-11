@@ -24,7 +24,7 @@ namespace GameHelper
     ///     Limitation: This class will not open a game process if multiple processes match
     ///     the name because it does not know which process to select.
     /// </summary>
-    public class GameProcess
+    public partial class GameProcess
     {
         private readonly List<Process> processesInfo = new();
         private int clientSelected = -1;
@@ -412,11 +412,23 @@ namespace GameHelper
             }
         }
 
-        [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr GetForegroundWindow();
 
-        [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetClientRect(IntPtr hWnd, out RECT lpRect);
 
-        [DllImport("user32.dll")] private static extern bool ClientToScreen(IntPtr hWnd, out Point lpPoint);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool ClientToScreen(IntPtr hWnd, out POINT lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            internal int X;
+            internal int Y;
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -426,7 +438,7 @@ namespace GameHelper
             private readonly int right;
             private readonly int bottom;
 
-            internal Rectangle ToRectangle(Point point)
+            internal Rectangle ToRectangle(POINT point)
             {
                 return new Rectangle(point.X, point.Y, this.right - this.left, this.bottom - this.top);
             }

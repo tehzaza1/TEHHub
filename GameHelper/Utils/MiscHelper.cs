@@ -15,7 +15,7 @@ namespace GameHelper.Utils
     /// <summary>
     ///     Util class to send keyboard/mouse keys to the game.
     /// </summary>
-    public static class MiscHelper
+    public static partial class MiscHelper
     {
         private static readonly Random Rand = new();
         private static readonly Stopwatch DelayBetweenKeys = Stopwatch.StartNew();
@@ -182,20 +182,22 @@ namespace GameHelper.Utils
             }
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = false)]
-        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
 
-        [DllImport("iphlpapi.dll", SetLastError = true)]
-        private static extern uint GetExtendedTcpTable(
+        [LibraryImport("iphlpapi.dll", SetLastError = true)]
+        private static partial uint GetExtendedTcpTable(
             IntPtr pTcpTable,
             ref int dwOutBufLen,
+            [MarshalAs(UnmanagedType.Bool)]
             bool sort,
             int ipVersion,
             TcpTableClass tblClass,
             uint reserved = 0
         );
 
-        [DllImport("iphlpapi.dll")] private static extern int SetTcpEntry(IntPtr pTcprow);
+        [LibraryImport("iphlpapi.dll")]
+        private static partial int SetTcpEntry(IntPtr pTcprow);
 
         private enum TcpTableClass
         {
