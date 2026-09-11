@@ -493,6 +493,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - การค้นหาไฟล์, schema ของ catalog และ logic คำนวณ offer ยังเป็นชุดเดิมทั้งหมด
 - ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
 
+### 6.20 ย้าย ritual pool ของ Atlas2 เป็น source-generated JSON
+
+- `ritualmods.json` ซึ่งเป็น catalog คงที่ของ Atlas2 ใช้ metadata ที่ generate ล่วงหน้า
+- JSONL diagnostic ของ ritual roll ยังเป็น dynamic snapshot ตามเดิม เพราะเป็นข้อมูล debug ที่ schema ยืดหยุ่นและไม่ใช่เส้นทางใช้งานปกติ
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

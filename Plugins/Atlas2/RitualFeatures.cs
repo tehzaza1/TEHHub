@@ -17,6 +17,7 @@ namespace Atlas2
     using System.Runtime.CompilerServices;
     using System.Text;
     using System.Text.Json;
+    using System.Text.Json.Serialization;
 
     public sealed partial class Atlas2
     {
@@ -341,6 +342,13 @@ namespace Atlas2
             public string Text { get; set; }
         }
         private sealed class RitualPoolFile { public List<RitualRow> Rows { get; set; } }
+
+        [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+        [JsonSerializable(typeof(RitualPoolFile))]
+        private sealed partial class RitualPoolJsonContext : JsonSerializerContext
+        {
+        }
+
         private static List<RitualRow> ritualPool;
 
         private void EnsureRitualPool()
@@ -350,7 +358,7 @@ namespace Atlas2
             {
                 var path = Path.Join(DllDirectory, "json", "ritualmods.json");
                 ritualPool = File.Exists(path)
-                    ? (JsonSerializer.Deserialize<RitualPoolFile>(File.ReadAllText(path), JsonOptions)?.Rows ?? new())
+                    ? (JsonSerializer.Deserialize(File.ReadAllText(path), RitualPoolJsonContext.Default.RitualPoolFile)?.Rows ?? new())
                     : new();
             }
             catch { ritualPool = new(); }
