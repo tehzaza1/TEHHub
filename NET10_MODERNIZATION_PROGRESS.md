@@ -664,6 +664,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 
 ทั้งสอง flag อยู่ใน Settings → Miscellaneous Config และตั้งใจแยกกันเพื่อให้ rollback/วัดผลทีละส่วนได้ โดยไม่แตะ plugin API
 
+### 6.45 รวมเป็น NewMemoryRead แบบเปิด/ปิดได้
+
+- เพิ่ม `State.EnableNewMemoryRead` เป็น master switch สำหรับ redesign ระบบอ่าน memory รอบเฟรม
+- เมื่อเปิด master switch จะเปิดทั้ง `ReadCachePlan` ของ component และ wide entity-map batches โดยไม่ต้องแก้ plugin หรือเรียก API ใหม่
+- เมื่อปิด master switch จะกลับไปใช้เส้นทางเดิมทั้งหมด; flag ย่อยยังคงอยู่เพื่อ benchmark แยกผลและ rollback เฉพาะส่วน
+- ทุก batch ยังคงมี fallback scalar, address validation และ diagnostics เดิม จึงใช้ทดสอบแบบค่อยเป็นค่อยไปได้
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

@@ -910,6 +910,10 @@ namespace GameHelper.Settings
                         "settings.misc.process_all_renderable.tooltip",
                         "WARNING: This will greatly reduce GH speed as well as increase crashes/glitches. Always keep it unchecked."));
                 ImGui.Checkbox(L.Label("settings.misc.disable_debug_counters", "Disable debug counters (do it on 6 man party + juiced maps only)", "DisableAllCounters"), ref Core.GHSettings.DisableAllCounters);
+                ImGui.Checkbox(L.Label("settings.misc.new_memory_read", "Experimental: new memory read", "EnableNewMemoryRead"), ref Core.GHSettings.EnableNewMemoryRead);
+                ImGuiHelper.ToolTip(L.T(
+                    "settings.misc.new_memory_read.tooltip",
+                    "Master switch for the redesigned memory reader. Enables the frame component snapshot and wide entity-map batches together; failed ranges fall back to the existing reads."));
                 if (ImGui.Checkbox(L.Label("settings.misc.entity_frame_snapshot", "Experimental: entity frame snapshot", "EnableEntityFrameSnapshot"), ref Core.GHSettings.EnableEntityFrameSnapshot))
                 {
                     ImGuiHelper.ToolTip(L.T(

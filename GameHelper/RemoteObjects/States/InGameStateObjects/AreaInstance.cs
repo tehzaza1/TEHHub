@@ -450,7 +450,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             });
 
             SafeMemoryHandle.ReadCachePlanScope frameSnapshot = default;
-            if (Core.GHSettings.EnableEntityFrameSnapshot)
+            if (Core.GHSettings.EnableEntityFrameSnapshot || Core.GHSettings.EnableNewMemoryRead)
             {
                 frameSnapshot = reader.BeginReadCachePlan(BuildEntityFrameSnapshotRanges(data));
             }

@@ -66,6 +66,13 @@ namespace GameHelper.Settings
         public bool EnableWideEntityMapBatchReads = false;
 
         /// <summary>
+        ///     Gets or sets the master switch for the experimental new memory read pipeline.
+        ///     When enabled, both the frame component snapshot and wide entity-map batching are
+        ///     active; the individual flags remain available for isolated benchmarks.
+        /// </summary>
+        public bool EnableNewMemoryRead = false;
+
+        /// <summary>
         ///     Gets the value indicating whether to disable all kind of counters and misc features
         ///     to improve the GH performance when running fully juiced + 6 man party maps.
         ///     (even 1 FPS improvement counts at this stage since ppl have 50k entities

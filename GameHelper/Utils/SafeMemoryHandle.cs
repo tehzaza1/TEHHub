@@ -836,8 +836,9 @@ namespace GameHelper.Utils
             where TKey : unmanaged
             where TValue : unmanaged
         {
-            var maxGapAfterMapNodeBytes = Core.GHSettings.EnableWideEntityMapBatchReads ? 0x10000 : 0x200;
-            var maxBatchSpanBytes = Core.GHSettings.EnableWideEntityMapBatchReads ? 1024 * 1024 : 64 * 1024;
+            var wideMapBatches = Core.GHSettings.EnableWideEntityMapBatchReads || Core.GHSettings.EnableNewMemoryRead;
+            var maxGapAfterMapNodeBytes = wideMapBatches ? 0x10000 : 0x200;
+            var maxBatchSpanBytes = wideMapBatches ? 1024 * 1024 : 64 * 1024;
             const int minBatchNodes = 4;
 
             if (nativeContainer.Size <= 0 || nativeContainer.Size > maxSizeAllowed)
