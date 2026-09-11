@@ -5,6 +5,7 @@
 namespace GameHelper.RemoteObjects.Components
 {
     using System;
+    using System.Buffers;
     using System.Collections.Concurrent;
     using GameOffsets.Objects.Components;
     using GameOffsets.Objects.FilesStructures;
@@ -67,75 +68,94 @@ namespace GameHelper.RemoteObjects.Components
             var data = reader.ReadMemory<BuffsOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
             this.StatusEffects.Clear();
-            var statusEffects = reader.ReadStdVector<IntPtr>(data.StatusEffectPtr);
             Array.Fill(this.FlaskActive, false);
 
-            // F-129: snapshot the 4-level Player.Id chain once. Each access goes
-            // through RemoteObjectBase.Address.get (a lock); re-traversing per-loop
-            // is both costly and racy during state transitions. NRE during the
-            // chain -> playerId stays uint.MaxValue, all flask matches fail
-            // (statusEffectData.SourceEntityId is uint, max value is unreachable).
-            uint playerId;
+            var byteLength = data.StatusEffectPtr.Last.ToInt64() - data.StatusEffectPtr.First.ToInt64();
+            if (byteLength <= 0 || byteLength % IntPtr.Size != 0 || byteLength > 50_000_000)
+            {
+                return;
+            }
+
+            var statusEffectCount = (int)(byteLength / IntPtr.Size);
+            var statusEffects = ArrayPool<IntPtr>.Shared.Rent(statusEffectCount);
             try
             {
-                playerId = Core.States.InGameStateObject.CurrentAreaInstance.Player.Id;
-            }
-            catch (NullReferenceException)
-            {
-                playerId = uint.MaxValue;
-            }
-
-            for (var i = 0; i < statusEffects.Length; i++)
-            {
-                var statusEffectData = reader.ReadMemory<StatusEffectStruct>(statusEffects[i]);
-                if (statusEffectData.BuffDefinationPtr == IntPtr.Zero)
+                if (!reader.TryReadMemoryArray(data.StatusEffectPtr.First, statusEffects, statusEffectCount, out _))
                 {
-                    continue;
+                    return;
                 }
 
-                if (playerId != statusEffectData.SourceEntityId)
+                // F-129: snapshot the 4-level Player.Id chain once. Each access goes
+                // through RemoteObjectBase.Address.get (a lock); re-traversing per-loop
+                // is both costly and racy during state transitions. NRE during the
+                // chain -> playerId stays uint.MaxValue, all flask matches fail
+                // (statusEffectData.SourceEntityId is uint, max value is unreachable).
+                uint playerId;
+                try
                 {
-                    statusEffectData.FlaskSlot = -1;
+                    playerId = Core.States.InGameStateObject.CurrentAreaInstance.Player.Id;
+                }
+                catch (NullReferenceException)
+                {
+                    playerId = uint.MaxValue;
                 }
 
-                MiscHelper.ActiveSkillGemDataParser(
-                    statusEffectData.UnknownIdAndEquipmentInfo,
-                    out _,
-                    out _,
-                    out _,
-                    out _,
-                    out _,
-                    out var skillGemUnknownId);
-
-                var (effectName, effectType) = ((string, byte))Core.GgpkObjectCache.AddOrGetExisting(
-                    statusEffectData.BuffDefinationPtr,
-                    static key => GetNameFromBuffDefination(key));
-
-                if (effectType != 0x4) // Flask Effect Type is 4.
+                for (var i = 0; i < statusEffectCount; i++)
                 {
-                    statusEffectData.FlaskSlot = -1;
-                }
-                else if (statusEffectData.FlaskSlot >= 0 && statusEffectData.FlaskSlot < 5)
-                {
-                    this.FlaskActive[statusEffectData.FlaskSlot] = true;
-                }
-
-                if (skillGemUnknownId != 0)
-                {
-                    effectName += $"_{skillGemUnknownId:X}";
-                }
-
-                this.StatusEffects.AddOrUpdate(
-                    effectName,
-                    static (_, incoming) => incoming,
-                    static (_, oldValue, incoming) =>
+                    var statusEffectData = reader.ReadMemory<StatusEffectStruct>(statusEffects[i]);
+                    if (statusEffectData.BuffDefinationPtr == IntPtr.Zero)
                     {
-                        var incomingStacks = incoming.Charges > 0 ? incoming.Charges : (short)1;
-                        incoming.Charges = (short)(oldValue.Charges + incomingStacks);
-                        incoming.TimeLeft = Math.Max(oldValue.TimeLeft, incoming.TimeLeft);
-                        return incoming;
-                    },
-                    statusEffectData);
+                        continue;
+                    }
+
+                    if (playerId != statusEffectData.SourceEntityId)
+                    {
+                        statusEffectData.FlaskSlot = -1;
+                    }
+
+                    MiscHelper.ActiveSkillGemDataParser(
+                        statusEffectData.UnknownIdAndEquipmentInfo,
+                        out _,
+                        out _,
+                        out _,
+                        out _,
+                        out _,
+                        out var skillGemUnknownId);
+
+                    var (effectName, effectType) = ((string, byte))Core.GgpkObjectCache.AddOrGetExisting(
+                        statusEffectData.BuffDefinationPtr,
+                        static key => GetNameFromBuffDefination(key));
+
+                    if (effectType != 0x4) // Flask Effect Type is 4.
+                    {
+                        statusEffectData.FlaskSlot = -1;
+                    }
+                    else if (statusEffectData.FlaskSlot >= 0 && statusEffectData.FlaskSlot < 5)
+                    {
+                        this.FlaskActive[statusEffectData.FlaskSlot] = true;
+                    }
+
+                    if (skillGemUnknownId != 0)
+                    {
+                        effectName += $"_{skillGemUnknownId:X}";
+                    }
+
+                    this.StatusEffects.AddOrUpdate(
+                        effectName,
+                        static (_, incoming) => incoming,
+                        static (_, oldValue, incoming) =>
+                        {
+                            var incomingStacks = incoming.Charges > 0 ? incoming.Charges : (short)1;
+                            incoming.Charges = (short)(oldValue.Charges + incomingStacks);
+                            incoming.TimeLeft = Math.Max(oldValue.TimeLeft, incoming.TimeLeft);
+                            return incoming;
+                        },
+                        statusEffectData);
+                }
+            }
+            finally
+            {
+                ArrayPool<IntPtr>.Shared.Return(statusEffects);
             }
         }
 
