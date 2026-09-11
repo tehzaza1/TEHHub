@@ -85,6 +85,12 @@ namespace HealthBars
                     ImGui.DragInt4(this.PluginText.Label("settings.cull_strike_percent", "Cull Strike (%health)", "HealthBarsCullStrikePercent"), ref this.Settings.CullingStrikeRangePerRarity[0], 1, 0, 100);
                     ImGui.TableNextColumn();
                     ImGui.Checkbox(this.PluginText.Label("settings.show_mana_instead_of_es", "Show mana rather than ES on self player", "HealthBarsShowManaInsteadOfES"), ref this.Settings.ShowManaRatherThanESOnSelf);
+                    ImGui.TableNextColumn();
+                    ImGui.Checkbox(this.PluginText.Label("settings.show_runic_ward_bar", "Show Runic Ward bar", "HealthBarsShowRunicWardBar"), ref this.Settings.ShowRunicWardBar);
+                    ImGui.TableNextColumn();
+                    ImGui.Checkbox(this.PluginText.Label("settings.show_runic_ward_text", "Show Runic Ward value", "HealthBarsShowRunicWardText"), ref this.Settings.ShowRunicWardText);
+                    ImGui.TableNextColumn();
+                    ImGui.ColorEdit4(this.PluginText.Label("settings.runic_ward_color", "Runic Ward color", "HealthBarsRunicWardColor"), ref this.Settings.RunicWardColor);
                     ImGui.EndTable();
                 }
             }
@@ -336,34 +342,33 @@ namespace HealthBars
             var ptr = ImGui.GetBackgroundDrawList();
             var start = location - healthbarConfig.HalfOfScale;
             var end = location + healthbarConfig.HalfOfScale;
+            var secondary = isSelf && this.Settings.ShowManaRatherThanESOnSelf ? hComp.Mana : hComp.EnergyShield;
+            var hasHealth = HasVisibleVital(hComp.Health);
+            var hasSecondary = HasVisibleVital(secondary);
+            var hasWard = !isSelf && this.Settings.ShowRunicWardBar && HasVisibleVital(hComp.Ward);
 
-            ptr.AddRectFilled(start, end, ImGuiHelper.Color(healthbarConfig.BackgroundColor));
-            var (hb_ptr, _, _) = this.textures.GetTexture(this.textureToValidate[0]);
-
-            // Ward behaves like Life (only lost once HP hits 1), so fold it into the health
-            // bar: a 50 Life / 50 Ward entity reads as a single 100-health pool.
-            var hPercent = CombinedHealthPercent(hComp);
-            ptr.AddImage(hb_ptr, start, end - (Vector2.UnitX * healthbarConfig.Scale * (100 - hPercent) / 100f), Vector2.Zero, Vector2.One,
-                (hPercent > this.Settings.CullingStrikeRangePerRarity[rarity] || !healthbarConfig.ShowCullStrike) ?
-                ImGuiHelper.Color(healthbarConfig.HealthbarColor) :
-                0xFFFFFFFF);
-
-            if (isSelf && this.Settings.ShowManaRatherThanESOnSelf)
+            if (!hasHealth && !hasSecondary && !hasWard)
             {
-                var (es_ptr, _, _) = this.textures.GetTexture(this.textureToValidate[1]);
-                ptr.AddImage(es_ptr, start, end - (Vector2.UnitX * healthbarConfig.Scale * (100 - hComp.Mana.CurrentInPercent()) / 100f),
-                    Vector2.Zero, Vector2.One,
-                    ImGuiHelper.Color(healthbarConfig.ESColor));
+                return;
             }
-            else
+
+            // Draw layers from back to front. As HP or ES is depleted, the layer below is
+            // revealed in the same rectangle: Ward (purple) -> ES/Mana (blue) -> HP.
+            ptr.AddRectFilled(start, end, ImGuiHelper.Color(healthbarConfig.BackgroundColor));
+            if (hasWard)
             {
-                if (hComp.EnergyShield.Total > 0)
-                {
-                    var (es_ptr, _, _) = this.textures.GetTexture(this.textureToValidate[1]);
-                    ptr.AddImage(es_ptr, start, end - (Vector2.UnitX * healthbarConfig.Scale * (100 - hComp.EnergyShield.CurrentInPercent()) / 100f),
-                        Vector2.Zero, Vector2.One,
-                        ImGuiHelper.Color(healthbarConfig.ESColor));
-                }
+                this.DrawVitalLayer(ptr, start, end, hComp.Ward, this.Settings.RunicWardColor, 0);
+            }
+
+            if (hasSecondary)
+            {
+                this.DrawVitalLayer(ptr, start, end, secondary, healthbarConfig.ESColor, 1);
+            }
+
+            if (hasHealth)
+            {
+                this.DrawVitalLayer(ptr, start, end, hComp.Health, healthbarConfig.HealthbarColor, 0,
+                    healthbarConfig.ShowCullStrike, this.Settings.CullingStrikeRangePerRarity[rarity]);
             }
 
             var tmp = start - Vector2.UnitY;
@@ -378,6 +383,36 @@ namespace HealthBars
                 ptr.AddText(start - this.fontSize, ImGuiHelper.Color(healthbarConfig.TextColor),
                     this.healthToHumanReadable(hComp.Health.Current + hComp.Ward.Current + hComp.EnergyShield.Current));
             }
+
+            if (hasWard && this.Settings.ShowRunicWardText)
+            {
+                ptr.AddText(start + new Vector2(0f, end.Y - start.Y), ImGuiHelper.Color(this.Settings.RunicWardColor),
+                    $"Ward {this.healthToHumanReadable(Math.Max(0, hComp.Ward.Current))}/{this.healthToHumanReadable(Math.Max(0, hComp.Ward.Unreserved))}");
+            }
+        }
+
+        private void DrawVitalLayer(
+            ImDrawListPtr drawList,
+            Vector2 start,
+            Vector2 end,
+            GameOffsets.Objects.Components.VitalStruct vital,
+            Vector4 color,
+            int textureIndex,
+            bool showCullStrike = false,
+            int cullStrikeRange = 0)
+        {
+            var percent = VitalPercent(vital);
+            if (percent <= 0)
+            {
+                return;
+            }
+
+            var (texture, _, _) = this.textures.GetTexture(this.textureToValidate[textureIndex]);
+            var fillEnd = new Vector2(start.X + ((end.X - start.X) * percent / 100f), end.Y);
+            var drawColor = showCullStrike && percent <= cullStrikeRange
+                ? 0xFFFFFFFF
+                : ImGuiHelper.Color(color);
+            drawList.AddImage(texture, start, fillEnd, Vector2.Zero, Vector2.One, drawColor);
         }
 
         private void UpdateOncePerDraw()
@@ -386,17 +421,19 @@ namespace HealthBars
             this.fontSize = new(0f, ImGui.GetFontSize());
         }
 
-        private static int CombinedHealthPercent(Life life)
+        private static bool HasVisibleVital(GameOffsets.Objects.Components.VitalStruct vital)
         {
-            // Combine Health and Ward into a single pool (mirrors VitalStruct.CurrentInPercent,
-            // using Unreserved so reserved Health is excluded just like the plain health bar).
-            var total = life.Health.Unreserved + life.Ward.Unreserved;
-            if (total <= 0)
+            return vital.Total > 0 && vital.Unreserved > 0 && vital.Current > 0;
+        }
+
+        private static int VitalPercent(GameOffsets.Objects.Components.VitalStruct vital)
+        {
+            if (vital.Unreserved <= 0 || vital.Current <= 0)
             {
                 return 0;
             }
 
-            return (int)Math.Round(100d * (life.Health.Current + life.Ward.Current) / total);
+            return Math.Clamp((int)Math.Round(100d * vital.Current / vital.Unreserved), 0, 100);
         }
 
         private string healthToHumanReadable(int value)

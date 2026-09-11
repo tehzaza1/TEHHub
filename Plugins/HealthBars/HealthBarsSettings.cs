@@ -5,6 +5,7 @@
 namespace HealthBars
 {
     using System.Collections.Generic;
+    using System.Numerics;
     using GameHelper.Plugin;
 
     /// <summary>
@@ -46,6 +47,22 @@ namespace HealthBars
         ///     Gets a value indicating if user want to see mana on the healthbar rather than energyshield.
         /// </summary>
         public bool ShowManaRatherThanESOnSelf = false;
+
+        /// <summary>
+        ///     Draws a separate Runic Ward bar for monsters with a Ward pool. Ward is already
+        ///     read by the shared Life component, so this does not add another memory read.
+        /// </summary>
+        public bool ShowRunicWardBar = true;
+
+        /// <summary>
+        ///     Shows the current/maximum Runic Ward value next to the secondary bar.
+        /// </summary>
+        public bool ShowRunicWardText = false;
+
+        /// <summary>
+        ///     Color of the Runic Ward fill.
+        /// </summary>
+        public Vector4 RunicWardColor = new(0.65f, 0.15f, 0.95f, 1f);
 
         /// <summary>
         ///     Healthbar config for monsters.
