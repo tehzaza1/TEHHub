@@ -202,8 +202,12 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                         // may invoke the factory more than once under contention, but only one
                         // result is committed; the orphan is GC'd without participating in
                         // subsequent state mutations.
-                        var cached = this.componentCache.GetOrAdd(componenName, _ =>
-                            (ComponentBase)Activator.CreateInstance(typeof(T), compAddr)!);
+                        // Pass the address as factory state: capturing it in a lambda allocates
+                        // a closure even on the cached return path above.
+                        var cached = this.componentCache.GetOrAdd(componenName,
+                            static (_, address) =>
+                                (ComponentBase)Activator.CreateInstance(typeof(T), address)!,
+                            compAddr);
                         component = (T)cached;
                         return true;
                     }

@@ -548,8 +548,15 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `Entity.UpdateComponentData` — **2.86 ms/frame**
 - `Entity.RefreshCachedComponents` — **2.28 ms/frame**
 
-รวมกันประมาณ **8.50 ms/frame** จึงเป็นเป้าหมายหลักของงานรอบถัดไป ควรเริ่มจากลดการ refresh component ซ้ำและพิจารณา batch entity header reads โดยต้องรักษาความสดของสถานะมอนสเตอร์ไว้ ส่วน Radar/ปลั๊กอินอื่นให้เป็นลำดับรองในรอบนี้
+เวลาสามรายการนี้ซ้อนกัน: `UpdateData` ครอบ `UpdateComponentData` ซึ่งครอบ `RefreshCachedComponents` จึงห้ามบวกเป็น 8.50 ms/frame ค่า parent ในภาพคือ 3.36 ms/frame (เวลาสะสมของ scope ไม่ใช่หลักฐานว่า FPS เกมลดเท่ากัน) ควรตรวจ allocation และงานภายใน component ก่อนเปลี่ยนความถี่การ refresh
 - Runtime validation: `ImportantUiElements` ลดจากประมาณ 130 เป็น 97 reads/frame และรวมระบบลดจาก 267 เป็น 224 reads/frame; รอบทดสอบไม่มี read failure
+
+### 6.28 ลด closure allocation ใน Entity component lookup
+
+- เปลี่ยน `TryGetComponent<T>` เป็น `ConcurrentDictionary.GetOrAdd` แบบ static factory + argument เพื่อไม่จับ `compAddr` ใน closure ทุกครั้งที่เรียก รวมถึง cache-hit path
+- คง semantics ของ cache, การสร้าง component และรอบ refresh เดิม ไม่เพิ่มการอ่าน memory และไม่เปลี่ยน offset
+- Release build ทั้ง solution ผ่าน 0 warning / 0 error; ตรวจ IL ของเมธอดแล้วไม่มีการสร้าง closure (เหลือ cached factory delegate ใน cache-miss path)
+- ยังไม่ได้วัดผล runtime/GC ในเกมของชุดนี้ จึงยังไม่สรุปเปอร์เซ็นต์ความเร็วหรือผลต่อ FPS
 
 ## การตัดสินใจเรื่อง Native AOT
 
