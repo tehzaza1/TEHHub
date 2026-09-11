@@ -318,6 +318,13 @@ Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 - ไม่เปลี่ยนตำแหน่ง, ลำดับ, การกรอง label หรือ pathfinding ของ POI; เป็นการ reuse ผลคำนวณเท่านั้น
 - ตรวจ Release build ของ Radar ผ่าน 0 warning / 0 error; ต้องวัด runtime dump รอบถัดไปก่อนสรุปผลจริง
 
+### 5.18 Cache door override map ของ Radar
+
+- `DrawDirectionLines` และงาน pathfinding ใช้ door override map เดียวกันตลอด area แทนการสร้าง `HashSet` ใหม่ทุกเฟรม
+- cache จะสร้างใหม่เมื่อเปลี่ยน area หรือจำนวน `AwakeEntities` เปลี่ยน เพื่อรองรับ entity/ประตูที่เพิ่งโหลดเข้ามา
+- ไม่เปลี่ยนกฎการเดินเส้นทาง และยังส่ง map เดิมให้ `LineWalker`/pathfinder
+- ตรวจ Release build ของ Radar ผ่าน 0 warning / 0 error; ต้องวัด runtime dump เพื่อยืนยัน headroom จริง
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด

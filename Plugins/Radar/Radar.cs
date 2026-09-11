@@ -20,6 +20,7 @@ namespace Radar
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
     using GameHelper.RemoteObjects.Components;
+    using GameHelper.RemoteObjects.States.InGameStateObjects;
     using GameHelper.Ui;
     using GameHelper.Utils;
     using ImGuiNET;
@@ -105,6 +106,10 @@ namespace Radar
         private long nextPoiFullRecomputeTime = 0;
         private Dictionary<string, List<Vector2>?> poiPathCache = new();
         private Task? pendingPathTask = null;
+        private HashSet<(int, int)>? doorOverrideCache;
+        private IntPtr doorOverrideCacheAddress;
+        private string doorOverrideCacheAreaHash = string.Empty;
+        private int doorOverrideCacheEntityCount = -1;
 
         // Entity pathfinding: cache and throttle for entity-icon-based paths
         private long nextEntityRecomputeTime = 0;
@@ -919,7 +924,7 @@ namespace Radar
             var gridHeightData = currentAreaInstance.GridHeightData;
 
             // Build door-override map: open doors force their cells to walkable
-            var doorOverrides = LineWalker.BuildDoorOverrideMap(currentAreaInstance);
+            var doorOverrides = this.GetDoorOverrideMap(currentAreaInstance);
 
             ImDrawListPtr fgDraw;
             if (forceWindowDrawList || this.Settings.DrawPOIInCull)
@@ -2079,7 +2084,7 @@ namespace Radar
             }
 
             var pPos = new Vector2(playerRender.GridPosition.X, playerRender.GridPosition.Y);
-            var doorOverrides = LineWalker.BuildDoorOverrideMap(currentAreaInstance);
+            var doorOverrides = this.GetDoorOverrideMap(currentAreaInstance);
 
             // Exclude reached targets from the work the background task does. This is safe:
             // the task gets its own private copy here, and the throttle above guarantees the
@@ -2814,6 +2819,22 @@ namespace Radar
             return clusters;
         }
 
+        private HashSet<(int, int)>? GetDoorOverrideMap(AreaInstance areaInstance)
+        {
+            var entityCount = areaInstance.AwakeEntities.Count;
+            if (this.doorOverrideCacheAddress != areaInstance.Address ||
+                !string.Equals(this.doorOverrideCacheAreaHash, areaInstance.AreaHash, StringComparison.Ordinal) ||
+                this.doorOverrideCacheEntityCount != entityCount)
+            {
+                this.doorOverrideCache = LineWalker.BuildDoorOverrideMap(areaInstance);
+                this.doorOverrideCacheAddress = areaInstance.Address;
+                this.doorOverrideCacheAreaHash = areaInstance.AreaHash;
+                this.doorOverrideCacheEntityCount = entityCount;
+            }
+
+            return this.doorOverrideCache;
+        }
+
         private static bool MatchesWildcardParts(string key, string[] parts)
         {
             int currentIdx = 0;
@@ -3051,6 +3072,10 @@ namespace Radar
             this.textHalfSizeCache.Clear();
             this.poiIndexHalfSizeCache.Clear();
             this.poiClusterCache.Clear();
+            this.doorOverrideCache = null;
+            this.doorOverrideCacheAddress = IntPtr.Zero;
+            this.doorOverrideCacheAreaHash = string.Empty;
+            this.doorOverrideCacheEntityCount = -1;
             this.poiPathCache.Clear();
             this.nextPoiRecomputeTime = 0;
             this.nextPoiFullRecomputeTime = 0;
