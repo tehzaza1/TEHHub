@@ -64,6 +64,21 @@ namespace GameHelper.Plugin
         }
 
         /// <summary>
+        ///     Gets the mutable configuration directory for this plugin. Plugin authors must keep
+        ///     all user-created configuration and state files beneath this path, never beside the DLL.
+        /// </summary>
+        protected string PluginConfigDirectory
+        {
+            get
+            {
+                var pluginName = !string.IsNullOrWhiteSpace(this.DllDirectory)
+                    ? new DirectoryInfo(this.DllDirectory).Name
+                    : this.GetType().Assembly.GetName().Name ?? this.GetType().Name;
+                return Path.Combine(AppContext.BaseDirectory, "configs", "plugins", pluginName);
+            }
+        }
+
+        /// <summary>
         ///     Gets a mutable configuration path outside the plugin deployment directory.
         ///     Plugin updates can therefore replace DLLs and assets without overwriting user settings.
         ///     The first access migrates the matching legacy file from the old plugin-local config folder
@@ -78,10 +93,7 @@ namespace GameHelper.Plugin
                 throw new ArgumentException("A relative plugin config file name is required.", nameof(fileName));
             }
 
-            var pluginName = !string.IsNullOrWhiteSpace(this.DllDirectory)
-                ? new DirectoryInfo(this.DllDirectory).Name
-                : this.GetType().Assembly.GetName().Name ?? this.GetType().Name;
-            var configDirectory = Path.Combine(AppContext.BaseDirectory, "configs", "plugins", pluginName);
+            var configDirectory = this.PluginConfigDirectory;
             var configPath = Path.Combine(configDirectory, fileName);
             var legacyConfigPath = string.IsNullOrWhiteSpace(this.DllDirectory)
                 ? string.Empty

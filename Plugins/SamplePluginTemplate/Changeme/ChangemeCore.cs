@@ -4,6 +4,8 @@
 
 namespace Changeme
 {
+    using System.IO;
+    using System.Text.Json;
     using GameHelper.Plugin;
 
     /// <summary>
@@ -11,6 +13,9 @@ namespace Changeme
     /// </summary>
     public sealed class ChangemeCore : PCore<ChangemeSettings>
     {
+        // All user-created plugin files belong in configs/plugins/Changeme, never next to the DLL.
+        private string SettingsPath => this.PluginConfigPath("settings.json");
+
         /// <inheritdoc/>
         public override void DrawSettings()
         {
@@ -27,13 +32,20 @@ namespace Changeme
         }
 
         /// <inheritdoc/>
-        public override void OnEnable()
+        public override void OnEnable(bool isGameOpened)
         {
+            if (File.Exists(this.SettingsPath))
+            {
+                this.Settings = JsonSerializer.Deserialize<ChangemeSettings>(File.ReadAllText(this.SettingsPath))
+                    ?? new ChangemeSettings();
+            }
         }
 
         /// <inheritdoc/>
         public override void SaveSettings()
         {
+            Directory.CreateDirectory(this.PluginConfigDirectory);
+            File.WriteAllText(this.SettingsPath, JsonSerializer.Serialize(this.Settings));
         }
     }
 }
