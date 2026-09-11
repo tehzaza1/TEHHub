@@ -7,7 +7,6 @@ namespace Launcher
     using System.IO;
     using AsmResolver.PE;
     using AsmResolver.PE.File;
-    using AsmResolver.PE.File.Headers;
     using AsmResolver.PE.Win32Resources.Builder;
     using AsmResolver.PE.Win32Resources.Version;
 
@@ -45,7 +44,7 @@ namespace Launcher
             stringTable[StringTable.InternalNameKey] = infoName;
             stringTable[StringTable.OriginalFilenameKey] = Path.GetFileName(outputPath);
             stringTable[StringTable.ProductNameKey] = infoName;
-            versionInfo.WriteToDirectory(resources);
+            versionInfo.InsertIntoDirectory(resources);
             var resourceDirectoryBuffer = new ResourceDirectoryBuffer();
             resourceDirectoryBuffer.AddDirectory(resources);
             var directory = peFile.OptionalHeader.GetDataDirectory(DataDirectoryIndex.ResourceDirectory);
