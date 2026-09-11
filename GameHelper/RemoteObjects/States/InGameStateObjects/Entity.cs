@@ -337,6 +337,47 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             return this.componentAddresses;
         }
 
+        /// <summary>
+        ///     Appends addresses of components that are already known to refresh every frame.
+        ///     The area-level frame snapshot uses these addresses to prefetch shared ranges;
+        ///     callers still use the normal component objects and scalar fallback when a
+        ///     component was created or rebound after the snapshot was built.
+        /// </summary>
+        internal void AppendFrameSnapshotAddresses(List<IntPtr> destination)
+        {
+            ArgumentNullException.ThrowIfNull(destination);
+            var components = this.perFrameRefreshComponents;
+            if (components is not null)
+            {
+                foreach (var component in components)
+                {
+                    var address = component.Address;
+                    if (SafeMemoryHandle.IsValidAddress(address))
+                    {
+                        destination.Add(address);
+                    }
+                }
+
+                return;
+            }
+
+            // A newly-created entity may not have built its sorted refresh array yet. Use the
+            // same cache contents without forcing a refresh or changing component frequency.
+            foreach (var component in this.componentCache.Values)
+            {
+                if (!component.RequiresPerFrameRefresh)
+                {
+                    continue;
+                }
+
+                var address = component.Address;
+                if (SafeMemoryHandle.IsValidAddress(address))
+                {
+                    destination.Add(address);
+                }
+            }
+        }
+
         internal void UpdateNearby(Entity player)
         {
             if (this.EntityState != EntityStates.Useless)

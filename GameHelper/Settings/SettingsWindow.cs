@@ -910,6 +910,16 @@ namespace GameHelper.Settings
                         "settings.misc.process_all_renderable.tooltip",
                         "WARNING: This will greatly reduce GH speed as well as increase crashes/glitches. Always keep it unchecked."));
                 ImGui.Checkbox(L.Label("settings.misc.disable_debug_counters", "Disable debug counters (do it on 6 man party + juiced maps only)", "DisableAllCounters"), ref Core.GHSettings.DisableAllCounters);
+                if (ImGui.Checkbox(L.Label("settings.misc.entity_frame_snapshot", "Experimental: entity frame snapshot", "EnableEntityFrameSnapshot"), ref Core.GHSettings.EnableEntityFrameSnapshot))
+                {
+                    ImGuiHelper.ToolTip(L.T(
+                        "settings.misc.entity_frame_snapshot.tooltip",
+                        "Prefetch nearby entity component ranges once per frame and reuse them during entity refresh. Disabled by default; failed or new ranges fall back to the existing reads."));
+                }
+                ImGui.Checkbox(L.Label("settings.misc.wide_entity_map_batch", "Experimental: wide entity-map batches", "EnableWideEntityMapBatchReads"), ref Core.GHSettings.EnableWideEntityMapBatchReads);
+                ImGuiHelper.ToolTip(L.T(
+                    "settings.misc.wide_entity_map_batch.tooltip",
+                    "Coalesce nearby std::map nodes across a wider heap gap to reduce kernel calls. Failed spans fall back to scalar reads; enable only for performance testing."));
                 ImGui.Text(L.T("settings.misc.entity_max_degree", "Entity MaxDegreeOfParallelism"));
                 ImGuiHelper.ToolTip(
                     L.T(

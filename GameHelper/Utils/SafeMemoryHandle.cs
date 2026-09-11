@@ -42,6 +42,13 @@ namespace GameHelper.Utils
         [ThreadStatic]
         private static ReadCacheWindow? currentReadCacheWindow;
 
+        // Optional frame-wide read plan. Like the existing component window this is
+        // thread-local because entity refreshes may run on different workers in other
+        // call paths. The frame snapshot path itself executes on one worker, so its
+        // buffers never need synchronization.
+        [ThreadStatic]
+        private static ReadCachePlan? currentReadCachePlan;
+
         /// <summary>
         ///     Required by SafeHandle infrastructure for finalizer / marshaling support.
         ///     Private to prevent callers accidentally constructing a zombie handle
@@ -429,6 +436,14 @@ namespace GameHelper.Utils
                 return default;
             }
 
+            // A frame-wide plan already contains this entity-local span. Do not issue the
+            // same kernel read again; TryReadMemory will resolve each scalar directly from
+            // the plan while the caller keeps its normal loop and validation behaviour.
+            if (currentReadCachePlan?.Contains(startAddress.ToInt64(), byteCount) == true)
+            {
+                return default;
+            }
+
             var buffer = ArrayPool<byte>.Shared.Rent(byteCount);
             if (!this.TryReadMemoryArray(startAddress, buffer, byteCount, out _))
             {
@@ -441,25 +456,64 @@ namespace GameHelper.Utils
             return new ReadCacheScope(buffer, previous);
         }
 
+        /// <summary>
+        ///     Starts an optional frame-wide read plan. Ranges must be sorted and should be
+        ///     coalesced by the caller. Failed ranges are simply omitted, so the normal scalar
+        ///     fallback remains available for torn or unmapped spans.
+        /// </summary>
+        internal ReadCachePlanScope BeginReadCachePlan(IReadOnlyList<ReadCacheRange> ranges)
+        {
+            if (ranges is null || ranges.Count == 0 || this.IsInvalid)
+            {
+                return default;
+            }
+
+            var windows = new List<ReadCacheWindow>(ranges.Count);
+            foreach (var range in ranges)
+            {
+                if (range.ByteCount <= 0 || !IsValidAddress(range.StartAddress))
+                {
+                    continue;
+                }
+
+                var buffer = ArrayPool<byte>.Shared.Rent(range.ByteCount);
+                if (!this.TryReadMemoryArray(range.StartAddress, buffer, range.ByteCount, out _))
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                    continue;
+                }
+
+                windows.Add(new ReadCacheWindow(range.StartAddress.ToInt64(), range.ByteCount, buffer));
+            }
+
+            if (windows.Count == 0)
+            {
+                return default;
+            }
+
+            var plan = new ReadCachePlan(windows.ToArray());
+            var previous = currentReadCachePlan;
+            currentReadCachePlan = plan;
+            return new ReadCachePlanScope(plan, previous);
+        }
+
         private static bool TryReadFromCurrentCache<T>(IntPtr address, out T result)
             where T : unmanaged
         {
             result = default;
             var cache = currentReadCacheWindow;
-            if (cache is null)
+            if (cache is not null)
             {
-                return false;
+                var offset = address.ToInt64() - cache.StartAddress;
+                var size = Unsafe.SizeOf<T>();
+                if (offset >= 0 && offset <= cache.ByteCount - size)
+                {
+                    result = MemoryMarshal.Read<T>(cache.Buffer.AsSpan((int)offset, size));
+                    return true;
+                }
             }
 
-            var offset = address.ToInt64() - cache.StartAddress;
-            var size = Unsafe.SizeOf<T>();
-            if (offset < 0 || offset > cache.ByteCount - size)
-            {
-                return false;
-            }
-
-            result = MemoryMarshal.Read<T>(cache.Buffer.AsSpan((int)offset, size));
-            return true;
+            return currentReadCachePlan?.TryRead(address.ToInt64(), out result) == true;
         }
 
         /// <summary>
@@ -502,6 +556,122 @@ namespace GameHelper.Utils
             internal int ByteCount { get; }
 
             internal byte[] Buffer { get; }
+        }
+
+        /// <summary>
+        ///     One range in a frame-wide read plan.
+        /// </summary>
+        internal readonly struct ReadCacheRange
+        {
+            internal ReadCacheRange(IntPtr startAddress, int byteCount)
+            {
+                this.StartAddress = startAddress;
+                this.ByteCount = byteCount;
+            }
+
+            internal IntPtr StartAddress { get; }
+
+            internal int ByteCount { get; }
+        }
+
+        internal sealed class ReadCachePlan : IDisposable
+        {
+            private readonly ReadCacheWindow[] windows;
+
+            internal ReadCachePlan(ReadCacheWindow[] windows)
+            {
+                this.windows = windows;
+            }
+
+            internal bool Contains(long startAddress, int byteCount)
+            {
+                if (byteCount <= 0)
+                {
+                    return false;
+                }
+
+                var window = this.FindWindow(startAddress);
+                return window is not null &&
+                    startAddress >= window.StartAddress &&
+                    startAddress <= window.StartAddress + window.ByteCount - byteCount;
+            }
+
+            internal bool TryRead<T>(long address, out T result)
+                where T : unmanaged
+            {
+                result = default;
+                var size = Unsafe.SizeOf<T>();
+                var window = this.FindWindow(address);
+                if (window is null)
+                {
+                    return false;
+                }
+
+                var offset = address - window.StartAddress;
+                if (offset < 0 || offset > window.ByteCount - size)
+                {
+                    return false;
+                }
+
+                result = MemoryMarshal.Read<T>(window.Buffer.AsSpan((int)offset, size));
+                return true;
+            }
+
+            public void Dispose()
+            {
+                foreach (var window in this.windows)
+                {
+                    ArrayPool<byte>.Shared.Return(window.Buffer);
+                }
+            }
+
+            private ReadCacheWindow? FindWindow(long address)
+            {
+                var low = 0;
+                var high = this.windows.Length - 1;
+                while (low <= high)
+                {
+                    var middle = low + ((high - low) >> 1);
+                    var window = this.windows[middle];
+                    if (address < window.StartAddress)
+                    {
+                        high = middle - 1;
+                    }
+                    else if (address >= window.StartAddress + window.ByteCount)
+                    {
+                        low = middle + 1;
+                    }
+                    else
+                    {
+                        return window;
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        internal readonly struct ReadCachePlanScope : IDisposable
+        {
+            private readonly ReadCachePlan? plan;
+            private readonly ReadCachePlan? previous;
+
+            internal ReadCachePlanScope(ReadCachePlan plan, ReadCachePlan? previous)
+            {
+                this.plan = plan;
+                this.previous = previous;
+            }
+
+            public void Dispose()
+            {
+                if (this.plan is null)
+                {
+                    return;
+                }
+
+                currentReadCachePlan = this.previous;
+                this.plan.Dispose();
+            }
         }
 
         /// <summary>
@@ -666,8 +836,8 @@ namespace GameHelper.Utils
             where TKey : unmanaged
             where TValue : unmanaged
         {
-            const int maxGapAfterMapNodeBytes = 0x200;
-            const int maxBatchSpanBytes = 64 * 1024;
+            var maxGapAfterMapNodeBytes = Core.GHSettings.EnableWideEntityMapBatchReads ? 0x10000 : 0x200;
+            var maxBatchSpanBytes = Core.GHSettings.EnableWideEntityMapBatchReads ? 1024 * 1024 : 64 * 1024;
             const int minBatchNodes = 4;
 
             if (nativeContainer.Size <= 0 || nativeContainer.Size > maxSizeAllowed)

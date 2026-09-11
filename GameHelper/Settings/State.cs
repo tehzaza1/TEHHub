@@ -52,6 +52,20 @@ namespace GameHelper.Settings
         public int EntityReaderMaxDegreeOfParallelism = 4;
 
         /// <summary>
+        ///     Gets or sets whether entity component data should use an optional frame-wide
+        ///     read plan. The experiment is disabled by default so existing runtime behaviour
+        ///     remains the safe baseline; failed ranges always fall back to scalar reads.
+        /// </summary>
+        public bool EnableEntityFrameSnapshot = false;
+
+        /// <summary>
+        ///     Gets or sets whether the awake-entity std::map reader may coalesce nodes across
+        ///     a wider heap gap. This is a separate high-return experiment because it trades
+        ///     fewer kernel calls for larger best-effort read buffers.
+        /// </summary>
+        public bool EnableWideEntityMapBatchReads = false;
+
+        /// <summary>
         ///     Gets the value indicating whether to disable all kind of counters and misc features
         ///     to improve the GH performance when running fully juiced + 6 man party maps.
         ///     (even 1 FPS improvement counts at this stage since ppl have 50k entities

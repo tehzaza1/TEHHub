@@ -35,6 +35,10 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         // primary guard against shifted metadata causing multi-gigabyte allocations.
         private const long MaxTerrainGridCells = 50_000_000;
         private const int TerrainTileStructureSize = 0x38;
+        private const int FrameSnapshotMinComponents = 3;
+        private const int FrameSnapshotMaxGapBytes = 0x100;
+        private const int FrameSnapshotTailBytes = 0x800;
+        private const int FrameSnapshotMaxSpanBytes = 0x8000;
 
         private static readonly EntityBackedBuffDefinition[] EntityBackedPlayerBuffs =
         {
@@ -445,46 +449,109 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 kv.Value.IsValid = false;
             });
 
-            this.NetworkBubbleEntityCount = reader.ReadStdMapBatched<EntityNodeKey, EntityNodeValue>(ePtr, 100000, dc == false, (key, value) =>
+            SafeMemoryHandle.ReadCachePlanScope frameSnapshot = default;
+            if (Core.GHSettings.EnableEntityFrameSnapshot)
             {
-                if (!Core.GHSettings.ProcessAllRenderableEntities && !EntityFilter.IgnoreVisualsAndDecorations(key))
-                {
-                    return false;
-                }
+                frameSnapshot = reader.BeginReadCachePlan(BuildEntityFrameSnapshotRanges(data));
+            }
 
-                // Drop torn-read entries whose pointer can't back a real entity.
-                if (!SafeMemoryHandle.IsValidAddress(value.EntityPtr))
+            try
+            {
+                this.NetworkBubbleEntityCount = reader.ReadStdMapBatched<EntityNodeKey, EntityNodeValue>(ePtr, 100000, dc == false, (key, value) =>
                 {
-                    return false;
-                }
-
-                using (Ui.MemoryReadDiagnostics.MeasureRegion("Core.AreaInstance.EntityUpdate"))
-                {
-                    if (data.TryGetValue(key, out var entity))
+                    if (!Core.GHSettings.ProcessAllRenderableEntities && !EntityFilter.IgnoreVisualsAndDecorations(key))
                     {
-                        entity.Address = value.EntityPtr;
+                        return false;
                     }
-                    else
+
+                    // Drop torn-read entries whose pointer can't back a real entity.
+                    if (!SafeMemoryHandle.IsValidAddress(value.EntityPtr))
                     {
-                        entity = new Entity(value.EntityPtr);
-                        if (!string.IsNullOrEmpty(entity.Path))
+                        return false;
+                    }
+
+                    using (Ui.MemoryReadDiagnostics.MeasureRegion("Core.AreaInstance.EntityUpdate"))
+                    {
+                        if (data.TryGetValue(key, out var entity))
                         {
-                            data[key] = entity;
-                            if (addToCache)
-                            {
-                                this.AddToCacheParallel(key, entity.Path);
-                            }
+                            entity.Address = value.EntityPtr;
                         }
                         else
                         {
-                            entity = null;
+                            entity = new Entity(value.EntityPtr);
+                            if (!string.IsNullOrEmpty(entity.Path))
+                            {
+                                data[key] = entity;
+                                if (addToCache)
+                                {
+                                    this.AddToCacheParallel(key, entity.Path);
+                                }
+                            }
+                            else
+                            {
+                                entity = null;
+                            }
                         }
-                    }
 
-                    entity?.UpdateNearby(this.Player);
+                        entity?.UpdateNearby(this.Player);
+                    }
+                    return true;
+                });
+            }
+            finally
+            {
+                frameSnapshot.Dispose();
+            }
+        }
+
+        private static List<SafeMemoryHandle.ReadCacheRange> BuildEntityFrameSnapshotRanges(
+            ConcurrentDictionary<EntityNodeKey, Entity> entities)
+        {
+            var addresses = new List<IntPtr>(entities.Count * 4);
+            foreach (var entity in entities.Values)
+            {
+                entity.AppendFrameSnapshotAddresses(addresses);
+            }
+
+            if (addresses.Count < FrameSnapshotMinComponents)
+            {
+                return new();
+            }
+
+            addresses.Sort(static (left, right) => left.ToInt64().CompareTo(right.ToInt64()));
+            var ranges = new List<SafeMemoryHandle.ReadCacheRange>(addresses.Count / FrameSnapshotMinComponents);
+            var groupStart = 0;
+            var previousAddress = addresses[0].ToInt64();
+
+            for (var i = 1; i <= addresses.Count; i++)
+            {
+                var atEnd = i == addresses.Count;
+                var nextAddress = atEnd ? 0 : addresses[i].ToInt64();
+                var gap = atEnd ? long.MaxValue : nextAddress - previousAddress;
+                var span = atEnd ? 0 : nextAddress - addresses[groupStart].ToInt64() + FrameSnapshotTailBytes;
+                var fits = !atEnd && gap >= 0 && gap <= FrameSnapshotMaxGapBytes && span <= FrameSnapshotMaxSpanBytes;
+                if (fits)
+                {
+                    previousAddress = nextAddress;
+                    continue;
                 }
-                return true;
-            });
+
+                var componentCount = i - groupStart;
+                if (componentCount >= FrameSnapshotMinComponents)
+                {
+                    var firstAddress = addresses[groupStart].ToInt64();
+                    var byteCount = checked((int)(previousAddress - firstAddress + FrameSnapshotTailBytes));
+                    ranges.Add(new SafeMemoryHandle.ReadCacheRange(new IntPtr(firstAddress), byteCount));
+                }
+
+                groupStart = i;
+                if (!atEnd)
+                {
+                    previousAddress = nextAddress;
+                }
+            }
+
+            return ranges;
         }
 
         private Dictionary<string, List<Vector2>> GetTgtFileData()
