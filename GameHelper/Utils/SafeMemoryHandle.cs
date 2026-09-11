@@ -372,8 +372,21 @@ namespace GameHelper.Utils
             }
             else
             {
-                var buffer = this.ReadMemoryArray<byte>(nativecontainer.Buffer, nativecontainer.Length * 2);
-                return Encoding.Unicode.GetString(buffer);
+                var byteLength = nativecontainer.Length * 2;
+                var buffer = ArrayPool<byte>.Shared.Rent(byteLength);
+                try
+                {
+                    if (!this.TryReadMemoryArray(nativecontainer.Buffer, buffer, byteLength, out _))
+                    {
+                        return string.Empty;
+                    }
+
+                    return Encoding.Unicode.GetString(buffer, 0, byteLength);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
             }
         }
 

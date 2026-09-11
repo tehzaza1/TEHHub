@@ -607,6 +607,11 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `RefreshComponentMap` อ่าน vector ของ `(component name pointer, index)` และ vector component-address เป็น array ชั่วคราวสำหรับ entity ทุกตัวที่ต้อง rebuild map
 - เปลี่ยนสอง vector เป็น `PooledNativeVector`; สร้าง map จาก entry count จริงและคืน buffer ทันทีหลังใช้ โดยคง validation ของ `StdBucket` และรูปแบบข้อมูลเดิม
 
+### 6.37 pool buffer สำหรับ external std::wstring
+
+- การอ่าน `std::wstring` ที่อยู่นอก inline storage เคยสร้าง byte array ชั่วคราวก่อน decode เป็น string ทุกครั้ง
+- เปลี่ยน byte buffer เป็น `ArrayPool<byte>` โดยใช้ `TryReadMemoryArray` เดิมและคืน buffer ใน `finally`; string ผลลัพธ์และกรณีอ่านพลาดยังเหมือนเดิม
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
