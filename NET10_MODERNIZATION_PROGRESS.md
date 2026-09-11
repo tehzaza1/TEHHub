@@ -575,6 +575,7 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 
 - `Buffs.UpdateData` และ `AddSyntheticStatusEffect` ใช้ `ConcurrentDictionary.AddOrUpdate` ด้วย lambda ที่จับ status effect ของรอบนั้น ทำให้สร้าง closure ทุก effect
 - เปลี่ยนเป็น static factory ของ .NET สมัยใหม่ โดยส่ง status effect เป็น argument ตรง คง atomic update และกฎรวม stack/time-left เดิม
+- factory ที่ค้นชื่อบัฟจาก GGPK cache ก็เป็น static แล้ว จึงไม่จับ instance ของ `Buffs` ทุกครั้งที่ lookup (รวมถึง cache hit)
 
 ### 6.32 ใช้ pooled buffer สำหรับ stat vectors
 

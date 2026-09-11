@@ -108,10 +108,8 @@ namespace GameHelper.RemoteObjects.Components
                     out var skillGemUnknownId);
 
                 var (effectName, effectType) = ((string, byte))Core.GgpkObjectCache.AddOrGetExisting(
-                    statusEffectData.BuffDefinationPtr, key =>
-                    {
-                        return this.GetNameFromBuffDefination(key);
-                    });
+                    statusEffectData.BuffDefinationPtr,
+                    static key => GetNameFromBuffDefination(key));
 
                 if (effectType != 0x4) // Flask Effect Type is 4.
                 {
@@ -157,7 +155,7 @@ namespace GameHelper.RemoteObjects.Components
                 statusEffectData);
         }
 
-        private (string, byte) GetNameFromBuffDefination(IntPtr addr)
+        private static (string, byte) GetNameFromBuffDefination(IntPtr addr)
         {
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<BuffDefinitionsOffset>(addr);
