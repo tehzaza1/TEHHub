@@ -354,7 +354,7 @@ namespace HealthBars
 
             // Draw layers from back to front. As HP or ES is depleted, the layer below is
             // revealed in the same rectangle: Ward (purple) -> ES/Mana (blue) -> HP.
-            ptr.AddRectFilled(start, end, ImGuiHelper.Color(healthbarConfig.BackgroundColor));
+            this.DrawBarBackdrop(ptr, start, end, healthbarConfig.BackgroundColor);
             if (hasWard)
             {
                 this.DrawVitalLayer(ptr, start, end, hComp.Ward, this.Settings.RunicWardColor, 0);
@@ -370,6 +370,8 @@ namespace HealthBars
                 this.DrawVitalLayer(ptr, start, end, hComp.Health, healthbarConfig.HealthbarColor, 0,
                     healthbarConfig.ShowCullStrike, this.Settings.CullingStrikeRangePerRarity[rarity]);
             }
+
+            this.DrawBarChrome(ptr, start, end, healthbarConfig.HealthbarColor);
 
             var tmp = start - Vector2.UnitY;
             for (var i = 0; i < healthbarConfig.Graduations; i++)
@@ -413,6 +415,33 @@ namespace HealthBars
                 ? 0xFFFFFFFF
                 : ImGuiHelper.Color(color);
             drawList.AddImage(texture, start, fillEnd, Vector2.Zero, Vector2.One, drawColor);
+        }
+
+        private void DrawBarBackdrop(ImDrawListPtr drawList, Vector2 start, Vector2 end, Vector4 backgroundColor)
+        {
+            // A tiny drop-shadow and a near-black outer edge give the stacked fills a clear
+            // silhouette on bright terrain without changing their size or readability.
+            var shadowOffset = new Vector2(1.5f, 1.5f);
+            drawList.AddRectFilled(start + shadowOffset, end + shadowOffset, ImGuiHelper.Color(new Vector4(0f, 0f, 0f, 0.58f)));
+            drawList.AddRectFilled(start - Vector2.One, end + Vector2.One, ImGuiHelper.Color(new Vector4(0.015f, 0.02f, 0.03f, 0.96f)));
+            drawList.AddRectFilled(start, end, ImGuiHelper.Color(backgroundColor));
+        }
+
+        private void DrawBarChrome(ImDrawListPtr drawList, Vector2 start, Vector2 end, Vector4 healthColor)
+        {
+            // Keep the highlight very subtle: it makes a full bar look less flat, while the
+            // HP/ES/Ward layer beneath remains obvious when the top resource is depleted.
+            var topHighlight = new Vector4(
+                Math.Min(1f, (healthColor.X * 0.55f) + 0.28f),
+                Math.Min(1f, (healthColor.Y * 0.55f) + 0.28f),
+                Math.Min(1f, (healthColor.Z * 0.55f) + 0.28f),
+                0.42f);
+            drawList.AddLine(start + new Vector2(1f, 0.5f), new Vector2(end.X - 1f, start.Y + 0.5f), ImGuiHelper.Color(topHighlight));
+            drawList.AddRectFilled(
+                new Vector2(start.X + 1f, start.Y + ((end.Y - start.Y) * 0.70f)),
+                end - Vector2.One,
+                ImGuiHelper.Color(new Vector4(0f, 0f, 0f, 0.12f)));
+            drawList.AddRect(start, end, ImGuiHelper.Color(new Vector4(0.68f, 0.76f, 0.90f, 0.72f)), 0f, ImDrawFlags.None, 1.15f);
         }
 
         private void UpdateOncePerDraw()
