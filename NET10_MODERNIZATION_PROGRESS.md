@@ -456,6 +456,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เปิด `AllowUnsafeBlocks` จาก `Directory.Build.props`; จำเป็นต่อ code ที่ generator สร้างเท่านั้น ไม่ได้เปลี่ยนพฤติกรรมหรือเปิด unsafe API ให้กับ logic ปกติ
 - ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error และ source ที่ build ไม่มี `DllImport` เหลือ
 
+### 6.14 บังคับมาตรฐาน .NET 10 สำหรับทุก project
+
+- `Directory.Build.targets` กำหนด `net10.0-windows`, C# 14, nullable และ implicit usings จากส่วนกลาง
+- plugin ใหม่จึงรับมาตรฐานเดียวกันโดยอัตโนมัติ; การอัปเกรด framework ในอนาคตเป็นการเปลี่ยนอย่างมีเจตนาจากจุดเดียว
+- หลักการ source ใหม่: ใช้ `System.Text.Json` (source generation สำหรับ schema คงที่/hot path), ใช้ `LibraryImport` สำหรับ native interop และไม่เพิ่ม package/API ยุค .NET Framework
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

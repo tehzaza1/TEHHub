@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Repository-wide .NET 10 baseline. Project files may add their own package or
+    output settings, but all production code is compiled against this deliberate
+    platform/language contract. A future framework upgrade is a single, reviewed
+    change here rather than a collection of per-plugin migrations.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+</Project>
