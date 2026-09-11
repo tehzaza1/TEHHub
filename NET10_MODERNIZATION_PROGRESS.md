@@ -462,6 +462,11 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - plugin ใหม่จึงรับมาตรฐานเดียวกันโดยอัตโนมัติ; การอัปเกรด framework ในอนาคตเป็นการเปลี่ยนอย่างมีเจตนาจากจุดเดียว
 - หลักการ source ใหม่: ใช้ `System.Text.Json` (source generation สำหรับ schema คงที่/hot path), ใช้ `LibraryImport` สำหรับ native interop และไม่เพิ่ม package/API ยุค .NET Framework
 
+### 6.15 Audit dependency หลังย้าย .NET 10
+
+- อัปเดต `System.Linq.Dynamic.Core` ของ AutoHotKeyTrigger จาก 1.7.1 เป็น 1.7.4 และตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
+- แยก ImageSharp 4.x, Vortice/renderer และ AsmResolver 6.x ออกจากชุดนี้ เพราะเป็น major upgrade ที่ต้องทดสอบภาพ overlay/launcher แยกต่างหาก ไม่ใช่ข้อกำหนดของ .NET 10 runtime
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
