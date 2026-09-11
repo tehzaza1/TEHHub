@@ -499,6 +499,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - JSONL diagnostic ของ ritual roll ยังเป็น dynamic snapshot ตามเดิม เพราะเป็นข้อมูล debug ที่ schema ยืดหยุ่นและไม่ใช่เส้นทางใช้งานปกติ
 - ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
 
+### 6.21 รวมมาตรฐาน project และเปิด nullable จริงทั้ง solution
+
+- ย้าย `TargetFramework`, C# 14, nullable และ implicit usings ไปอยู่ที่ `Directory.Build.props` ซึ่ง SDK อ่านก่อนวิเคราะห์ project; `Directory.Build.targets` ยังคงยืนยันมาตรฐานหลัง project load
+- ลบการประกาศซ้ำ/ขัดแย้งใน project เดิม รวมถึง Atlas2 ที่เคยปิด nullable ไว้
+- แก้ null-safety ของ Atlas2 ตามความหมายเดิม: ค่า DTO เริ่มต้นที่ปลอดภัย, cache ที่เป็น state ชัดเจน และผลค้นหาที่อาจไม่มีผลลัพธ์เป็น nullable
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

@@ -1,7 +1,13 @@
 <Project>
   <PropertyGroup>
+    <!-- Target framework must be set before SDK target inference; the matching
+         values in Directory.Build.targets keep this contract authoritative if a
+         project tries to override the baseline later. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <LangVersion>latest</LangVersion>
     <!-- LibraryImport emits low-level generated interop; this enables that generated code
          without requiring individual call sites to be marked unsafe. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

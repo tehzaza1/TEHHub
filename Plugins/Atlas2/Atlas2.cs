@@ -105,9 +105,9 @@ namespace Atlas2
 
         // Cached routing graph — the node graph doesn't change while the
         // atlas is open, so rebuild only with the node cache.
-        private Dictionary<StdTuple2D<int>, List<StdTuple2D<int>>> cachedRouteGraph;
-        private HashSet<StdTuple2D<int>> cachedAccessible;
-        private Dictionary<StdTuple2D<int>, StdTuple2D<int>> cachedBfsTree;
+        private Dictionary<StdTuple2D<int>, List<StdTuple2D<int>>> cachedRouteGraph = new();
+        private HashSet<StdTuple2D<int>> cachedAccessible = new();
+        private Dictionary<StdTuple2D<int>, StdTuple2D<int>> cachedBfsTree = new();
 
         // Maps excluded from routing as a start/pass-through node (they may still be a route TARGET).
         // Matched by internal map id (locale-independent, unlike the display name); e.g.
@@ -915,7 +915,9 @@ namespace Atlas2
                             _ => null,
                         })
                         .Concat(map.BadgeContentIds.Select(id => MapContentDb.TryGetValue(id & 0xFFFFu, out var mItem) ? mItem.Icon : null))
-                        .Where(icon => !string.IsNullOrWhiteSpace(icon)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                        .Where(static icon => !string.IsNullOrWhiteSpace(icon))
+                        .Select(static icon => icon!)
+                        .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                     Type = map.Type ?? "normal",
                     Tags = map.Tags.ToList(),
                     Drawable = drawable,
@@ -995,7 +997,7 @@ namespace Atlas2
 
         // Reconstruct the shortest-hop path from any accessible source to
         // target, or null if unreachable.
-        private static List<StdTuple2D<int>> PathFromAccessible(
+        private static List<StdTuple2D<int>>? PathFromAccessible(
             StdTuple2D<int> target,
             Dictionary<StdTuple2D<int>, StdTuple2D<int>> cameFrom,
             HashSet<StdTuple2D<int>> sources)
@@ -1720,7 +1722,7 @@ namespace Atlas2
                    HasAtlasContent(node, "Powerful Map Boss");
         }
 
-        private static ContentInfo MatchContent(string contentName,
+        private static ContentInfo? MatchContent(string contentName,
             Dictionary<string, ContentInfo> tagMap,
             Dictionary<string, ContentInfo> plainMap)
         {

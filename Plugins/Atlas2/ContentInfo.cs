@@ -8,10 +8,10 @@ namespace Atlas2
     /// </summary>
     public sealed class ContentInfo
     {
-        public string Label { get; set; }
-        public string Abbrev { get; set; }
-        public float[] BackgroundColor { get; set; }
-        public float[] FontColor { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public string Abbrev { get; set; } = string.Empty;
+        public float[] BackgroundColor { get; set; } = [];
+        public float[] FontColor { get; set; } = [];
         public bool IsFlag { get; set; } = false;
         public bool Show { get; set; } = true;
 

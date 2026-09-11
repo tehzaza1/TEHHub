@@ -5,8 +5,8 @@ namespace Atlas2
 {
     public sealed class BiomeInfo
     {
-        public string Label { get; set; }
-        public float[] BorderColor { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public float[] BorderColor { get; set; } = [];
         public bool Show { get; set; } = true;
 
         [JsonIgnore]

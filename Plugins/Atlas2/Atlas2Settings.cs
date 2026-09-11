@@ -167,6 +167,6 @@ namespace Atlas2
         public Vector4? BorderColor { get; set; }
         public Vector4? FontColor { get; set; }
         public bool? Show { get; set; }
-        public string Abbrev { get; set; }
+        public string Abbrev { get; set; } = string.Empty;
     }
 }

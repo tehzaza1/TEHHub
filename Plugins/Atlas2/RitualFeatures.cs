@@ -164,7 +164,7 @@ namespace Atlas2
         // dead-end frontier must not force a full re-read every frame.
         private static IntPtr candTableHealedBegin = IntPtr.Zero;
         private static IntPtr candTableHealedEnd = IntPtr.Zero;
-        private static Dictionary<StdTuple2D<int>, List<StdTuple2D<int>>> candTableCache;
+        private static Dictionary<StdTuple2D<int>, List<StdTuple2D<int>>>? candTableCache;
 
         private static Dictionary<StdTuple2D<int>, List<StdTuple2D<int>>> ReadCandidateTable(
             IntPtr panel, StdTuple2D<int>? frontier = null)
@@ -339,9 +339,9 @@ namespace Atlas2
             public int W { get; set; }       // weighting
             public int Cond { get; set; }    // ConditionStat FK (0 = none); binary id = Cond-1
             public int Stat { get; set; }    // granted Stat1 FK — 2nd-pick dup exclusion (0 = none)
-            public string Text { get; set; }
+            public string Text { get; set; } = string.Empty;
         }
-        private sealed class RitualPoolFile { public List<RitualRow> Rows { get; set; } }
+        private sealed class RitualPoolFile { public List<RitualRow> Rows { get; set; } = []; }
 
         [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
         [JsonSerializable(typeof(RitualPoolFile))]
@@ -349,7 +349,7 @@ namespace Atlas2
         {
         }
 
-        private static List<RitualRow> ritualPool;
+        private static List<RitualRow>? ritualPool;
 
         private void EnsureRitualPool()
         {
@@ -433,11 +433,11 @@ namespace Atlas2
         // no weight added, no draw — every row whose granted Stat the 1st pick already granted
         // (binary dup check FUN_14064cdc0 on the out-vector; currency trios share one stat so a
         // currency 1st mod blocks its whole trio). Validated 6/6 on logged two-mod nodes.
-        private static RitualRow PredictModPass(uint lineId, uint committedCount, uint candIdx,
+        private static RitualRow? PredictModPass(uint lineId, uint committedCount, uint candIdx,
             uint modCount, List<RitualRow> pool, int grantedStat)
         {
             var s = TinyMt32.Seed(lineId, committedCount, candIdx, modCount);
-            long total = 0; RitualRow sel = null;
+            long total = 0; RitualRow? sel = null;
             foreach (var row in pool)
             {
                 if (grantedStat != 0 && row.Stat == grantedStat)
@@ -481,7 +481,7 @@ namespace Atlas2
 
         // Both Rite mods for a candidate: first pick, then the deterministic coin flip, then the
         // second pick with the stat-dup exclusion. Second is null on single-mod nodes.
-        private static (string First, string Second) PredictMods(uint lineId, uint committedCount,
+        private static (string? First, string? Second) PredictMods(uint lineId, uint committedCount,
             uint candIdx, List<RitualRow> pool, int secondChance)
         {
             var first = PredictModPass(lineId, committedCount, candIdx, 0, pool, 0);
@@ -547,7 +547,7 @@ namespace Atlas2
         private const int RitualMaxPredictNodes = 4000;
 
         // Cache: predictions only change when the line state (id + committed set) changes.
-        private string ritualPredSig;
+        private string? ritualPredSig;
         private Dictionary<StdTuple2D<int>, string> ritualPredCache = EmptyRitualPredictions;
 
         // Predict the Rite mods for EVERY node the ritual line can still reach from its current
@@ -597,7 +597,7 @@ namespace Atlas2
             var stats = ReadRitualStats(panel);
 
             var pool = new List<RitualRow>(ritualPool.Count);
-            foreach (var row in ritualPool)
+            foreach (var row in ritualPool ?? [])
             {
                 if (row.W <= 0) continue;
                 // ConditionStat stores a Stats.dat row; the runtime table uses row + 1.
@@ -693,23 +693,23 @@ namespace Atlas2
         // filtered for are. See obsidian poe2/Ritual.md.
         private sealed class PlannerChain
         {
-            public string Key;                    // stable id: root-onward grids joined
-            public List<StdTuple2D<int>> Nodes;   // root (start/frontier) + picked nodes
-            public List<string> ShortMods;        // 1st mod per picked node (aligned with Nodes[i+1])
-            public List<string> ShortMods2;       // 2nd mod per picked node (null = single-mod)
-            public string PathLine;               // "Bastille  >  Headland  >  …"
-            public string ModsLine;               // "+25% Tribute   -   Exalted Orbs x2 + Omen: … "
+            public string Key = string.Empty;                    // stable id: root-onward grids joined
+            public List<StdTuple2D<int>> Nodes = [];   // root (start/frontier) + picked nodes
+            public List<string> ShortMods = [];        // 1st mod per picked node (aligned with Nodes[i+1])
+            public List<string?> ShortMods2 = [];      // 2nd mod per picked node (null = single-mod)
+            public string PathLine = string.Empty;     // "Bastille  >  Headland  >  …"
+            public string ModsLine = string.Empty;     // "+25% Tribute   -   Exalted Orbs x2 + Omen: … "
             public int Weight;                    // sum of user reward weights over the chain's mods
         }
 
         private readonly List<PlannerChain> plannerChains = new();
-        private string plannerSig;
+        private string? plannerSig;
         private int plannerStartCount;                 // eligible start nodes in the last rebuild
         private bool plannerLineActive;                // committed non-empty: root = the line's frontier
         private readonly Dictionary<string, int> plannerSelected = new();  // chain key -> palette slot
         private int plannerEnumerated;                 // paths found (incl. beyond the caps)
         private bool plannerCapped;
-        private static List<string> plannerRewardOptions;  // distinct ShortModLabel values of the pool
+        private static List<string>? plannerRewardOptions;  // distinct ShortModLabel values of the pool
         // Reward-weight edits bump the version; the planner re-weighs + re-sorts its cached
         // chains when the versions diverge (so edits apply live without a full re-enumeration).
         private int plannerWeightsVersion;
@@ -782,7 +782,7 @@ namespace Atlas2
                 return;
             EnsureRitualPool();
             var set = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var row in ritualPool)
+            foreach (var row in ritualPool ?? [])
                 if (row.W > 0 && !string.IsNullOrEmpty(row.Text))
                     set.Add(ShortModLabel(row.Text));
             plannerRewardOptions = set.ToList();
@@ -810,7 +810,7 @@ namespace Atlas2
                     ImGui.TableSetupColumn(this.L("atlas.weights_reward_col", "Reward"), ImGuiTableColumnFlags.WidthStretch);
                     ImGui.TableSetupColumn(this.L("atlas.weights_weight_col", "Weight"), ImGuiTableColumnFlags.WidthFixed, 220f);
                     ImGui.TableHeadersRow();
-                    foreach (var opt in plannerRewardOptions)
+                    foreach (var opt in plannerRewardOptions ?? [])
                     {
                         if (opt == TwoModFilterOption)
                             continue;   // filter pseudo-entry, not a rollable reward
@@ -851,7 +851,8 @@ namespace Atlas2
                 {
                     if (weights.TryGetValue(c.ShortMods[k], out var w1))
                         w += w1;
-                    if (c.ShortMods2[k] != null && weights.TryGetValue(c.ShortMods2[k], out var w2))
+                    var secondMod = c.ShortMods2[k];
+                    if (secondMod is not null && weights.TryGetValue(secondMod, out var w2))
                         w += w2;
                 }
 
@@ -959,8 +960,8 @@ namespace Atlas2
 
             // Every start shares the same lineId + pool, and a roll depends only on
             // (committedCount, candIdx) — memoized, the whole enumeration rolls ≤ ~40 times.
-            var rollMemo = new Dictionary<(uint cc, uint ci), (string First, string Second)>();
-            (string First, string Second) Roll(uint cc, uint ci)
+            var rollMemo = new Dictionary<(uint cc, uint ci), (string? First, string? Second)>();
+            (string? First, string? Second) Roll(uint cc, uint ci)
             {
                 if (!rollMemo.TryGetValue((cc, ci), out var t))
                     rollMemo[(cc, ci)] = t = PredictMods(lineId, cc, ci, pool, secondChance);
@@ -973,7 +974,7 @@ namespace Atlas2
             int startEmitted = 0;
 
             var path = new List<StdTuple2D<int>>(prefixCount + maxDepth);
-            var mods = new List<(string First, string Second)>();
+            var mods = new List<(string? First, string? Second)>();
             var visited = new HashSet<StdTuple2D<int>>();
 
             void Emit()
@@ -1003,12 +1004,13 @@ namespace Atlas2
                 }
 
                 var shorts = new List<string>(mods.Count);
-                var shorts2 = new List<string>(mods.Count);
+                var shorts2 = new List<string?>(mods.Count);
                 var modSb = new StringBuilder();
                 for (int k = 0; k < mods.Count; k++)
                 {
-                    var s = ShortModLabel(mods[k].First);
-                    var s2 = mods[k].Second == null ? null : ShortModLabel(mods[k].Second);
+                    var s = ShortModLabel(mods[k].First ?? string.Empty);
+                    var secondMod = mods[k].Second;
+                    var s2 = secondMod is null ? null : ShortModLabel(secondMod);
                     shorts.Add(s);
                     shorts2.Add(s2);
                     if (modSb.Length > 0) modSb.Append("   -   ");
@@ -1113,7 +1115,7 @@ namespace Atlas2
                 var slot = plannerSelected[k];
                 plannerSelected.Remove(k);
 
-                string heir = null;
+                string? heir = null;
                 foreach (var c in plannerChains)
                 {
                     // Suffix match on whole "x,y|" tokens (guard against "12,3|" vs "2,3|").
@@ -1247,14 +1249,15 @@ namespace Atlas2
                 (Settings.RitualRewardFilter ?? string.Empty)
                     .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
                 StringComparer.OrdinalIgnoreCase);
+            var rewardOptions = plannerRewardOptions ?? [];
             string preview = selected.Count == 0
                 ? this.L("atlas.planner_filter_hint", "filter by desired rewards (any match shows the path)…")
-                : string.Join(", ", plannerRewardOptions.Where(selected.Contains));
+                : string.Join(", ", rewardOptions.Where(selected.Contains));
             ImGui.SetNextItemWidth(MathF.Max(120f, ImGui.GetContentRegionAvail().X - 70f));
             bool filterChanged = false;
             if (ImGui.BeginCombo("##plannerFilter", preview, ImGuiComboFlags.HeightLargest))
             {
-                foreach (var opt in plannerRewardOptions)
+                foreach (var opt in rewardOptions)
                 {
                     bool on = selected.Contains(opt);
                     if (ImGui.Checkbox(opt, ref on))
@@ -1276,7 +1279,7 @@ namespace Atlas2
             }
 
             if (filterChanged)
-                Settings.RitualRewardFilter = string.Join("|", plannerRewardOptions.Where(selected.Contains));
+                Settings.RitualRewardFilter = string.Join("|", rewardOptions.Where(selected.Contains));
 
             // Root summary: the drawn line's frontier, or how many possible starts are listed.
             if (plannerLineActive && plannerChains.Count > 0)
@@ -1297,9 +1300,12 @@ namespace Atlas2
                     bool wantTwo = selected.Contains(TwoModFilterOption);
                     bool ok = false;
                     for (int k = 0; k < c.ShortMods.Count && !ok; k++)
+                    {
+                        var secondMod = c.ShortMods2[k];
                         ok = selected.Contains(c.ShortMods[k])
-                            || (c.ShortMods2[k] != null
-                                && (wantTwo || selected.Contains(c.ShortMods2[k])));
+                            || (secondMod is not null
+                                && (wantTwo || selected.Contains(secondMod)));
+                    }
 
                     if (!ok)
                         continue;
@@ -1395,7 +1401,7 @@ namespace Atlas2
                 for (int i = 0; i < grids.Count; i++)
                 {
                     var g = grids[i];
-                    string text = null;
+                    string? text = null;
                     if (gridToAddr.TryGetValue(g, out var addr) && addr != IntPtr.Zero)
                     {
                         var child = Read<IntPtr>(IntPtr.Add(addr, RitualModsChildOffset));
