@@ -73,7 +73,7 @@ namespace AutoHotKeyTrigger
     }
 
     /// <summary>
-    ///     Provides XInput gamepad polling and direct SendMessage key-press
+    ///     Provides XInput gamepad polling and direct keyboard key-press
     ///     to bypass <c>MiscHelper.KeyUp</c> which is blocked in controller mode.
     /// </summary>
     internal static partial class BotInput
@@ -84,8 +84,8 @@ namespace AutoHotKeyTrigger
         [LibraryImport("winmm.dll", EntryPoint = "timeEndPeriod")]
         private static partial uint TimeEndPeriod(uint uMilliseconds);
 
-        private const int WM_KEYDOWN = 0x0100;
-        private const int WM_KEYUP = 0x0101;
+        private const uint InputKeyboard = 1;
+        private const uint KeyEventFlagKeyUp = 0x0002;
 
         /// <summary>
         ///     Analog trigger threshold (0-255). Values above this count as "pressed".
@@ -272,13 +272,11 @@ namespace AutoHotKeyTrigger
         [LibraryImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
         private static partial int XInputGetState(int dwUserIndex, ref XINPUT_STATE pState);
 
-        // ── user32 SendMessage ───────────────────────────────────────
-
-        [LibraryImport("user32.dll")]
-        private static partial IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-
         [LibraryImport("user32.dll")]
         private static partial IntPtr GetForegroundWindow();
+
+        [LibraryImport("user32.dll", SetLastError = true)]
+        private static partial uint SendInput(uint inputCount, [In] Input[] inputs, int inputSize);
 
         // ── Public API ───────────────────────────────────────────────
 
@@ -317,10 +315,9 @@ namespace AutoHotKeyTrigger
         }
 
         /// <summary>
-        ///     Sends a WM_KEYUP directly to the game window,
-        ///     bypassing <c>MiscHelper.KeyUp</c> which blocks in controller mode.
-        ///     Uses <c>GetForegroundWindow()</c> because the plugin already verifies
-        ///     the game is in the foreground before calling this.
+        ///     Sends a real keyboard down/up input pair, bypassing <c>MiscHelper.KeyUp</c>
+        ///     which is blocked in controller mode. Unlike window messages, SendInput reaches
+        ///     the game's regular keyboard input path.
         ///     Includes rate-limiting equivalent to MiscHelper's 30-40ms delay.
         /// </summary>
         /// <param name="key">Virtual key to send.</param>
@@ -340,20 +337,67 @@ namespace AutoHotKeyTrigger
 
             DelayBetweenKeys.Restart();
 
-            // Use foreground window — ShouldExecutePlugin() already confirmed
-            // the game is in the foreground before rules are evaluated.
-            var hWnd = GetForegroundWindow();
-            if (hWnd == IntPtr.Zero)
+            // ShouldExecutePlugin() already confirmed the game is foreground; repeat the
+            // check immediately before injecting to avoid sending input into another app.
+            if (GetForegroundWindow() != Core.Process.MainWindowHandle)
             {
                 return false;
             }
 
-            sendingMessage = Task.Run(() =>
+            var keyDown = new Input((ushort)key, 0);
+            var keyUp = new Input((ushort)key, KeyEventFlagKeyUp);
+            sendingMessage = Task.Run(async () =>
             {
-                SendMessage(hWnd, WM_KEYUP, (IntPtr)(int)key, IntPtr.Zero);
+                _ = SendInput(1, [keyDown], Marshal.SizeOf<Input>());
+                await Task.Delay(35);
+                _ = SendInput(1, [keyUp], Marshal.SizeOf<Input>());
             });
 
             return true;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Input
+        {
+            public Input(uint virtualKey, uint flags)
+            {
+                this.Type = InputKeyboard;
+                this.Union = new InputUnion(new KeyboardInput(virtualKey, flags));
+            }
+
+            public uint Type;
+            public InputUnion Union;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct InputUnion
+        {
+            public InputUnion(KeyboardInput keyboard)
+            {
+                this.Keyboard = keyboard;
+            }
+
+            [FieldOffset(0)]
+            public KeyboardInput Keyboard;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KeyboardInput
+        {
+            public KeyboardInput(uint virtualKey, uint flags)
+            {
+                this.VirtualKey = (ushort)virtualKey;
+                this.ScanCode = 0;
+                this.Flags = flags;
+                this.Time = 0;
+                this.ExtraInfo = IntPtr.Zero;
+            }
+
+            public ushort VirtualKey;
+            public ushort ScanCode;
+            public uint Flags;
+            public uint Time;
+            public IntPtr ExtraInfo;
         }
 
         /// <summary>

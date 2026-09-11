@@ -189,13 +189,9 @@ namespace AutoHotKeyTrigger.ProfileManager
             }
             else
             {
-                // GameHelper blocks MiscHelper.KeyUp while the game uses controller UI. That
-                // must not turn on a virtual controller, but keyboard-bound rules still need
-                // to work, so use the direct keyboard sender only for that UI state.
-                var wasPressed = Core.GHSettings.EnableControllerMode
-                    ? BotInput.PressKey(this.Key)
-                    : MiscHelper.KeyUp(this.Key);
-                if (wasPressed)
+                // Keyboard rules use the same real-input path in every game UI mode. This
+                // does not initialize ViGEm or create a virtual controller.
+                if (BotInput.PressKey(this.Key))
                 {
                     logger($"{this.Key} is pressed.");
                     this.cooldownStopwatch.Restart();
