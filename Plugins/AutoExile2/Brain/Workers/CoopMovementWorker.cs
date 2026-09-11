@@ -20,6 +20,10 @@ namespace AutoExile2.Brain.Workers
         public const int ANIM_ROLL = 0x10C;   // 268 decimal: Dodge Roll (Tap B)
         public const int ANIM_SPRINT = 0x368; // 872 decimal: Sprint (Hold B)
 
+        private const double SprintActivationGraceMs = 1500;
+        private const double SprintAnimationLossGraceMs = 300;
+        private const double SprintRetryReleaseMs = 80;
+
         public List<Vector2> CurrentNavPath { get; } = new();
 
         public int CurrentWaypointIndex { get; private set; }
@@ -33,8 +37,10 @@ namespace AutoExile2.Brain.Workers
         private DateTime lastFollowerRollTime = DateTime.MinValue;
         private DateTime lastPickupTapTime = DateTime.MinValue;
         private DateTime sprintStartUtc = DateTime.MinValue;
-        private DateTime lastSprintResetUtc = DateTime.MinValue;
+        private DateTime sprintAnimationLostUtc = DateTime.MinValue;
+        private DateTime sprintReleaseUntilUtc = DateTime.MinValue;
         private bool wasSprintRequested = false;
+        private bool sprintAnimationConfirmed = false;
 
         public void Reset()
         {
@@ -46,9 +52,7 @@ namespace AutoExile2.Brain.Workers
             this.lastRepathLeaderPos = Vector2.Zero;
             this.lastFollowerRollTime = DateTime.MinValue;
             this.lastPickupTapTime = DateTime.MinValue;
-            this.sprintStartUtc = DateTime.MinValue;
-            this.lastSprintResetUtc = DateTime.MinValue;
-            this.wasSprintRequested = false;
+            this.ClearSprintState();
         }
 
         /// <summary>
@@ -69,8 +73,7 @@ namespace AutoExile2.Brain.Workers
                 this.CurrentNavPath.Clear();
                 this.CurrentWaypointIndex = 0;
                 this.CurrentDestination = null;
-                this.IsSprinting = false;
-                pad.SetFollowerSprint(false);
+                this.StopSprint(pad);
                 return;
             }
 
@@ -80,9 +83,8 @@ namespace AutoExile2.Brain.Workers
                 this.CurrentNavPath.Clear();
                 this.CurrentWaypointIndex = 0;
                 this.CurrentDestination = null;
-                this.IsSprinting = false;
                 pad.SetFollowerMovement(Vector2.Zero);
-                pad.SetFollowerSprint(false);
+                this.StopSprint(pad);
                 return;
             }
 
@@ -94,9 +96,8 @@ namespace AutoExile2.Brain.Workers
                 this.CurrentNavPath.Clear();
                 this.CurrentWaypointIndex = 0;
                 this.CurrentDestination = null;
-                this.IsSprinting = false;
                 pad.SetFollowerMovement(Vector2.Zero);
-                pad.SetFollowerSprint(false);
+                this.StopSprint(pad);
                 return;
             }
 
@@ -120,7 +121,7 @@ namespace AutoExile2.Brain.Workers
                 this.CurrentDestination = targetPos;
                 var unstuckDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, targetPos, p.FollowerGrid, p.GridToWorld);
                 pad.SetFollowerMovement(unstuckDir);
-                pad.SetFollowerSprint(false);
+                this.StopSprint(pad);
                 if (!p.IsPeacefulZone && p.FollowerAnimId != ANIM_ROLL)
                 {
                     pad.TapFollowerDodgeRoll();
@@ -212,42 +213,10 @@ namespace AutoExile2.Brain.Workers
                 : (goal.Type == BotGoalType.HardCatchup);
             this.IsSprinting = shouldSprint;
 
-            // Sprint recovery watchdog:
-            // When colliding with an obstacle, getting bumped, or transitioning terrains, PoE 2 cancels sprint
-            // and drops the character back into walking/running animation even while B is held down.
-            // If the Brain wants to sprint (shouldSprint = true) but the actual animation is NOT sprint (AnimId != 0x368),
-            // briefly release B (for 1 tick / 50ms) so the next tick re-engages a fresh Sprint hold!
-            bool effectiveSprint = shouldSprint;
-            if (shouldSprint)
-            {
-                if (!this.wasSprintRequested)
-                {
-                    this.sprintStartUtc = now;
-                    this.wasSprintRequested = true;
-                }
-
-                // Give 250ms initial grace period for sprint hold to begin playing ANIM_SPRINT
-                double msSinceSprintStart = (now - this.sprintStartUtc).TotalMilliseconds;
-                double msSinceLastReset = (now - this.lastSprintResetUtc).TotalMilliseconds;
-
-                if (msSinceSprintStart >= 250 && msSinceLastReset >= 350)
-                {
-                    bool isActuallySprinting = p.FollowerAnimId == ANIM_SPRINT;
-                    if (!isActuallySprinting)
-                    {
-                        // Animation dropped to walk/run or hit an obstacle!
-                        // Pulse release B this tick so PoE 2 can register a fresh hold
-                        effectiveSprint = false;
-                        this.lastSprintResetUtc = now;
-                        this.sprintStartUtc = now; // reset grace timer for next hold
-                    }
-                }
-            }
-            else
-            {
-                this.wasSprintRequested = false;
-                this.sprintStartUtc = DateTime.MinValue;
-            }
+            // PoE 2 can take about one second to enter its sprint animation after B is held.
+            // Do not let recovery logic interrupt that normal activation delay. Once sprint has
+            // been observed, only re-arm B after the animation has been missing continuously.
+            bool effectiveSprint = this.UpdateSprintHold(shouldSprint, p.FollowerAnimId, now);
 
             // 4. Send steering vector to gamepad
             var moveDir = BotInput.GridToScreenDirection(ctx.World, p.FollowerEntity, steerGridPos, p.FollowerGrid, p.GridToWorld);
@@ -308,6 +277,95 @@ namespace AutoExile2.Brain.Workers
                     this.lastFollowerRollTime = now;
                 }
             }
+        }
+
+        private bool UpdateSprintHold(bool shouldSprint, int followerAnimId, DateTime now)
+        {
+            if (!shouldSprint)
+            {
+                this.ClearSprintState();
+                return false;
+            }
+
+            if (!this.wasSprintRequested)
+            {
+                this.BeginSprintAttempt(now);
+            }
+
+            // Keep B released long enough for the virtual controller and game to observe it,
+            // then begin a completely fresh hold with a new activation grace period.
+            if (this.sprintReleaseUntilUtc != DateTime.MinValue)
+            {
+                if (now < this.sprintReleaseUntilUtc)
+                {
+                    return false;
+                }
+
+                this.BeginSprintAttempt(now);
+            }
+
+            if (followerAnimId == ANIM_SPRINT)
+            {
+                this.sprintAnimationConfirmed = true;
+                this.sprintAnimationLostUtc = DateTime.MinValue;
+                return true;
+            }
+
+            if (this.sprintAnimationConfirmed)
+            {
+                if (this.sprintAnimationLostUtc == DateTime.MinValue)
+                {
+                    this.sprintAnimationLostUtc = now;
+                }
+
+                if ((now - this.sprintAnimationLostUtc).TotalMilliseconds < SprintAnimationLossGraceMs)
+                {
+                    return true;
+                }
+
+                this.BeginSprintRelease(now);
+                return false;
+            }
+
+            if ((now - this.sprintStartUtc).TotalMilliseconds < SprintActivationGraceMs)
+            {
+                return true;
+            }
+
+            this.BeginSprintRelease(now);
+            return false;
+        }
+
+        private void BeginSprintAttempt(DateTime now)
+        {
+            this.wasSprintRequested = true;
+            this.sprintStartUtc = now;
+            this.sprintAnimationLostUtc = DateTime.MinValue;
+            this.sprintReleaseUntilUtc = DateTime.MinValue;
+            this.sprintAnimationConfirmed = false;
+        }
+
+        private void BeginSprintRelease(DateTime now)
+        {
+            this.sprintAnimationConfirmed = false;
+            this.sprintAnimationLostUtc = DateTime.MinValue;
+            this.sprintReleaseUntilUtc = now.AddMilliseconds(SprintRetryReleaseMs);
+        }
+
+        private void StopSprint(CoopVirtualGamepad pad)
+        {
+            this.IsSprinting = false;
+            this.ClearSprintState();
+            pad.SetFollowerSprint(false);
+        }
+
+        private void ClearSprintState()
+        {
+            this.sprintStartUtc = DateTime.MinValue;
+            this.sprintAnimationLostUtc = DateTime.MinValue;
+            this.sprintReleaseUntilUtc = DateTime.MinValue;
+            this.wasSprintRequested = false;
+            this.sprintAnimationConfirmed = false;
         }
     }
 }
