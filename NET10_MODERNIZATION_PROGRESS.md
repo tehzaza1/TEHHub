@@ -509,7 +509,7 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 
 ### 6.22 อัปเดต Launcher จาก AsmResolver 5 เป็น 6
 
-- อัปเดต `AsmResolver.PE.Win32Resources` 5.5.1 เป็น 6.0.0; รุ่นเดิมถูก NuGet ระบุว่า legacy และมี critical bugs
+- อัปเดต `AsmResolver.PE.Win32Resources` 5.5.1 เป็น 6.0.1; รุ่นเดิมถูก NuGet ระบุว่า legacy และมี critical bugs
 - ปรับ namespace และ API การเขียน version resource ตาม AsmResolver 6 โดยคงขั้นตอน transform executable เดิม
 - restore, Release build ทั้ง solution และการตรวจ package deprecated ผ่านครบ 0 warning / 0 error
 
