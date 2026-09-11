@@ -189,9 +189,8 @@ namespace AutoHotKeyTrigger.ProfileManager
             }
             else
             {
-                // Modern game builds can ignore direct WM_KEYUP window messages. SendInput
-                // emits a real keyboard down/up pair without initializing ViGEm.
-                if (BotInput.PressKey(this.Key))
+                // Keyboard mode intentionally keeps the original pre-controller path.
+                if (MiscHelper.KeyUp(this.Key))
                 {
                     logger($"{this.Key} is pressed.");
                     this.cooldownStopwatch.Restart();
