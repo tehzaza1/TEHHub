@@ -189,9 +189,8 @@ namespace AutoHotKeyTrigger.ProfileManager
             }
             else
             {
-                // Keyboard rules use the same real-input path in every game UI mode. This
-                // does not initialize ViGEm or create a virtual controller.
-                if (BotInput.PressKey(this.Key))
+                // Preserve the pre-controller keyboard path exactly.
+                if (MiscHelper.KeyUp(this.Key))
                 {
                     logger($"{this.Key} is pressed.");
                     this.cooldownStopwatch.Restart();
