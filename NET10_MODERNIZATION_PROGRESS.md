@@ -325,12 +325,6 @@ Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 - ไม่เปลี่ยนกฎการเดินเส้นทาง และยังส่ง map เดิมให้ `LineWalker`/pathfinder
 - ตรวจ Release build ของ Radar ผ่าน 0 warning / 0 error; ต้องวัด runtime dump เพื่อยืนยัน headroom จริง
 
-### 5.19 Cache ผลตรวจเส้นตรงของ Radar
-
-- `DrawDirectionLines` จำผลจาก `LineWalker.CheckLine` ต่อ POI เมื่อผู้เล่นยังอยู่ช่องกริดเดิม, เป้าหมายเดิม, terrain buffer เดิม และ door override เดิม
-- เมื่อผู้เล่นข้ามช่องกริด, เป้าหมายเปลี่ยน, เปลี่ยน area/terrain หรือสถานะประตูเปลี่ยน จะคำนวณใหม่ทันที จึงไม่ทำให้เส้นหรือสีตามสถานะเดินได้ค้าง
-- ลดงาน CPU ที่ซ้ำทุกเฟรม โดยเฉพาะขณะยืนอยู่กับที่และเปิดเส้นตรง; ไม่เปลี่ยนการวาดหรือ pathfinding แบบ smooth
-
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
