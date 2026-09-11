@@ -24,7 +24,7 @@ namespace AutoExile2.Systems
     /// - Minimum input event gap / APM limiter
     /// - WASD continuous movement and sprint
     /// </summary>
-    public static class BotInput
+    public static partial class BotInput
     {
         private const int MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const int MOUSEEVENTF_LEFTUP = 0x0004;
@@ -35,27 +35,29 @@ namespace AutoExile2.Systems
         private const int KEYEVENTF_KEYUP = 0x0002;
         private const uint WM_KEYUP = 0x0101;
 
-        [DllImport("user32.dll", SetLastError = true)]
+        [LibraryImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        private static partial bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr GetForegroundWindow();
 
-        [DllImport("user32.dll")]
-        private static extern bool SetCursorPos(int x, int y);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool SetCursorPos(int x, int y);
 
-        [DllImport("user32.dll")]
-        private static extern bool GetCursorPos(out POINT lpPoint);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetCursorPos(out POINT lpPoint);
 
-        [DllImport("user32.dll")]
-        private static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
+        [LibraryImport("user32.dll")]
+        private static partial void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
 
-        [DllImport("user32.dll")]
-        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+        [LibraryImport("user32.dll")]
+        private static partial void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
 
-        [DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
+        [LibraryImport("user32.dll")]
+        private static partial short GetAsyncKeyState(int vKey);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT

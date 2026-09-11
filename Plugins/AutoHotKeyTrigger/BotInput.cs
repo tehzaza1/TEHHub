@@ -76,13 +76,13 @@ namespace AutoHotKeyTrigger
     ///     Provides XInput gamepad polling and direct SendMessage key-press
     ///     to bypass <c>MiscHelper.KeyUp</c> which is blocked in controller mode.
     /// </summary>
-    internal static class BotInput
+    internal static partial class BotInput
     {
-        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
-        private static extern uint TimeBeginPeriod(uint uMilliseconds);
+        [LibraryImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
+        private static partial uint TimeBeginPeriod(uint uMilliseconds);
 
-        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
-        private static extern uint TimeEndPeriod(uint uMilliseconds);
+        [LibraryImport("winmm.dll", EntryPoint = "timeEndPeriod")]
+        private static partial uint TimeEndPeriod(uint uMilliseconds);
 
         private const int WM_KEYDOWN = 0x0100;
         private const int WM_KEYUP = 0x0101;
@@ -269,16 +269,16 @@ namespace AutoHotKeyTrigger
             public XINPUT_GAMEPAD Gamepad;
         }
 
-        [DllImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
-        private static extern int XInputGetState(int dwUserIndex, ref XINPUT_STATE pState);
+        [LibraryImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
+        private static partial int XInputGetState(int dwUserIndex, ref XINPUT_STATE pState);
 
         // ── user32 SendMessage ───────────────────────────────────────
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr GetForegroundWindow();
 
         // ── Public API ───────────────────────────────────────────────
 

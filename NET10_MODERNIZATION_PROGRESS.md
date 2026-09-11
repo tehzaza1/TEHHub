@@ -450,6 +450,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ตั้ง `LangVersion` จาก `Directory.Build.props` เพื่อให้ทุก project ที่ build ภายใต้ solution ใช้มาตรฐาน C# เดียวกัน
 - ตรวจ Release build ของ GameHelper ผ่าน 0 warning / 0 error; `DllImport` ไม่เหลือใน GameHelper หรือ Launcher
 
+### 6.13 ปิด DllImport ที่เหลือใน plugin
+
+- ย้าย interop ของ PickupHelper, AutoHotKeyTrigger และ AutoExile2 (Win32 input, XInput และ timer resolution) ไปใช้ source-generated `LibraryImport`
+- เปิด `AllowUnsafeBlocks` จาก `Directory.Build.props`; จำเป็นต่อ code ที่ generator สร้างเท่านั้น ไม่ได้เปลี่ยนพฤติกรรมหรือเปิด unsafe API ให้กับ logic ปกติ
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error และ source ที่ build ไม่มี `DllImport` เหลือ
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

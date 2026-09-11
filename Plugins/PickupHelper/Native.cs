@@ -12,7 +12,7 @@ namespace PickupHelper
     ///     GameHelper core has no mouse-click helper, so we send the click ourselves at the
     ///     current cursor position (we never move the cursor).
     /// </summary>
-    internal static class Native
+    internal static partial class Native
     {
         private const int MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const int MOUSEEVENTF_LEFTUP = 0x0004;
@@ -22,11 +22,11 @@ namespace PickupHelper
         /// </summary>
         internal static bool DisableNativeInput = false;
 
-        [DllImport("user32.dll")]
-        private static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
+        [LibraryImport("user32.dll")]
+        private static partial void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
 
-        [DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
+        [LibraryImport("user32.dll")]
+        private static partial short GetAsyncKeyState(int vKey);
 
         /// <summary>
         ///     Performs a left mouse down/up at the current cursor position.

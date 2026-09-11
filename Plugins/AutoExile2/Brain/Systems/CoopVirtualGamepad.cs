@@ -43,7 +43,7 @@ namespace AutoExile2.Systems
     /// - Player 2 (Follower): Full autonomous analog steering, aiming, buttons and flasks.
     /// - Player 1 (Leader): High-speed passthrough from physical controller + auto flask and buff injection.
     /// </summary>
-    public class CoopVirtualGamepad : IDisposable
+    public partial class CoopVirtualGamepad : IDisposable
     {
         private ViGEmClient? vigemClient;
         private IXbox360Controller? followerXbox;
@@ -71,11 +71,11 @@ namespace AutoExile2.Systems
         private readonly Stopwatch followerFlaskTimer = Stopwatch.StartNew();
         private readonly Stopwatch followerSkillTimer = Stopwatch.StartNew();
 
-        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
-        private static extern uint TimeBeginPeriod(uint uMilliseconds);
+        [LibraryImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
+        private static partial uint TimeBeginPeriod(uint uMilliseconds);
 
-        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
-        private static extern uint TimeEndPeriod(uint uMilliseconds);
+        [LibraryImport("winmm.dll", EntryPoint = "timeEndPeriod")]
+        private static partial uint TimeEndPeriod(uint uMilliseconds);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct XINPUT_GAMEPAD
@@ -96,8 +96,8 @@ namespace AutoExile2.Systems
             public XINPUT_GAMEPAD Gamepad;
         }
 
-        [DllImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
-        private static extern int XInputGetState(int dwUserIndex, ref XINPUT_STATE pState);
+        [LibraryImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
+        private static partial int XInputGetState(int dwUserIndex, ref XINPUT_STATE pState);
 
         /// <summary>
         /// Checks if a specific XInput slot is currently active and connected.
