@@ -714,6 +714,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เพิ่ม `ResolveUnmanagedDllToPath` ให้ dependency native ที่อยู่ในโฟลเดอร์ plugin ถูกโหลดผ่าน resolver เดียวกับ managed dependency
 - คำสั่งโหลด plugin ใน Debug ใช้ชื่อเท่ากันแบบไม่สนตัวพิมพ์ แทนการจับชื่อบางส่วนที่อาจโหลดผิดโฟลเดอร์
 
+### 6.51 ยึด runtime files กับโฟลเดอร์โปรแกรม
+
+- กำหนด path ของ core settings, plugin metadata และโฟลเดอร์ plugin จาก `AppContext.BaseDirectory` เพื่อไม่ให้เปลี่ยนตาม current working directory ที่ใช้เปิดโปรแกรม
+- ให้ Launcher เริ่ม GameHelper โดยตั้ง working directory เป็นโฟลเดอร์ติดตั้งอย่างชัดเจน ครอบคลุม resource เก่าที่ยังใช้ relative path
+- เขียน `Error.log` ไว้ข้าง executable และป้องกันความผิดพลาดระหว่างเขียน log ไม่ให้บดบัง exception ต้นเหตุ
+- รับ path ที่ผู้ใช้ป้อนให้ Launcher อย่างปลอดภัย รวมถึง path ที่มีเครื่องหมายคำพูด และจบอย่างเรียบร้อยเมื่อเว้นว่างหรือเข้าถึงไม่ได้
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

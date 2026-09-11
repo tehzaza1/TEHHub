@@ -25,14 +25,27 @@ namespace Launcher
             {
                 Console.WriteLine($"GameHelper.exe not found in {gameHelperDir} directory.");
                 Console.Write("Provide GameHelper.exe path:");
-                var path = (Console.ReadLine() ?? string.Empty).Trim();
-                if (File.GetAttributes(path).HasFlag(FileAttributes.Directory))
+                var path = (Console.ReadLine() ?? string.Empty).Trim().Trim('"');
+                if (string.IsNullOrWhiteSpace(path))
                 {
-                    gameHelperDir = path;
+                    return false;
                 }
-                else
+
+                try
                 {
-                    gameHelperDir = Path.GetDirectoryName(path) ?? string.Empty;
+                    if (File.GetAttributes(path).HasFlag(FileAttributes.Directory))
+                    {
+                        gameHelperDir = Path.GetFullPath(path);
+                    }
+                    else
+                    {
+                        gameHelperDir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? string.Empty;
+                    }
+                }
+                catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+                {
+                    Console.WriteLine($"The provided path is invalid or inaccessible: {ex.Message}");
+                    return false;
                 }
 
                 gameHelperLoc = Path.Join(gameHelperDir, GameHelperFileName);

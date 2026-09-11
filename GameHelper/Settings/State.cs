@@ -24,19 +24,22 @@ namespace GameHelper.Settings
         ///     Core Setting File Information.
         /// </summary>
         [JsonIgnore]
-        public static readonly FileInfo CoreSettingFile = new("configs/core_settings.json");
+        public static readonly FileInfo CoreSettingFile = new(
+            Path.Combine(AppContext.BaseDirectory, "configs", "core_settings.json"));
 
         /// <summary>
         ///     Plugins metadata File information.
         /// </summary>
         [JsonIgnore]
-        public static readonly FileInfo PluginsMetadataFile = new("configs/plugins.json");
+        public static readonly FileInfo PluginsMetadataFile = new(
+            Path.Combine(AppContext.BaseDirectory, "configs", "plugins.json"));
 
         /// <summary>
         ///     Folder containing all the plugins.
         /// </summary>
         [JsonIgnore]
-        public static readonly DirectoryInfo PluginsDirectory = new("Plugins");
+        public static readonly DirectoryInfo PluginsDirectory = new(
+            Path.Combine(AppContext.BaseDirectory, "Plugins"));
 
         /// <summary>
         ///     Gets a value indicating whether user wants to disable entity processing

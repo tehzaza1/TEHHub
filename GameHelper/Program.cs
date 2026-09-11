@@ -22,7 +22,15 @@ namespace GameHelper
             AppDomain.CurrentDomain.UnhandledException += (sender, exceptionArgs) =>
             {
                 var errorText = "Program exited with message:\n " + exceptionArgs.ExceptionObject;
-                File.AppendAllText("Error.log", $"{DateTime.Now:g} {errorText}\r\n{new string('-', 30)}\r\n");
+                try
+                {
+                    var logPath = Path.Combine(AppContext.BaseDirectory, "Error.log");
+                    File.AppendAllText(logPath, $"{DateTime.Now:g} {errorText}\r\n{new string('-', 30)}\r\n");
+                }
+                catch (Exception loggingException)
+                {
+                    Console.Error.WriteLine($"Unable to write Error.log: {loggingException.Message}");
+                }
 
                 // Do NOT call Environment.Exit — it skips `using` Dispose and leaks
                 // the SafeMemoryHandle (audit F-061). The runtime will terminate

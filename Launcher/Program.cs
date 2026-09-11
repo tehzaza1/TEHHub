@@ -45,7 +45,12 @@ namespace Launcher
             
                 var gameHelperPath = GameHelperTransformer.TransformGameHelperExecutable(gameHelperDir, gameHelperLoc, newName);
                 Console.WriteLine($"Starting GameHelper at '{gameHelperPath}'...");
-                Process.Start(gameHelperPath);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = gameHelperPath,
+                    WorkingDirectory = gameHelperDir,
+                    UseShellExecute = false,
+                });
             }
             catch (Exception ex)
             {
