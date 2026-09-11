@@ -155,7 +155,13 @@ namespace GameHelper.RemoteObjects
 
         private void AddFileIfLoadedInCurrentArea(SafeMemoryHandle reader, IntPtr address)
         {
-            var information = reader.ReadMemory<FileInfoValueStruct>(address);
+            // The loaded-file map is mutated while the game streams assets. A torn node is
+            // expected here; skip it quietly instead of counting a transient pointer as a
+            // structural memory-read failure.
+            if (!reader.TryReadMemory<FileInfoValueStruct>(address, out var information, recordFailure: false))
+            {
+                return;
+            }
             if (information.AreaChangeCount > FileInfoValueStruct.IGNORE_FIRST_X_AREAS &&
                 information.AreaChangeCount == Core.AreaChangeCounter.Value)
             {

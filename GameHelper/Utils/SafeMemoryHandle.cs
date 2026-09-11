@@ -103,7 +103,7 @@ namespace GameHelper.Utils
         }
 
         /// <summary>
-        ///     Reads the process memory as type T without logging on failure. Returns false
+        ///     Reads the process memory as type T. Returns false
         ///     (and <paramref name="result"/> = default) when the handle is invalid, the
         ///     address fails the <see cref="IsValidAddress"/> sanity check, or the underlying
         ///     read fails. Use this on hot, inherently-racy paths (e.g. walking a live,
@@ -114,14 +114,18 @@ namespace GameHelper.Utils
         /// <typeparam name="T">type of data structure to read.</typeparam>
         /// <param name="address">address to read the data from.</param>
         /// <param name="result">data read from the process, or default on failure.</param>
+        /// <param name="recordFailure">whether a failed read should enter diagnostics.</param>
         /// <returns>true if the read succeeded; otherwise false.</returns>
-        public bool TryReadMemory<T>(IntPtr address, out T result)
+        public bool TryReadMemory<T>(IntPtr address, out T result, bool recordFailure = true)
             where T : unmanaged
         {
             result = default;
             if (this.IsInvalid || !IsValidAddress(address))
             {
-                RecordDiagnosticFailure(typeof(T).Name, address);
+                if (recordFailure)
+                {
+                    RecordDiagnosticFailure(typeof(T).Name, address);
+                }
                 return false;
             }
 
@@ -148,7 +152,10 @@ namespace GameHelper.Utils
                 if (!succeeded || bytesRead != expectedBytes)
                 {
                     result = default;
-                    RecordDiagnosticFailure(typeof(T).Name, address);
+                    if (recordFailure)
+                    {
+                        RecordDiagnosticFailure(typeof(T).Name, address);
+                    }
                     return false;
                 }
 
@@ -157,7 +164,10 @@ namespace GameHelper.Utils
             catch
             {
                 result = default;
-                RecordDiagnosticFailure(typeof(T).Name, address);
+                if (recordFailure)
+                {
+                    RecordDiagnosticFailure(typeof(T).Name, address);
+                }
                 return false;
             }
         }

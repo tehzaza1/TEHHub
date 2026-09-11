@@ -642,6 +642,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - คงการ lock, `Clear`, การคืน `ArrayPool` และพฤติกรรมกรณีอ่าน vector ล้มเหลวเหมือนเดิม
 - ไม่ลดการอ่านหรือความถี่ update; เปลี่ยนเฉพาะวิธีเติมค่าใน dictionary ฝั่ง process
 
+### 6.42 แยก expected torn-read ของ LoadedFiles ออกจาก failure จริง
+
+- `LoadedFiles.AddFileIfLoadedInCurrentArea` เดิมใช้เส้นทางที่บันทึก failure เมื่อ node ของ loaded-file map ถูกเกมแก้พร้อมกัน ทำให้ dump แสดง `1024` failures ทั้งที่ session read สำเร็จทั้งหมด
+- เปลี่ยนจุดนี้เป็น `TryReadMemory(..., recordFailure: false)` และข้าม node ที่อ่านไม่ทันอย่างเงียบๆ เพราะข้อมูลรายการไฟล์เป็น best-effort อยู่แล้ว
+- เส้นทางอื่นยังบันทึก failure ตามเดิม; runtime validation ลด `Total failed reads: 1024 → 0`, session failures `0`, และยังคงประมาณ `1079 reads/frame`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
