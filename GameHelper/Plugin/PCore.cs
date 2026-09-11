@@ -96,7 +96,7 @@ namespace GameHelper.Plugin
                 try
                 {
                     Directory.CreateDirectory(configDirectory);
-                    File.Copy(legacyPath, configPath, overwrite: false);
+                    File.Move(legacyPath, configPath);
                 }
                 catch (IOException)
                 {

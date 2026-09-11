@@ -136,6 +136,12 @@ namespace Radar
 
         private string StairsTgtPathName => this.PluginConfigPath("stairs_tgt_files.txt");
 
+        private string ImportantTgtDefaultPathName => Path.Join(this.DllDirectory, "Defaults", "important_tgt_files.txt");
+
+        private string BossArenaTgtDefaultPathName => Path.Join(this.DllDirectory, "Defaults", "boss_arena_tgt_files.txt");
+
+        private string StairsTgtDefaultPathName => Path.Join(this.DllDirectory, "Defaults", "stairs_tgt_files.txt");
+
         /// <inheritdoc/>
         public override void DrawSettings()
         {
@@ -638,6 +644,8 @@ namespace Radar
                 this.Settings = JsonSerializer.Deserialize(content, RadarJsonContext.Default.RadarSettings) ?? new RadarSettings();
             }
 
+            this.EnsureDefaultTargetFiles();
+
             if (File.Exists(this.ImportantTgtPathName))
             {
                 var tgtfiles = File.ReadAllText(this.ImportantTgtPathName);
@@ -707,6 +715,29 @@ namespace Radar
                     RadarJsonContext.Default.DictionaryStringString);
                 File.WriteAllText(this.StairsTgtPathName, stairsfiles);
             }
+        }
+
+        private void EnsureDefaultTargetFiles()
+        {
+            EnsureDefaultTargetFile(this.ImportantTgtPathName, this.ImportantTgtDefaultPathName);
+            EnsureDefaultTargetFile(this.BossArenaTgtPathName, this.BossArenaTgtDefaultPathName);
+            EnsureDefaultTargetFile(this.StairsTgtPathName, this.StairsTgtDefaultPathName);
+        }
+
+        private static void EnsureDefaultTargetFile(string destination, string defaultPath)
+        {
+            if (File.Exists(destination) || !File.Exists(defaultPath))
+            {
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(destination);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            File.Copy(defaultPath, destination);
         }
 
         private void DrawLargeMap(

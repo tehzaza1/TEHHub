@@ -45,7 +45,8 @@
   </ItemGroup>
 
   <Target Name="CopyFiles" AfterTargets="Build">
-    <Copy SourceFiles="$(OutDir)$(TargetName)$(TargetExt); $(OutDir)$(TargetName).pdb; $(OutDir)icons.png; $(OutDir)important_tgt_files.txt; $(OutDir)boss_arena_tgt_files.txt; $(OutDir)stairs_tgt_files.txt" DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(OutDir)$(TargetName)$(TargetExt); $(OutDir)$(TargetName).pdb; $(OutDir)icons.png" DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(OutDir)important_tgt_files.txt; $(OutDir)boss_arena_tgt_files.txt; $(OutDir)stairs_tgt_files.txt" DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)\Defaults" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

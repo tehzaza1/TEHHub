@@ -326,6 +326,65 @@ namespace AutoExile2.WebServer
 
         private string PathFor(string name) => Path.Combine(this.profilesDir, $"{name}.json");
 
+        private static void MoveLegacyFile(string source, string destination)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? string.Empty);
+            if (!File.Exists(destination))
+            {
+                File.Move(source, destination);
+                return;
+            }
+
+            if (FilesMatch(source, destination))
+            {
+                File.Delete(source);
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(destination) ?? string.Empty;
+            var fileName = Path.GetFileNameWithoutExtension(destination);
+            var extension = Path.GetExtension(destination);
+            var backupPath = Path.Combine(directory, $"{fileName}.legacy-backup-{DateTime.UtcNow:yyyyMMddHHmmss}{extension}");
+            File.Move(source, backupPath);
+        }
+
+        private static bool FilesMatch(string first, string second)
+        {
+            var firstInfo = new FileInfo(first);
+            var secondInfo = new FileInfo(second);
+            if (firstInfo.Length != secondInfo.Length)
+            {
+                return false;
+            }
+
+            using var firstStream = File.OpenRead(first);
+            using var secondStream = File.OpenRead(second);
+            var firstBuffer = new byte[81920];
+            var secondBuffer = new byte[81920];
+            while (true)
+            {
+                var firstRead = firstStream.Read(firstBuffer, 0, firstBuffer.Length);
+                var secondRead = secondStream.Read(secondBuffer, 0, secondBuffer.Length);
+                if (firstRead != secondRead)
+                {
+                    return false;
+                }
+
+                if (firstRead == 0)
+                {
+                    return true;
+                }
+
+                for (var index = 0; index < firstRead; index++)
+                {
+                    if (firstBuffer[index] != secondBuffer[index])
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
         private void MigrateLegacyFiles()
         {
             try
@@ -335,21 +394,23 @@ namespace AutoExile2.WebServer
                     foreach (var source in Directory.EnumerateFiles(this.legacyProfilesDir, "*.json"))
                     {
                         var destination = Path.Combine(this.profilesDir, Path.GetFileName(source));
-                        if (!File.Exists(destination))
-                        {
-                            File.Copy(source, destination);
-                        }
+                        MoveLegacyFile(source, destination);
+                    }
+
+                    if (!Directory.EnumerateFileSystemEntries(this.legacyProfilesDir).Any())
+                    {
+                        Directory.Delete(this.legacyProfilesDir);
                     }
                 }
 
-                if (!File.Exists(this.metaPath) && File.Exists(this.legacyMetaPath))
+                if (File.Exists(this.legacyMetaPath))
                 {
-                    File.Copy(this.legacyMetaPath, this.metaPath);
+                    MoveLegacyFile(this.legacyMetaPath, this.metaPath);
                 }
 
-                if (!File.Exists(this.settingsPath) && File.Exists(this.legacySettingsPath))
+                if (File.Exists(this.legacySettingsPath))
                 {
-                    File.Copy(this.legacySettingsPath, this.settingsPath);
+                    MoveLegacyFile(this.legacySettingsPath, this.settingsPath);
                 }
             }
             catch (Exception ex)

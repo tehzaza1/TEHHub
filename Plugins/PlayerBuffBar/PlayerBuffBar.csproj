@@ -22,18 +22,6 @@
 
   <ItemGroup>
 
-    <None Update="config\settings.txt">
-
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-
-    </None>
-
-    <None Update="config\icon_map.json">
-
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-
-    </None>
-
     <None Update="icons\*.png">
 
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -79,13 +67,8 @@
           SkipUnchangedFiles="true" />
 
     <ItemGroup>
-      <_PluginConfigFiles Include="$(OutDir)config\**\*" />
       <_PluginIconFiles Include="$(OutDir)icons\**\*" />
     </ItemGroup>
-
-    <Copy SourceFiles="@(_PluginConfigFiles)"
-          DestinationFiles="@(_PluginConfigFiles->'$(PluginDest)\config\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
 
     <Copy SourceFiles="@(_PluginIconFiles)"
           DestinationFiles="@(_PluginIconFiles->'$(PluginDest)\icons\%(RecursiveDir)%(Filename)%(Extension)')"

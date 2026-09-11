@@ -133,7 +133,7 @@ namespace PlayerBuffBar
                     try
                     {
                         Directory.CreateDirectory(configDirectory);
-                        File.Copy(legacyPath, path, overwrite: false);
+                        File.Move(legacyPath, path);
                     }
                     catch (IOException)
                     {
