@@ -307,7 +307,10 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 this.Player2.Address = IntPtr.Zero;
             }
 
-            this.UpdateEntities(data.Entities.AwakeEntities, this.AwakeEntities, true);
+            using (Ui.MemoryReadDiagnostics.MeasureRegion("Core.AreaInstance.Entities"))
+            {
+                this.UpdateEntities(data.Entities.AwakeEntities, this.AwakeEntities, true);
+            }
             this.AddEntityBackedPlayerBuffs();
         }
 
@@ -455,28 +458,31 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     return false;
                 }
 
-                if (data.TryGetValue(key, out var entity))
+                using (Ui.MemoryReadDiagnostics.MeasureRegion("Core.AreaInstance.EntityUpdate"))
                 {
-                    entity.Address = value.EntityPtr;
-                }
-                else
-                {
-                    entity = new Entity(value.EntityPtr);
-                    if (!string.IsNullOrEmpty(entity.Path))
+                    if (data.TryGetValue(key, out var entity))
                     {
-                        data[key] = entity;
-                        if (addToCache)
-                        {
-                            this.AddToCacheParallel(key, entity.Path);
-                        }
+                        entity.Address = value.EntityPtr;
                     }
                     else
                     {
-                        entity = null;
+                        entity = new Entity(value.EntityPtr);
+                        if (!string.IsNullOrEmpty(entity.Path))
+                        {
+                            data[key] = entity;
+                            if (addToCache)
+                            {
+                                this.AddToCacheParallel(key, entity.Path);
+                            }
+                        }
+                        else
+                        {
+                            entity = null;
+                        }
                     }
-                }
 
-                entity?.UpdateNearby(this.Player);
+                    entity?.UpdateNearby(this.Player);
+                }
                 return true;
             });
         }
