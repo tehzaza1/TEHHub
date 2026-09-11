@@ -20,6 +20,7 @@ namespace Radar
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
     using GameHelper.RemoteObjects.Components;
+    using GameHelper.Ui;
     using GameHelper.Utils;
     using ImGuiNET;
     using SixLabors.ImageSharp;
@@ -457,9 +458,20 @@ namespace Radar
                 }
             }
 
-            this.CollectEntityPaths();
-            this.RebuildEntityPaths();
-            this.RebuildTrackedNodes();
+            using (PerformanceProfiler.Measure(nameof(Radar), "CollectEntityPaths"))
+            {
+                this.CollectEntityPaths();
+            }
+
+            using (PerformanceProfiler.Measure(nameof(Radar), "RebuildEntityPaths"))
+            {
+                this.RebuildEntityPaths();
+            }
+
+            using (PerformanceProfiler.Measure(nameof(Radar), "RebuildTrackedNodes"))
+            {
+                this.RebuildTrackedNodes();
+            }
 
             var isLargeMapVisible = largeMap.Address != IntPtr.Zero && largeMap.IsVisible;
             var isWorldMapOpen = Core.States.InGameStateObject.GameUi.WorldMapPanel.Address != IntPtr.Zero && Core.States.InGameStateObject.GameUi.WorldMapPanel.IsVisible;
@@ -501,12 +513,30 @@ namespace Radar
                 ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
                 ImGui.Begin(this.PluginText.Title("window.large_map_culling", "Large Map Culling Window", "RadarLargeMapCullingWindow"), ImGuiHelper.TransparentWindowFlags);
                 ImGui.PopStyleVar();
-                this.DrawLargeMap(largeMapRealCenter, trackingPos, trackingHeight);
-                this.DrawTgtFiles(largeMapRealCenter, trackingPos, trackingHeight);
-                this.DrawDirectionLines(largeMapRealCenter, trackingPos, trackingHeight);
-                this.DrawTgtIcons(largeMapRealCenter, trackingPos, trackingHeight, largeMapModifiedZoom * 5f);
-                this.DrawMapIcons(largeMapRealCenter, trackingPos, trackingHeight, largeMapModifiedZoom * 5f);
-                this.DrawEntityPaths(largeMapRealCenter, trackingPos, trackingHeight);
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawLargeMap"))
+                {
+                    this.DrawLargeMap(largeMapRealCenter, trackingPos, trackingHeight);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawTgtFiles"))
+                {
+                    this.DrawTgtFiles(largeMapRealCenter, trackingPos, trackingHeight);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawDirectionLines"))
+                {
+                    this.DrawDirectionLines(largeMapRealCenter, trackingPos, trackingHeight);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawTgtIcons"))
+                {
+                    this.DrawTgtIcons(largeMapRealCenter, trackingPos, trackingHeight, largeMapModifiedZoom * 5f);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawMapIcons"))
+                {
+                    this.DrawMapIcons(largeMapRealCenter, trackingPos, trackingHeight, largeMapModifiedZoom * 5f);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawEntityPaths"))
+                {
+                    this.DrawEntityPaths(largeMapRealCenter, trackingPos, trackingHeight);
+                }
                 ImGui.End();
             }
 
@@ -534,12 +564,30 @@ namespace Radar
                 ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f);
                 ImGui.Begin("###minimapRadar", ImGuiHelper.TransparentWindowFlags);
                 ImGui.PopStyleVar();
-                this.DrawLargeMap(miniMapCenter, trackingPos, trackingHeight, true);
-                this.DrawTgtFiles(miniMapCenter, trackingPos, trackingHeight, true);
-                this.DrawDirectionLines(miniMapCenter, trackingPos, trackingHeight, true);
-                this.DrawTgtIcons(miniMapCenter, trackingPos, trackingHeight, miniMap.Zoom);
-                this.DrawMapIcons(miniMapCenter, trackingPos, trackingHeight, miniMap.Zoom);
-                this.DrawEntityPaths(miniMapCenter, trackingPos, trackingHeight, true);
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawLargeMap"))
+                {
+                    this.DrawLargeMap(miniMapCenter, trackingPos, trackingHeight, true);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawTgtFiles"))
+                {
+                    this.DrawTgtFiles(miniMapCenter, trackingPos, trackingHeight, true);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawDirectionLines"))
+                {
+                    this.DrawDirectionLines(miniMapCenter, trackingPos, trackingHeight, true);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawTgtIcons"))
+                {
+                    this.DrawTgtIcons(miniMapCenter, trackingPos, trackingHeight, miniMap.Zoom);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawMapIcons"))
+                {
+                    this.DrawMapIcons(miniMapCenter, trackingPos, trackingHeight, miniMap.Zoom);
+                }
+                using (PerformanceProfiler.Measure(nameof(Radar), "DrawEntityPaths"))
+                {
+                    this.DrawEntityPaths(miniMapCenter, trackingPos, trackingHeight, true);
+                }
                 ImGui.End();
             }
         }

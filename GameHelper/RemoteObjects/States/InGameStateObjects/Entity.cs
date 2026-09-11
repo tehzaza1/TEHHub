@@ -12,6 +12,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
     using Components;
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
+    using GameHelper.Ui;
     using GameOffsets.Objects.States.InGameState;
     using ImGuiNET;
     using Utils;
@@ -353,6 +354,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             var reader = Core.Process.Handle;
             if (refreshComponentMap)
             {
+                using var refreshMapScope = PerformanceProfiler.Measure(
+                    nameof(Entity),
+                    "RefreshComponentMap");
                 this.componentAddresses.Clear();
                 this.componentCache.Clear();
 
@@ -398,6 +402,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             }
             else
             {
+                using var refreshCachedComponentsScope = PerformanceProfiler.Measure(
+                    nameof(Entity),
+                    "RefreshCachedComponents");
                 foreach (var kv in this.componentCache)
                 {
                     kv.Value.Address = kv.Value.Address;
@@ -501,31 +508,38 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 isUnresolved ||
                 (isMonster && this.EntityState == EntityStates.Useless);
 
-            if (!this.UpdateComponentData(entityData.ItemBase, shouldRefreshComponentMap))
             {
-                this.UpdateComponentData(entityData.ItemBase, true);
-            }
-
-            if (this.EntityType == EntityTypes.Unidentified)
-            {
-                if (!this.TryCalculateEntityType())
+                using var componentUpdateScope = PerformanceProfiler.Measure(nameof(Entity), "UpdateComponentData");
+                if (!this.UpdateComponentData(entityData.ItemBase, shouldRefreshComponentMap))
                 {
-                    this.unresolvedRetryCount++;
-                    this.EntityState = EntityStates.Useless;
-                    return;
+                    this.UpdateComponentData(entityData.ItemBase, true);
                 }
             }
 
-            if (this.EntitySubtype == EntitySubtypes.Unidentified)
             {
-                if (!this.TryCalculateEntitySubType())
+                using var classificationScope = PerformanceProfiler.Measure(nameof(Entity), "Classify");
+                if (this.EntityType == EntityTypes.Unidentified)
                 {
-                    this.unresolvedRetryCount++;
-                    this.EntityState = EntityStates.Useless;
-                    return;
+                    if (!this.TryCalculateEntityType())
+                    {
+                        this.unresolvedRetryCount++;
+                        this.EntityState = EntityStates.Useless;
+                        return;
+                    }
+                }
+
+                if (this.EntitySubtype == EntitySubtypes.Unidentified)
+                {
+                    if (!this.TryCalculateEntitySubType())
+                    {
+                        this.unresolvedRetryCount++;
+                        this.EntityState = EntityStates.Useless;
+                        return;
+                    }
                 }
             }
 
+            using var stateScope = PerformanceProfiler.Measure(nameof(Entity), "CalculateState");
             this.CalculateEntityState();
         }
 

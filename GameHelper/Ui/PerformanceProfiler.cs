@@ -29,7 +29,7 @@ public static class PerformanceProfiler
     
     private static DateTime lastUpdate = DateTime.MinValue;
     private static List<ProfileRow> cachedRows = [];
-    private static bool showCurrentFrameOnly = true;
+    private static bool showCurrentFrameOnly = false;
 
     internal static void InitializeCoroutines()
     {
@@ -141,14 +141,14 @@ public static class PerformanceProfiler
                     ImGui.TableSetupColumn("Avg (Call)");
                     ImGui.TableSetupColumn("P95 (Call)");
                     ImGui.TableSetupColumn("P99 (Call)");
-                    ImGui.TableSetupColumn("Alloc (Call)");
-                    ImGui.TableSetupColumn("Avg (Frame)", ImGuiTableColumnFlags.DefaultSort);
+                    ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.DefaultSort);
+                    ImGui.TableSetupColumn("Avg (Frame)");
                     
                     ImGui.TableSetupScrollFreeze(0, 1);
                     ImGui.TableHeadersRow();
 
                     var sortSpecs = ImGui.TableGetSortSpecs();
-                    List<ProfileRow> sortedRows = cachedRows.OrderByDescending(r => r.AvgPerFrameNs).ToList(); // Default
+                    List<ProfileRow> sortedRows = cachedRows.OrderByDescending(r => r.AvgAllocatedBytes).ToList();
                     if (sortSpecs.SpecsCount > 0)
                     {
                         var spec = sortSpecs.Specs;
@@ -164,7 +164,7 @@ public static class PerformanceProfiler
                             4 => ascending ? cachedRows.OrderBy(r => r.P99PerCallNs).ToList() : cachedRows.OrderByDescending(r => r.P99PerCallNs).ToList(), // P99 (Call)
                             5 => ascending ? cachedRows.OrderBy(r => r.AvgAllocatedBytes).ToList() : cachedRows.OrderByDescending(r => r.AvgAllocatedBytes).ToList(), // Alloc (Call)
                             6 => ascending ? cachedRows.OrderBy(r => r.AvgPerFrameNs).ToList() : cachedRows.OrderByDescending(r => r.AvgPerFrameNs).ToList(), // Avg (Frame)
-                            _ => cachedRows.OrderByDescending(r => r.AvgPerFrameNs).ToList()
+                            _ => cachedRows.OrderByDescending(r => r.AvgAllocatedBytes).ToList()
                         };
                     }
 

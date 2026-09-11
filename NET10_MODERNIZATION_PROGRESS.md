@@ -293,6 +293,23 @@ Rollback commit: `c8b2203 Revert "perf: combine Atlas node header reads"`
 - Minimap icon ใช้ buffer ที่เช่าจาก pool ขนาด 512 bytes และคืนทุกกรณี รวมถึงกรณี read หรือ parse ล้มเหลว
 - ไม่เปลี่ยนการ refresh, cache หรือข้อมูลที่นำไปวาด จึงไม่ทำให้ Atlas/minimap ตามข้อมูลช้าลง
 
+### 5.14 แยก profiler ของ Entity เพื่อหาจุด GC ที่แท้จริง
+
+- `Entity.UpdateData` เป็นค่า inclusive ที่รวมงานของ component ย่อย จึงแยกตัววัดของการ refresh map, refresh component ที่ cache, classify และ calculate state
+- instrumentation ทำงานเฉพาะขณะเปิด Performance Profiler และไม่เปลี่ยน memory reads, refresh rate หรือการจัดประเภท entity
+- ผลรอบถัดไปจะใช้เลือกลด allocation จากจุดที่วัดได้จริง แทนการเดาและเสี่ยงทำให้ Radar/ปลั๊กอินอ่านข้อมูลช้า
+
+### 5.15 แยก profiler ภายใน Radar.DrawUI
+
+- แยกวัด `CollectEntityPaths`, `RebuildEntityPaths`, `RebuildTrackedNodes` และแต่ละ draw pass ของ large map/minimap
+- ยังไม่เปลี่ยน logic หรือจำนวนรอบ refresh; ใช้เพื่อระบุแหล่ง allocation ของ Radar ประมาณ 50 KiB/เฟรมจาก runtime dump
+
+### 5.16 ปรับ Performance Profiler ให้ดูค่าเฉลี่ยสะสมเป็นค่าเริ่มต้น
+
+- เปลี่ยนค่าเริ่มต้นจาก `Current Frame Only` เป็น rolling window เพื่อไม่ให้ผลสลับไปมาตามเฟรมล่าสุด
+- ยังเลือก `Current Frame Only` ได้จาก checkbox เมื่อจำเป็นต้องตรวจเฟรมเดียว
+- เปลี่ยนการเรียงลำดับเริ่มต้นเป็น `Alloc (Call)` จากมากไปน้อย เพื่อให้เห็นคอขวด allocation ในภาพเดียว
+
 ## กำลังทำ
 
 เฟส 5 — ลดจำนวน native memory calls และ allocation โดยใช้ baseline ที่เก็บไว้ชี้จุดคุ้มที่สุด
