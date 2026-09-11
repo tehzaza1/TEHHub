@@ -529,8 +529,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 var containerAddr = GetControllerContainerAddress(this.Address);
                 if (Core.GHSettings.IsCoopMode)
                 {
-                    this.LeftPanel.Address = ResolveChildAddress(this.Address, LeftPanelCoopPath);
-                    this.RightPanel.Address = ResolveChildAddress(this.Address, RightPanelCoopPath);
+                    var coopPanels = ResolveChildAddresses(this.Address, LeftPanelCoopPath, RightPanelCoopPath);
+                    this.LeftPanel.Address = coopPanels[0];
+                    this.RightPanel.Address = coopPanels[1];
                 }
                 else
                 {
@@ -582,13 +583,18 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         {
             if (Core.GHSettings.EnableControllerMode)
             {
-                this.LargeMap.Address = ResolveChildAddress(this.Address, ControllerLargeMapViewportChildPath);
-                this.MiniMap.Address = ResolveChildAddress(this.Address, ControllerMiniMapViewportChildPath);
+                var controllerMaps = ResolveChildAddresses(
+                    this.Address,
+                    ControllerLargeMapViewportChildPath,
+                    ControllerMiniMapViewportChildPath);
+                this.LargeMap.Address = controllerMaps[0];
+                this.MiniMap.Address = controllerMaps[1];
             }
             else
             {
-                this.LargeMap.Address = ResolveChildAddress(this.Address, LargeMapViewportChildPath);
-                this.MiniMap.Address = ResolveChildAddress(this.Address, MiniMapViewportChildPath);
+                var maps = ResolveChildAddresses(this.Address, LargeMapViewportChildPath, MiniMapViewportChildPath);
+                this.LargeMap.Address = maps[0];
+                this.MiniMap.Address = maps[1];
             }
         }
 
@@ -599,39 +605,69 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 var containerAddr = GetControllerContainerAddress(this.Address);
                 if (containerAddr != IntPtr.Zero)
                 {
-                    this.WorldMapPanel.Address = ResolveChildAddress(containerAddr, ControllerWorldMapPanelSubPath);
-                    this.Act1.Address = ResolveChildAddress(containerAddr, ControllerAct1PanelSubPath);
-                    this.Act2.Address = ResolveChildAddress(containerAddr, ControllerAct2PanelSubPath);
-                    this.Act3.Address = ResolveChildAddress(containerAddr, ControllerAct3PanelSubPath);
-                    this.Act4.Address = ResolveChildAddress(containerAddr, ControllerAct4PanelSubPath);
-                    this.Interlude.Address = ResolveChildAddress(containerAddr, ControllerInterludePanelSubPath);
-                    this.Atlas.Address = ResolveChildAddress(containerAddr, ControllerAtlasPanelSubPath);
-                    this.AtlasSkillsPanel.Address = ResolveChildAddress(containerAddr, ControllerAtlasSkillsPanelSubPath);
+                    var controllerPanels = ResolveChildAddresses(
+                        containerAddr,
+                        ControllerWorldMapPanelSubPath,
+                        ControllerAct1PanelSubPath,
+                        ControllerAct2PanelSubPath,
+                        ControllerAct3PanelSubPath,
+                        ControllerAct4PanelSubPath,
+                        ControllerInterludePanelSubPath,
+                        ControllerAtlasPanelSubPath,
+                        ControllerAtlasSkillsPanelSubPath);
+                    this.WorldMapPanel.Address = controllerPanels[0];
+                    this.Act1.Address = controllerPanels[1];
+                    this.Act2.Address = controllerPanels[2];
+                    this.Act3.Address = controllerPanels[3];
+                    this.Act4.Address = controllerPanels[4];
+                    this.Interlude.Address = controllerPanels[5];
+                    this.Atlas.Address = controllerPanels[6];
+                    this.AtlasSkillsPanel.Address = controllerPanels[7];
                 }
                 else
                 {
-                    this.WorldMapPanel.Address = ResolveChildAddress(this.Address, ControllerWorldMapPanelChildPath);
-                    this.Act1.Address = ResolveChildAddress(this.Address, ControllerAct1PanelChildPath);
-                    this.Act2.Address = ResolveChildAddress(this.Address, ControllerAct2PanelChildPath);
-                    this.Act3.Address = ResolveChildAddress(this.Address, ControllerAct3PanelChildPath);
-                    this.Act4.Address = ResolveChildAddress(this.Address, ControllerAct4PanelChildPath);
-                    this.Interlude.Address = ResolveChildAddress(this.Address, ControllerInterludePanelChildPath);
-                    this.Atlas.Address = ResolveChildAddress(this.Address, ControllerAtlasPanelChildPath);
-                    this.AtlasSkillsPanel.Address = ResolveChildAddress(this.Address, ControllerAtlasSkillsPanelChildPath);
+                    var controllerPanels = ResolveChildAddresses(
+                        this.Address,
+                        ControllerWorldMapPanelChildPath,
+                        ControllerAct1PanelChildPath,
+                        ControllerAct2PanelChildPath,
+                        ControllerAct3PanelChildPath,
+                        ControllerAct4PanelChildPath,
+                        ControllerInterludePanelChildPath,
+                        ControllerAtlasPanelChildPath,
+                        ControllerAtlasSkillsPanelChildPath);
+                    this.WorldMapPanel.Address = controllerPanels[0];
+                    this.Act1.Address = controllerPanels[1];
+                    this.Act2.Address = controllerPanels[2];
+                    this.Act3.Address = controllerPanels[3];
+                    this.Act4.Address = controllerPanels[4];
+                    this.Interlude.Address = controllerPanels[5];
+                    this.Atlas.Address = controllerPanels[6];
+                    this.AtlasSkillsPanel.Address = controllerPanels[7];
                 }
 
                 this.TempleConsole.Address = ResolveChildAddress(this.Address, TempleConsoleChildPath);
             }
             else
             {
-                this.WorldMapPanel.Address = ResolveChildAddress(this.Address, WorldMapPanelChildPath);
-                this.Act1.Address = ResolveChildAddress(this.Address, Act1PanelChildPath);
-                this.Act2.Address = ResolveChildAddress(this.Address, Act2PanelChildPath);
-                this.Act3.Address = ResolveChildAddress(this.Address, Act3PanelChildPath);
-                this.Act4.Address = ResolveChildAddress(this.Address, Act4PanelChildPath);
-                this.Interlude.Address = ResolveChildAddress(this.Address, InterludePanelChildPath);
-                this.Atlas.Address = ResolveChildAddress(this.Address, AtlasPanelChildPath);
-                this.AtlasSkillsPanel.Address = ResolveChildAddress(this.Address, AtlasSkillsPanelChildPath);
+                var panels = ResolveChildAddresses(
+                    this.Address,
+                    WorldMapPanelChildPath,
+                    Act1PanelChildPath,
+                    Act2PanelChildPath,
+                    Act3PanelChildPath,
+                    Act4PanelChildPath,
+                    InterludePanelChildPath,
+                    AtlasPanelChildPath,
+                    AtlasSkillsPanelChildPath);
+                this.WorldMapPanel.Address = panels[0];
+                this.Act1.Address = panels[1];
+                this.Act2.Address = panels[2];
+                this.Act3.Address = panels[3];
+                this.Act4.Address = panels[4];
+                this.Interlude.Address = panels[5];
+                this.Atlas.Address = panels[6];
+                this.AtlasSkillsPanel.Address = panels[7];
                 this.TempleConsole.Address = ResolveChildAddress(this.Address, TempleConsoleChildPath);
             }
         }
@@ -1167,6 +1203,59 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             }
 
             return false;
+        }
+
+        private static IntPtr[] ResolveChildAddresses(IntPtr rootAddress, params int[][] childPaths)
+        {
+            var results = new IntPtr[childPaths.Length];
+            if (rootAddress == IntPtr.Zero)
+            {
+                return results;
+            }
+
+            var reader = Core.Process.Handle;
+            var offsets = new Dictionary<IntPtr, UiElementBaseOffset>();
+            var children = new Dictionary<(IntPtr Address, int Index), IntPtr>();
+            for (var pathIndex = 0; pathIndex < childPaths.Length; pathIndex++)
+            {
+                var currentAddress = rootAddress;
+                foreach (var childIndex in childPaths[pathIndex])
+                {
+                    if (childIndex < 0 || !offsets.TryGetValue(currentAddress, out var data) &&
+                        !reader.TryReadMemory(currentAddress, out data))
+                    {
+                        currentAddress = IntPtr.Zero;
+                        break;
+                    }
+
+                    offsets[currentAddress] = data;
+                    var childCount = data.ChildrensPtr.TotalElements(IntPtr.Size);
+                    if (data.ChildrensPtr.First == IntPtr.Zero || childIndex >= childCount)
+                    {
+                        currentAddress = IntPtr.Zero;
+                        break;
+                    }
+
+                    var key = (currentAddress, childIndex);
+                    if (!children.TryGetValue(key, out var childAddress))
+                    {
+                        childAddress = reader.ReadMemory<IntPtr>(data.ChildrensPtr.First + (childIndex * IntPtr.Size));
+                        children[key] = childAddress;
+                    }
+
+                    if (childAddress == IntPtr.Zero)
+                    {
+                        currentAddress = IntPtr.Zero;
+                        break;
+                    }
+
+                    currentAddress = childAddress;
+                }
+
+                results[pathIndex] = ValidUiElementOrZero(currentAddress);
+            }
+
+            return results;
         }
 
         private static IntPtr ResolveChildAddress(IntPtr rootAddress, int[] childPath)

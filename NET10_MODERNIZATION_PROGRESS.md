@@ -533,6 +533,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - คำสั่งถูก queue แล้วทำงานใน render coroutine เดิม จึงไม่เพิ่มการอ่าน memory หรือ thread ใหม่ใน hot path และยังคง gate การบันทึกด้วย `ShowMemoryDiagnostics`
 - dump ใช้ค่า session average, reads/frame และ breakdown scalar/buffer ชุดเดียวกับหน้าต่าง Performance/Memory Diagnostics ทำให้เทียบ workload รอบต่อรอบได้ง่าย
 
+### 6.26 รวมการเดิน UI child paths ต่อเฟรม
+
+- `ImportantUiElements` เคยอ่าน `UiElementBaseOffset` และ child pointer ซ้ำเมื่อหลาย path ใช้ prefix เดียวกัน เช่น world-map tabs และ minimap/แผนที่ใหญ่
+- เพิ่ม per-update path resolver ที่แชร์ offset/child pointer ภายในกลุ่มเดียวกัน โดยยัง validate `Self` ของปลายทางทุก path และไม่ลดความถี่การอัปเดต UI
+- Runtime validation: `ImportantUiElements` ลดจากประมาณ 130 เป็น 97 reads/frame และรวมระบบลดจาก 267 เป็น 224 reads/frame; รอบทดสอบไม่มี read failure
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
