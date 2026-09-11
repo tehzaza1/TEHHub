@@ -10,6 +10,7 @@ namespace GameHelper.RemoteObjects.Components
     using GameHelper.RemoteEnums;
     using System.Collections.Generic;
     using System.Runtime.CompilerServices;
+    using System.Runtime.InteropServices;
     using GameHelper.Utils;
     using GameOffsets.Objects.Components;
     using GameOffsets.Natives;
@@ -109,7 +110,11 @@ namespace GameHelper.RemoteObjects.Components
                     for (var i = 0; i < count; i++)
                     {
                         var newStat = buffer[i];
-                        stats[(GameStats)newStat.key] = newStat.value;
+                        ref var value = ref CollectionsMarshal.GetValueRefOrAddDefault(
+                            stats,
+                            (GameStats)newStat.key,
+                            out _);
+                        value = newStat.value;
                     }
                 }
             }

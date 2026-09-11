@@ -636,6 +636,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ไม่ลดจำนวน component, memory read หรือความถี่ update; ทุก component ที่ `RequiresPerFrameRefresh` ยังถูก refresh ทุกเฟรมและตรวจ owner entity เหมือนเดิม
 - Runtime profiler ที่ 165 FPS, 104 entities: `RefreshCachedComponents` `1.01 ms → 948 µs`, allocation `356 B → 203 B`; `UpdateComponentData` `1.28 → 1.22 ms`
 
+### 6.41 ใช้ CollectionsMarshal ในการเติม Stats
+
+- `StatUpdator` ยังคงใช้ dictionary เดิมที่ plugin อ่านอยู่ แต่เปลี่ยนการเขียนแต่ละ stat เป็น `CollectionsMarshal.GetValueRefOrAddDefault` ของ .NET 10 เพื่อลด lookup ซ้ำในวงวนร้อน
+- คงการ lock, `Clear`, การคืน `ArrayPool` และพฤติกรรมกรณีอ่าน vector ล้มเหลวเหมือนเดิม
+- ไม่ลดการอ่านหรือความถี่ update; เปลี่ยนเฉพาะวิธีเติมค่าใน dictionary ฝั่ง process
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
