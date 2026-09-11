@@ -649,7 +649,16 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 using var componentUpdateScope = PerformanceProfiler.Measure(nameof(Entity), "UpdateComponentData");
                 if (!this.UpdateComponentData(entityData.ItemBase, shouldRefreshComponentMap))
                 {
-                    this.UpdateComponentData(entityData.ItemBase, true);
+                    // A failed map rebuild usually means the live entity was torn while the
+                    // game was waking it. Retrying the same map read immediately just repeats
+                    // the expensive traversal against the same unstable pointers; the entity
+                    // remains unresolved and is retried on the next frame. Keep the fallback
+                    // for the cheap per-frame refresh path, where rebuilding the map can recover
+                    // a component that disappeared after an otherwise valid entity read.
+                    if (!shouldRefreshComponentMap)
+                    {
+                        this.UpdateComponentData(entityData.ItemBase, true);
+                    }
                 }
             }
 

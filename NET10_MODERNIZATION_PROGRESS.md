@@ -699,6 +699,14 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ไม่เปลี่ยนชนิดข้อมูล, ความถี่ update หรือ public plugin contract; ลดเฉพาะ synchronization overhead ของการอ่าน pointer
 - Runtime validation: `Entity.UpdateData` ประมาณ `14.2 → 13.4 us/call`, `UpdateComponentData` `11.6 → 10.9 us/call`, `RefreshCachedComponents` `8.8 → 8.2 us/call`, `0 failed reads`
 
+### 6.49 ไม่ retry component-map rebuild ซ้ำทันทีเมื่อ entity กำลังตื่น
+
+- ในฉากที่ entity ตื่นพร้อมกันจำนวนมาก `EntityDetailsPtr` อาจเป็น pointer torn ในจังหวะเดียวกับที่เกมกำลังเติม component map
+- โค้ดเดิมเรียก `UpdateComponentData(..., true)` ซ้ำทันที แม้ความพยายามแรกก็เป็น full map rebuild แล้ว ทำให้เดิน pointer ที่ไม่เสถียรซ้ำและเพิ่ม native reads/allocations โดยไม่ได้เพิ่มโอกาสสำเร็จ
+- เปลี่ยนให้ retry เต็มเฉพาะกรณี per-frame component refresh ล้มเหลว; ถ้า full map rebuild ล้มเหลวจะปล่อย entity unresolved และลองใหม่ใน frame ถัดไปตาม lifecycle เดิม
+- ไม่ลดความถี่ update ของ entity ที่ valid และไม่เปลี่ยนข้อมูล plugin; ลดเฉพาะ duplicate recovery work จาก torn read
+- Stress validation หลัง reset: จากประมาณ `1,522 → 1,105 reads/frame`, รอบใหม่อยู่ราว `166 FPS` และ `0–2 native failures`; ค่า calls/s และ MiB/s เปลี่ยนตามจำนวน entity ที่ตื่นในช่วงวัด และ `Entity.UpdateComponentData` ลงมาราว `5.4 us/call`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
