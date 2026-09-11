@@ -721,6 +721,11 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เขียน `Error.log` ไว้ข้าง executable และป้องกันความผิดพลาดระหว่างเขียน log ไม่ให้บดบัง exception ต้นเหตุ
 - รับ path ที่ผู้ใช้ป้อนให้ Launcher อย่างปลอดภัย รวมถึง path ที่มีเครื่องหมายคำพูด และจบอย่างเรียบร้อยเมื่อเว้นว่างหรือเข้าถึงไม่ได้
 
+### 6.52 ตัด debug symbols ออกจาก release package
+
+- `create_release.bat` ลบไฟล์ `.pdb` ทุกระดับจาก staging directory และตรวจซ้ำก่อนสร้าง ZIP
+- local Debug/Release build ยังเก็บ symbols ไว้ให้ผู้พัฒนาใช้วิเคราะห์ปัญหา แต่ไฟล์แจกผู้ใช้มีเฉพาะส่วนที่จำเป็นต่อการทำงาน
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

@@ -7,6 +7,7 @@ REM  Usage: create_release.bat <commit-or-tag>
 REM  - Checks out the given ref into .\release_build (git worktree)
 REM  - Builds the solution in Release
 REM  - Publishes Launcher as a self-contained single-file win-x64 application
+REM  - Excludes developer-only PDB symbols from the public package
 REM  - Produces GameHelper2_<ref>.zip with a top-level GameHelper\ folder
 REM  - GameHelper remains framework-dependent and requires .NET 10 Runtime x64
 REM ============================================================
@@ -98,6 +99,14 @@ mkdir "%STAGE%\GameHelper"
 powershell -NoProfile -Command "Copy-Item -Path '%BUILDOUT%\*' -Destination '%STAGE%\GameHelper' -Recurse -Force"
 if errorlevel 1 (
     echo ERROR: Failed to stage files.
+    git -C "%ROOT%" worktree remove --force "%WORKTREE%" >nul 2>&1
+    exit /b 1
+)
+
+REM Keep symbols in local build output for debugging, but do not ship them to users.
+powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%STAGE%\GameHelper' -Filter '*.pdb' -File -Recurse | Remove-Item -Force; if (Get-ChildItem -LiteralPath '%STAGE%\GameHelper' -Filter '*.pdb' -File -Recurse) { throw 'One or more PDB files remain in the release stage.' }"
+if errorlevel 1 (
+    echo ERROR: Failed to remove debug symbols from the release package.
     git -C "%ROOT%" worktree remove --force "%WORKTREE%" >nul 2>&1
     exit /b 1
 )
