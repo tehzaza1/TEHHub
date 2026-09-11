@@ -57,3 +57,9 @@ curl.exe http://localhost:9877/api/diagnostics/memory-status
 ```
 
 ไฟล์ `memory_diagnostics_YYYYMMDD_HHMMSS.tsv` จะถูกเขียนไว้ข้าง `GameHelper.exe` และสถานะ `lastDumpPath` จะบอก path เต็มให้ตรวจสอบได้ การส่ง `-d ""` สำคัญบน Windows เพราะทำให้ request มี Content-Length เป็นศูนย์และไม่ถูกตอบกลับด้วย HTTP 411
+
+เมื่อวัดเสร็จแล้ว ให้ปิด instrumentation เพื่อตัด overhead ของตัววัด:
+
+```powershell
+curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/memory-stop
+```

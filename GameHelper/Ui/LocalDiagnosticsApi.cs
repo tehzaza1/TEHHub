@@ -128,6 +128,13 @@ namespace GameHelper.Ui
                     return;
                 }
 
+                if (method == "POST" && path == "/api/diagnostics/memory-stop")
+                {
+                    MemoryReadDiagnostics.RequestStop();
+                    await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Memory diagnostics stop queued."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+
                 await WriteJsonAsync(context, 404, new DiagnosticsApiResponse("Route not found."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
             }
             catch (Exception ex)

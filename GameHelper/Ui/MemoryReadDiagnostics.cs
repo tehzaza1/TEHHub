@@ -58,6 +58,7 @@ public static class MemoryReadDiagnostics
     private static ReadRateSnapshot cachedReadRate;
     private static int apiResetRequested;
     private static int apiDumpRequested;
+    private static int apiStopRequested;
     private static string lastDumpPath = string.Empty;
 
     /// <summary>
@@ -72,10 +73,13 @@ public static class MemoryReadDiagnostics
 
     internal static void RequestDump() => Interlocked.Exchange(ref apiDumpRequested, 1);
 
+    internal static void RequestStop() => Interlocked.Exchange(ref apiStopRequested, 1);
+
     internal static MemoryDiagnosticsStatus GetApiStatus() => new(
         Core.GHSettings.ShowMemoryDiagnostics,
         Volatile.Read(ref apiResetRequested) != 0,
         Volatile.Read(ref apiDumpRequested) != 0,
+        Volatile.Read(ref apiStopRequested) != 0,
         Interlocked.Read(ref totalReadCalls),
         Interlocked.Read(ref totalFrames),
         lastDumpPath,
@@ -204,6 +208,11 @@ public static class MemoryReadDiagnostics
                 Core.GHSettings.ShowMemoryDiagnostics = true;
                 RefreshRowsThrottled(force: true);
                 lastDumpPath = DumpReportToFile() ?? string.Empty;
+            }
+
+            if (Interlocked.Exchange(ref apiStopRequested, 0) != 0)
+            {
+                Core.GHSettings.ShowMemoryDiagnostics = false;
             }
 
             if (!Core.GHSettings.ShowMemoryDiagnostics)
@@ -702,6 +711,7 @@ internal sealed record MemoryDiagnosticsStatus(
     bool Enabled,
     bool ResetQueued,
     bool DumpQueued,
+    bool StopQueued,
     long TotalReadCalls,
     long TotalFrames,
     string LastDumpPath,
