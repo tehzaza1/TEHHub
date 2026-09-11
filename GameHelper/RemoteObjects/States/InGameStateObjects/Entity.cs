@@ -387,24 +387,41 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     return false;
                 }
 
-                var namesAndIndexes = reader.ReadStdBucket<ComponentNameAndIndexStruct>(
-                    lookupPtr.ComponentsNameAndIndex);
-                var entityComponent = reader.ReadStdVector<IntPtr>(idata.ComponentListPtr);
-
-                for (var i = 0; i < namesAndIndexes.Length; i++)
+                ComponentNameAndIndexStruct[] namesAndIndexes = Array.Empty<ComponentNameAndIndexStruct>();
+                var namesAndIndexesCount = 0;
+                if (lookupPtr.ComponentsNameAndIndex.Data.First != IntPtr.Zero &&
+                    lookupPtr.ComponentsNameAndIndex.Capacity > 0)
                 {
-                    var nameAndIndex = namesAndIndexes[i];
-                    if (nameAndIndex.Index >= 0 && nameAndIndex.Index < entityComponent.Length)
+                    PooledNativeVector.Read(
+                        reader,
+                        lookupPtr.ComponentsNameAndIndex.Data,
+                        out namesAndIndexes,
+                        out namesAndIndexesCount);
+                }
+
+                PooledNativeVector.Read(reader, idata.ComponentListPtr, out IntPtr[] entityComponents, out var entityComponentCount);
+                try
+                {
+                    for (var i = 0; i < namesAndIndexesCount; i++)
                     {
-                        var name = nameAndIndex.NamePtr == IntPtr.Zero ? string.Empty :
-                            Core.GgpkStringCache.AddOrGetExisting(
-                                nameAndIndex.NamePtr,
-                                static key => Core.Process.Handle.ReadString(key));
-                        if (!string.IsNullOrEmpty(name))
+                        var nameAndIndex = namesAndIndexes[i];
+                        if (nameAndIndex.Index >= 0 && nameAndIndex.Index < entityComponentCount)
                         {
-                            this.componentAddresses[name] = entityComponent[nameAndIndex.Index];
+                            var name = nameAndIndex.NamePtr == IntPtr.Zero ? string.Empty :
+                                Core.GgpkStringCache.AddOrGetExisting(
+                                    nameAndIndex.NamePtr,
+                                    static key => Core.Process.Handle.ReadString(key));
+                            if (!string.IsNullOrEmpty(name))
+                            {
+                                this.componentAddresses[name] = entityComponents[nameAndIndex.Index];
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    PooledNativeVector.Return(namesAndIndexes);
+                    PooledNativeVector.Return(entityComponents);
                 }
             }
             else

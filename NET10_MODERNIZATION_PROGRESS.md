@@ -602,6 +602,11 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `RefreshComponentMap` อ่าน string ชื่อ component ซ้ำจาก native memory ทุกครั้งที่ entity ต้องสร้าง/รีเฟรช map
 - ชื่อ component อยู่ใน GGPK/static data จึงใช้ `GgpkStringCache` ที่ถูกล้างตาม area/game lifecycle อยู่แล้ว; ลดทั้ง read และ string allocation โดยไม่ลดรอบ refresh ของ entity
 
+### 6.36 pool vectors ระหว่างสร้าง entity component map
+
+- `RefreshComponentMap` อ่าน vector ของ `(component name pointer, index)` และ vector component-address เป็น array ชั่วคราวสำหรับ entity ทุกตัวที่ต้อง rebuild map
+- เปลี่ยนสอง vector เป็น `PooledNativeVector`; สร้าง map จาก entry count จริงและคืน buffer ทันทีหลังใช้ โดยคง validation ของ `StdBucket` และรูปแบบข้อมูลเดิม
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
