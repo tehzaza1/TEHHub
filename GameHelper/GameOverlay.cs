@@ -34,6 +34,7 @@ namespace GameHelper
             PerformanceProfiler.InitializeCoroutines();
             MemoryReadDiagnostics.InitializeCoroutines();
             OffsetHelper.InitializeCoroutines();
+            LocalDiagnosticsApi.Start();
             OverlayKiller.InitializeCoroutines();
             NearbyVisualization.InitializeCoroutines();
             KrangledPassiveDetector.InitializeCoroutines();
@@ -59,6 +60,7 @@ namespace GameHelper
         {
             if (disposing)
             {
+                LocalDiagnosticsApi.Stop();
                 Core.Dispose();
             }
 

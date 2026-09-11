@@ -8,6 +8,7 @@ namespace GameHelper.Ui
     using System.Collections.Generic;
     using System.Linq;
     using System.Numerics;
+    using System.Threading;
     using System.Threading.Tasks;
     using Coroutine;
     using CoroutineEvents;
@@ -41,6 +42,9 @@ namespace GameHelper.Ui
         private static SweepResult? lastSweep;
         private static bool autoRefresh;
         private static int autoRefreshFrameCounter;
+        private static int startupVerificationStableFrames;
+        private static bool startupVerificationStarted;
+        private static int verificationRequested;
         private static int expectedMaxHealth;
         private static int expectedMaxMana;
         private static int expectedMaxEnergyShield;
@@ -95,6 +99,7 @@ namespace GameHelper.Ui
         private static readonly List<(Vector2 Min, Vector2 Max)> OccludeRects = new();
 
         private const int AutoRefreshEveryFrames = 60;
+        private const int StartupVerificationSettleFrames = 120;
         private const int MaxPinnedCards = 24;
         private const int BoxVerdictTtlFrames = 30;
         private const int BoxRecomputeBudgetPerFrame = 16;
@@ -109,6 +114,53 @@ namespace GameHelper.Ui
         internal static void InitializeCoroutines()
         {
             CoroutineHandler.Start(RenderCoroutine(), priority: UiRenderPriority.CoreWindows);
+            CoroutineHandler.Start(VerifyOffsetsAfterGameAttachCoroutine(), priority: UiRenderPriority.CoreWindows);
+        }
+
+        /// <summary>
+        /// Queues a verification on the render coroutine. Local diagnostic callers never read game
+        /// memory from their own thread, so this keeps the normal GameHelper update ordering intact.
+        /// </summary>
+        internal static void RequestVerification()
+        {
+            Interlocked.Exchange(ref verificationRequested, 1);
+        }
+
+        internal static OffsetVerificationStatus GetVerificationStatus()
+        {
+            return new OffsetVerificationStatus(
+                SelfTestRunning: selfTestRunning,
+                VerificationQueued: Volatile.Read(ref verificationRequested) != 0,
+                Summary: selfTestSummary);
+        }
+
+        // Run a single verification once the player is actually in-game and the remote-object
+        // tree has had time to settle. This preserves the manual helper UI while making patch-day
+        // signature/field validation automatic for normal GameHelper launches.
+        private static IEnumerator<Wait> VerifyOffsetsAfterGameAttachCoroutine()
+        {
+            while (!startupVerificationStarted)
+            {
+                yield return new Wait(GameHelperEvents.OnPostRender);
+
+                if (Core.States.GameCurrentState != GameStateTypes.InGameState ||
+                    Core.Process.Address == IntPtr.Zero ||
+                    Core.Process.Information?.MainModule == null)
+                {
+                    startupVerificationStableFrames = 0;
+                    continue;
+                }
+
+                if (++startupVerificationStableFrames < StartupVerificationSettleFrames)
+                {
+                    continue;
+                }
+
+                startupVerificationStarted = true;
+                Console.WriteLine("[OffsetHelper] Game attached and stable; starting automatic offset verification.");
+                SafeSweep();
+                StartSelfTest();
+            }
         }
 
         private static IEnumerator<Wait> RenderCoroutine()
@@ -116,6 +168,12 @@ namespace GameHelper.Ui
             while (true)
             {
                 yield return new Wait(GameHelperEvents.OnRender);
+                if (Interlocked.Exchange(ref verificationRequested, 0) == 1)
+                {
+                    SafeSweep();
+                    StartSelfTest();
+                }
+
                 if (!Core.GHSettings.ShowOffsetHelper)
                 {
                     continue;
@@ -1542,6 +1600,11 @@ namespace GameHelper.Ui
             Eng.ProbeVerdict.Unverifiable => Yellow,
             _ => Grey,
         };
+
+        internal sealed record OffsetVerificationStatus(
+            bool SelfTestRunning,
+            bool VerificationQueued,
+            string Summary);
 
         private static string VerdictWord(Eng.ProbeVerdict v) => v switch
         {

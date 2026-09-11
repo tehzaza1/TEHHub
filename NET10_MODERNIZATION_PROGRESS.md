@@ -519,6 +519,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - รายการที่ใหม่กว่าเหลือเฉพาะ ImageSharp 4.x และ Vortice/renderer 3.8+ ซึ่งเป็น major upgrade ของเส้นทางวาด overlay ทั้งระบบ
 - แยก renderer upgrade เป็นชุดทดสอบภาพจริงต่างหาก: ไม่ใช่เงื่อนไขของ .NET 10 และไม่ควรปะปนกับ migration ที่ต้องคงภาพ/การกดผ่านเมาส์เดิม
 
+### 6.24 ตรวจ offset อัตโนมัติและ Local Diagnostics API
+
+- OffsetHelper ตรวจ field sweep และ static pattern หนึ่งครั้งเองหลังเข้าเกมและข้อมูลนิ่ง โดย scan pattern บน background task เพื่อไม่รบกวน render thread
+- เพิ่ม API เฉพาะ loopback ที่ `localhost:9877`: อ่านผลตรวจหรือสั่งตรวจซ้ำได้โดยไม่ต้องเปิดหน้าต่าง OffsetHelper
+- API ส่งเพียงสถานะ diagnostic และรับคำสั่งตรวจเท่านั้น; ไม่มีคำสั่งควบคุมเกม, ปลั๊กอิน หรือการรับ request จากเครือข่ายภายนอก
+- มีคู่มือใช้งานใน `LOCAL_DIAGNOSTICS_API.md`; ตรวจ Release build ของ GameHelper แบบ output แยกผ่าน 0 warning / 0 error ขณะตัวหลักกำลังรัน
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
