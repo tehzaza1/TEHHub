@@ -726,6 +726,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `create_release.bat` ลบไฟล์ `.pdb` ทุกระดับจาก staging directory และตรวจซ้ำก่อนสร้าง ZIP
 - local Debug/Release build ยังเก็บ symbols ไว้ให้ผู้พัฒนาใช้วิเคราะห์ปัญหา แต่ไฟล์แจกผู้ใช้มีเฉพาะส่วนที่จำเป็นต่อการทำงาน
 
+### 6.53 แยก Life recovery hints ของผู้เล่นออกจาก entity อื่น
+
+- ค่า maximum health, mana และ energy shield ที่ผู้ใช้กรอกใน OffsetHelper เป็นค่าของ local player จึงส่งเข้า semantic verifier เฉพาะ root ของ local player
+- การ sweep ยังตรวจโครงสร้าง `Life` ของมอนสเตอร์และ entity อื่นตามปกติ แต่ไม่เปรียบเทียบยอดพลังของ entity เหล่านั้นกับค่าตัวละครจนรายงาน `Degraded` ผิด
+- การค้นหา candidate offset ใช้ขอบเขต hint เดียวกัน จึงไม่ให้ข้อมูลของมอนสเตอร์โหวตทับ candidate ของ local player
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

@@ -182,9 +182,10 @@ namespace GameHelper.Ui
                 }
 
                 var shortName = $"{tag}#{e.Id}";
+                var useRecoveryHints = area.Player != null && e.Address == area.Player.Address;
                 if (entityRoots.Count < MaxRootsPerType * 4)
                 {
-                    entityRoots.Add(new Root(shortName, e.Address, e.Address));
+                    entityRoots.Add(new Root(shortName, e.Address, e.Address, useRecoveryHints));
                 }
 
                 foreach (var kv in e.GetComponentAddressPairs())
@@ -202,7 +203,7 @@ namespace GameHelper.Ui
 
                     if (list.Count < MaxRootsPerType * 2)
                     {
-                        list.Add(new Root($"{shortName}.{kv.Key}", kv.Value, e.Address));
+                        list.Add(new Root($"{shortName}.{kv.Key}", kv.Value, e.Address, useRecoveryHints));
                     }
                 }
             }
@@ -536,7 +537,8 @@ namespace GameHelper.Ui
             var take = Math.Min(roots.Count, MaxRootsPerType);
             for (var i = 0; i < take; i++)
             {
-                res.Roots.Add(VerifyRoot(probeType, roots[i].Label, roots[i].Address, roots[i].Owner, ownerAnchorField, hints));
+                var rootHints = roots[i].UseRecoveryHints ? hints : null;
+                res.Roots.Add(VerifyRoot(probeType, roots[i].Label, roots[i].Address, roots[i].Owner, ownerAnchorField, rootHints));
             }
 
             res.SampleLabel = roots[0].Label;
@@ -835,7 +837,7 @@ namespace GameHelper.Ui
             {
                 var rows = new List<FieldRow>();
                 EvaluateFieldAt(field, bytes, candidateOffset - scanStart, root.Owner.ToInt64(),
-                    ownerAnchorField, rows, hints);
+                    ownerAnchorField, rows, root.UseRecoveryHints ? hints : null);
                 var anchors = rows.Where(IsRecoveryAnchor).ToList();
                 if (anchors.Count == 0)
                 {
@@ -1459,11 +1461,12 @@ namespace GameHelper.Ui
         /// <summary>A live instance of a struct to verify.</summary>
         internal readonly struct Root
         {
-            public Root(string label, IntPtr address, IntPtr owner)
+            public Root(string label, IntPtr address, IntPtr owner, bool useRecoveryHints = false)
             {
                 this.Label = label;
                 this.Address = address;
                 this.Owner = owner;
+                this.UseRecoveryHints = useRecoveryHints;
             }
 
             public string Label { get; }
@@ -1471,6 +1474,11 @@ namespace GameHelper.Ui
             public IntPtr Address { get; }
 
             public IntPtr Owner { get; }
+
+            /// <summary>
+            /// Gets a value indicating whether character-specific recovery hints apply to this root.
+            /// </summary>
+            public bool UseRecoveryHints { get; }
         }
     }
 
