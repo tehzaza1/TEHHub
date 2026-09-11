@@ -504,6 +504,7 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ย้าย `TargetFramework`, C# 14, nullable และ implicit usings ไปอยู่ที่ `Directory.Build.props` ซึ่ง SDK อ่านก่อนวิเคราะห์ project; `Directory.Build.targets` ยังคงยืนยันมาตรฐานหลัง project load
 - ลบการประกาศซ้ำ/ขัดแย้งใน project เดิม รวมถึง Atlas2 ที่เคยปิด nullable ไว้
 - แก้ null-safety ของ Atlas2 ตามความหมายเดิม: ค่า DTO เริ่มต้นที่ปลอดภัย, cache ที่เป็น state ชัดเจน และผลค้นหาที่อาจไม่มีผลลัพธ์เป็น nullable
+- เปิด .NET analyzer ระดับล่าสุด และกำหนดให้ Release build ถือ warning เป็น error เพื่อกันมาตรฐานถอยกลับ
 - ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
 
 ## การตัดสินใจเรื่อง Native AOT

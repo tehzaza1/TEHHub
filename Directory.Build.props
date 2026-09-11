@@ -7,6 +7,9 @@
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <!-- LibraryImport emits low-level generated interop; this enables that generated code
          without requiring individual call sites to be marked unsafe. -->
