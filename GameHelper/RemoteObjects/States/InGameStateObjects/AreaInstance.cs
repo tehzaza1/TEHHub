@@ -446,7 +446,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             });
 
             FrameMemoryReadPipeline? frameMemoryPipeline = null;
-            if (Core.GHSettings.EnableEntityFrameSnapshot || Core.GHSettings.EnableNewMemoryRead)
+            if (Core.GHSettings.EnableNewMemoryRead)
             {
                 frameMemoryPipeline = FrameMemoryReadPipeline.Start(reader, data.Values);
             }

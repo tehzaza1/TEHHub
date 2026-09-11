@@ -648,34 +648,34 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เปลี่ยนจุดนี้เป็น `TryReadMemory(..., recordFailure: false)` และข้าม node ที่อ่านไม่ทันอย่างเงียบๆ เพราะข้อมูลรายการไฟล์เป็น best-effort อยู่แล้ว
 - เส้นทางอื่นยังบันทึก failure ตามเดิม; runtime validation ลด `Total failed reads: 1024 → 0`, session failures `0`, และยังคงประมาณ `1079 reads/frame`
 
-### 6.43 เพิ่ม Entity Frame Snapshot แบบมี feature flag
+### 6.43 เพิ่ม Entity Frame Snapshot (ถูกรวมเข้า NewMemoryRead แล้ว)
 
-- เพิ่ม `State.EnableEntityFrameSnapshot` (ค่าเริ่มต้น `false`) สำหรับสร้าง read plan ของ component ที่ refresh ทุกเฟรม แล้ว reuse scalar reads จาก snapshot เดียวกันภายใน entity update รอบนั้น
+- สร้าง read plan ของ component ที่ refresh ทุกเฟรม แล้ว reuse scalar reads จาก snapshot เดียวกันภายใน entity update รอบนั้น
 - ถ้า component ถูกสร้างใหม่, address เปลี่ยน หรือ span อ่านไม่ผ่าน จะกลับไปใช้ per-entity batch/scalar path เดิมทันที; ไม่ลดจำนวนรอบ update และไม่เปลี่ยนข้อมูลที่ entity/plugin เห็น
 - เพิ่ม `SafeMemoryHandle.ReadCachePlan` แบบ thread-local ใช้ `ArrayPool<byte>` และ binary-search windows เพื่อไม่เพิ่ม global lock ใน hot path
 - Runtime validation จุดเดิม: เปิด snapshot อย่างเดียวลดประมาณ `1079 → 1044 reads/frame` (~3.2%), `0 failures`; ผลขึ้นกับ locality ของ component heap จึงปิดไว้ก่อนเป็น baseline ที่ปลอดภัย
 
-### 6.44 เพิ่ม Wide Entity-map Batches แบบมี feature flag
+### 6.44 เพิ่ม Wide Entity-map Batches (ถูกรวมเข้า NewMemoryRead แล้ว)
 
-- เพิ่ม `State.EnableWideEntityMapBatchReads` (ค่าเริ่มต้น `false`) สำหรับ `ReadStdMapBatched` โดยขยาย gap ที่ยอมรวมจาก `0x200` เป็น `0x10000` และ span สูงสุด `64 KiB` เป็น `1 MiB`
+- `ReadStdMapBatched` ขยาย gap ที่ยอมรวมจาก `0x200` เป็น `0x10000` และ span สูงสุด `64 KiB` เป็น `1 MiB` เมื่อใช้ reader ใหม่
 - การอ่านยังเป็น best-effort: ถ้า range ใหญ่คร่อม page ที่อ่านไม่ได้ จะ fallback กลับไปอ่าน node scalar ทุกตัวในกลุ่มนั้น และ guard เดิม (`Color`, pointer, visited) ยังอยู่ครบ
 - Runtime validation จุดเดิม: wide map อย่างเดียวได้ประมาณ `1013 reads/frame`, `177.1 frames/s`, `0 failures`; เปิดร่วมกับ snapshot ได้ `978 reads/frame`, `176.6 frames/s`, `0 failures` เทียบ baseline `1079 reads/frame`
 - trade-off ที่วัดได้คือ requested throughput เพิ่มจากประมาณ `59` เป็น `129 MiB/s` เพราะอ่าน byte ที่ไม่ใช่ node มากขึ้น แต่ kernel transition ลดลงและ frame throughput ไม่ลด จึงยังปิด flag ไว้ให้ผู้ใช้เปิดทดสอบตามฉากจริง
 
-ทั้งสอง flag อยู่ใน Settings → Miscellaneous Config และตั้งใจแยกกันเพื่อให้ rollback/วัดผลทีละส่วนได้ โดยไม่แตะ plugin API
+ผล benchmark เดิมของสองส่วนยังเก็บไว้เป็นข้อมูลอ้างอิง แต่ไม่มี checkbox แยกแล้ว เพื่อไม่ให้ระบบมีหลายโหมดซ้อนกัน
 
 ### 6.45 รวมเป็น NewMemoryRead แบบเปิด/ปิดได้
 
-- เพิ่ม `State.EnableNewMemoryRead` เป็น master switch สำหรับ redesign ระบบอ่าน memory รอบเฟรม
+- เพิ่ม `State.EnableNewMemoryRead` เป็น master switch เดียวสำหรับ redesign ระบบอ่าน memory รอบเฟรม
 - เมื่อเปิด master switch จะเปิดทั้ง `ReadCachePlan` ของ component และ wide entity-map batches โดยไม่ต้องแก้ plugin หรือเรียก API ใหม่
-- เมื่อปิด master switch จะกลับไปใช้เส้นทางเดิมทั้งหมด; flag ย่อยยังคงอยู่เพื่อ benchmark แยกผลและ rollback เฉพาะส่วน
+- เมื่อปิด master switch จะกลับไปใช้เส้นทางเดิมทั้งหมด; benchmark แยกส่วนทำเสร็จแล้วจึงไม่จำเป็นต้องคง flag ย่อยไว้
 - ทุก batch ยังคงมี fallback scalar, address validation และ diagnostics เดิม จึงใช้ทดสอบแบบค่อยเป็นค่อยไปได้
 
 ### 6.46 แยก orchestration เป็น `FrameMemoryReadPipeline`
 
 - ย้ายการสร้าง component read ranges และอายุของ `ReadCachePlan` ออกจาก `AreaInstance` มาไว้ใน `GameHelper/Utils/FrameMemoryReadPipeline.cs`
 - pipeline เป็นจุดกลางของ read phase ต่อเฟรม: planner รวบรวม address, reader เปิด pooled windows, แล้วจึงให้ entity update ใช้ snapshot; parser/entity code ยังใช้ object เดิม
-- `EnableNewMemoryRead` และ flag snapshot เดิมใช้ pipeline เดียวกัน ทำให้ปิด master แล้วกลับ legacy path ได้โดยไม่ต้องมีโค้ดสองชุดกระจายทั่วระบบ
+- `EnableNewMemoryRead` เป็นจุดตัดเดียวของ pipeline ทำให้ปิด master แล้วกลับ legacy path ได้โดยไม่ต้องมีโค้ดสองชุดกระจายทั่วระบบ
 - นี่เป็นฐานสำหรับย้าย UI/entity readers ชุดถัดไปเข้า planner โดยไม่เปลี่ยน plugin API หรือความถี่การ update
 
 ## การตัดสินใจเรื่อง Native AOT

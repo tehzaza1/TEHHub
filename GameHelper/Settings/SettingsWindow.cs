@@ -913,17 +913,7 @@ namespace GameHelper.Settings
                 ImGui.Checkbox(L.Label("settings.misc.new_memory_read", "Experimental: new memory read", "EnableNewMemoryRead"), ref Core.GHSettings.EnableNewMemoryRead);
                 ImGuiHelper.ToolTip(L.T(
                     "settings.misc.new_memory_read.tooltip",
-                    "Master switch for the redesigned memory reader. Enables the frame component snapshot and wide entity-map batches together; failed ranges fall back to the existing reads."));
-                if (ImGui.Checkbox(L.Label("settings.misc.entity_frame_snapshot", "Experimental: entity frame snapshot", "EnableEntityFrameSnapshot"), ref Core.GHSettings.EnableEntityFrameSnapshot))
-                {
-                    ImGuiHelper.ToolTip(L.T(
-                        "settings.misc.entity_frame_snapshot.tooltip",
-                        "Prefetch nearby entity component ranges once per frame and reuse them during entity refresh. Disabled by default; failed or new ranges fall back to the existing reads."));
-                }
-                ImGui.Checkbox(L.Label("settings.misc.wide_entity_map_batch", "Experimental: wide entity-map batches", "EnableWideEntityMapBatchReads"), ref Core.GHSettings.EnableWideEntityMapBatchReads);
-                ImGuiHelper.ToolTip(L.T(
-                    "settings.misc.wide_entity_map_batch.tooltip",
-                    "Coalesce nearby std::map nodes across a wider heap gap to reduce kernel calls. Failed spans fall back to scalar reads; enable only for performance testing."));
+                    "Master switch for the redesigned memory reader. It replaces the core entity/UI read path as a single unit; disable it to return to the legacy reader."));
                 ImGui.Text(L.T("settings.misc.entity_max_degree", "Entity MaxDegreeOfParallelism"));
                 ImGuiHelper.ToolTip(
                     L.T(

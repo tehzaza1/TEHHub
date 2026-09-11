@@ -52,23 +52,9 @@ namespace GameHelper.Settings
         public int EntityReaderMaxDegreeOfParallelism = 4;
 
         /// <summary>
-        ///     Gets or sets whether entity component data should use an optional frame-wide
-        ///     read plan. The experiment is disabled by default so existing runtime behaviour
-        ///     remains the safe baseline; failed ranges always fall back to scalar reads.
-        /// </summary>
-        public bool EnableEntityFrameSnapshot = false;
-
-        /// <summary>
-        ///     Gets or sets whether the awake-entity std::map reader may coalesce nodes across
-        ///     a wider heap gap. This is a separate high-return experiment because it trades
-        ///     fewer kernel calls for larger best-effort read buffers.
-        /// </summary>
-        public bool EnableWideEntityMapBatchReads = false;
-
-        /// <summary>
-        ///     Gets or sets the master switch for the experimental new memory read pipeline.
-        ///     When enabled, both the frame component snapshot and wide entity-map batching are
-        ///     active; the individual flags remain available for isolated benchmarks.
+        ///     Gets or sets the master switch for the redesigned memory reader.
+        ///     When enabled, the core entity/UI read paths use the new frame pipeline; when
+        ///     disabled, the legacy reader remains available as a rollback path.
         /// </summary>
         public bool EnableNewMemoryRead = false;
 
