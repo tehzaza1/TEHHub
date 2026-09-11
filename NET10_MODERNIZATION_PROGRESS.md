@@ -612,11 +612,6 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - การอ่าน `std::wstring` ที่อยู่นอก inline storage เคยสร้าง byte array ชั่วคราวก่อน decode เป็น string ทุกครั้ง
 - เปลี่ยน byte buffer เป็น `ArrayPool<byte>` โดยใช้ `TryReadMemoryArray` เดิมและคืน buffer ใน `finally`; string ผลลัพธ์และกรณีอ่านพลาดยังเหมือนเดิม
 
-### 6.38 reuse stat vectors ต่อ Stats component
-
-- shared `ArrayPool` ลดการสร้าง array ของ stat vectors แต่ `Stats` ถูก refresh กับทุก entity ทุกเฟรม จึงยังมี pool churn ที่ profiler เห็นเป็น allocation
-- `Stats` เก็บ buffer สองก้อนของตัวเอง (items และ buffs/actions) และขยายเฉพาะเมื่อ vector โตขึ้น; หลัง warm-up อ่านและคัด stat ครบเหมือนเดิมโดยไม่ต้อง rent/return ต่อเฟรม
-
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

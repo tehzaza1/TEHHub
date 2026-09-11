@@ -118,54 +118,5 @@ namespace GameHelper.RemoteObjects.Components
                 ArrayPool<StatArrayStruct>.Shared.Return(buffer);
             }
         }
-
-        /// <summary>
-        ///     Updates a stat dictionary using a buffer retained by the owning component. Dynamic
-        ///     components such as <see cref="Stats"/> call this every entity frame, so retaining
-        ///     the small native vector avoids both a new array and shared-pool churn after warm-up.
-        /// </summary>
-        protected void StatUpdator(
-            Dictionary<GameStats, int> stats,
-            StdVector statsptr,
-            ref StatArrayStruct[] readBuffer)
-        {
-            var elementSize = Unsafe.SizeOf<StatArrayStruct>();
-            var byteLength = statsptr.Last.ToInt64() - statsptr.First.ToInt64();
-            if (byteLength <= 0 || byteLength % elementSize != 0 || byteLength > 50_000_000)
-            {
-                lock (stats)
-                {
-                    stats.Clear();
-                }
-
-                return;
-            }
-
-            var count = (int)(byteLength / elementSize);
-            if (readBuffer.Length < count)
-            {
-                readBuffer = new StatArrayStruct[Math.Max(count, readBuffer.Length * 2)];
-            }
-
-            if (!Core.Process.Handle.TryReadMemoryArray(statsptr.First, readBuffer, count, out _))
-            {
-                lock (stats)
-                {
-                    stats.Clear();
-                }
-
-                return;
-            }
-
-            lock (stats)
-            {
-                stats.Clear();
-                for (var i = 0; i < count; i++)
-                {
-                    var newStat = readBuffer[i];
-                    stats[(GameStats)newStat.key] = newStat.value;
-                }
-            }
-        }
     }
 }
