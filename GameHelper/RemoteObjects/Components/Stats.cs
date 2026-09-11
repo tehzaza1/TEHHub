@@ -16,6 +16,9 @@ namespace GameHelper.RemoteObjects.Components
     /// </summary>
     public class Stats : ComponentBase
     {
+        private StatArrayStruct[] statsChangedByItemsBuffer = Array.Empty<StatArrayStruct>();
+        private StatArrayStruct[] statsChangedByBuffsBuffer = Array.Empty<StatArrayStruct>();
+
         /// <summary>
         ///     Gets all the stats of the entity.
         /// </summary>
@@ -64,13 +67,13 @@ namespace GameHelper.RemoteObjects.Components
             if (data.StatsChangedByItemsPtr != IntPtr.Zero)
             {
                 var data2 = reader.ReadMemory<StatsStructInternal>(data.StatsChangedByItemsPtr);
-                base.StatUpdator(this.StatsChangedByItems, data2.Stats);
+                base.StatUpdator(this.StatsChangedByItems, data2.Stats, ref this.statsChangedByItemsBuffer);
             }
 
             if (data.StatsChangedByBuffAndActions != IntPtr.Zero)
             {
                 var data3 = reader.ReadMemory<StatsStructInternal>(data.StatsChangedByBuffAndActions);
-                base.StatUpdator(this.StatsChangedByBuffAndActions, data3.Stats);
+                base.StatUpdator(this.StatsChangedByBuffAndActions, data3.Stats, ref this.statsChangedByBuffsBuffer);
             }
         }
     }
