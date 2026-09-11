@@ -576,6 +576,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `Buffs.UpdateData` และ `AddSyntheticStatusEffect` ใช้ `ConcurrentDictionary.AddOrUpdate` ด้วย lambda ที่จับ status effect ของรอบนั้น ทำให้สร้าง closure ทุก effect
 - เปลี่ยนเป็น static factory ของ .NET สมัยใหม่ โดยส่ง status effect เป็น argument ตรง คง atomic update และกฎรวม stack/time-left เดิม
 
+### 6.32 ใช้ pooled buffer สำหรับ stat vectors
+
+- `Stats` อ่าน native stat vector ของทุก entity ในแต่ละรอบ แล้ว array เดิมถูกทิ้งทันที ทำให้เกิด allocation หลายร้อยไบต์ต่อครั้งแม้ API ต่อปลั๊กอินไม่เปลี่ยน
+- `StatUpdator` จึงยืม `ArrayPool<StatArrayStruct>` เพื่ออ่าน buffer เป็นก้อนเดียว คัดลง dictionary เดิม แล้วคืน buffer ทันที
+- ไม่ลดความถี่/เนื้อหาของ stat และไม่เปลี่ยน public API ของปลั๊กอิน; กรณี vector หรือการอ่านผิดพลาดยัง clear dictionary เช่นพฤติกรรมเดิม
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

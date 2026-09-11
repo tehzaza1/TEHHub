@@ -6,8 +6,10 @@
 namespace GameHelper.RemoteObjects.Components
 {
     using System;
+    using System.Buffers;
     using GameHelper.RemoteEnums;
     using System.Collections.Generic;
+    using System.Runtime.CompilerServices;
     using GameHelper.Utils;
     using GameOffsets.Objects.Components;
     using GameOffsets.Natives;
@@ -75,14 +77,45 @@ namespace GameHelper.RemoteObjects.Components
 
         protected void StatUpdator(Dictionary<GameStats, int> stats, StdVector statsptr)
         {
-            var mystats = Core.Process.Handle.ReadStdVector<StatArrayStruct>(statsptr);
-            lock (stats)
+            var elementSize = Unsafe.SizeOf<StatArrayStruct>();
+            var byteLength = statsptr.Last.ToInt64() - statsptr.First.ToInt64();
+            if (byteLength <= 0 || byteLength % elementSize != 0 || byteLength > 50_000_000)
             {
-                stats.Clear();
-                foreach (var newStat in mystats)
+                lock (stats)
                 {
-                    stats[(GameStats)newStat.key] = newStat.value;
+                    stats.Clear();
                 }
+
+                return;
+            }
+
+            var count = (int)(byteLength / elementSize);
+            var buffer = ArrayPool<StatArrayStruct>.Shared.Rent(count);
+            try
+            {
+                if (!Core.Process.Handle.TryReadMemoryArray(statsptr.First, buffer, count, out _))
+                {
+                    lock (stats)
+                    {
+                        stats.Clear();
+                    }
+
+                    return;
+                }
+
+                lock (stats)
+                {
+                    stats.Clear();
+                    for (var i = 0; i < count; i++)
+                    {
+                        var newStat = buffer[i];
+                        stats[(GameStats)newStat.key] = newStat.value;
+                    }
+                }
+            }
+            finally
+            {
+                ArrayPool<StatArrayStruct>.Shared.Return(buffer);
             }
         }
     }
