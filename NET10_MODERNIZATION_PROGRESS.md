@@ -487,6 +487,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - schema ของ price cache และเงื่อนไขลบ/refetch cache เดิมไม่เปลี่ยน จึงยังรับมือไฟล์เก่าหรือไฟล์เสียได้เหมือนเดิม
 - ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
 
+### 6.19 ย้าย Runeshape catalog ของ LootValue เป็น source-generated JSON
+
+- catalog สูตร Runeshape ที่โหลดจากไฟล์คงที่ใช้ metadata ที่ generate ล่วงหน้าในขอบเขตของ `RuneshapeCatalog`
+- การค้นหาไฟล์, schema ของ catalog และ logic คำนวณ offer ยังเป็นชุดเดิมทั้งหมด
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

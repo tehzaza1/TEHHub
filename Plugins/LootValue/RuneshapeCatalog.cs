@@ -5,6 +5,7 @@ namespace LootValue
     using System.IO;
     using System.Linq;
     using System.Text.Json;
+    using System.Text.Json.Serialization;
 
     /// <summary>
     /// Represents one recipe offer available from a Runeshape Monolith encounter.
@@ -24,7 +25,7 @@ namespace LootValue
     /// <summary>
     /// Catalog of all 322 PoE 2 Runeshape recipes and logic for determining offered recipes.
     /// </summary>
-    public sealed class RuneshapeCatalog
+    public sealed partial class RuneshapeCatalog
     {
         private static readonly object Gate = new();
         private static RuneshapeCatalog? instance;
@@ -217,7 +218,7 @@ namespace LootValue
                 }
 
                 var json = File.ReadAllText(foundPath);
-                var file = JsonSerializer.Deserialize<CatalogFile>(json);
+                var file = JsonSerializer.Deserialize(json, RuneshapeJsonContext.Default.CatalogFile);
                 if (file?.recipes == null)
                 {
                     return Empty();
@@ -293,6 +294,12 @@ namespace LootValue
             public int idx { get; set; }
             public string? id { get; set; }
             public string? name { get; set; }
+        }
+
+        [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+        [JsonSerializable(typeof(CatalogFile))]
+        private sealed partial class RuneshapeJsonContext : JsonSerializerContext
+        {
         }
     }
 }
