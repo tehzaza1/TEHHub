@@ -161,7 +161,7 @@ namespace AutoHotKeyTrigger
 
                         }
 
-                        profile.DrawSettings(key, this.Settings.Profiles);
+                        profile.DrawSettings(key, this.Settings.Profiles, this.Settings.EnableControllerMode);
                         ImGui.TreePop();
                     }
                 }

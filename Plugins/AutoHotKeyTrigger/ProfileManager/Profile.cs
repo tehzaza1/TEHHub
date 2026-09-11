@@ -59,7 +59,7 @@ namespace AutoHotKeyTrigger.ProfileManager
         /// <summary>
         ///     A helper function to draw profile settings on ImGui window so that user can modify it.
         /// </summary>
-        public void DrawSettings(string profileName, Dictionary<string, Profile> root)
+        public void DrawSettings(string profileName, Dictionary<string, Profile> root, bool controllerModeEnabled)
         {
             if (ImGui.BeginTabBar("Profile Rules", ImGuiTabBarFlags.AutoSelectNewTabs | ImGuiTabBarFlags.Reorderable))
             {
@@ -138,7 +138,7 @@ namespace AutoHotKeyTrigger.ProfileManager
 
                     if (isSelected)
                     {
-                        currRule.DrawSettings();
+                        currRule.DrawSettings(controllerModeEnabled);
                         ImGui.EndTabItem();
                     }
 
