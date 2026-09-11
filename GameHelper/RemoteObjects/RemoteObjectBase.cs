@@ -8,6 +8,7 @@ namespace GameHelper.RemoteObjects
     using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
+    using System.Threading;
     using ImGuiNET;
     using Ui;
     using Utils;
@@ -62,13 +63,10 @@ namespace GameHelper.RemoteObjects
         /// </summary>
         public IntPtr Address
         {
-            get
-            {
-                lock (this.updateLock)
-                {
-                    return this.address;
-                }
-            }
+            // Address reads dominate the component refresh path. IntPtr is naturally atomic on
+            // the x64 target; pair the lock-protected setter with an acquire read so hot readers
+            // do not take a monitor for every component memory access.
+            get => Volatile.Read(ref this.address);
 
             set
             {
@@ -122,11 +120,7 @@ namespace GameHelper.RemoteObjects
         {
             lock (this.updateExecutionLock)
             {
-                IntPtr currentAddress;
-                lock (this.updateLock)
-                {
-                    currentAddress = this.address;
-                }
+                var currentAddress = Volatile.Read(ref this.address);
 
                 if (currentAddress == IntPtr.Zero)
                 {

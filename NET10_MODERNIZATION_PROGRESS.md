@@ -692,6 +692,13 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - Runtime validation หลังย้าย pipeline ทั้ง frame: `0` failed reads, ประมาณ `176.7 FPS`, `671.7 reads/frame`, `350.8 MiB/s` ในจุดทดสอบเดิม (ตัวเลขขึ้นกับเกม/ฉากและจำนวน entity)
 - Snapshot API ทำให้การวิเคราะห์รอบถัดไปใช้ตัวเลขจาก process โดยตรง และยังเก็บ dump endpoint เดิมไว้เป็นทางเลือกสำหรับ archive เท่านั้น
 
+### 6.48 ลด lock contention ใน address read ของ remote objects
+
+- `RemoteObjectBase.Address` เป็น pointer ที่อ่านบ่อยที่สุดใน component refresh path; getter เดิมล็อก monitor ทุกครั้ง แม้การเปลี่ยน address จะยังถูก serialize อยู่แล้ว
+- เปลี่ยน getter เป็น `Volatile.Read(ref address)` บน x64 และคง lock ไว้ใน setter/rebind กับ `updateExecutionLock` ตอน refresh เพื่อไม่ให้การเปลี่ยน pointer แข่งกับ lifecycle mutation
+- ไม่เปลี่ยนชนิดข้อมูล, ความถี่ update หรือ public plugin contract; ลดเฉพาะ synchronization overhead ของการอ่าน pointer
+- Runtime validation: `Entity.UpdateData` ประมาณ `14.2 → 13.4 us/call`, `UpdateComponentData` `11.6 → 10.9 us/call`, `RefreshCachedComponents` `8.8 → 8.2 us/call`, `0 failed reads`
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
