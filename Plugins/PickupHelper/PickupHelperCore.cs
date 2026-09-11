@@ -34,7 +34,7 @@ namespace PickupHelper
         private long pendingClickKey;
         private long pendingClickAtMs;
 
-        private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
 
         /// <inheritdoc />
         public override void OnEnable(bool isGameOpened)

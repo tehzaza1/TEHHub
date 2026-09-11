@@ -13,16 +13,18 @@ namespace AutoExile2.WebServer
 
     /// <summary>
     /// Manages multiple named build profiles for AutoExile 2.
-    /// Stores individual profiles under Plugins/AutoExile2/Profiles/{Name}.json
-    /// and tracks the active profile in Plugins/AutoExile2/meta.json.
+    /// Stores individual profiles under configs/plugins/AutoExile2/profiles/{Name}.json
+    /// and tracks the active profile in configs/plugins/AutoExile2/meta.json.
     /// </summary>
     public class ProfileManager
     {
         private const string DefaultProfileName = "Default";
 
-        private string pluginDir = string.Empty;
         private string profilesDir = string.Empty;
         private string metaPath = string.Empty;
+        private string settingsPath = string.Empty;
+        private string legacyProfilesDir = string.Empty;
+        private string legacyMetaPath = string.Empty;
         private string legacySettingsPath = string.Empty;
         private readonly Action<string>? logger;
 
@@ -35,14 +37,17 @@ namespace AutoExile2.WebServer
 
         public event Action<string>? OnProfileSwitched;
 
-        public void Initialize(string pluginDirectory)
+        public void Initialize(string pluginDirectory, string configDirectory)
         {
-            this.pluginDir = pluginDirectory;
-            this.profilesDir = Path.Combine(pluginDirectory, "Profiles");
-            this.metaPath = Path.Combine(pluginDirectory, "meta.json");
+            this.profilesDir = Path.Combine(configDirectory, "profiles");
+            this.metaPath = Path.Combine(configDirectory, "meta.json");
+            this.settingsPath = Path.Combine(configDirectory, "settings.txt");
+            this.legacyProfilesDir = Path.Combine(pluginDirectory, "Profiles");
+            this.legacyMetaPath = Path.Combine(pluginDirectory, "meta.json");
             this.legacySettingsPath = Path.Combine(pluginDirectory, "config", "settings.txt");
 
             Directory.CreateDirectory(this.profilesDir);
+            this.MigrateLegacyFiles();
         }
 
         public List<string> ListProfiles()
@@ -92,12 +97,17 @@ namespace AutoExile2.WebServer
                 this.Log($"Created pristine clean factory profile: {DefaultProfileName}");
             }
 
-            // If no active profile specified, check legacy settings.txt to migrate as "Custom"
-            if (File.Exists(this.legacySettingsPath))
+            // If no active profile specified, check settings.txt to migrate as "Custom".
+            foreach (var settingsPath in new[] { this.settingsPath, this.legacySettingsPath })
             {
+                if (!File.Exists(settingsPath))
+                {
+                    continue;
+                }
+
                 try
                 {
-                    var text = File.ReadAllText(this.legacySettingsPath);
+                    var text = File.ReadAllText(settingsPath);
                     var userSettings = JsonSerializer.Deserialize<AutoExile2Settings>(text, AutoExileJson.Options);
                     if (userSettings != null)
                     {
@@ -114,7 +124,7 @@ namespace AutoExile2.WebServer
                 }
                 catch (Exception ex)
                 {
-                    this.Log($"Legacy migration error: {ex.Message}");
+                    this.Log($"Settings migration error: {ex.Message}");
                 }
             }
 
@@ -131,11 +141,11 @@ namespace AutoExile2.WebServer
                 this.WriteProfileFile(settings, this.ActiveProfileName);
                 this.WriteMeta(this.ActiveProfileName);
 
-                // Also sync to legacy settings.txt for GameHelper standard plugin persistence
+                // Keep the compatibility snapshot centralized with the other plugin settings.
                 try
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(this.legacySettingsPath) ?? string.Empty);
-                    File.WriteAllText(this.legacySettingsPath, JsonSerializer.Serialize(settings, AutoExileJson.Options));
+                    Directory.CreateDirectory(Path.GetDirectoryName(this.settingsPath) ?? string.Empty);
+                    File.WriteAllText(this.settingsPath, JsonSerializer.Serialize(settings, AutoExileJson.Options));
                 }
                 catch { }
             }
@@ -315,6 +325,38 @@ namespace AutoExile2.WebServer
         }
 
         private string PathFor(string name) => Path.Combine(this.profilesDir, $"{name}.json");
+
+        private void MigrateLegacyFiles()
+        {
+            try
+            {
+                if (Directory.Exists(this.legacyProfilesDir))
+                {
+                    foreach (var source in Directory.EnumerateFiles(this.legacyProfilesDir, "*.json"))
+                    {
+                        var destination = Path.Combine(this.profilesDir, Path.GetFileName(source));
+                        if (!File.Exists(destination))
+                        {
+                            File.Copy(source, destination);
+                        }
+                    }
+                }
+
+                if (!File.Exists(this.metaPath) && File.Exists(this.legacyMetaPath))
+                {
+                    File.Copy(this.legacyMetaPath, this.metaPath);
+                }
+
+                if (!File.Exists(this.settingsPath) && File.Exists(this.legacySettingsPath))
+                {
+                    File.Copy(this.legacySettingsPath, this.settingsPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.Log($"Legacy config migration error: {ex.Message}");
+            }
+        }
 
         private static string Sanitize(string name)
         {

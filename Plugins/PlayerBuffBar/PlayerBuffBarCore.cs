@@ -22,7 +22,7 @@
     {
         private readonly BuffIconLoader iconLoader = new();
 
-        private string SettingsPath => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingsPath => this.PluginConfigPath("settings.txt");
         private readonly string[] watchlistBuffers = new string[PlayerBuffBarSettings.MaxBuffBars];
         private readonly bool[] watchlistEditorDirtyPerBar = new bool[PlayerBuffBarSettings.MaxBuffBars];
         private string dumpStatusLine = string.Empty;
@@ -47,7 +47,9 @@
 
             var migrated = this.MigrateSettingsIfNeeded();
             Array.Clear(this.watchlistEditorDirtyPerBar);
-            this.iconLoader.Initialize(this.DllDirectory);
+            this.iconLoader.Initialize(
+                this.DllDirectory,
+                Path.GetDirectoryName(this.PluginConfigPath("icon_map.json")));
             this.iconsQueuedOnEnable = false;
             this.QueueIconDownloads(force: false);
             this.SyncAllWatchlistBuffersFromSettings();
@@ -312,7 +314,9 @@
             ImGui.SameLine();
             if (ImGui.Button(this.PluginText.Label("button.reload_icons", "Reload icons", "PlayerBuffBarReloadIcons")))
             {
-                this.iconLoader.ReloadIconMap(this.DllDirectory);
+                this.iconLoader.ReloadIconMap(
+                    this.DllDirectory,
+                    Path.GetDirectoryName(this.PluginConfigPath("icon_map.json")));
                 this.iconLoader.ReloadTextures();
                 this.QueueIconDownloads(force: false);
             }

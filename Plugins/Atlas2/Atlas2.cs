@@ -42,7 +42,7 @@ namespace Atlas2
         private const int ChannelDots = 2;
         private const int ChannelLabels = 3;
 
-        private string SettingPathname => Path.Join(DllDirectory, "config", "settings.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
         private string NewGroupName = string.Empty;
 
         private static readonly Dictionary<string, ContentInfo> MapTags = [];

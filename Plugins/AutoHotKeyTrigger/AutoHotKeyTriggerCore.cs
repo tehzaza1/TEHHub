@@ -41,7 +41,7 @@ namespace AutoHotKeyTrigger
         private string newProfileName = string.Empty;
         private bool stopShowingAutoQuitWarning = false;
 
-        private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
         private bool ShouldExecuteAutoQuit =>
             this.Settings.EnableAutoQuit &&
             this.Settings.AutoQuitCondition.Evaluate();

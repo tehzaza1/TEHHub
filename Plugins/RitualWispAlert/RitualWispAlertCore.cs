@@ -27,7 +27,7 @@ namespace RitualWispAlert
         private const float WorldUnitsPerGridUnit = 250f / 23f;
         private static readonly JsonSerializerOptions LegacyVectorOptions = new() { IncludeFields = true };
 
-        private string SettingsPath => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingsPath => this.PluginConfigPath("settings.txt");
 
         /// <inheritdoc/>
         public override void OnEnable(bool isGameOpened)

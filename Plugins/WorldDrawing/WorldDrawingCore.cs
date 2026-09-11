@@ -26,7 +26,7 @@ namespace WorldDrawing
     /// </summary>
     public sealed class WorldDrawingCore : PCore<WorldDrawingSettings>
     {
-        private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
         private ActiveCoroutine onAreaChangeCoroutine;
 
         /// <inheritdoc/>

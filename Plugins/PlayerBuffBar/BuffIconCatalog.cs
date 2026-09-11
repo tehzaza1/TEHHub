@@ -113,17 +113,38 @@ namespace PlayerBuffBar
 
         internal static string IconsDirectory(string pluginDirectory) => Path.Combine(pluginDirectory, "icons");
 
-        internal static string IconMapPath(string pluginDirectory) => Path.Combine(pluginDirectory, "config", "icon_map.json");
+        internal static string IconMapPath(string pluginDirectory, string? configDirectory = null)
+            => Path.Combine(configDirectory ?? Path.Combine(pluginDirectory, "config"), "icon_map.json");
 
         internal static string DownloadLogPath(string pluginDirectory) => Path.Combine(pluginDirectory, "icon_download.log");
 
         internal static string Poe2DbRefererHeader => Poe2DbReferer;
 
-        internal static IconMapData LoadIconMap(string pluginDirectory)
+        internal static IconMapData LoadIconMap(string pluginDirectory, string? configDirectory = null)
         {
             var pageSlugs = new Dictionary<string, string>(DefaultPageSlugs, StringComparer.OrdinalIgnoreCase);
             var directIcons = new Dictionary<string, string>(DefaultDirectIcons, StringComparer.OrdinalIgnoreCase);
-            var path = IconMapPath(pluginDirectory);
+            var path = IconMapPath(pluginDirectory, configDirectory);
+            if (configDirectory != null && !File.Exists(path))
+            {
+                var legacyPath = IconMapPath(pluginDirectory);
+                if (File.Exists(legacyPath))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(configDirectory);
+                        File.Copy(legacyPath, path, overwrite: false);
+                    }
+                    catch (IOException)
+                    {
+                        path = legacyPath;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        path = legacyPath;
+                    }
+                }
+            }
             if (!File.Exists(path))
             {
                 return new IconMapData(pageSlugs, directIcons);

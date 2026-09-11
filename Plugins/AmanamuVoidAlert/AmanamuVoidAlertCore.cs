@@ -35,7 +35,7 @@ namespace AmanamuVoidAlert
         private readonly Dictionary<uint, TrackedMonster> tracked = new();
         private readonly Stopwatch stopwatch = Stopwatch.StartNew();
 
-        private string SettingsPath => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingsPath => this.PluginConfigPath("settings.txt");
 
         private sealed class TrackedMonster
         {

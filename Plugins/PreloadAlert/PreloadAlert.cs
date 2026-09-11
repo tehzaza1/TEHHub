@@ -40,8 +40,8 @@ namespace PreloadAlert
 
         private Stopwatch lastMapSpawnTimer = Stopwatch.StartNew();
 
-        private string PreloadFileName => Path.Join(this.DllDirectory, "preloads.txt");
-        private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string PreloadFileName => this.PluginConfigPath("preloads.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
 
         /// <summary>
         ///     Clear all the important and found preloads and stops the co-routines.

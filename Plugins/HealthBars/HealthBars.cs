@@ -36,7 +36,7 @@ namespace HealthBars
         private float graduationsThickness = 0f;
         private Vector2 fontSize = Vector2.Zero;
 
-        private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
 
         private string TexturesPath => Path.Join(this.DllDirectory, "Textures");
 

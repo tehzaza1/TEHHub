@@ -7,6 +7,7 @@ namespace GameHelper.Plugin
     using GameHelper.Localization;
     using System;
     using System.Collections.Generic;
+    using System.IO;
 
     /// <summary>
     ///     Interface for creating plugins.
@@ -60,6 +61,54 @@ namespace GameHelper.Plugin
         public void SetPluginDllLocation(string dllLocation)
         {
             this.DllDirectory = dllLocation;
+        }
+
+        /// <summary>
+        ///     Gets a mutable configuration path outside the plugin deployment directory.
+        ///     Plugin updates can therefore replace DLLs and assets without overwriting user settings.
+        ///     The first access migrates the matching legacy file from the old plugin-local config folder
+        ///     (or plugin root for older mutable data files).
+        /// </summary>
+        /// <param name="fileName">The config file name, relative to the plugin config folder.</param>
+        /// <returns>The centralized config path.</returns>
+        protected string PluginConfigPath(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName) || Path.IsPathRooted(fileName))
+            {
+                throw new ArgumentException("A relative plugin config file name is required.", nameof(fileName));
+            }
+
+            var pluginName = !string.IsNullOrWhiteSpace(this.DllDirectory)
+                ? new DirectoryInfo(this.DllDirectory).Name
+                : this.GetType().Assembly.GetName().Name ?? this.GetType().Name;
+            var configDirectory = Path.Combine(AppContext.BaseDirectory, "configs", "plugins", pluginName);
+            var configPath = Path.Combine(configDirectory, fileName);
+            var legacyConfigPath = string.IsNullOrWhiteSpace(this.DllDirectory)
+                ? string.Empty
+                : Path.Combine(this.DllDirectory, "config", fileName);
+            var legacyRootPath = string.IsNullOrWhiteSpace(this.DllDirectory)
+                ? string.Empty
+                : Path.Combine(this.DllDirectory, fileName);
+            var legacyPath = File.Exists(legacyConfigPath) ? legacyConfigPath : legacyRootPath;
+
+            if (!File.Exists(configPath) && !string.IsNullOrEmpty(legacyPath) && File.Exists(legacyPath))
+            {
+                try
+                {
+                    Directory.CreateDirectory(configDirectory);
+                    File.Copy(legacyPath, configPath, overwrite: false);
+                }
+                catch (IOException)
+                {
+                    return legacyPath;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return legacyPath;
+                }
+            }
+
+            return configPath;
         }
     }
 }

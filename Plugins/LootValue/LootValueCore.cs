@@ -109,7 +109,7 @@ namespace LootValue
         private DateTime nextAlertScanUtc = DateTime.MinValue;
         private DateTime lastAlertSoundUtc = DateTime.MinValue;
 
-        private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
 
         /// <inheritdoc/>
         public override void OnEnable(bool isGameOpened)

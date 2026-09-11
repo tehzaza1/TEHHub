@@ -49,7 +49,7 @@ namespace Atlas2
         private const int PanelCandTableEndOffset = 0x580;
         private const int CandTableEntryStride = 0x44;
         private const int CandTableMaxCandidates = 5;
-        private string RitualRollLogPathname => Path.Join(DllDirectory, "config", "ritual_roll_log.jsonl");
+        private string RitualRollLogPathname => this.PluginConfigPath("ritual_roll_log.jsonl");
         private string L(string key, string fallback) => PluginText.T(key, fallback);
         private GameHelper.Localization.PluginLocalization Loc => PluginText;
 

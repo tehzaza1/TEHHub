@@ -128,13 +128,13 @@ namespace Radar
         private readonly Dictionary<string, ConcurrentDictionary<string, (Vector2 gridPos, float height, string category, string iconKey)>> trackedNodesByArea = new();
         private ConcurrentDictionary<string, (Vector2 gridPos, float height, string category, string iconKey)> trackedNodes = new();
 
-        private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingPathname => this.PluginConfigPath("settings.txt");
 
-        private string ImportantTgtPathName => Path.Join(this.DllDirectory, "important_tgt_files.txt");
+        private string ImportantTgtPathName => this.PluginConfigPath("important_tgt_files.txt");
 
-        private string BossArenaTgtPathName => Path.Join(this.DllDirectory, "boss_arena_tgt_files.txt");
+        private string BossArenaTgtPathName => this.PluginConfigPath("boss_arena_tgt_files.txt");
 
-        private string StairsTgtPathName => Path.Join(this.DllDirectory, "stairs_tgt_files.txt");
+        private string StairsTgtPathName => this.PluginConfigPath("stairs_tgt_files.txt");
 
         /// <inheritdoc/>
         public override void DrawSettings()

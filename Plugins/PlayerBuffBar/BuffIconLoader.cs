@@ -20,6 +20,7 @@ namespace PlayerBuffBar
 
         private string iconsDirectory = string.Empty;
         private string pluginDirectory = string.Empty;
+        private string? configDirectory;
         private BuffIconCatalog.IconMapData iconMap;
         private int reloadRequested;
         private string lastLogLine = string.Empty;
@@ -32,18 +33,20 @@ namespace PlayerBuffBar
             return client;
         }
 
-        public void Initialize(string pluginDirectory)
+        public void Initialize(string pluginDirectory, string? configDirectory = null)
         {
             this.pluginDirectory = pluginDirectory;
+            this.configDirectory = configDirectory;
             this.iconsDirectory = BuffIconCatalog.IconsDirectory(pluginDirectory);
             Directory.CreateDirectory(this.iconsDirectory);
-            this.iconMap = BuffIconCatalog.LoadIconMap(pluginDirectory);
+            this.iconMap = BuffIconCatalog.LoadIconMap(pluginDirectory, configDirectory);
             this.ReloadTexturesInternal();
         }
 
-        public void ReloadIconMap(string pluginDirectory)
+        public void ReloadIconMap(string pluginDirectory, string? configDirectory = null)
         {
-            this.iconMap = BuffIconCatalog.LoadIconMap(pluginDirectory);
+            this.configDirectory = configDirectory ?? this.configDirectory;
+            this.iconMap = BuffIconCatalog.LoadIconMap(pluginDirectory, this.configDirectory);
         }
 
         public string LastLogLine => this.lastLogLine;

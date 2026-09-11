@@ -54,7 +54,7 @@ namespace AutoExile2
         private AutoExileMode lastModeType = AutoExileMode.MapFarm;
         private bool isModeInitialized = false;
 
-        private string SettingsPath => Path.Join(this.DllDirectory, "config", "settings.txt");
+        private string SettingsPath => this.PluginConfigPath("settings.txt");
 
         // Hotkey edge trigger
         private bool lastToggleKeyDown = false;
@@ -81,7 +81,9 @@ namespace AutoExile2
         /// <inheritdoc/>
         public override void OnEnable(bool isGameOpened)
         {
-            this.profileManager.Initialize(this.DllDirectory);
+            this.profileManager.Initialize(
+                this.DllDirectory,
+                Path.GetDirectoryName(this.PluginConfigPath("settings.txt")) ?? string.Empty);
             this.profileManager.OnProfileSwitched += (newName) =>
             {
                 if (this.modes.TryGetValue(this.Settings.Mode, out var configuredMode))
