@@ -73,7 +73,7 @@ namespace AutoHotKeyTrigger
     }
 
     /// <summary>
-    ///     Provides XInput gamepad polling and direct keyboard key-press
+    ///     Provides XInput gamepad polling and keyboard messages sent directly to the game window
     ///     to bypass <c>MiscHelper.KeyUp</c> which is blocked in controller mode.
     /// </summary>
     internal static partial class BotInput
@@ -84,8 +84,9 @@ namespace AutoHotKeyTrigger
         [LibraryImport("winmm.dll", EntryPoint = "timeEndPeriod")]
         private static partial uint TimeEndPeriod(uint uMilliseconds);
 
-        private const uint InputKeyboard = 1;
-        private const uint KeyEventFlagKeyUp = 0x0002;
+        private const uint WmKeyDown = 0x0100;
+        private const uint WmKeyUp = 0x0101;
+        private const uint MapVkToScanCode = 0;
 
         /// <summary>
         ///     Analog trigger threshold (0-255). Values above this count as "pressed".
@@ -276,7 +277,11 @@ namespace AutoHotKeyTrigger
         private static partial IntPtr GetForegroundWindow();
 
         [LibraryImport("user32.dll", SetLastError = true)]
-        private static partial uint SendInput(uint inputCount, [In] Input[] inputs, int inputSize);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool PostMessage(IntPtr hWnd, uint message, IntPtr wParam, IntPtr lParam);
+
+        [LibraryImport("user32.dll")]
+        private static partial uint MapVirtualKey(uint code, uint mapType);
 
         // ── Public API ───────────────────────────────────────────────
 
@@ -315,9 +320,9 @@ namespace AutoHotKeyTrigger
         }
 
         /// <summary>
-        ///     Sends a real keyboard down/up input pair, bypassing <c>MiscHelper.KeyUp</c>
-        ///     which is blocked in controller mode. Unlike window messages, SendInput reaches
-        ///     the game's regular keyboard input path.
+        ///     Posts a complete keyboard down/up pair (including the scan code) to the game
+        ///     window. This retains the old direct-window strategy while supplying the key-down
+        ///     transition required by current game builds.
         ///     Includes rate-limiting equivalent to MiscHelper's 30-40ms delay.
         /// </summary>
         /// <param name="key">Virtual key to send.</param>
@@ -344,60 +349,18 @@ namespace AutoHotKeyTrigger
                 return false;
             }
 
-            var keyDown = new Input((ushort)key, 0);
-            var keyUp = new Input((ushort)key, KeyEventFlagKeyUp);
+            var scanCode = MapVirtualKey((uint)key, MapVkToScanCode);
+            var keyDownLParam = (1u | (scanCode << 16));
+            var keyUpLParam = keyDownLParam | (1u << 30) | (1u << 31);
+            var virtualKey = (IntPtr)(int)key;
             sendingMessage = Task.Run(async () =>
             {
-                _ = SendInput(1, [keyDown], Marshal.SizeOf<Input>());
+                _ = PostMessage(Core.Process.MainWindowHandle, WmKeyDown, virtualKey, (IntPtr)(long)keyDownLParam);
                 await Task.Delay(35);
-                _ = SendInput(1, [keyUp], Marshal.SizeOf<Input>());
+                _ = PostMessage(Core.Process.MainWindowHandle, WmKeyUp, virtualKey, (IntPtr)(long)keyUpLParam);
             });
 
             return true;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct Input
-        {
-            public Input(uint virtualKey, uint flags)
-            {
-                this.Type = InputKeyboard;
-                this.Union = new InputUnion(new KeyboardInput(virtualKey, flags));
-            }
-
-            public uint Type;
-            public InputUnion Union;
-        }
-
-        [StructLayout(LayoutKind.Explicit)]
-        private struct InputUnion
-        {
-            public InputUnion(KeyboardInput keyboard)
-            {
-                this.Keyboard = keyboard;
-            }
-
-            [FieldOffset(0)]
-            public KeyboardInput Keyboard;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct KeyboardInput
-        {
-            public KeyboardInput(uint virtualKey, uint flags)
-            {
-                this.VirtualKey = (ushort)virtualKey;
-                this.ScanCode = 0;
-                this.Flags = flags;
-                this.Time = 0;
-                this.ExtraInfo = IntPtr.Zero;
-            }
-
-            public ushort VirtualKey;
-            public ushort ScanCode;
-            public uint Flags;
-            public uint Time;
-            public IntPtr ExtraInfo;
         }
 
         /// <summary>
