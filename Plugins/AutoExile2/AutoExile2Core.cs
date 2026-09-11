@@ -81,9 +81,7 @@ namespace AutoExile2
         /// <inheritdoc/>
         public override void OnEnable(bool isGameOpened)
         {
-            this.profileManager.Initialize(
-                this.DllDirectory,
-                Path.GetDirectoryName(this.PluginConfigPath("settings.txt")) ?? string.Empty);
+            this.profileManager.Initialize(Path.GetDirectoryName(this.PluginConfigPath("settings.txt")) ?? string.Empty);
             this.profileManager.OnProfileSwitched += (newName) =>
             {
                 if (this.modes.TryGetValue(this.Settings.Mode, out var configuredMode))

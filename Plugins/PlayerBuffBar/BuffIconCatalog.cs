@@ -125,26 +125,6 @@ namespace PlayerBuffBar
             var pageSlugs = new Dictionary<string, string>(DefaultPageSlugs, StringComparer.OrdinalIgnoreCase);
             var directIcons = new Dictionary<string, string>(DefaultDirectIcons, StringComparer.OrdinalIgnoreCase);
             var path = IconMapPath(pluginDirectory, configDirectory);
-            if (configDirectory != null && !File.Exists(path))
-            {
-                var legacyPath = IconMapPath(pluginDirectory);
-                if (File.Exists(legacyPath))
-                {
-                    try
-                    {
-                        Directory.CreateDirectory(configDirectory);
-                        File.Move(legacyPath, path);
-                    }
-                    catch (IOException)
-                    {
-                        path = legacyPath;
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        path = legacyPath;
-                    }
-                }
-            }
             if (!File.Exists(path))
             {
                 return new IconMapData(pageSlugs, directIcons);

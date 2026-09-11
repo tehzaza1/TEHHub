@@ -23,9 +23,6 @@ namespace AutoExile2.WebServer
         private string profilesDir = string.Empty;
         private string metaPath = string.Empty;
         private string settingsPath = string.Empty;
-        private string legacyProfilesDir = string.Empty;
-        private string legacyMetaPath = string.Empty;
-        private string legacySettingsPath = string.Empty;
         private readonly Action<string>? logger;
 
         public ProfileManager(Action<string>? logger = null)
@@ -37,17 +34,12 @@ namespace AutoExile2.WebServer
 
         public event Action<string>? OnProfileSwitched;
 
-        public void Initialize(string pluginDirectory, string configDirectory)
+        public void Initialize(string configDirectory)
         {
             this.profilesDir = Path.Combine(configDirectory, "profiles");
             this.metaPath = Path.Combine(configDirectory, "meta.json");
             this.settingsPath = Path.Combine(configDirectory, "settings.txt");
-            this.legacyProfilesDir = Path.Combine(pluginDirectory, "Profiles");
-            this.legacyMetaPath = Path.Combine(pluginDirectory, "meta.json");
-            this.legacySettingsPath = Path.Combine(pluginDirectory, "config", "settings.txt");
-
             Directory.CreateDirectory(this.profilesDir);
-            this.MigrateLegacyFiles();
         }
 
         public List<string> ListProfiles()
@@ -97,17 +89,12 @@ namespace AutoExile2.WebServer
                 this.Log($"Created pristine clean factory profile: {DefaultProfileName}");
             }
 
-            // If no active profile specified, check settings.txt to migrate as "Custom".
-            foreach (var settingsPath in new[] { this.settingsPath, this.legacySettingsPath })
+            // If no active profile is specified, use the central settings file as "Custom".
+            if (File.Exists(this.settingsPath))
             {
-                if (!File.Exists(settingsPath))
-                {
-                    continue;
-                }
-
                 try
                 {
-                    var text = File.ReadAllText(settingsPath);
+                    var text = File.ReadAllText(this.settingsPath);
                     var userSettings = JsonSerializer.Deserialize<AutoExile2Settings>(text, AutoExileJson.Options);
                     if (userSettings != null)
                     {
@@ -124,7 +111,7 @@ namespace AutoExile2.WebServer
                 }
                 catch (Exception ex)
                 {
-                    this.Log($"Settings migration error: {ex.Message}");
+                    this.Log($"Settings read error: {ex.Message}");
                 }
             }
 
@@ -325,99 +312,6 @@ namespace AutoExile2.WebServer
         }
 
         private string PathFor(string name) => Path.Combine(this.profilesDir, $"{name}.json");
-
-        private static void MoveLegacyFile(string source, string destination)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? string.Empty);
-            if (!File.Exists(destination))
-            {
-                File.Move(source, destination);
-                return;
-            }
-
-            if (FilesMatch(source, destination))
-            {
-                File.Delete(source);
-                return;
-            }
-
-            var directory = Path.GetDirectoryName(destination) ?? string.Empty;
-            var fileName = Path.GetFileNameWithoutExtension(destination);
-            var extension = Path.GetExtension(destination);
-            var backupPath = Path.Combine(directory, $"{fileName}.legacy-backup-{DateTime.UtcNow:yyyyMMddHHmmss}{extension}");
-            File.Move(source, backupPath);
-        }
-
-        private static bool FilesMatch(string first, string second)
-        {
-            var firstInfo = new FileInfo(first);
-            var secondInfo = new FileInfo(second);
-            if (firstInfo.Length != secondInfo.Length)
-            {
-                return false;
-            }
-
-            using var firstStream = File.OpenRead(first);
-            using var secondStream = File.OpenRead(second);
-            var firstBuffer = new byte[81920];
-            var secondBuffer = new byte[81920];
-            while (true)
-            {
-                var firstRead = firstStream.Read(firstBuffer, 0, firstBuffer.Length);
-                var secondRead = secondStream.Read(secondBuffer, 0, secondBuffer.Length);
-                if (firstRead != secondRead)
-                {
-                    return false;
-                }
-
-                if (firstRead == 0)
-                {
-                    return true;
-                }
-
-                for (var index = 0; index < firstRead; index++)
-                {
-                    if (firstBuffer[index] != secondBuffer[index])
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-
-        private void MigrateLegacyFiles()
-        {
-            try
-            {
-                if (Directory.Exists(this.legacyProfilesDir))
-                {
-                    foreach (var source in Directory.EnumerateFiles(this.legacyProfilesDir, "*.json"))
-                    {
-                        var destination = Path.Combine(this.profilesDir, Path.GetFileName(source));
-                        MoveLegacyFile(source, destination);
-                    }
-
-                    if (!Directory.EnumerateFileSystemEntries(this.legacyProfilesDir).Any())
-                    {
-                        Directory.Delete(this.legacyProfilesDir);
-                    }
-                }
-
-                if (File.Exists(this.legacyMetaPath))
-                {
-                    MoveLegacyFile(this.legacyMetaPath, this.metaPath);
-                }
-
-                if (File.Exists(this.legacySettingsPath))
-                {
-                    MoveLegacyFile(this.legacySettingsPath, this.settingsPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                this.Log($"Legacy config migration error: {ex.Message}");
-            }
-        }
 
         private static string Sanitize(string name)
         {

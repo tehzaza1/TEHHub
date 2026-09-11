@@ -81,8 +81,6 @@ namespace GameHelper.Plugin
         /// <summary>
         ///     Gets a mutable configuration path outside the plugin deployment directory.
         ///     Plugin updates can therefore replace DLLs and assets without overwriting user settings.
-        ///     The first access migrates the matching legacy file from the old plugin-local config folder
-        ///     (or plugin root for older mutable data files).
         /// </summary>
         /// <param name="fileName">The config file name, relative to the plugin config folder.</param>
         /// <returns>The centralized config path.</returns>
@@ -93,34 +91,7 @@ namespace GameHelper.Plugin
                 throw new ArgumentException("A relative plugin config file name is required.", nameof(fileName));
             }
 
-            var configDirectory = this.PluginConfigDirectory;
-            var configPath = Path.Combine(configDirectory, fileName);
-            var legacyConfigPath = string.IsNullOrWhiteSpace(this.DllDirectory)
-                ? string.Empty
-                : Path.Combine(this.DllDirectory, "config", fileName);
-            var legacyRootPath = string.IsNullOrWhiteSpace(this.DllDirectory)
-                ? string.Empty
-                : Path.Combine(this.DllDirectory, fileName);
-            var legacyPath = File.Exists(legacyConfigPath) ? legacyConfigPath : legacyRootPath;
-
-            if (!File.Exists(configPath) && !string.IsNullOrEmpty(legacyPath) && File.Exists(legacyPath))
-            {
-                try
-                {
-                    Directory.CreateDirectory(configDirectory);
-                    File.Move(legacyPath, configPath);
-                }
-                catch (IOException)
-                {
-                    return legacyPath;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    return legacyPath;
-                }
-            }
-
-            return configPath;
+            return Path.Combine(this.PluginConfigDirectory, fileName);
         }
     }
 }
