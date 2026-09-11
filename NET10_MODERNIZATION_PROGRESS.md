@@ -474,6 +474,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ไม่ย้าย JSON ที่เป็น dynamic profile/web payload แบบฝืน ๆ; เก็บ `JsonSerializerOptions` ไว้สำหรับกรณีเหล่านั้นเพื่อคง compatibility
 - ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
 
+### 6.17 ย้าย target-list ของ Radar เป็น source-generated JSON
+
+- important POI, boss arena และ stairs target-list ของ Radar ใช้ metadata ที่ generate จาก `RadarJsonContext`
+- คงรูปแบบ JSON เดิม (fields/case-insensitive/indentation) และไม่เปลี่ยน logic การอ่านหรือวาด Radar
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
