@@ -182,8 +182,11 @@ namespace GameHelper.Utils
             }
         }
 
-        [LibraryImport("user32.dll")]
-        private static partial IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
+        // Keep the legacy runtime-marshalled declaration for keyboard messages. Path of Exile
+        // accepts this path, while the source-generated declaration introduced during the .NET
+        // 10 interop modernization does not reliably reach its input handler.
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = false)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
 
         [LibraryImport("iphlpapi.dll", SetLastError = true)]
         private static partial uint GetExtendedTcpTable(
