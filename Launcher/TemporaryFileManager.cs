@@ -8,7 +8,6 @@ namespace Launcher
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Reflection;
     using System.Text.Json;
 
     /// <summary>
@@ -89,8 +88,7 @@ namespace Launcher
 
         private static string GetDirectoryPath()
         {
-            var currentProcessPath = Assembly.GetExecutingAssembly().Location;
-            return Path.GetDirectoryName(currentProcessPath) ?? string.Empty;
+            return AppContext.BaseDirectory;
         }
     }
 }

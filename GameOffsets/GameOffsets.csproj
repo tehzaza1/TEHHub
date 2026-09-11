@@ -2,7 +2,6 @@
 
     <PropertyGroup>
         <NoWarn>1701;1702; 1591</NoWarn>
-        <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

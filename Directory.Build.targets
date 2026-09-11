@@ -1,13 +1,22 @@
 <Project>
   <!--
     Repository-wide .NET 10 baseline. Project files may add their own package or
-    output settings, but all production code is compiled against this deliberate
-    platform/language contract. A future framework upgrade is a single, reviewed
-    change here rather than a collection of per-plugin migrations.
+    output settings. TargetFramework is set early in Directory.Build.props so the
+    SDK can infer its targets; the validation target below rejects later project
+    overrides. A future framework upgrade remains a single, reviewed change.
   -->
   <PropertyGroup>
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <Target Name="ValidateRepositoryBuildContract" BeforeTargets="PrepareForBuild">
+    <Error
+      Condition="'$(TargetFramework)' != 'net10.0-windows'"
+      Text="$(MSBuildProjectName) must target net10.0-windows. Set the repository baseline in Directory.Build.props instead of overriding it in a project." />
+    <Error
+      Condition="'$(RuntimeIdentifier)' != 'win-x64'"
+      Text="$(MSBuildProjectName) must use the win-x64 runtime identifier." />
+  </Target>
 </Project>

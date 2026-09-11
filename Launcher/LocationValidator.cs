@@ -6,7 +6,6 @@ namespace Launcher
 {
     using System;
     using System.IO;
-    using System.Reflection;
     using System.Text.RegularExpressions;
 
     /// <summary>
@@ -26,8 +25,7 @@ namespace Launcher
         public static bool IsGameHelperLocationGood(out string? message)
         {
             message = null;
-            var currentProcessPath = Assembly.GetExecutingAssembly().Location;
-            var directoryPath = Path.GetDirectoryName(currentProcessPath);
+            var directoryPath = AppContext.BaseDirectory;
             if (string.IsNullOrEmpty(directoryPath))
             {
                 return true;

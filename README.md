@@ -4,6 +4,8 @@ GameHelper2 is a Windows x64 .NET overlay application with a plugin-based archit
 
 This guide is written for users who want to build and run the project from Visual Studio without using command-line tools.
 
+> **Using a release ZIP:** `Launcher.exe` runs without a preinstalled .NET runtime. It checks for the [Microsoft .NET 10 Runtime for Windows x64](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) required by GameHelper and offers the download link when it is missing. The SDK is needed only when compiling the source code.
+
 ## Required Tools
 
 Install these items before opening the project:
@@ -66,6 +68,12 @@ After a successful `Release` build, the runnable application is created here:
 ```text
 GameHelper\bin\Release\net10.0-windows\win-x64\
 ```
+
+The normal Visual Studio build is framework-dependent and uses the installed .NET 10 runtime.
+In release ZIP files produced by `create_release.bat`, `Launcher.exe` is a self-contained Windows
+x64 single-file application. GameHelper remains framework-dependent; the launcher detects a
+missing .NET 10 runtime and offers the official download link before trying to start it. The ZIP
+also contains `README_FIRST.txt` with the same requirement.
 
 That folder should contain files such as:
 

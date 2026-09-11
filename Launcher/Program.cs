@@ -18,6 +18,12 @@ namespace Launcher
                 Console.ReadKey();
                 return;
             }
+
+            if (!DotNetRuntimeDetector.IsNet10Installed())
+            {
+                DotNetRuntimeDetector.ShowInstallPrompt();
+                return;
+            }
             
             var updateAvailable = await AutoUpdate.CheckAndUpdateAsync(gameHelperLoc);
             if (updateAvailable)

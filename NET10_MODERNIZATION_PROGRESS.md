@@ -454,7 +454,7 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 
 - ย้าย interop ของ PickupHelper, AutoHotKeyTrigger และ AutoExile2 (Win32 input, XInput และ timer resolution) ไปใช้ source-generated `LibraryImport`
 - เปิด `AllowUnsafeBlocks` จาก `Directory.Build.props`; จำเป็นต่อ code ที่ generator สร้างเท่านั้น ไม่ได้เปลี่ยนพฤติกรรมหรือเปิด unsafe API ให้กับ logic ปกติ
-- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error และ source ที่ build ไม่มี `DllImport` เหลือ
+- ตรวจ Release build ทั้ง solution ผ่าน 0 warning / 0 error; interop ส่วนใหญ่ใช้ `LibraryImport` โดยคง `DllImport` เฉพาะ `MiscHelper.SendMessage` ที่ทดสอบแล้วว่าเส้นทาง source-generated ส่งคีย์เข้าเกมไม่เสถียร
 
 ### 6.14 บังคับมาตรฐาน .NET 10 สำหรับทุก project
 
