@@ -645,6 +645,145 @@ namespace GameHelper.Utils
         }
 
         /// <summary>
+        ///     Reads a std::map in breadth-first waves and coalesces nearby tree nodes. A failed
+        ///     span falls back to scalar node reads, preserving the original map traversal.
+        /// </summary>
+        internal int ReadStdMapBatched<TKey, TValue>(
+            StdMap nativeContainer,
+            int maxSizeAllowed,
+            bool enableCounting,
+            Func<TKey, TValue, bool> onEachNotNullNode)
+            where TKey : unmanaged
+            where TValue : unmanaged
+        {
+            const int maxGapAfterMapNodeBytes = 0x200;
+            const int maxBatchSpanBytes = 64 * 1024;
+            const int minBatchNodes = 4;
+
+            if (nativeContainer.Size <= 0 || nativeContainer.Size > maxSizeAllowed)
+            {
+                return 0;
+            }
+
+            var head = this.ReadMemory<StdMapNode<TKey, TValue>>(nativeContainer.Head);
+            var pending = new List<IntPtr>(64) { head.Parent };
+            var visited = new HashSet<IntPtr> { nativeContainer.Head };
+            var totalChildrenProcessed = 0;
+            var nodeSize = Unsafe.SizeOf<StdMapNode<TKey, TValue>>();
+
+            while (pending.Count > 0 && totalChildrenProcessed < maxSizeAllowed)
+            {
+                var addresses = pending.ToArray();
+                pending.Clear();
+                Array.Sort(addresses);
+                var nodes = new Dictionary<IntPtr, StdMapNode<TKey, TValue>>(addresses.Length);
+                var batchStart = 0;
+
+                while (batchStart < addresses.Length)
+                {
+                    var firstAddress = addresses[batchStart].ToInt64();
+                    var previousAddress = firstAddress;
+                    var batchEnd = batchStart + 1;
+                    while (batchEnd < addresses.Length)
+                    {
+                        var nextAddress = addresses[batchEnd].ToInt64();
+                        var gapAfterPrevious = nextAddress - previousAddress - nodeSize;
+                        var span = nextAddress - firstAddress + nodeSize;
+                        if (gapAfterPrevious < 0 ||
+                            gapAfterPrevious > maxGapAfterMapNodeBytes ||
+                            span > maxBatchSpanBytes)
+                        {
+                            break;
+                        }
+
+                        previousAddress = nextAddress;
+                        batchEnd++;
+                    }
+
+                    var count = batchEnd - batchStart;
+                    var batchSucceeded = false;
+                    if (count >= minBatchNodes)
+                    {
+                        var byteCount = checked((int)(previousAddress - firstAddress + nodeSize));
+                        var buffer = ArrayPool<byte>.Shared.Rent(byteCount);
+                        try
+                        {
+                            batchSucceeded = this.TryReadMemoryArray(
+                                new IntPtr(firstAddress),
+                                buffer,
+                                byteCount,
+                                out _);
+                            if (batchSucceeded)
+                            {
+                                for (var i = batchStart; i < batchEnd; i++)
+                                {
+                                    var offset = checked((int)(addresses[i].ToInt64() - firstAddress));
+                                    nodes[addresses[i]] = MemoryMarshal.Read<StdMapNode<TKey, TValue>>(
+                                        buffer.AsSpan(offset, nodeSize));
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(buffer);
+                        }
+                    }
+
+                    if (!batchSucceeded)
+                    {
+                        for (var i = batchStart; i < batchEnd; i++)
+                        {
+                            if (this.TryReadMemory(addresses[i], out StdMapNode<TKey, TValue> node))
+                            {
+                                nodes[addresses[i]] = node;
+                            }
+                        }
+                    }
+
+                    batchStart = batchEnd;
+                }
+
+                foreach (var address in addresses)
+                {
+                    if (!nodes.TryGetValue(address, out var current) || current.Color > 1)
+                    {
+                        continue;
+                    }
+
+                    totalChildrenProcessed++;
+                    if (!current.IsNil)
+                    {
+                        onEachNotNullNode(current.Data.Key, current.Data.Value);
+                    }
+
+                    if (!current.IsNil)
+                    {
+                        if (current.Left != nativeContainer.Head &&
+                            IsValidAddress(current.Left) &&
+                            visited.Add(current.Left))
+                        {
+                            pending.Add(current.Left);
+                        }
+
+                        if (current.Right != nativeContainer.Head &&
+                            IsValidAddress(current.Right) &&
+                            visited.Add(current.Right))
+                        {
+                            pending.Add(current.Right);
+                        }
+                    }
+
+                    if (totalChildrenProcessed >= maxSizeAllowed)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return totalChildrenProcessed;
+        }
+
+        /// <summary>
         ///     Reads the StdList into a List.
         /// </summary>
         /// <typeparam name="TValue">StdList element structure.</typeparam>

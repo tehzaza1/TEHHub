@@ -620,6 +620,15 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - Runtime validation ฉากมอนหนาแน่น: รวมลดจาก `1327` เป็น `1295 reads/frame` (~2.4%), `EntityUpdate` จาก `8.3` เป็น `8.0 reads/entity`, 60.6 frames/s และ `0 failures`
 - เป็นการลดจำนวน kernel transition ไม่ใช่การลดรอบอัปเดตหรือการลดข้อมูลที่ปลั๊กอินได้รับ
 
+### 6.39 รวม reads ของ entity std::map แบบเป็น wave
+
+- `AreaInstance` เปลี่ยนเส้นทาง awake-entity map มาใช้การอ่าน node แบบ breadth-first wave: sort address ของ node ใน wave เดียวกัน แล้วอ่านช่วงที่ติดกันเป็น buffer ก่อนแยก `StdMapNode` ฝั่งเรา
+- เริ่มจาก `head.Parent` (root จริง), กัน `head` sentinel และ `visited` node เพื่อไม่เดินวนใน red-black tree; ตรวจ `Color` และ address ก่อนนำ node ไปใช้
+- ถ้า batch span อ่านไม่ได้, node ในกลุ่มนั้นกลับไป `TryReadMemory<StdMapNode<...>>` รายตัวทันที จึงยังรองรับ heap ที่กระจัดกระจายและ page boundary
+- ไม่ลด callback หรือความถี่ entity update: callback เดิมยังทำ `entity.Address` และ `UpdateNearby` ทุก node ที่ valid เหมือนเดิม
+- Runtime validation จุดมอนหนาแน่น: รวมระบบลดจาก `1327` เป็น `1083 reads/frame` (~18.4%), `60.2 frames/s`, `0 failures`; `EntityUpdate` อยู่ที่ `7.9 reads/entity`
+- ชุดทดลอง map แบบเริ่มต้นผิด root ทำให้เกิด sentinel loop ถูกถอดทิ้งแล้ว; โค้ดที่บันทึกใช้ root/sentinel guard และผ่าน build + runtime diagnostics แล้ว
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

@@ -445,7 +445,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 kv.Value.IsValid = false;
             });
 
-            this.NetworkBubbleEntityCount = reader.ReadStdMap<EntityNodeKey, EntityNodeValue>(ePtr, 100000, dc == false, (key, value) =>
+            this.NetworkBubbleEntityCount = reader.ReadStdMapBatched<EntityNodeKey, EntityNodeValue>(ePtr, 100000, dc == false, (key, value) =>
             {
                 if (!Core.GHSettings.ProcessAllRenderableEntities && !EntityFilter.IgnoreVisualsAndDecorations(key))
                 {
