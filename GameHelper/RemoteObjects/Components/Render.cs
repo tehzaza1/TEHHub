@@ -18,9 +18,9 @@ namespace GameHelper.RemoteObjects.Components
         private static readonly float WorldToGridRatio =
             TileStructure.TileToWorldConversion / TileStructure.TileToGridConversion;
 
-        private GridPos2DSnap gridSnap = new(0f, 0f);
-
-        private sealed record GridPos2DSnap(float X, float Y);
+        // Keep X and Y together in one atomic 64-bit value. The old reference-type snapshot
+        // avoided torn coordinate pairs, but allocated one object for every entity refresh.
+        private long gridSnapBits;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Render" /> class.
@@ -38,8 +38,13 @@ namespace GameHelper.RemoteObjects.Components
         {
             get
             {
-                var s = System.Threading.Volatile.Read(ref this.gridSnap);
-                return new StdTuple3D<float> { X = s.X, Y = s.Y, Z = 0f };
+                var packed = System.Threading.Interlocked.Read(ref this.gridSnapBits);
+                return new StdTuple3D<float>
+                {
+                    X = BitConverter.Int32BitsToSingle((int)(packed >> 32)),
+                    Y = BitConverter.Int32BitsToSingle((int)packed),
+                    Z = 0f,
+                };
             }
         }
 
@@ -83,7 +88,9 @@ namespace GameHelper.RemoteObjects.Components
 
             var newX = data.CurrentWorldPosition.X / WorldToGridRatio;
             var newY = data.CurrentWorldPosition.Y / WorldToGridRatio;
-            System.Threading.Volatile.Write(ref this.gridSnap, new GridPos2DSnap(newX, newY));
+            var packed = ((long)(uint)BitConverter.SingleToInt32Bits(newX) << 32) |
+                         (uint)BitConverter.SingleToInt32Bits(newY);
+            System.Threading.Interlocked.Exchange(ref this.gridSnapBits, packed);
         }
     }
 }

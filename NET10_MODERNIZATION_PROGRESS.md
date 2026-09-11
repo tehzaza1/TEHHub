@@ -558,6 +558,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - Release build ทั้ง solution ผ่าน 0 warning / 0 error; ตรวจ IL ของเมธอดแล้วไม่มีการสร้าง closure (เหลือ cached factory delegate ใน cache-miss path)
 - ยังไม่ได้วัดผล runtime/GC ในเกมของชุดนี้ จึงยังไม่สรุปเปอร์เซ็นต์ความเร็วหรือผลต่อ FPS
 
+### 6.29 ตัด allocation จาก Render position snapshot
+
+- `Render.UpdateData` เคยสร้าง reference-type snapshot หนึ่งตัวทุกครั้งที่ entity refresh เพื่อให้อ่าน X/Y เป็นคู่ที่สอดคล้องกัน
+- เปลี่ยนเป็น pack float X/Y ลง `long` เดียวและใช้ `Interlocked` อ่าน/เขียน จึงคง atomic snapshot เดิมโดยไม่สร้าง object ใน hot path
+- profiler จากฉากมอนหนาแน่นแสดงว่า Render ถูก refresh ในเส้นทาง Entity อย่างต่อเนื่อง จึงลด GC pressure ของ `RefreshCachedComponents` ได้โดยไม่ลดความสดตำแหน่ง
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
