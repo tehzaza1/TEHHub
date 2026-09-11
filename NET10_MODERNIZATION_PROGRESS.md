@@ -513,6 +513,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - ปรับ namespace และ API การเขียน version resource ตาม AsmResolver 6 โดยคงขั้นตอน transform executable เดิม
 - restore, Release build ทั้ง solution และการตรวจ package deprecated ผ่านครบ 0 warning / 0 error
 
+### 6.23 Audit สถานะ dependency หลังย้ายมาตรฐาน
+
+- การตรวจ NuGet ไม่พบ package vulnerable หรือ deprecated เหลือในทั้ง solution
+- รายการที่ใหม่กว่าเหลือเฉพาะ ImageSharp 4.x และ Vortice/renderer 3.8+ ซึ่งเป็น major upgrade ของเส้นทางวาด overlay ทั้งระบบ
+- แยก renderer upgrade เป็นชุดทดสอบภาพจริงต่างหาก: ไม่ใช่เงื่อนไขของ .NET 10 และไม่ควรปะปนกับ migration ที่ต้องคงภาพ/การกดผ่านเมาส์เดิม
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก
