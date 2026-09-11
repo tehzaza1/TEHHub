@@ -50,6 +50,73 @@ public static class PerformanceProfiler
     }
 
     /// <summary>
+    ///     Returns the profiler rows directly for local diagnostics tooling. This mirrors the
+    ///     values shown in the UI without requiring a screenshot or clipboard operation.
+    /// </summary>
+    internal static PerformanceProfilerSnapshot GetApiSnapshot()
+    {
+        var rows = new List<PerformanceProfilerRow>(ProfileData.Count);
+        foreach (var kvp in ProfileData.ToArray())
+        {
+            var data = kvp.Value;
+            var key = kvp.Key;
+            int count;
+            double averageCallNs;
+            double averageFrameNs;
+            double averageAllocatedBytes;
+            if (showCurrentFrameOnly)
+            {
+                if (!CurrentFrameNs.TryGetValue(key, out var currentFrameNs) || currentFrameNs == 0 ||
+                    !CurrentFrameCounts.TryGetValue(key, out count) || count == 0)
+                {
+                    continue;
+                }
+
+                averageCallNs = currentFrameNs / count;
+                averageFrameNs = currentFrameNs;
+                CurrentFrameAllocatedBytes.TryGetValue(key, out var currentFrameAllocatedBytes);
+                averageAllocatedBytes = (double)currentFrameAllocatedBytes / count;
+            }
+            else
+            {
+                count = data.Count;
+                averageCallNs = data.AverageTicks * NsPerTick;
+                averageFrameNs = data.AverageFrameNs;
+                averageAllocatedBytes = data.AverageAllocatedBytes;
+            }
+
+            if (count == 0)
+            {
+                continue;
+            }
+
+            rows.Add(new PerformanceProfilerRow(
+                key,
+                count,
+                averageCallNs,
+                data.GetPercentileTicks(0.95) * NsPerTick,
+                data.GetPercentileTicks(0.99) * NsPerTick,
+                averageAllocatedBytes,
+                averageFrameNs));
+        }
+
+        return new PerformanceProfilerSnapshot(
+            Core.GHSettings.ShowPerfProfiler,
+            showCurrentFrameOnly,
+            rows.OrderByDescending(static row => row.AllocatedBytesPerCall).ToArray());
+    }
+
+    internal static void Reset()
+    {
+        ProfileData.Clear();
+        CurrentFrameNs.Clear();
+        CurrentFrameCounts.Clear();
+        CurrentFrameAllocatedBytes.Clear();
+        cachedRows = [];
+        lastUpdate = DateTime.MinValue;
+    }
+
+    /// <summary>
     ///     Creates an allocation-free profiling scope for GameHelper's internal hot paths.
     /// </summary>
     internal static ProfileScope Measure(string namespaceName, string methodName)
@@ -82,7 +149,7 @@ public static class PerformanceProfiler
                 {
                     if (ImGui.MenuItem("Reset"))
                     {
-                        ProfileData.Clear();
+                        Reset();
                     }
                     ImGui.Checkbox("Current Frame Only", ref showCurrentFrameOnly);
                     ImGui.EndMenuBar();
@@ -393,6 +460,20 @@ internal class ProfileRow(
     public double AvgAllocatedBytes { get; } = avgAllocatedBytes;
     public double AvgPerFrameNs { get; } = avgPerFrameNs;
 }
+
+internal sealed record PerformanceProfilerSnapshot(
+    bool Enabled,
+    bool CurrentFrameOnly,
+    PerformanceProfilerRow[] Rows);
+
+internal sealed record PerformanceProfilerRow(
+    string Name,
+    int Count,
+    double AvgCallNanoseconds,
+    double P95CallNanoseconds,
+    double P99CallNanoseconds,
+    double AllocatedBytesPerCall,
+    double AvgFrameNanoseconds);
 
 internal sealed class ProfileDisposable(
     string methodName,

@@ -86,6 +86,62 @@ public static class MemoryReadDiagnostics
         lastActionMessage);
 
     /// <summary>
+    ///     Returns the current diagnostics table as JSON-friendly scalar data. This is a live
+    ///     snapshot for local tooling; unlike the dump endpoint it does not write a file.
+    /// </summary>
+    internal static MemoryDiagnosticsSnapshot GetApiSnapshot()
+    {
+        RefreshRowsThrottled(force: true);
+        var rate = cachedReadRate;
+        var regions = ReadRegions
+            .ToArray()
+            .OrderByDescending(static entry => Interlocked.Read(ref entry.Value.ReadCalls))
+            .Select(static entry =>
+            {
+                var invocations = Interlocked.Read(ref entry.Value.Invocations);
+                var calls = Interlocked.Read(ref entry.Value.ReadCalls);
+                var bytes = Interlocked.Read(ref entry.Value.RequestedBytes);
+                return new MemoryDiagnosticsRegion(
+                    entry.Key,
+                    invocations,
+                    calls,
+                    invocations > 0 ? (double)calls / invocations : 0,
+                    bytes / 1048576.0);
+            })
+            .ToArray();
+        var failures = cachedRows
+            .OrderByDescending(static row => row.Total)
+            .Select(static row => new MemoryDiagnosticsFailure(
+                row.Name,
+                row.Total,
+                row.UniqueAddresses,
+                row.MaxPerAddress,
+                row.Verdict))
+            .ToArray();
+
+        return new MemoryDiagnosticsSnapshot(
+            Core.GHSettings.ShowMemoryDiagnostics,
+            Core.GHSettings.EnableNewMemoryRead,
+            rate.TotalCalls,
+            rate.TotalFrames,
+            rate.ScalarCalls,
+            rate.BufferCalls,
+            rate.TotalFailures,
+            rate.CallsPerSecond,
+            rate.MebibytesPerSecond,
+            rate.MicrosecondsPerCall,
+            rate.AverageCallsPerSecond,
+            rate.AverageMebibytesPerSecond,
+            rate.AverageMicrosecondsPerCall,
+            rate.AverageFramesPerSecond,
+            rate.AverageCallsPerFrame,
+            rate.TotalMebibytes,
+            failures.Length,
+            regions,
+            failures);
+    }
+
+    /// <summary>
     ///     Records a failed memory read. Callers must check
     ///     <see cref="Settings.State.ShowMemoryDiagnostics"/> before computing the (relatively
     ///     expensive) caller string, so this method assumes recording is wanted.
@@ -716,6 +772,41 @@ internal sealed record MemoryDiagnosticsStatus(
     long TotalFrames,
     string LastDumpPath,
     string LastAction);
+
+internal sealed record MemoryDiagnosticsSnapshot(
+    bool Enabled,
+    bool NewMemoryRead,
+    long TotalReadCalls,
+    long TotalFrames,
+    long ScalarReadCalls,
+    long BufferReadCalls,
+    long TotalFailures,
+    double RecentCallsPerSecond,
+    double RecentMebibytesPerSecond,
+    double RecentMicrosecondsPerCall,
+    double AverageCallsPerSecond,
+    double AverageMebibytesPerSecond,
+    double AverageMicrosecondsPerCall,
+    double AverageFramesPerSecond,
+    double AverageReadsPerFrame,
+    double TotalMebibytes,
+    int DistinctFailureCallSites,
+    MemoryDiagnosticsRegion[] Regions,
+    MemoryDiagnosticsFailure[] Failures);
+
+internal sealed record MemoryDiagnosticsRegion(
+    string Name,
+    long Invocations,
+    long TotalReads,
+    double AverageReadsPerInvocation,
+    double RequestedMebibytes);
+
+internal sealed record MemoryDiagnosticsFailure(
+    string Name,
+    long Total,
+    int UniqueAddresses,
+    int MaxPerAddress,
+    string Verdict);
 
 /// <summary>
 ///     Allocation-free scope returned by <see cref="MemoryReadDiagnostics.MeasureRegion"/>.

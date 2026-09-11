@@ -20,15 +20,23 @@ namespace GameHelper.Utils
         private const int RangeTailBytes = 0x800;
         private const int MaxRangeBytes = 0x8000;
 
+        [ThreadStatic]
+        private static FrameMemoryReadPipeline? current;
+
         private SafeMemoryHandle.ReadCachePlanScope planScope;
+        private readonly FrameMemoryReadPipeline? previous;
         private bool disposed;
 
         private FrameMemoryReadPipeline(
             SafeMemoryHandle reader,
-            SafeMemoryHandle.ReadCachePlanScope planScope)
+            SafeMemoryHandle.ReadCachePlanScope planScope,
+            FrameMemoryReadPipeline? previous)
         {
             this.planScope = planScope;
+            this.previous = previous;
         }
+
+        internal static bool IsActive => current is not null;
 
         /// <summary>
         ///     Builds and activates a frame plan from component addresses already known by the
@@ -41,7 +49,12 @@ namespace GameHelper.Utils
             ArgumentNullException.ThrowIfNull(reader);
             ArgumentNullException.ThrowIfNull(entities);
             var ranges = BuildRanges(entities);
-            return new FrameMemoryReadPipeline(reader, reader.BeginReadCachePlan(ranges));
+            var pipeline = new FrameMemoryReadPipeline(
+                reader,
+                reader.BeginReadCachePlan(ranges, enableDynamicCache: true),
+                current);
+            current = pipeline;
+            return pipeline;
         }
 
         public void Dispose()
@@ -53,6 +66,10 @@ namespace GameHelper.Utils
 
             this.disposed = true;
             this.planScope.Dispose();
+            if (ReferenceEquals(current, this))
+            {
+                current = this.previous;
+            }
         }
 
         private static List<SafeMemoryHandle.ReadCacheRange> BuildRanges(

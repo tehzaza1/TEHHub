@@ -141,6 +141,16 @@ namespace GameHelper.Utils
                 return true;
             }
 
+            // The new frame pipeline can lazily materialize an aligned read window for a
+            // scalar address that was not known while the plan was built. This is deliberately
+            // behind the master switch and remains bounded; a failed window falls through to
+            // the exact legacy scalar read below.
+            if (Core.GHSettings.EnableNewMemoryRead &&
+                currentReadCachePlan?.TryReadDynamic(this, address.ToInt64(), out result) == true)
+            {
+                return true;
+            }
+
             try
             {
                 var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
@@ -461,9 +471,11 @@ namespace GameHelper.Utils
         ///     coalesced by the caller. Failed ranges are simply omitted, so the normal scalar
         ///     fallback remains available for torn or unmapped spans.
         /// </summary>
-        internal ReadCachePlanScope BeginReadCachePlan(IReadOnlyList<ReadCacheRange> ranges)
+        internal ReadCachePlanScope BeginReadCachePlan(
+            IReadOnlyList<ReadCacheRange> ranges,
+            bool enableDynamicCache = false)
         {
-            if (ranges is null || ranges.Count == 0 || this.IsInvalid)
+            if (ranges is null || this.IsInvalid || (ranges.Count == 0 && !enableDynamicCache))
             {
                 return default;
             }
@@ -486,12 +498,12 @@ namespace GameHelper.Utils
                 windows.Add(new ReadCacheWindow(range.StartAddress.ToInt64(), range.ByteCount, buffer));
             }
 
-            if (windows.Count == 0)
+            if (windows.Count == 0 && !enableDynamicCache)
             {
                 return default;
             }
 
-            var plan = new ReadCachePlan(windows.ToArray());
+            var plan = new ReadCachePlan(windows.ToArray(), enableDynamicCache);
             var previous = currentReadCachePlan;
             currentReadCachePlan = plan;
             return new ReadCachePlanScope(plan, previous);
@@ -576,11 +588,16 @@ namespace GameHelper.Utils
 
         internal sealed class ReadCachePlan : IDisposable
         {
+            private const int DynamicPageBytes = 0x1000;
+            private const int DynamicCrossPageBytes = 0x2000;
+            private const int MaxDynamicWindows = 2048;
             private readonly ReadCacheWindow[] windows;
+            private readonly Dictionary<long, ReadCacheWindow>? dynamicWindows;
 
-            internal ReadCachePlan(ReadCacheWindow[] windows)
+            internal ReadCachePlan(ReadCacheWindow[] windows, bool enableDynamicCache)
             {
                 this.windows = windows;
+                this.dynamicWindows = enableDynamicCache ? new() : null;
             }
 
             internal bool Contains(long startAddress, int byteCount)
@@ -617,11 +634,68 @@ namespace GameHelper.Utils
                 return true;
             }
 
+            internal bool TryReadDynamic<T>(SafeMemoryHandle reader, long address, out T result)
+                where T : unmanaged
+            {
+                result = default;
+                var cache = this.dynamicWindows;
+                if (cache is null)
+                {
+                    return false;
+                }
+
+                var windowStart = address & ~(DynamicPageBytes - 1L);
+                var offsetInPage = address - windowStart;
+                var size = Unsafe.SizeOf<T>();
+                var byteCount = offsetInPage + size > DynamicPageBytes
+                    ? DynamicCrossPageBytes
+                    : DynamicPageBytes;
+                // Aligned page starts always have bit 0 clear, so it is safe to use bit 0 as
+                // the dictionary discriminator for a cross-page window at the same start.
+                var cacheKey = byteCount == DynamicCrossPageBytes ? windowStart | 1L : windowStart;
+                if (!cache.TryGetValue(cacheKey, out var window))
+                {
+                    if (cache.Count >= MaxDynamicWindows || !IsValidAddress(new IntPtr(windowStart)))
+                    {
+                        return false;
+                    }
+
+                    var buffer = ArrayPool<byte>.Shared.Rent(byteCount);
+                    if (!reader.TryReadMemoryArray(new IntPtr(windowStart), buffer, byteCount, out _))
+                    {
+                        ArrayPool<byte>.Shared.Return(buffer);
+                        return false;
+                    }
+
+                    window = new ReadCacheWindow(windowStart, byteCount, buffer);
+                    cache.Add(cacheKey, window);
+                }
+
+                var offset = address - window.StartAddress;
+                if (offset < 0 || offset > window.ByteCount - size)
+                {
+                    return false;
+                }
+
+                result = MemoryMarshal.Read<T>(window.Buffer.AsSpan((int)offset, size));
+                return true;
+            }
+
             public void Dispose()
             {
                 foreach (var window in this.windows)
                 {
                     ArrayPool<byte>.Shared.Return(window.Buffer);
+                }
+
+                if (this.dynamicWindows is not null)
+                {
+                    foreach (var window in this.dynamicWindows.Values)
+                    {
+                        ArrayPool<byte>.Shared.Return(window.Buffer);
+                    }
+
+                    this.dynamicWindows.Clear();
                 }
             }
 

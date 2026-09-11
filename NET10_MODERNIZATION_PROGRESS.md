@@ -678,6 +678,20 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `EnableNewMemoryRead` เป็นจุดตัดเดียวของ pipeline ทำให้ปิด master แล้วกลับ legacy path ได้โดยไม่ต้องมีโค้ดสองชุดกระจายทั่วระบบ
 - นี่เป็นฐานสำหรับย้าย UI/entity readers ชุดถัดไปเข้า planner โดยไม่เปลี่ยน plugin API หรือความถี่การ update
 
+### 6.47 ยก pipeline อ่าน memory เป็นระดับทั้ง frame และเพิ่ม diagnostics API ตรง
+
+- ย้ายการเปิด `FrameMemoryReadPipeline` ไปไว้ที่ `InGameState.UpdateData` ทำให้ Area, World, UI และ entity readers ใน frame เดียวกันใช้ read context เดียวกัน; `AreaInstance` จะสร้าง pipeline เองเฉพาะกรณีถูกเรียกแยกนอก frame orchestration เท่านั้น
+- เพิ่ม lazy page cache สำหรับ scalar address ที่ planner ยังไม่รู้ล่วงหน้า: อ่านเป็น page 4 KiB หรือ 8 KiB เมื่อข้าม page, จำกัดไม่เกิน 2,048 windows ต่อ frame และคืน buffer ผ่าน `ArrayPool<byte>` เมื่อจบ frame; ถ้าอ่านไม่ได้จะ fallback ไป scalar read เดิม
+- คง `EnableNewMemoryRead` เป็น master switch เดียว ไม่มี checkbox ย่อย และไม่เปลี่ยนความถี่ update หรือข้อมูลที่ปลั๊กอินเห็น
+- เพิ่ม loopback API ที่อ่านค่าปัจจุบันโดยตรง ไม่ต้อง screenshot/clipboard/dump:
+  - `GET /api/diagnostics/memory-snapshot`
+  - `GET /api/diagnostics/performance-snapshot`
+  - `POST /api/diagnostics/memory-reset`
+  - `POST /api/diagnostics/performance-reset`
+- `performance-snapshot` รองรับทั้ง session aggregate และ `Current Frame Only` แบบเดียวกับหน้าต่าง profiler; reset ผ่าน API ไม่ต้องเปิดหน้าต่างก่อน
+- Runtime validation หลังย้าย pipeline ทั้ง frame: `0` failed reads, ประมาณ `176.7 FPS`, `671.7 reads/frame`, `350.8 MiB/s` ในจุดทดสอบเดิม (ตัวเลขขึ้นกับเกม/ฉากและจำนวน entity)
+- Snapshot API ทำให้การวิเคราะห์รอบถัดไปใช้ตัวเลขจาก process โดยตรง และยังเก็บ dump endpoint เดิมไว้เป็นทางเลือกสำหรับ archive เท่านั้น
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

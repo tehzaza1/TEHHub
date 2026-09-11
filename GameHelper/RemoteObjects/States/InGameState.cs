@@ -78,19 +78,32 @@ namespace GameHelper.RemoteObjects.States
         {
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<InGameStateOffset>(this.Address);
-            this.CurrentAreaInstance.Address = data.AreaInstanceData;
-            this.CurrentWorldInstance.Address = data.WorldData;
+            FrameMemoryReadPipeline? frameMemoryPipeline = null;
+            if (Core.GHSettings.EnableNewMemoryRead)
+            {
+                frameMemoryPipeline = FrameMemoryReadPipeline.Start(reader, this.CurrentAreaInstance.AwakeEntities.Values);
+            }
 
-            Core.GHSettings.EnableControllerMode = data.UiRootStructPtr == IntPtr.Zero;
-            var uiManagerPtr = Core.GHSettings.EnableControllerMode
-                ? data.GamepadUiRootStructPtr
-                : data.UiRootStructPtr;
+            try
+            {
+                this.CurrentAreaInstance.Address = data.AreaInstanceData;
+                this.CurrentWorldInstance.Address = data.WorldData;
 
-            var uiRootStruct = reader.ReadMemory<UiRootStruct>(uiManagerPtr);
-            this.uiRootAddress = uiRootStruct.UiRootPtr;
-            this.GameUi.Address = uiManagerPtr;
+                Core.GHSettings.EnableControllerMode = data.UiRootStructPtr == IntPtr.Zero;
+                var uiManagerPtr = Core.GHSettings.EnableControllerMode
+                    ? data.GamepadUiRootStructPtr
+                    : data.UiRootStructPtr;
 
-            this.MouseOverEntity.Address = this.ReadMouseOverEntityAddress(reader, data.MouseOverHostPtr);
+                var uiRootStruct = reader.ReadMemory<UiRootStruct>(uiManagerPtr);
+                this.uiRootAddress = uiRootStruct.UiRootPtr;
+                this.GameUi.Address = uiManagerPtr;
+
+                this.MouseOverEntity.Address = this.ReadMouseOverEntityAddress(reader, data.MouseOverHostPtr);
+            }
+            finally
+            {
+                frameMemoryPipeline?.Dispose();
+            }
         }
 
         /// <summary>

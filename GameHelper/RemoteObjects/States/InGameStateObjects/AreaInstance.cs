@@ -265,53 +265,68 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
         {
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<AreaInstanceOffsets>(this.Address);
-
-            if (hasAddressChanged)
+            FrameMemoryReadPipeline? frameMemoryPipeline = null;
+            if (Core.GHSettings.EnableNewMemoryRead && !FrameMemoryReadPipeline.IsActive)
             {
-                this.Cleanup(true);
-                this.TerrainMetadata = data.TerrainMetadata;
-                this.CurrentAreaLevel = data.CurrentAreaLevel;
-                this.AreaHash = $"{data.CurrentAreaHash:X}";
-                if (this.TryGetTerrainDimensions(out _, out _, out _, out _))
+                // Start before the rest of the area refresh so player, environment and entity
+                // readers share one frame context. The plan is built from the previous entity
+                // cache; new/rebound entities use the lazy page fallback until next frame.
+                frameMemoryPipeline = FrameMemoryReadPipeline.Start(reader, this.AwakeEntities.Values);
+            }
+
+            try
+            {
+                if (hasAddressChanged)
                 {
-                    this.GridWalkableData = reader.ReadStdVector<byte>(
-                        this.TerrainMetadata.GridWalkableData);
-                    this.GridHeightData = this.GetTerrainHeight();
-                    this.TgtTilesLocations = this.GetTgtFileData();
+                    this.Cleanup(true);
+                    this.TerrainMetadata = data.TerrainMetadata;
+                    this.CurrentAreaLevel = data.CurrentAreaLevel;
+                    this.AreaHash = $"{data.CurrentAreaHash:X}";
+                    if (this.TryGetTerrainDimensions(out _, out _, out _, out _))
+                    {
+                        this.GridWalkableData = reader.ReadStdVector<byte>(
+                            this.TerrainMetadata.GridWalkableData);
+                        this.GridHeightData = this.GetTerrainHeight();
+                        this.TgtTilesLocations = this.GetTgtFileData();
+                    }
+                    else
+                    {
+                        this.GridWalkableData = Array.Empty<byte>();
+                        this.GridHeightData = Array.Empty<float[]>();
+                        this.TgtTilesLocations = new();
+                        Console.WriteLine(
+                            $"[AreaInstance] Rejected invalid terrain metadata at 0x{this.Address.ToInt64():X}: " +
+                            $"TotalTiles={this.TerrainMetadata.TotalTiles}, " +
+                            $"TileDetails={this.TerrainMetadata.TileDetailsPtr}. " +
+                            "The AreaInstance/TerrainMetadata offsets may have shifted.");
+                    }
+                }
+
+                this.UpdateEnvironmentAndCaches(data.Environments);
+                this.ServerDataObject.Address = data.PlayerInfo.ServerDataPtr;
+                this.Player.Address = data.PlayerInfo.LocalPlayerPtr;
+                var localPlayerCount = (int)data.PlayerInfo.LocalPlayers.TotalElements(8);
+                this.LocalPlayerCount = (localPlayerCount is >= 1 and <= 8) ? localPlayerCount : 1;
+                if (this.LocalPlayerCount > 1 && data.PlayerInfo.LocalPlayers.First != IntPtr.Zero)
+                {
+                    var p2Ptr = reader.ReadMemory<IntPtr>(data.PlayerInfo.LocalPlayers.First + 8);
+                    this.Player2.Address = p2Ptr;
                 }
                 else
                 {
-                    this.GridWalkableData = Array.Empty<byte>();
-                    this.GridHeightData = Array.Empty<float[]>();
-                    this.TgtTilesLocations = new();
-                    Console.WriteLine(
-                        $"[AreaInstance] Rejected invalid terrain metadata at 0x{this.Address.ToInt64():X}: " +
-                        $"TotalTiles={this.TerrainMetadata.TotalTiles}, " +
-                        $"TileDetails={this.TerrainMetadata.TileDetailsPtr}. " +
-                        "The AreaInstance/TerrainMetadata offsets may have shifted.");
+                    this.Player2.Address = IntPtr.Zero;
                 }
-            }
 
-            this.UpdateEnvironmentAndCaches(data.Environments);
-            this.ServerDataObject.Address = data.PlayerInfo.ServerDataPtr;
-            this.Player.Address = data.PlayerInfo.LocalPlayerPtr;
-            var localPlayerCount = (int)data.PlayerInfo.LocalPlayers.TotalElements(8);
-            this.LocalPlayerCount = (localPlayerCount is >= 1 and <= 8) ? localPlayerCount : 1;
-            if (this.LocalPlayerCount > 1 && data.PlayerInfo.LocalPlayers.First != IntPtr.Zero)
-            {
-                var p2Ptr = reader.ReadMemory<IntPtr>(data.PlayerInfo.LocalPlayers.First + 8);
-                this.Player2.Address = p2Ptr;
+                using (Ui.MemoryReadDiagnostics.MeasureRegion("Core.AreaInstance.Entities"))
+                {
+                    this.UpdateEntities(data.Entities.AwakeEntities, this.AwakeEntities, true);
+                }
+                this.AddEntityBackedPlayerBuffs();
             }
-            else
+            finally
             {
-                this.Player2.Address = IntPtr.Zero;
+                frameMemoryPipeline?.Dispose();
             }
-
-            using (Ui.MemoryReadDiagnostics.MeasureRegion("Core.AreaInstance.Entities"))
-            {
-                this.UpdateEntities(data.Entities.AwakeEntities, this.AwakeEntities, true);
-            }
-            this.AddEntityBackedPlayerBuffs();
         }
 
         private void AddEntityBackedPlayerBuffs()
@@ -445,15 +460,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 kv.Value.IsValid = false;
             });
 
-            FrameMemoryReadPipeline? frameMemoryPipeline = null;
-            if (Core.GHSettings.EnableNewMemoryRead)
-            {
-                frameMemoryPipeline = FrameMemoryReadPipeline.Start(reader, data.Values);
-            }
-
-            try
-            {
-                this.NetworkBubbleEntityCount = reader.ReadStdMapBatched<EntityNodeKey, EntityNodeValue>(ePtr, 100000, dc == false, (key, value) =>
+            this.NetworkBubbleEntityCount = reader.ReadStdMapBatched<EntityNodeKey, EntityNodeValue>(ePtr, 100000, dc == false, (key, value) =>
                 {
                     if (!Core.GHSettings.ProcessAllRenderableEntities && !EntityFilter.IgnoreVisualsAndDecorations(key))
                     {
@@ -493,11 +500,6 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                     }
                     return true;
                 });
-            }
-            finally
-            {
-                frameMemoryPipeline?.Dispose();
-            }
         }
 
         private Dictionary<string, List<Vector2>> GetTgtFileData()

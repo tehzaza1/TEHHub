@@ -114,6 +114,25 @@ namespace GameHelper.Ui
                     return;
                 }
 
+                if (method == "GET" && path == "/api/diagnostics/memory-snapshot")
+                {
+                    await WriteJsonAsync(context, 200, MemoryReadDiagnostics.GetApiSnapshot(), DiagnosticsApiJsonContext.Default.MemoryDiagnosticsSnapshot).ConfigureAwait(false);
+                    return;
+                }
+
+                if (method == "GET" && path == "/api/diagnostics/performance-snapshot")
+                {
+                    await WriteJsonAsync(context, 200, PerformanceProfiler.GetApiSnapshot(), DiagnosticsApiJsonContext.Default.PerformanceProfilerSnapshot).ConfigureAwait(false);
+                    return;
+                }
+
+                if (method == "POST" && path == "/api/diagnostics/performance-reset")
+                {
+                    PerformanceProfiler.Reset();
+                    await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Performance profiler reset."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+
                 if (method == "POST" && path == "/api/diagnostics/memory-reset")
                 {
                     MemoryReadDiagnostics.RequestReset();
@@ -168,6 +187,8 @@ namespace GameHelper.Ui
     [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
     [JsonSerializable(typeof(OffsetHelper.OffsetVerificationStatus))]
     [JsonSerializable(typeof(MemoryDiagnosticsStatus))]
+    [JsonSerializable(typeof(MemoryDiagnosticsSnapshot))]
+    [JsonSerializable(typeof(PerformanceProfilerSnapshot))]
     [JsonSerializable(typeof(DiagnosticsApiResponse))]
     internal sealed partial class DiagnosticsApiJsonContext : JsonSerializerContext
     {
