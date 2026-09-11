@@ -607,11 +607,6 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - `RefreshComponentMap` อ่าน vector ของ `(component name pointer, index)` และ vector component-address เป็น array ชั่วคราวสำหรับ entity ทุกตัวที่ต้อง rebuild map
 - เปลี่ยนสอง vector เป็น `PooledNativeVector`; สร้าง map จาก entry count จริงและคืน buffer ทันทีหลังใช้ โดยคง validation ของ `StdBucket` และรูปแบบข้อมูลเดิม
 
-### 6.37 refresh cached component โดยไม่ผ่าน address setter ซ้ำ
-
-- `RefreshCachedComponents` เคยบังคับ update ผ่าน `component.Address = component.Address` ซึ่งต้องอ่าน address ผ่าน getter แล้วเข้า setter/lock อีกครั้ง แม้ pointer ไม่เปลี่ยน
-- เพิ่ม internal `RefreshData()` ที่ใช้ update lock เดิมเพื่อ serialize กับ address change แต่เรียก `UpdateData(false)` ตรง จึงคงความถี่และข้อมูลสดของทุก component โดยลด overhead framework
-
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

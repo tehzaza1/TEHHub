@@ -436,7 +436,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                         continue;
                     }
 
-                    kv.Value.RefreshData();
+                    kv.Value.Address = kv.Value.Address;
                     if (!kv.Value.IsParentValid(this.Address))
                     {
                         return false;

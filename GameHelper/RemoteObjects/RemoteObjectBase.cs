@@ -114,40 +114,6 @@ namespace GameHelper.RemoteObjects
         }
 
         /// <summary>
-        ///     Refreshes data at the current address without routing through the address setter.
-        ///     Entity component refreshes use this when the address is known to be unchanged;
-        ///     updateExecutionLock still serializes the complete update against address changes.
-        /// </summary>
-        internal void RefreshData()
-        {
-            lock (this.updateExecutionLock)
-            {
-                IntPtr currentAddress;
-                lock (this.updateLock)
-                {
-                    currentAddress = this.address;
-                }
-
-                try
-                {
-                    if (currentAddress == IntPtr.Zero)
-                    {
-                        this.CleanUpData();
-                    }
-                    else
-                    {
-                        using var _ = PerformanceProfiler.Measure(GetType().FullName ?? string.Empty, "UpdateData");
-                        this.UpdateData(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[{this.GetType().Name}.RefreshData] {ex}");
-                }
-            }
-        }
-
-        /// <summary>
         ///     Converts the <see cref="RemoteObjectBase" /> to ImGui Widget via reflection.
         ///     By default, only knows how to convert <see cref="address" /> field
         ///     and <see cref="RemoteObjectBase" /> properties of the calling class.
