@@ -20,6 +20,8 @@ namespace TEHhub.Ui
         private static Task<PrimaryRootResearchReport>? running;
         private static SafeMemoryHandle? attached;
         private static string status = "idle";
+        private static string localModel = OffsetAiResearch.DefaultModel;
+        private static bool requestAi;
 
         internal static void Tick()
         {
@@ -41,7 +43,7 @@ namespace TEHhub.Ui
             {
                 if (ImGui.Button("Cancel primary-root research")) cancellation?.Cancel();
             }
-            else if (Core.GHSettings.EnableOffsetTryFix && ImGui.Button("Research primary root (read-only)"))
+            else if (Core.GHSettings.EnableOffsetTryFix && DrawStartButtons())
             {
                 try
                 {
@@ -57,12 +59,42 @@ namespace TEHhub.Ui
                     cancellation = new CancellationTokenSource();
                     var token = cancellation.Token;
                     status = "scanning in background; up to three complete observations";
-                    running = Task.Run(() => Run(reader, baseAddress, size, path, version, processId, token));
+                    var useAi = requestAi;
+                    var model = localModel;
+                    running = Task.Run(async () =>
+                    {
+                        var report = await Run(reader, baseAddress, size, path, version, processId, token);
+                        if (useAi)
+                        {
+                            token.ThrowIfCancellationRequested();
+                            var review = await OffsetAiResearch.Review(report, model, token);
+                            report.Status += "; " + review.Status;
+                            if (review.Decision != null)
+                                report.Status += $"; {review.Decision.Decision} {review.Decision.CandidateId}: {review.Decision.NextProbe} — {review.Decision.Reason}";
+                        }
+
+                        return report;
+                    });
                 }
                 catch (Exception ex) { status = ex.Message; }
             }
 
             ImGui.TextWrapped("Exports a confirmed candidate and chain; primary roots are not automatically installed. Stay in-world. Unsupported layouts or multiple valid roots cause abstention.");
+        }
+
+        private static bool DrawStartButtons()
+        {
+            requestAi = false;
+            if (ImGui.Button("Research primary root (read-only)")) return true;
+            ImGui.InputText("Local Ollama model", ref localModel, 200);
+            if (ImGui.Button("AI-assisted root research (local)"))
+            {
+                requestAi = true;
+                return true;
+            }
+
+            ImGui.TextWrapped("Local AI reviews scanner evidence and recommends the next probe. No invented offsets are accepted; review is saved, not installed. Start Ollama on localhost:11434 first.");
+            return false;
         }
 
         internal static async Task<PrimaryRootResearchReport> Run(SafeMemoryHandle reader, long moduleBase, int moduleSize,

@@ -3,7 +3,7 @@
 ## Technical guides
 
 - [Offset recovery](guides/OFFSET_TRYFIX.md)
-- [Primary root research](guides/PRIMARY_ROOT_RESEARCH.md)
+- [Primary root research and optional local AI review](guides/PRIMARY_ROOT_RESEARCH.md)
 - [Local diagnostics API](guides/LOCAL_DIAGNOSTICS_API.md)
 - [Local AI worker](../tools/README.local-ai-worker.md)
 - [Localization](../TEHhub/Localization/README.md)

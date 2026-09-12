@@ -1,8 +1,9 @@
 # Primary-root research and adversarial arena
 
-This first version is a deterministic, read-only search and validation system, not a
-trained AI. It provides reproducible environments and labeled results for later model
-experiments. Confidence scores never authorize an unproven pointer.
+The scanner is a deterministic, read-only search and validation system. An optional
+local AI review can rank candidates already present in its saved evidence. This does
+not train a model or replace structural validation. Confidence scores never authorize
+an unproven pointer.
 
 ## Run in TEHhub
 
@@ -18,6 +19,34 @@ the running executable: `primary-root.latest.json`, review notes in
 SHA-256, session identity, per-observation read/byte counts, proposed globals, structural
 hypotheses, rejection counts, and confirmed graph candidates. Only three complete
 scans with the same unique graph and area identity produce `Confirmed=true`.
+
+## Optional local AI review
+
+In OffsetHelper, click **AI-assisted root research (local)** to run the same
+read-only three-scan research task, then ask a local Ollama model to review bounded
+evidence from that report. Ollama must be running at `localhost:11434`; requests use
+`/api/chat`. The default model is `qwen2.5-coder:7b-instruct-q4_K_M`, and the model
+field can be changed to another installed model.
+
+The model receives candidate IDs and their scanner evidence. It can recommend an
+existing `candidateId` for inspection or abstain; it cannot invent an address or
+install an offset. Its `decision` must be `inspect` or `abstain`, and `nextProbe`
+must be one of `player-components`, `ui-backlinks`, `state-ownership`,
+`rescan-in-world`, or `unsupported-layout`. Unknown candidate IDs, unknown enum
+values and malformed responses are rejected. A suggested probe is a review
+recommendation, not proof that the probe ran or passed.
+
+Review evidence is saved in `configs/offset-recovery` as
+`primary-root.ai.<timestamp>.<guid>.json` and `primary-root.ai.latest.json`. A
+report SHA-256 binds the review to its input evidence. Keep that report with the
+review when investigating a result; the review alone does not prove a live pointer
+is still valid. Cancel, disabling TryFix or reattaching cancels the task.
+
+The deterministic scanner remains the validator. An AI recommendation does not
+change `Confirmed`, bypass ambiguity, repair missing ancestors or automatically
+apply a primary root. This feature uses an existing local model for inference; it
+does not train or fine-tune that model. Arena results and saved reviews must not be
+interpreted as a measured live-game AI success rate.
 
 ## Evidence chain and ancestor failures
 
@@ -64,6 +93,14 @@ supported executable sections/motifs were scanned; it is not proof of an exhaust
 search over every possible x64 instruction or the whole process heap.
 
 ## Arena and reproducible labels
+
+The local AI transport can be checked separately with synthetic missing-descendant evidence (requires running Ollama and the default model):
+
+```
+dotnet run --project tests/OffsetRecovery.Tests/OffsetRecovery.Tests.csproj -c Release -- --ai-review-smoke
+```
+
+This invokes the production localhost client and strict decision parser, saves a synthetic review, and never attaches to the game. Its result is not a live recovery success rate. The ordinary suite tests adversarial AI decisions without network access.
 
 ```
 dotnet run --project tests/OffsetRecovery.Tests/OffsetRecovery.Tests.csproj -c Debug

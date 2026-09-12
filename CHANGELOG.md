@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.1.0 — 2026-09-12
+
+- Added local Qwen-assisted primary-root research in OffsetHelper: scan real read-only memory using existing graph validation, then review bounded candidate evidence through Ollama.
+- Validate candidate IDs, decisions and probe names; reject invented IDs, extra fields, malformed or oversized responses. AI reviews never install offsets or bypass deterministic confirmation.
+- Save immutable and latest AI reviews with game/report SHA256 and input evidence; support cancellation, TryFix disable and session changes. No candidates causes local abstention without inference.
+- Added adversarial model-output tests and an explicit synthetic localhost smoke mode.
+- Validation: Release build passed with zero warnings/errors; 193 assertions passed; actual installed Qwen returned a validated abstention for a synthetic graph missing descendant evidence. No live-game recovery success is claimed.
+
 ## 1.0.4 — 2026-09-12
 
 - Consolidated technical guides and historical records under Documentation with a navigation index; kept runtime data, plugin licenses and agent instruction files in their required locations.

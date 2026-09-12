@@ -11,6 +11,22 @@ using TEHhub.Offsets.Objects.Components;
 // Exercises the real read-only process-memory reader against allocations in this test process.
 // No game process is opened or modified. No external test packages are needed.
 // The explicit --research-live mode is separate and opens only the supplied PoE process for reading.
+if (args.Length == 1 && args[0] == "--ai-review-smoke")
+{
+    // Synthetic scanner evidence tests the actual localhost transport and strict decision parser.
+    // It does not measure real-game recovery or feed labels/expected answers to the model.
+    var fixture = new PrimaryRootResearchReport { Status = "synthetic missing-descendant fixture", ModuleBase = 0x100000, GameSha256 = "SYNTHETIC-NOT-A-GAME" };
+    var observation = new PrimaryRootSearchResult { Complete = true, Status = "structural only" };
+    observation.StructuralRoots.Add(new(0x101000, 0x200000, 0x40, 13, [0x300000]));
+    observation.Rejections.Add("player/UI descendant evidence unavailable", 1);
+    fixture.Observations.Add(observation);
+    var review = await OffsetAiResearch.Review(fixture, OffsetAiResearch.DefaultModel, CancellationToken.None);
+    Console.WriteLine(review.Status);
+    if (review.Decision == null) throw new InvalidOperationException("Local AI smoke failed: " + review.Status);
+    Console.WriteLine($"{review.Decision.Decision} {review.Decision.CandidateId}: {review.Decision.NextProbe}; {review.Decision.Reason}");
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--research-live")
 {
     using var game = Process.GetProcessById(int.Parse(args[1]));
@@ -41,6 +57,7 @@ void Check(bool condition, string message)
 
 using var process = Process.GetCurrentProcess();
 RootSearchArena.Run(Check);
+OffsetAiTests.Run(Check);
 using var reader = new SafeMemoryHandle(process.Id);
 typeof(GameProcess).GetProperty(nameof(GameProcess.Handle))!.SetValue(Core.Process, reader);
 typeof(GameProcess).GetProperty("Information", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Core.Process, process);
