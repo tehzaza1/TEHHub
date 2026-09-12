@@ -94,6 +94,11 @@ namespace TEHhub.Ui
             {
                 var path = context.Request.Url?.AbsolutePath;
                 var method = context.Request.HttpMethod;
+                if (method == "GET" && path == "/api/diagnostics/capture-status")
+                {
+                    await WriteJsonAsync(context, 200, BottleneckCapture.GetStatus(), DiagnosticsApiJsonContext.Default.CaptureStatus).ConfigureAwait(false);
+                    return;
+                }
                 if (method == "POST" && path == "/api/diagnostics/capture-start")
                 {
                     BottleneckCapture.RequestStart();
@@ -212,6 +217,7 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(PerformanceProfilerSnapshot))]
     [JsonSerializable(typeof(DiagnosticsApiResponse))]
     [JsonSerializable(typeof(BottleneckSnapshot))]
+    [JsonSerializable(typeof(CaptureStatus))]
     internal sealed partial class DiagnosticsApiJsonContext : JsonSerializerContext
     {
     }

@@ -2,6 +2,8 @@
 
 ## Technical guides
 
+- [Background performance monitor while playing](guides/PERFORMANCE_MONITOR.md)
+
 - [แผนลดคอขวดและการเก็บข้อมูลจาก Debug build](guides/BOTTLENECK_PLAN.md)
 - [Runtime log viewer and plugin logging](guides/RUNTIME_LOG.md)
 

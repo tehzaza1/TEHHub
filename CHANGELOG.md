@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.4.0 — 2026-09-12
+
+- Added a small hidden background monitor for normal Release gameplay: collect 20 seconds every three minutes, stop instrumentation between rounds, and write bounded reports under logs/performance-monitor.
+- Ship start/stop shortcuts and monitor script with the core build; retry while overlay/API is unavailable and prevent duplicate monitor instances.
+- Added capture-status and unique capture IDs so the helper checks build/process/round identity and stops only its own capture.
+- Validation: capture identity/count/reset tests and Debug/Release builds; helper syntax and background lifecycle checks. Live gameplay reports depend on running the updated deployed core.
+
 ## 1.3.0 — 2026-09-12
 
 - Added frame-boundary performance capture controls and cached bottleneck snapshots with render duration percentiles, process CPU/RAM/GC, world/entity context, memory reads and ranked inclusive scopes.

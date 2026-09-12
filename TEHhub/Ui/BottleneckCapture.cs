@@ -14,6 +14,8 @@ internal static class BottleneckCapture
     private static double initialCpu;
     private static readonly int[] InitialGc = new int[3];
     private static BottleneckSnapshot? snapshot;
+    private static string captureId = "";
+    internal static CaptureStatus GetStatus() => new(Current.Id, Build, typeof(Core).Assembly.GetName().Version?.ToString(3) ?? "unknown", Enabled, Volatile.Read(ref captureId));
     internal static bool Enabled => Volatile.Read(ref enabled) != 0;
     internal static BottleneckSnapshot? Snapshot => Volatile.Read(ref snapshot);
     internal static void RequestStart() => Interlocked.Exchange(ref command, 1);
@@ -26,6 +28,7 @@ internal static class BottleneckCapture
             PerformanceProfiler.Reset();
             MemoryReadDiagnostics.ResetForCapture();
             started = published = Stopwatch.GetTimestamp();
+            Volatile.Write(ref captureId, Guid.NewGuid().ToString("N"));
             frames = count = index = 0;
             initialCpu = Current.TotalProcessorTime.TotalMilliseconds;
             for (var g = 0; g < 3; g++) InitialGc[g] = GC.CollectionCount(g);
@@ -54,7 +57,7 @@ internal static class BottleneckCapture
         Current.Refresh();
         var area = Core.States.InGameStateObject.CurrentAreaInstance;
         Volatile.Write(ref snapshot, new(Current.Id, typeof(Core).Assembly.GetName().Version?.ToString(3) ?? "unknown", Build,
-            DateTime.UtcNow, Core.States.GameCurrentState.ToString(), area.AreaHash, area.AwakeEntities.Count, area.SleepingEntities.Count,
+            DateTime.UtcNow, captureId, Core.States.GameCurrentState.ToString(), area.AreaHash, area.AwakeEntities.Count, area.SleepingEntities.Count,
             active, seconds, frames, count, count == 0 ? 0 : sorted.Average(), Percentile(0.95), Percentile(0.99),
             (Current.TotalProcessorTime.TotalMilliseconds - initialCpu) / (seconds * 1000 * Environment.ProcessorCount) * 100,
             Current.WorkingSet64, Current.PrivateMemorySize64, GC.GetTotalMemory(false),
@@ -70,8 +73,10 @@ internal static class BottleneckCapture
 }
 
 internal sealed record BottleneckSnapshot(int ProcessId, string Version, string Build, DateTime WhenUtc,
-    string GameState, string AreaHash, int AwakeEntityCount, int SleepingEntityCount,
+    string CaptureId, string GameState, string AreaHash, int AwakeEntityCount, int SleepingEntityCount,
     bool Active, double ElapsedSeconds, long Frames, int RecentRenderSamples, double AverageRenderMilliseconds,
     double P95RenderMilliseconds, double P99RenderMilliseconds, double ProcessCpuPercentAllCores,
     long WorkingSetBytes, long PrivateBytes, long ManagedBytes, int[] GcCollections,
     MemoryDiagnosticsSnapshot Memory, PerformanceProfilerRow[] TopInclusiveScopes);
+
+internal sealed record CaptureStatus(int ProcessId, string Build, string Version, bool Active, string CaptureId);

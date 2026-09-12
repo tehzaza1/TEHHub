@@ -23,6 +23,8 @@ internal static class BottleneckTests
         BottleneckCapture.RequestStop();
         BottleneckCapture.BeginFrame();
         var snapshot = BottleneckCapture.Snapshot!;
+        var firstCaptureId = snapshot.CaptureId;
+        check(firstCaptureId.Length == 32 && BottleneckCapture.GetStatus().CaptureId == firstCaptureId, "capture exposes identity without starting measurement");
         check(!BottleneckCapture.Enabled && !snapshot.Active && snapshot.Frames == 1 && snapshot.Memory.TotalReadCalls == 1, "capture stop publishes final read/frame counts");
         check(snapshot.TopInclusiveScopes.Any(s => s.Name == "fixture.scope") && snapshot.P95RenderMilliseconds >= 0, "capture publishes measured scoped costs and render distribution");
         var json = JsonSerializer.Serialize(snapshot, DiagnosticsApiJsonContext.Default.BottleneckSnapshot);
@@ -32,5 +34,6 @@ internal static class BottleneckTests
         BottleneckCapture.RequestStop();
         BottleneckCapture.BeginFrame();
         check(BottleneckCapture.Snapshot!.Frames == 0 && BottleneckCapture.Snapshot.Memory.TotalReadCalls == 0, "new capture resets prior session counters");
+        check(BottleneckCapture.Snapshot.CaptureId != firstCaptureId, "new capture receives distinct identity so monitors cannot mix rounds");
     }
 }
