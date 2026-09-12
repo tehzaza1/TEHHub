@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.2.1 — 2026-09-12
+
+- Moved Log into the main Settings content area; the bottom navigation item selects it like General/Plugins, without a separate window.
+- Background capture and file logging continue when switching pages or hiding Settings.
+- Validation: Release solution build passed; live UI appearance not visually verified.
+
 ## 1.2.0 — 2026-09-12
 
 - Added a fixed Log button below Settings navigation opening a separate searchable log window with severity filters, auto-scroll, clear view and clipboard export.

@@ -31,6 +31,7 @@ namespace TEHhub.Settings
         private static bool isSettingsWindowVisible = true;
         private const string GeneralPageId = "core:general";
         private const string PluginManagerPageId = "core:plugins";
+        private const string LogPageId = "core:log";
         private static string selectedSettingsPage = PluginManagerPageId;
         private static string pluginReloadStatus = string.Empty;
         private static string pluginSearch = string.Empty;
@@ -109,7 +110,7 @@ namespace TEHhub.Settings
                     DrawSettingsNavigation(enabledPlugins);
                 ImGui.EndChild();
                 ImGui.Separator();
-                if (ImGui.Button(L.T("logs.open", "Log"), new Vector2(-1, 0))) RuntimeLog.Open();
+                DrawNavigationItem(LogPageId, L.T("logs.open", "Log"));
             }
 
             ImGui.EndChild();
@@ -183,6 +184,13 @@ namespace TEHhub.Settings
 
         private static void DrawSelectedSettingsPage(IReadOnlyCollection<PluginContainer> enabledPlugins)
         {
+            if (selectedSettingsPage == LogPageId)
+            {
+                ImGuiTheme.SectionHeader(L.T("logs.title", "TEHhub Log"));
+                RuntimeLog.DrawContent();
+                return;
+            }
+
             if (selectedSettingsPage == GeneralPageId)
             {
                 DrawCoreSettings();
@@ -213,7 +221,7 @@ namespace TEHhub.Settings
 
         private static void EnsureSelectedSettingsPage(IReadOnlyCollection<PluginContainer> enabledPlugins)
         {
-            if (selectedSettingsPage == GeneralPageId || selectedSettingsPage == PluginManagerPageId)
+            if (selectedSettingsPage == GeneralPageId || selectedSettingsPage == PluginManagerPageId || selectedSettingsPage == LogPageId)
             {
                 return;
             }

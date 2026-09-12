@@ -1,6 +1,6 @@
 # Runtime log viewer
 
-Click **Log** at the bottom of the Settings sidebar to open a separate window. It stays open when Settings closes. Close it with the window X.
+Click **Log** at the bottom of the Settings sidebar to display logs in the main window's content area. Switch back with General, Plugins or a plugin settings item. Logging continues while another page is selected or the main window is hidden.
 
 The viewer shows timestamps, source names, Info/Warning/Error filters, text search, auto-scroll, clear view and copy filtered logs. Clear view does not delete saved files. The in-memory history retains the latest 1,000 entries and bounds each message to 16,000 characters.
 

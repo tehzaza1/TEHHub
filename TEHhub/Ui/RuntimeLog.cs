@@ -28,7 +28,6 @@ internal static class RuntimeLog
     private static TextWriter? originalError;
     private static long dropped;
     private static string diskStatus = "";
-    private static bool open;
     private static bool info = true, warning = true, error = true, follow = true;
     private static string search = "";
     internal static string DirectoryPath => Path.Join(AppContext.BaseDirectory, "logs");
@@ -69,7 +68,6 @@ internal static class RuntimeLog
 
     internal static RuntimeLogEntry[] Snapshot() { lock (Gate) return Entries.ToArray(); }
     internal static void Clear() { lock (Gate) Entries.Clear(); }
-    internal static void Open() => open = true;
 
     private static async Task WriteFiles()
     {
@@ -107,11 +105,8 @@ internal static class RuntimeLog
         finally { if (output != null) await output.DisposeAsync(); }
     }
 
-    internal static void Draw()
+    internal static void DrawContent()
     {
-        if (!open) return;
-        ImGui.SetNextWindowSize(new Vector2(850, 450), ImGuiCond.FirstUseEver);
-        if (!ImGui.Begin(L.T("logs.title", "TEHhub Log") + "###TEHhubRuntimeLog", ref open)) { ImGui.End(); return; }
         ImGui.Checkbox("Info", ref info); ImGui.SameLine();
         ImGui.Checkbox("Warning", ref warning); ImGui.SameLine();
         ImGui.Checkbox("Error", ref error); ImGui.SameLine();
@@ -141,7 +136,6 @@ internal static class RuntimeLog
             if (follow && atBottom) ImGui.SetScrollHereY(1);
         }
         ImGui.EndChild();
-        ImGui.End();
     }
 
     private sealed class CaptureWriter(TextWriter original, RuntimeLogLevel level) : TextWriter

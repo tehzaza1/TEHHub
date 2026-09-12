@@ -100,7 +100,6 @@ namespace TEHhub
 
             PerformanceProfiler.EndFrame();
             MemoryReadDiagnostics.RecordFrame();
-            RuntimeLog.Draw();
 
             if (!Core.GHSettings.IsOverlayRunning)
             {
