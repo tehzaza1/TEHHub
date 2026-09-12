@@ -19,9 +19,12 @@ namespace TEHhub
         /// </summary>
         private static async Task Main()
         {
+            Ui.RuntimeLog.Initialize();
             AppDomain.CurrentDomain.UnhandledException += (sender, exceptionArgs) =>
             {
                 var errorText = "Program exited with message:\n " + exceptionArgs.ExceptionObject;
+                Ui.RuntimeLog.Write(Ui.RuntimeLogLevel.Error, "UnhandledException", errorText);
+                Ui.RuntimeLog.Stop();
                 try
                 {
                     var logPath = Path.Combine(AppContext.BaseDirectory, "Error.log");
@@ -38,10 +41,14 @@ namespace TEHhub
                 // exceptions on the main thread.
             };
 
-            using (Core.Overlay = new TEHhubOverlay(MiscHelper.GenerateRandomString()))
+            try
             {
-                await Core.Overlay.Run();
+                using (Core.Overlay = new TEHhubOverlay(MiscHelper.GenerateRandomString()))
+                {
+                    await Core.Overlay.Run();
+                }
             }
+            finally { Ui.RuntimeLog.Stop(); }
         }
     }
 }

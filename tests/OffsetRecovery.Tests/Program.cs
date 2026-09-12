@@ -11,6 +11,11 @@ using TEHhub.Offsets.Objects.Components;
 // Exercises the real read-only process-memory reader against allocations in this test process.
 // No game process is opened or modified. No external test packages are needed.
 // The explicit --research-live mode is separate and opens only the supplied PoE process for reading.
+if (args.Length == 1 && args[0] == "--log-smoke")
+{
+    RuntimeLogTests.Smoke();
+    return;
+}
 if (args.Length == 1 && args[0] == "--ai-review-smoke")
 {
     // Synthetic scanner evidence tests the actual localhost transport and strict decision parser.
@@ -57,6 +62,7 @@ void Check(bool condition, string message)
 
 using var process = Process.GetCurrentProcess();
 RootSearchArena.Run(Check);
+RuntimeLogTests.Run(Check);
 OffsetAiTests.Run(Check);
 using var reader = new SafeMemoryHandle(process.Id);
 typeof(GameProcess).GetProperty(nameof(GameProcess.Handle))!.SetValue(Core.Process, reader);

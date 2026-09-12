@@ -84,22 +84,23 @@ namespace TEHhub
             PerformanceProfiler.StartFrame();
 
             try { CoroutineHandler.Tick(ImGui.GetIO().DeltaTime); }
-            catch (Exception ex) { Console.WriteLine($"[TEHhubOverlay.Render.Tick] {ex}"); }
+            catch (Exception ex) { Console.Error.WriteLine($"[TEHhubOverlay.Render.Tick] {ex}"); }
 
             try { CoroutineHandler.RaiseEvent(TEHhubEvents.PerFrameDataUpdate); }
-            catch (Exception ex) { Console.WriteLine($"[TEHhubOverlay.Render.PerFrameDataUpdate] {ex}"); }
+            catch (Exception ex) { Console.Error.WriteLine($"[TEHhubOverlay.Render.PerFrameDataUpdate] {ex}"); }
 
             try { CoroutineHandler.RaiseEvent(TEHhubEvents.PostPerFrameDataUpdate); }
-            catch (Exception ex) { Console.WriteLine($"[TEHhubOverlay.Render.PostPerFrameDataUpdate] {ex}"); }
+            catch (Exception ex) { Console.Error.WriteLine($"[TEHhubOverlay.Render.PostPerFrameDataUpdate] {ex}"); }
 
             try { CoroutineHandler.RaiseEvent(TEHhubEvents.OnRender); }
-            catch (Exception ex) { Console.WriteLine($"[TEHhubOverlay.Render.OnRender] {ex}"); }
+            catch (Exception ex) { Console.Error.WriteLine($"[TEHhubOverlay.Render.OnRender] {ex}"); }
 
             try { CoroutineHandler.RaiseEvent(TEHhubEvents.OnPostRender); }
-            catch (Exception ex) { Console.WriteLine($"[TEHhubOverlay.Render.OnPostRender] {ex}"); }
+            catch (Exception ex) { Console.Error.WriteLine($"[TEHhubOverlay.Render.OnPostRender] {ex}"); }
 
             PerformanceProfiler.EndFrame();
             MemoryReadDiagnostics.RecordFrame();
+            RuntimeLog.Draw();
 
             if (!Core.GHSettings.IsOverlayRunning)
             {

@@ -2,6 +2,8 @@
 
 ## Technical guides
 
+- [Runtime log viewer and plugin logging](guides/RUNTIME_LOG.md)
+
 - [Offset recovery](guides/OFFSET_TRYFIX.md)
 - [Primary root research and optional local AI review](guides/PRIMARY_ROOT_RESEARCH.md)
 - [Local diagnostics API](guides/LOCAL_DIAGNOSTICS_API.md)

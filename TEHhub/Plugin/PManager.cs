@@ -206,7 +206,7 @@ namespace TEHhub.Plugin
             catch (Exception e)
             {
                 alc?.Unload();
-                Console.WriteLine($"Failed to load plugin {pluginDirectory.FullName} due to {e}");
+                PluginLog.Error(pluginDirectory.Name, $"Failed to load plugin {pluginDirectory.FullName} due to {e}");
                 return null;
             }
         }
@@ -266,7 +266,7 @@ namespace TEHhub.Plugin
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error loading plugin {assembly.FullName} due to {e}");
+                PluginLog.Error(assembly.GetName().Name ?? "Plugin loader", $"Error loading plugin {assembly.FullName} due to {e}");
                 return null;
             }
         }
@@ -402,7 +402,7 @@ namespace TEHhub.Plugin
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[PManager.ReloadAllPlugins] {container.Name} threw during cleanup: {ex}");
+                        PluginLog.Error(container.Name, $"Reload cleanup failed: {ex}");
                     }
                 }
 
@@ -432,7 +432,7 @@ namespace TEHhub.Plugin
                 catch (Exception ex)
                 {
                     container.Metadata.Enable = false;
-                    Console.WriteLine($"[PManager.ReloadAllPlugins] {container.Name} threw on enable: {ex}");
+                    PluginLog.Error(container.Name, $"Enable failed: {ex}");
                 }
             }
 
@@ -578,7 +578,7 @@ namespace TEHhub.Plugin
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[PManager.SavePluginSettingsCoroutine] {container.Name} threw on save: {ex}");
+                        PluginLog.Error(container.Name, $"Save settings failed: {ex}");
                     }
                 }
             }
@@ -657,7 +657,7 @@ namespace TEHhub.Plugin
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"[PManager.DrawPluginUiRenderCoroutine] {container.Name} threw: {ex}");
+                            PluginLog.Error(container.Name, $"DrawUI failed: {ex}");
                         }
                     }
                 }

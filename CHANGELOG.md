@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.2.0 — 2026-09-12
+
+- Added a fixed Log button below Settings navigation opening a separate searchable log window with severity filters, auto-scroll, clear view and clipboard export.
+- Capture console messages and record plugin load/reload/save/DrawUI failures with plugin names. Added public PluginLog.Info/Warning/Error APIs for structured plugin reporting.
+- Write bounded rotating session files asynchronously; retain recent history, expose queue/disk failures, and flush during normal shutdown. Preserve Error.log for crashes.
+- Validation: Release build and bounded-history tests; synthetic console/plugin severity and real background persistence smoke check passed. Native UI appearance has not been visually verified.
+
 ## 1.1.0 — 2026-09-12
 
 - Added local Qwen-assisted primary-root research in OffsetHelper: scan real read-only memory using existing graph validation, then review bounded candidate evidence through Ollama.

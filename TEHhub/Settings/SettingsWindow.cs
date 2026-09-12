@@ -105,7 +105,11 @@ namespace TEHhub.Settings
 
             if (ImGui.BeginChild("SettingsSidebar", new Vector2(sidebarWidth, 0), ImGuiChildFlags.Borders))
             {
-                DrawSettingsNavigation(enabledPlugins);
+                if (ImGui.BeginChild("SettingsNavigationList", new Vector2(0, -ImGui.GetFrameHeightWithSpacing() - 8)))
+                    DrawSettingsNavigation(enabledPlugins);
+                ImGui.EndChild();
+                ImGui.Separator();
+                if (ImGui.Button(L.T("logs.open", "Log"), new Vector2(-1, 0))) RuntimeLog.Open();
             }
 
             ImGui.EndChild();
