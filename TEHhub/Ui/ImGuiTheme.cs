@@ -6,6 +6,7 @@ namespace TEHhub.Ui
 {
     using System.Numerics;
     using ImGuiNET;
+    using L = TEHhub.Localization.OverlayLocalization;
 
     /// <summary>
     ///     Central dark theme for all TEHhub windows.
@@ -74,7 +75,7 @@ namespace TEHhub.Ui
         {
             ImGui.Spacing();
             ImGui.PushStyleColor(ImGuiCol.Text, Accent);
-            ImGui.Text(title);
+            ImGui.TextWrapped(title);
             ImGui.PopStyleColor();
             if (!string.IsNullOrEmpty(subtitle))
             {
@@ -90,16 +91,26 @@ namespace TEHhub.Ui
         internal static void DrawBrandHeader(string version, int activePlugins, int totalPlugins)
         {
             ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.055f, 0.13f, 0.14f, 1f));
-            ImGui.BeginChild("TEHhubBrandHeader", new Vector2(0, 58f), ImGuiChildFlags.Borders);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12f, 10f));
+            ImGui.BeginChild("TEHhubBrandHeader", Vector2.Zero, ImGuiChildFlags.Borders | ImGuiChildFlags.AutoResizeY,
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
             ImGui.PushStyleColor(ImGuiCol.Text, Accent);
             ImGui.SetWindowFontScale(1.35f);
             ImGui.TextUnformatted("TEHhub");
             ImGui.SetWindowFontScale(1f);
             ImGui.PopStyleColor();
-            ImGui.SameLine();
-            ImGui.TextDisabled($"CONTROL CENTER  ·  {version}");
-            ImGui.TextDisabled($"{activePlugins}/{totalPlugins} plugins active  ·  Local overlay workspace");
+            var centerLabel = L.F("settings.brand.center", "CONTROL CENTER · {0}", version);
+            if (ImGui.GetContentRegionAvail().X > ImGui.CalcTextSize(centerLabel).X + ImGui.GetStyle().ItemSpacing.X)
+            {
+                ImGui.SameLine();
+            }
+
+            ImGui.PushStyleColor(ImGuiCol.Text, TextMuted);
+            ImGui.TextWrapped(centerLabel);
+            ImGui.TextWrapped(L.F("settings.brand.plugins", "{0}/{1} plugins active · Local overlay workspace", activePlugins, totalPlugins));
+            ImGui.PopStyleColor();
             ImGui.EndChild();
+            ImGui.PopStyleVar();
             ImGui.PopStyleColor();
             ImGui.Spacing();
         }

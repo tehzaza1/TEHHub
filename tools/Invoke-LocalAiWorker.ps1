@@ -9,7 +9,7 @@ param(
 
     [string]$OutputPath,
 
-    [ValidateRange(1024, 32768)]
+    [ValidateRange(1024, 1000000)]
     [int]$ContextCharactersPerFile = 48000,
 
     [ValidateRange(4096, 262144)]
@@ -26,7 +26,7 @@ $contextCharacterCount = 0
 
 foreach ($path in $ContextPath) {
     $resolvedPath = [IO.Path]::GetFullPath($path)
-    if (-not $resolvedPath.StartsWith($repositoryRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    if (-not $resolvedPath.StartsWith($repositoryRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
         throw "Context file must be inside this repository: $path"
     }
 

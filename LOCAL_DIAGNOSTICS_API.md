@@ -1,13 +1,13 @@
 # Local Diagnostics API
 
-GameHelper เปิด API สำหรับตรวจ offset ภายในเครื่องที่ `http://localhost:9877` เท่านั้น
+TEHhub เปิด API สำหรับตรวจ offset ภายในเครื่องที่ `http://localhost:9877` เท่านั้น
 API นี้ไม่รับคำสั่งควบคุมตัวละคร ไม่สั่งปลั๊กอิน และไม่เปิดรับจากเครื่องอื่น
 
 ## ใช้งาน
 
-1. เปิดเกมและ GameHelper ตามปกติ
+1. เปิดเกมและ TEHhub ตามปกติ
 2. เข้าเกมจนตัวละครอยู่ในพื้นที่เล่นได้
-3. GameHelper จะตรวจ offset หนึ่งครั้งเองหลังข้อมูลนิ่งประมาณ 2 วินาที
+3. TEHhub จะตรวจ offset หนึ่งครั้งเองหลังข้อมูลนิ่งประมาณ 2 วินาที
 
 ตรวจสถานะปัจจุบัน:
 
@@ -33,7 +33,7 @@ curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/offset-verify
 
 ## ความหมายของผล
 
-- `rescan PASS`: signature/static address ที่ GameHelper ใช้อ่านยังหาเจอ
+- `rescan PASS`: signature/static address ที่ TEHhub ใช้อ่านยังหาเจอ
 - `relocated`: signature ยังถูกต้อง แต่ตำแหน่งใน process เปลี่ยน ซึ่งระบบ address resolver จัดการได้
 - `rescan FAILED`: pattern สำคัญหาไม่เจอ ต้องตรวจ offset ก่อนเชื่อผลจากฟีเจอร์ที่เกี่ยวข้อง
 
@@ -41,7 +41,7 @@ curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/offset-verify
 
 ## Memory diagnostics แบบไม่ต้องกดหน้าต่าง
 
-API ชุดนี้ใช้เก็บจำนวนครั้งอ่าน memory และอัตราการอ่านจาก workload จริง โดยให้ GameHelper ทำงานผ่าน render loop ตามปกติ:
+API ชุดนี้ใช้เก็บจำนวนครั้งอ่าน memory และอัตราการอ่านจาก workload จริง โดยให้ TEHhub ทำงานผ่าน render loop ตามปกติ:
 
 เริ่มรอบใหม่:
 
@@ -56,7 +56,7 @@ curl.exe -X POST -d "" http://localhost:9877/api/diagnostics/memory-dump
 curl.exe http://localhost:9877/api/diagnostics/memory-status
 ```
 
-ไฟล์ `memory_diagnostics_YYYYMMDD_HHMMSS.tsv` จะถูกเขียนไว้ข้าง `GameHelper.exe` และสถานะ `lastDumpPath` จะบอก path เต็มให้ตรวจสอบได้ การส่ง `-d ""` สำคัญบน Windows เพราะทำให้ request มี Content-Length เป็นศูนย์และไม่ถูกตอบกลับด้วย HTTP 411
+ไฟล์ `memory_diagnostics_YYYYMMDD_HHMMSS.tsv` จะถูกเขียนไว้ข้าง `TEHhub.exe` และสถานะ `lastDumpPath` จะบอก path เต็มให้ตรวจสอบได้ การส่ง `-d ""` สำคัญบน Windows เพราะทำให้ request มี Content-Length เป็นศูนย์และไม่ถูกตอบกลับด้วย HTTP 411
 
 เมื่อวัดเสร็จแล้ว ให้ปิด instrumentation เพื่อตัด overhead ของตัววัด:
 

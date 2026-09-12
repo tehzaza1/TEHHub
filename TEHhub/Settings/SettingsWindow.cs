@@ -33,6 +33,8 @@ namespace TEHhub.Settings
         private const string PluginManagerPageId = "core:plugins";
         private static string selectedSettingsPage = PluginManagerPageId;
         private static string pluginReloadStatus = string.Empty;
+        private static string pluginSearch = string.Empty;
+        private static string navigationSearch = string.Empty;
 
         private static EntityFilterType efilterType = EntityFilterType.PATH;
         private static string filterText = string.Empty;
@@ -126,6 +128,9 @@ namespace TEHhub.Settings
             ImGui.Text(L.T("settings.navigation.core", "WORKSPACE"));
             ImGui.PopStyleColor();
 
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputTextWithHint("##NavigationSearch", L.T("settings.plugin.search", "Search plugins"), ref navigationSearch, 200);
+
             DrawNavigationItem(GeneralPageId, L.T("settings.tabs.general", "General"));
             DrawNavigationItem(PluginManagerPageId, L.T("settings.tabs.plugins", "Plugins"));
 
@@ -143,6 +148,11 @@ namespace TEHhub.Settings
 
             foreach (var container in enabledPlugins)
             {
+                if (!container.Name.Contains(navigationSearch, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 DrawNavigationItem(PluginPageId(container.Name), container.Name);
             }
         }
@@ -277,33 +287,40 @@ namespace TEHhub.Settings
 
             var enabledCount = PManager.Plugins.Count(p => p.Metadata.Enable);
             ImGui.TextDisabled(L.F("settings.plugin.active_count", "Active: {0} / {1}", enabledCount, PManager.Plugins.Count));
-            ImGui.SameLine();
             if (ImGui.SmallButton(L.Label("settings.plugin.enable_all", "Enable all", "EnableAllPlugins")))
             {
                 SetAllPlugins(true);
             }
 
-            ImGui.SameLine();
-            if (ImGui.SmallButton(L.Label("settings.plugin.disable_all", "Disable all", "DisableAllPlugins")))
+            var disableAllLabel = L.Label("settings.plugin.disable_all", "Disable all", "DisableAllPlugins");
+            ContinueToolbarIfFits(disableAllLabel);
+            if (ImGui.SmallButton(disableAllLabel))
             {
                 SetAllPlugins(false);
             }
 
-            ImGui.SameLine();
-            if (ImGui.SmallButton(L.Label("settings.plugin.reload_all", "Reload all plugins", "ReloadAllPlugins")))
+            var reloadAllLabel = L.Label("settings.plugin.reload_all", "Reload all plugins", "ReloadAllPlugins");
+            ContinueToolbarIfFits(reloadAllLabel);
+            if (ImGui.SmallButton(reloadAllLabel))
             {
                 ReloadAllPlugins();
             }
 
             if (!string.IsNullOrEmpty(pluginReloadStatus))
             {
-                ImGui.SameLine();
                 ImGui.PushStyleColor(ImGuiCol.Text, ImGuiTheme.TextMuted);
-                ImGui.TextUnformatted(pluginReloadStatus);
+                ImGui.TextWrapped(pluginReloadStatus);
                 ImGui.PopStyleColor();
             }
 
             ImGui.Spacing();
+            ImGui.SetNextItemWidth(-1);
+            ImGui.InputTextWithHint("##PluginSearch", L.T("settings.plugin.search", "Search plugins"), ref pluginSearch, 200);
+            if (PManager.Plugins.Count == 0)
+            {
+                ImGui.TextWrapped(L.T("settings.plugin.empty", "No plugins loaded. Add compatible plugins to the Plugins folder, then reload."));
+                return;
+            }
 
             if (!ImGui.BeginTable(
                 "pluginTable",
@@ -318,25 +335,39 @@ namespace TEHhub.Settings
             ImGui.TableSetupColumn(L.T("settings.plugin.column.description", "Description"), ImGuiTableColumnFlags.WidthStretch, 1.0f);
             ImGui.TableSetupColumn(L.T("settings.plugin.column.status", "Status"), ImGuiTableColumnFlags.WidthFixed, 70f);
             ImGui.TableSetupColumn(L.T("settings.plugin.column.enable", "Enable"), ImGuiTableColumnFlags.WidthFixed, 60f);
+            ImGui.TableSetupScrollFreeze(0, 1);
             ImGui.TableHeadersRow();
 
+            var matchingCount = 0;
             foreach (var container in PManager.Plugins)
             {
+                var description = container.Plugin.GetDescription();
+                if (!container.Name.Contains(pluginSearch, StringComparison.OrdinalIgnoreCase)
+                    && !(description?.Contains(pluginSearch, StringComparison.OrdinalIgnoreCase) ?? false))
+                {
+                    continue;
+                }
+
+                matchingCount++;
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
-                ImGui.Text(container.Name);
+                ImGui.BeginDisabled(!container.Metadata.Enable);
+                if (ImGui.Selectable($"{container.Name}##open_{container.Name}", false))
+                {
+                    selectedSettingsPage = PluginPageId(container.Name);
+                }
+                ImGui.EndDisabled();
 
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
-                var description = container.Plugin.GetDescription();
                 if (string.IsNullOrWhiteSpace(description))
                 {
                     ImGui.TextDisabled("-");
                 }
                 else
                 {
-                    ImGui.TextUnformatted(description);
+                    ImGui.TextWrapped(description);
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip(description);
@@ -367,7 +398,25 @@ namespace TEHhub.Settings
                 }
             }
 
+            if (matchingCount == 0)
+            {
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.TextWrapped(L.T("settings.plugin.no_matches", "No matching plugins"));
+            }
+
             ImGui.EndTable();
+        }
+
+        private static void ContinueToolbarIfFits(string label)
+        {
+            var visibleLabel = label.Split("##", StringSplitOptions.None)[0];
+            var requiredWidth = ImGui.CalcTextSize(visibleLabel).X + ImGui.GetStyle().FramePadding.X * 2f;
+            var remainingWidth = ImGui.GetCursorScreenPos().X + ImGui.GetContentRegionAvail().X - ImGui.GetItemRectMax().X;
+            if (remainingWidth >= requiredWidth + ImGui.GetStyle().ItemSpacing.X)
+            {
+                ImGui.SameLine();
+            }
         }
 
         private static void SetAllPlugins(bool enabled)
@@ -447,7 +496,7 @@ namespace TEHhub.Settings
             ImGui.TextColored(color, L.T("settings.about.version", "For PoE2 0.5.5"));
             ImGui.TextColored(color, L.T("settings.about.zero_day", "Zero Day developer is Kronos"));
             ImGui.TextColored(color, L.T("settings.about.offset", "Offset updater is Arsenic, Nabeora, Lafko"));
-            ImGui.TextColored(color, L.T("settings.about.discord", "Official TEHhub2 Discord is https://discord.gg/864GyuM5S"));
+            ImGui.TextColored(color, L.T("settings.about.discord", "Original GameHelper2 community: https://discord.gg/864GyuM5S"));
             ImGui.NewLine();
             ImGui.TextColored(
                 Vector4.One,

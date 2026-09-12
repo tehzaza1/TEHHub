@@ -1,5 +1,7 @@
 # Discord forum — first post (copy into `#plugins`)
 
+> Historical GameHelper2 forum post retained for attribution. The bundled source is now ported to TEHhub: build `TEHhub.sln`, enable it in TEHhub Control Center, and use `configs/plugins/PlayerBuffBar/` for settings. The old binary compatibility claim below describes the original release, not this TEHhub port.
+
 **Title:** `PlayerBuffBar`
 
 **Tags:** `community`

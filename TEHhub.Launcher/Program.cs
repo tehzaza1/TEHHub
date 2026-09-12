@@ -6,12 +6,22 @@ namespace TEHhub.Launcher
 {
     using System;
     using System.Diagnostics;
+    using System.IO;
     using System.Threading.Tasks;
 
     public static class Program
     {
         private static async Task Main(string[] args)
         {
+            if (args.Length == 1 && args[0] == "--check")
+            {
+                var corePath = Path.Combine(AppContext.BaseDirectory, "TEHhub.exe");
+                var ready = File.Exists(corePath) && DotNetRuntimeDetector.IsNet10Installed();
+                Console.WriteLine(ready ? "PASS: TEHhub executable and .NET 10 Runtime x64 are available." : "FAIL: TEHhub executable or .NET 10 Runtime x64 is missing.");
+                Environment.ExitCode = ready ? 0 : 1;
+                return;
+            }
+
             if (!TEHhubFinder.TryFindTEHhubExe(out var gameHelperDir, out var gameHelperLoc))
             {
                 Console.WriteLine($"TEHhub.exe was not found in {gameHelperDir}");

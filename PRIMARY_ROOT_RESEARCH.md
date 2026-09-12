@@ -4,7 +4,7 @@ This first version is a deterministic, read-only search and validation system, n
 trained AI. It provides reproducible environments and labeled results for later model
 experiments. Confidence scores never authorize an unproven pointer.
 
-## Run in GameHelper
+## Run in TEHhub
 
 Open OffsetHelper, enable **Enable offset TryFix**, expand **Offset TryFix status /
 saved recoveries**, and click **Research primary root (read-only)**. Stay in-world.
@@ -21,7 +21,7 @@ scans with the same unique graph and area identity produce `Confirmed=true`.
 
 ## Evidence chain and ancestor failures
 
-The source guide in `GameOffsets/StaticOffsetsPatterns.cs` explains how the diagnostic
+The source guide in `TEHhub.Offsets/StaticOffsetsPatterns.cs` explains how the diagnostic
 string "Unable to get InGameState" leads to a Game States global. This implementation
 proposes globals from bounded x64 RIP-relative CMP/MOV byte motifs in readable
 executable PE sections, then validates pointer graphs independently. Byte motifs are
@@ -49,7 +49,7 @@ the result retains **structural root hypotheses** and abstains from confirmation
 menu/login scene may legitimately have no area or player. A structural hypothesis is
 never exported as a confirmed offset.
 
-Leaf offsets still use the current GameOffsets contract: area/player, UI host, strings,
+Leaf offsets still use the current TEHhub.Offsets contract: area/player, UI host, strings,
 component header and UI layout. Simultaneous unknown leaf shifts can prevent full
 confirmation even if the structural head is discovered. This version does not solve
 arbitrary relocation of every member, missing code motifs, separately allocated shared
@@ -102,4 +102,4 @@ dotnet run --project tests/OffsetRecovery.Tests/OffsetRecovery.Tests.csproj -c D
 This separate mode checks the supplied process name, opens that PoE process for
 reading, and runs the same research task. Configured-pattern diagnostics are printed
 for comparison and never fed to the root searcher as an answer. Reports in this mode
-are written under the test executable output, not the ordinary GameHelper output.
+are written under the test executable output, not the ordinary TEHhub output.

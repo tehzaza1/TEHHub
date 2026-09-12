@@ -1,5 +1,7 @@
 # สถานะการปรับ GameHelper2 ให้ใช้ .NET 10 เต็มรูปแบบ
 
+> Historical modernization log from the GameHelper2 phase. The active platform is now TEHhub: use `TEHhub.sln`, `TEHhub/`, `TEHhub.Offsets/`, and `TEHhub.Launcher/`. Old type names, profiling samples, and completion records below are retained as historical evidence; consult README.md for current build and installation steps.
+
 อัปเดตล่าสุด: 11 กันยายน 2026
 
 เป้าหมายของงานนี้คือทำให้ GameHelper2 ตอบสนองไวขึ้น ลดอาการหน่วง ลดงานซ้ำและลดการสร้างขยะในหน่วยความจำ โดยไม่ได้มุ่งเพิ่ม FPS ของเกมโดยตรง ทุกส่วนจะทำทีละขั้น วัดผล และ commit แยกเพื่อย้อนกลับได้ง่าย

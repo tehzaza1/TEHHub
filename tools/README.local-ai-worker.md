@@ -13,7 +13,7 @@ Ask for a small change with selected source files as context:
 ```powershell
 .\tools\Invoke-LocalAiWorker.ps1 `
   -Task 'Add a guard for a null settings value. Return a unified diff only.' `
-  -ContextPath .\GameHelper\Settings\SettingsWindow.cs `
+  -ContextPath .\TEHhub\Settings\SettingsWindow.cs `
   -OutputPath .\artifacts\ai-proposals\settings-guard.diff
 ```
 

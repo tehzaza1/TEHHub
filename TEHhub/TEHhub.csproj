@@ -4,11 +4,13 @@
     <NoWarn>1701;1702; 1591</NoWarn>
     <StartupObject>TEHhub.Program</StartupObject>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Authors>Arsenic</Authors>
-    <Description>An overlay to help play the game.</Description>
-    <Version>2.7.2</Version>
-    <AssemblyVersion>2.7.2.0</AssemblyVersion>
-    <FileVersion>2.7.2.0</FileVersion>
+    <Authors>Tanaw; Arsenic; Gordin; GameHelper2 community contributors</Authors>
+    <Product>TEHhub</Product>
+    <Title>TEHhub</Title>
+    <Description>TEHhub overlay and plugin platform for Path of Exile 2, based on GameHelper2.</Description>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>

@@ -18,11 +18,16 @@ namespace TEHhub.Launcher
 
         static AutoUpdate()
         {
-            HttpClient.DefaultRequestHeaders.Add("User-Agent", "TEHhub-TEHhub.Launcher");
+            HttpClient.DefaultRequestHeaders.Add("User-Agent", "TEHhub-Launcher");
         }
 
         public static async Task<bool> CheckAndUpdateAsync(string gameHelperExePath)
         {
+            if (string.IsNullOrWhiteSpace(ReleasesApiUrl))
+            {
+                return false;
+            }
+
             try
             {
                 Console.WriteLine("Checking for updates...");
@@ -266,7 +271,7 @@ namespace TEHhub.Launcher
                 }
 
                 var psCommand = $@"
-Write-Host 'Waiting for TEHhub TEHhub.Launcher to exit...';
+Write-Host 'Waiting for TEHhub Launcher to exit...';
 $launcherProcess = Get-Process -Name 'TEHhub.Launcher' -ErrorAction SilentlyContinue;
 if ($launcherProcess) {{
     Wait-Process -Name 'TEHhub.Launcher' -ErrorAction SilentlyContinue;
@@ -279,7 +284,7 @@ Write-Host 'Installing update...';
 try {{
     Copy-Item -Path '{extractedPath}\*' -Destination '{parentDir}' -Recurse -Force;
     Write-Host 'Update completed successfully!';
-    Write-Host 'Restarting TEHhub TEHhub.Launcher...';
+    Write-Host 'Restarting TEHhub Launcher...';
     Start-Process -FilePath '{launcherPath}' -WorkingDirectory '{currentDir}';
     $timeout = 0;
     do {{

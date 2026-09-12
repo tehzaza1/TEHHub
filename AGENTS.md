@@ -1,3 +1,7 @@
+# Project version and changelog policy
+
+TEHhub starts at 1.0.0 and uses MAJOR.MINOR.PATCH (x.x.x). For every completed change, including small fixes and documentation changes, update CHANGELOG.md and advance the appropriate version. Group related edits delivered together into one version. MAJOR is for incompatible changes, MINOR for compatible new features, PATCH for fixes and small improvements. Keep core and launcher versions synchronized; assembly/file versions use x.x.x.0. Changelog entries must include date, concrete changes, compatibility notes when relevant, and validation actually performed. Do not claim live-game testing unless performed.
+
 # PoE 2 Controller Mode UI & Memory Architecture Reference
 
 ## Overview

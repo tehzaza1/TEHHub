@@ -1,6 +1,6 @@
 # PlayerBuffBar
 
-Community plugin for [GameHelper2](https://github.com/Gordin/GameHelper2) (Path of Exile 2).
+Community plugin for TEHhub (Path of Exile 2), originally developed for [GameHelper2](https://github.com/Gordin/GameHelper2).
 
 Compact **player buff overlay**: up to **four independent buff bars**, each with its own watchlist and screen position, plus a separate **resource row** for power/frenzy/endurance charges and rage. Icons load from **poe2db.tw** (cached locally). Written by **MordWraith** for community forks. Read-only overlay — **build from source**.
 
@@ -14,33 +14,29 @@ Also bundled in [MordWraith/Gamehelper-Experimental](https://github.com/MordWrai
 - **Watchlist matching** — substring match on in-game buff keys; skill aliases (e.g. `refutation` → `runic_fortress`)
 - **Display** — icons only, text chips, or both; inactive watchlist entries, durations, stack counts
 - **Tools** — dump active buff keys to `player_buff_dump.txt`, auto-download missing wiki icons
-- **DE/EN** — settings via GameHelper localization
+- **DE/EN** — settings via TEHhub localization
 
 ## Requirements
 
-- A working [GameHelper2](https://github.com/Gordin/GameHelper2) source tree
+- A working TEHhub source tree
 - **.NET 10 SDK** (`net10.0-windows`, x64)
 - Internet on first run if **auto-download icons** is enabled (poe2db.tw)
 
 ## Build & install
 
 ```bash
-git clone https://github.com/Gordin/GameHelper2.git
-cd GameHelper2
-git clone https://github.com/MordWraith/PlayerBuffBar.git Plugins/PlayerBuffBar
-dotnet build GameHelper/GameHelper.csproj -c Release
-dotnet build Plugins/PlayerBuffBar/PlayerBuffBar.csproj -c Release
+dotnet build TEHhub.sln -c Release
 ```
 
-Enable **PlayerBuffBar** in GameHelper → Plugins.
+Run the command from this repository root; the ported plugin source is already bundled. Enable **PlayerBuffBar** in TEHhub Control Center → Plugins. Original GameHelper2 plugin DLLs need recompiling against the renamed TEHhub assemblies.
 
 ### Config folder (runtime)
 
 | Path | Purpose |
 |------|---------|
-| `Plugins/PlayerBuffBar/config/settings.txt` | Overlay, buff bars, watchlists (JSON) |
+| `configs/plugins/PlayerBuffBar/settings.txt` | Overlay, buff bars, watchlists (JSON) |
 | `Plugins/PlayerBuffBar/icons/` | Cached buff/charge icons (auto) |
-| `Plugins/PlayerBuffBar/config/icon_map.json` | Optional icon overrides |
+| `configs/plugins/PlayerBuffBar/icon_map.json` | Optional icon overrides |
 | `Plugins/PlayerBuffBar/player_buff_dump.txt` | Output of **Dump my buffs** (debug) |
 
 ### Quick start

@@ -33,7 +33,7 @@ mixed-root vital candidates without enough exact evidence rather than applying a
 player's health total to monsters. **This is not a guarantee that every offset can be
 recovered or even diagnosed from plausible values.**
 
-`coverage.latest.json` inventories every explicit FieldOffset struct in GameOffsets,
+`coverage.latest.json` inventories every explicit FieldOffset struct in TEHhub.Offsets,
 including layouts without live probes or semantic repair contracts. Hardcoded numeric
 constants and static-address signatures are not scalar struct projections; existing
 signature rescan and domain fallbacks remain responsible for them.
@@ -55,7 +55,7 @@ limitations when those offsets are broken.
 
 ## Saved output
 
-Under the running GameHelper folder:
+Under the running TEHhub folder:
 
 ```
 configs/offset-recovery/
@@ -82,8 +82,8 @@ Saved offsets are never automatically trusted or loaded into a later game sessio
 
 ```
 dotnet run --project tests/OffsetRecovery.Tests/OffsetRecovery.Tests.csproj -c Debug
-dotnet build GameOverlay.sln -c Debug --no-restore
-dotnet build GameOverlay.sln -c Release --no-restore
+dotnet build TEHhub.sln -c Debug --no-restore
+dotnet build TEHhub.sln -c Release --no-restore
 ```
 
 The dependency-free test executable uses the real read-only native memory reader on
