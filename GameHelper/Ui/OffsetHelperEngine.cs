@@ -245,10 +245,167 @@ namespace GameHelper.Ui
             result.Probes.Add(VerifyProbe("EntityOffsets", typeof(EntityOffsets), entityRoots, string.Empty, false, hints));
             result.Probes.Add(VerifyProbe("InGameStateOffset", typeof(InGameStateOffset), RootOne(state.Address), string.Empty, false, hints));
             result.Probes.Add(VerifyProbe("AreaInstanceOffsets", typeof(AreaInstanceOffsets), RootOne(area.Address), string.Empty, false, hints));
+            result.Probes.Add(VerifyControllerMapCache(state.GameUi));
             result.Probes.Add(VerifyProbe("UiElementBaseOffset", typeof(UiElementBaseOffset), GatherUiRoots(), "Self", false, hints));
 
             result.Recount();
             return result;
+        }
+
+        private static ProbeResult VerifyControllerMapCache(ImportantUiElements ui)
+        {
+            var result = new ProbeResult
+            {
+                Name = "Controller map cache  ·  ImportantUiElementsOffsets",
+                StructType = typeof(ImportantUiElementsOffsets),
+                Roots = new List<RootResult>(),
+            };
+
+            if (!Core.GHSettings.EnableControllerMode || ui.Address == IntPtr.Zero)
+            {
+                result.Verdict = ProbeVerdict.NoRoot;
+                result.Detail = "controller mode is not active";
+                return result;
+            }
+
+            var rootAddress = Core.GHSettings.IsTaiwanClient ? ui.Address - 0x08 : ui.Address;
+            var configuredOffset = Marshal.OffsetOf<ImportantUiElementsOffsets>(
+                nameof(ImportantUiElementsOffsets.ControllerModeMapParentPtr)).ToInt32();
+            var root = new RootResult
+            {
+                Label = "GameUi controller map cache",
+                Address = rootAddress,
+                Owner = ui.Address,
+                Fields = new List<FieldRow>(),
+            };
+            result.RootCount = 1;
+            result.SampleLabel = root.Label;
+            result.Roots.Add(root);
+
+            if (!Core.Process.Handle.TryReadMemory<IntPtr>(
+                    rootAddress + configuredOffset, out var mapParent))
+            {
+                root.ReadOk = false;
+                root.Verdict = ProbeVerdict.Degraded;
+                root.Note = "configured map-parent pointer unreadable";
+                result.Verdict = ProbeVerdict.Degraded;
+                result.Detail = $"ControllerModeMapParentPtr +0x{configuredOffset:X} is unreadable";
+                AddControllerMapRecovery(result, rootAddress, configuredOffset);
+                return result;
+            }
+
+            root.ReadOk = true;
+            var parentReadable = TryValidateControllerMapParent(
+                mapParent, out var largeMap, out var miniMap, out var largeMapOk, out var miniMapOk);
+            root.Fields.Add(new FieldRow(
+                configuredOffset,
+                nameof(ImportantUiElementsOffsets.ControllerModeMapParentPtr),
+                FieldKind.Pointer,
+                Hex(mapParent.ToInt64()),
+                parentReadable ? FieldStatus.Pass : FieldStatus.Fail,
+                parentReadable ? "MapParentStruct readable" : "invalid or unreadable MapParentStruct"));
+            root.Fields.Add(new FieldRow(
+                0x28,
+                "ControllerModeMapParentPtr.LargeMapPtr",
+                FieldKind.OwnerPtr,
+                Hex(largeMap.ToInt64()),
+                largeMapOk ? FieldStatus.Pass : FieldStatus.Fail,
+                largeMapOk ? "UiElement self-pointer matches" : "not a valid UiElement"));
+            root.Fields.Add(new FieldRow(
+                0x30,
+                "ControllerModeMapParentPtr.MiniMapPtr",
+                FieldKind.OwnerPtr,
+                Hex(miniMap.ToInt64()),
+                miniMapOk ? FieldStatus.Pass : FieldStatus.Fail,
+                miniMapOk ? "UiElement self-pointer matches" : "not a valid UiElement"));
+
+            if (parentReadable && largeMapOk && miniMapOk)
+            {
+                root.Verdict = ProbeVerdict.Intact;
+                result.Verdict = ProbeVerdict.Intact;
+                result.Detail = $"+0x{configuredOffset:X} resolves both controller maps";
+                return result;
+            }
+
+            root.Verdict = ProbeVerdict.Degraded;
+            result.Verdict = ProbeVerdict.Degraded;
+            result.Detail = $"controller map chain failed at +0x{configuredOffset:X}; runtime dynamic fallback remains active";
+            AddControllerMapRecovery(result, rootAddress, configuredOffset);
+            return result;
+        }
+
+        private static bool TryValidateControllerMapParent(
+            IntPtr mapParent,
+            out IntPtr largeMap,
+            out IntPtr miniMap,
+            out bool largeMapOk,
+            out bool miniMapOk)
+        {
+            largeMap = IntPtr.Zero;
+            miniMap = IntPtr.Zero;
+            largeMapOk = false;
+            miniMapOk = false;
+            if (!SafeMemoryHandle.IsValidAddress(mapParent) ||
+                !Core.Process.Handle.TryReadMemory<MapParentStruct>(mapParent, out var maps))
+            {
+                return false;
+            }
+
+            largeMap = maps.LargeMapPtr;
+            miniMap = maps.MiniMapPtr;
+            largeMapOk = IsUiElement(largeMap);
+            miniMapOk = IsUiElement(miniMap);
+            return true;
+        }
+
+        private static bool IsUiElement(IntPtr address)
+        {
+            return SafeMemoryHandle.IsValidAddress(address) &&
+                   Core.Process.Handle.TryReadMemory<UiElementBaseOffset>(address, out var ui) &&
+                   ui.Self == address;
+        }
+
+        private static void AddControllerMapRecovery(
+            ProbeResult result,
+            IntPtr rootAddress,
+            int configuredOffset)
+        {
+            var candidates = new List<int>();
+            var scanStart = Math.Max(0, configuredOffset - RecoveryScanRadius);
+            var scanEnd = configuredOffset + RecoveryScanRadius;
+            for (var offset = scanStart; offset <= scanEnd; offset += IntPtr.Size)
+            {
+                if (offset == configuredOffset ||
+                    !Core.Process.Handle.TryReadMemory<IntPtr>(rootAddress + offset, out var candidateParent) ||
+                    !TryValidateControllerMapParent(
+                        candidateParent, out _, out _, out var largeMapOk, out var miniMapOk) ||
+                    !largeMapOk || !miniMapOk)
+                {
+                    continue;
+                }
+
+                candidates.Add(offset);
+            }
+
+            if (candidates.Count == 0)
+            {
+                return;
+            }
+
+            candidates.Sort((left, right) =>
+                Math.Abs(left - configuredOffset).CompareTo(Math.Abs(right - configuredOffset)));
+            result.RecoveryAttempted = true;
+            result.Recoveries.Add(new OffsetRecoverySuggestion
+            {
+                FieldName = nameof(ImportantUiElementsOffsets.ControllerModeMapParentPtr),
+                ConfiguredOffset = configuredOffset,
+                CandidateOffset = candidates[0],
+                VerifiedRoots = 1,
+                RootCount = 1,
+                EvidencePasses = 2,
+                ConsensusSupport = 1,
+                AlternativeOffsets = candidates.Skip(1).Take(8).ToList(),
+            });
         }
 
         /// <summary>
