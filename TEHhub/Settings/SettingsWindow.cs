@@ -490,20 +490,6 @@ namespace TEHhub.Settings
             ChangeFontWidget();
             DrawReloadPluginWidget();
 
-            ImGuiTheme.SectionHeader(L.T("settings.about.title", "About"));
-            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
-            ImGui.TextColored(color, L.T("settings.about.scam", "This is free software, if you purchased a copy you have been scammed"));
-            ImGui.TextColored(color, L.T("settings.about.version", "For PoE2 0.5.5"));
-            ImGui.TextColored(color, L.T("settings.about.zero_day", "Zero Day developer is Kronos"));
-            ImGui.TextColored(color, L.T("settings.about.offset", "Offset updater is Arsenic, Nabeora, Lafko"));
-            ImGui.TextColored(color, L.T("settings.about.discord", "Original GameHelper2 community: https://discord.gg/864GyuM5S"));
-            ImGui.NewLine();
-            ImGui.TextColored(
-                Vector4.One,
-                L.T(
-                    "settings.about.disclaimer",
-                    "Developer of this software is not responsible for any loss that may happen due to the usage of this software. Use this software at your own risk."));
-            ImGui.PopTextWrapPos();
         }
 
         private static void DrawUiLanguageWidget()

@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.0.3 — 2026-09-12
+
+- Removed the About section and all its displayed text from General settings, as requested.
+- Validation: Release solution build.
+
 ## 1.0.2 — 2026-09-12
 
 - Generate SHA256 through the .NET cryptography API so release creation also works when the PowerShell Get-FileHash command is unavailable.
