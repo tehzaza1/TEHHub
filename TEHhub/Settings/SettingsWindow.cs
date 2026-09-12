@@ -96,6 +96,7 @@ namespace TEHhub.Settings
         {
             var enabledPlugins = PManager.Plugins.Where(container => container.Metadata.Enable).ToList();
             EnsureSelectedSettingsPage(enabledPlugins);
+            ImGuiTheme.DrawBrandHeader(Core.GetVersion(), enabledPlugins.Count, PManager.Plugins.Count);
 
             var availableWidth = ImGui.GetContentRegionAvail().X;
             var sidebarWidth = Math.Clamp(availableWidth * 0.24f, 190f, 280f);
@@ -122,7 +123,7 @@ namespace TEHhub.Settings
         private static void DrawSettingsNavigation(IReadOnlyCollection<PluginContainer> enabledPlugins)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, ImGuiTheme.TextMuted);
-            ImGui.Text(L.T("settings.navigation.core", "Core"));
+            ImGui.Text(L.T("settings.navigation.core", "WORKSPACE"));
             ImGui.PopStyleColor();
 
             DrawNavigationItem(GeneralPageId, L.T("settings.tabs.general", "General"));
@@ -131,7 +132,7 @@ namespace TEHhub.Settings
             ImGui.Separator();
             ImGui.Spacing();
             ImGui.PushStyleColor(ImGuiCol.Text, ImGuiTheme.TextMuted);
-            ImGui.Text(L.T("settings.navigation.plugin_settings", "Plugin Settings"));
+            ImGui.Text(L.T("settings.navigation.plugin_settings", "PLUGIN SETTINGS"));
             ImGui.PopStyleColor();
 
             if (enabledPlugins.Count == 0)
@@ -1074,7 +1075,7 @@ namespace TEHhub.Settings
 
                 ImGui.SetNextWindowSizeConstraints(new Vector2(800, 600), Vector2.One * float.MaxValue);
                 var isMainMenuExpanded = ImGui.Begin(
-                    $"{L.F("settings.window.title", "Game Overlay Settings [ {0} ]", Core.GetVersion())}###TEHhubOverlaySettings",
+                    $"{L.F("settings.window.title", "TEHhub Control Center [ {0} ]", Core.GetVersion())}###TEHhubOverlaySettings",
                     ref isOverlayRunningLocal,
                     ImGuiWindowFlags.MenuBar);
 
