@@ -159,7 +159,7 @@ namespace TEHhub.Utils
 
             try
             {
-                var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
+                var measureRead = Ui.MemoryReadDiagnostics.IsRecording;
                 var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
                 var succeeded = NativeProcessMemory.TryRead(this.handle, address, out result, out var bytesRead);
                 var expectedBytes = (nuint)Unsafe.SizeOf<T>();
@@ -203,7 +203,7 @@ namespace TEHhub.Utils
         /// <param name="address">the address that failed.</param>
         private static void RecordDiagnosticFailure(string typeName, IntPtr address)
         {
-            if (!Core.GHSettings.ShowMemoryDiagnostics)
+            if (!Ui.MemoryReadDiagnostics.IsRecording)
             {
                 return;
             }
@@ -323,7 +323,7 @@ namespace TEHhub.Utils
             try
             {
                 var expectedBytes = checked((nuint)elementCount * (nuint)Unsafe.SizeOf<T>());
-                var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
+                var measureRead = Ui.MemoryReadDiagnostics.IsRecording;
                 var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
                 var succeeded = NativeProcessMemory.TryRead(this.handle, address, buffer, elementCount, out bytesRead);
                 var complete = succeeded && bytesRead == expectedBytes;

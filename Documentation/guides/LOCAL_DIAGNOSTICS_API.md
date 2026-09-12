@@ -1,5 +1,17 @@
 # Local Diagnostics API
 
+## Bottleneck capture (1.3.0)
+
+เปิด Debug build ล่าสุด แล้วใช้ `tools/Capture-Bottlenecks.ps1 -Seconds 30 -Label map-baseline` เพื่อเก็บ JSON ใน `artifacts/performance` โดยสคริปต์ตรวจ `build=Debug` และ PID ของตัวที่ตอบ API
+
+- `POST /api/diagnostics/capture-start`: ส่งคำขอเริ่ม instrumentation/reset counters บน render thread โดยไม่เปิดหน้าต่างหรือเปลี่ยน settings
+- `GET /api/diagnostics/bottleneck-snapshot`: อ่าน snapshot ที่ render thread เผยแพร่ประมาณหนึ่งครั้งต่อวินาที; ตอบ 202 หากยังไม่มีข้อมูล
+- `POST /api/diagnostics/capture-stop`: ส่งคำขอหยุดและเผยแพร่ผลสุดท้าย; หยุดเองหลัง 120 วินาทีเมื่อ render thread ทำงาน
+
+ข้อมูลประกอบด้วย build/version/PID, state/area/entity counts, ระยะเวลา Render เฉลี่ย/p95/p99 (elapsed time ของเมธอด รวมการรอภายใน ไม่ใช่ FPS หรือเวลา GPU), process CPU เฉลี่ยตั้งแต่เริ่ม capture แบบหารจำนวน logical processors, working/private/managed bytes, GC collection deltas, native memory read metrics และ 30 scope ที่มี inclusive average frame time สูงสุด
+
+Scope และ memory regions ซ้อนกันได้ ห้ามรวมทุกแถวเป็นเวลารวม โปรแกรมยังได้รับ overhead จาก instrumentation และการสร้าง snapshot ให้ใช้ Debug ระบุจุดที่ควรตรวจ แล้วเทียบ Release workload เดียวกันก่อนอ้างผล optimization ดู [แผนลดคอขวด](BOTTLENECK_PLAN.md)
+
 TEHhub เปิด API สำหรับตรวจ offset ภายในเครื่องที่ `http://localhost:9877` เท่านั้น
 API นี้ไม่รับคำสั่งควบคุมตัวละคร ไม่สั่งปลั๊กอิน และไม่เปิดรับจากเครื่องอื่น
 

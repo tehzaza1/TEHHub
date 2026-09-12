@@ -70,6 +70,7 @@ typeof(GameProcess).GetProperty("Information", BindingFlags.Instance | BindingFl
 RootSearchArena.TestPe(reader, process.MainModule!.BaseAddress.ToInt64(), process.MainModule.ModuleMemorySize, Check);
 Core.GHSettings.EnableNewMemoryRead = false;
 Core.GHSettings.EnableOffsetTryFix = true;
+BottleneckTests.Run(Check);
 var clock = new ManualTime();
 OffsetTryFix.Time = clock;
 OffsetTryFix.ShouldPoll(new IntPtr(0x100000));

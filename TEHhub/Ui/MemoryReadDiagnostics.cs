@@ -34,6 +34,8 @@ using ImGuiNET;
 /// </summary>
 public static class MemoryReadDiagnostics
 {
+    internal static bool IsRecording => Core.GHSettings.ShowMemoryDiagnostics || BottleneckCapture.Enabled;
+    internal static void ResetForCapture() => ResetDiagnostics();
     private const int MaxTrackedAddressesPerKey = 1024;
     private static readonly ConcurrentDictionary<string, FailureStat> Stats = new();
     private static readonly ConcurrentDictionary<string, ReadRegionStat> ReadRegions = new();
@@ -76,7 +78,7 @@ public static class MemoryReadDiagnostics
     internal static void RequestStop() => Interlocked.Exchange(ref apiStopRequested, 1);
 
     internal static MemoryDiagnosticsStatus GetApiStatus() => new(
-        Core.GHSettings.ShowMemoryDiagnostics,
+        IsRecording,
         Volatile.Read(ref apiResetRequested) != 0,
         Volatile.Read(ref apiDumpRequested) != 0,
         Volatile.Read(ref apiStopRequested) != 0,
@@ -120,7 +122,7 @@ public static class MemoryReadDiagnostics
             .ToArray();
 
         return new MemoryDiagnosticsSnapshot(
-            Core.GHSettings.ShowMemoryDiagnostics,
+            IsRecording,
             Core.GHSettings.EnableNewMemoryRead,
             rate.TotalCalls,
             rate.TotalFrames,
@@ -212,7 +214,7 @@ public static class MemoryReadDiagnostics
     /// </summary>
     internal static void RecordFrame()
     {
-        if (Core.GHSettings.ShowMemoryDiagnostics)
+        if (IsRecording)
         {
             Interlocked.Increment(ref totalFrames);
         }
@@ -225,7 +227,7 @@ public static class MemoryReadDiagnostics
     /// </summary>
     public static MemoryReadRegionScope MeasureRegion(string name)
     {
-        if (!Core.GHSettings.ShowMemoryDiagnostics)
+        if (!IsRecording)
         {
             return default;
         }

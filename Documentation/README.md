@@ -2,6 +2,7 @@
 
 ## Technical guides
 
+- [แผนลดคอขวดและการเก็บข้อมูลจาก Debug build](guides/BOTTLENECK_PLAN.md)
 - [Runtime log viewer and plugin logging](guides/RUNTIME_LOG.md)
 
 - [Offset recovery](guides/OFFSET_TRYFIX.md)

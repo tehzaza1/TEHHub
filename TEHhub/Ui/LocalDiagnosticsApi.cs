@@ -94,6 +94,27 @@ namespace TEHhub.Ui
             {
                 var path = context.Request.Url?.AbsolutePath;
                 var method = context.Request.HttpMethod;
+                if (method == "POST" && path == "/api/diagnostics/capture-start")
+                {
+                    BottleneckCapture.RequestStart();
+                    await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Capture queued; automatic stop after 120 seconds."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path == "/api/diagnostics/capture-stop")
+                {
+                    BottleneckCapture.RequestStop();
+                    await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Capture stop queued."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "GET" && path == "/api/diagnostics/bottleneck-snapshot")
+                {
+                    var snapshot = BottleneckCapture.Snapshot;
+                    if (snapshot == null)
+                        await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("No published capture; start capture and wait for render frames."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                        await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.BottleneckSnapshot).ConfigureAwait(false);
+                    return;
+                }
 
                 if (method == "GET" && path == "/api/diagnostics/offset-status")
                 {
@@ -190,6 +211,7 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(MemoryDiagnosticsSnapshot))]
     [JsonSerializable(typeof(PerformanceProfilerSnapshot))]
     [JsonSerializable(typeof(DiagnosticsApiResponse))]
+    [JsonSerializable(typeof(BottleneckSnapshot))]
     internal sealed partial class DiagnosticsApiJsonContext : JsonSerializerContext
     {
     }

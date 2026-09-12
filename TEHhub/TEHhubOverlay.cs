@@ -81,6 +81,7 @@ namespace TEHhub
         /// <inheritdoc />
         protected override void Render()
         {
+            var captureTimestamp = BottleneckCapture.BeginFrame();
             PerformanceProfiler.StartFrame();
 
             try { CoroutineHandler.Tick(ImGui.GetIO().DeltaTime); }
@@ -100,6 +101,7 @@ namespace TEHhub
 
             PerformanceProfiler.EndFrame();
             MemoryReadDiagnostics.RecordFrame();
+            BottleneckCapture.EndFrame(captureTimestamp);
 
             if (!Core.GHSettings.IsOverlayRunning)
             {

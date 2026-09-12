@@ -20,6 +20,7 @@ using ImGuiNET;
 /// </summary>
 public static class PerformanceProfiler
 {
+    internal static bool IsRecording => Core.GHSettings.ShowPerfProfiler || BottleneckCapture.Enabled;
     internal static readonly double NsPerTick = 1000000000.0 / Stopwatch.Frequency;
     private static readonly ConcurrentDictionary<string, ProfileData> ProfileData = new();
     private static readonly ConcurrentDictionary<string, double> CurrentFrameNs = new();
@@ -38,7 +39,7 @@ public static class PerformanceProfiler
 
     public static IDisposable? Profile(string namespaceName, string methodName)
     {
-        if (!Core.GHSettings.ShowPerfProfiler)
+        if (!IsRecording)
         {
             return null;
         }
@@ -101,7 +102,7 @@ public static class PerformanceProfiler
         }
 
         return new PerformanceProfilerSnapshot(
-            Core.GHSettings.ShowPerfProfiler,
+            IsRecording,
             showCurrentFrameOnly,
             rows.OrderByDescending(static row => row.AllocatedBytesPerCall).ToArray());
     }
@@ -121,7 +122,7 @@ public static class PerformanceProfiler
     /// </summary>
     internal static ProfileScope Measure(string namespaceName, string methodName)
     {
-        if (!Core.GHSettings.ShowPerfProfiler)
+        if (!IsRecording)
         {
             return default;
         }
@@ -154,8 +155,6 @@ public static class PerformanceProfiler
                     ImGui.Checkbox("Current Frame Only", ref showCurrentFrameOnly);
                     ImGui.EndMenuBar();
                 }
-                
-                EndFrame();
                 
                 var now = DateTime.Now;
                 if ((now - lastUpdate).TotalMilliseconds >= 500 || cachedRows.Count == 0)
@@ -269,7 +268,7 @@ public static class PerformanceProfiler
         
     public static void StartFrame()
     {
-        if (!Core.GHSettings.ShowPerfProfiler)
+        if (!IsRecording)
         {
             return;
         }
@@ -281,7 +280,7 @@ public static class PerformanceProfiler
         
     public static void EndFrame()
     {
-        if (!Core.GHSettings.ShowPerfProfiler)
+        if (!IsRecording)
         {
             return;
         }

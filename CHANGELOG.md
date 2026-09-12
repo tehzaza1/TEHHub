@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.3.0 — 2026-09-12
+
+- Added frame-boundary performance capture controls and cached bottleneck snapshots with render duration percentiles, process CPU/RAM/GC, world/entity context, memory reads and ranked inclusive scopes.
+- Capture runs without opening profiler windows or changing saved settings, and automatically stops after 120 seconds of render activity.
+- Added a Debug-aware JSON collector and a measured-first optimization plan for entity/memory updates, Radar, Atlas and LootValue.
+- Removed duplicate profiler EndFrame accounting from its UI window; the overlay owns frame completion.
+- Validation: capture control/count/reset/serialization tests passed; Debug build passed. Live collection still requires starting the new Debug overlay; automatic approval review blocked its elevated launch.
+
 ## 1.2.1 — 2026-09-12
 
 - Moved Log into the main Settings content area; the bottom navigation item selects it like General/Plugins, without a separate window.
