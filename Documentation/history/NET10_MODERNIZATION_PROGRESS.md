@@ -526,7 +526,7 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - OffsetHelper ตรวจ field sweep และ static pattern หนึ่งครั้งเองหลังเข้าเกมและข้อมูลนิ่ง โดย scan pattern บน background task เพื่อไม่รบกวน render thread
 - เพิ่ม API เฉพาะ loopback ที่ `localhost:9877`: อ่านผลตรวจหรือสั่งตรวจซ้ำได้โดยไม่ต้องเปิดหน้าต่าง OffsetHelper
 - API ส่งเพียงสถานะ diagnostic และรับคำสั่งตรวจเท่านั้น; ไม่มีคำสั่งควบคุมเกม, ปลั๊กอิน หรือการรับ request จากเครือข่ายภายนอก
-- มีคู่มือใช้งานใน `LOCAL_DIAGNOSTICS_API.md`; ตรวจ Release build ของ GameHelper แบบ output แยกผ่าน 0 warning / 0 error ขณะตัวหลักกำลังรัน
+- มีคู่มือใช้งานใน `Documentation/guides/LOCAL_DIAGNOSTICS_API.md`; ตรวจ Release build ของ GameHelper แบบ output แยกผ่าน 0 warning / 0 error ขณะตัวหลักกำลังรัน
 
 ### 6.25 เก็บ Memory Diagnostics ผ่าน Local API
 

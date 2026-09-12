@@ -24,7 +24,7 @@ For a large design review or a dump investigation, raise both limits explicitly.
 ```powershell
 .\tools\Invoke-LocalAiWorker.ps1 `
   -Task 'Review the supplied offset recovery design and return only prioritized risks.' `
-  -ContextPath .\PRIMARY_ROOT_RESEARCH.md,.\OFFSET_TRYFIX.md `
+  -ContextPath .\Documentation\guides\PRIMARY_ROOT_RESEARCH.md,.\Documentation\guides\OFFSET_TRYFIX.md `
   -ContextLength 262144 `
   -ContextCharactersPerFile 32768 `
   -MaxTotalContextCharacters 900000

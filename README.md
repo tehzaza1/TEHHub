@@ -1,5 +1,7 @@
 # TEHhub
 
+Technical guides and historical records are indexed in [Documentation](Documentation/README.md). Current release changes are in [CHANGELOG](CHANGELOG.md).
+
 Create a Windows release from a committed revision with `create_release.bat HEAD` (or a commit/tag). The ZIP and SHA256 checksum are written to `artifacts`; packaging uses an isolated clean Git worktree and excludes debug symbols and user configuration. `TEHhub.Launcher.exe --check` checks the core executable and .NET 10 runtime without starting the overlay. Automatic updates remain disabled until a release endpoint is configured.
 
 TEHhub is a Windows x64 .NET overlay application with a plugin-based architecture. The main executable reads data from a running game process, renders an ImGui/ClickableTransparentOverlay UI, and loads plugins from the runtime `Plugins` directory.

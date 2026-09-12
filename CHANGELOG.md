@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.0.4 — 2026-09-12
+
+- Consolidated technical guides and historical records under Documentation with a navigation index; kept runtime data, plugin licenses and agent instruction files in their required locations.
+- Updated documentation references and release packaging for the new structure.
+- Validation: document path/reference checks and Release solution build.
+
 ## 1.0.3 — 2026-09-12
 
 - Removed the About section and all its displayed text from General settings, as requested.

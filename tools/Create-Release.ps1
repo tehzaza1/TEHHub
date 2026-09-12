@@ -31,7 +31,8 @@ try {
         Copy-Item -LiteralPath $file.FullName -Destination $destination
     }
     Copy-Item -LiteralPath (Join-Path $publish 'TEHhub.Launcher.exe') -Destination $stage
-    foreach ($name in @('README.md', 'CHANGELOG.md', 'CHANGELOG.GameHelper2.md')) { Copy-Item -LiteralPath (Join-Path $worktree $name) -Destination $stage }
+    foreach ($name in @('README.md', 'CHANGELOG.md')) { Copy-Item -LiteralPath (Join-Path $worktree $name) -Destination $stage }
+    Copy-Item -LiteralPath (Join-Path $worktree 'Documentation') -Destination $stage -Recurse
     if (Test-Path -LiteralPath (Join-Path $worktree 'LICENSE')) { Copy-Item -LiteralPath (Join-Path $worktree 'LICENSE') -Destination $stage }
     foreach ($file in Get-ChildItem -LiteralPath (Join-Path $worktree 'Plugins') -File -Recurse | Where-Object { $_.Name -in @('LICENSE', 'CREDITS.md') -and $_.FullName -notmatch '[\\/](bin|obj)[\\/]' }) {
         $destination = Join-Path $stage $file.FullName.Substring($worktree.Length + 1)
