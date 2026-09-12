@@ -528,7 +528,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             if (Core.GHSettings.EnableControllerMode)
             {
                 Core.GHSettings.IsCoopMode = this.IsCoopMode();
-                this.UpdateMapAddresses();
+                this.UpdateMapAddresses(data1);
                 this.UpdateWorldMapPanelAddresses();
                 var containerAddr = GetControllerContainerAddress(this.Address);
                 if (Core.GHSettings.IsCoopMode)
@@ -561,7 +561,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             else
             {
                 Core.GHSettings.IsCoopMode = false;
-                this.UpdateMapAddresses();
+                this.UpdateMapAddresses(data1);
                 this.UpdateWorldMapPanelAddresses();
                 this.LeftPanel.Address = ValidUiElementOrZero(data1.LeftPanelPtr);
                 this.RightPanel.Address = ValidUiElementOrZero(data1.RightPanelPtr);
@@ -583,16 +583,39 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             this.UpdateAtlasMapData();
         }
 
-        private void UpdateMapAddresses()
+        private void UpdateMapAddresses(ImportantUiElementsOffsets importantUi)
         {
             if (Core.GHSettings.EnableControllerMode)
             {
-                var controllerMaps = ResolveChildAddresses(
-                    this.Address,
-                    ControllerLargeMapViewportChildPath,
-                    ControllerMiniMapViewportChildPath);
-                this.LargeMap.Address = controllerMaps[0];
-                this.MiniMap.Address = controllerMaps[1];
+                var largeMapAddress = IntPtr.Zero;
+                var miniMapAddress = IntPtr.Zero;
+                var controllerMapParent = importantUi.ControllerModeMapParentPtr;
+                if (SafeMemoryHandle.IsValidAddress(controllerMapParent) &&
+                    Core.Process.Handle.TryReadMemory<MapParentStruct>(controllerMapParent, out var directMaps))
+                {
+                    largeMapAddress = ValidUiElementOrZero(directMaps.LargeMapPtr);
+                    miniMapAddress = ValidUiElementOrZero(directMaps.MiniMapPtr);
+                }
+
+                // The fixed pointer is the fast path supplied by the current game offsets. Resolve
+                // the dynamic UI tree only for a child that is absent or fails the UiElement self
+                // check, so a shifted cache offset does not take the Radar down with it.
+                if (largeMapAddress == IntPtr.Zero || miniMapAddress == IntPtr.Zero)
+                {
+                    var controllerMaps = ResolveChildAddresses(
+                        this.Address,
+                        ControllerLargeMapViewportChildPath,
+                        ControllerMiniMapViewportChildPath);
+                    largeMapAddress = largeMapAddress != IntPtr.Zero
+                        ? largeMapAddress
+                        : controllerMaps[0];
+                    miniMapAddress = miniMapAddress != IntPtr.Zero
+                        ? miniMapAddress
+                        : controllerMaps[1];
+                }
+
+                this.LargeMap.Address = largeMapAddress;
+                this.MiniMap.Address = miniMapAddress;
             }
             else
             {
