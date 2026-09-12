@@ -6,8 +6,8 @@ namespace AutoExile2.Modes
 {
     using System;
     using System.Numerics;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
     using AutoExile2.Systems;
 
     /// <summary>

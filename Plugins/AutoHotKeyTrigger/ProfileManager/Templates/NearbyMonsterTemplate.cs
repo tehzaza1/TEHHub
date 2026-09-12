@@ -1,4 +1,4 @@
-﻿// <copyright file="NearbyMonsterTemplate.cs" company="PlaceholderCompany">
+// <copyright file="NearbyMonsterTemplate.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -7,7 +7,7 @@ namespace AutoHotKeyTrigger.ProfileManager.Templates
     using AutoHotKeyTrigger;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface;
-    using GameHelper.Utils;
+    using TEHhub.Utils;
     using ImGuiNET;
     using System;
     using System.Collections.Generic;

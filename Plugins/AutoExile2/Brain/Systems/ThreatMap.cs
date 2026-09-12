@@ -7,16 +7,16 @@ namespace AutoExile2.Systems
     using System;
     using System.Collections.Generic;
     using System.Numerics;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameOffsets.Objects.States.InGameState;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Offsets.Objects.States.InGameState;
 
     /// <summary>
     /// Persistent, map-wide spatial grid tracking every monster observed during a run.
     /// Chunk-based: map divided into 40x40 grid unit cells.
-    /// Ported directly from AutoExile 1 ThreatMap architecture, adapted to GameHelper PoE 2.
+    /// Ported directly from AutoExile 1 ThreatMap architecture, adapted to TEHhub PoE 2.
     /// </summary>
     public class ThreatMap
     {

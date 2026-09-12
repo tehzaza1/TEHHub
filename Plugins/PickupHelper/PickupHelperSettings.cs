@@ -8,7 +8,7 @@ namespace PickupHelper
     using System.Collections.Generic;
     using System.Text.Json.Serialization;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     ///     Settings for the <see cref="PickupHelperCore" /> plugin.

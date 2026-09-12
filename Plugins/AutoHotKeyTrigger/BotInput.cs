@@ -10,7 +10,7 @@ namespace AutoHotKeyTrigger
     using System.Runtime.InteropServices;
     using System.Threading.Tasks;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper;
+    using TEHhub;
     using Nefarius.ViGEm.Client;
     using Nefarius.ViGEm.Client.Targets;
     using Nefarius.ViGEm.Client.Targets.Xbox360;

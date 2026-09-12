@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM Pull all plugin folders that are their own git repos (i.e. not part of the
-REM main GameHelper2 repository). A folder is considered "external" if it
+REM main TEHhub2 repository). A folder is considered "external" if it
 REM contains its own .git directory/file. Nothing is hardcoded.
 
 REM Work relative to the location of this script (repo root); operate on Plugins\.

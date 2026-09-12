@@ -6,9 +6,9 @@ namespace AutoHotKeyTrigger.ProfileManager.Templates
 {
     using AutoHotKeyTrigger;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
-    using GameHelper;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.Utils;
     using ImGuiNET;
 
     /// <summary>

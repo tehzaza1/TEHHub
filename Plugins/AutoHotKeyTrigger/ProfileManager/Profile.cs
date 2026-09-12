@@ -1,4 +1,4 @@
-﻿// <copyright file="Profile.cs" company="PlaceholderCompany">
+// <copyright file="Profile.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -8,8 +8,8 @@ namespace AutoHotKeyTrigger.ProfileManager
     using System.Collections.Generic;
     using System.Numerics;
     using AutoHotKeyTrigger;
-    using GameHelper;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.Utils;
     using ImGuiNET;
     using System.Text.Json.Serialization;
 

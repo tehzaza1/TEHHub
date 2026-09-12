@@ -5,8 +5,8 @@
 namespace AutoExile2.Brain
 {
     using System.Numerics;
-    using GameHelper.RemoteObjects;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
 
     /// <summary>
     /// Enumerates high-level goals evaluated and selected by the Central Decision Brain.

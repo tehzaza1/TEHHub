@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
-using GameHelper.RemoteObjects.Components;
-using GameHelper.RemoteObjects.States.InGameStateObjects;
+using TEHhub.RemoteObjects.Components;
+using TEHhub.RemoteObjects.States.InGameStateObjects;
 
 namespace LootValue
 {

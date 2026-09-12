@@ -7,15 +7,15 @@ namespace AutoExile2.Modes.WaveFarm
     using System;
     using System.Collections.Generic;
     using System.Numerics;
-    using GameHelper.RemoteObjects.Components;
-    using GameOffsets.Natives;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.Offsets.Natives;
     using AutoExile2.Systems;
 
     /// <summary>
     /// Core tick logic for wave farming. Every tick answers:
     /// "What is the single best thing to do right now?"
     /// Combat happens continuously while exploring.
-    /// Ported directly from AutoExile 1 WaveTick, adapted for PoE 2 WASD and GameHelper.
+    /// Ported directly from AutoExile 1 WaveTick, adapted for PoE 2 WASD and TEHhub.
     /// </summary>
     public class WaveTick
     {

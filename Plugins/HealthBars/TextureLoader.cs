@@ -1,4 +1,4 @@
-﻿// <copyright file="HealthBars.cs" company="PlaceholderCompany">
+// <copyright file="HealthBars.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -8,7 +8,7 @@ namespace HealthBars
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using GameHelper;
+    using TEHhub;
 
     /// <summary>
     ///     Loads and cleans up the textures.

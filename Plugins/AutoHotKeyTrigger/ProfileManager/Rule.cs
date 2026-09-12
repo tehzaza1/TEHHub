@@ -10,8 +10,8 @@ namespace AutoHotKeyTrigger.ProfileManager
     using System.Linq;
     using System.Numerics;
     using AutoHotKeyTrigger;
-    using GameHelper;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.Utils;
     using ImGuiNET;
     using System.Text.Json.Serialization;
     using AutoHotKeyTrigger.ProfileManager.Enums;
@@ -167,7 +167,7 @@ namespace AutoHotKeyTrigger.ProfileManager
             }
 
             // Controller actions are globally opt-in through the plugin setting only.
-            // GameHelper's detected gamepad UI and old per-rule settings never enable it.
+            // TEHhub's detected gamepad UI and old per-rule settings never enable it.
             var isController = forceController;
             if (isController && this.GamepadKey != GamepadButton.None)
             {

@@ -5,7 +5,7 @@
 namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
 {
     using System.Collections.Generic;
-    using GameOffsets.Objects.Components;
+    using TEHhub.Offsets.Objects.Components;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface;
 
     /// <summary>

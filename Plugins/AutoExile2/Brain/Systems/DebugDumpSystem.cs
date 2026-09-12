@@ -10,10 +10,10 @@ namespace AutoExile2.Systems
     using System.Linq;
     using System.Numerics;
     using System.Text.RegularExpressions;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
     using SixLabors.ImageSharp;
     using SixLabors.ImageSharp.PixelFormats;
 

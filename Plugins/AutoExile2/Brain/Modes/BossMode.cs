@@ -7,12 +7,12 @@ namespace AutoExile2.Modes
     using System;
     using System.Collections.Generic;
     using System.Numerics;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
-    using GameOffsets.Natives;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
+    using TEHhub.Offsets.Natives;
     using ImGuiNET;
     using AutoExile2.Systems;
 

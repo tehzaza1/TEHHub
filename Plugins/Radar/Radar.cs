@@ -14,15 +14,15 @@ namespace Radar
     using System.Threading;
     using System.Threading.Tasks;
     using Coroutine;
-    using GameHelper;
-    using GameHelper.CoroutineEvents;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Ui;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.CoroutineEvents;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Ui;
+    using TEHhub.Utils;
     using ImGuiNET;
     using SixLabors.ImageSharp;
     using SixLabors.ImageSharp.PixelFormats;
@@ -2717,7 +2717,7 @@ namespace Radar
         {
             while (true)
             {
-                yield return new Wait(GameHelperEvents.OnMoved);
+                yield return new Wait(TEHhubEvents.OnMoved);
                 this.UpdateMiniMapDetails();
                 this.UpdateLargeMapDetails();
                 if (this.Settings.MakeCullWindowFullScreen)
@@ -2743,7 +2743,7 @@ namespace Radar
         {
             while (true)
             {
-                yield return new Wait(GameHelperEvents.OnClose);
+                yield return new Wait(TEHhubEvents.OnClose);
                 this.skipOneSettingChange = true;
                 this.CleanUpRadarPluginCaches();
             }
@@ -2753,7 +2753,7 @@ namespace Radar
         {
             while (true)
             {
-                yield return new Wait(GameHelperEvents.OnForegroundChanged);
+                yield return new Wait(TEHhubEvents.OnForegroundChanged);
                 this.UpdateMiniMapDetails();
                 this.UpdateLargeMapDetails();
             }
@@ -2765,7 +2765,7 @@ namespace Radar
             // the world-to-pixel ratio tracks the game's own vertical scaling.
             // Changing only the window width does not affect the map scale.
             var map = Core.States.InGameStateObject.GameUi.MiniMap;
-            var baseRes = GameOffsets.Objects.UiElement.UiElementBaseFuncs.BaseResolution;
+            var baseRes = TEHhub.Offsets.Objects.UiElement.UiElementBaseFuncs.BaseResolution;
             var baseDiag = Math.Sqrt((baseRes.X * baseRes.X) + (baseRes.Y * baseRes.Y));
             this.miniMapDiagonalLength = baseDiag * map.Size.Y / baseRes.Y;
         }
@@ -2773,7 +2773,7 @@ namespace Radar
         private void UpdateLargeMapDetails()
         {
             var map = Core.States.InGameStateObject.GameUi.LargeMap;
-            var baseRes = GameOffsets.Objects.UiElement.UiElementBaseFuncs.BaseResolution;
+            var baseRes = TEHhub.Offsets.Objects.UiElement.UiElementBaseFuncs.BaseResolution;
             var baseDiag = Math.Sqrt((baseRes.X * baseRes.X) + (baseRes.Y * baseRes.Y));
             var mapHeight = map.Address != IntPtr.Zero && map.Size.Y > 0 ? map.Size.Y : Core.Process.WindowArea.Size.Height;
             this.largeMapDiagonalLength = baseDiag * mapHeight / baseRes.Y;

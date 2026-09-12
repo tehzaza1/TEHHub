@@ -13,7 +13,7 @@ namespace AutoExile2.Systems
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
 
     /// <summary>
     /// Rolling blackbox flight recorder ported from AutoExile.
@@ -77,12 +77,12 @@ namespace AutoExile2.Systems
                     foreach (var entity in area.AwakeEntities.Values)
                     {
                         if (!entity.IsValid) continue;
-                        if (entity.EntityType != GameHelper.RemoteEnums.Entity.EntityTypes.Monster) continue;
+                        if (entity.EntityType != TEHhub.RemoteEnums.Entity.EntityTypes.Monster) continue;
 
-                        if (entity.TryGetComponent<GameHelper.RemoteObjects.Components.Positioned>(out var pos) && pos.IsFriendly) continue;
+                        if (entity.TryGetComponent<TEHhub.RemoteObjects.Components.Positioned>(out var pos) && pos.IsFriendly) continue;
 
                         Vector2 entGrid = Vector2.Zero;
-                        if (entity.TryGetComponent<GameHelper.RemoteObjects.Components.Render>(out var r))
+                        if (entity.TryGetComponent<TEHhub.RemoteObjects.Components.Render>(out var r))
                         {
                             entGrid = new Vector2(r.GridPosition.X, r.GridPosition.Y);
                         }
@@ -92,7 +92,7 @@ namespace AutoExile2.Systems
 
                         int eCurHp = 0;
                         bool eAlive = false;
-                        if (entity.TryGetComponent<GameHelper.RemoteObjects.Components.Life>(out var eLife))
+                        if (entity.TryGetComponent<TEHhub.RemoteObjects.Components.Life>(out var eLife))
                         {
                             eCurHp = eLife.Health.Current;
                             eAlive = eCurHp > 0;
@@ -101,7 +101,7 @@ namespace AutoExile2.Systems
                         if (!eAlive) continue;
 
                         string rarity = "Normal";
-                        if (entity.TryGetComponent<GameHelper.RemoteObjects.Components.ObjectMagicProperties>(out var omp))
+                        if (entity.TryGetComponent<TEHhub.RemoteObjects.Components.ObjectMagicProperties>(out var omp))
                         {
                             rarity = omp.Rarity.ToString();
                         }

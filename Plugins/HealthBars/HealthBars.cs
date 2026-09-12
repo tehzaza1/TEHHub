@@ -1,4 +1,4 @@
-﻿// <copyright file="HealthBars.cs" company="PlaceholderCompany">
+// <copyright file="HealthBars.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -10,14 +10,14 @@ namespace HealthBars
     using System.Numerics;
     using System.Text.Json;
     using Coroutine;
-    using GameHelper;
-    using GameHelper.CoroutineEvents;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.CoroutineEvents;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
     using ImGuiNET;
 
     /// <summary>
@@ -397,7 +397,7 @@ namespace HealthBars
             ImDrawListPtr drawList,
             Vector2 start,
             Vector2 end,
-            GameOffsets.Objects.Components.VitalStruct vital,
+            TEHhub.Offsets.Objects.Components.VitalStruct vital,
             Vector4 color,
             int textureIndex,
             bool showCullStrike = false,
@@ -450,12 +450,12 @@ namespace HealthBars
             this.fontSize = new(0f, ImGui.GetFontSize());
         }
 
-        private static bool HasVisibleVital(GameOffsets.Objects.Components.VitalStruct vital)
+        private static bool HasVisibleVital(TEHhub.Offsets.Objects.Components.VitalStruct vital)
         {
             return vital.Total > 0 && vital.Unreserved > 0 && vital.Current > 0;
         }
 
-        private static int VitalPercent(GameOffsets.Objects.Components.VitalStruct vital)
+        private static int VitalPercent(TEHhub.Offsets.Objects.Components.VitalStruct vital)
         {
             if (vital.Unreserved <= 0 || vital.Current <= 0)
             {

@@ -10,15 +10,15 @@ namespace AmanamuVoidAlert
     using System.IO;
     using System.Numerics;
     using System.Text.Json;
-    using GameHelper;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
-    using GameOffsets.Natives;
+    using TEHhub;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
+    using TEHhub.Offsets.Natives;
     using ImGuiNET;
 
     /// <summary>

@@ -11,9 +11,9 @@ namespace AutoExile2.Systems
     using System.Threading;
     using System.Threading.Tasks;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameOffsets.Natives;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Offsets.Natives;
 
     /// <summary>
     /// Handles native Windows keyboard and mouse input simulation for PoE 2.
@@ -272,7 +272,7 @@ namespace AutoExile2.Systems
             try
             {
                 // 1. Post directly to PoE window message queue (identical to AutoHotKeyTrigger / MiscHelper)
-                IntPtr hWnd = GameHelper.Core.Process.MainWindowHandle;
+                IntPtr hWnd = TEHhub.Core.Process.MainWindowHandle;
                 if (hWnd == IntPtr.Zero)
                 {
                     hWnd = GetForegroundWindow();
@@ -604,7 +604,7 @@ namespace AutoExile2.Systems
         public static void StartChannel(AttackInputType type, VK key) => BotInput.StartChannel(type, key);
         public static void StopChannel(AttackInputType type, VK key) => BotInput.StopChannel(type, key);
         public static void ReleaseAllAttackInputs() => BotInput.ReleaseAllAttackInputs();
-        public static Vector2 GridToScreenDirection(GameHelper.RemoteObjects.States.InGameStateObjects.WorldData? world, Entity? player, Vector2 targetGrid, Vector2 playerGrid, float gridToWorldFactor = 10.87f) => BotInput.GridToScreenDirection(world, player, targetGrid, playerGrid, gridToWorldFactor);
+        public static Vector2 GridToScreenDirection(TEHhub.RemoteObjects.States.InGameStateObjects.WorldData? world, Entity? player, Vector2 targetGrid, Vector2 playerGrid, float gridToWorldFactor = 10.87f) => BotInput.GridToScreenDirection(world, player, targetGrid, playerGrid, gridToWorldFactor);
         public static void WasdMove(Vector2 screenDir, AutoExile2Settings settings) => BotInput.WasdMove(screenDir, settings);
         public static void SetSprint(VK sprintKey, bool hold) => BotInput.SetSprint(sprintKey, hold);
         public static void ReleaseSprint(VK sprintKey) => BotInput.ReleaseSprint(sprintKey);
@@ -634,7 +634,7 @@ namespace AutoExile2.Systems
         public static void StartChannel(AttackInputType type, VK key) => BotInput.StartChannel(type, key);
         public static void StopChannel(AttackInputType type, VK key) => BotInput.StopChannel(type, key);
         public static void ReleaseAllAttackInputs() => BotInput.ReleaseAllAttackInputs();
-        public static Vector2 GridToScreenDirection(GameHelper.RemoteObjects.States.InGameStateObjects.WorldData? world, Entity? player, Vector2 targetGrid, Vector2 playerGrid, float gridToWorldFactor = 10.87f) => BotInput.GridToScreenDirection(world, player, targetGrid, playerGrid, gridToWorldFactor);
+        public static Vector2 GridToScreenDirection(TEHhub.RemoteObjects.States.InGameStateObjects.WorldData? world, Entity? player, Vector2 targetGrid, Vector2 playerGrid, float gridToWorldFactor = 10.87f) => BotInput.GridToScreenDirection(world, player, targetGrid, playerGrid, gridToWorldFactor);
         public static void WasdMove(Vector2 screenDir, AutoExile2Settings settings) => BotInput.WasdMove(screenDir, settings);
         public static void SetSprint(VK sprintKey, bool hold) => BotInput.SetSprint(sprintKey, hold);
         public static void ReleaseSprint(VK sprintKey) => BotInput.ReleaseSprint(sprintKey);

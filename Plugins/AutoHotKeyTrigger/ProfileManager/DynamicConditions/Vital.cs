@@ -1,10 +1,10 @@
-﻿// <copyright file="Vital.cs" company="PlaceholderCompany">
+// <copyright file="Vital.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
 namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
 {
-    using GameOffsets.Objects.Components;
+    using TEHhub.Offsets.Objects.Components;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface;
 
     /// <summary>

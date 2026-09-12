@@ -1,4 +1,4 @@
-﻿// <copyright file="IDynamicConditionState.cs" company="PlaceholderCompany">
+// <copyright file="IDynamicConditionState.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -6,9 +6,9 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface
 {
     using System.Collections.Generic;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteObjects.Components;
-    using GameOffsets.Objects.Components;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.Offsets.Objects.Components;
 
     /// <summary>
     ///     The structure that can be queried using DynamicCondition

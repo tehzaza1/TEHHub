@@ -1,4 +1,4 @@
-﻿// <copyright file="FlasksInfo.cs" company="PlaceholderCompany">
+// <copyright file="FlasksInfo.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -7,7 +7,7 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using GameHelper.RemoteObjects.States;
+    using TEHhub.RemoteObjects.States;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface;
 
     /// <summary>

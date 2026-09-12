@@ -6,7 +6,7 @@ namespace AutoExile2
 {
     using System.Collections.Generic;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     /// Operating modes for AutoExile 2 bot.

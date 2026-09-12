@@ -152,7 +152,7 @@ namespace LootValue
             // That keeps expected endpoint slowness from surfacing as a first-chance
             // TaskCanceledException in Visual Studio.
             var client = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
-            client.DefaultRequestHeaders.Add("User-Agent", "LootValue-GameHelper-Plugin");
+            client.DefaultRequestHeaders.Add("User-Agent", "LootValue-TEHhub-Plugin");
             return client;
         }
 

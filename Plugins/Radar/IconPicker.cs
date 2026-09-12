@@ -1,4 +1,4 @@
-﻿// <copyright file="IconPicker.cs" company="PlaceholderCompany">
+// <copyright file="IconPicker.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -7,8 +7,8 @@ namespace Radar
     using System;
     using System.IO;
     using System.Numerics;
-    using GameHelper;
-    using GameHelper.Localization;
+    using TEHhub;
+    using TEHhub.Localization;
     using ImGuiNET;
     using System.Text.Json.Serialization;
 

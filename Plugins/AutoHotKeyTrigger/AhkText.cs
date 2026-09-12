@@ -1,7 +1,7 @@
 namespace AutoHotKeyTrigger
 {
     using System.Globalization;
-    using GameHelper.Localization;
+    using TEHhub.Localization;
 
     internal static class AhkText
     {

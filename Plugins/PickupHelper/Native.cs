@@ -9,7 +9,7 @@ namespace PickupHelper
 
     /// <summary>
     ///     Minimal user32 P/Invoke wrappers for mouse clicking and key-state polling.
-    ///     GameHelper core has no mouse-click helper, so we send the click ourselves at the
+    ///     TEHhub core has no mouse-click helper, so we send the click ourselves at the
     ///     current cursor position (we never move the cursor).
     /// </summary>
     internal static partial class Native

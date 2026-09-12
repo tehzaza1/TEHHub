@@ -1,4 +1,4 @@
-﻿// <copyright file="DynamicCondition.cs" company="PlaceholderCompany">
+// <copyright file="DynamicCondition.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -9,7 +9,7 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
     using System.Numerics;
     using AutoHotKeyTrigger;
     using AutoHotKeyTrigger.ProfileManager.Component;
-    using GameHelper;
+    using TEHhub;
     using ImGuiNET;
     using System.Text.Json.Serialization;
 
@@ -171,7 +171,7 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
 
                 var types = new System.Collections.Generic.List<Type>
                 {
-                    typeof(GameHelper.RemoteEnums.Animation),
+                    typeof(TEHhub.RemoteEnums.Animation),
                     typeof(Interface.MonsterRarity),
                     typeof(Interface.MonsterNearbyZones),
                     typeof(ClickableTransparentOverlay.Win32.VK)

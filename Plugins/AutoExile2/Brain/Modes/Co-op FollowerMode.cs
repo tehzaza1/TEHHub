@@ -8,13 +8,13 @@ namespace AutoExile2.Modes
     using System.Collections.Generic;
     using System.Linq;
     using System.Numerics;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
-    using GameOffsets.Natives;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
+    using TEHhub.Offsets.Natives;
     using ImGuiNET;
     using AutoExile2.Brain;
     using AutoExile2.Brain.Workers;
@@ -479,7 +479,7 @@ namespace AutoExile2.Modes
 
         private Entity? FindFollowerEntity(AreaInstance area, Entity leader, string followerNameFilter)
         {
-            // 1. Direct Couch Co-op Player 2 from GameHelper Engine (Instant, Zero-Lag, 100% Reliable!)
+            // 1. Direct Couch Co-op Player 2 from TEHhub Engine (Instant, Zero-Lag, 100% Reliable!)
             if (area.Player2 != null && area.Player2.Address != IntPtr.Zero && area.Player2.IsValid)
             {
                 // If a specific name filter is configured and Player component is populated, verify name

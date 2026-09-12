@@ -11,13 +11,13 @@ namespace AutoHotKeyTrigger
     using System.Numerics;
     using ClickableTransparentOverlay.Win32;
     using Coroutine;
-    using GameHelper;
-    using GameHelper.CoroutineEvents;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.CoroutineEvents;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.Utils;
     using ImGuiNET;
     using System.Text.Json;
     using AutoHotKeyTrigger.ProfileManager;
@@ -72,7 +72,7 @@ namespace AutoHotKeyTrigger
                                     "It is highly suggested to create and test all new profiles/rules with the debug mode turned on to insure that all rules are preforming as expected."));
                 ImGuiHelper.NonContinuousEnumComboBox(this.PluginText.Label("settings.dump_status_effects", "Dump Player Status Effects", "AhkDumpStatusEffects"),
                     ref this.Settings.DumpStatusEffectOnMe);
-                ImGuiHelper.ToolTip(this.PluginText.T("settings.dump_status_effects.tooltip", "This hotkey will dump the current active player's buff(s), debuff(s) into a text file in the GameHelper -> Plugins -> " +
+                ImGuiHelper.ToolTip(this.PluginText.T("settings.dump_status_effects.tooltip", "This hotkey will dump the current active player's buff(s), debuff(s) into a text file in the TEHhub -> Plugins -> " +
                                     $"AutoHotKeyTrigger folder. Use this hotkey if the AutoHotKeyTrigger plugin fails to detect for example: " +
                                     $"bleeds, corrupting blood, poison, freeze, ignites or other de(buffs) currently active on the character."));
                 ImGui.Checkbox(this.PluginText.Label("settings.scan_invuln_markers", "Scan nearby Unique monsters for invuln markers (1/sec)", "AhkScanInvulnMarkers"),

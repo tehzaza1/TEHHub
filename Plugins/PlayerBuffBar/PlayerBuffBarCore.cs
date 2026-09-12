@@ -1,4 +1,4 @@
-﻿namespace PlayerBuffBar
+namespace PlayerBuffBar
 {
     using System;
     using System.Collections.Generic;
@@ -9,13 +9,13 @@
     using System.Runtime.InteropServices;
     using System.Text;
     using System.Text.Json;
-    using GameHelper;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
-    using GameOffsets.Objects.Components;
+    using TEHhub;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
+    using TEHhub.Offsets.Objects.Components;
     using ImGuiNET;
 
     public sealed partial class PlayerBuffBarCore : PCore<PlayerBuffBarSettings>
@@ -1465,10 +1465,10 @@
             return opened;
         }
 
-        /// <summary>HUD layer behind GameHelper management windows.</summary>
+        /// <summary>HUD layer behind TEHhub management windows.</summary>
         private static ImDrawListPtr GetHudDrawList() => ImGui.GetBackgroundDrawList();
 
-        /// <summary>PoE or GameHelper overlay/settings focused â€” not e.g. Discord.</summary>
+        /// <summary>PoE or TEHhub overlay/settings focused â€” not e.g. Discord.</summary>
         private static bool IsGameOrOverlayForeground() =>
             Core.Process.Foreground ||
             Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();

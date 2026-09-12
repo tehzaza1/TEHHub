@@ -1,8 +1,8 @@
-﻿namespace HealthBars
+namespace HealthBars
 {
     using System.Numerics;
-    using GameHelper.Localization;
-    using GameHelper.Utils;
+    using TEHhub.Localization;
+    using TEHhub.Utils;
     using ImGuiNET;
 
     /// <summary>

@@ -7,9 +7,9 @@ namespace AutoExile2.Brain
     using System;
     using System.Collections.Generic;
     using System.Numerics;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
     using AutoExile2.Modes;
     using AutoExile2.Modes.Shared;
     using AutoExile2.Systems;

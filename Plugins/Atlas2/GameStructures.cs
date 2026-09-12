@@ -1,7 +1,7 @@
 namespace Atlas2
 {
-    using GameOffsets.Natives;
-    using GameOffsets.Objects.UiElement;
+    using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.UiElement;
     using System;
     using System.Runtime.InteropServices;
 

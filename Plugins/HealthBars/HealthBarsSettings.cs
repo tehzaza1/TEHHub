@@ -1,4 +1,4 @@
-﻿// <copyright file="HealthBarsSettings.cs" company="PlaceholderCompany">
+// <copyright file="HealthBarsSettings.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -6,7 +6,7 @@ namespace HealthBars
 {
     using System.Collections.Generic;
     using System.Numerics;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     ///     <see cref="HealthBars" /> plugin settings class.

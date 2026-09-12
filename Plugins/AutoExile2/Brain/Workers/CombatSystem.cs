@@ -9,13 +9,13 @@ namespace AutoExile2.Systems
     using System.Diagnostics;
     using System.Linq;
     using System.Numerics;
-    using GameHelper;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameOffsets.Natives;
-    using GameOffsets.Objects.Components;
+    using TEHhub;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.Components;
     using ClickableTransparentOverlay.Win32;
     using AutoExile2.WebServer;
 
@@ -385,7 +385,7 @@ namespace AutoExile2.Systems
 
         /// <summary>
         /// Checks whether the flask in the given slot is currently active on the player.
-        /// Uses GameHelper's parsed Buffs.FlaskActive array (identical to AutoHotKeyTrigger's FlaskInfo.Active)
+        /// Uses TEHhub's parsed Buffs.FlaskActive array (identical to AutoHotKeyTrigger's FlaskInfo.Active)
         /// and status effects scan to prevent drinking while the effect is running.
         /// </summary>
         public static bool IsFlaskActive(Entity? player, int slot, bool isLife)
@@ -397,7 +397,7 @@ namespace AutoExile2.Systems
 
             if (player.TryGetComponent<Buffs>(out var buffs))
             {
-                // 1. Direct slot check from GameHelper's parsed FlaskActive array
+                // 1. Direct slot check from TEHhub's parsed FlaskActive array
                 if (slot >= 0 && slot < buffs.FlaskActive.Length && buffs.FlaskActive[slot])
                 {
                     return true;
@@ -465,7 +465,7 @@ namespace AutoExile2.Systems
 
         public void TickAutoFlasks(AutoExile2Settings settings, float hpPercent, float manaPercent, CoopVirtualGamepad? pad = null)
         {
-            var inGameState = GameHelper.Core.States.InGameStateObject;
+            var inGameState = TEHhub.Core.States.InGameStateObject;
             var area = inGameState?.CurrentAreaInstance;
             this.TickAutoFlasks(area?.Player, area?.ServerDataObject, settings, hpPercent, manaPercent, pad);
         }
@@ -774,7 +774,7 @@ namespace AutoExile2.Systems
             }
 
             // 2. Check game engine usability flag (IsSkillUsable / "Can use skills" list)
-            // In GameHelper's "Can use skills" list, if a skill is on cooldown or unusable, it disappears from IsSkillUsable.
+            // In TEHhub's "Can use skills" list, if a skill is on cooldown or unusable, it disappears from IsSkillUsable.
             if (actor.IsSkillUsable != null)
             {
                 if (!actor.IsSkillUsable.Contains(matchedKey))
@@ -1293,7 +1293,7 @@ namespace AutoExile2.Systems
             {
                 string p = entity.Path;
 
-                // 1. Check Ignore Monsters list configured in GameHelper Settings
+                // 1. Check Ignore Monsters list configured in TEHhub Settings
                 if (Core.GHSettings?.MonstersPathsToIgnore != null &&
                     Core.GHSettings.MonstersPathsToIgnore.Any(ignored => !string.IsNullOrEmpty(ignored) && p.StartsWith(ignored, StringComparison.OrdinalIgnoreCase)))
                 {

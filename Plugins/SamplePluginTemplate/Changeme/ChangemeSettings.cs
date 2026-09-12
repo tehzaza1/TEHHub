@@ -1,10 +1,10 @@
-﻿// <copyright file="ChangemeSettings.cs" company="PlaceholderCompany">
+// <copyright file="ChangemeSettings.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
 namespace Changeme
 {
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     /// <see cref="Changeme"/> plugin settings class.

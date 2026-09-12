@@ -6,7 +6,7 @@ namespace AutoExile2.Systems
 {
     using System;
     using System.Numerics;
-    using GameHelper.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.Components;
     using AutoExile2.Modes;
     using AutoExile2.Modes.Shared;
 

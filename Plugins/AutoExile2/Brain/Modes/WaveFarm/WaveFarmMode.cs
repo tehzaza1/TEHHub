@@ -7,10 +7,10 @@ namespace AutoExile2.Modes.WaveFarm
     using System;
     using System.Collections.Generic;
     using System.Numerics;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
-    using GameOffsets.Natives;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
+    using TEHhub.Offsets.Natives;
     using ImGuiNET;
     using AutoExile2.Modes.WaveFarm.FarmPlans;
     using AutoExile2.Systems;
@@ -221,7 +221,7 @@ namespace AutoExile2.Modes.WaveFarm
             drawList.AddText(new Vector2(x, y), colDim, $"Runs completed: {this.runsCompleted}");
 
             // Render Nav Path in world space
-            if (this.wave.CurrentNavPath.Count > 0 && ctx.World != null && ctx.Player.TryGetComponent<GameHelper.RemoteObjects.Components.Render>(out var pRender))
+            if (this.wave.CurrentNavPath.Count > 0 && ctx.World != null && ctx.Player.TryGetComponent<TEHhub.RemoteObjects.Components.Render>(out var pRender))
             {
                 float convertor = ctx.Area.WorldToGridConvertor;
                 float playerTerrainZ = pRender.TerrainHeight;

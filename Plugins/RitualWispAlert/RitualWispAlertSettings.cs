@@ -5,7 +5,7 @@
 namespace RitualWispAlert
 {
     using System.Numerics;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>Settings for the Ritual wisp range indicator.</summary>
     public sealed class RitualWispAlertSettings : IPSettings

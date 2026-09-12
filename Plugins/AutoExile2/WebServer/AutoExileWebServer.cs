@@ -16,8 +16,8 @@ namespace AutoExile2.WebServer
     using System.Threading.Tasks;
     using AutoExile2.Systems;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper;
-    using GameHelper.RemoteObjects.Components;
+    using TEHhub;
+    using TEHhub.RemoteObjects.Components;
 
     /// <summary>
     /// Embedded HTTP and WebSocket server for AutoExile 2 live dashboard, settings, and profile management.

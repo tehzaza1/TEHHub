@@ -1,4 +1,4 @@
-﻿// <copyright file="ChangemeCore.cs" company="PlaceholderCompany">
+// <copyright file="ChangemeCore.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -6,7 +6,7 @@ namespace Changeme
 {
     using System.IO;
     using System.Text.Json;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     /// <see cref="ChangemeCore"/> plugin.

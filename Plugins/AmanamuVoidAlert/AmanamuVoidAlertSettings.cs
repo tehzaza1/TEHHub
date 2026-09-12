@@ -5,7 +5,7 @@
 namespace AmanamuVoidAlert
 {
     using System.Numerics;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     /// Settings for the Amanamu Void Alert plugin.
@@ -36,7 +36,7 @@ namespace AmanamuVoidAlert
         /// <summary>Only track Rare or Unique monsters.</summary>
         public bool OnlyRareOrUnique = true;
 
-        /// <summary>Log newly detected monsters to GameHelper console/log.</summary>
+        /// <summary>Log newly detected monsters to TEHhub console/log.</summary>
         public bool LogNewDetections = true;
 
         /// <summary>Maximum tracking distance from player (grid units / distance units).</summary>

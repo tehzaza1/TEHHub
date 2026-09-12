@@ -1,4 +1,4 @@
-﻿// <copyright file="IsKeyPressedTemplate.cs" company="PlaceholderCompany">
+// <copyright file="IsKeyPressedTemplate.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -7,7 +7,7 @@ namespace AutoHotKeyTrigger.ProfileManager.Templates
     using AutoHotKeyTrigger;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper.Utils;
+    using TEHhub.Utils;
     using ImGuiNET;
 
     /// <summary>

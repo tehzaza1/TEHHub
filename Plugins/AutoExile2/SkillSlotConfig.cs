@@ -7,7 +7,7 @@ namespace AutoExile2
     using System;
     using System.Collections.Generic;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.Components;
 
     /// <summary>
     /// Functional role for an individual skill slot in combat.

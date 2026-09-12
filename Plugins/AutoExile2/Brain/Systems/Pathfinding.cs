@@ -12,9 +12,9 @@ namespace AutoExile2.Systems
 
     /// <summary>
     /// A* pathfinding, line-of-sight path smoothing, and terrain clearance navigation.
-    /// Ported directly from AutoExile and optimized specifically for GameHelper PoE 2.
+    /// Ported directly from AutoExile and optimized specifically for TEHhub PoE 2.
     ///
-    /// Operates natively on GameHelper's nibble-packed GridWalkableData (byte[]) with zero heap allocations.
+    /// Operates natively on TEHhub's nibble-packed GridWalkableData (byte[]) with zero heap allocations.
     /// Grid values: 0 = impassable/wall, 1-2 = wall fringe, 3-5 = walkable with cost = 6 - value.
     /// All positions are in grid coordinates. Convert to world only at camera/input call sites.
     /// </summary>
@@ -59,7 +59,7 @@ namespace AutoExile2.Systems
             world * WorldToGrid;
 
         /// <summary>
-        /// Convert grid position to world Vector3 using GameHelper's terrain elevation lookup.
+        /// Convert grid position to world Vector3 using TEHhub's terrain elevation lookup.
         /// </summary>
         public static Vector3 GridToWorld3D(Vector2 gridPos, float[][]? heightGrid = null, float fallbackZ = 0f)
         {
@@ -70,7 +70,7 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Get terrain height at a grid position from GameHelper's GridHeightData.
+        /// Get terrain height at a grid position from TEHhub's GridHeightData.
         /// Returns fallbackZ if height data is unavailable or position is out of bounds.
         /// </summary>
         public static float GetTerrainHeight(float[][]? heightGrid, int gx, int gy, float fallbackZ)
@@ -90,11 +90,11 @@ namespace AutoExile2.Systems
         }
 
         // =========================================================================
-        // GameHelper Nibble-Encoded Cell Accessors
+        // TEHhub Nibble-Encoded Cell Accessors
         // =========================================================================
 
         /// <summary>
-        /// Reads the terrain cell value from GameHelper's nibble-encoded GridWalkableData.
+        /// Reads the terrain cell value from TEHhub's nibble-encoded GridWalkableData.
         /// (0 = wall, 1-2 = edge fringe, 3-5 = walkable).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -168,7 +168,7 @@ namespace AutoExile2.Systems
         // =========================================================================
 
         /// <summary>
-        /// Run A* from start to goal on GameHelper's walkable grid.
+        /// Run A* from start to goal on TEHhub's walkable grid.
         /// Incorporates AutoExile's weighted terrain costing, spiral fallback, and LOS smoothing.
         /// Returns smoothed, merged path of grid positions, or empty if no path.
         /// </summary>

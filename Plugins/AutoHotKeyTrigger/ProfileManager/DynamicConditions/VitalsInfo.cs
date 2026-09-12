@@ -1,10 +1,10 @@
-﻿// <copyright file="VitalsInfo.cs" company="PlaceholderCompany">
+// <copyright file="VitalsInfo.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
 namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
 {
-    using GameHelper.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.Components;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface;
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿// <copyright file="PreloadAlert.cs" company="PlaceholderCompany">
+// <copyright file="PreloadAlert.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -12,11 +12,11 @@ namespace PreloadAlert
     using System.Numerics;
     using System.Text.Json;
     using Coroutine;
-    using GameHelper;
-    using GameHelper.CoroutineEvents;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.CoroutineEvents;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.Utils;
     using ImGuiNET;
 
     /// <summary>

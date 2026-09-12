@@ -1,4 +1,4 @@
-﻿// <copyright file="WorldDrawingCore.cs" company="PlaceholderCompany">
+// <copyright file="WorldDrawingCore.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -11,13 +11,13 @@ namespace WorldDrawing
     using System.Numerics;
     using System.Text.Json;
     using Coroutine;
-    using GameHelper;
-    using GameHelper.CoroutineEvents;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteEnums.Entity;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.CoroutineEvents;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.Utils;
     using ImGuiNET;
 
 

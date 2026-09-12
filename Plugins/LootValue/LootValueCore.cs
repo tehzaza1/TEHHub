@@ -16,14 +16,14 @@ namespace LootValue
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Coroutine;
-    using GameHelper;
-    using GameHelper.CoroutineEvents;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameOffsets.Natives;
-    using GameOffsets.Objects.UiElement;
+    using TEHhub;
+    using TEHhub.CoroutineEvents;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.UiElement;
     using ImGuiNET;
 
     /// <summary>

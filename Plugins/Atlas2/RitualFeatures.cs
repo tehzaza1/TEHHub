@@ -1,11 +1,11 @@
 namespace Atlas2
 {
-    using GameHelper;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.RemoteObjects.UiElement;
-    using GameHelper.Utils;
-    using GameOffsets.Natives;
-    using GameOffsets.Objects.UiElement;
+    using TEHhub;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects.UiElement;
+    using TEHhub.Utils;
+    using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.UiElement;
     using ImGuiNET;
     using System;
     using System.Collections.Generic;
@@ -51,7 +51,7 @@ namespace Atlas2
         private const int CandTableMaxCandidates = 5;
         private string RitualRollLogPathname => this.PluginConfigPath("ritual_roll_log.jsonl");
         private string L(string key, string fallback) => PluginText.T(key, fallback);
-        private GameHelper.Localization.PluginLocalization Loc => PluginText;
+        private TEHhub.Localization.PluginLocalization Loc => PluginText;
 
         private static string ReadWideString(nint address, int stringLength)
         {

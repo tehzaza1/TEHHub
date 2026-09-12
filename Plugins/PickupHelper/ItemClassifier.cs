@@ -8,7 +8,7 @@ namespace PickupHelper
     using System.Collections.Generic;
 
     /// <summary>
-    ///     Derives a coarse item category from the item's metadata path. GameHelper ships no
+    ///     Derives a coarse item category from the item's metadata path. TEHhub ships no
     ///     item-class table, so we categorize by the first path segment under <c>Metadata/Items/</c>.
     /// </summary>
     internal static class ItemClassifier

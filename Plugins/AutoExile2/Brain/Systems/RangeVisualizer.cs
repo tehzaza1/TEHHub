@@ -8,8 +8,8 @@ namespace AutoExile2.Systems
     using System.Linq;
     using System.Numerics;
     using AutoExile2.Modes;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
     using ImGuiNET;
 
     /// <summary>
@@ -128,7 +128,7 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Draws a 3D circle projected on the terrain using GameHelper's WorldToScreen and GridHeightData.
+        /// Draws a 3D circle projected on the terrain using TEHhub's WorldToScreen and GridHeightData.
         /// </summary>
         public static void DrawWorldCircle(
             ImDrawListPtr draw,

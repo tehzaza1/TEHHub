@@ -1,13 +1,13 @@
 namespace Atlas2
 {
-    using GameHelper;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.RemoteObjects.UiElement;
-    using GameHelper.Utils;
-    using GameOffsets.Natives;
-    using GameOffsets.Objects.UiElement;
+    using TEHhub;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects.UiElement;
+    using TEHhub.Utils;
+    using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.UiElement;
     using ImGuiNET;
     using System;
     using System.Collections.Generic;
@@ -170,7 +170,7 @@ namespace Atlas2
 
             ImGui.SeparatorText("Atlas Settings");
             ImGui.Checkbox("Controller Mode", ref Settings.ControllerMode);
-            ImGuiHelper.ToolTip("Enable when playing with a controller. Automatically aligns with GameHelper Controller Mode if active.");
+            ImGuiHelper.ToolTip("Enable when playing with a controller. Automatically aligns with TEHhub Controller Mode if active.");
 
             ImGui.Checkbox("Hide Completed Maps", ref Settings.HideCompletedMaps);
             ImGui.Checkbox("Hide Not Accessible Maps", ref Settings.HideNotAccessibleMaps);
@@ -466,11 +466,11 @@ namespace Atlas2
 
         public override void DrawUI()
         {
-            using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Atlas2.DrawUI");
+            using var memoryReadRegion = TEHhub.Ui.MemoryReadDiagnostics.MeasureRegion("Atlas2.DrawUI");
             var inventoryPanel = InventoryPanel();
 
-            var isGameHelperForeground = Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();
-            if (!Core.Process.Foreground && !isGameHelperForeground)
+            var isTEHhubForeground = Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();
+            if (!Core.Process.Foreground && !isTEHhubForeground)
                 return;
 
             var player = Core.States.InGameStateObject.CurrentAreaInstance.Player;
@@ -1456,7 +1456,7 @@ namespace Atlas2
             public void Dispose()
             {
                 // PopFont rebinds the previous font and recomputes its size from Scale. Restore
-                // the shared font first so this scope cannot resize later GameHelper windows.
+                // the shared font first so this scope cannot resize later TEHhub windows.
                 _font.Scale = _prevScale;
                 ImGui.PopFont();
             }

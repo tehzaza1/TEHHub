@@ -7,9 +7,9 @@ namespace AutoExile2.Brain.Workers
     using System;
     using System.Linq;
     using System.Numerics;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteObjects.Components;
-    using GameOffsets.Natives;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.Offsets.Natives;
     using AutoExile2.Brain;
     using AutoExile2.Modes;
     using AutoExile2.Systems;

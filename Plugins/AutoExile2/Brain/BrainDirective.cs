@@ -6,7 +6,7 @@ namespace AutoExile2.Brain
 {
     using System;
     using System.Numerics;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
 
     /// <summary>
     /// Types of dynamic evasion maneuvers the Locomotion channel can execute.

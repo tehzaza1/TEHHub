@@ -1,10 +1,10 @@
-﻿// <copyright file="WorldDrawingSettings.cs" company="PlaceholderCompany">
+// <copyright file="WorldDrawingSettings.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
 namespace WorldDrawing
 {
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
     using System.Numerics;
 
     /// <summary>

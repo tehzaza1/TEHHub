@@ -7,11 +7,11 @@ namespace Radar
     using System.Collections.Generic;
     using System.IO;
     using System.Numerics;
-    using GameHelper.Localization;
-    using GameHelper.Plugin;
+    using TEHhub.Localization;
+    using TEHhub.Plugin;
     using ImGuiNET;
     using System.Text.Json.Serialization;
-    using GameHelper.Utils;
+    using TEHhub.Utils;
 
     /// <summary>
     /// <see cref="Radar"/> plugin settings class.

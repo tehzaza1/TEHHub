@@ -5,7 +5,7 @@
 namespace LootValue
 {
     using System.Numerics;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     /// <see cref="LootValue"/> plugin settings.

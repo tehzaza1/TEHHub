@@ -6,9 +6,9 @@ namespace AutoExile2.Modes.Shared
 {
     using System;
     using System.Numerics;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameOffsets.Natives;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Offsets.Natives;
     using AutoExile2.Systems;
 
     /// <summary>

@@ -7,13 +7,13 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States;
     using ClickableTransparentOverlay.Win32;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface;
     using System.Linq.Dynamic.Core.CustomTypeProviders;
-    using GameOffsets.Objects.Components;
+    using TEHhub.Offsets.Objects.Components;
 
     /// <summary>
     ///     The structure that can be queried using DynamicCondition

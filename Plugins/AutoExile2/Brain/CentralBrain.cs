@@ -9,7 +9,7 @@ namespace AutoExile2.Brain
     using System.Linq;
     using System.Numerics;
     using AutoExile2.Modes;
-    using GameHelper.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.Components;
 
     /// <summary>
     /// Cognitive Central Decision Brain (2.0):

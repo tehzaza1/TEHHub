@@ -1,4 +1,4 @@
-﻿// <copyright file="VitalTemplate.cs" company="PlaceholderCompany">
+// <copyright file="VitalTemplate.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -7,7 +7,7 @@ namespace AutoHotKeyTrigger.ProfileManager.Templates
     using AutoHotKeyTrigger;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
     using AutoHotKeyTrigger.ProfileManager.Enums;
-    using GameHelper.Utils;
+    using TEHhub.Utils;
     using ImGuiNET;
     using System.Collections.Generic;
 

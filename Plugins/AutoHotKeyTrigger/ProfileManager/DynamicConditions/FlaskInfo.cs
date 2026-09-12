@@ -1,16 +1,16 @@
-﻿// <copyright file="FlaskInfo.cs" company="PlaceholderCompany">
+// <copyright file="FlaskInfo.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
 namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
 {
     using System;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions.Interface;
     using System.Collections.Generic;
-    using GameHelper.RemoteEnums;
+    using TEHhub.RemoteEnums;
 
     /// <summary>
     ///     The structure describing a flask state

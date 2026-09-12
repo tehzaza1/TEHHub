@@ -1,11 +1,11 @@
-﻿// <copyright file="PreloadSettings.cs" company="PlaceholderCompany">
+// <copyright file="PreloadSettings.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
 namespace PreloadAlert
 {
     using System.Numerics;
-    using GameHelper.Plugin;
+    using TEHhub.Plugin;
 
     /// <summary>
     ///     Preload GUI settings.

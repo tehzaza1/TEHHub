@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\GameHelper\GameHelper.csproj">
+    <ProjectReference Include="..\..\TEHhub\TEHhub.csproj">
       <Private>false</Private>
       <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
     </ProjectReference>
@@ -34,14 +34,14 @@
 
   <Target Name="CopyFiles" AfterTargets="Build">
     <Copy SourceFiles="$(OutDir)$(TargetName)$(TargetExt);$(OutDir)$(TargetName).pdb;$(OutDir)Nefarius.ViGEm.Client.dll;"
-          DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)"
+          DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)"
           SkipUnchangedFiles="true"
           ContinueOnError="true" />
     <ItemGroup>
       <WebFiles Include="WebServer\wwwroot\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(WebFiles)"
-          DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)\WebServer\wwwroot"
+          DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)\WebServer\wwwroot"
           SkipUnchangedFiles="true"
           ContinueOnError="true" />
   </Target>

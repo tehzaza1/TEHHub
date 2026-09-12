@@ -12,12 +12,12 @@ namespace PickupHelper
     using System.Reflection;
     using System.Text.Json;
     using ClickableTransparentOverlay.Win32;
-    using GameHelper;
-    using GameHelper.Plugin;
-    using GameHelper.RemoteEnums;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameHelper.Utils;
+    using TEHhub;
+    using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
     using ImGuiNET;
 
     /// <summary>

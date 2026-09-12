@@ -3,11 +3,11 @@ namespace LootValue
     using System;
     using System.Collections.Generic;
     using System.Numerics;
-    using GameHelper;
-    using GameHelper.RemoteObjects.Components;
-    using GameHelper.RemoteObjects.States.InGameStateObjects;
-    using GameOffsets.Natives;
-    using GameOffsets.Objects.UiElement;
+    using TEHhub;
+    using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.UiElement;
 
     public sealed class MonolithInfo
     {
