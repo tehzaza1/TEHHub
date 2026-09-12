@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.0.2 — 2026-09-12
+
+- Generate SHA256 through the .NET cryptography API so release creation also works when the PowerShell Get-FileHash command is unavailable.
+- Validation: release packaging includes clean build, launcher check, required-file and symbol checks.
+
 ## 1.0.1 — 2026-09-12
 
 - Fixed packaging when the repository has no root LICENSE file; preserve available plugin licenses, credits and the historical GameHelper2 changelog.

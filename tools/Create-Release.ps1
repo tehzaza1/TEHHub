@@ -53,7 +53,10 @@ try {
     $zipPath = Join-Path $artifactRoot "TEHhub-v$version-$($commit.Substring(0,8))-win-x64.zip"
     if (Test-Path -LiteralPath $zipPath) { throw "Release already exists: $zipPath" }
     Compress-Archive -LiteralPath $stage -DestinationPath $zipPath
-    $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+    $stream = [IO.File]::OpenRead($zipPath)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try { $hash = [BitConverter]::ToString($sha256.ComputeHash($stream)).Replace('-', '') }
+    finally { $stream.Dispose(); $sha256.Dispose() }
     [IO.File]::WriteAllText(($zipPath + '.sha256'), "$hash  $([IO.Path]::GetFileName($zipPath))`r`n", $utf8)
     Write-Host "Created: $zipPath"
     Write-Host "SHA256: $hash"
