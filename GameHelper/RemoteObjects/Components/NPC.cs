@@ -17,5 +17,9 @@ namespace GameHelper.RemoteObjects.Components
         /// <param name="address">address of the <see cref="NPC" /> component.</param>
         public NPC(IntPtr address)
             : base(address) { }
+
+        // Entity classification only needs this marker's presence. Re-reading its header every
+        // frame cannot change the classification while the component address remains the same.
+        internal override bool RequiresPerFrameRefresh => false;
     }
 }

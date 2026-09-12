@@ -26,6 +26,10 @@ namespace GameHelper.RemoteObjects.Components
         /// </summary>
         public string? IconName { get; private set; }
 
+        // Retry transient first-read failures, then stop once the immutable dat-row name has been
+        // resolved. A component-address change creates/rebinds the wrapper and reads it again.
+        internal override bool RequiresPerFrameRefresh => this.IconName == null;
+
         /// <inheritdoc/>
         internal override void ToImGui()
         {

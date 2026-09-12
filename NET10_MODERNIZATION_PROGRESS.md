@@ -744,6 +744,12 @@ Commit: `264f6c3 refactor: migrate plugin metadata and launcher JSON`
 - เพิ่มการจับ baseline 512 bytes และเปรียบเทียบ Before/After ใน root ของ component ที่ยัง unmapped พร้อมรายงาน word ที่เปลี่ยนสำหรับส่งกลับมาวิเคราะห์
 - capture อยู่เฉพาะ session และผูกกับ address เดิม ผู้ใช้จึงต้องเทียบ component ตัวเดิมก่อนเปลี่ยนพื้นที่
 
+### 6.56 หยุด refresh component ที่ไม่เปลี่ยนทุกเฟรม
+
+- `DiesAfterTime` และ `NPC` เป็น marker ที่ฟีเจอร์ปัจจุบันใช้เพียง presence/owner จึงอ่าน header ตอนสร้างหรือ rebind เท่านั้น
+- `MinimapIcon` retry ได้จนอ่านชื่อจาก dat row สำเร็จ หลังจากนั้นหยุด refresh เพราะชื่อคงที่ตลอดอายุ component
+- ลดรายการใน frame snapshot และ native reads โดยไม่ลดความถี่ของ component ที่มีข้อมูลเคลื่อนไหว เช่น Life, Actor, Buffs, Stats, Render และ Positioned
+
 ## การตัดสินใจเรื่อง Native AOT
 
 ยังไม่เปิด Native AOT ให้ GameHelper ตัวหลัก

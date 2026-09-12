@@ -17,5 +17,9 @@ namespace GameHelper.RemoteObjects.Components
         /// <param name="address">address of the <see cref="DiesAfterTime" /> component.</param>
         public DiesAfterTime(IntPtr address)
             : base(address) { }
+
+        // This marker has no mutable payload. Its presence and owner pointer are fixed for the
+        // lifetime of the entity and are populated when the component is first constructed.
+        internal override bool RequiresPerFrameRefresh => false;
     }
 }
