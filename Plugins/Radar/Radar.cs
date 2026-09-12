@@ -127,6 +127,28 @@ namespace Radar
         // SleepingEntities map, so they appear well beyond the network bubble and persist once seen.
         private readonly Dictionary<string, ConcurrentDictionary<string, (Vector2 gridPos, float height, string category, string iconKey)>> trackedNodesByArea = new();
         private ConcurrentDictionary<string, (Vector2 gridPos, float height, string category, string iconKey)> trackedNodes = new();
+        private SleepingEntityScanSession? sleepingEntityScan;
+        private long sleepingEntityScanNotBefore;
+        private bool sleepingEntityScanResultLogged;
+        private int sleepingEntityPositionMatches;
+        private readonly Dictionary<string, int> sleepingEntityCandidatePaths = new(StringComparer.Ordinal);
+
+        private static readonly string[] SleepingEntityContentKeywords =
+        {
+            "Abyss",
+            "Breach",
+            "Delirium",
+            "Essence",
+            "Expedition",
+            "Incursion",
+            "Ritual",
+            "Runestone",
+            "Sanctum",
+            "Sekhemas",
+            "Shrine",
+            "Strongbox",
+            "TormentedSpirit",
+        };
 
         private string SettingPathname => this.PluginConfigPath("settings.txt");
 
@@ -135,6 +157,9 @@ namespace Radar
         private string BossArenaTgtPathName => this.PluginConfigPath("boss_arena_tgt_files.txt");
 
         private string StairsTgtPathName => this.PluginConfigPath("stairs_tgt_files.txt");
+
+        private string SleepingEntityCandidatesPathName =>
+            this.PluginConfigPath("sleeping_entity_candidates.txt");
 
         private string ImportantTgtDefaultPathName => Path.Join(this.DllDirectory, "Defaults", "important_tgt_files.txt");
 
@@ -273,6 +298,33 @@ namespace Radar
             ImGui.Separator();
             ImGui.NewLine();
             ImGui.Checkbox(this.PluginText.Label("settings.hide_network_bubble", "Hide Entities outside the network bubble", "RadarHideNetworkBubble"), ref this.Settings.HideOutsideNetworkBubble);
+            if (ImGui.CollapsingHeader("Distant content research###RadarSleepingEntityScan"))
+            {
+                ImGui.Checkbox("Scan SleepingEntities incrementally###RadarEnableSleepingEntityScan", ref this.Settings.EnableSleepingEntityScan);
+                ImGuiHelper.ToolTip("Experimental: scans only a small time slice per frame and creates full Entity objects only for known static content paths.");
+                ImGui.DragInt("Start delay (ms)###RadarSleepingScanDelay", ref this.Settings.SleepingEntityScanDelayMs, 50f, 500, 10000);
+                ImGui.DragInt("Nodes per frame###RadarSleepingScanNodes", ref this.Settings.SleepingEntityScanNodesPerFrame, 1f, 1, 512);
+                ImGui.DragFloat("Frame budget (ms)###RadarSleepingScanBudget", ref this.Settings.SleepingEntityScanBudgetMs, 0.05f, 0.1f, 5f, "%.2f");
+
+                if (this.sleepingEntityScan != null)
+                {
+                    ImGui.Text($"State: {this.sleepingEntityScan.State}");
+                    ImGui.Text($"Nodes: {this.sleepingEntityScan.ProcessedNodes:N0} / {this.sleepingEntityScan.DeclaredNodes:N0} (pending {this.sleepingEntityScan.PendingNodes:N0})");
+                    ImGui.Text($"Paths: {this.sleepingEntityScan.ValidPaths:N0}; matches: {this.sleepingEntityScan.MatchedPaths:N0}");
+                    ImGui.Text($"Unique content candidates: {this.sleepingEntityCandidatePaths.Count:N0}");
+                    ImGui.Text($"Usable distant positions: {this.sleepingEntityPositionMatches:N0}");
+                    ImGui.Text($"Read failures: {this.sleepingEntityScan.ReadFailures:N0}; rejected nodes: {this.sleepingEntityScan.RejectedNodes:N0}");
+                    ImGui.Text($"Scanner time: {this.sleepingEntityScan.ElapsedMilliseconds:N1} ms");
+                    if (!string.IsNullOrEmpty(this.sleepingEntityScan.StatusMessage))
+                    {
+                        ImGui.TextWrapped(this.sleepingEntityScan.StatusMessage);
+                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("Scanner has not started in this area.");
+                }
+            }
             ImGui.Checkbox(this.PluginText.Label("settings.show_player_names", "Show Player Names", "RadarShowPlayerNames"), ref this.Settings.ShowPlayersNames);
             ImGuiHelper.ToolTip(this.PluginText.T("settings.show_player_names.tooltip", "This button will not work while Player is in the Scourge."));
             ImGui.Checkbox(this.PluginText.Label("settings.show_icon_paths", "Show Paths to Icons", "RadarShowIconPaths"), ref this.Settings.ShowEntityPaths);
@@ -2350,6 +2402,19 @@ namespace Radar
             return null;
         }
 
+        private static bool LooksLikeSleepingContent(string path)
+        {
+            for (var i = 0; i < SleepingEntityContentKeywords.Length; i++)
+            {
+                if (path.Contains(SleepingEntityContentKeywords[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Resolves the configured icon for a tracked node's category + key.
         /// </summary>
@@ -2360,15 +2425,106 @@ namespace Radar
         }
 
         /// <summary>
-        /// Background scan of SleepingEntities is disabled: continuously reading the 500,000-node
-        /// SleepingEntities map in parallel causes memory contention, CoreCLR 0xc0000409 FailFast,
-        /// and PathOfExile.exe 0xc0000005 Access Violation crashes.
-        /// Tracked nodes (Abyss Crack, Abyss Pit, Strongbox) are already tracked and persisted
-        /// per-map when they enter the player's awake radius in DrawMapIcons.
+        /// Advances the experimental SleepingEntities scan within a strict per-frame budget.
+        /// The scanner walks serially, keeps a visited set and reads only metadata paths before
+        /// constructing the few matching Entity objects. This avoids the old parallel full-entity
+        /// scan that caused memory contention and native crashes.
         /// </summary>
         private void RebuildTrackedNodes()
         {
-            return;
+            if (!this.Settings.EnableSleepingEntityScan)
+            {
+                this.sleepingEntityScan = null;
+                this.sleepingEntityScanResultLogged = false;
+                return;
+            }
+
+            var area = Core.States.InGameStateObject.CurrentAreaInstance;
+            if (area.Address == IntPtr.Zero || string.IsNullOrEmpty(area.AreaHash) ||
+                Environment.TickCount64 < this.sleepingEntityScanNotBefore)
+            {
+                return;
+            }
+
+            this.sleepingEntityScan ??= area.CreateSleepingEntityScan(
+                static path => LooksLikeSleepingContent(path));
+
+            if (this.sleepingEntityScan.State == SleepingEntityScanState.Running)
+            {
+                this.sleepingEntityScan.Step(
+                    Math.Clamp(this.Settings.SleepingEntityScanNodesPerFrame, 1, 512),
+                    Math.Clamp(this.Settings.SleepingEntityScanBudgetMs, 0.1f, 5f));
+            }
+
+            while (this.sleepingEntityScan.TryDequeueMatch(out var match))
+            {
+                if (match == null)
+                {
+                    continue;
+                }
+
+                this.sleepingEntityCandidatePaths.TryGetValue(match.Path, out var pathCount);
+                this.sleepingEntityCandidatePaths[match.Path] = pathCount + 1;
+
+                if (ClassifyTrackedPath(match.Path) is not { } classification ||
+                    !match.TryCreateEntity(out var entity) ||
+                    entity == null ||
+                    !entity.TryGetComponent<Render>(out var render))
+                {
+                    continue;
+                }
+
+                this.RecordTrackedNode(
+                    classification.category,
+                    classification.iconKey,
+                    new Vector2(render.GridPosition.X, render.GridPosition.Y),
+                    render.TerrainHeight);
+                this.sleepingEntityPositionMatches++;
+            }
+
+            if (this.sleepingEntityScan.State != SleepingEntityScanState.Running &&
+                !this.sleepingEntityScanResultLogged)
+            {
+                this.sleepingEntityScanResultLogged = true;
+                this.WriteSleepingEntityCandidateReport();
+                Console.WriteLine(
+                    $"[Radar/SleepingScan] state={this.sleepingEntityScan.State}, " +
+                    $"nodes={this.sleepingEntityScan.ProcessedNodes}/{this.sleepingEntityScan.DeclaredNodes}, " +
+                    $"paths={this.sleepingEntityScan.ValidPaths}, matches={this.sleepingEntityScan.MatchedPaths}, " +
+                    $"positions={this.sleepingEntityPositionMatches}, " +
+                    $"failures={this.sleepingEntityScan.ReadFailures}, rejected={this.sleepingEntityScan.RejectedNodes}, " +
+                    $"time={this.sleepingEntityScan.ElapsedMilliseconds:F1}ms, " +
+                    $"message={this.sleepingEntityScan.StatusMessage}");
+            }
+        }
+
+        private void WriteSleepingEntityCandidateReport()
+        {
+            try
+            {
+                Directory.CreateDirectory(
+                    Path.GetDirectoryName(this.SleepingEntityCandidatesPathName) ?? string.Empty);
+                var reportLines = new List<string>(this.sleepingEntityCandidatePaths.Count + 7)
+                {
+                    $"# Area: {this.currentAreaName}",
+                    $"# AreaHash: {Core.States.InGameStateObject.CurrentAreaInstance.AreaHash}",
+                    $"# State: {this.sleepingEntityScan?.State}",
+                    $"# Nodes: {this.sleepingEntityScan?.ProcessedNodes}/{this.sleepingEntityScan?.DeclaredNodes}",
+                    $"# Valid paths: {this.sleepingEntityScan?.ValidPaths}",
+                    $"# Usable known positions: {this.sleepingEntityPositionMatches}",
+                    "# Format: count<TAB>metadata path",
+                };
+                reportLines.AddRange(
+                    this.sleepingEntityCandidatePaths
+                        .OrderByDescending(static pair => pair.Value)
+                        .ThenBy(static pair => pair.Key, StringComparer.Ordinal)
+                        .Select(static pair => $"{pair.Value}\t{pair.Key}"));
+                File.WriteAllLines(this.SleepingEntityCandidatesPathName, reportLines);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Radar] Failed to write SleepingEntities report: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -2536,6 +2692,8 @@ namespace Radar
             var instance = Core.States.InGameStateObject.CurrentAreaInstance;
             this.observedAreaInstanceAddress = instance.Address;
             this.observedAreaHash = instance.AreaHash;
+            this.sleepingEntityScanNotBefore = Environment.TickCount64 +
+                Math.Clamp(this.Settings.SleepingEntityScanDelayMs, 500, 10000);
             this.currentAreaName = Core.States.InGameStateObject.CurrentWorldInstance.AreaDetails.Id;
             this.SwitchReachedPathsToCurrentArea();
             this.GenerateMapTexture();
@@ -3121,6 +3279,12 @@ namespace Radar
             this.entityPathSnapshot.Clear();
             this.tileIconPathCache.Clear();
             this.tileIconPathSnapshot.Clear();
+            this.sleepingEntityScan = null;
+            this.sleepingEntityScanNotBefore = Environment.TickCount64 +
+                Math.Clamp(this.Settings.SleepingEntityScanDelayMs, 500, 10000);
+            this.sleepingEntityScanResultLogged = false;
+            this.sleepingEntityPositionMatches = 0;
+            this.sleepingEntityCandidatePaths.Clear();
             this.RemoveMapTexture();
             this.currentAreaName = string.Empty;
             this.observedAreaInstanceAddress = IntPtr.Zero;

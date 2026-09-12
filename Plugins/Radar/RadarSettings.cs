@@ -162,6 +162,27 @@ namespace Radar
         public bool HideOutsideNetworkBubble = false;
 
         /// <summary>
+        /// Incrementally inspect sleeping entities for known static content outside the network bubble.
+        /// Kept opt-in while runtime stability and coverage are measured on PoE 2 maps.
+        /// </summary>
+        public bool EnableSleepingEntityScan = false;
+
+        /// <summary>
+        /// Delay after an area change before taking the SleepingEntities tree root.
+        /// </summary>
+        public int SleepingEntityScanDelayMs = 2000;
+
+        /// <summary>
+        /// Maximum SleepingEntities tree nodes inspected in one render frame.
+        /// </summary>
+        public int SleepingEntityScanNodesPerFrame = 64;
+
+        /// <summary>
+        /// Wall-clock budget for one incremental SleepingEntities scan step.
+        /// </summary>
+        public float SleepingEntityScanBudgetMs = 1.0f;
+
+        /// <summary>
         /// Gets a value indicating whether user wants to modify large map culling window or not.
         /// </summary>
         public bool ModifyCullWindow = false;

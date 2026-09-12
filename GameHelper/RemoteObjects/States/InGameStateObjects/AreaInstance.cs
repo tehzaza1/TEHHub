@@ -820,6 +820,22 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 });
         }
 
+        /// <summary>
+        ///     Creates a bounded, incremental scanner for the current SleepingEntities map.
+        ///     The caller owns scheduling and should call <see cref="SleepingEntityScanSession.Step"/>
+        ///     with a small budget until the session completes or aborts.
+        /// </summary>
+        public SleepingEntityScanSession CreateSleepingEntityScan(Func<string, bool> pathFilter)
+        {
+            ArgumentNullException.ThrowIfNull(pathFilter);
+            var data = Core.Process.Handle.ReadMemory<AreaInstanceOffsets>(this.Address);
+            return new SleepingEntityScanSession(
+                this.Address,
+                this.AreaHash,
+                data.Entities.SleepingEntities,
+                pathFilter);
+        }
+
         private void ScanSleepingEntitiesForAbyss()
         {
             this.SleepingEntities.Clear();
