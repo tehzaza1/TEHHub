@@ -31,14 +31,20 @@ try {
         Copy-Item -LiteralPath $file.FullName -Destination $destination
     }
     Copy-Item -LiteralPath (Join-Path $publish 'TEHhub.Launcher.exe') -Destination $stage
-    foreach ($name in @('README.md', 'LICENSE', 'CHANGELOG.md')) { Copy-Item -LiteralPath (Join-Path $worktree $name) -Destination $stage }
+    foreach ($name in @('README.md', 'CHANGELOG.md', 'CHANGELOG.GameHelper2.md')) { Copy-Item -LiteralPath (Join-Path $worktree $name) -Destination $stage }
+    if (Test-Path -LiteralPath (Join-Path $worktree 'LICENSE')) { Copy-Item -LiteralPath (Join-Path $worktree 'LICENSE') -Destination $stage }
+    foreach ($file in Get-ChildItem -LiteralPath (Join-Path $worktree 'Plugins') -File -Recurse | Where-Object { $_.Name -in @('LICENSE', 'CREDITS.md') -and $_.FullName -notmatch '[\\/](bin|obj)[\\/]' }) {
+        $destination = Join-Path $stage $file.FullName.Substring($worktree.Length + 1)
+        New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
+        Copy-Item -LiteralPath $file.FullName -Destination $destination
+    }
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText((Join-Path $stage 'README_FIRST.txt'), "TEHhub requires Microsoft .NET 10 Runtime for Windows x64.`r`nhttps://dotnet.microsoft.com/download/dotnet/10.0/runtime`r`nRun TEHhub.Launcher.exe after installing the runtime.`r`nPlugin settings: configs/plugins. Legacy GameHelper2 plugin DLLs must be rebuilt against TEHhub.`r`n", $utf8)
     [xml]$project = Get-Content -LiteralPath (Join-Path $worktree 'TEHhub/TEHhub.csproj')
     $version = @($project.Project.PropertyGroup.Version | Where-Object { $_ })[0]
     $manifest = [ordered]@{ product = 'TEHhub'; version = "$version"; commit = $commit; target = 'win-x64'; runtime = '.NET 10 Runtime x64'; builtUtc = [DateTime]::UtcNow.ToString('o'); launcher = 'self-contained single-file' }
     [IO.File]::WriteAllText((Join-Path $stage 'RELEASE_MANIFEST.json'), ($manifest | ConvertTo-Json), $utf8)
-    foreach ($name in @('TEHhub.exe', 'TEHhub.dll', 'TEHhub.Offsets.dll', 'TEHhub.runtimeconfig.json', 'TEHhub.Launcher.exe', 'README.md', 'LICENSE', 'README_FIRST.txt', 'RELEASE_MANIFEST.json')) {
+    foreach ($name in @('TEHhub.exe', 'TEHhub.dll', 'TEHhub.Offsets.dll', 'TEHhub.runtimeconfig.json', 'TEHhub.Launcher.exe', 'README.md', 'CHANGELOG.md', 'README_FIRST.txt', 'RELEASE_MANIFEST.json')) {
         if (!(Test-Path -LiteralPath (Join-Path $stage $name))) { throw "Missing package file: $name" }
     }
     if (Get-ChildItem -LiteralPath $stage -Filter '*.pdb' -Recurse -File) { throw 'Debug symbols must not be shipped.' }

@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.0.1 — 2026-09-12
+
+- Fixed packaging when the repository has no root LICENSE file; preserve available plugin licenses, credits and the historical GameHelper2 changelog.
+- Validation: clean Release build and standalone launcher publish passed; package creation is checked by the release workflow.
+
 ## 1.0.0 — 2026-09-12
 
 - Established TEHhub as the successor to the GameHelper2-based project, with renamed core, offsets, launcher, solution and plugin references. Original author credits and license remain.
