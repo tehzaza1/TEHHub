@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.30 — 2026-09-14
+
+- Registered RuneshapeCombinationsPanel with Offset Helper's UI root inventory and panel-verification latch, so it appears in the same diagnostic UI list as LargeMap, MiniMap, and Gemcutting panels.
+- Compatibility: Core diagnostic/UI API addition.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors.
+
 ## 1.8.29 — 2026-09-14
 
 - Added ImportantUiElements.RuneshapeCombinationsPanel as a first-class core UI root. It resolves the observed GameUi child 39 and appears in Offset Helper static-address verification alongside map and panel roots.

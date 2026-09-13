@@ -1332,6 +1332,7 @@ namespace TEHhub.Ui
             Latch("Sekhemas trial map", ui.SekhemasTrialMapPanel.Address != IntPtr.Zero, ui.SekhemasTrialMapPanel.IsVisible);
             Latch("Gemcutting panel", ui.GemcuttingPanel.Address != IntPtr.Zero, ui.GemcuttingPanel.IsVisible);
             Latch("Support Gemcutting panel", ui.SupportGemcuttingPanel.Address != IntPtr.Zero, ui.SupportGemcuttingPanel.IsVisible);
+            Latch("Runeshape Combinations panel", ui.RuneshapeCombinationsPanel.Address != IntPtr.Zero, ui.RuneshapeCombinationsPanel.IsVisible);
             Latch("Chat", ui.ChatParent.Address != IntPtr.Zero, ui.ChatParent.IsVisible);
         }
 
@@ -1348,6 +1349,7 @@ namespace TEHhub.Ui
             ("Sekhemas trial map", "during Trial of the Sekhemas"),
             ("Gemcutting panel", "open the Gemcutting screen"),
             ("Support Gemcutting panel", "open the Support Gemcutting screen"),
+            ("Runeshape Combinations panel", "open a Runeshape Monolith"),
             ("Chat", "open the chat box"),
         };
 

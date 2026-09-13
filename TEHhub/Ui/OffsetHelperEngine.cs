@@ -774,6 +774,7 @@ namespace TEHhub.Ui
             Add("Atlas", ui.Atlas.Address);
             Add("GemcuttingPanel", ui.GemcuttingPanel.Address);
             Add("SupportGemcuttingPanel", ui.SupportGemcuttingPanel.Address);
+            Add("RuneshapeCombinationsPanel", ui.RuneshapeCombinationsPanel.Address);
             Add("LeftPanel", ui.LeftPanel.Address);
             Add("RightPanel", ui.RightPanel.Address);
             Add("ChatParent", ui.ChatParent.Address);
