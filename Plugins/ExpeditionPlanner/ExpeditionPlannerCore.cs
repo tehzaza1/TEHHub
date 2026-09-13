@@ -161,7 +161,7 @@ namespace ExpeditionPlanner
                     {
                         anchorPos = this.placedBombs[^1].WorldPosition;
                     }
-                    else if (this.hasDetonator)
+                    else if (this.detonatorWorld.LengthSquared() > 1f)
                     {
                         anchorPos = this.detonatorWorld;
                     }
@@ -314,10 +314,15 @@ namespace ExpeditionPlanner
                                     ImGui.TextDisabled($"   -> Proliferates forward to {remnant.ProliferationRemaining} subsequent bombs!");
                                 }
                             }
-                            else
+                            else if (p.CoveredTargets.Count > 0)
                             {
                                 ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.8f, 1f), $"Step [{p.Step}] Excavation:");
                                 ImGui.BulletText($"Excavates {p.CoveredTargets.Count} targets (inherits all active Remnant buffs)");
+                            }
+                            else
+                            {
+                                ImGui.TextColored(new Vector4(0.4f, 0.85f, 1f, 1f), $"Step [{p.Step}] Pathway Bomb:");
+                                ImGui.BulletText($"Bridges wire distance towards Remnants ({p.WireDistance:F0} grid)");
                             }
                         }
 
@@ -350,7 +355,6 @@ namespace ExpeditionPlanner
         {
             this.placedBombs.Clear();
             this.activeTargets.Clear();
-            this.hasDetonator = false;
 
             int bombOrder = 1;
             foreach (var entity in area.AwakeEntities.Values)
@@ -390,7 +394,7 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // If detonator wasn't found in awake entities, fallback to player position as anchor
+            // If detonator has not been found yet, fallback to player position or first target as anchor
             if (!this.hasDetonator && this.placedBombs.Count == 0)
             {
                 var player = area.Player;

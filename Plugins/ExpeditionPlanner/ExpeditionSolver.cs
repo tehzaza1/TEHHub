@@ -4,6 +4,7 @@ namespace ExpeditionPlanner
     using System.Collections.Generic;
     using System.Linq;
     using System.Numerics;
+    using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
 
     public static class ExpeditionSolver
@@ -36,6 +37,19 @@ namespace ExpeditionPlanner
             var startAnchor = currentPlacedBombs.Count > 0
                 ? currentPlacedBombs[^1].GridPosition
                 : startDetonatorGrid;
+
+            if (startAnchor.LengthSquared() < 1f && availableTargets.Count > 0)
+            {
+                var player = area?.Player;
+                if (player != null && player.TryGetComponent<Render>(out var pRender, false))
+                {
+                    startAnchor = new Vector3(pRender.GridPosition.X, pRender.GridPosition.Y, pRender.GridPosition.Z);
+                }
+                else
+                {
+                    startAnchor = availableTargets[0].GridPosition;
+                }
+            }
 
             var chosenPlacements = new List<ProposedPlacement>();
             var accumulatedRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -101,69 +115,94 @@ namespace ExpeditionPlanner
                         .Where(t => !coveredEntityIds.Contains(t.EntityId))
                         .ToList();
 
-                    if (targetsInRadius.Count == 0) continue;
-
                     float stepScore = 0f;
                     var stepRunes = new List<string>();
                     bool stepHasForbidden = false;
 
-                    // Moderate penalty if path is obstructed by pillar or wall:
-                    // Prioritize clean open-ground lines of sight when available
-                    if (isObstructed)
+                    if (targetsInRadius.Count == 0)
                     {
-                        stepScore -= 40f;
+                        // Bridging candidate: allows connecting anchor to distant target clusters when out of 1-bomb reach
+                        if (step >= neededSteps) continue; // Final bomb must hit targets
+
+                        var bestUncovered = availableTargets
+                            .Where(t => !coveredEntityIds.Contains(t.EntityId))
+                            .OrderByDescending(t => (t.ProliferatedRuneTier == RuneTier.Golden ? 2000f : 0f) +
+                                                    (t.ProliferatedRuneTier == RuneTier.Purple_S ? 1000f : 0f) +
+                                                    (t.BaseWeight > 0 ? t.BaseWeight : GetTargetValue(t, settings)))
+                            .FirstOrDefault();
+
+                        if (bestUncovered == null) continue;
+
+                        var targetPos2D = new Vector2(bestUncovered.GridPosition.X, bestUncovered.GridPosition.Y);
+                        float distBefore = Vector2.Distance(start2D, targetPos2D);
+                        float distAfter = Vector2.Distance(end2D, targetPos2D);
+                        float advance = distBefore - distAfter;
+
+                        if (advance <= 8.0f) continue; // Must significantly advance towards target
+
+                        // Bridging score: rewards moving closer to high-priority targets while penalizing obstructions
+                        stepScore = (advance * 6.0f) - (effectiveDist * 0.1f) - (isObstructed ? 40f : 0f);
                     }
-
-                    // Slight preference for shorter, tighter placements
-                    stepScore -= effectiveDist * 0.15f;
-
-                    // Remaining bombs in the sequence that will benefit from runes detonated at this step
-                    int remainingBombs = Math.Max(0, budget - (currentStep + step));
-
-                    foreach (var target in targetsInRadius)
+                    else
                     {
-                        float val = GetTargetValue(target, settings);
-                        if (target.Kind == TargetKind.RemnantPillar || target.Kind == TargetKind.VerisiumSentinel)
+                        // Moderate penalty if path is obstructed by pillar or wall:
+                        // Prioritize clean open-ground lines of sight when available
+                        if (isObstructed)
                         {
-                            // "Runes do not stack. If a rune is already proliferated, another duplicate rune is useless."
-                            bool isDuplicate = !string.IsNullOrEmpty(target.AnchorRuneName) &&
-                                               accumulatedProliferatedRunes.Contains(target.AnchorRuneName);
-                            target.IsDuplicateProliferation = isDuplicate;
-
-                            float proliferationMultiplier = isDuplicate ? 1.0f : (1.0f + (1.5f * remainingBombs));
-                            float baseVal = target.BaseWeight > 0 ? target.BaseWeight : settings.WeightRemnant;
-
-                            // Opulent (Golden): SSS-Tier, doubles loot drops, must be prioritized first
-                            if (target.ProliferatedRuneTier == RuneTier.Golden)
-                            {
-                                baseVal += 800f;
-                            }
-                            else if (target.ProliferatedRuneTier == RuneTier.Purple_S)
-                            {
-                                baseVal += 350f; // Power, Death, Bond, Oath
-                            }
-                            else if (target.ProliferatedRuneTier == RuneTier.Purple_A)
-                            {
-                                baseVal += 180f; // Time, Rebirth
-                            }
-
-                            val = baseVal * proliferationMultiplier;
+                            stepScore -= 40f;
                         }
 
-                        stepScore += val;
+                        // Slight preference for shorter, tighter placements
+                        stepScore -= effectiveDist * 0.15f;
 
-                        foreach (var mod in target.ModNames)
+                        // Remaining bombs in the sequence that will benefit from runes detonated at this step
+                        int remainingBombs = Math.Max(0, budget - (currentStep + step));
+
+                        foreach (var target in targetsInRadius)
                         {
-                            stepRunes.Add(mod);
-                            if (settings.NeverTakeRunes.Contains(mod))
+                            float val = GetTargetValue(target, settings);
+                            if (target.Kind == TargetKind.RemnantPillar || target.Kind == TargetKind.VerisiumSentinel)
                             {
-                                stepHasForbidden = true;
-                                warnings.Add($"Forbidden rune detected: {mod}");
+                                // "Runes do not stack. If a rune is already proliferated, another duplicate rune is useless."
+                                bool isDuplicate = !string.IsNullOrEmpty(target.AnchorRuneName) &&
+                                                   accumulatedProliferatedRunes.Contains(target.AnchorRuneName);
+                                target.IsDuplicateProliferation = isDuplicate;
+
+                                float proliferationMultiplier = isDuplicate ? 1.0f : (1.0f + (1.5f * remainingBombs));
+                                float baseVal = target.BaseWeight > 0 ? target.BaseWeight : settings.WeightRemnant;
+
+                                // Opulent (Golden): SSS-Tier, doubles loot drops, must be prioritized first
+                                if (target.ProliferatedRuneTier == RuneTier.Golden)
+                                {
+                                    baseVal += 800f;
+                                }
+                                else if (target.ProliferatedRuneTier == RuneTier.Purple_S)
+                                {
+                                    baseVal += 350f; // Power, Death, Bond, Oath
+                                }
+                                else if (target.ProliferatedRuneTier == RuneTier.Purple_A)
+                                {
+                                    baseVal += 180f; // Time, Rebirth
+                                }
+
+                                val = baseVal * proliferationMultiplier;
                             }
 
-                            if (!accumulatedRunes.Contains(mod))
+                            stepScore += val;
+
+                            foreach (var mod in target.ModNames)
                             {
-                                stepScore += GetRuneWeight(mod, settings) * (1.0f + (1.2f * remainingBombs));
+                                stepRunes.Add(mod);
+                                if (settings.NeverTakeRunes.Contains(mod))
+                                {
+                                    stepHasForbidden = true;
+                                    warnings.Add($"Forbidden rune detected: {mod}");
+                                }
+
+                                if (!accumulatedRunes.Contains(mod))
+                                {
+                                    stepScore += GetRuneWeight(mod, settings) * (1.0f + (1.2f * remainingBombs));
+                                }
                             }
                         }
                     }
@@ -266,61 +305,91 @@ namespace ExpeditionPlanner
             var points = new List<(Vector3 Grid, Vector3 World, float TerrainHeight)>();
             var anchor2D = new Vector2(anchorGrid.X, anchorGrid.Y);
 
+            void AddCandidate(float gx, float gy, ExpeditionTarget refTarget)
+            {
+                if (LegalPlacement.IsCellWalkable(area, (int)gx, (int)gy))
+                {
+                    var offsetGrid = new Vector3(gx, gy, refTarget.GridPosition.Z);
+                    var offsetWorld = new Vector3(
+                        refTarget.WorldPosition.X + ((gx - refTarget.GridPosition.X) * GridToWorldRatio),
+                        refTarget.WorldPosition.Y + ((gy - refTarget.GridPosition.Y) * GridToWorldRatio),
+                        refTarget.WorldPosition.Z);
+                    points.Add((offsetGrid, offsetWorld, refTarget.TerrainHeight));
+                }
+            }
+
             foreach (var t in targets)
             {
                 var target2D = new Vector2(t.GridPosition.X, t.GridPosition.Y);
-                var toAnchor = anchor2D - target2D;
-                var distToAnchor = toAnchor.Length();
+                var fromAnchor = target2D - anchor2D;
+                var distToAnchor = fromAnchor.Length();
+                if (distToAnchor < 1e-3f) continue;
 
+                var dirToTarget = fromAnchor / distToAnchor;
+                var toAnchor = -dirToTarget;
+
+                // 1. Direct approach points between Anchor and Target
+                // If target is within 1-bomb reachable range (<= 118 grid units)
+                if (distToAnchor <= settings.MaxPlacementRangeGrid + settings.BlastRadiusGrid - 2.0f)
+                {
+                    float minD = MathF.Max(8.0f, distToAnchor - (settings.BlastRadiusGrid - 3.0f));
+                    float maxD = MathF.Min(settings.MaxPlacementRangeGrid - 3.0f, distToAnchor - 6.0f);
+                    for (float d = minD; d <= maxD; d += 6.0f)
+                    {
+                        var gx = anchor2D.X + (dirToTarget.X * d);
+                        var gy = anchor2D.Y + (dirToTarget.Y * d);
+                        AddCandidate(gx, gy, t);
+                    }
+                }
+                else
+                {
+                    // Bridging stepping stone points along approach vector to distant target
+                    float[] bridgeSteps = [settings.MaxPlacementRangeGrid - 5.0f, settings.MaxPlacementRangeGrid - 15.0f, 70.0f];
+                    float[] angleDeviations = [0f, -0.15f, 0.15f];
+                    foreach (var bd in bridgeSteps)
+                    {
+                        foreach (var dev in angleDeviations)
+                        {
+                            var ang = MathF.Atan2(dirToTarget.Y, dirToTarget.X) + dev;
+                            var bgx = anchor2D.X + (MathF.Cos(ang) * bd);
+                            var bgy = anchor2D.Y + (MathF.Sin(ang) * bd);
+                            AddCandidate(bgx, bgy, t);
+                        }
+                    }
+                }
+
+                // 2. Circular perimeter sweep around the target (for multi-target clustering)
                 if (t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel)
                 {
-                    // Direction pointing from the pillar back towards the anchor
-                    var baseDir = distToAnchor > 1e-3f ? (toAnchor / distToAnchor) : new Vector2(1f, 0f);
-                    var baseAngle = MathF.Atan2(baseDir.Y, baseDir.X);
-
-                    // Sweep 5 angles on the front-facing hemisphere towards the anchor
+                    var baseAngle = MathF.Atan2(toAnchor.Y, toAnchor.X);
                     float[] angleOffsets = [0f, -0.28f, 0.28f, -0.56f, 0.56f];
-                    float[] distances = [16.0f, 20.0f, 24.0f]; // Within blast radius (30 units)
+                    float[] distances = [14.0f, 18.0f, 22.0f, 26.0f];
 
                     foreach (var dist in distances)
                     {
                         foreach (var offset in angleOffsets)
                         {
                             var ang = baseAngle + offset;
-                            var dir = new Vector2(MathF.Cos(ang), MathF.Sin(ang));
-                            var gx = t.GridPosition.X + (dir.X * dist);
-                            var gy = t.GridPosition.Y + (dir.Y * dist);
-
-                            var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
-                            var offsetWorld = new Vector3(
-                                t.WorldPosition.X + (dir.X * dist * GridToWorldRatio),
-                                t.WorldPosition.Y + (dir.Y * dist * GridToWorldRatio),
-                                t.WorldPosition.Z);
-                            points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
+                            var gx = t.GridPosition.X + (MathF.Cos(ang) * dist);
+                            var gy = t.GridPosition.Y + (MathF.Sin(ang) * dist);
+                            AddCandidate(gx, gy, t);
                         }
                     }
                 }
                 else
                 {
-                    // For chests and monsters: direct position or slight front offset
-                    points.Add((t.GridPosition, t.WorldPosition, t.TerrainHeight));
+                    AddCandidate(t.GridPosition.X, t.GridPosition.Y, t);
 
                     if (distToAnchor > 15.0f)
                     {
-                        var dir = toAnchor / distToAnchor;
-                        var gx = t.GridPosition.X + (dir.X * 12.0f);
-                        var gy = t.GridPosition.Y + (dir.Y * 12.0f);
-                        var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
-                        var offsetWorld = new Vector3(
-                            t.WorldPosition.X + (dir.X * 12.0f * GridToWorldRatio),
-                            t.WorldPosition.Y + (dir.Y * 12.0f * GridToWorldRatio),
-                            t.WorldPosition.Z);
-                        points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
+                        var gx = t.GridPosition.X + (toAnchor.X * 12.0f);
+                        var gy = t.GridPosition.Y + (toAnchor.Y * 12.0f);
+                        AddCandidate(gx, gy, t);
                     }
                 }
             }
 
-            // Also add midpoints between pairs of close targets to maximize blast overlap
+            // 3. Midpoints between pairs of close targets to maximize blast overlap
             for (int i = 0; i < targets.Count && i < 25; i++)
             {
                 for (int j = i + 1; j < targets.Count && j < 25; j++)
@@ -334,12 +403,7 @@ namespace ExpeditionPlanner
                     if (dist < settings.BlastRadiusGrid * 1.5f && dist > 10.0f)
                     {
                         var midGrid = (a.GridPosition + b.GridPosition) * 0.5f;
-                        if (LegalPlacement.IsCellWalkable(area, (int)midGrid.X, (int)midGrid.Y))
-                        {
-                            var midWorld = (a.WorldPosition + b.WorldPosition) * 0.5f;
-                            var midHeight = (a.TerrainHeight + b.TerrainHeight) * 0.5f;
-                            points.Add((midGrid, midWorld, midHeight));
-                        }
+                        AddCandidate(midGrid.X, midGrid.Y, a);
                     }
                 }
             }
