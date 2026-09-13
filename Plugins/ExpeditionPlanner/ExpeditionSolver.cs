@@ -199,9 +199,12 @@ namespace ExpeditionPlanner
                                     warnings.Add($"Forbidden rune detected: {mod}");
                                 }
 
-                                if (!accumulatedRunes.Contains(mod))
+                                // In PoE 2 Grand Expedition: ONLY the Golden Slot rune (target.AnchorRuneName) proliferates!
+                                // Other runes and mods in non-golden slots apply ONLY LOCALLY to this remnant (no proliferation multiplier).
+                                bool isGoldenSlotRune = string.Equals(mod, target.AnchorRuneName, StringComparison.OrdinalIgnoreCase);
+                                if (!isGoldenSlotRune)
                                 {
-                                    stepScore += GetRuneWeight(mod, settings) * (1.0f + (1.2f * remainingBombs));
+                                    stepScore += GetRuneWeight(mod, settings);
                                 }
                             }
                         }

@@ -234,8 +234,8 @@ namespace ExpeditionPlanner
 
                         var choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice}";
                         var subText = remnantTarget.ProliferationRemaining > 0
-                            ? $"Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
-                            : "Final blast in chain";
+                            ? $"Golden Slot [{remnantTarget.AnchorRuneName}] Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
+                            : "Final blast in chain (Local only)";
 
                         if (remnantTarget.NeedsReroll)
                         {
@@ -311,7 +311,7 @@ namespace ExpeditionPlanner
                                 }
                                 else if (remnant.ProliferationRemaining > 0)
                                 {
-                                    ImGui.TextDisabled($"   -> Proliferates forward to {remnant.ProliferationRemaining} subsequent bombs!");
+                                    ImGui.TextDisabled($"   -> Golden Slot [{remnant.AnchorRuneName}] proliferates to {remnant.ProliferationRemaining} subsequent bombs! (Other slots apply only here)");
                                 }
                             }
                             else if (p.CoveredTargets.Count > 0)
