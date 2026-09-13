@@ -1,0 +1,9 @@
+{
+    "product":  "TEHhub",
+    "version":  "1.0.3",
+    "commit":  "ff88397730ea34c5f6f72758ea0a640912be71f0",
+    "target":  "win-x64",
+    "runtime":  ".NET 10 Runtime x64",
+    "builtUtc":  "2026-09-12T10:52:24.2554382Z",
+    "launcher":  "self-contained single-file"
+}

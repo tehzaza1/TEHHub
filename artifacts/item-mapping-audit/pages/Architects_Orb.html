@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="us" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>Architect's Orb - PoE2DB, Path of Exile Wiki us</title>
+    <meta name="description" content="path of exile is simply a tool to test your path of building creation">
+    <link rel="alternate" hreflang="en" href="https://poe2db.tw/us/" />
+    <link rel="alternate" hreflang="zh-Hant" href="https://poe2db.tw/tw/" />
+    <link rel="alternate" hreflang="zh-Hans" href="https://poe2db.tw/cn/" />
+        <link href="/favicon2.png" rel="shortcut icon" >
+    
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha512-aOG0c6nPNzGk+5zjwyJaoRUgCdOrfSDhmMID2u4+OIslr0GjpLKo7Xm0Ao3xmpM4T8AmIouRkqwj1nrdVsLKEQ==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css" integrity="sha512-1k7mWiTNoyx2XtmI96o+hdjP8nn0f3Z2N4oF/9ZZRgijyV4omsKOXEnqL1gKQNPy2MTSP9rIEWGcH/CInulptA==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" integrity="sha512-nMNlpuaDPrqlEls3IX/Q56H36qvBASwb3ipuo3MxeWbsQB1881ox0cRv7UPTgBlriqoynt35KjEwgGUeUXIPnw==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-5-theme/1.3.0/select2-bootstrap-5-theme.min.css" integrity="sha512-z/90a5SWiu4MWVelb5+ny7sAayYUfMmdXKEAbpj27PfdkamNdyI3hcjxPxkOPbrXoKIm7r9V2mElt5f1OtVhqA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.7/tippy.min.css" integrity="sha512-HbPh+j4V7pXprvQMt2dtmK/zCEsUeZWYXRln4sOwmoyHPQAPqy/k9lIquKUyKNpNbDGAY06UdiDHcEkBc72yCQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.2.1/sweetalert2.min.css" integrity="sha512-OkYLbkJ4DB7ewvcpNLF9DSFmhdmxFXQ1Cs+XyjMsMMC94LynFJaA9cPXOokugkmZo6O6lwZg+V5dwQMH4S5/3g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modal-video@2.4.6/css/modal-video.min.css" integrity="sha256-nd8IBqNn9uqwZKfZcLIXQcNxk5TjqrxiLx7PzN5PFW0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.10.0/css/lightbox.min.css" integrity="sha256-auPoJwk/+RK6KSkib92Dkq1Y5hEkZvKtvSwucs15Skg=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.19.1/video-js.min.css" integrity="sha512-J3tx4ssoARFr4U9VmZmQe2q672q0jUeYizJW3vglkOBTlQ/N6kF3eVqZZzaey/TdIXH69s3HYe2nQwyxK/Emzw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+        <link rel="stylesheet" href="https://cdn.poe2db.tw/css/stdtheme.b9911322bcc6417a.css" />
+    
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js" integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js" integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/jquery.tablesorter.min.js" integrity="sha512-qzgd5cYSZcosqpzpn7zF2ZId8f/8CHmFKZ8j7mU4OUXTNRd5g+ZHBPsgKEwoqxCtdQvExE5LprwwPAgoicguNg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.countdown/2.2.0/jquery.countdown.min.js" integrity="sha256-Ikk5myJowmDQaYVCUD0Wr+vIDkN8hGI58SGWdE671A8=" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js" integrity="sha512-BkpSL20WETFylMrcirBahHfSnY++H2O1W+UnEEO4yNIl+jI2+zowyoGJpbtk6bx97fBXf++WJHSSK2MV4ghPcg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.full.min.js" integrity="sha512-RtZU3AyMVArmHLiW0suEZ9McadTdegwbgtiQl5Qqo9kunkVg1ofwueXD8/8wv3Af8jkME3DDe3yLfR8HSJfT2g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.6.0/umd/popper.min.js" integrity="sha512-BmM0/BQlqh02wuK5Gz9yrbe7VyIVwOzD1o40yi1IsTjriX/NGF37NyXHfmFzIlMmoSIBXgqDiG1VNU6kB5dBbA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.7/tippy-bundle.umd.min.js" integrity="sha512-gbruucq/Opx9jlHfqqZeAg2LNK3Y4BbpXHKDhRC88/tARL/izPOE4Zt2w6X9Sn1UeWaGbL38zW7nkL2jdn5JIw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.1/marked.min.js" integrity="sha512-VUuO/d6MS7hXmiFGEj7HtUa2FCI6Ll+xPvX9yX3bxn7ZqDWwleqXa8dtW13brbZ1ld2jiTrv8hWbpfp4B5mi4Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.2.1/sweetalert2.all.js" integrity="sha512-A7LzqKE/pm9ofgS0Lxu7qroQS5SkKJQaYJkJ/66nQiWZfEdeGlBq5zEXQ63VRmXZK8zPpCgFf2WQJIAljI0Vdw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdn.jsdelivr.net/npm/modal-video@2.4.6/js/modal-video.min.js" integrity="sha256-VqINwNxkS4VEDMq5O52YTckX+Mx84X6bafO8NxF21Xw=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.10.0/js/lightbox.min.js" integrity="sha256-DiHJ7hbvMejsMyP76bpVWacb5HSHQ2sQlrJV8n7KEvA=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.0.0/echarts.min.js" integrity="sha512-4/g9GAdOdTpUP2mKClpKsEzaK7FQNgMjq+No0rX8XZlfrCGtbi4r+T/p5fnacsEC3zIAmHKLJUL7sh3/yVA4OQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.0.0/theme/dark.min.js" integrity="sha512-3Zm64ayK7DflnnyO2pKkLJX3v9Sb90mvahbwPUuMzEf42HI6k8tquIx5VsNBjEWAcYJWzvimbqnTkLl2QdCUmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.19.1/video.min.js" integrity="sha512-48NkCweTzA9u2sP4GgKcEDm6IScPIMga142ipKFNcHfz7feUJXDJxO1jwc2l+5MvWfwMj4BDfQv8WIMhrPxZLQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/3.2.1/mustache.min.js" integrity="sha512-Qjrukx28QnvFWISw9y4wCB0kTB/ISnWXPz5/RME5o8OlZqllWygc1AB64dOBlngeTeStmYmNTNcM6kfEjUdnnQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js" integrity="sha512-7O5pXpc0oCRrxk8RUfDYFgn0nO1t+jLuIOQdOMRp4APB7uZ4vSjspzp5y6YDtDs4VzUSTbWzBFZ/LKJhnyFOKw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js" integrity="sha512-JRlcvSZAXT8+5SQQAvklXGJuxXTouyq8oIMaYERZQasB8SBDHZaUbeASsJWpk0UUrf89DP3/aefPPrlMR1h1yQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha512-g2TeAWw5GPnX7z0Kn8nFbYfeHcvAu/tx6d6mrLe/90mkCxO+RcptyYpksUz35EO337F83bZwcmUyHiHamspkfg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+        <script src="https://cdn.poe2db.tw/js/ModsView.f39fca410dd746d3.js"></script>
+        <script src="https://cdn.poe2db.tw/js/poedb_header.29bf8e795e0a583f.js"></script>
+    
+    <script data-cfasync="false">window.nitroAds=window.nitroAds||{createAd:function(){return new Promise(e=>{window.nitroAds.queue.push(["createAd",arguments,e])})},addUserToken:function(){window.nitroAds.queue.push(["addUserToken",arguments])},queue:[]};</script>
+    <script data-cfasync="false" async src="https://s.nitropay.com/ads-2013.js"></script>
+
+    <meta property="og:site_name" content="poe2db.tw">
+<meta property="og:title" content="Architect's Orb" />
+<meta property="og:description" content="Modifies a Corrupted Equipment or Jewel item unpredictably or destroys it" />
+<meta property="og:image" content="https://cdn.poe2db.tw/image/Art/2DItems/Currency/IncursionCraftingOrbs/IncursionGreaterVaalOrb.webp" />
+
+  </head>
+
+  <body>
+
+    <div id="consent-box" style="display:none">
+      <button onclick="window.__cmp('showModal');">
+        Update cookie preferences
+      </button>
+    </div>
+    
+    <script>
+      if (window["nitroAds"] && window["nitroAds"].loaded) {
+        document.getElementById("consent-box").style.display = window["__tcfapi"]
+          ? ""
+          : "none";
+      } else {
+        document.addEventListener(
+          "nitroAds.loaded",
+          () =>
+            (document.getElementById("consent-box").style.display = window["__tcfapi"]
+              ? ""
+              : "none")
+        );
+      }
+    </script>
+
+
+    <div class="background-image item-popup--poe2"></div>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6598Z863E2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-6598Z863E2');
+</script>
+
+
+    <header>
+        <!-- Fixed navbar -->
+        <nav class="navbar navbar-expand-lg navbar-dark">
+          <div class="container">
+            <a class="navbar-brand fw-bold" href="/us/">PoE2<span class='brand-suffix'>DB</span><sub></sub></a>
+            <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"  aria-controls="navbarsExample07" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse">
+              <ul class="navbar-nav me-auto">
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|UIOptionsSectionTitleItems|Name">Item</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="themes">
+                    <li><a class="dropdown-item" href="/us/Items" data-i18n="ClientStrings|UIOptionsSectionTitleItems|Name">Item</a></li>
+                    <li><a class="dropdown-item" href="/us/Unique_item" data-i18n="ClientStrings|ItemDisplayStringUnique|Name"></a></li>
+                    <li><a class="dropdown-item" href="/us/Reforging_Bench" data-i18n="ClientStrings|RecipeBenchTitle|Name"></a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/us/Gem" data-i18n="ClientStrings|ItemDisplayStringGem|Name">Gem</a></li>
+                    <li><a class="dropdown-item" href="/us/Skill_Gems" data-i18n="ItemClasses|Active Skill Gem|Name">Skill Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Support_Gems" data-i18n="ItemClasses|Support Skill Gem|Name">Support Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Spirit_Gems" data-i18n-tw="精神寶石">Spirit Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Lineage_Supports" data-i18n="KeywordPopups|LineageSupports|Name">Lineage Supports</a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|ExpeditionModsTitle|Name">Modifiers</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="themes">
+                    <li><a class="dropdown-item" href="/us/Modifiers" data-i18n="ClientStrings|ExpeditionModsTitle|Name">Modifiers</a></li>
+                    <li><a class="dropdown-item" href="/us/Keywords" data-i18n-tw="提示字">Keywords</a></li>
+                    <li><a class="dropdown-item" href="/us/Desecrated_Modifiers" data-i18n="KeywordPopups|Abyssalify|Name">Desecrated Modifiers</a></li>
+                    <li><a class="dropdown-item" href="/us/Crafting" data-i18n="ClientStrings|CraftingWindowTitle|Name">Crafting</a></li>
+                    <li><a class="dropdown-item" href="/us/Liquid_Emotions" data-i18n="KeywordPopups|DistilledEmotion|Name"></a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|ItemDisplayStringQuest|Name">Quest</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a class="dropdown-item" href="/us/Quest" data-i18n="ClientStrings|ItemDisplayStringQuest|Name">Quest</a></li>
+                    <li><a class="dropdown-item" href="/us/Ascendancy_class" data-i18n="ClientStrings|TutorialPanelAscendancies|Name">Ascendancy Classes</a></li>
+                    <li><a class="dropdown-item" href="/us/passive-skill-tree/" data-i18n="ClientStrings|ActionOpenPassivePanel|Name">Passive Skill Tree</a></li>
+                    <li><a class="dropdown-item" href="/us/Act" data-i18n-tw="章節">Act</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/us/Waystones" data-i18n="ItemClasses|Map|Name">Waystones</a></li>
+                    <li><a class="dropdown-item" href="/us/EndGame" data-i18n="Acts|Endgame|Name"></a></li>
+                    <li><a class="dropdown-item" href="/us/atlas-skill-tree/" data-i18n="ClientStrings|ActionOpenAtlasPassivesScreen|Name"></a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item"><a class="nav-link" href="Economy" data-i18n-tw="經濟" data-i18n-cn="经济">Economy</a></li>
+    
+                <li class="nav-item"><a class="ms-4 nav-link  bg-warning rounded-circle" style="color: white" href="/us/patreon">Patreon</a></li>
+              </ul>
+    
+    
+              <ul class="navbar-nav">
+                <li class="nav-item">
+                  <a class="nav-link fw-bold" aria-current="page" href="https://poedb.tw/us/">PoE<span class="brand-suffix">DB</span></a>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> <i class="fas fa-language fa-lg"></i> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a class="dropdown-item" href="/tw/Architects_Orb">TW 繁體中文</a></li>
+                    <li><a class="dropdown-item" href="/cn/Architects_Orb">CN 简体中文</a></li>
+                    <li><a class="dropdown-item" href="/us/Architects_Orb">US English</a></li>
+                    <li><a class="dropdown-item" href="/kr/Architects_Orb">KR 한국어</a></li>
+                    <li><a class="dropdown-item" href="/ru/Architects_Orb">RU Русский</a></li>
+                    <li><a class="dropdown-item" href="/jp/Architects_Orb">JP Japanese</a></li>
+                    <li><a class="dropdown-item" href="/fr/Architects_Orb">FR Français</a></li>
+                    <li><a class="dropdown-item" href="/de/Architects_Orb">DE Deutsch</a></li>
+                    <li><a class="dropdown-item" href="/th/Architects_Orb">TH ภาษาไทย</a></li>
+                    <li><a class="dropdown-item" href="/pt/Architects_Orb">PO Português</a></li>
+                    <li><a class="dropdown-item" href="/sp/Architects_Orb">ES Spanish</a></li>
+                  </ul>
+                </li>
+              </ul>
+    
+            <form class="form-inline my-2 my-lg-0" role="search" action="search">
+              <input type="hidden" name="token" value="6365a0b6e77afcda0660d8040e885cc023fd857c81be6ce93c0e3b5491bed8890716fd">
+              <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search" name="q" id="navautosearch">
+            </form>
+    
+            </div><!--/.nav-collapse -->
+          </div><!--/.container-fluid -->
+        </nav>
+    </header>
+
+<script>sidebar160("leftside_banner", "left");</script>
+<script>sidebar160("rightside_banner", "right");</script>
+
+
+
+    <div class="page poe2">
+    <div class="page-content theme-showcase container" role="main">
+
+
+<div class="card mb-2" id="head_toolbar">
+  <div class="card-body p-1">
+    <div class="league_bar text-center">
+      <a href="Runes_of_Aldur_league" data-bs-toggle="tooltip" title="Runes of Aldur v0.5" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Expedition2RemnantActive.webp" alt="Expedition2RemnantActive" class="league_minimap" /></span></a><a href="Atziris_Temple" data-bs-toggle="tooltip" title="Atziri v0.4" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/IncursionAtziriActive.webp" alt="IncursionAtziriActive" class="league_minimap" /></span></a><a href="Waystones" data-bs-toggle="tooltip" title="Waystones" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/6967bef8f8e36673401bdc8734ca568f3658e345535c2de9861db9d98a3c6efa"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2ditems/maps/endgamemaps/endgamemap1.webp" class="league_minimap"/></a><a href="Shrine" data-bs-toggle="tooltip" title="Shrine" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/f3b7bd4d1b71efea5337f642ee2290b988c01bd82715f47a5fabd7b8806ffeed"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/ShrineActive.webp" alt="ShrineActive" class="league_minimap" /></span></a><a href="Strongbox" data-bs-toggle="tooltip" title="Strongbox" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/dd8569610376eaeaf3c76bac2aca75f93dfeeb0b08b8677b44aecf4aa7bd597a"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Strongbox.webp" alt="Strongbox" class="league_minimap" /></span></a><a href="Essence" data-bs-toggle="tooltip" title="Essence" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c300ee10453c0d3d4676fe3426f3cfa05d5758ec6d2c191dbc688110ed74c5ac"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Essence.webp" alt="Essence" class="league_minimap" /></span></a><a href="Archnemesis" data-bs-toggle="tooltip" title="Archnemesis" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/RareMonsterAlive.webp" alt="RareMonsterAlive" class="league_minimap" /></span></a><a href="Azmeri_Spirit" data-bs-toggle="tooltip" title="Azmeri Spirit v0.2" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c10c2802f88f4e4bc5c5d836b14b9783ba4e9401fc73703f23a6ba31fa09dd29"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/SpiritActivated.webp" alt="SpiritActivated" class="league_minimap" /></span></a><a href="Rogue_Exile" data-bs-toggle="tooltip" title="Rogue Exile" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/e2f177b41880870c4a928311cf516fed73a7566e723389f13d8fcbc86608a561"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/RogueExile.webp" alt="RogueExile" class="league_minimap" /></span></a><a href="Abyss" data-bs-toggle="tooltip" title="Abyss v0.3" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/6003fdff81f9d17ef8f0e7a87283185b667c6616526433d662e01bf5db25c440"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/textures/interface/2d/2dart/uiimages/ingame/worldmap/mapbuttonabysshub.webp" class="league_minimap"/></a><a href="Breach" data-bs-toggle="tooltip" title="Breach" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/0eac14cede43f4ac369319d118f9e058fad773b652259373cea970a34422c789"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentbreach.webp" class="league_minimap"/></a><a href="Ritual" data-bs-toggle="tooltip" title="Ritual" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/422d58c1d59cfa4eaa519e1b080f6805f7a953495d5e87b32161edf941ba6a55"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentritual.webp" class="league_minimap"/></a><a href="Delirium" data-bs-toggle="tooltip" title="Delirium" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/ee3f90b5c813b08eb8f10086acd631a6c320b3a2c44cb0683d6755557213ff29"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentdelirium.webp" class="league_minimap"/></a><a href="Expedition" data-bs-toggle="tooltip" title="Expedition" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/82090e1f6b3f4f6bbe404b10bc48aed4a89fdf72cb8f07822951dbbda7b001f1"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentexpedition.webp" class="league_minimap"/></a><a href="The_Burning_Monolith" data-bs-toggle="tooltip" title="The Burning Monolith" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/4e64bc88d5ecc1043e97cef77776c3a7578900ce6c2b439d9c611ee1d162a88d"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/maplegend/monolith.webp" class="league_minimap"/></a><a href="Trial_of_the_Sekhemas" data-bs-toggle="tooltip" title="Trial of the Sekhemas" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/105f81cab9c06cbc40ac8051a29ccc806981200b1acaf3680d95a4c508eec89a"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/WorldMap/MapButtonSanctum.webp" class="league_minimap"/></a><a href="The_Trial_of_Chaos" data-bs-toggle="tooltip" title="The Trial of Chaos" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/105f81cab9c06cbc40ac8051a29ccc806981200b1acaf3680d95a4c508eec89a"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/WorldMap/MapButtonUltimatum.webp" class="league_minimap"/></a>
+    </div>
+  </div>
+</div>
+
+
+
+<div id="topbanner970"></div><script>topbanner970("topbanner970");</script>
+
+<ul class="nav nav-tabs d-flex flex-wrap" role="tablist"><li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" role="tab" aria-selected="true" href="#ArchitectsOrbCurrencyIncursionDoubleCorrupt">Architect's Orb CurrencyIncursionDoubleCorrupt</a></li><li class="nav-item"><a class="nav-link" data-bs-toggle="tab" role="tab" aria-selected="false" href="#ArchitectsOrb">Architect's Orb /2 </a></li></ul><div class="tab-content"><div id="ArchitectsOrbCurrencyIncursionDoubleCorrupt" class="tab-pane fade show active"><span data-tabname="Architect's Orb <small>CurrencyIncursionDoubleCorrupt</small>"></span><div class="py-2"><div class="d-flex flex-wrap">
+
+<div class="newItemPopup CurrencyPopup item-popup--poe2 "
+>
+    <div class="itemHeader singleLine">
+
+        <div class="itemName typeLine">
+            <span class="lc">Architect's Orb</span>
+        </div>
+    </div>
+    <div class="content">
+        <div class="Stats">
+            <div class="property">Stackable Currency</div><div class="property">Stack Size: <span class='colourDefault'>1 / 10</span></div><div class="separator"></div><div class="explicitMod">Modifies a <a data-keyword="Corrupted" href="Corrupted_Items" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/bd60c9a47d8d780ae3ad12461789a3804daddd025794ede68d73e90e44e34f86">Corrupted</a> <a data-keyword="Equipment" href="Equipment" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/ceaa2e20e80c1c159ac9300e63c99d988845d8e2aab7e83448cf837816eed28c">Equipment</a> or <a data-keyword="Jewel" href="Jewels" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/b169cac9b762f1e4a18d857c3d5bdd473ce1b97620851fd145b21abf35dd7410">Jewel</a> item unpredictably or destroys it</div>
+        </div>
+
+
+        <div class="separator"></div>
+        <div class="default fst-italic">
+            Right click this item then left click on a corrupted item to apply it.
+Shift click to unstack.
+        </div>
+
+        <div>
+            
+        </div>
+    </div>
+</div>
+
+
+        <div class="itemboximage">
+
+                <img loading="lazy" class="" src="https://cdn.poe2db.tw/image/Art/2DItems/Currency/IncursionCraftingOrbs/IncursionGreaterVaalOrb.webp"/>
+
+        </div>
+
+
+
+</div>
+</div><div   class="card mb-2 ">
+   <h5 class="card-header">Architect's Orb CurrencyIncursionDoubleCorrupt /10 </h5>   <div class='table-responsive'><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>Name</th><th>Show Full Descriptions</th></tr></thead><tbody>
+<tr><td>Currency Exchange</td><td>250 Gold</td></tr>
+<tr><td>NoteCode</td><td>architects-orb</td></tr>
+<tr><td>DropLevel <span class='fas fa-info-circle' data-bs-toggle='tooltip' title='Item Filter'></span></td><td>1</td></tr>
+<tr><td>BaseType <span class='fas fa-info-circle' data-bs-toggle='tooltip' title='Item Filter'></span></td><td>Architect's Orb</td></tr>
+<tr><td>Class <span class='fas fa-info-circle' data-bs-toggle='tooltip' title='Item Filter'></span></td><td><a class="ItemClasses " href="Stackable_Currency">Stackable Currency</a></td></tr>
+<tr><td>Flags</td><td><span>AlwaysAllocate</span></td></tr>
+<tr><td>Type</td><td>Metadata/Items/Currency/CurrencyIncursionDoubleCorrupt</td></tr>
+<tr><td>Tags</td><td>incursion_currency, currency</td></tr>
+<tr><td>Icon</td><td>Art/2DItems/Currency/IncursionCraftingOrbs/IncursionGreaterVaalOrb</td></tr>
+<tr><td>MTX Tab Stacks</td><td>5000</td></tr></tbody></table></div>  </div><div class='clearfix row'></div><div   class="card mb-2 ">
+      <div class="table-responsive"><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>key</th><th>val</th></tr></thead><tbody id="BZZPmPbzET"><tr><td>Base.base_level</td><td>1</td></tr><tr><td>Base.tag</td><td>default, currency</td></tr><tr><td>Base.x_size</td><td>1</td></tr><tr><td>Base.y_size</td><td>1</td></tr></tbody></table></div>  </div></div><div id="ArchitectsOrb" class="tab-pane fade"><div   class="card mb-2 ">
+   <h5 class="card-header">Architect's Orb /2 </h5> <div class="card-body"><a href="Economy">US Realm Economy</a> / <a href="Architects_Orb" class="border p-1">Wiki</a></div>  <div class="table-responsive"><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>24h Value</th><th>24h volume traded</th></tr></thead><tbody id="ug4SksMqLV"><tr><td>9.92 <a href="Economy_divine"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/2986e220b3/CurrencyModValues.png"/>Divine Orb</a> <i class="fa-solid fa-left-right text-muted"></i> 1 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/>Architect's Orb</a></td><td><div class="text-end">795 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/></a></div></td></tr><tr><td>32.5 <a href="Economy_chaos"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/c0ca392a78/CurrencyRerollRare.png"/>Chaos Orb</a> <i class="fa-solid fa-left-right text-muted"></i> 1 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/>Architect's Orb</a></td><td><div class="text-end">8 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/></a></div></td></tr></tbody></table></div>  </div><div id="mainft502gL6JH" class="echarts" style="height: 600px;"></div>
+
+<script>
+
+var chartDom = document.getElementById('mainft502gL6JH');
+var myChart = echarts.init(chartDom, 'dark');
+var option;
+
+const upColor = '#ec0000';
+const upBorderColor = '#8A0000';
+const downColor = '#00da3c';
+const downBorderColor = '#008F28';
+// Each item: open，close，lowest，highest
+const data0 = splitData([["2026-08-14",4.1,4.36,4.1,4.36],["2026-08-15",4.28,4.24,4.2,4.42],["2026-08-16",4.3,4.34,4.28,4.45],["2026-08-17",4.41,4.32,4.25,4.43],["2026-08-18",4.32,4.3,4.21,4.44],["2026-08-19",4.37,4.36,4.28,4.49],["2026-08-20",4.42,4.69,4.33,4.69],["2026-08-21",4.65,4.7,4.59,4.85],["2026-08-22",4.85,4.76,4.61,4.85],["2026-08-23",4.73,4.68,4.67,4.81],["2026-08-24",4.7,4.71,4.62,4.87],["2026-08-25",4.72,4.72,4.65,4.88],["2026-08-26",4.7,4.8,4.63,4.89],["2026-08-27",4.85,5.75,4.75,5.75],["2026-08-28",5.84,6.22,5.76,7.6],["2026-08-29",6.37,6.53,6.28,6.82],["2026-08-30",6.43,6.55,6.33,6.73],["2026-08-31",6.56,8.73,6.56,12],["2026-09-01",8.85,8.83,8.33,9.34],["2026-09-02",9.08,8.36,8.36,9.49],["2026-09-03",9.27,9.49,8.71,9.92],["2026-09-04",9.39,18,9.13,18],["2026-09-05",25.5,10.7,10.2,25.5],["2026-09-06",10.4,10.1,9.91,10.8],["2026-09-07",10.3,15.1,9.63,18.3],["2026-09-08",13.8,12.3,9.86,14.6],["2026-09-09",11.9,10.9,9.65,12.9],["2026-09-10",11.5,10.6,8.33,12.4],["2026-09-11",9.9,9.9,7.38,12.4],["2026-09-12",10.9,8.71,7.44,11.8],["2026-09-13",9.48,8.96,8.07,9.48]]);
+function splitData(rawData) {
+  const categoryData = [];
+  const values = [];
+  for (var i = 0; i < rawData.length; i++) {
+    categoryData.push(rawData[i].splice(0, 1)[0]);
+    values.push(rawData[i]);
+  }
+  return {
+    categoryData: categoryData,
+    values: values
+  };
+}
+function calculateMA(dayCount) {
+  var result = [];
+  for (var i = 0, len = data0.values.length; i < len; i++) {
+    if (i < dayCount) {
+      result.push('-');
+      continue;
+    }
+    var sum = 0;
+    for (var j = 0; j < dayCount; j++) {
+      sum += +data0.values[i - j][1];
+    }
+    result.push(sum / dayCount);
+  }
+  return result;
+}
+option = {
+  title: {
+    text: "Architect's Orb <-> Divine Orb",
+    left: 0
+  },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: {
+      type: 'cross'
+    }
+  },
+  legend: {
+    data: ['MA1', 'MA5', 'MA10', 'MA20', 'MA30'],
+    top: 20
+  },
+  grid: {
+    left: '10%',
+    right: '10%',
+    bottom: '15%'
+  },
+  xAxis: {
+    type: 'category',
+    data: data0.categoryData,
+    boundaryGap: false,
+    axisLine: { onZero: false },
+    splitLine: { show: false },
+    min: 'dataMin',
+    max: 'dataMax'
+  },
+  yAxis: {
+    scale: true,
+    splitArea: {
+      show: true
+    }
+  },
+  dataZoom: [
+    {
+      type: 'slider',
+      start: 0,
+      end: 100
+    },
+    {
+      show: true,
+      type: 'slider',
+      top: '90%',
+      start: 0,
+      end: 100
+    }
+  ],
+  series: [
+    {
+      name: 'MA1',
+      type: 'candlestick',
+      data: data0.values,
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upBorderColor,
+        borderColor0: downBorderColor
+      },
+      markPoint: {
+        label: {
+          formatter: function (param) {
+            return param != null ? Math.round(param.value) + '' : '';
+          }
+        },
+        data: [
+          {
+            name: 'Mark',
+            coord: ['2013/5/31', 2300],
+            value: 2300,
+            itemStyle: {
+              color: 'rgb(41,60,85)'
+            }
+          },
+          {
+            name: 'highest value',
+            type: 'max',
+            valueDim: 'highest'
+          },
+          {
+            name: 'lowest value',
+            type: 'min',
+            valueDim: 'lowest'
+          },
+          {
+            name: 'average value on close',
+            type: 'average',
+            valueDim: 'close'
+          }
+        ],
+        tooltip: {
+          formatter: function (param) {
+            return param.name + '<br>' + (param.data.coord || '');
+          }
+        }
+      },
+      markLine: {
+        symbol: ['none', 'none'],
+        data: [
+          [
+            {
+              name: 'from lowest to highest',
+              type: 'min',
+              valueDim: 'lowest',
+              symbol: 'circle',
+              symbolSize: 10,
+              label: {
+                show: false
+              },
+              emphasis: {
+                label: {
+                  show: false
+                }
+              }
+            },
+            {
+              type: 'max',
+              valueDim: 'highest',
+              symbol: 'circle',
+              symbolSize: 10,
+              label: {
+                show: false
+              },
+              emphasis: {
+                label: {
+                  show: false
+                }
+              }
+            }
+          ],
+          {
+            name: 'min line on close',
+            type: 'min',
+            valueDim: 'close'
+          },
+          {
+            name: 'max line on close',
+            type: 'max',
+            valueDim: 'close'
+          }
+        ]
+      }
+    },
+    {
+      name: 'MA5',
+      type: 'line',
+      data: calculateMA(5),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    },
+    {
+      name: 'MA10',
+      type: 'line',
+      data: calculateMA(10),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    },
+    {
+      name: 'MA20',
+      type: 'line',
+      data: calculateMA(20),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    },
+    {
+      name: 'MA30',
+      type: 'line',
+      data: calculateMA(30),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    }
+  ]
+};
+
+option && myChart.setOption(option);
+
+
+</script>
+
+<div id="kOokUo5qPG" class="echarts echartCurrencyExchange"></div>
+<script>
+$(function() {
+    echarts.init(document.getElementById('kOokUo5qPG'), 'dark').setOption({"title":{"text":"Architect's Orb <-> Divine Orb day","left":0},"tooltip":{"trigger":"axis"},"axisPointer":{"link":{"xAxisIndex":"all"}},"dataZoom":[{"type":"slider","xAxisIndex":[0,1]},{"type":"slider","xAxisIndex":[0,1]}],"legend":{"data":["rate","volume traded"],"top":"20"},"grid":[{"left":"10%","height":"55%"},{"left":"10%","top":"75%","height":"15%"}],"xAxis":[{"name":"Date","data":["2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13"]},{"name":"Date","data":["2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13"],"gridIndex":1,"show":false}],"yAxis":[{"type":"value","name":"rate"},{"type":"value","name":"volume traded","gridIndex":1}],"series":[{"name":"rate","type":"line","markPoint":{"data":[{"type":"min","name":"Min"},{"type":"max","name":"Max"}]},"data":[4.25,4.32,4.35,4.36,4.32,4.39,4.52,4.71,4.75,4.74,4.72,4.76,4.77,5.29,6.24,6.54,6.59,8.86,8.75,8.88,9.2,11.7,15.2,10.4,12.8,12,11.3,10.9,10.1,10.1,8.91]},{"name":"volume traded","type":"bar","xAxisIndex":1,"yAxisIndex":1,"data":["7864","9158","8933","8457","6770","7288","7256","6970","7211","7388","6658","6308","6264","5718","6957","7276","6916","5455","4685","4716","4579","4159","1014","984","617","851","886","755","742","848","207"]}]});
+});
+</script>
+
+<div id="Zoo191Jcm1" class="echarts echartCurrencyExchange"></div>
+<script>
+$(function() {
+    echarts.init(document.getElementById('Zoo191Jcm1'), 'dark').setOption({"title":{"text":"Architect's Orb <-> Divine Orb hour","left":0},"tooltip":{"trigger":"axis"},"axisPointer":{"link":{"xAxisIndex":"all"}},"dataZoom":[{"type":"slider","xAxisIndex":[0,1]},{"type":"slider","xAxisIndex":[0,1]}],"legend":{"data":["rate","volume traded"],"top":"20"},"grid":[{"left":"10%","height":"55%"},{"left":"10%","top":"75%","height":"15%"}],"xAxis":[{"name":"Date","data":["08-13 17 UTC","08-13 18 UTC","08-13 19 UTC","08-13 20 UTC","08-13 21 UTC","08-13 22 UTC","08-13 23 UTC","08-14 00 UTC","08-14 01 UTC","08-14 02 UTC","08-14 03 UTC","08-14 04 UTC","08-14 05 UTC","08-14 06 UTC","08-14 07 UTC","08-14 08 UTC","08-14 09 UTC","08-14 10 UTC","08-14 11 UTC","08-14 12 UTC","08-14 13 UTC","08-14 14 UTC","08-14 15 UTC","08-14 16 UTC","08-14 17 UTC","08-14 18 UTC","08-14 19 UTC","08-14 20 UTC","08-14 21 UTC","08-14 22 UTC","08-14 23 UTC","08-15 00 UTC","08-15 01 UTC","08-15 02 UTC","08-15 03 UTC","08-15 04 UTC","08-15 05 UTC","08-15 06 UTC","08-15 07 UTC","08-15 08 UTC","08-15 09 UTC","08-15 10 UTC","08-15 11 UTC","08-15 12 UTC","08-15 13 UTC","08-15 14 UTC","08-15 15 UTC","08-15 16 UTC","08-15 17 UTC","08-15 18 UTC","08-15 19 UTC","08-15 20 UTC","08-15 21 UTC","08-15 22 UTC","08-15 23 UTC","08-16 00 UTC","08-16 01 UTC","08-16 02 UTC","08-16 03 UTC","08-16 04 UTC","08-16 05 UTC","08-16 06 UTC","08-16 07 UTC","08-16 08 UTC","08-16 09 UTC","08-16 10 UTC","08-16 11 UTC","08-16 12 UTC","08-16 13 UTC","08-16 14 UTC","08-16 15 UTC","08-16 16 UTC","08-16 17 UTC","08-16 18 UTC","08-16 19 UTC","08-16 20 UTC","08-16 21 UTC","08-16 22 UTC","08-16 23 UTC","08-17 00 UTC","08-17 01 UTC","08-17 02 UTC","08-17 03 UTC","08-17 04 UTC","08-17 05 UTC","08-17 06 UTC","08-17 07 UTC","08-17 08 UTC","08-17 09 UTC","08-17 10 UTC","08-17 11 UTC","08-17 12 UTC","08-17 13 UTC","08-17 14 UTC","08-17 15 UTC","08-17 16 UTC","08-17 17 UTC","08-17 18 UTC","08-17 19 UTC","08-17 20 UTC","08-17 21 UTC","08-17 22 UTC","08-17 23 UTC","08-18 00 UTC","08-18 01 UTC","08-18 02 UTC","08-18 03 UTC","08-18 04 UTC","08-18 05 UTC","08-18 06 UTC","08-18 07 UTC","08-18 08 UTC","08-18 09 UTC","08-18 10 UTC","08-18 11 UTC","08-18 12 UTC","08-18 13 UTC","08-18 14 UTC","08-18 15 UTC","08-18 16 UTC","08-18 17 UTC","08-18 18 UTC","08-18 19 UTC","08-18 20 UTC","08-18 21 UTC","08-18 22 UTC","08-18 23 UTC","08-19 00 UTC","08-19 01 UTC","08-19 02 UTC","08-19 03 UTC","08-19 04 UTC","08-19 05 UTC","08-19 06 UTC","08-19 07 UTC","08-19 08 UTC","08-19 09 UTC","08-19 10 UTC","08-19 11 UTC","08-19 12 UTC","08-19 13 UTC","08-19 14 UTC","08-19 15 UTC","08-19 16 UTC","08-19 17 UTC","08-19 18 UTC","08-19 19 UTC","08-19 20 UTC","08-19 21 UTC","08-19 22 UTC","08-19 23 UTC","08-20 00 UTC","08-20 01 UTC","08-20 02 UTC","08-20 03 UTC","08-20 04 UTC","08-20 05 UTC","08-20 06 UTC","08-20 07 UTC","08-20 08 UTC","08-20 09 UTC","08-20 10 UTC","08-20 11 UTC","08-20 12 UTC","08-20 13 UTC","08-20 14 UTC","08-20 15 UTC","08-20 16 UTC","08-20 17 UTC","08-20 18 UTC","08-20 19 UTC","08-20 20 UTC","08-20 21 UTC","08-20 22 UTC","08-20 23 UTC","08-21 00 UTC","08-21 01 UTC","08-21 02 UTC","08-21 03 UTC","08-21 04 UTC","08-21 05 UTC","08-21 06 UTC","08-21 07 UTC","08-21 08 UTC","08-21 09 UTC","08-21 10 UTC","08-21 11 UTC","08-21 12 UTC","08-21 13 UTC","08-21 14 UTC","08-21 15 UTC","08-21 16 UTC","08-21 17 UTC","08-21 18 UTC","08-21 19 UTC","08-21 20 UTC","08-21 21 UTC","08-21 22 UTC","08-21 23 UTC","08-22 00 UTC","08-22 01 UTC","08-22 02 UTC","08-22 03 UTC","08-22 04 UTC","08-22 05 UTC","08-22 06 UTC","08-22 07 UTC","08-22 08 UTC","08-22 09 UTC","08-22 10 UTC","08-22 11 UTC","08-22 12 UTC","08-22 13 UTC","08-22 14 UTC","08-22 15 UTC","08-22 16 UTC","08-22 17 UTC","08-22 18 UTC","08-22 19 UTC","08-22 20 UTC","08-22 21 UTC","08-22 22 UTC","08-22 23 UTC","08-23 00 UTC","08-23 01 UTC","08-23 02 UTC","08-23 03 UTC","08-23 04 UTC","08-23 05 UTC","08-23 06 UTC","08-23 07 UTC","08-23 08 UTC","08-23 09 UTC","08-23 10 UTC","08-23 11 UTC","08-23 12 UTC","08-23 13 UTC","08-23 14 UTC","08-23 15 UTC","08-23 16 UTC","08-23 17 UTC","08-23 18 UTC","08-23 19 UTC","08-23 20 UTC","08-23 21 UTC","08-23 22 UTC","08-23 23 UTC","08-24 00 UTC","08-24 01 UTC","08-24 02 UTC","08-24 03 UTC","08-24 04 UTC","08-24 05 UTC","08-24 06 UTC","08-24 07 UTC","08-24 08 UTC","08-24 09 UTC","08-24 10 UTC","08-24 11 UTC","08-24 12 UTC","08-24 13 UTC","08-24 14 UTC","08-24 15 UTC","08-24 16 UTC","08-24 17 UTC","08-24 18 UTC","08-24 19 UTC","08-24 20 UTC","08-24 21 UTC","08-24 22 UTC","08-24 23 UTC","08-25 00 UTC","08-25 01 UTC","08-25 02 UTC","08-25 03 UTC","08-25 04 UTC","08-25 05 UTC","08-25 06 UTC","08-25 07 UTC","08-25 08 UTC","08-25 09 UTC","08-25 10 UTC","08-25 11 UTC","08-25 12 UTC","08-25 13 UTC","08-25 14 UTC","08-25 15 UTC","08-25 16 UTC","08-25 17 UTC","08-25 18 UTC","08-25 19 UTC","08-25 20 UTC","08-25 21 UTC","08-25 22 UTC","08-25 23 UTC","08-26 00 UTC","08-26 01 UTC","08-26 02 UTC","08-26 03 UTC","08-26 04 UTC","08-26 05 UTC","08-26 06 UTC","08-26 07 UTC","08-26 08 UTC","08-26 09 UTC","08-26 10 UTC","08-26 11 UTC","08-26 12 UTC","08-26 13 UTC","08-26 14 UTC","08-26 15 UTC","08-26 16 UTC","08-26 17 UTC","08-26 18 UTC","08-26 19 UTC","08-26 20 UTC","08-26 21 UTC","08-26 22 UTC","08-26 23 UTC","08-27 00 UTC","08-27 01 UTC","08-27 02 UTC","08-27 03 UTC","08-27 04 UTC","08-27 05 UTC","08-27 06 UTC","08-27 07 UTC","08-27 08 UTC","08-27 09 UTC","08-27 10 UTC","08-27 11 UTC","08-27 12 UTC","08-27 13 UTC","08-27 14 UTC","08-27 15 UTC","08-27 16 UTC","08-27 17 UTC","08-27 18 UTC","08-27 19 UTC","08-27 20 UTC","08-27 21 UTC","08-27 22 UTC","08-27 23 UTC","08-28 00 UTC","08-28 01 UTC","08-28 02 UTC","08-28 03 UTC","08-28 04 UTC","08-28 05 UTC","08-28 06 UTC","08-28 07 UTC","08-28 08 UTC","08-28 09 UTC","08-28 10 UTC","08-28 11 UTC","08-28 12 UTC","08-28 13 UTC","08-28 14 UTC","08-28 15 UTC","08-28 16 UTC","08-28 17 UTC","08-28 18 UTC","08-28 19 UTC","08-28 20 UTC","08-28 21 UTC","08-28 22 UTC","08-28 23 UTC","08-29 00 UTC","08-29 01 UTC","08-29 02 UTC","08-29 03 UTC","08-29 04 UTC","08-29 05 UTC","08-29 06 UTC","08-29 07 UTC","08-29 08 UTC","08-29 09 UTC","08-29 10 UTC","08-29 11 UTC","08-29 12 UTC","08-29 13 UTC","08-29 14 UTC","08-29 15 UTC","08-29 16 UTC","08-29 17 UTC","08-29 18 UTC","08-29 19 UTC","08-29 20 UTC","08-29 21 UTC","08-29 22 UTC","08-29 23 UTC","08-30 00 UTC","08-30 01 UTC","08-30 02 UTC","08-30 03 UTC","08-30 04 UTC","08-30 05 UTC","08-30 06 UTC","08-30 07 UTC","08-30 08 UTC","08-30 09 UTC","08-30 10 UTC","08-30 11 UTC","08-30 12 UTC","08-30 13 UTC","08-30 14 UTC","08-30 15 UTC","08-30 16 UTC","08-30 17 UTC","08-30 18 UTC","08-30 19 UTC","08-30 20 UTC","08-30 21 UTC","08-30 22 UTC","08-30 23 UTC","08-31 00 UTC","08-31 01 UTC","08-31 02 UTC","08-31 03 UTC","08-31 04 UTC","08-31 05 UTC","08-31 06 UTC","08-31 07 UTC","08-31 08 UTC","08-31 09 UTC","08-31 10 UTC","08-31 11 UTC","08-31 12 UTC","08-31 13 UTC","08-31 14 UTC","08-31 15 UTC","08-31 16 UTC","08-31 17 UTC","08-31 18 UTC","08-31 19 UTC","08-31 20 UTC","08-31 21 UTC","08-31 22 UTC","08-31 23 UTC","09-01 00 UTC","09-01 01 UTC","09-01 02 UTC","09-01 03 UTC","09-01 04 UTC","09-01 05 UTC","09-01 06 UTC","09-01 07 UTC","09-01 08 UTC","09-01 09 UTC","09-01 10 UTC","09-01 11 UTC","09-01 12 UTC","09-01 13 UTC","09-01 14 UTC","09-01 15 UTC","09-01 16 UTC","09-01 17 UTC","09-01 18 UTC","09-01 19 UTC","09-01 20 UTC","09-01 21 UTC","09-01 22 UTC","09-01 23 UTC","09-02 00 UTC","09-02 01 UTC","09-02 02 UTC","09-02 03 UTC","09-02 04 UTC","09-02 05 UTC","09-02 06 UTC","09-02 07 UTC","09-02 08 UTC","09-02 09 UTC","09-02 10 UTC","09-02 11 UTC","09-02 12 UTC","09-02 13 UTC","09-02 14 UTC","09-02 15 UTC","09-02 16 UTC","09-02 17 UTC","09-02 18 UTC","09-02 19 UTC","09-02 20 UTC","09-02 21 UTC","09-02 22 UTC","09-02 23 UTC","09-03 00 UTC","09-03 01 UTC","09-03 02 UTC","09-03 03 UTC","09-03 04 UTC","09-03 05 UTC","09-03 06 UTC","09-03 07 UTC","09-03 08 UTC","09-03 09 UTC","09-03 10 UTC","09-03 11 UTC","09-03 12 UTC","09-03 13 UTC","09-03 14 UTC","09-03 15 UTC","09-03 16 UTC","09-03 17 UTC","09-03 18 UTC","09-03 19 UTC","09-03 20 UTC","09-03 21 UTC","09-03 22 UTC","09-03 23 UTC","09-04 00 UTC","09-04 01 UTC","09-04 02 UTC","09-04 03 UTC","09-04 04 UTC","09-04 05 UTC","09-04 06 UTC","09-04 07 UTC","09-04 08 UTC","09-04 09 UTC","09-04 10 UTC","09-04 11 UTC","09-04 12 UTC","09-04 13 UTC","09-04 14 UTC","09-04 15 UTC","09-04 16 UTC","09-04 17 UTC","09-04 20 UTC","09-04 21 UTC","09-04 22 UTC","09-04 23 UTC","09-05 00 UTC","09-05 01 UTC","09-05 02 UTC","09-05 03 UTC","09-05 04 UTC","09-05 05 UTC","09-05 06 UTC","09-05 07 UTC","09-05 08 UTC","09-05 09 UTC","09-05 10 UTC","09-05 11 UTC","09-05 12 UTC","09-05 13 UTC","09-05 14 UTC","09-05 15 UTC","09-05 16 UTC","09-05 17 UTC","09-05 18 UTC","09-05 19 UTC","09-05 20 UTC","09-05 21 UTC","09-05 22 UTC","09-05 23 UTC","09-06 00 UTC","09-06 01 UTC","09-06 02 UTC","09-06 03 UTC","09-06 04 UTC","09-06 05 UTC","09-06 06 UTC","09-06 07 UTC","09-06 08 UTC","09-06 09 UTC","09-06 10 UTC","09-06 11 UTC","09-06 12 UTC","09-06 13 UTC","09-06 14 UTC","09-06 15 UTC","09-06 16 UTC","09-06 17 UTC","09-06 18 UTC","09-06 19 UTC","09-06 20 UTC","09-06 21 UTC","09-06 22 UTC","09-06 23 UTC","09-07 00 UTC","09-07 01 UTC","09-07 02 UTC","09-07 03 UTC","09-07 04 UTC","09-07 05 UTC","09-07 06 UTC","09-07 07 UTC","09-07 08 UTC","09-07 09 UTC","09-07 10 UTC","09-07 11 UTC","09-07 12 UTC","09-07 13 UTC","09-07 14 UTC","09-07 15 UTC","09-07 16 UTC","09-07 17 UTC","09-07 18 UTC","09-07 19 UTC","09-07 20 UTC","09-07 21 UTC","09-07 22 UTC","09-07 23 UTC","09-08 00 UTC","09-08 01 UTC","09-08 02 UTC","09-08 03 UTC","09-08 04 UTC","09-08 05 UTC","09-08 06 UTC","09-08 07 UTC","09-08 08 UTC","09-08 09 UTC","09-08 10 UTC","09-08 11 UTC","09-08 12 UTC","09-08 13 UTC","09-08 14 UTC","09-08 15 UTC","09-08 16 UTC","09-08 17 UTC","09-08 18 UTC","09-08 19 UTC","09-08 20 UTC","09-08 21 UTC","09-08 22 UTC","09-08 23 UTC","09-09 00 UTC","09-09 01 UTC","09-09 02 UTC","09-09 03 UTC","09-09 04 UTC","09-09 05 UTC","09-09 06 UTC","09-09 07 UTC","09-09 08 UTC","09-09 09 UTC","09-09 10 UTC","09-09 11 UTC","09-09 12 UTC","09-09 13 UTC","09-09 14 UTC","09-09 15 UTC","09-09 16 UTC","09-09 17 UTC","09-09 18 UTC","09-09 19 UTC","09-09 20 UTC","09-09 21 UTC","09-09 22 UTC","09-09 23 UTC","09-10 00 UTC","09-10 01 UTC","09-10 02 UTC","09-10 03 UTC","09-10 04 UTC","09-10 05 UTC","09-10 06 UTC","09-10 07 UTC","09-10 08 UTC","09-10 09 UTC","09-10 10 UTC","09-10 11 UTC","09-10 12 UTC","09-10 13 UTC","09-10 14 UTC","09-10 15 UTC","09-10 16 UTC","09-10 17 UTC","09-10 18 UTC","09-10 19 UTC","09-10 20 UTC","09-10 21 UTC","09-10 22 UTC","09-10 23 UTC","09-11 00 UTC","09-11 01 UTC","09-11 02 UTC","09-11 03 UTC","09-11 04 UTC","09-11 05 UTC","09-11 06 UTC","09-11 07 UTC","09-11 08 UTC","09-11 09 UTC","09-11 10 UTC","09-11 11 UTC","09-11 12 UTC","09-11 13 UTC","09-11 14 UTC","09-11 15 UTC","09-11 16 UTC","09-11 17 UTC","09-11 18 UTC","09-11 19 UTC","09-11 20 UTC","09-11 21 UTC","09-11 22 UTC","09-11 23 UTC","09-12 00 UTC","09-12 01 UTC","09-12 02 UTC","09-12 03 UTC","09-12 04 UTC","09-12 05 UTC","09-12 06 UTC","09-12 07 UTC","09-12 08 UTC","09-12 09 UTC","09-12 10 UTC","09-12 11 UTC","09-12 12 UTC","09-12 13 UTC","09-12 14 UTC","09-12 15 UTC","09-12 16 UTC","09-12 17 UTC","09-12 18 UTC","09-12 19 UTC"]},{"name":"Date","data":["08-13 17 UTC","08-13 18 UTC","08-13 19 UTC","08-13 20 UTC","08-13 21 UTC","08-13 22 UTC","08-13 23 UTC","08-14 00 UTC","08-14 01 UTC","08-14 02 UTC","08-14 03 UTC","08-14 04 UTC","08-14 05 UTC","08-14 06 UTC","08-14 07 UTC","08-14 08 UTC","08-14 09 UTC","08-14 10 UTC","08-14 11 UTC","08-14 12 UTC","08-14 13 UTC","08-14 14 UTC","08-14 15 UTC","08-14 16 UTC","08-14 17 UTC","08-14 18 UTC","08-14 19 UTC","08-14 20 UTC","08-14 21 UTC","08-14 22 UTC","08-14 23 UTC","08-15 00 UTC","08-15 01 UTC","08-15 02 UTC","08-15 03 UTC","08-15 04 UTC","08-15 05 UTC","08-15 06 UTC","08-15 07 UTC","08-15 08 UTC","08-15 09 UTC","08-15 10 UTC","08-15 11 UTC","08-15 12 UTC","08-15 13 UTC","08-15 14 UTC","08-15 15 UTC","08-15 16 UTC","08-15 17 UTC","08-15 18 UTC","08-15 19 UTC","08-15 20 UTC","08-15 21 UTC","08-15 22 UTC","08-15 23 UTC","08-16 00 UTC","08-16 01 UTC","08-16 02 UTC","08-16 03 UTC","08-16 04 UTC","08-16 05 UTC","08-16 06 UTC","08-16 07 UTC","08-16 08 UTC","08-16 09 UTC","08-16 10 UTC","08-16 11 UTC","08-16 12 UTC","08-16 13 UTC","08-16 14 UTC","08-16 15 UTC","08-16 16 UTC","08-16 17 UTC","08-16 18 UTC","08-16 19 UTC","08-16 20 UTC","08-16 21 UTC","08-16 22 UTC","08-16 23 UTC","08-17 00 UTC","08-17 01 UTC","08-17 02 UTC","08-17 03 UTC","08-17 04 UTC","08-17 05 UTC","08-17 06 UTC","08-17 07 UTC","08-17 08 UTC","08-17 09 UTC","08-17 10 UTC","08-17 11 UTC","08-17 12 UTC","08-17 13 UTC","08-17 14 UTC","08-17 15 UTC","08-17 16 UTC","08-17 17 UTC","08-17 18 UTC","08-17 19 UTC","08-17 20 UTC","08-17 21 UTC","08-17 22 UTC","08-17 23 UTC","08-18 00 UTC","08-18 01 UTC","08-18 02 UTC","08-18 03 UTC","08-18 04 UTC","08-18 05 UTC","08-18 06 UTC","08-18 07 UTC","08-18 08 UTC","08-18 09 UTC","08-18 10 UTC","08-18 11 UTC","08-18 12 UTC","08-18 13 UTC","08-18 14 UTC","08-18 15 UTC","08-18 16 UTC","08-18 17 UTC","08-18 18 UTC","08-18 19 UTC","08-18 20 UTC","08-18 21 UTC","08-18 22 UTC","08-18 23 UTC","08-19 00 UTC","08-19 01 UTC","08-19 02 UTC","08-19 03 UTC","08-19 04 UTC","08-19 05 UTC","08-19 06 UTC","08-19 07 UTC","08-19 08 UTC","08-19 09 UTC","08-19 10 UTC","08-19 11 UTC","08-19 12 UTC","08-19 13 UTC","08-19 14 UTC","08-19 15 UTC","08-19 16 UTC","08-19 17 UTC","08-19 18 UTC","08-19 19 UTC","08-19 20 UTC","08-19 21 UTC","08-19 22 UTC","08-19 23 UTC","08-20 00 UTC","08-20 01 UTC","08-20 02 UTC","08-20 03 UTC","08-20 04 UTC","08-20 05 UTC","08-20 06 UTC","08-20 07 UTC","08-20 08 UTC","08-20 09 UTC","08-20 10 UTC","08-20 11 UTC","08-20 12 UTC","08-20 13 UTC","08-20 14 UTC","08-20 15 UTC","08-20 16 UTC","08-20 17 UTC","08-20 18 UTC","08-20 19 UTC","08-20 20 UTC","08-20 21 UTC","08-20 22 UTC","08-20 23 UTC","08-21 00 UTC","08-21 01 UTC","08-21 02 UTC","08-21 03 UTC","08-21 04 UTC","08-21 05 UTC","08-21 06 UTC","08-21 07 UTC","08-21 08 UTC","08-21 09 UTC","08-21 10 UTC","08-21 11 UTC","08-21 12 UTC","08-21 13 UTC","08-21 14 UTC","08-21 15 UTC","08-21 16 UTC","08-21 17 UTC","08-21 18 UTC","08-21 19 UTC","08-21 20 UTC","08-21 21 UTC","08-21 22 UTC","08-21 23 UTC","08-22 00 UTC","08-22 01 UTC","08-22 02 UTC","08-22 03 UTC","08-22 04 UTC","08-22 05 UTC","08-22 06 UTC","08-22 07 UTC","08-22 08 UTC","08-22 09 UTC","08-22 10 UTC","08-22 11 UTC","08-22 12 UTC","08-22 13 UTC","08-22 14 UTC","08-22 15 UTC","08-22 16 UTC","08-22 17 UTC","08-22 18 UTC","08-22 19 UTC","08-22 20 UTC","08-22 21 UTC","08-22 22 UTC","08-22 23 UTC","08-23 00 UTC","08-23 01 UTC","08-23 02 UTC","08-23 03 UTC","08-23 04 UTC","08-23 05 UTC","08-23 06 UTC","08-23 07 UTC","08-23 08 UTC","08-23 09 UTC","08-23 10 UTC","08-23 11 UTC","08-23 12 UTC","08-23 13 UTC","08-23 14 UTC","08-23 15 UTC","08-23 16 UTC","08-23 17 UTC","08-23 18 UTC","08-23 19 UTC","08-23 20 UTC","08-23 21 UTC","08-23 22 UTC","08-23 23 UTC","08-24 00 UTC","08-24 01 UTC","08-24 02 UTC","08-24 03 UTC","08-24 04 UTC","08-24 05 UTC","08-24 06 UTC","08-24 07 UTC","08-24 08 UTC","08-24 09 UTC","08-24 10 UTC","08-24 11 UTC","08-24 12 UTC","08-24 13 UTC","08-24 14 UTC","08-24 15 UTC","08-24 16 UTC","08-24 17 UTC","08-24 18 UTC","08-24 19 UTC","08-24 20 UTC","08-24 21 UTC","08-24 22 UTC","08-24 23 UTC","08-25 00 UTC","08-25 01 UTC","08-25 02 UTC","08-25 03 UTC","08-25 04 UTC","08-25 05 UTC","08-25 06 UTC","08-25 07 UTC","08-25 08 UTC","08-25 09 UTC","08-25 10 UTC","08-25 11 UTC","08-25 12 UTC","08-25 13 UTC","08-25 14 UTC","08-25 15 UTC","08-25 16 UTC","08-25 17 UTC","08-25 18 UTC","08-25 19 UTC","08-25 20 UTC","08-25 21 UTC","08-25 22 UTC","08-25 23 UTC","08-26 00 UTC","08-26 01 UTC","08-26 02 UTC","08-26 03 UTC","08-26 04 UTC","08-26 05 UTC","08-26 06 UTC","08-26 07 UTC","08-26 08 UTC","08-26 09 UTC","08-26 10 UTC","08-26 11 UTC","08-26 12 UTC","08-26 13 UTC","08-26 14 UTC","08-26 15 UTC","08-26 16 UTC","08-26 17 UTC","08-26 18 UTC","08-26 19 UTC","08-26 20 UTC","08-26 21 UTC","08-26 22 UTC","08-26 23 UTC","08-27 00 UTC","08-27 01 UTC","08-27 02 UTC","08-27 03 UTC","08-27 04 UTC","08-27 05 UTC","08-27 06 UTC","08-27 07 UTC","08-27 08 UTC","08-27 09 UTC","08-27 10 UTC","08-27 11 UTC","08-27 12 UTC","08-27 13 UTC","08-27 14 UTC","08-27 15 UTC","08-27 16 UTC","08-27 17 UTC","08-27 18 UTC","08-27 19 UTC","08-27 20 UTC","08-27 21 UTC","08-27 22 UTC","08-27 23 UTC","08-28 00 UTC","08-28 01 UTC","08-28 02 UTC","08-28 03 UTC","08-28 04 UTC","08-28 05 UTC","08-28 06 UTC","08-28 07 UTC","08-28 08 UTC","08-28 09 UTC","08-28 10 UTC","08-28 11 UTC","08-28 12 UTC","08-28 13 UTC","08-28 14 UTC","08-28 15 UTC","08-28 16 UTC","08-28 17 UTC","08-28 18 UTC","08-28 19 UTC","08-28 20 UTC","08-28 21 UTC","08-28 22 UTC","08-28 23 UTC","08-29 00 UTC","08-29 01 UTC","08-29 02 UTC","08-29 03 UTC","08-29 04 UTC","08-29 05 UTC","08-29 06 UTC","08-29 07 UTC","08-29 08 UTC","08-29 09 UTC","08-29 10 UTC","08-29 11 UTC","08-29 12 UTC","08-29 13 UTC","08-29 14 UTC","08-29 15 UTC","08-29 16 UTC","08-29 17 UTC","08-29 18 UTC","08-29 19 UTC","08-29 20 UTC","08-29 21 UTC","08-29 22 UTC","08-29 23 UTC","08-30 00 UTC","08-30 01 UTC","08-30 02 UTC","08-30 03 UTC","08-30 04 UTC","08-30 05 UTC","08-30 06 UTC","08-30 07 UTC","08-30 08 UTC","08-30 09 UTC","08-30 10 UTC","08-30 11 UTC","08-30 12 UTC","08-30 13 UTC","08-30 14 UTC","08-30 15 UTC","08-30 16 UTC","08-30 17 UTC","08-30 18 UTC","08-30 19 UTC","08-30 20 UTC","08-30 21 UTC","08-30 22 UTC","08-30 23 UTC","08-31 00 UTC","08-31 01 UTC","08-31 02 UTC","08-31 03 UTC","08-31 04 UTC","08-31 05 UTC","08-31 06 UTC","08-31 07 UTC","08-31 08 UTC","08-31 09 UTC","08-31 10 UTC","08-31 11 UTC","08-31 12 UTC","08-31 13 UTC","08-31 14 UTC","08-31 15 UTC","08-31 16 UTC","08-31 17 UTC","08-31 18 UTC","08-31 19 UTC","08-31 20 UTC","08-31 21 UTC","08-31 22 UTC","08-31 23 UTC","09-01 00 UTC","09-01 01 UTC","09-01 02 UTC","09-01 03 UTC","09-01 04 UTC","09-01 05 UTC","09-01 06 UTC","09-01 07 UTC","09-01 08 UTC","09-01 09 UTC","09-01 10 UTC","09-01 11 UTC","09-01 12 UTC","09-01 13 UTC","09-01 14 UTC","09-01 15 UTC","09-01 16 UTC","09-01 17 UTC","09-01 18 UTC","09-01 19 UTC","09-01 20 UTC","09-01 21 UTC","09-01 22 UTC","09-01 23 UTC","09-02 00 UTC","09-02 01 UTC","09-02 02 UTC","09-02 03 UTC","09-02 04 UTC","09-02 05 UTC","09-02 06 UTC","09-02 07 UTC","09-02 08 UTC","09-02 09 UTC","09-02 10 UTC","09-02 11 UTC","09-02 12 UTC","09-02 13 UTC","09-02 14 UTC","09-02 15 UTC","09-02 16 UTC","09-02 17 UTC","09-02 18 UTC","09-02 19 UTC","09-02 20 UTC","09-02 21 UTC","09-02 22 UTC","09-02 23 UTC","09-03 00 UTC","09-03 01 UTC","09-03 02 UTC","09-03 03 UTC","09-03 04 UTC","09-03 05 UTC","09-03 06 UTC","09-03 07 UTC","09-03 08 UTC","09-03 09 UTC","09-03 10 UTC","09-03 11 UTC","09-03 12 UTC","09-03 13 UTC","09-03 14 UTC","09-03 15 UTC","09-03 16 UTC","09-03 17 UTC","09-03 18 UTC","09-03 19 UTC","09-03 20 UTC","09-03 21 UTC","09-03 22 UTC","09-03 23 UTC","09-04 00 UTC","09-04 01 UTC","09-04 02 UTC","09-04 03 UTC","09-04 04 UTC","09-04 05 UTC","09-04 06 UTC","09-04 07 UTC","09-04 08 UTC","09-04 09 UTC","09-04 10 UTC","09-04 11 UTC","09-04 12 UTC","09-04 13 UTC","09-04 14 UTC","09-04 15 UTC","09-04 16 UTC","09-04 17 UTC","09-04 20 UTC","09-04 21 UTC","09-04 22 UTC","09-04 23 UTC","09-05 00 UTC","09-05 01 UTC","09-05 02 UTC","09-05 03 UTC","09-05 04 UTC","09-05 05 UTC","09-05 06 UTC","09-05 07 UTC","09-05 08 UTC","09-05 09 UTC","09-05 10 UTC","09-05 11 UTC","09-05 12 UTC","09-05 13 UTC","09-05 14 UTC","09-05 15 UTC","09-05 16 UTC","09-05 17 UTC","09-05 18 UTC","09-05 19 UTC","09-05 20 UTC","09-05 21 UTC","09-05 22 UTC","09-05 23 UTC","09-06 00 UTC","09-06 01 UTC","09-06 02 UTC","09-06 03 UTC","09-06 04 UTC","09-06 05 UTC","09-06 06 UTC","09-06 07 UTC","09-06 08 UTC","09-06 09 UTC","09-06 10 UTC","09-06 11 UTC","09-06 12 UTC","09-06 13 UTC","09-06 14 UTC","09-06 15 UTC","09-06 16 UTC","09-06 17 UTC","09-06 18 UTC","09-06 19 UTC","09-06 20 UTC","09-06 21 UTC","09-06 22 UTC","09-06 23 UTC","09-07 00 UTC","09-07 01 UTC","09-07 02 UTC","09-07 03 UTC","09-07 04 UTC","09-07 05 UTC","09-07 06 UTC","09-07 07 UTC","09-07 08 UTC","09-07 09 UTC","09-07 10 UTC","09-07 11 UTC","09-07 12 UTC","09-07 13 UTC","09-07 14 UTC","09-07 15 UTC","09-07 16 UTC","09-07 17 UTC","09-07 18 UTC","09-07 19 UTC","09-07 20 UTC","09-07 21 UTC","09-07 22 UTC","09-07 23 UTC","09-08 00 UTC","09-08 01 UTC","09-08 02 UTC","09-08 03 UTC","09-08 04 UTC","09-08 05 UTC","09-08 06 UTC","09-08 07 UTC","09-08 08 UTC","09-08 09 UTC","09-08 10 UTC","09-08 11 UTC","09-08 12 UTC","09-08 13 UTC","09-08 14 UTC","09-08 15 UTC","09-08 16 UTC","09-08 17 UTC","09-08 18 UTC","09-08 19 UTC","09-08 20 UTC","09-08 21 UTC","09-08 22 UTC","09-08 23 UTC","09-09 00 UTC","09-09 01 UTC","09-09 02 UTC","09-09 03 UTC","09-09 04 UTC","09-09 05 UTC","09-09 06 UTC","09-09 07 UTC","09-09 08 UTC","09-09 09 UTC","09-09 10 UTC","09-09 11 UTC","09-09 12 UTC","09-09 13 UTC","09-09 14 UTC","09-09 15 UTC","09-09 16 UTC","09-09 17 UTC","09-09 18 UTC","09-09 19 UTC","09-09 20 UTC","09-09 21 UTC","09-09 22 UTC","09-09 23 UTC","09-10 00 UTC","09-10 01 UTC","09-10 02 UTC","09-10 03 UTC","09-10 04 UTC","09-10 05 UTC","09-10 06 UTC","09-10 07 UTC","09-10 08 UTC","09-10 09 UTC","09-10 10 UTC","09-10 11 UTC","09-10 12 UTC","09-10 13 UTC","09-10 14 UTC","09-10 15 UTC","09-10 16 UTC","09-10 17 UTC","09-10 18 UTC","09-10 19 UTC","09-10 20 UTC","09-10 21 UTC","09-10 22 UTC","09-10 23 UTC","09-11 00 UTC","09-11 01 UTC","09-11 02 UTC","09-11 03 UTC","09-11 04 UTC","09-11 05 UTC","09-11 06 UTC","09-11 07 UTC","09-11 08 UTC","09-11 09 UTC","09-11 10 UTC","09-11 11 UTC","09-11 12 UTC","09-11 13 UTC","09-11 14 UTC","09-11 15 UTC","09-11 16 UTC","09-11 17 UTC","09-11 18 UTC","09-11 19 UTC","09-11 20 UTC","09-11 21 UTC","09-11 22 UTC","09-11 23 UTC","09-12 00 UTC","09-12 01 UTC","09-12 02 UTC","09-12 03 UTC","09-12 04 UTC","09-12 05 UTC","09-12 06 UTC","09-12 07 UTC","09-12 08 UTC","09-12 09 UTC","09-12 10 UTC","09-12 11 UTC","09-12 12 UTC","09-12 13 UTC","09-12 14 UTC","09-12 15 UTC","09-12 16 UTC","09-12 17 UTC","09-12 18 UTC","09-12 19 UTC"],"gridIndex":1,"show":false}],"yAxis":[{"type":"value","name":"rate"},{"type":"value","name":"volume traded","gridIndex":1}],"series":[{"name":"rate","type":"line","markPoint":{"data":[{"type":"min","name":"Min"},{"type":"max","name":"Max"}]},"data":[4.1,4.18,4.28,4.27,4.3,4.2,4.17,4.33,4.23,4.3,4.24,4.26,4.28,4.23,4.21,4.25,4.24,4.21,4.27,4.28,4.32,4.26,4.36,4.28,4.28,4.28,4.33,4.41,4.33,4.4,4.42,4.28,4.42,4.34,4.34,4.31,4.34,4.34,4.41,4.33,4.27,4.25,4.4,4.3,4.29,4.2,4.24,4.3,4.37,4.37,4.45,4.37,4.42,4.34,4.39,4.36,4.36,4.34,4.34,4.41,4.36,4.33,4.32,4.34,4.36,4.36,4.41,4.32,4.28,4.3,4.34,4.41,4.32,4.35,4.32,4.43,4.37,4.39,4.43,4.42,4.43,4.41,4.38,4.41,4.4,4.42,4.31,4.35,4.36,4.25,4.33,4.31,4.34,4.29,4.32,4.32,4.3,4.33,4.38,4.36,4.37,4.36,4.39,4.36,4.39,4.36,4.37,4.44,4.34,4.24,4.27,4.31,4.33,4.21,4.25,4.28,4.3,4.27,4.3,4.37,4.29,4.36,4.35,4.3,4.37,4.28,4.41,4.43,4.29,4.35,4.42,4.41,4.43,4.46,4.49,4.4,4.43,4.42,4.42,4.45,4.42,4.42,4.36,4.42,4.44,4.49,4.43,4.38,4.37,4.36,4.33,4.48,4.4,4.42,4.45,4.47,4.45,4.43,4.47,4.48,4.62,4.69,4.69,4.63,4.68,4.69,4.69,4.65,4.67,4.69,4.69,4.66,4.65,4.67,4.7,4.71,4.67,4.7,4.71,4.67,4.59,4.67,4.74,4.85,4.8,4.71,4.68,4.68,4.76,4.81,4.7,4.85,4.78,4.74,4.77,4.76,4.78,4.76,4.72,4.76,4.8,4.78,4.68,4.8,4.8,4.77,4.69,4.61,4.67,4.73,4.75,4.81,4.66,4.73,4.76,4.73,4.78,4.81,4.77,4.75,4.73,4.77,4.79,4.7,4.67,4.78,4.78,4.72,4.74,4.8,4.77,4.67,4.79,4.69,4.73,4.67,4.72,4.69,4.68,4.7,4.75,4.71,4.68,4.71,4.76,4.71,4.73,4.7,4.75,4.84,4.8,4.78,4.87,4.68,4.69,4.69,4.74,4.62,4.66,4.7,4.65,4.72,4.71,4.72,4.77,4.85,4.74,4.69,4.75,4.74,4.83,4.76,4.74,4.77,4.65,4.65,4.81,4.78,4.73,4.82,4.8,4.88,4.77,4.67,4.76,4.78,4.72,4.7,4.63,4.73,4.67,4.74,4.8,4.77,4.89,4.83,4.81,4.85,4.88,4.72,4.84,4.69,4.8,4.81,4.67,4.72,4.78,4.85,4.77,4.73,4.8,4.85,4.84,4.84,4.79,4.88,5.08,5.36,5.23,4.83,4.83,4.75,4.83,5.13,5.56,5.58,5.67,5.59,5.59,5.57,5.65,5.69,5.7,5.75,5.75,5.84,5.82,5.76,5.82,5.84,5.84,5.8,5.84,5.82,5.83,6.41,7.6,6.92,6.42,6.49,6.49,6.46,6.44,6.55,6.37,6.32,6.35,6.36,6.22,6.37,6.57,6.51,6.6,6.68,6.61,6.73,6.78,6.77,6.82,6.66,6.69,6.45,6.32,6.53,6.62,6.55,6.28,6.35,6.36,6.51,6.53,6.42,6.53,6.43,6.33,6.47,6.53,6.6,6.57,6.62,6.73,6.61,6.64,6.6,6.54,6.58,6.63,6.7,6.65,6.63,6.72,6.61,6.68,6.67,6.64,6.63,6.55,6.56,6.6,6.67,6.63,7.68,12,9.6,9.11,10.8,10.2,9.75,9.5,10.9,9.01,10.6,9.84,9.32,9.33,9.43,9.33,9.27,9.62,8.97,8.73,8.85,8.74,8.92,9.34,9.03,8.55,8.51,8.68,8.58,8.6,8.56,8.72,8.86,8.53,8.47,8.45,8.83,8.33,8.7,8.89,8.76,8.72,9.06,8.83,9.08,9.17,8.48,8.67,9.09,9.49,9.31,9.27,9.04,9.33,8.5,8.64,9.12,9.27,8.83,8.67,9.07,9.25,9.15,8.73,8.54,8.5,8.48,8.36,9.27,9.15,8.92,9.32,9.92,9.42,9.09,9.18,8.8,8.76,8.85,8.88,8.71,9.06,9.37,9.37,9.28,8.82,9.26,9.3,9.3,9.38,9.37,9.49,9.39,9.13,9.44,9.82,9.99,9.39,9.41,9.15,9.72,9.69,10.1,9.98,10.6,14.3,14.6,14.2,11.3,15.8,14.2,15.1,14.3,14,16.5,18,25.5,21,14.3,13.1,13,14,13.9,12.6,13.8,13,14,13.6,12.2,11.5,11.5,11.2,10.2,11.2,10.7,10.6,10.5,10.7,10.4,10.6,10.6,10.4,10.5,10.7,10.6,10.3,10.4,10.5,10.3,10.4,10.8,10.4,10.4,10.2,10.3,10.4,10.4,10.5,10.6,9.91,10.4,10.1,10.3,13.2,10,9.63,9.87,11.1,15.4,12.9,13.4,14.2,10.2,12.8,11.6,10.6,11.2,13.7,9.79,12.5,11.4,18.3,17.3,16.2,15.7,15.1,13.8,12,13.4,11.2,10.2,12,12.7,14.6,10.5,11.9,12.8,11.8,13.5,11,11.9,11.6,11,12.2,11.1,11,9.86,10.6,11.6,12.3,11.9,12.3,11.7,11.8,12.1,11.9,12.3,12.9,11.6,10.3,10.7,10.8,10.9,10.4,10.6,9.65,9.85,11.2,11.2,12.2,11.5,10.8,10.6,10.9,11.5,12.2,11.1,11.8,9.81,11.2,10.1,10.2,10.6,10.9,11.6,12.1,12.4,11.3,11.8,12.4,10.7,11,11,8.33,12,9.45,10.7,10.6,9.9,12.4,12.2,11.4,10,11.6,10.9,12,10.8,9.86,10.7,10.4,10.3,9.68,11.3,9.31,11.2,7.38,8.05,8.71,10.1,8.73,11,9.9,10.9,10,8.32,8.33,10.7,10,11.8,11.5,8,7.44,8.7,10.4,11.1,10.9,10.5,9.89,10.1,9.33,10.2,9.42,10.7,10.2,9.92,8.71,9.48,8.07,8.91,8.96]},{"name":"volume traded","type":"bar","xAxisIndex":1,"yAxisIndex":1,"data":["307","326","405","335","392","269","237","285","248","304","265","309","248","262","414","365","348","368","315","371","430","620","441","393","480","503","413","608","317","370","274","292","262","282","291","330","254","262","348","406","359","379","370","464","435","480","586","489","542","495","405","357","230","291","306","301","305","273","293","342","291","329","283","429","319","368","425","420","387","523","530","503","470","489","391","328","361","253","266","230","238","263","285","307","260","260","420","332","338","378","313","457","404","454","457","427","348","315","315","261","264","181","223","273","224","264","327","248","249","160","262","217","217","250","254","385","335","346","425","391","359","386","335","315","276","232","347","181","153","321","285","314","237","295","274","272","277","298","285","322","368","416","349","314","375","416","337","296","232","157","181","220","290","265","179","152","227","225","306","564","330","377","319","294","423","404","373","356","319","402","350","279","196","190","213","216","381","143","198","202","177","203","239","335","333","244","295","382","583","460","274","417","349","293","291","229","289","214","260","262","188","242","388","304","304","226","287","164","313","285","291","376","382","414","443","367","346","333","312","278","246","245","206","202","224","224","242","247","272","318","364","230","293","410","329","397","424","384","495","378","363","428","321","298","153","273","275","139","165","214","213","234","223","153","271","186","307","292","312","303","463","337","357","425","426","334","263","271","211","224","189","119","171","226","175","192","202","251","292","293","274","240","232","265","328","378","327","297","281","351","235","249","310","214","195","214","314","310","255","130","332","194","195","182","222","234","288","268","332","268","394","375","344","256","287","193","212","309","133","187","59","164","172","281","195","175","236","213","188","259","210","242","305","393","330","282","363","255","210","350","272","308","202","188","197","221","202","391","217","279","187","338","295","234","328","372","320","468","478","411","359","339","439","303","292","194","233","180","276","216","286","214","323","200","276","307","248","262","348","368","353","400","449","350","439","278","286","296","302","220","260","229","233","204","236","186","235","227","291","328","337","239","302","326","340","316","456","389","280","288","264","284","121","147","118","119","245","140","163","159","145","216","309","181","203","230","212","327","260","326","329","218","250","298","151","239","249","170","203","226","170","146","198","202","115","113","152","224","140","175","167","207","187","233","252","287","206","246","192","209","201","146","110","233","168","236","158","225","125","155","107","234","180","120","190","275","227","230","256","298","227","154","204","192","207","195","115","221","226","107","158","164","133","135","128","233","142","185","151","181","283","263","277","302","216","268","211","214","158","153","136","176","195","101","207","188","139","172","122","85","92","146","169","137","211","179","182","134","161","32","62","33","33","16","37","31","24","21","17","26","71","43","27","44","25","49","41","70","17","38","67","78","44","71","36","44","25","18","6","28","34","54","23","51","15","46","28","41","50","50","55","52","30","34","18","14","27","55","34","20","14","22","9","12","28","31","26","26","35","14","25","19","31","26","37","40","20","45","29","34","83","29","20","47","64","10","14","9","33","27","17","15","21","5","42","36","65","14","33","53","106","52","40","35","28","29","37","48","38","32","48","22","25","59","15","26","37","52","23","46","52","28","26","48","40","70","33","35","37","27","25","21","13","18","32","25","72","12","16","13","16","11","32","40","91","31","31","29","25","123","57","19","25","26","19","22","22","5","35","3","15","28","47","10","13","13","21","40","34","31","52","43","39","52","46","37","18","37","21","64","33","15","18","27","25","28","34","37","18","33","30","34","26","40","64","83","28","54","43","33","28"]}]});
+});
+</script>
+
+<div id="fT8OB9Vv9c" class="echarts echartCurrencyExchange"></div>
+<script>
+$(function() {
+    echarts.init(document.getElementById('fT8OB9Vv9c'), 'dark').setOption({"title":{"text":"Architect's Orb <-> Chaos Orb hour","left":0},"tooltip":{"trigger":"axis"},"axisPointer":{"link":{"xAxisIndex":"all"}},"dataZoom":[{"type":"slider","xAxisIndex":[0,1]},{"type":"slider","xAxisIndex":[0,1]}],"legend":{"data":["rate","volume traded"],"top":"20"},"grid":[{"left":"10%","height":"55%"},{"left":"10%","top":"75%","height":"15%"}],"xAxis":[{"name":"Date","data":["08-13 17 UTC","08-13 18 UTC","08-13 19 UTC","08-13 20 UTC","08-13 21 UTC","08-13 22 UTC","08-13 23 UTC","08-14 00 UTC","08-14 01 UTC","08-14 02 UTC","08-14 03 UTC","08-14 04 UTC","08-14 05 UTC","08-14 06 UTC","08-14 07 UTC","08-14 08 UTC","08-14 09 UTC","08-14 10 UTC","08-14 11 UTC","08-14 12 UTC","08-14 13 UTC","08-14 14 UTC","08-14 15 UTC","08-14 16 UTC","08-14 17 UTC","08-14 18 UTC","08-14 19 UTC","08-14 20 UTC","08-14 21 UTC","08-14 22 UTC","08-14 23 UTC","08-15 00 UTC","08-15 01 UTC","08-15 02 UTC","08-15 03 UTC","08-15 04 UTC","08-15 05 UTC","08-15 06 UTC","08-15 07 UTC","08-15 08 UTC","08-15 09 UTC","08-15 10 UTC","08-15 11 UTC","08-15 12 UTC","08-15 13 UTC","08-15 14 UTC","08-15 15 UTC","08-15 16 UTC","08-15 17 UTC","08-15 18 UTC","08-15 19 UTC","08-15 20 UTC","08-15 21 UTC","08-15 22 UTC","08-15 23 UTC","08-16 00 UTC","08-16 01 UTC","08-16 02 UTC","08-16 03 UTC","08-16 04 UTC","08-16 05 UTC","08-16 06 UTC","08-16 07 UTC","08-16 08 UTC","08-16 09 UTC","08-16 10 UTC","08-16 11 UTC","08-16 12 UTC","08-16 13 UTC","08-16 14 UTC","08-16 15 UTC","08-16 16 UTC","08-16 17 UTC","08-16 18 UTC","08-16 19 UTC","08-16 20 UTC","08-16 21 UTC","08-16 22 UTC","08-16 23 UTC","08-17 00 UTC","08-17 01 UTC","08-17 02 UTC","08-17 03 UTC","08-17 04 UTC","08-17 05 UTC","08-17 06 UTC","08-17 07 UTC","08-17 08 UTC","08-17 09 UTC","08-17 10 UTC","08-17 11 UTC","08-17 12 UTC","08-17 13 UTC","08-17 14 UTC","08-17 15 UTC","08-17 16 UTC","08-17 17 UTC","08-17 18 UTC","08-17 19 UTC","08-17 20 UTC","08-17 21 UTC","08-17 22 UTC","08-17 23 UTC","08-18 00 UTC","08-18 01 UTC","08-18 02 UTC","08-18 03 UTC","08-18 04 UTC","08-18 05 UTC","08-18 06 UTC","08-18 07 UTC","08-18 08 UTC","08-18 09 UTC","08-18 10 UTC","08-18 11 UTC","08-18 12 UTC","08-18 13 UTC","08-18 14 UTC","08-18 15 UTC","08-18 16 UTC","08-18 17 UTC","08-18 18 UTC","08-18 19 UTC","08-18 20 UTC","08-18 21 UTC","08-18 22 UTC","08-18 23 UTC","08-19 00 UTC","08-19 01 UTC","08-19 02 UTC","08-19 03 UTC","08-19 04 UTC","08-19 05 UTC","08-19 06 UTC","08-19 07 UTC","08-19 08 UTC","08-19 09 UTC","08-19 10 UTC","08-19 11 UTC","08-19 12 UTC","08-19 13 UTC","08-19 14 UTC","08-19 15 UTC","08-19 16 UTC","08-19 17 UTC","08-19 18 UTC","08-19 19 UTC","08-19 20 UTC","08-19 21 UTC","08-19 22 UTC","08-19 23 UTC","08-20 00 UTC","08-20 01 UTC","08-20 02 UTC","08-20 03 UTC","08-20 04 UTC","08-20 05 UTC","08-20 06 UTC","08-20 07 UTC","08-20 08 UTC","08-20 09 UTC","08-20 10 UTC","08-20 11 UTC","08-20 12 UTC","08-20 13 UTC","08-20 14 UTC","08-20 15 UTC","08-20 16 UTC","08-20 17 UTC","08-20 18 UTC","08-20 19 UTC","08-20 20 UTC","08-20 21 UTC","08-20 22 UTC","08-20 23 UTC","08-21 00 UTC","08-21 01 UTC","08-21 02 UTC","08-21 03 UTC","08-21 04 UTC","08-21 05 UTC","08-21 06 UTC","08-21 07 UTC","08-21 08 UTC","08-21 09 UTC","08-21 10 UTC","08-21 11 UTC","08-21 12 UTC","08-21 13 UTC","08-21 14 UTC","08-21 15 UTC","08-21 16 UTC","08-21 17 UTC","08-21 18 UTC","08-21 19 UTC","08-21 20 UTC","08-21 21 UTC","08-21 22 UTC","08-21 23 UTC","08-22 00 UTC","08-22 01 UTC","08-22 02 UTC","08-22 03 UTC","08-22 04 UTC","08-22 05 UTC","08-22 06 UTC","08-22 07 UTC","08-22 08 UTC","08-22 09 UTC","08-22 10 UTC","08-22 11 UTC","08-22 12 UTC","08-22 13 UTC","08-22 14 UTC","08-22 15 UTC","08-22 16 UTC","08-22 17 UTC","08-22 18 UTC","08-22 19 UTC","08-22 20 UTC","08-22 21 UTC","08-22 22 UTC","08-22 23 UTC","08-23 00 UTC","08-23 01 UTC","08-23 02 UTC","08-23 03 UTC","08-23 04 UTC","08-23 05 UTC","08-23 06 UTC","08-23 07 UTC","08-23 08 UTC","08-23 09 UTC","08-23 10 UTC","08-23 11 UTC","08-23 12 UTC","08-23 13 UTC","08-23 14 UTC","08-23 15 UTC","08-23 16 UTC","08-23 17 UTC","08-23 18 UTC","08-23 19 UTC","08-23 20 UTC","08-23 21 UTC","08-23 22 UTC","08-23 23 UTC","08-24 00 UTC","08-24 01 UTC","08-24 02 UTC","08-24 03 UTC","08-24 04 UTC","08-24 05 UTC","08-24 06 UTC","08-24 07 UTC","08-24 08 UTC","08-24 09 UTC","08-24 10 UTC","08-24 11 UTC","08-24 12 UTC","08-24 13 UTC","08-24 14 UTC","08-24 15 UTC","08-24 16 UTC","08-24 17 UTC","08-24 18 UTC","08-24 19 UTC","08-24 20 UTC","08-24 21 UTC","08-24 22 UTC","08-24 23 UTC","08-25 00 UTC","08-25 01 UTC","08-25 02 UTC","08-25 03 UTC","08-25 04 UTC","08-25 05 UTC","08-25 06 UTC","08-25 07 UTC","08-25 08 UTC","08-25 09 UTC","08-25 10 UTC","08-25 11 UTC","08-25 12 UTC","08-25 13 UTC","08-25 14 UTC","08-25 15 UTC","08-25 16 UTC","08-25 17 UTC","08-25 18 UTC","08-25 19 UTC","08-25 20 UTC","08-25 21 UTC","08-25 22 UTC","08-25 23 UTC","08-26 00 UTC","08-26 01 UTC","08-26 02 UTC","08-26 03 UTC","08-26 04 UTC","08-26 05 UTC","08-26 06 UTC","08-26 07 UTC","08-26 08 UTC","08-26 09 UTC","08-26 10 UTC","08-26 11 UTC","08-26 12 UTC","08-26 13 UTC","08-26 14 UTC","08-26 15 UTC","08-26 16 UTC","08-26 17 UTC","08-26 18 UTC","08-26 19 UTC","08-26 20 UTC","08-26 21 UTC","08-26 22 UTC","08-26 23 UTC","08-27 00 UTC","08-27 01 UTC","08-27 02 UTC","08-27 03 UTC","08-27 04 UTC","08-27 05 UTC","08-27 06 UTC","08-27 07 UTC","08-27 08 UTC","08-27 09 UTC","08-27 10 UTC","08-27 11 UTC","08-27 12 UTC","08-27 13 UTC","08-27 14 UTC","08-27 15 UTC","08-27 16 UTC","08-27 17 UTC","08-27 18 UTC","08-27 19 UTC","08-27 20 UTC","08-27 21 UTC","08-27 22 UTC","08-27 23 UTC","08-28 00 UTC","08-28 01 UTC","08-28 02 UTC","08-28 03 UTC","08-28 04 UTC","08-28 05 UTC","08-28 06 UTC","08-28 07 UTC","08-28 08 UTC","08-28 09 UTC","08-28 10 UTC","08-28 11 UTC","08-28 12 UTC","08-28 13 UTC","08-28 14 UTC","08-28 15 UTC","08-28 16 UTC","08-28 17 UTC","08-28 18 UTC","08-28 19 UTC","08-28 20 UTC","08-28 21 UTC","08-28 22 UTC","08-28 23 UTC","08-29 00 UTC","08-29 01 UTC","08-29 02 UTC","08-29 03 UTC","08-29 04 UTC","08-29 05 UTC","08-29 06 UTC","08-29 07 UTC","08-29 08 UTC","08-29 09 UTC","08-29 10 UTC","08-29 11 UTC","08-29 12 UTC","08-29 13 UTC","08-29 14 UTC","08-29 15 UTC","08-29 16 UTC","08-29 17 UTC","08-29 18 UTC","08-29 19 UTC","08-29 20 UTC","08-29 21 UTC","08-29 22 UTC","08-29 23 UTC","08-30 00 UTC","08-30 01 UTC","08-30 02 UTC","08-30 03 UTC","08-30 04 UTC","08-30 05 UTC","08-30 06 UTC","08-30 07 UTC","08-30 08 UTC","08-30 09 UTC","08-30 10 UTC","08-30 11 UTC","08-30 12 UTC","08-30 13 UTC","08-30 14 UTC","08-30 15 UTC","08-30 16 UTC","08-30 17 UTC","08-30 18 UTC","08-30 19 UTC","08-30 20 UTC","08-30 21 UTC","08-30 22 UTC","08-30 23 UTC","08-31 00 UTC","08-31 01 UTC","08-31 02 UTC","08-31 03 UTC","08-31 04 UTC","08-31 05 UTC","08-31 06 UTC","08-31 07 UTC","08-31 08 UTC","08-31 09 UTC","08-31 10 UTC","08-31 11 UTC","08-31 12 UTC","08-31 13 UTC","08-31 14 UTC","08-31 15 UTC","08-31 16 UTC","08-31 17 UTC","08-31 18 UTC","08-31 19 UTC","08-31 20 UTC","08-31 21 UTC","08-31 22 UTC","08-31 23 UTC","09-01 00 UTC","09-01 01 UTC","09-01 02 UTC","09-01 03 UTC","09-01 04 UTC","09-01 05 UTC","09-01 06 UTC","09-01 07 UTC","09-01 08 UTC","09-01 09 UTC","09-01 10 UTC","09-01 11 UTC","09-01 12 UTC","09-01 13 UTC","09-01 14 UTC","09-01 15 UTC","09-01 16 UTC","09-01 17 UTC","09-01 18 UTC","09-01 19 UTC","09-01 20 UTC","09-01 21 UTC","09-01 22 UTC","09-01 23 UTC","09-02 00 UTC","09-02 01 UTC","09-02 02 UTC","09-02 03 UTC","09-02 04 UTC","09-02 05 UTC","09-02 06 UTC","09-02 07 UTC","09-02 08 UTC","09-02 09 UTC","09-02 10 UTC","09-02 11 UTC","09-02 12 UTC","09-02 13 UTC","09-02 14 UTC","09-02 15 UTC","09-02 16 UTC","09-02 17 UTC","09-02 18 UTC","09-02 19 UTC","09-02 20 UTC","09-02 21 UTC","09-02 22 UTC","09-02 23 UTC","09-03 00 UTC","09-03 01 UTC","09-03 02 UTC","09-03 04 UTC","09-03 05 UTC","09-03 06 UTC","09-03 07 UTC","09-03 08 UTC","09-03 09 UTC","09-03 10 UTC","09-03 11 UTC","09-03 12 UTC","09-03 13 UTC","09-03 14 UTC","09-03 15 UTC","09-03 16 UTC","09-03 17 UTC","09-03 18 UTC","09-03 19 UTC","09-03 20 UTC","09-03 21 UTC","09-03 22 UTC","09-03 23 UTC","09-04 01 UTC","09-04 02 UTC","09-04 03 UTC","09-04 04 UTC","09-04 05 UTC","09-04 06 UTC","09-04 07 UTC","09-04 08 UTC","09-04 09 UTC","09-04 10 UTC","09-04 11 UTC","09-04 12 UTC","09-04 13 UTC","09-04 14 UTC","09-04 15 UTC","09-04 16 UTC","09-04 17 UTC","09-05 01 UTC","09-05 06 UTC","09-05 08 UTC","09-05 09 UTC","09-05 11 UTC","09-05 12 UTC","09-05 14 UTC","09-05 16 UTC","09-05 18 UTC","09-05 23 UTC","09-06 04 UTC","09-06 05 UTC","09-06 06 UTC","09-06 09 UTC","09-06 10 UTC","09-06 11 UTC","09-06 13 UTC","09-06 14 UTC","09-06 17 UTC","09-06 19 UTC","09-06 23 UTC","09-07 00 UTC","09-07 03 UTC","09-07 05 UTC","09-07 12 UTC","09-07 16 UTC","09-07 17 UTC","09-08 11 UTC","09-09 08 UTC","09-09 10 UTC","09-09 11 UTC","09-09 13 UTC","09-09 15 UTC","09-10 03 UTC","09-10 12 UTC","09-10 15 UTC","09-10 16 UTC","09-10 17 UTC","09-10 18 UTC","09-10 20 UTC","09-11 00 UTC","09-11 01 UTC","09-11 10 UTC","09-11 16 UTC","09-11 17 UTC","09-11 21 UTC","09-12 00 UTC","09-12 05 UTC","09-12 06 UTC","09-12 11 UTC","09-12 15 UTC","09-12 17 UTC"]},{"name":"Date","data":["08-13 17 UTC","08-13 18 UTC","08-13 19 UTC","08-13 20 UTC","08-13 21 UTC","08-13 22 UTC","08-13 23 UTC","08-14 00 UTC","08-14 01 UTC","08-14 02 UTC","08-14 03 UTC","08-14 04 UTC","08-14 05 UTC","08-14 06 UTC","08-14 07 UTC","08-14 08 UTC","08-14 09 UTC","08-14 10 UTC","08-14 11 UTC","08-14 12 UTC","08-14 13 UTC","08-14 14 UTC","08-14 15 UTC","08-14 16 UTC","08-14 17 UTC","08-14 18 UTC","08-14 19 UTC","08-14 20 UTC","08-14 21 UTC","08-14 22 UTC","08-14 23 UTC","08-15 00 UTC","08-15 01 UTC","08-15 02 UTC","08-15 03 UTC","08-15 04 UTC","08-15 05 UTC","08-15 06 UTC","08-15 07 UTC","08-15 08 UTC","08-15 09 UTC","08-15 10 UTC","08-15 11 UTC","08-15 12 UTC","08-15 13 UTC","08-15 14 UTC","08-15 15 UTC","08-15 16 UTC","08-15 17 UTC","08-15 18 UTC","08-15 19 UTC","08-15 20 UTC","08-15 21 UTC","08-15 22 UTC","08-15 23 UTC","08-16 00 UTC","08-16 01 UTC","08-16 02 UTC","08-16 03 UTC","08-16 04 UTC","08-16 05 UTC","08-16 06 UTC","08-16 07 UTC","08-16 08 UTC","08-16 09 UTC","08-16 10 UTC","08-16 11 UTC","08-16 12 UTC","08-16 13 UTC","08-16 14 UTC","08-16 15 UTC","08-16 16 UTC","08-16 17 UTC","08-16 18 UTC","08-16 19 UTC","08-16 20 UTC","08-16 21 UTC","08-16 22 UTC","08-16 23 UTC","08-17 00 UTC","08-17 01 UTC","08-17 02 UTC","08-17 03 UTC","08-17 04 UTC","08-17 05 UTC","08-17 06 UTC","08-17 07 UTC","08-17 08 UTC","08-17 09 UTC","08-17 10 UTC","08-17 11 UTC","08-17 12 UTC","08-17 13 UTC","08-17 14 UTC","08-17 15 UTC","08-17 16 UTC","08-17 17 UTC","08-17 18 UTC","08-17 19 UTC","08-17 20 UTC","08-17 21 UTC","08-17 22 UTC","08-17 23 UTC","08-18 00 UTC","08-18 01 UTC","08-18 02 UTC","08-18 03 UTC","08-18 04 UTC","08-18 05 UTC","08-18 06 UTC","08-18 07 UTC","08-18 08 UTC","08-18 09 UTC","08-18 10 UTC","08-18 11 UTC","08-18 12 UTC","08-18 13 UTC","08-18 14 UTC","08-18 15 UTC","08-18 16 UTC","08-18 17 UTC","08-18 18 UTC","08-18 19 UTC","08-18 20 UTC","08-18 21 UTC","08-18 22 UTC","08-18 23 UTC","08-19 00 UTC","08-19 01 UTC","08-19 02 UTC","08-19 03 UTC","08-19 04 UTC","08-19 05 UTC","08-19 06 UTC","08-19 07 UTC","08-19 08 UTC","08-19 09 UTC","08-19 10 UTC","08-19 11 UTC","08-19 12 UTC","08-19 13 UTC","08-19 14 UTC","08-19 15 UTC","08-19 16 UTC","08-19 17 UTC","08-19 18 UTC","08-19 19 UTC","08-19 20 UTC","08-19 21 UTC","08-19 22 UTC","08-19 23 UTC","08-20 00 UTC","08-20 01 UTC","08-20 02 UTC","08-20 03 UTC","08-20 04 UTC","08-20 05 UTC","08-20 06 UTC","08-20 07 UTC","08-20 08 UTC","08-20 09 UTC","08-20 10 UTC","08-20 11 UTC","08-20 12 UTC","08-20 13 UTC","08-20 14 UTC","08-20 15 UTC","08-20 16 UTC","08-20 17 UTC","08-20 18 UTC","08-20 19 UTC","08-20 20 UTC","08-20 21 UTC","08-20 22 UTC","08-20 23 UTC","08-21 00 UTC","08-21 01 UTC","08-21 02 UTC","08-21 03 UTC","08-21 04 UTC","08-21 05 UTC","08-21 06 UTC","08-21 07 UTC","08-21 08 UTC","08-21 09 UTC","08-21 10 UTC","08-21 11 UTC","08-21 12 UTC","08-21 13 UTC","08-21 14 UTC","08-21 15 UTC","08-21 16 UTC","08-21 17 UTC","08-21 18 UTC","08-21 19 UTC","08-21 20 UTC","08-21 21 UTC","08-21 22 UTC","08-21 23 UTC","08-22 00 UTC","08-22 01 UTC","08-22 02 UTC","08-22 03 UTC","08-22 04 UTC","08-22 05 UTC","08-22 06 UTC","08-22 07 UTC","08-22 08 UTC","08-22 09 UTC","08-22 10 UTC","08-22 11 UTC","08-22 12 UTC","08-22 13 UTC","08-22 14 UTC","08-22 15 UTC","08-22 16 UTC","08-22 17 UTC","08-22 18 UTC","08-22 19 UTC","08-22 20 UTC","08-22 21 UTC","08-22 22 UTC","08-22 23 UTC","08-23 00 UTC","08-23 01 UTC","08-23 02 UTC","08-23 03 UTC","08-23 04 UTC","08-23 05 UTC","08-23 06 UTC","08-23 07 UTC","08-23 08 UTC","08-23 09 UTC","08-23 10 UTC","08-23 11 UTC","08-23 12 UTC","08-23 13 UTC","08-23 14 UTC","08-23 15 UTC","08-23 16 UTC","08-23 17 UTC","08-23 18 UTC","08-23 19 UTC","08-23 20 UTC","08-23 21 UTC","08-23 22 UTC","08-23 23 UTC","08-24 00 UTC","08-24 01 UTC","08-24 02 UTC","08-24 03 UTC","08-24 04 UTC","08-24 05 UTC","08-24 06 UTC","08-24 07 UTC","08-24 08 UTC","08-24 09 UTC","08-24 10 UTC","08-24 11 UTC","08-24 12 UTC","08-24 13 UTC","08-24 14 UTC","08-24 15 UTC","08-24 16 UTC","08-24 17 UTC","08-24 18 UTC","08-24 19 UTC","08-24 20 UTC","08-24 21 UTC","08-24 22 UTC","08-24 23 UTC","08-25 00 UTC","08-25 01 UTC","08-25 02 UTC","08-25 03 UTC","08-25 04 UTC","08-25 05 UTC","08-25 06 UTC","08-25 07 UTC","08-25 08 UTC","08-25 09 UTC","08-25 10 UTC","08-25 11 UTC","08-25 12 UTC","08-25 13 UTC","08-25 14 UTC","08-25 15 UTC","08-25 16 UTC","08-25 17 UTC","08-25 18 UTC","08-25 19 UTC","08-25 20 UTC","08-25 21 UTC","08-25 22 UTC","08-25 23 UTC","08-26 00 UTC","08-26 01 UTC","08-26 02 UTC","08-26 03 UTC","08-26 04 UTC","08-26 05 UTC","08-26 06 UTC","08-26 07 UTC","08-26 08 UTC","08-26 09 UTC","08-26 10 UTC","08-26 11 UTC","08-26 12 UTC","08-26 13 UTC","08-26 14 UTC","08-26 15 UTC","08-26 16 UTC","08-26 17 UTC","08-26 18 UTC","08-26 19 UTC","08-26 20 UTC","08-26 21 UTC","08-26 22 UTC","08-26 23 UTC","08-27 00 UTC","08-27 01 UTC","08-27 02 UTC","08-27 03 UTC","08-27 04 UTC","08-27 05 UTC","08-27 06 UTC","08-27 07 UTC","08-27 08 UTC","08-27 09 UTC","08-27 10 UTC","08-27 11 UTC","08-27 12 UTC","08-27 13 UTC","08-27 14 UTC","08-27 15 UTC","08-27 16 UTC","08-27 17 UTC","08-27 18 UTC","08-27 19 UTC","08-27 20 UTC","08-27 21 UTC","08-27 22 UTC","08-27 23 UTC","08-28 00 UTC","08-28 01 UTC","08-28 02 UTC","08-28 03 UTC","08-28 04 UTC","08-28 05 UTC","08-28 06 UTC","08-28 07 UTC","08-28 08 UTC","08-28 09 UTC","08-28 10 UTC","08-28 11 UTC","08-28 12 UTC","08-28 13 UTC","08-28 14 UTC","08-28 15 UTC","08-28 16 UTC","08-28 17 UTC","08-28 18 UTC","08-28 19 UTC","08-28 20 UTC","08-28 21 UTC","08-28 22 UTC","08-28 23 UTC","08-29 00 UTC","08-29 01 UTC","08-29 02 UTC","08-29 03 UTC","08-29 04 UTC","08-29 05 UTC","08-29 06 UTC","08-29 07 UTC","08-29 08 UTC","08-29 09 UTC","08-29 10 UTC","08-29 11 UTC","08-29 12 UTC","08-29 13 UTC","08-29 14 UTC","08-29 15 UTC","08-29 16 UTC","08-29 17 UTC","08-29 18 UTC","08-29 19 UTC","08-29 20 UTC","08-29 21 UTC","08-29 22 UTC","08-29 23 UTC","08-30 00 UTC","08-30 01 UTC","08-30 02 UTC","08-30 03 UTC","08-30 04 UTC","08-30 05 UTC","08-30 06 UTC","08-30 07 UTC","08-30 08 UTC","08-30 09 UTC","08-30 10 UTC","08-30 11 UTC","08-30 12 UTC","08-30 13 UTC","08-30 14 UTC","08-30 15 UTC","08-30 16 UTC","08-30 17 UTC","08-30 18 UTC","08-30 19 UTC","08-30 20 UTC","08-30 21 UTC","08-30 22 UTC","08-30 23 UTC","08-31 00 UTC","08-31 01 UTC","08-31 02 UTC","08-31 03 UTC","08-31 04 UTC","08-31 05 UTC","08-31 06 UTC","08-31 07 UTC","08-31 08 UTC","08-31 09 UTC","08-31 10 UTC","08-31 11 UTC","08-31 12 UTC","08-31 13 UTC","08-31 14 UTC","08-31 15 UTC","08-31 16 UTC","08-31 17 UTC","08-31 18 UTC","08-31 19 UTC","08-31 20 UTC","08-31 21 UTC","08-31 22 UTC","08-31 23 UTC","09-01 00 UTC","09-01 01 UTC","09-01 02 UTC","09-01 03 UTC","09-01 04 UTC","09-01 05 UTC","09-01 06 UTC","09-01 07 UTC","09-01 08 UTC","09-01 09 UTC","09-01 10 UTC","09-01 11 UTC","09-01 12 UTC","09-01 13 UTC","09-01 14 UTC","09-01 15 UTC","09-01 16 UTC","09-01 17 UTC","09-01 18 UTC","09-01 19 UTC","09-01 20 UTC","09-01 21 UTC","09-01 22 UTC","09-01 23 UTC","09-02 00 UTC","09-02 01 UTC","09-02 02 UTC","09-02 03 UTC","09-02 04 UTC","09-02 05 UTC","09-02 06 UTC","09-02 07 UTC","09-02 08 UTC","09-02 09 UTC","09-02 10 UTC","09-02 11 UTC","09-02 12 UTC","09-02 13 UTC","09-02 14 UTC","09-02 15 UTC","09-02 16 UTC","09-02 17 UTC","09-02 18 UTC","09-02 19 UTC","09-02 20 UTC","09-02 21 UTC","09-02 22 UTC","09-02 23 UTC","09-03 00 UTC","09-03 01 UTC","09-03 02 UTC","09-03 04 UTC","09-03 05 UTC","09-03 06 UTC","09-03 07 UTC","09-03 08 UTC","09-03 09 UTC","09-03 10 UTC","09-03 11 UTC","09-03 12 UTC","09-03 13 UTC","09-03 14 UTC","09-03 15 UTC","09-03 16 UTC","09-03 17 UTC","09-03 18 UTC","09-03 19 UTC","09-03 20 UTC","09-03 21 UTC","09-03 22 UTC","09-03 23 UTC","09-04 01 UTC","09-04 02 UTC","09-04 03 UTC","09-04 04 UTC","09-04 05 UTC","09-04 06 UTC","09-04 07 UTC","09-04 08 UTC","09-04 09 UTC","09-04 10 UTC","09-04 11 UTC","09-04 12 UTC","09-04 13 UTC","09-04 14 UTC","09-04 15 UTC","09-04 16 UTC","09-04 17 UTC","09-05 01 UTC","09-05 06 UTC","09-05 08 UTC","09-05 09 UTC","09-05 11 UTC","09-05 12 UTC","09-05 14 UTC","09-05 16 UTC","09-05 18 UTC","09-05 23 UTC","09-06 04 UTC","09-06 05 UTC","09-06 06 UTC","09-06 09 UTC","09-06 10 UTC","09-06 11 UTC","09-06 13 UTC","09-06 14 UTC","09-06 17 UTC","09-06 19 UTC","09-06 23 UTC","09-07 00 UTC","09-07 03 UTC","09-07 05 UTC","09-07 12 UTC","09-07 16 UTC","09-07 17 UTC","09-08 11 UTC","09-09 08 UTC","09-09 10 UTC","09-09 11 UTC","09-09 13 UTC","09-09 15 UTC","09-10 03 UTC","09-10 12 UTC","09-10 15 UTC","09-10 16 UTC","09-10 17 UTC","09-10 18 UTC","09-10 20 UTC","09-11 00 UTC","09-11 01 UTC","09-11 10 UTC","09-11 16 UTC","09-11 17 UTC","09-11 21 UTC","09-12 00 UTC","09-12 05 UTC","09-12 06 UTC","09-12 11 UTC","09-12 15 UTC","09-12 17 UTC"],"gridIndex":1,"show":false}],"yAxis":[{"type":"value","name":"rate"},{"type":"value","name":"volume traded","gridIndex":1}],"series":[{"name":"rate","type":"line","markPoint":{"data":[{"type":"min","name":"Min"},{"type":"max","name":"Max"}]},"data":[36.1,36.5,37.2,39.1,36.2,36.8,36.7,38.7,37.4,37.3,36.4,36.7,37.2,36.4,36.8,37.4,37.2,37.8,37.8,36.7,37.1,37.9,38.2,38.5,39.2,40,40.6,39.8,43.3,43.2,43.2,42.5,42.5,42.7,42.5,42,42.5,41.9,41.6,41.7,40.8,41.9,41.9,42.1,41.1,42.4,43,42.9,45.8,44.8,45.4,44.5,44,42.7,42.4,44,44.1,45.2,45.4,44.5,43.6,44.1,42.9,41.8,39.6,39,42.2,39.9,38.8,39.9,39.3,41.7,42.1,40.1,40.3,38.7,39.2,39.9,41.1,40.8,41.8,38.3,41.2,40.5,39.3,40.1,41.2,40.8,41.3,41.9,43.3,42.4,41.1,41.2,41,42,42.6,40.8,41.5,42.5,43.2,43,44,44,42.6,43,42.9,43.4,41.5,42.6,42.3,40.7,41,41,41.7,45.1,43.9,46,46.1,44.6,45.6,43.7,41.6,44.6,42.8,44.3,46.2,45.4,47.8,48.5,40,43.8,43.7,52.2,52.1,48.3,47.8,46.6,49.7,46.5,47.8,49.3,47.4,46.9,47.1,47,46.6,44.7,43.7,44.5,45.9,46.3,44.2,43.9,45.6,45.3,48,48.4,48.7,47.5,53.2,49.4,49.1,56.1,58.6,55.9,54.1,53.9,55,53,53.4,49.5,51.7,51.2,51.6,48.9,47.3,47.1,46.5,47.7,46.8,47.5,47.7,47.3,48.7,49.7,50.5,50.5,50,50.5,50.3,49.3,48.6,49.7,50.1,51.2,50.2,50.6,52.5,52.5,54.5,53.8,52.6,51.7,48.6,50.7,51.3,50.3,50.2,49.3,50.4,50.6,51.9,49.8,50.9,51.4,51.4,52.4,50.5,49.4,50.3,51.6,50,48.9,51.7,47.8,50.8,48.2,50.3,48.6,50.1,48.4,50,47.3,49.5,49.1,49.6,49.5,49.1,43.8,45,44.7,45.7,48.3,46.4,47.8,46.2,47.9,53.5,54.2,54.5,52.7,50,48.5,48.1,49.3,48.6,49,49.1,49,49.7,48.2,47.9,47.8,49.1,49.9,48.8,49.6,49.6,50.3,50,49,49.7,51,51.7,55.2,57.3,49.1,52.3,46.7,46.7,55.6,57.1,50.4,47.5,48.4,47.8,48.2,46.8,47.4,47.8,48.5,49,48.3,51.2,50.2,49.3,46.7,47.3,49.4,46.9,48.2,49.7,49.8,50.3,52.9,52.4,54.1,48.7,48.6,52.1,53.3,55.5,53.4,51.9,49.9,52,55.3,51.2,53.2,52.8,49.1,50.8,52.3,54,53.5,57.6,55.5,60.9,59.6,64.6,62.3,64.4,60,59.7,59,60.4,58.2,58.4,57.4,56.9,53.5,53.8,53.3,60.6,60.6,66.1,48.6,59.8,55.1,65.5,62.9,65.9,69.9,73.2,69.6,67.9,60,70.1,71,75,95.2,68.3,109,79.7,79.2,64.1,71.9,64.8,77.3,71.4,90.9,96.3,73.8,73.9,75.4,86,72.5,87,83.8,82.4,70.7,79.1,88.1,87.3,92.5,86.8,80.4,79.6,79.5,72.7,70.5,81.9,78.8,91.8,76.2,67.5,69.4,73.4,70.9,81.5,71.6,76,76.3,72.5,72,71.8,70.4,73.3,74.1,72.6,82.1,106,120,119,106,123,95.8,90.1,120,99.5,105,107,104,101,102,105,111,105,101,97.1,91.8,95.9,99.1,86.4,86.3,97.3,88.2,77,101,77.7,92.2,100,102,103,108,90.3,92.5,76.6,83.5,84.2,84.4,78.6,80.8,86.3,83.7,78.5,70.3,78.8,82.4,91.3,81.3,77.9,97.8,77.1,69,80,73.9,93.3,71,83.7,77.6,81.7,96.8,79.4,91,87.1,83.8,85.7,96,92.9,95.1,95.3,92.2,102,105,163,87.6,81.7,81.3,85,90.4,91.3,93.6,102,88.1,100,96.4,90.6,103,89.2,93.8,102,102,84.3,102,102,95.5,88.3,81.7,90.2,130,105,88.7,90,146,96,94.5,90.1,90,81,72,136,73.8,150,111,123,92,119,93.4,140,95,98.9,139,91,91,84,132,135,135,100,100,135,135,120,172,100,100,100,100,100,100,100,100,100,110,110,110,110,258,111,110,199,199,199,199,155,103,95,63,100,30,200,30,31,32,36,35,36]},{"name":"volume traded","type":"bar","xAxisIndex":1,"yAxisIndex":1,"data":["95","65","37","38","64","55","57","31","39","52","80","79","47","51","53","73","40","79","77","62","91","87","135","91","81","55","57","52","38","47","33","38","46","47","55","66","42","56","97","59","69","53","94","81","92","117","94","99","47","80","45","62","37","62","41","28","38","41","27","49","33","55","60","79","81","74","59","60","108","84","89","54","66","58","40","53","46","41","27","21","33","51","54","41","40","54","66","41","57","56","30","56","63","88","67","81","80","72","37","45","51","42","43","34","46","54","36","46","46","42","61","43","44","53","69","72","91","88","101","78","77","44","88","35","42","40","30","38","28","31","10","25","83","13","27","47","46","58","53","69","82","112","93","50","71","35","54","48","26","33","28","36","28","33","35","22","57","45","57","42","108","31","34","59","53","46","66","55","38","34","47","53","42","39","16","25","10","12","41","50","28","51","23","34","23","35","51","52","49","40","117","43","49","50","52","43","45","34","33","36","37","13","41","24","36","42","68","43","50","69","49","37","41","60","74","58","50","50","56","38","35","55","20","38","49","35","35","58","46","23","32","56","59","63","30","55","63","35","77","68","40","46","93","58","26","33","17","20","107","30","29","19","28","39","38","31","25","66","31","24","50","64","79","90","51","24","40","29","45","26","32","25","44","10","27","44","25","22","47","27","30","27","27","53","53","47","39","63","58","51","69","26","24","65","76","36","29","32","33","36","57","38","37","47","50","24","44","44","22","36","40","43","41","48","32","37","30","57","23","19","8","16","15","43","35","19","18","112","54","34","28","50","27","44","39","33","41","30","26","36","16","20","20","16","40","56","59","29","17","35","21","18","37","59","18","48","48","32","35","44","23","33","22","10","14","13","24","27","33","15","22","30","11","12","31","24","18","19","28","28","46","68","20","20","29","17","32","19","10","13","16","19","8","40","11","32","30","16","30","25","45","53","29","70","100","23","24","24","27","10","32","77","24","11","9","8","8","17","7","8","12","6","5","7","12","16","12","7","15","15","24","19","30","25","9","10","3","5","6","8","6","9","10","9","15","3","11","6","28","8","5","16","15","35","46","32","13","12","16","36","7","8","7","4","7","2","16","18","9","1","7","16","10","11","14","6","14","16","12","4","25","22","24","20","17","23","4","9","9","6","9","14","7","5","6","11","35","7","9","11","13","20","9","4","3","17","7","10","6","3","11","3","6","3","5","5","4","6","11","1","3","2","8","4","5","15","7","1","3","5","2","2","8","1","2","3","1","6","1","1","1","1","1","2","2","1","2","1","2","2","1","2","2","1","1","1","1","5","1","3","1","2","1","1","1","1","2","2","1","2","1","1","1","3","1","1","1","1","1"]}]});
+});
+</script>
+<div   class="card mb-2 ">
+   <h5 class="card-header">Architect's Orb /2 </h5> <div class="card-body"><a href="Economy">US Realm Economy</a> / <a href="Architects_Orb" class="border p-1">Wiki</a></div>  <div class="table-responsive"><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>24h Value</th><th>24h volume traded</th></tr></thead><tbody id="h6bBmkbtjw"><tr><td>9.92 <a href="Economy_divine"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/2986e220b3/CurrencyModValues.png"/>Divine Orb</a> <i class="fa-solid fa-left-right text-muted"></i> 1 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/>Architect's Orb</a></td><td><div class="text-end">795 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/></a></div></td></tr><tr><td>32.5 <a href="Economy_chaos"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/c0ca392a78/CurrencyRerollRare.png"/>Chaos Orb</a> <i class="fa-solid fa-left-right text-muted"></i> 1 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/>Architect's Orb</a></td><td><div class="text-end">8 <a href="Economy_architects-orb"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSW5jdXJzaW9uQ3JhZnRpbmdPcmJzL0luY3Vyc2lvbkdyZWF0ZXJWYWFsT3JiIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/7ba6f79f63/IncursionGreaterVaalOrb.png"/></a></div></td></tr></tbody></table></div>  </div></div></div><div class="card mb-1">
+    <div class="card-body markdown-body">
+        <a class="btn btn-primary float-end" href='/us/marked?id=Architects_Orb' data-i18n="ClientStrings|HideoutEditControlEdit|Name">Edit</a>
+        
+        <div><hr style='border-top: 1px solid white'>Wikis Content is available under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank">CC BY-NC-SA 3.0</a> unless otherwise noted.</div>
+    </div>
+</div>
+
+
+<footer class="ccontainer text-center text-lg-left">
+  <div class="card p-4">
+    <div class="row">
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">Sites</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a target="_blank" href="https://poedb.tw/">poedb.tw</a> </li>
+          <li> <a target="_blank" href="https://tlidb.com/">tlidb.com</a> </li>
+          <!--<li> <a target="_blank" href="https://diablo4.cc/">diablo4.cc</a> </li>-->
+          <li> <a target="_blank" href="https://poe2db.tw/">poe2db.tw</a> </li>
+              <li> <a target="_blank" href="https://paldb.cc/">paldb.cc</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">News</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a href="news">GGG Tracker</a> </li>
+          <li> <a href="League#ConcurrentPlayers">Concurrent Players</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">About Site</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a href="privacy">Privacy</a> </li>
+          <li> <a href="General_disclaimer">Disclaimers</a> </li>
+          <li> <a href="patreon">Patreon</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">Community</h5>
+        <ul class="list-unstyled mb-0">
+
+
+
+          <li><a target="_blank" href="https://www.reddit.com/user/chuanhsing">/u/chuanhsing</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
+    Copyright &copy; 2014-2026 PoE2DB.
+  </div>
+</footer>
+
+<div style=""></div>
+<div class="clearfix"></div><div id="bottom_banner"></div><script>topbanner970("bottom_banner");</script>
+    </div>
+    </div>
+
+    <a href="#top" id="toTop"><span class="fas fa-arrow-circle-up fa-3x"></span></a>
+<script>
+ $(document).ready(function()
+ {
+    if (window.location.hostname != "poedb.tw" && window.location.hostname != "poe2db.tw") {
+        window.location.href="https://poedb.tw/";
+    }
+ });
+</script>
+    <script src="https://cdn.poe2db.tw/js/poedb_footer.4e9aa29eb48d77c7.js"></script>
+
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"369404df4026486bb42f428b903a2162","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

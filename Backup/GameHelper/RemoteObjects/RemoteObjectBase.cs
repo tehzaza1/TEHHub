@@ -1,4 +1,4 @@
-﻿// <copyright file="RemoteObjectBase.cs" company="None">
+// <copyright file="RemoteObjectBase.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -20,8 +20,8 @@ namespace GameHelper.RemoteObjects
     public abstract class RemoteObjectBase
     {
         private readonly bool forceUpdate;
-        private readonly object updateLock = new();
-        private readonly object updateExecutionLock = new();
+        private readonly System.Threading.Lock updateLock = new();
+        private readonly System.Threading.Lock updateExecutionLock = new();
         private IntPtr address;
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace GameHelper.RemoteObjects
                         }
                         else
                         {
-                            using var _ = PerformanceProfiler.Profile(GetType().FullName ?? string.Empty, "UpdateData");
+                            using var _ = PerformanceProfiler.Measure(GetType().FullName ?? string.Empty, "UpdateData");
                             this.UpdateData(hasAddressChanged);
                         }
                     }

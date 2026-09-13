@@ -1,0 +1,1364 @@
+{
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/BrynhandsMark.dds": [
+    "Brynhand's Mark"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Frostbreath.dds": [
+    "Frostbreath"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Trenchtimbre.dds": [
+    "Trenchtimbre"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/SculptedSuffering.dds": [
+    "Sculpted Suffering"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/BrutusLeadSprinkler.dds": [
+    "Brutus' Lead Sprinkler"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Nebuloch.dds": [
+    "Nebuloch"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Mjolner.dds": [
+    "Mjölner"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Olrovasara.dds": [
+    "Olrovasara"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/SerlesMasterwork.dds": [
+    "Serle's Grit"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Hoghunt.dds": [
+    "Hoghunt"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/HrimnorsHymn.dds": [
+    "Hrimnor's Hymn"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Trephina.dds": [
+    "Trephina"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Brainrattler.dds": [
+    "Brain Rattler"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/TheEmptyRoar.dds": [
+    "The Empty Roar"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Shyaba.dds": [
+    "Shyaba"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/ChoberChaber.dds": [
+    "Chober Chaber"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Quecholli.dds": [
+    "Quecholli"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Tidebreaker.dds": [
+    "Tidebreaker"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/MarohiErqi.dds": [
+    "Marohi Erqi"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/HammerOfTheChurch.dds": [
+    "The Hammer of Faith"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/SplinterOfLorrata.dds": [
+    "Splinter of Lorrata"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/ArmsLength.dds": [
+    "Tyranny's Grip"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/Chainsting.dds": [
+    "Chainsting"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Skysliver.dds": [
+    "Skysliver"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/DaevatasWind.dds": [
+    "Daevata's Wind"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/Tangletongue.dds": [
+    "Tangletongue"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/SaithasSpear.dds": [
+    "Saitha's Spear"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/SpireOfIre.dds": [
+    "Spire of Ire"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/TheBloodThorn.dds": [
+    "The Blood Thorn"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/PillarOfTheCagedGod.dds": [
+    "Pillar of the Caged God"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/TheSentry.dds": [
+    "The Sentry"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/Matsya.dds": [
+    "Matsya"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/NazirsJudgement.dds": [
+    "Nazir's Judgement"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/CollapsingHorizon.dds": [
+    "Collapsing Horizon"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/TheWickedQuill.dds": [
+    "The Wicked Quill"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/SanguineDiviner.dds": [
+    "Sanguine Diviner"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/Lifesprig.dds": [
+    "Lifesprig"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/CourtlyDiscord.dds": [
+    "Adonia's Ego"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/EnezunsCharge.dds": [
+    "Enezun's Charge"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/Clawmark.dds": [
+    "Cursecarver"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/CoilOfUndoing.dds": [
+    "Liminal Coil"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/RunicDiviner.dds": [
+    "Runeseeker's Call"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/DuskVigil.dds": [
+    "Dusk Vigil"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/TarynsShiver.dds": [
+    "Taryn's Shiver"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/Earthbound.dds": [
+    "Earthbound"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/SearingTouch.dds": [
+    "The Searing Touch"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/SireOfShards.dds": [
+    "Sire of Shards"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/BurdenOfShadows.dds": [
+    "The Burden of Shadows"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/KulemaksBirth.dds": [
+    "The Unborn Lich"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/WhisperingIce.dds": [
+    "The Whispering Ice"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/AtziriStaff.dds": [
+    "Atziri's Rule"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/RoostOfTheRavenKing.dds": [
+    "The Raven's Flock"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Widowhail.dds": [
+    "Widowhail"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/QuillRain.dds": [
+    "Quill Rain"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Ironbound.dds": [
+    "Ironbound"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Splinterheart.dds": [
+    "Splinterheart"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Doomfletch.dds": [
+    "Doomfletch"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/DeathsHarp.dds": [
+    "Death's Harp"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Slivertongue.dds": [
+    "Slivertongue"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/DealersHand.dds": [
+    "Fairgraves' Curse"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/LioneyesGlare.dds": [
+    "Lioneye's Glare"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/MistWhisper.dds": [
+    "Mist Whisper"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/RampartRaptor.dds": [
+    "Rampart Raptor"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/DoubleVision.dds": [
+    "Double Vision"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/DarkDefiler.dds": [
+    "The Dark Defiler"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/Packleader.dds": [
+    "Sylvan's Effigy"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/FontOfPower.dds": [
+    "Font of Power"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/SacredFlame.dds": [
+    "Sacred Flame"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/GuidingPalmFire.dds": [
+    "Guiding Palm of the Heart"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/GuidingPalmCold.dds": [
+    "Guiding Palm of the Eye"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/GuidingPalmLightning.dds": [
+    "Guiding Palm of the Mind"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/OpenPalmOfTheDreamer.dds": [
+    "Palm of the Dreamer"
+  ],
+  "Art/2DItems/Offhand/Talismans/Uniques/AmorMandragora.dds": [
+    "Amor Mandragora"
+  ],
+  "Art/2DItems/Offhand/Talismans/Uniques/CrimsonChrysalis.dds": [
+    "Spiteful Floret"
+  ],
+  "Art/2DItems/Offhand/Talismans/Uniques/HandOfTheClan.dds": [
+    "Hysseg's Claw"
+  ],
+  "Art/2DItems/Offhand/Talismans/Uniques/TheSkinThief.dds": [
+    "The Flesh Poppet"
+  ],
+  "Art/2DItems/Offhand/Talismans/Uniques/TawhoasDominion.dds": [
+    "Surge of the Tide"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/SeeingStars.dds": [
+    "Seeing Stars"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Murkmaw.dds": [
+    "Sadist's Mercy"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/SpiderVerisiumMaul.dds": [
+    "Twisted Empyrean"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/Stjorvar.dds": [
+    "Duality"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/VoltaxicRift.dds": [
+    "Voltaxic Rift"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Fluttermoth.dds": [
+    "Periphery"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/TheGrandDesign.dds": [
+    "The Last Lament"
+  ],
+  "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/TheRedemption.dds": [
+    "Redemption"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/AtziriStaffBlood.dds": [
+    "Atziri's Contempt"
+  ],
+  "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/TheOrdained.dds": [
+    "The Ordained"
+  ],
+  "Art/2DItems/Offhand/Talismans/Uniques/VesselOfWrath.dds": [
+    "Fury of the King"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Bramblejack.dds": [
+    "Bramblejack"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Blackbraid.dds": [
+    "Blackbraid"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/EdyrnsTusks.dds": [
+    "Edyrn's Tusks"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TitanrotCataphract.dds": [
+    "Titanrot Cataphract"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/WanderingReliquary.dds": [
+    "Wandering Reliquary"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Kingsguard.dds": [
+    "Kingsguard"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/GreedsEmbrace.dds": [
+    "Greed's Embrace"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/BrassDome.dds": [
+    "The Brass Dome"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/KaomsHeart.dds": [
+    "Kaom's Heart"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Bristleboar.dds": [
+    "Bristleboar"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Foxform.dds": [
+    "Foxshade"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Ashrend.dds": [
+    "Ashrend"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/SandsOfSilk.dds": [
+    "Sands of Silk"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Briskwrap.dds": [
+    "Briskwrap"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Dustbloom.dds": [
+    "Dustbloom"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheRatCage.dds": [
+    "The Rat Cage"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/QuatlsMolt.dds": [
+    "Quatl's Molt"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/QueenOfTheForest.dds": [
+    "Queen of the Forest"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/YrielsFostering.dds": [
+    "Yriel's Fostering"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/The%20Auspex.dds": [
+    "The Auspex"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/HyrrisIre.dds": [
+    "Hyrri's Ire"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Ghostwrithe.dds": [
+    "Ghostwrithe"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/DarkwoodPerianth.dds": [
+    "Bitterbloom"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheBlackDoubt.dds": [
+    "The Black Doubt"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Necromantle.dds": [
+    "Necromantle"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/CloakOfFlame.dds": [
+    "Cloak of Flame"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/PilgrimsImage.dds": [
+    "Temporalis"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/PrayersForRain.dds": [
+    "Prayers for Rain"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TetzlapokalsDesire.dds": [
+    "Tetzlapokal's Desire"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheCovenant.dds": [
+    "The Covenant"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Gloamgown.dds": [
+    "Gloamgown"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/VisMortis.dds": [
+    "Vis Mortis"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/CloakOfDefiance.dds": [
+    "Cloak of Defiance"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/SilksOfVeneration.dds": [
+    "Silks of Veneration"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/CoatOfRed.dds": [
+    "Coat of Red"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheBarrowDweller.dds": [
+    "The Barrow Dweller"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Irongrasp.dds": [
+    "Irongrasp"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/PariahsEmbrace.dds": [
+    "Pariah's Embrace"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/BellyOfTheBeast.dds": [
+    "Belly of the Beast"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Pragmatism.dds": [
+    "Pragmatism"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/DoryanisPrototype.dds": [
+    "Doryani's Prototype"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/WidowsReign.dds": [
+    "Widow's Reign"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Perfidy.dds": [
+    "Perfidy"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheSunkenVessel.dds": [
+    "The Sunken Vessel"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/LightningCoil.dds": [
+    "Lightning Coil"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheComingCalamity.dds": [
+    "The Coming Calamity"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/EnfoldingDawn.dds": [
+    "Enfolding Dawn"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Icetomb.dds": [
+    "Icetomb"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/HuskOfDreams.dds": [
+    "Reverie"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/SoulMantle.dds": [
+    "Soul Mantle"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/MutableStar.dds": [
+    "The Mutable Star"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Waveshaper.dds": [
+    "Waveshaper"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/CoutureOfCrimson.dds": [
+    "Couture of Crimson"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/GeofrisSanctuary.dds": [
+    "Geofri's Sanctuary"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Endurfaedyr.dds": [
+    "The Unleashed"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Sacrosanctum.dds": [
+    "Sacrosanctum"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/Loreweave.dds": [
+    "Loreweave"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/UnfalteringFaith.dds": [
+    "Decree of Loyalty"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/ApronOfEmiran.dds": [
+    "Apron of Emiran"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/GatheringGloom.dds": [
+    "Gloomform"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/MutewindSail.dds": [
+    "Sierran Inheritance"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheDancingMirage.dds": [
+    "The Dancing Mirage"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/RedflareConduit.dds": [
+    "Redflare Conduit"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/ZerphisSerape.dds": [
+    "Zerphi's Serape"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/CosprisWill.dds": [
+    "Cospri's Will"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/WingsOfCaelyn.dds": [
+    "Wings of Caelyn"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/HornsOfBrynden.dds": [
+    "Horns of Bynden"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/EzomytePeak.dds": [
+    "Ezomyte Peak"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/BlackSunCrest.dds": [
+    "Black Sun Crest"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Thrillsteel.dds": [
+    "Thrillsteel"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Deidbell.dds": [
+    "Deidbell"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/CoronaOfTheRedSun.dds": [
+    "Corona of the Red Sun"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/BloodPrice.dds": [
+    "Blood Price"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Innsmouth.dds": [
+    "Innsmouth"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Goldrim.dds": [
+    "Goldrim"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/RadiantGrief.dds": [
+    "Radiant Grief"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Elevore.dds": [
+    "Elevore"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/ConstrictingCommand.dds": [
+    "Constricting Command"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/TheBlackCrest.dds": [
+    "The Black Insignia"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/StarkonjasHead.dds": [
+    "Starkonja's Head"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Heatshiver.dds": [
+    "Heatshiver"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/MyrisUxor.dds": [
+    "Myris Uxor"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/AlphasHowl.dds": [
+    "Alpha's Howl"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/CrownOfThorns.dds": [
+    "Crown of Thorns"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/DevouringDiadem.dds": [
+    "The Devouring Diadem"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/VisageOfAyah.dds": [
+    "Visage of Ayah"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/SandstormVisage.dds": [
+    "Sandstorm Visage"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/MaskOfTheStitchedDemon.dds": [
+    "Mask of the Stitched Demon"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/AtzirisDisdain.dds": [
+    "Atziri's Disdain"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/CrownOfEyes.dds": [
+    "Crown of Eyes"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/ScoldsBridle.dds": [
+    "Scold's Bridle"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Indigon.dds": [
+    "Indigon"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Greymake.dds": [
+    "Greymake"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/GrimrotCoif.dds": [
+    "Erian's Cobble"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Ironride.dds": [
+    "Ironride"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/TheSmilingKnight.dds": [
+    "The Smiling Knight"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/TheVileKnight.dds": [
+    "The Vile Knight"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Assailum.dds": [
+    "Assailum"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/BringerOfRain.dds": [
+    "The Bringer of Rain"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/SightlessConviction.dds": [
+    "Decree of Acuity"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/CrownOfTheVictor.dds": [
+    "Crown of the Victor"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Bronzebeard.dds": [
+    "Bronzebeard"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/CrownOfThePaleKing.dds": [
+    "Crown of the Pale King"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/VeilOfTheNight.dds": [
+    "Veil of the Night"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Cornathaum.dds": [
+    "Cornathaum"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/KeeperOfTheArc.dds": [
+    "Keeper of the Arc"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/CrownOfTheWendigo.dds": [
+    "Vestige of Darkness"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/MaskOfTheHollow.dds": [
+    "The Hollow Mask"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/PhantomBlood.dds": [
+    "Mask of the Sanguimancer"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/Leercast.dds": [
+    "Leer Cast"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/BalefulTemperance.dds": [
+    "Atsak's Sight"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/TheVertex.dds": [
+    "The Vertex"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/GlimpseOfChaos.dds": [
+    "Glimpse of Chaos"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/TheThreeDragons.dds": [
+    "The Three Dragons"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/MindOfTheCouncil.dds": [
+    "Mind of the Council"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Facebreaker.dds": [
+    "Facebreaker"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Treefingers.dds": [
+    "Treefingers"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/LochtonialCaress.dds": [
+    "Lochtonial Caress"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Dreadfist.dds": [
+    "Dreadfist"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/AtzirisAcuity.dds": [
+    "Atziri's Acuity"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Hateforge.dds": [
+    "Hateforge"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/EmpiresGrasp.dds": [
+    "Empire's Grasp"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Northpaw.dds": [
+    "Northpaw"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/GripOfWinter.dds": [
+    "Grip of Winter"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/IdleHands.dds": [
+    "Idle Hands"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Snakebite.dds": [
+    "Snakebite"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/MaligarosVirtuosity.dds": [
+    "Maligaro's Virtuosity"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/ChokingMists.dds": [
+    "Horror's Flight"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/PaintersServant.dds": [
+    "Painter's Servant"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Candlemaker.dds": [
+    "Candlemaker"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/EnraptHands.dds": [
+    "Doedre's Tenure"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/GaruksCurrent.dds": [
+    "Kitoko's Current"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/DemonStitcher.dds": [
+    "Demon Stitcher"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Nightscale.dds": [
+    "Nightscale"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/LeopoldsApplause.dds": [
+    "Leopold's Applause"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Jarngreipr.dds": [
+    "Jarngreipr"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Aurseize.dds": [
+    "Aurseize"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Deathblow.dds": [
+    "Deathblow"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/ValakosVice.dds": [
+    "Valako's Vice"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/AerisvanesWings.dds": [
+    "Aerisvane's Wings"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/DeathArticulated.dds": [
+    "Death Articulated"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Gravebind.dds": [
+    "Gravebind"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/ShacklesOfTheWretched.dds": [
+    "Shackles of the Wretched"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/SunConstrictor.dds": [
+    "Blueflame Bracers"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/PrisonersManacles.dds": [
+    "The Prisoner's Manacles"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Plaguefinger.dds": [
+    "Plaguefinger"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Killjoy.dds": [
+    "Killjoy"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/HandOfWisdomAndAction.dds": [
+    "Hand of Wisdom and Action"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/EssentiaSanguis.dds": [
+    "Essentia Sanguis"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Thunderfist.dds": [
+    "Thunderfist"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Legionstride.dds": [
+    "Legionstride"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Corpsewade.dds": [
+    "Corpsewade"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/TheInfinitePursuit.dds": [
+    "The Infinite Pursuit"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Trampletoe.dds": [
+    "Trampletoe"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/BirthOfFury.dds": [
+    "Birth of Fury"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Briarpatch.dds": [
+    "Briarpatch"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Gamblesprint.dds": [
+    "Gamblesprint"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Bushwack.dds": [
+    "Bushwhack"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/BatedPace.dds": [
+    "Luminous Pace"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Wanderlust.dds": [
+    "Wanderlust"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/BonesOfUllr.dds": [
+    "Bones of Ullr"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Wondertrap.dds": [
+    "Wondertrap"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Windscream.dds": [
+    "Windscream"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/KnightErrant.dds": [
+    "The Knight-errant"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/DarkrayVectors.dds": [
+    "Darkray Vectors"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/ObernsBastion.dds": [
+    "Obern's Bastion"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Shankgonne.dds": [
+    "Shankgonne"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/WakeOfDestruction.dds": [
+    "Wake of Destruction"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/BoundlessAuthority.dds": [
+    "Decree of Flight"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Ghostmarch.dds": [
+    "Ghostmarch"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/Powertread.dds": [
+    "Powertread"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/ChainsOfDeshret.dds": [
+    "Beetlebite"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Dionadair.dds": [
+    "Dionadair"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Wulfsbane.dds": [
+    "Wulfsbane"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Doomgate.dds": [
+    "Doomgate"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/WindowToParadise.dds": [
+    "Window to Paradise"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Lycosa.dds": [
+    "Lycosidae"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/RedbladeBanner.dds": [
+    "Redblade Banner"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Svalinn.dds": [
+    "Svalinn"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/ChernobogsPillar.dds": [
+    "Chernobog's Pillar"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/ArvilsWheel.dds": [
+    "Arvil's Wheel"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/FeatheredFortress.dds": [
+    "Feathered Fortress"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/AlkemEira.dds": [
+    "Alkem Eira"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Oaksworn.dds": [
+    "Oaksworn"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/SaffelsFrame.dds": [
+    "Saffell's Frame"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/CrestOfArdura.dds": [
+    "Crest of Ardura"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/MahuxotlsMachination.dds": [
+    "Mahuxotl's Machination"
+  ],
+  "Art/2DItems/Offhand/Shields/Crest06.dds": [
+    "Rise of the Phoenix"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Dunkelhalt.dds": [
+    "Dunkelhalt"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Nocturne.dds": [
+    "Nocturne"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/RondelDeEzo.dds": [
+    "Rondel de Ezo"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/BloodBarrier.dds": [
+    "Bloodbarrier"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Kaltenhalt.dds": [
+    "Kaltenhalt"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Silverthorne.dds": [
+    "Silverthorne"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/CalgyrasArc.dds": [
+    "Calgyra's Arc"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Sunsplinter.dds": [
+    "Sunsplinter"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/DeathRattle.dds": [
+    "Deathrattle"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/ThreadedLight.dds": [
+    "Threaded Light"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/EffigyOfCruelty.dds": [
+    "Effigy of Cruelty"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/CarrionCall.dds": [
+    "Carrion Call"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/TonesOfFate.dds": [
+    "Serpent's Lesson"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/EternalSpark.dds": [
+    "The Eternal Spark"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/ApepsSupremacy.dds": [
+    "Apep's Supremacy"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TabulaRasa.dds": [
+    "Tabula Rasa"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/SkinOfTheLoyal.dds": [
+    "Skin of the Loyal"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/MoriorInvictus_M.dds": [
+    "Morior Invictus"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/AtzirisSplendour.dds": [
+    "Atziri's Splendour"
+  ],
+  "Art/2DItems/Armours/Helmets/Uniques/SolusIpse.dds": [
+    "Solus Ipse"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/SineAequo.dds": [
+    "Sine Aequo"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/AbAeterno.dds": [
+    "Ab Aeterno"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/VollsProtector.dds": [
+    "Voll's Protector"
+  ],
+  "Art/2DItems/Armours/BodyArmours/Uniques/TheAncientOrder.dds": [
+    "Forgotten Warden"
+  ],
+  "Art/2DItems/Armours/Gloves/Uniques/Darkreach.dds": [
+    "The Master's Reach"
+  ],
+  "Art/2DItems/Armours/Boots/Uniques/AtzirisStep.dds": [
+    "Atziri's Step"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/TheSurrender.dds": [
+    "The Surrender"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/TulShield.dds": [
+    "Nightfall"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/Vindromyr.dds": [
+    "Eyes of the Runefather"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/PrismGuardian.dds": [
+    "Prism Guardian"
+  ],
+  "Art/2DItems/Offhand/Foci/Uniques/RathpithGlobe.dds": [
+    "Rathpith Globe"
+  ],
+  "Art/2DItems/Jewels/ExpeditionJewel.dds": [
+    "Heroic Tragedy"
+  ],
+  "Art/2DItems/Jewels/Uniques/UndyingHatred.dds": [
+    "Undying Hate"
+  ],
+  "Art/2DItems/Jewels/Uniques/GrandSpectrum_Ruby.dds": [
+    "Grand Spectrum"
+  ],
+  "Art/2DItems/Jewels/Uniques/SplitPersonality.dds": [
+    "Split Personality"
+  ],
+  "Art/2DItems/Jewels/Uniques/Voices.dds": [
+    "Voices"
+  ],
+  "Art/2DItems/Jewels/DeliriumJewel.dds": [
+    "Megalomaniac"
+  ],
+  "Art/2DItems/Jewels/RitualJewel.dds": [
+    "From Nothing"
+  ],
+  "Art/2DItems/Jewels/BreachJewel.dds": [
+    "Controlled Metamorphosis"
+  ],
+  "Art/2DItems/Jewels/SacredFlameJewel.dds": [
+    "Prism of Belief"
+  ],
+  "Art/2DItems/Jewels/TrialmasterJewel.dds": [
+    "The Adorned"
+  ],
+  "Art/2DItems/Jewels/Uniques/ApostatesHeart.dds": [
+    "Heart of the Well"
+  ],
+  "Art/2DItems/Jewels/Uniques/Vivisection.dds": [
+    "Flesh Crucible"
+  ],
+  "Art/2DItems/Jewels/SanctumJewel.dds": [
+    "Against the Darkness"
+  ],
+  "Art/2DItems/Relics/RelicUnique1x3.dds": [
+    "The Peacemaker's Draught"
+  ],
+  "Art/2DItems/Relics/RelicUnique1x4.dds": [
+    "The Desperate Alliance"
+  ],
+  "Art/2DItems/Relics/RelicUnique2x1.dds": [
+    "The Changing Seasons"
+  ],
+  "Art/2DItems/Relics/RelicUnique3x1.dds": [
+    "The Burden of Leadership"
+  ],
+  "Art/2DItems/Relics/RelicUnique4x1.dds": [
+    "The Last Flame"
+  ],
+  "Art/2DItems/Quivers/Uniques/AsphyxiasWrath.dds": [
+    "Asphyxia's Wrath"
+  ],
+  "Art/2DItems/Quivers/Uniques/Blackgleam.dds": [
+    "Blackgleam"
+  ],
+  "Art/2DItems/Quivers/Uniques/TheLethalDraw.dds": [
+    "The Lethal Draw"
+  ],
+  "Art/2DItems/Quivers/Uniques/Rearguard.dds": [
+    "Rearguard"
+  ],
+  "Art/2DItems/Quivers/Uniques/Murkshaft.dds": [
+    "Murkshaft"
+  ],
+  "Art/2DItems/Quivers/Uniques/PerandusTurnstile.dds": [
+    "Cadiro's Gambit"
+  ],
+  "Art/2DItems/Quivers/Uniques/Drillneck.dds": [
+    "Drillneck"
+  ],
+  "Art/2DItems/Quivers/Uniques/BreachQuiver.dds": [
+    "Beyond Reach"
+  ],
+  "Art/2DItems/Amulets/Uniques/Igniferis.dds": [
+    "Igniferis"
+  ],
+  "Art/2DItems/Amulets/Uniques/IdolOfUldurn.dds": [
+    "Idol of Uldurn"
+  ],
+  "Art/2DItems/Amulets/Uniques/TheEverlastingGaze.dds": [
+    "The Everlasting Gaze"
+  ],
+  "Art/2DItems/Amulets/Uniques/UngilsHarmony.dds": [
+    "Ungil's Harmony"
+  ],
+  "Art/2DItems/Amulets/Uniques/ReveredResin.dds": [
+    "Revered Resin"
+  ],
+  "Art/2DItems/Amulets/Uniques/CarnageHeart.dds": [
+    "Carnage Heart"
+  ],
+  "Art/2DItems/Amulets/Uniques/XophsBlood.dds": [
+    "Xoph's Blood"
+  ],
+  "Art/2DItems/Amulets/Uniques/SurefootedSigil.dds": [
+    "Surefooted Sigil"
+  ],
+  "Art/2DItems/Amulets/Uniques/ChoirOfTheStorm.dds": [
+    "Choir of the Storm"
+  ],
+  "Art/2DItems/Amulets/Uniques/DefianceOfDestiny.dds": [
+    "Defiance of Destiny"
+  ],
+  "Art/2DItems/Amulets/Uniques/LiguriumTalisman.dds": [
+    "Ligurium Talisman"
+  ],
+  "Art/2DItems/Amulets/Uniques/ThePandemonius.dds": [
+    "The Pandemonius"
+  ],
+  "Art/2DItems/Amulets/Uniques/StoneOfLazhwar.dds": [
+    "Stone of Lazhwar"
+  ],
+  "Art/2DItems/Amulets/Uniques/RondelOfFragility.dds": [
+    "Rondel of Fragility"
+  ],
+  "Art/2DItems/Amulets/Uniques/TheAnvil.dds": [
+    "The Anvil"
+  ],
+  "Art/2DItems/Amulets/Uniques/YokeOfSuffering.dds": [
+    "Yoke of Suffering"
+  ],
+  "Art/2DItems/Amulets/Uniques/Astramentis.dds": [
+    "Astramentis"
+  ],
+  "Art/2DItems/Amulets/Uniques/FixationOfYix.dds": [
+    "Fixation of Yix"
+  ],
+  "Art/2DItems/Amulets/Uniques/DeliriumAmulet.dds": [
+    "Strugglescream"
+  ],
+  "Art/2DItems/Amulets/Uniques/HinekorasSight.dds": [
+    "Hinekora's Sight"
+  ],
+  "Art/2DItems/Amulets/Uniques/BeaconOfAzis.dds": [
+    "Beacon of Azis"
+  ],
+  "Art/2DItems/Amulets/Uniques/Fireflower.dds": [
+    "Fireflower"
+  ],
+  "Art/2DItems/Amulets/Uniques/ChainsOfAdherence.dds": [
+    "Immaculate Adherence"
+  ],
+  "Art/2DItems/Amulets/Uniques/EyeOfChayula.dds": [
+    "Eye of Chayula"
+  ],
+  "Art/2DItems/Amulets/Uniques/TheSerpentsEgg.dds": [
+    "Serpent's Egg"
+  ],
+  "Art/2DItems/Amulets/Uniques/Nattblom.dds": [
+    "Eventide Petals"
+  ],
+  "Art/2DItems/Rings/Uniques/Blackheart.dds": [
+    "Blackheart"
+  ],
+  "Art/2DItems/Rings/Uniques/IcefangOrbit.dds": [
+    "Icefang Orbit"
+  ],
+  "Art/2DItems/Rings/Uniques/PrizedPain.dds": [
+    "Prized Pain"
+  ],
+  "Art/2DItems/Rings/Uniques/Venopuncture.dds": [
+    "Venopuncture"
+  ],
+  "Art/2DItems/Rings/Uniques/DoedresDamning.dds": [
+    "Doedre's Damning"
+  ],
+  "Art/2DItems/Rings/Uniques/Glowswarm.dds": [
+    "Glowswarm"
+  ],
+  "Art/2DItems/Rings/Uniques/SeedOfCataclysm.dds": [
+    "Seed of Cataclysm"
+  ],
+  "Art/2DItems/Rings/Uniques/Cracklecreep.dds": [
+    "Cracklecreep"
+  ],
+  "Art/2DItems/Rings/Uniques/BlisteringBond.dds": [
+    "Blistering Bond"
+  ],
+  "Art/2DItems/Rings/Uniques/Polcirkeln.dds": [
+    "Polcirkeln"
+  ],
+  "Art/2DItems/Rings/Uniques/DreamFragments.dds": [
+    "Dream Fragments"
+  ],
+  "Art/2DItems/Rings/Uniques/WhisperOfTheBrotherhood.dds": [
+    "Whisper of the Brotherhood"
+  ],
+  "Art/2DItems/Rings/Uniques/TheBurrower.dds": [
+    "The Burrower"
+  ],
+  "Art/2DItems/Rings/Uniques/CallOfTheBrotherhood.dds": [
+    "Call of the Brotherhood"
+  ],
+  "Art/2DItems/Rings/Uniques/StoneOfOndar.dds": [
+    "Levinstone"
+  ],
+  "Art/2DItems/Rings/Uniques/MingsHeart.dds": [
+    "Ming's Heart"
+  ],
+  "Art/2DItems/Rings/Uniques/OriginalSin.dds": [
+    "Original Sin"
+  ],
+  "Art/2DItems/Rings/BlackFlameChaos.dds": [
+    "Blackflame"
+  ],
+  "Art/2DItems/Rings/Uniques/Veilpiercer.dds": [
+    "Veilpiercer"
+  ],
+  "Art/2DItems/Rings/Uniques/VigilantView.dds": [
+    "Vigilant View"
+  ],
+  "Art/2DItems/Rings/Uniques/DeathRush.dds": [
+    "Death Rush"
+  ],
+  "Art/2DItems/Rings/Uniques/ThiefsTorment.dds": [
+    "Thief's Torment"
+  ],
+  "Art/2DItems/Rings/Uniques/EvergraspingRing.dds": [
+    "Evergrasping Ring"
+  ],
+  "Art/2DItems/Rings/Uniques/Snakepit.dds": [
+    "Snakepit"
+  ],
+  "Art/2DItems/Rings/Uniques/HeartboundLoop.dds": [
+    "Heartbound Loop"
+  ],
+  "Art/2DItems/Rings/Uniques/GiftsFromAbove.dds": [
+    "Gifts from Above"
+  ],
+  "Art/2DItems/Rings/Uniques/TheTaming.dds": [
+    "The Taming"
+  ],
+  "Art/2DItems/Rings/Uniques/PerandusSeal.dds": [
+    "Perandus Seal"
+  ],
+  "Art/2DItems/Rings/Uniques/Andvarius.dds": [
+    "Andvarius"
+  ],
+  "Art/2DItems/Rings/Uniques/VentorsGamble.dds": [
+    "Ventor's Gamble"
+  ],
+  "Art/2DItems/Rings/Uniques/BurstingDecay.dds": [
+    "Bursting Decay"
+  ],
+  "Art/2DItems/Rings/Uniques/TokenOfPassage01.dds": [
+    "Grip of Kulemak"
+  ],
+  "Art/2DItems/Rings/Uniques/BereksPass.dds": [
+    "Berek's Pass"
+  ],
+  "Art/2DItems/Rings/Uniques/BereksRespite.dds": [
+    "Berek's Respite"
+  ],
+  "Art/2DItems/Rings/Uniques/BereksGrip.dds": [
+    "Berek's Grip"
+  ],
+  "Art/2DItems/Belts/Uniques/MeginordsGirdle.dds": [
+    "Meginord's Girdle"
+  ],
+  "Art/2DItems/Belts/Uniques/MidnightBraid.dds": [
+    "Midnight Braid"
+  ],
+  "Art/2DItems/Belts/Uniques/Keelhaul.dds": [
+    "Keelhaul"
+  ],
+  "Art/2DItems/Belts/Uniques/UmbilicusImmortalis.dds": [
+    "Umbilicus Immortalis"
+  ],
+  "Art/2DItems/Belts/Uniques/BirthrightBuckle.dds": [
+    "Birthright Buckle"
+  ],
+  "Art/2DItems/Belts/Uniques/Byrnabas.dds": [
+    "Byrnabas"
+  ],
+  "Art/2DItems/Belts/Uniques/GnashingSash.dds": [
+    "The Gnashing Sash"
+  ],
+  "Art/2DItems/Belts/Uniques/SoulTether.dds": [
+    "Soul Tether"
+  ],
+  "Art/2DItems/Belts/Uniques/Goregirdle.dds": [
+    "Goregirdle"
+  ],
+  "Art/2DItems/Belts/Uniques/RyslathasCoil.dds": [
+    "Ryslatha's Coil"
+  ],
+  "Art/2DItems/Belts/Uniques/CowardsLegacy.dds": [
+    "Coward's Legacy"
+  ],
+  "Art/2DItems/Belts/Uniques/Twinclasp.dds": [
+    "Bijouborne"
+  ],
+  "Art/2DItems/Belts/Uniques/Waistgate.dds": [
+    "Waistgate"
+  ],
+  "Art/2DItems/Belts/Uniques/Headhunter.dds": [
+    "Headhunter"
+  ],
+  "Art/2DItems/Belts/Uniques/ZerphisGenesis.dds": [
+    "Zerphi's Genesis"
+  ],
+  "Art/2DItems/Belts/Uniques/CatONineTails.dds": [
+    "Cat O' Nine Tails"
+  ],
+  "Art/2DItems/Belts/Uniques/Widowmaker.dds": [
+    "Ingenuity"
+  ],
+  "Art/2DItems/Belts/Uniques/Mageblood.dds": [
+    "Mageblood"
+  ],
+  "Art/2DItems/Belts/Uniques/ShavronnesSatchel.dds": [
+    "Shavronne's Satchel"
+  ],
+  "Art/2DItems/Belts/Uniques/DarknessEnthroned.dds": [
+    "Darkness Enthroned"
+  ],
+  "Art/2DItems/Flasks/Uniques/BloodOfTheKarui.dds": [
+    "Blood of the Warrior"
+  ],
+  "Art/2DItems/Flasks/Uniques/OlrothsResolve.dds": [
+    "Olroth's Resolve"
+  ],
+  "Art/2DItems/Flasks/Uniques/TranscendantThirst.dds": [
+    "Opportunity"
+  ],
+  "Art/2DItems/Flasks/Uniques/LaviangasSpirit.dds": [
+    "Lavianga's Spirits"
+  ],
+  "Art/2DItems/Flasks/Uniques/UhtredsLegacy.dds": [
+    "Uhtred's Chalice"
+  ],
+  "Art/2DItems/Flasks/Uniques/MeltingMaelstrom.dds": [
+    "Melting Maelstrom"
+  ],
+  "Art/2DItems/Charms/Uniques/ThawingUniqueCharm.dds": [
+    "Nascent Hope"
+  ],
+  "Art/2DItems/Charms/Uniques/StaunchingUniqueCharm.dds": [
+    "Sanguis Heroum"
+  ],
+  "Art/2DItems/Charms/Uniques/AntidoteUniqueCharm.dds": [
+    "Arakaali's Gift"
+  ],
+  "Art/2DItems/Charms/Uniques/DousingUniqueCharm.dds": [
+    "Beira's Anguish"
+  ],
+  "Art/2DItems/Charms/Uniques/GroundingUniqueCharm.dds": [
+    "The Black Cat"
+  ],
+  "Art/2DItems/Charms/Uniques/StoneUniqueCharm.dds": [
+    "For Utopia"
+  ],
+  "Art/2DItems/Charms/Uniques/SilverUniqueCharm.dds": [
+    "The Fall of the Axe"
+  ],
+  "Art/2DItems/Charms/Uniques/RubyUniqueCharm.dds": [
+    "Ngamahu's Chosen"
+  ],
+  "Art/2DItems/Charms/Uniques/SapphireUniqueCharm.dds": [
+    "Breath of the Mountains"
+  ],
+  "Art/2DItems/Charms/Uniques/TopazUniqueCharm.dds": [
+    "Valako's Roar"
+  ],
+  "Art/2DItems/Charms/Uniques/ChaosUniqueCharm.dds": [
+    "Forsaken Bangle"
+  ],
+  "Art/2DItems/Charms/Uniques/GoldenUniqueCharm.dds": [
+    "Rite of Passage"
+  ],
+  "Art/2DItems/Rings/MirrorRing.dds": [
+    "Kalandra's Touch"
+  ],
+  "Art/2DItems/Rings/Uniques/EmberheartSeal.dds": [
+    "Safrin's Resolve"
+  ],
+  "Art/2DItems/Rings/Uniques/RimeveilSeal.dds": [
+    "Eshtera's Path"
+  ],
+  "Art/2DItems/Rings/Uniques/StormforgedSeal.dds": [
+    "Zaida's Longevity"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletBreachUnique1.dds": [
+    "Wraeclast Besieged"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletDeliriumUnique1.dds": [
+    "Clear Skies"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletRitualUnique1.dds": [
+    "Freedom of Faith"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletGenericUnique1.dds": [
+    "The Grand Project"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletGenericUnique3.dds": [
+    "Visions of Paradise"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletMasteredDomain.dds": [
+    "Mastered Domain"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletOverseerUnique1.dds": [
+    "Season of the Hunt"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletOverseerUnique2.dds": [
+    "Cruel Hegemony"
+  ],
+  "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletAbyssUnique1.dds": [
+    "Unforeseen Consequences"
+  ],
+  "Art/2DItems/Jewels/Uniques/GrandSpectrum_Sapphire.dds": [
+    "Grand Spectrum"
+  ],
+  "Art/2DItems/Rings/Uniques/TokenOfPassage05.dds": [
+    "Grip of Kulemak"
+  ],
+  "Art/2DItems/Belts/Uniques/Infernoclasp.dds": [
+    "Infernoclasp"
+  ],
+  "Art/2DItems/Relics/RelicUnique2x2.dds": [
+    "The Remembered Tales"
+  ],
+  "Art/2DItems/Offhand/Shields/Uniques/TheWailingWall.dds": [
+    "The Wailing Wall"
+  ],
+  "Art/2DItems/Jewels/Uniques/GrandSpectrum_Emerald.dds": [
+    "Grand Spectrum"
+  ],
+  "Art/2DItems/Rings/Uniques/TokenOfPassage02.dds": [
+    "Grip of Kulemak"
+  ],
+  "Art/2DItems/Rings/Uniques/TokenOfPassage03.dds": [
+    "Grip of Kulemak"
+  ],
+  "Art/2DItems/Rings/Uniques/TokenOfPassage04.dds": [
+    "Grip of Kulemak"
+  ]
+}

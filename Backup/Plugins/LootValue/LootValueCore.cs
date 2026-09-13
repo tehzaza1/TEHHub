@@ -11,8 +11,13 @@ namespace LootValue
     using System.Linq;
     using System.Numerics;
     using System.Reflection;
+    using System.Runtime.InteropServices;
+    using System.Text.Json;
     using System.Text.RegularExpressions;
+    using System.Threading.Tasks;
+    using Coroutine;
     using GameHelper;
+    using GameHelper.CoroutineEvents;
     using GameHelper.Plugin;
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteObjects.Components;
@@ -20,14 +25,12 @@ namespace LootValue
     using GameOffsets.Natives;
     using GameOffsets.Objects.UiElement;
     using ImGuiNET;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
 
     /// <summary>
     ///     LootValue plugin — prices ground, stash, inventory, Ritual reward, and Currency Exchange items.
     ///     Unidentified uniques are revealed by name via their icon art.
     /// </summary>
-    public sealed class LootValueCore : PCore<LootValueSettings>
+    public sealed partial class LootValueCore : PCore<LootValueSettings>
     {
         /// <inheritdoc/>
         public override IReadOnlyCollection<string> ConflictsWith => new[] { "RitualHelper" };
@@ -44,7 +47,7 @@ namespace LootValue
         private static readonly int[] CurrencyExchangeRootPath = { 114, 20, 6 };
         private static readonly int[] RitualRewardGridPath = { 76, 13 };
 
-        private readonly List<LootLabel> cachedLabels = new();
+        private List<LootLabel> cachedLabels = new();
         private readonly Dictionary<uint, Tracked> trackWorld = new();
         private DateTime nextRecomputeUtc = DateTime.MinValue;
 
@@ -56,16 +59,9 @@ namespace LootValue
         // PoE 0.5.5 moved inline text-element wstrings by -0x30: UiElementBase lost 0x18 and
         // the derived text class lost another 0x18. Verified live by RunecraftHelper as well.
         private const int UiElementTextOffset = 0x360;
-        private readonly List<TagChip> cachedTagChips = new();
+        private List<TagChip> cachedTagChips = new();
         private readonly Dictionary<IntPtr, Tracked> trackTag = new();
         private DateTime nextTagScanUtc = DateTime.MinValue;
-        private object? handleObj;
-        private object? uiParentsObj;
-        private MethodInfo? readUiOffsetMethod;
-        private MethodInfo? readStdVectorMethod;
-        private MethodInfo? readStdWStringStructMethod;
-        private MethodInfo? readStdWStringMethod;
-        private MethodInfo? readIntPtrMethod;
         private readonly HashSet<string> groundTagNames = new(StringComparer.OrdinalIgnoreCase);
         private SlotScanReport leftSlotReport = new(IntPtr.Zero);
         private SlotScanReport rightSlotReport = new(IntPtr.Zero);
@@ -77,8 +73,41 @@ namespace LootValue
         private IntPtr cachedRightPanelAddress;
         private IntPtr cachedRitualGridAddress;
         private DateTime nextSlotScanUtc = DateTime.MinValue;
-        private readonly List<ExchangePriceLabel> cachedExchangeLabels = new();
+        private bool isSlotScanRunning = false;
+        private List<ExchangePriceLabel> cachedExchangeLabels = new();
         private DateTime nextExchangeScanUtc = DateTime.MinValue;
+        private bool isRecomputeRunning = false;
+        private bool isTagScanRunning = false;
+        private bool isAlertScanRunning = false;
+        private bool isExchangeScanRunning = false;
+        private bool isMonolithScanRunning = false;
+        private bool isRuneshapeUiScanRunning = false;
+        private List<RuneshapeRowPriceLabel> cachedRuneshapeRows = new();
+        private DateTime nextRuneshapeUiScanUtc = DateTime.MinValue;
+        private DateTime nextScrollRefreshUtc = DateTime.MinValue;
+        private ScrollFrameState cachedLeftScroll = ScrollFrameState.None;
+        private ScrollFrameState cachedRightScroll = ScrollFrameState.None;
+        private ScrollFrameState cachedRitualScroll = ScrollFrameState.None;
+
+        // Valuable Drop Alerts
+        [LibraryImport("winmm.dll", EntryPoint = "PlaySound", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool WinMmPlaySound(byte[]? ptrToSound, IntPtr hmod, uint fdwSound);
+
+        private const uint SndAsync = 0x0001;
+        private const uint SndMemory = 0x0004;
+        private const uint SndNoDefault = 0x0002;
+
+        private static byte[]? rawWavBytes;
+        private static byte[]? scaledWavBytes;
+        private static int cachedVolumePercent = -1;
+
+        private ActiveCoroutine? onAreaChangeCoroutine;
+        private readonly HashSet<uint> alertedEntityIds = new();
+        private List<ActiveDropAlert> activeAlertDrops = new();
+        private readonly List<DropAlertBanner> activeAlertBanners = new();
+        private DateTime nextAlertScanUtc = DateTime.MinValue;
+        private DateTime lastAlertSoundUtc = DateTime.MinValue;
 
         private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
 
@@ -92,8 +121,18 @@ namespace LootValue
                 try
                 {
                     var settingsJson = File.ReadAllText(this.SettingPathname);
-                    shouldMigrateStashSettings = JObject.Parse(settingsJson)[nameof(LootValueSettings.ShowStashOverlay)] == null;
-                    this.Settings = JsonConvert.DeserializeObject<LootValueSettings>(settingsJson) ?? new LootValueSettings();
+                    using var settingsDocument = JsonDocument.Parse(settingsJson);
+                    shouldMigrateStashSettings = !settingsDocument.RootElement.TryGetProperty(
+                        nameof(LootValueSettings.ShowStashOverlay), out _);
+                    this.Settings = JsonSerializer.Deserialize(
+                        settingsJson,
+                        LootValueJsonContext.Default.LootValueSettings) ?? new LootValueSettings();
+
+                    // Migrate legacy single-currency values if newly added per-currency values are default
+                    if (this.Settings.DisplayCurrency == 2 && this.Settings.HighlightMinChaos == 10f && this.Settings.HighlightMinEx > 0f)
+                    {
+                        this.Settings.HighlightMinChaos = Math.Clamp(this.Settings.HighlightMinEx, 1f, 100f);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -111,6 +150,9 @@ namespace LootValue
 
             PoeNinjaPriceFetcher.Configure(this.Settings.PriceSource, this.Settings.League ?? string.Empty, this.Settings.RefreshIntervalMin);
             PoeNinjaPriceFetcher.Initialize(this.DllDirectory);
+            RuneshapeCatalog.Reload(this.DllDirectory);
+
+            this.onAreaChangeCoroutine = CoroutineHandler.Start(this.OnAreaChange());
         }
 
         private bool TryMigrateLeagueDefault()
@@ -141,14 +183,22 @@ namespace LootValue
 
                 try
                 {
-                    var legacy = JObject.Parse(File.ReadAllText(legacyPath));
-                    this.Settings.ShowStashOverlay = legacy.Value<bool?>("ShowOverlay") ?? this.Settings.ShowStashOverlay;
-                    this.Settings.ShowInventoryOverlay = legacy.Value<bool?>("ShowInventoryOverlay") ?? this.Settings.ShowInventoryOverlay;
-                    this.Settings.HideSlotPricesOnHover = legacy.Value<bool?>("HidePriceOnHover") ?? this.Settings.HideSlotPricesOnHover;
-                    this.Settings.ShowSlotDebugInfo = legacy.Value<bool?>("ShowDebugInfo") ?? this.Settings.ShowSlotDebugInfo;
-                    this.Settings.SlotFontScale = legacy.Value<float?>("PriceFontScale") ?? this.Settings.SlotFontScale;
-                    this.Settings.SlotOffsetX = legacy.Value<float?>("PriceOffsetX") ?? this.Settings.SlotOffsetX;
-                    this.Settings.SlotOffsetY = legacy.Value<float?>("PriceOffsetY") ?? this.Settings.SlotOffsetY;
+                    using var legacyDocument = JsonDocument.Parse(File.ReadAllText(legacyPath));
+                    var legacy = legacyDocument.RootElement;
+                    if (legacy.TryGetProperty("ShowOverlay", out var showOverlay) && showOverlay.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.ShowStashOverlay = showOverlay.GetBoolean();
+                    if (legacy.TryGetProperty("ShowInventoryOverlay", out var showInventoryOverlay) && showInventoryOverlay.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.ShowInventoryOverlay = showInventoryOverlay.GetBoolean();
+                    if (legacy.TryGetProperty("HidePriceOnHover", out var hidePriceOnHover) && hidePriceOnHover.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.HideSlotPricesOnHover = hidePriceOnHover.GetBoolean();
+                    if (legacy.TryGetProperty("ShowDebugInfo", out var showDebugInfo) && showDebugInfo.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                        this.Settings.ShowSlotDebugInfo = showDebugInfo.GetBoolean();
+                    if (legacy.TryGetProperty("PriceFontScale", out var priceFontScale) && priceFontScale.TryGetSingle(out var fontScale))
+                        this.Settings.SlotFontScale = fontScale;
+                    if (legacy.TryGetProperty("PriceOffsetX", out var priceOffsetX) && priceOffsetX.TryGetSingle(out var offsetX))
+                        this.Settings.SlotOffsetX = offsetX;
+                    if (legacy.TryGetProperty("PriceOffsetY", out var priceOffsetY) && priceOffsetY.TryGetSingle(out var offsetY))
+                        this.Settings.SlotOffsetY = offsetY;
                     return true;
                 }
                 catch (Exception ex)
@@ -163,19 +213,18 @@ namespace LootValue
         /// <inheritdoc/>
         public override void OnDisable()
         {
+            this.onAreaChangeCoroutine?.Cancel();
+            this.onAreaChangeCoroutine = null;
+            this.alertedEntityIds.Clear();
+            this.activeAlertDrops.Clear();
+            this.activeAlertBanners.Clear();
+
             this.cachedLabels.Clear();
             this.cachedTagChips.Clear();
             this.trackWorld.Clear();
             this.trackTag.Clear();
             this.nextRecomputeUtc = DateTime.MinValue;
             this.nextTagScanUtc = DateTime.MinValue;
-            this.handleObj = null;
-            this.uiParentsObj = null;
-            this.readUiOffsetMethod = null;
-            this.readStdVectorMethod = null;
-            this.readStdWStringStructMethod = null;
-            this.readStdWStringMethod = null;
-            this.readIntPtrMethod = null;
             this.groundTagNames.Clear();
             this.cachedLeftSlots.Clear();
             this.cachedRightSlots.Clear();
@@ -183,9 +232,131 @@ namespace LootValue
             this.cachedLeftPanelAddress = IntPtr.Zero;
             this.cachedRightPanelAddress = IntPtr.Zero;
             this.cachedRitualGridAddress = IntPtr.Zero;
-            this.nextSlotScanUtc = DateTime.MinValue;
             this.cachedExchangeLabels.Clear();
             this.nextExchangeScanUtc = DateTime.MinValue;
+            this.cachedMonoliths.Clear();
+            this.nextMonolithScanUtc = DateTime.MinValue;
+            this.cachedRuneshapeRows.Clear();
+            this.nextRuneshapeUiScanUtc = DateTime.MinValue;
+            this.isSlotScanRunning = false;
+            this.isRecomputeRunning = false;
+            this.isTagScanRunning = false;
+            this.isAlertScanRunning = false;
+            this.isExchangeScanRunning = false;
+            this.isMonolithScanRunning = false;
+            this.isRuneshapeUiScanRunning = false;
+            this.cachedLeftScroll = ScrollFrameState.None;
+            this.cachedRightScroll = ScrollFrameState.None;
+            this.cachedRitualScroll = ScrollFrameState.None;
+        }
+
+        private IEnumerable<Wait> OnAreaChange()
+        {
+            while (true)
+            {
+                yield return new Wait(RemoteEvents.AreaChanged);
+                this.alertedEntityIds.Clear();
+                this.activeAlertBanners.Clear();
+                this.activeAlertDrops.Clear();
+            }
+        }
+
+        private void PrepareWavBuffer()
+        {
+            try
+            {
+                var soundPath = Path.Combine(this.DllDirectory, "default.wav");
+                if (!File.Exists(soundPath)) return;
+
+                if (rawWavBytes == null)
+                {
+                    rawWavBytes = File.ReadAllBytes(soundPath);
+                }
+
+                var vol = Math.Clamp(this.Settings.AlertVolumePercent, 0, 100);
+                if (cachedVolumePercent == vol && scaledWavBytes != null)
+                {
+                    return;
+                }
+
+                cachedVolumePercent = vol;
+                if (vol <= 0)
+                {
+                    scaledWavBytes = null;
+                    return;
+                }
+
+                var copy = (byte[])rawWavBytes.Clone();
+                int dataIndex = -1;
+                for (int i = 0; i < copy.Length - 4; i++)
+                {
+                    if (copy[i] == 'd' && copy[i + 1] == 'a' && copy[i + 2] == 't' && copy[i + 3] == 'a')
+                    {
+                        dataIndex = i + 8;
+                        break;
+                    }
+                }
+
+                if (dataIndex != -1)
+                {
+                    float factor = vol / 100f;
+                    for (int i = dataIndex; i < copy.Length - 1; i += 2)
+                    {
+                        short sample = (short)(copy[i] | (copy[i + 1] << 8));
+                        short newSample = (short)Math.Clamp((int)(sample * factor), short.MinValue, short.MaxValue);
+                        copy[i] = (byte)(newSample & 0xFF);
+                        copy[i + 1] = (byte)((newSample >> 8) & 0xFF);
+                    }
+                }
+
+                scaledWavBytes = copy;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LootValue] Error preparing WAV buffer: {ex.Message}");
+            }
+        }
+
+        private void PlayAlertSound(bool force = false)
+        {
+            if (!this.Settings.EnableAlertSound && !force) return;
+            if (this.Settings.AlertVolumePercent <= 0) return;
+
+            var now = DateTime.UtcNow;
+            if (!force && (now - this.lastAlertSoundUtc).TotalMilliseconds < 500) return;
+            this.lastAlertSoundUtc = now;
+
+            try
+            {
+                this.PrepareWavBuffer();
+                if (scaledWavBytes != null)
+                {
+                    WinMmPlaySound(scaledWavBytes, IntPtr.Zero, SndAsync | SndMemory | SndNoDefault);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LootValue] Failed to play alert sound: {ex.Message}");
+            }
+        }
+
+        private float CurrentHighlightMin
+        {
+            get => this.Settings.DisplayCurrency switch
+            {
+                0 => this.Settings.HighlightMinDiv,
+                2 => this.Settings.HighlightMinChaos,
+                _ => this.Settings.HighlightMinEx
+            };
+            set
+            {
+                switch (this.Settings.DisplayCurrency)
+                {
+                    case 0: this.Settings.HighlightMinDiv = value; break;
+                    case 2: this.Settings.HighlightMinChaos = value; break;
+                    default: this.Settings.HighlightMinEx = value; break;
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -194,7 +365,9 @@ namespace LootValue
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-                File.WriteAllText(this.SettingPathname, JsonConvert.SerializeObject(this.Settings, Formatting.Indented));
+                File.WriteAllText(
+                    this.SettingPathname,
+                    JsonSerializer.Serialize(this.Settings, LootValueJsonContext.Default.LootValueSettings));
             }
             catch (Exception ex)
             {
@@ -225,8 +398,32 @@ namespace LootValue
             ImGui.SameLine();
             if (ImGui.RadioButton(this.PluginText.Label("currency.divine", "Divine", "LootValueCurrencyDivine"), this.Settings.DisplayCurrency == 0)) this.Settings.DisplayCurrency = 0;
 
-            ImGui.SliderFloat(this.PluginText.Label("settings.min_value_to_show", "Min value to show (ex)", "LootValueMinValueToShow"), ref this.Settings.MinValueEx, 0f, 50f, "%.2f");
-            ImGui.SliderFloat(this.PluginText.Label("settings.highlight_from", "Highlight from (ex)", "LootValueHighlightFrom"), ref this.Settings.HighlightMinEx, 0f, 200f, "%.1f");
+            var curSymbol = this.Settings.DisplayCurrency switch
+            {
+                0 => "div",
+                2 => "c",
+                _ => "ex"
+            };
+
+            var (minHighlight, maxHighlight) = this.Settings.DisplayCurrency switch
+            {
+                0 => (0f, 100f),
+                2 => (1f, 100f),
+                _ => (50f, 1000f)
+            };
+
+            var hlFormat = this.Settings.DisplayCurrency switch
+            {
+                0 => "%.1f",
+                2 => "%.0f",
+                _ => "%.0f"
+            };
+
+            var curHlVal = this.CurrentHighlightMin;
+            if (ImGui.SliderFloat($"Highlight from ({curSymbol})###LootValueHighlightFrom", ref curHlVal, minHighlight, maxHighlight, hlFormat))
+            {
+                this.CurrentHighlightMin = curHlVal;
+            }
             ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Font size", "LootValueFontSize"), ref this.Settings.FontSize, 8f, 48f, "%.0f");
             ImGui.SliderFloat(this.PluginText.Label("settings.highlight_font_size", "Highlight font size", "LootValueHighlightFontSize"), ref this.Settings.HighlightFontSize, 8f, 64f, "%.0f");
             ImGui.Checkbox(this.PluginText.Label("settings.highlight_bold", "Highlight bold", "LootValueHighlightBold"), ref this.Settings.HighlightBold);
@@ -246,28 +443,88 @@ namespace LootValue
             ImGui.TextDisabled(this.PluginText.T("settings.slot_rescan_interval.tooltip", "Cached slot values draw every frame; panel traversal and pricing run at this interval."));
 
             ImGui.ColorEdit4(this.PluginText.Label("settings.text_color", "Text color", "LootValueTextColor"), ref this.Settings.TextColor);
-            ImGui.ColorEdit4(this.PluginText.Label("settings.highlight_color", "Highlight color", "LootValueHighlightColor"), ref this.Settings.HighlightColor);
+            ImGui.ColorEdit4(this.PluginText.Label("settings.highlight_color", "Highlight text color", "LootValueHighlightColor"), ref this.Settings.HighlightColor);
+            ImGui.ColorEdit4(this.PluginText.Label("settings.highlight_bg_color", "Highlight background color", "LootValueHighlightBgColor"), ref this.Settings.HighlightBackgroundColor);
 
             ImGui.Separator();
-            ImGui.Text(this.PluginText.T("section.price_source", "Price source"));
-            if (ImGui.RadioButton("poe2scout", this.Settings.PriceSource == PoeNinjaPriceFetcher.SourcePoe2Scout))
-                this.Settings.PriceSource = PoeNinjaPriceFetcher.SourcePoe2Scout;
+            ImGui.Text(this.PluginText.T("section.drop_alerts", "Valuable Drop Alerts"));
+            ImGui.Checkbox(this.PluginText.Label("settings.enable_alert_sound", "Play alert sound", "LootValueEnableAlertSound"), ref this.Settings.EnableAlertSound);
             ImGui.SameLine();
-            if (ImGui.RadioButton("poe.ninja", this.Settings.PriceSource == PoeNinjaPriceFetcher.SourcePoeNinja))
-                this.Settings.PriceSource = PoeNinjaPriceFetcher.SourcePoeNinja;
-
-            if (PoeNinjaPriceFetcher.IsUsingFallback)
+            if (ImGui.Button(this.PluginText.Label("button.test_sound", "Test Sound", "LootValueTestSound")))
             {
-                ImGui.TextColored(
-                    new Vector4(0.9f, 0.7f, 0.2f, 1f),
-                    this.PluginText.F(
-                        "status.automatic_fallback",
-                        "Automatic fallback active: {0}",
-                        PoeNinjaPriceFetcher.ActiveSourceName));
+                this.PlayAlertSound(force: true);
             }
 
-            ImGui.InputText(this.PluginText.Label("settings.league", "League", "LootValueLeague"), ref this.Settings.League, 64);
-            ImGui.SliderInt(this.PluginText.Label("settings.refresh_interval", "Refresh interval (min)", "LootValueRefreshInterval"), ref this.Settings.RefreshIntervalMin, 1, 120);
+            ImGui.SliderInt(this.PluginText.Label("settings.alert_volume", "Alert volume (%)", "LootValueAlertVolume"), ref this.Settings.AlertVolumePercent, 0, 100);
+            ImGui.Checkbox(this.PluginText.Label("settings.enable_alert_banner", "Show alert banner (screen top)", "LootValueEnableAlertBanner"), ref this.Settings.EnableAlertBanner);
+            ImGui.Checkbox(this.PluginText.Label("settings.enable_alert_beam", "Show beam & pointer to drop", "LootValueEnableAlertBeam"), ref this.Settings.EnableAlertBeam);
+
+            var curName = this.Settings.DisplayCurrency switch
+            {
+                0 => "Divine",
+                1 => "Exalted",
+                _ => "Chaos"
+            };
+            ImGui.SliderFloat(this.PluginText.Label("settings.alert_threshold", $"Alert threshold ({curName})", "LootValueAlertThreshold"), ref this.Settings.AlertMinDisplayValue, 0.1f, 100f, $"%.1f {curName}");
+            ImGui.SliderFloat(this.PluginText.Label("settings.banner_duration", "Banner duration (sec)", "LootValueBannerDuration"), ref this.Settings.AlertBannerDurationSec, 2f, 20f, "%.1f s");
+
+            ImGui.Separator();
+            ImGui.Text(this.PluginText.T("section.expedition", "PoE 2 Expedition (Runeshape Monolith & Crafting)"));
+            ImGui.Checkbox(this.PluginText.Label("settings.expedition_world_overlay", "Show 3D World Badge Above Monoliths", "LootValueExpeditionWorld"), ref this.Settings.EnableExpeditionWorldOverlay);
+            if (this.Settings.EnableExpeditionWorldOverlay)
+            {
+                ImGui.Indent();
+                ImGui.SliderFloat(this.PluginText.Label("settings.expedition_badge_offset_x", "Monolith badge horizontal offset (X: Left/Right)", "LootValueExpeditionBadgeOffsetX"), ref this.Settings.ExpeditionBadgeOffsetX, -600f, 600f);
+                ImGui.SliderFloat(this.PluginText.Label("settings.expedition_badge_offset_y", "Monolith badge vertical offset (Y: Up/Down)", "LootValueExpeditionBadgeOffsetY"), ref this.Settings.ExpeditionBadgeOffsetY, -600f, 600f);
+                ImGui.Unindent();
+            }
+
+            ImGui.Checkbox(this.PluginText.Label("settings.runeshape_ui_prices", "Show Prices in Runeshape UI Panel", "LootValueRuneshapeUi"), ref this.Settings.EnableRuneshapeUiPrices);
+            if (this.Settings.EnableRuneshapeUiPrices)
+            {
+                ImGui.Indent();
+                ImGui.SliderFloat(this.PluginText.Label("settings.runeshape_ui_offset_x", "Runeshape UI horizontal offset (X: Left/Right)", "LootValueRuneshapeUiOffsetX"), ref this.Settings.RuneshapeUiOffsetX, -300f, 300f);
+                ImGui.SliderFloat(this.PluginText.Label("settings.runeshape_ui_offset_y", "Runeshape UI vertical offset (Y: Up/Down)", "LootValueRuneshapeUiOffsetY"), ref this.Settings.RuneshapeUiOffsetY, -300f, 300f);
+                ImGui.Unindent();
+            }
+
+            ImGui.Checkbox(this.PluginText.Label("settings.hide_completed_monoliths", "Hide Completed Monoliths", "LootValueHideCompletedMonoliths"), ref this.Settings.HideCompletedMonoliths);
+
+            ImGui.Separator();
+            ImGui.Text(this.PluginText.T("section.price_source", "Price source: poe.ninja (100%)"));
+
+            var availableLeagues = PoeNinjaPriceFetcher.AvailableLeagues;
+            var currentLeague = this.Settings.League ?? string.Empty;
+            var selectedIndex = availableLeagues.FindIndex(l => string.Equals(l, currentLeague, StringComparison.OrdinalIgnoreCase));
+            if (selectedIndex < 0 && availableLeagues.Count > 0)
+            {
+                selectedIndex = 0;
+                this.Settings.League = availableLeagues[0];
+            }
+
+            var preview = selectedIndex >= 0 && selectedIndex < availableLeagues.Count ? availableLeagues[selectedIndex] : currentLeague;
+            if (ImGui.BeginCombo(this.PluginText.Label("settings.league", "League", "LootValueLeague"), preview))
+            {
+                for (var i = 0; i < availableLeagues.Count; i++)
+                {
+                    var isSelected = i == selectedIndex;
+                    if (ImGui.Selectable(availableLeagues[i], isSelected))
+                    {
+                        this.Settings.League = availableLeagues[i];
+                        PoeNinjaPriceFetcher.Configure(this.Settings.PriceSource, this.Settings.League, this.Settings.RefreshIntervalMin);
+                        PoeNinjaPriceFetcher.ForceRefresh(this.DllDirectory, ignoreCooldown: true);
+                    }
+
+                    if (isSelected)
+                    {
+                        ImGui.SetItemDefaultFocus();
+                    }
+                }
+
+                ImGui.EndCombo();
+            }
+
+            ImGui.SliderInt(this.PluginText.Label("settings.refresh_interval", "Refresh interval (min)", "LootValueRefreshInterval"), ref this.Settings.RefreshIntervalMin, 30, 60);
             if (ImGui.Button(this.PluginText.Label("button.refresh_prices_now", "Refresh prices now", "LootValueRefreshPricesNow")))
             {
                 PoeNinjaPriceFetcher.Configure(this.Settings.PriceSource, this.Settings.League ?? string.Empty, this.Settings.RefreshIntervalMin);
@@ -315,14 +572,54 @@ namespace LootValue
             }
 
             var now = DateTime.UtcNow;
+
+            if (this.Settings.EnableAlertSound || this.Settings.EnableAlertBanner || this.Settings.EnableAlertBeam)
+            {
+                if (now >= this.nextAlertScanUtc && !this.isAlertScanRunning)
+                {
+                    this.nextAlertScanUtc = now.AddMilliseconds(Math.Max(50, this.Settings.RescanIntervalMs));
+                    this.isAlertScanRunning = true;
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            this.ProcessDropAlerts();
+                        }
+                        catch
+                        {
+                        }
+                        finally
+                        {
+                            this.isAlertScanRunning = false;
+                        }
+                    });
+                }
+
+                this.DrawDropAlerts();
+            }
+
             if (this.Settings.ShowOverlay && this.Settings.AnchorToLootTags)
             {
                 if (this.EnsureReflection())
                 {
-                    if (now >= this.nextTagScanUtc)
+                    if (now >= this.nextTagScanUtc && !this.isTagScanRunning)
                     {
                         this.nextTagScanUtc = now.AddMilliseconds(Math.Max(16, this.Settings.RescanIntervalMs));
-                        this.ScanLootTags();
+                        this.isTagScanRunning = true;
+                        Task.Run(() =>
+                        {
+                            try
+                            {
+                                this.ScanLootTags();
+                            }
+                            catch
+                            {
+                            }
+                            finally
+                            {
+                                this.isTagScanRunning = false;
+                            }
+                        });
                     }
 
                     this.DrawTagChips();
@@ -330,10 +627,24 @@ namespace LootValue
             }
             else if (this.Settings.ShowOverlay)
             {
-                if (now >= this.nextRecomputeUtc)
+                if (now >= this.nextRecomputeUtc && !this.isRecomputeRunning)
                 {
                     this.nextRecomputeUtc = now.AddMilliseconds(Math.Max(16, this.Settings.RescanIntervalMs));
-                    this.RecomputeLabels();
+                    this.isRecomputeRunning = true;
+                    Task.Run(() =>
+                    {
+                        try
+                        {
+                            this.RecomputeLabels();
+                        }
+                        catch
+                        {
+                        }
+                        finally
+                        {
+                            this.isRecomputeRunning = false;
+                        }
+                    });
                 }
 
                 this.DrawLabels();
@@ -349,14 +660,25 @@ namespace LootValue
             {
                 this.DrawCurrencyExchangeValues();
             }
+
+            if (this.Settings.EnableExpeditionWorldOverlay)
+            {
+                this.DrawExpeditionMonolithOverlay();
+            }
+
+            if (this.Settings.EnableRuneshapeUiPrices)
+            {
+                this.DrawRuneshapeUiOverlay();
+            }
         }
 
         /// <summary>Re-reads + reprices every ground item; throttled. The drawn position is updated live each frame.</summary>
         private void RecomputeLabels()
         {
-            this.cachedLabels.Clear();
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+            if (area == null || area.AwakeEntities == null) return;
 
-            var area = Core.States.InGameStateObject.CurrentAreaInstance;
+            var newLabels = new List<LootLabel>();
             foreach (var entity in area.AwakeEntities.Values)
             {
                 // Ground drops are identified by the WorldItem component (path-independent — the wrapper
@@ -368,18 +690,19 @@ namespace LootValue
                 if (item == null) continue;
 
                 if (!this.TryPriceItem(item, out var valueEx, out var label)) continue;
-                if (valueEx < this.Settings.MinValueEx) continue;
 
-                var highlight = valueEx >= this.Settings.HighlightMinEx;
+                var highlight = valueEx >= this.CurrentHighlightMin;
                 var color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
-                this.cachedLabels.Add(new LootLabel(entity.Id, render, label, color, highlight));
+                newLabels.Add(new LootLabel(entity.Id, render, label, color, highlight));
             }
+
+            this.cachedLabels = newLabels;
 
             // Drop tracker state for items no longer present (picked up / left the area).
             if (this.trackWorld.Count > 0)
             {
-                var live = new HashSet<uint>(this.cachedLabels.Count);
-                foreach (var l in this.cachedLabels) live.Add(l.EntityId);
+                var live = new HashSet<uint>(newLabels.Count);
+                foreach (var l in newLabels) live.Add(l.EntityId);
                 this.trackWorld.Keys.Where(k => !live.Contains(k)).ToList().ForEach(k => this.trackWorld.Remove(k));
             }
         }
@@ -425,7 +748,8 @@ namespace LootValue
             var bold = highlight && this.Settings.HighlightBold;
             var textWidth = ImGui.CalcTextSize(text).X * (fontSize / baseSize);
 
-            fg.AddRectFilled(pos - new Vector2(3f, 1f), pos + new Vector2(textWidth + 3f, fontSize + 1f), 0xB0000000u, 3f);
+            var bg = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightBackgroundColor : this.Settings.BackgroundColor);
+            fg.AddRectFilled(pos - new Vector2(3f, 1f), pos + new Vector2(textWidth + 3f, fontSize + 1f), bg, 3f);
             fg.AddText(font, fontSize, pos + new Vector2(1f, 1f), shadow, text);
             fg.AddText(font, fontSize, pos, color, text);
             if (bold)
@@ -439,29 +763,17 @@ namespace LootValue
 
         private bool EnsureReflection()
         {
-            if (this.handleObj != null) return true;
-            var handleProp = typeof(GameProcess).GetProperty("Handle", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.handleObj = handleProp?.GetValue(Core.Process);
-            if (this.handleObj == null) return false;
-
-            var methods = this.handleObj.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            var readMem = methods.First(m => m.Name == "ReadMemory" && m.IsGenericMethod && m.GetParameters().Length == 1);
-            var readVec = methods.First(m => m.Name == "ReadStdVector" && m.IsGenericMethod);
-            this.readUiOffsetMethod = readMem.MakeGenericMethod(typeof(UiElementBaseOffset));
-            this.readStdVectorMethod = readVec.MakeGenericMethod(typeof(IntPtr));
-            this.readStdWStringStructMethod = readMem.MakeGenericMethod(typeof(StdWString));
-            this.readStdWStringMethod = methods.First(m => m.Name == "ReadStdWString" && m.GetParameters().Length == 1);
-            this.readIntPtrMethod = readMem.MakeGenericMethod(typeof(IntPtr));
-            return true;
+            return Core.Process?.Handle != null;
         }
 
         private string ReadUiElementText(IntPtr element)
         {
             try
             {
-                var ws = this.readStdWStringStructMethod!.Invoke(this.handleObj, new object[] { element + UiElementTextOffset });
-                if (ws == null) return string.Empty;
-                return this.readStdWStringMethod!.Invoke(this.handleObj, new object[] { ws }) as string ?? string.Empty;
+                var handle = Core.Process?.Handle;
+                if (handle == null) return string.Empty;
+                var ws = handle.ReadMemory<StdWString>(element + UiElementTextOffset);
+                return handle.ReadStdWString(ws);
             }
             catch
             {
@@ -473,14 +785,16 @@ namespace LootValue
         /// anchored to that element. Throttled; the element's live rect is re-read each frame when drawing.</summary>
         private void ScanLootTags()
         {
-            this.cachedTagChips.Clear();
             this.RefreshGroundTagNames();
-            var gameUi = Core.States.InGameStateObject.GameUi;
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi == null) return;
             var root = gameUi.Address;
             var leftPanel = gameUi.LeftPanel.Address;
             var rightPanel = gameUi.RightPanel.Address;
-            if (root == IntPtr.Zero || this.readUiOffsetMethod == null || this.readStdVectorMethod == null) return;
+            var handle = Core.Process?.Handle;
+            if (root == IntPtr.Zero || handle == null) return;
 
+            var newTagChips = new List<TagChip>();
             var queue = new Queue<IntPtr>();
             var visited = new HashSet<IntPtr>();
             queue.Enqueue(root);
@@ -491,10 +805,11 @@ namespace LootValue
                 // Stash, inventory, vendor, and other large-panel text cannot be a ground loot label.
                 // Do not traverse those potentially enormous subtrees when a panel is open.
                 if (el != root && (el == leftPanel || el == rightPanel)) continue;
-                if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { el }) is not UiElementBaseOffset off) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(el, out var off)) continue;
                 if (el != root && !UiElementBaseFuncs.IsVisibleChecker(off.Flags)) continue;
 
-                if (this.readStdVectorMethod.Invoke(this.handleObj, new object[] { off.ChildrensPtr }) is IntPtr[] kids)
+                var kids = handle.ReadStdVector<IntPtr>(off.ChildrensPtr);
+                if (kids.Length > 0)
                 {
                     foreach (var k in kids) queue.Enqueue(k);
                 }
@@ -506,15 +821,17 @@ namespace LootValue
 
                 if (this.TryPriceTagText(firstLine, out var chipText, out var color, out var highlight))
                 {
-                    this.cachedTagChips.Add(new TagChip(el, chipText, color, highlight));
+                    newTagChips.Add(new TagChip(el, chipText, color, highlight));
                 }
             }
+
+            this.cachedTagChips = newTagChips;
 
             // Drop tracker state for labels that are gone (item picked up / left the area).
             if (this.trackTag.Count > 0)
             {
-                var live = new HashSet<IntPtr>(this.cachedTagChips.Count);
-                foreach (var c in this.cachedTagChips) live.Add(c.ElementAddress);
+                var live = new HashSet<IntPtr>(newTagChips.Count);
+                foreach (var c in newTagChips) live.Add(c.ElementAddress);
                 this.trackTag.Keys.Where(k => !live.Contains(k)).ToList().ForEach(k => this.trackTag.Remove(k));
             }
         }
@@ -542,12 +859,11 @@ namespace LootValue
             if (price == null) return false;
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * Math.Max(1, count) };
-            var (exVal, _) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, 1);
-            if (exVal < this.Settings.MinValueEx) return false;
-
             var (disp, cur) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
+            if (disp <= 0) return false;
+
             chipText = FormatValue(disp, cur);
-            highlight = exVal >= this.Settings.HighlightMinEx;
+            highlight = disp >= this.CurrentHighlightMin;
             color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
             return true;
         }
@@ -555,8 +871,8 @@ namespace LootValue
         private void DrawTagChips()
         {
             if (this.cachedTagChips.Count == 0) return;
-            this.uiParentsObj ??= PluginUiElementReflection.CreateParents();
-            if (this.uiParentsObj == null) return;
+            var handle = Core.Process?.Handle;
+            if (handle == null) return;
 
             var fg = ImGui.GetBackgroundDrawList();
             var font = ImGui.GetFont();
@@ -568,18 +884,14 @@ namespace LootValue
                 // UI element is self-referential (Self == its own address). If the element was freed since
                 // the scan (e.g. item picked up), this no longer holds — skip it so CreateUiElement (which
                 // would THROW on an invalid address) is never reached. try/catch remains as a backstop.
-                if (this.readUiOffsetMethod!.Invoke(this.handleObj, new object[] { chip.ElementAddress }) is not UiElementBaseOffset off) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(chip.ElementAddress, out var off)) continue;
                 if (off.Self != IntPtr.Zero && off.Self != chip.ElementAddress) continue; // exact inverse of the game's "not a Ui Element" guard
                 if (!UiElementBaseFuncs.IsVisibleChecker(off.Flags)) continue;
 
                 try
                 {
-                    var el = PluginUiElementReflection.CreateUiElement(chip.ElementAddress, this.uiParentsObj);
-                    if (el == null) continue;
-
-                    var pos = (Vector2)PluginUiElementReflection.UiElementPositionProperty!.GetValue(el)!;
-                    var size = (Vector2)PluginUiElementReflection.UiElementSizeProperty!.GetValue(el)!;
-                    if (size.X <= 0f || pos == Vector2.Zero) continue;
+                    if (!PluginUiElementReflection.TryGetAbsoluteRect(chip.ElementAddress, out var pos, out var size)) continue;
+                    if (size.X <= 0f || size.Y <= 0f || pos == Vector2.Zero) continue;
 
                     var fontSize = chip.Highlight ? this.Settings.HighlightFontSize : this.Settings.FontSize;
                     var chipPos = new Vector2(pos.X + size.X + 6f, pos.Y + ((size.Y - fontSize) / 2f));
@@ -623,12 +935,22 @@ namespace LootValue
                 if (!item.TryGetComponent<Mods>(out var mods) || mods.Rarity != Rarity.Unique ||
                     !item.TryGetComponent<RenderItem>(out var renderItem)) continue;
 
-                foreach (var key in ArtKeyVariants(ExtractArtBasename(renderItem.ResourcePath)))
+                var artPath = renderItem.ResourcePath;
+                if (!string.IsNullOrEmpty(artPath) &&
+                    PoeNinjaPriceFetcher.TryResolveDisplayName(artPath, out var uniqueNameFromPath) &&
+                    !PoeNinjaPriceFetcher.IsGenericLookupName(uniqueNameFromPath))
                 {
-                    if (PoeNinjaPriceFetcher.TryResolveDisplayName(key, out var uniqueName) &&
-                        !PoeNinjaPriceFetcher.IsGenericLookupName(uniqueName))
+                    this.groundTagNames.Add(uniqueNameFromPath.Trim());
+                }
+                else
+                {
+                    foreach (var key in ArtKeyVariants(ExtractArtBasename(artPath)))
                     {
-                        this.groundTagNames.Add(uniqueName.Trim());
+                        if (PoeNinjaPriceFetcher.TryResolveDisplayName(key, out var uniqueName) &&
+                            !PoeNinjaPriceFetcher.IsGenericLookupName(uniqueName))
+                        {
+                            this.groundTagNames.Add(uniqueName.Trim());
+                        }
                     }
                 }
             }
@@ -640,10 +962,24 @@ namespace LootValue
             if (!this.EnsureReflection()) return;
 
             var now = DateTime.UtcNow;
-            if (now >= this.nextExchangeScanUtc)
+            if (now >= this.nextExchangeScanUtc && !this.isExchangeScanRunning)
             {
                 this.nextExchangeScanUtc = now.AddMilliseconds(Math.Clamp(this.Settings.SlotRescanIntervalMs, 100, 2000));
-                this.ScanCurrencyExchange();
+                this.isExchangeScanRunning = true;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        this.ScanCurrencyExchange();
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        this.isExchangeScanRunning = false;
+                    }
+                });
             }
 
             if (this.cachedExchangeLabels.Count == 0) return;
@@ -665,16 +1001,28 @@ namespace LootValue
 
         private void ScanCurrencyExchange()
         {
-            this.cachedExchangeLabels.Clear();
             var root = this.ResolveUiPath(Core.States.InGameStateObject.GameUi.Address, CurrencyExchangeRootPath);
-            if (root == IntPtr.Zero || !this.TryGetVisibleChildren(root, out var rootChildren) || rootChildren.Length <= 1) return;
+            if (root == IntPtr.Zero || !this.TryGetVisibleChildren(root, out var rootChildren) || rootChildren.Length <= 1)
+            {
+                this.cachedExchangeLabels = new List<ExchangePriceLabel>();
+                return;
+            }
 
             // [114][20][6][1] is the complete item list. Its visibility is the reliable signal that
             // Currency Exchange is open; only categories enabled by the selected tab are visible below it.
             var listAddress = rootChildren[1];
-            if (!this.TryGetVisibleChildren(listAddress, out var categoryAddresses)) return;
-            if (!PluginUiElementReflection.TryGetAbsoluteRect(root, out var viewportPosition, out var viewportSize)) return;
+            if (!this.TryGetVisibleChildren(listAddress, out var categoryAddresses))
+            {
+                this.cachedExchangeLabels = new List<ExchangePriceLabel>();
+                return;
+            }
+            if (!PluginUiElementReflection.TryGetAbsoluteRect(root, out var viewportPosition, out var viewportSize))
+            {
+                this.cachedExchangeLabels = new List<ExchangePriceLabel>();
+                return;
+            }
             var viewportMax = viewportPosition + viewportSize;
+            var newLabels = new List<ExchangePriceLabel>();
 
             foreach (var categoryAddress in categoryAddresses)
             {
@@ -707,10 +1055,12 @@ namespace LootValue
                         var labelPosition = new Vector2(
                             iconPosition.X + this.Settings.SlotOffsetX,
                             iconPosition.Y + iconSize.Y - fontSize + this.Settings.SlotOffsetY);
-                        this.cachedExchangeLabels.Add(new ExchangePriceLabel(labelPosition, text, color, highlight));
+                        newLabels.Add(new ExchangePriceLabel(labelPosition, text, color, highlight));
                     }
                 }
             }
+
+            this.cachedExchangeLabels = newLabels;
         }
 
         private bool TryGetVisibleChildren(IntPtr address, out IntPtr[] children)
@@ -721,11 +1071,12 @@ namespace LootValue
         private bool TryGetChildren(IntPtr address, bool requireVisible, out IntPtr[] children)
         {
             children = Array.Empty<IntPtr>();
-            if (address == IntPtr.Zero || this.readUiOffsetMethod == null || this.readStdVectorMethod == null ||
-                this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { address }) is not UiElementBaseOffset offset ||
+            var handle = Core.Process?.Handle;
+            if (address == IntPtr.Zero || handle == null ||
+                !handle.TryReadMemory<UiElementBaseOffset>(address, out var offset) ||
                 (requireVisible && !UiElementBaseFuncs.IsVisibleChecker(offset.Flags))) return false;
 
-            children = this.readStdVectorMethod.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) as IntPtr[] ?? Array.Empty<IntPtr>();
+            children = handle.ReadStdVector<IntPtr>(offset.ChildrensPtr);
             return true;
         }
 
@@ -764,12 +1115,11 @@ namespace LootValue
             if (price == null) return false;
 
             var priced = new PoeNinjaPrice { PriceChaos = price.PriceChaos * amount };
-            var (exValue, _) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, 1);
-            if (exValue < this.Settings.MinValueEx) return false;
-
             var (displayValue, displayCurrency) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
+            if (displayValue <= 0) return false;
+
             text = FormatValue(displayValue, displayCurrency);
-            highlight = exValue >= this.Settings.HighlightMinEx;
+            highlight = displayValue >= this.CurrentHighlightMin;
             color = ImGui.ColorConvertFloat4ToU32(highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
             return true;
         }
@@ -797,56 +1147,88 @@ namespace LootValue
             }
 
             var now = DateTime.UtcNow;
-            if (now >= this.nextSlotScanUtc)
+            if (now >= this.nextSlotScanUtc && !this.isSlotScanRunning)
             {
                 this.nextSlotScanUtc = now.AddMilliseconds(Math.Clamp(this.Settings.SlotRescanIntervalMs, 100, 2000));
-                if (leftAddress != IntPtr.Zero)
-                {
-                    this.cachedLeftSlots = this.ScanItemSlots(
-                        leftAddress,
-                        gameUi.LeftPanel.Position,
-                        gameUi.LeftPanel.Size,
-                        out this.leftSlotReport);
-                }
-                else
-                {
-                    this.cachedLeftSlots.Clear();
-                    this.leftSlotReport = new SlotScanReport(IntPtr.Zero);
-                }
+                this.isSlotScanRunning = true;
 
-                if (rightAddress != IntPtr.Zero)
-                {
-                    this.cachedRightSlots = this.ScanItemSlots(
-                        rightAddress,
-                        gameUi.RightPanel.Position,
-                        gameUi.RightPanel.Size,
-                        out this.rightSlotReport);
-                }
-                else
-                {
-                    this.cachedRightSlots.Clear();
-                    this.rightSlotReport = new SlotScanReport(IntPtr.Zero);
-                }
+                var leftPos = gameUi.LeftPanel.Position;
+                var leftSize = gameUi.LeftPanel.Size;
+                var rightPos = gameUi.RightPanel.Position;
+                var rightSize = gameUi.RightPanel.Size;
+                var ritualPos = Vector2.Zero;
+                var ritualSize = Vector2.Zero;
+                var hasRitualRect = ritualAddress != IntPtr.Zero && PluginUiElementReflection.TryGetAbsoluteRect(ritualAddress, out ritualPos, out ritualSize);
 
-                if (ritualAddress != IntPtr.Zero &&
-                    PluginUiElementReflection.TryGetAbsoluteRect(ritualAddress, out var ritualPosition, out var ritualSize))
+                Task.Run(() =>
                 {
-                    this.cachedRitualSlots = this.ScanItemSlots(
-                        ritualAddress,
-                        ritualPosition,
-                        ritualSize,
-                        out this.ritualSlotReport);
-                }
-                else
-                {
-                    this.cachedRitualSlots.Clear();
-                    this.ritualSlotReport = new SlotScanReport(IntPtr.Zero);
-                }
+                    try
+                    {
+                        List<SlotInfo> newLeftSlots;
+                        SlotScanReport newLeftReport;
+                        if (leftAddress != IntPtr.Zero)
+                        {
+                            newLeftSlots = this.ScanItemSlots(leftAddress, leftPos, leftSize, out newLeftReport);
+                        }
+                        else
+                        {
+                            newLeftSlots = new List<SlotInfo>();
+                            newLeftReport = new SlotScanReport(IntPtr.Zero);
+                        }
+
+                        List<SlotInfo> newRightSlots;
+                        SlotScanReport newRightReport;
+                        if (rightAddress != IntPtr.Zero)
+                        {
+                            newRightSlots = this.ScanItemSlots(rightAddress, rightPos, rightSize, out newRightReport);
+                        }
+                        else
+                        {
+                            newRightSlots = new List<SlotInfo>();
+                            newRightReport = new SlotScanReport(IntPtr.Zero);
+                        }
+
+                        List<SlotInfo> newRitualSlots;
+                        SlotScanReport newRitualReport;
+                        if (hasRitualRect)
+                        {
+                            newRitualSlots = this.ScanItemSlots(ritualAddress, ritualPos, ritualSize, out newRitualReport);
+                        }
+                        else
+                        {
+                            newRitualSlots = new List<SlotInfo>();
+                            newRitualReport = new SlotScanReport(IntPtr.Zero);
+                        }
+
+                        this.cachedLeftSlots = newLeftSlots;
+                        this.leftSlotReport = newLeftReport;
+                        this.cachedRightSlots = newRightSlots;
+                        this.rightSlotReport = newRightReport;
+                        this.cachedRitualSlots = newRitualSlots;
+                        this.ritualSlotReport = newRitualReport;
+                    }
+                    catch
+                    {
+                        // Background scan error tolerance
+                    }
+                    finally
+                    {
+                        this.isSlotScanRunning = false;
+                    }
+                });
             }
 
-            var leftScroll = GetScrollFrameState(this.cachedLeftSlots);
-            var rightScroll = GetScrollFrameState(this.cachedRightSlots);
-            var ritualScroll = GetScrollFrameState(this.cachedRitualSlots);
+            if (now >= this.nextScrollRefreshUtc)
+            {
+                this.nextScrollRefreshUtc = now.AddMilliseconds(50);
+                this.cachedLeftScroll = GetScrollFrameState(this.cachedLeftSlots);
+                this.cachedRightScroll = GetScrollFrameState(this.cachedRightSlots);
+                this.cachedRitualScroll = GetScrollFrameState(this.cachedRitualSlots);
+            }
+
+            var leftScroll = this.cachedLeftScroll;
+            var rightScroll = this.cachedRightScroll;
+            var ritualScroll = this.cachedRitualScroll;
             var hidePrices = this.Settings.HideSlotPricesOnHover &&
                              (IsAnySlotHovered(this.cachedLeftSlots, leftScroll) ||
                               IsAnySlotHovered(this.cachedRightSlots, rightScroll) ||
@@ -870,10 +1252,13 @@ namespace LootValue
 
             // The fixed path is only accepted while at least one direct reward tile carries a valid
             // item pointer. This prevents a future UI-tree shift from pricing an unrelated panel.
+            var handle = Core.Process?.Handle;
+            if (handle == null) return IntPtr.Zero;
+
             foreach (var tile in tiles)
             {
-                var pointerValue = this.readIntPtrMethod?.Invoke(this.handleObj, new object[] { tile + UiElementItemAddressOffset });
-                if (pointerValue is IntPtr itemAddress && itemAddress != IntPtr.Zero &&
+                var itemAddress = handle.ReadMemory<IntPtr>(tile + UiElementItemAddressOffset);
+                if (itemAddress != IntPtr.Zero &&
                     PluginUiElementReflection.TryValidateItemAddress(itemAddress, out _, out _))
                 {
                     return candidate;
@@ -891,8 +1276,8 @@ namespace LootValue
         {
             report = new SlotScanReport(panelAddress);
             var candidatesByItem = new Dictionary<IntPtr, List<SlotElementCandidate>>();
-            if (panelAddress == IntPtr.Zero || this.readUiOffsetMethod == null ||
-                this.readStdVectorMethod == null || this.readIntPtrMethod == null) return new List<SlotInfo>();
+            var handle = Core.Process?.Handle;
+            if (panelAddress == IntPtr.Zero || handle == null) return new List<SlotInfo>();
 
             var queue = new Queue<(IntPtr Address, IntPtr Parent, ScrollBinding Scroll)>();
             var visited = new HashSet<IntPtr>();
@@ -903,10 +1288,11 @@ namespace LootValue
                 var (element, parent, scroll) = queue.Dequeue();
                 if (element == IntPtr.Zero || !visited.Add(element)) continue;
                 report.VisitedElements++;
-                if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { element }) is not UiElementBaseOffset offset) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(element, out var offset)) continue;
                 if (!UiElementBaseFuncs.IsVisibleChecker(offset.Flags)) continue;
 
-                if (this.readStdVectorMethod.Invoke(this.handleObj, new object[] { offset.ChildrensPtr }) is IntPtr[] children)
+                var children = handle.ReadStdVector<IntPtr>(offset.ChildrensPtr);
+                if (children.Length > 0)
                 {
                     var hasScrollContainer = this.TryGetScrollContainer(
                         children,
@@ -932,8 +1318,7 @@ namespace LootValue
                 }
 
                 // Slot discovery/rendering adapted from StashValueByZx0 by zx0CF1.
-                var pointerValue = this.readIntPtrMethod.Invoke(this.handleObj, new object[] { element + UiElementItemAddressOffset });
-                var itemAddress = pointerValue is IntPtr pointer ? pointer : IntPtr.Zero;
+                var itemAddress = handle.ReadMemory<IntPtr>(element + UiElementItemAddressOffset);
                 if (itemAddress == IntPtr.Zero) continue;
                 report.NonZeroPointers++;
 
@@ -990,11 +1375,11 @@ namespace LootValue
                 }
 
                 report.ValidItems++;
-                if (!this.TryPriceItem(item, out var valueEx, out var valueText, includeUniqueName: false) ||
-                    valueEx < this.Settings.MinValueEx) continue;
+                if (!this.TryPriceItem(item, out var valueEx, out var valueText, includeUniqueName: false)) continue;
                 report.PricedCandidates++;
 
-                slots.Add(new SlotInfo(itemAddress, position, size, valueText, selectedScroll));
+                var highlight = valueEx >= this.CurrentHighlightMin;
+                slots.Add(new SlotInfo(itemAddress, position, size, valueText, selectedScroll, highlight));
             }
 
             report.VisibleSlots = slots.Count;
@@ -1009,15 +1394,16 @@ namespace LootValue
         {
             itemsAddress = IntPtr.Zero;
             scroll = default;
-            if (children.Length <= 2 || children[1] == IntPtr.Zero || children[2] == IntPtr.Zero ||
-                this.readUiOffsetMethod == null || this.readStdVectorMethod == null) return false;
+            var handle = Core.Process?.Handle;
+            if (children.Length <= 2 || children[1] == IntPtr.Zero || children[2] == IntPtr.Zero || handle == null) return false;
 
             var contentAddress = children[1];
             var holderAddress = children[2];
-            if (this.readUiOffsetMethod.Invoke(this.handleObj, new object[] { holderAddress }) is not UiElementBaseOffset holderOffset ||
-                !UiElementBaseFuncs.IsVisibleChecker(holderOffset.Flags) ||
-                this.readStdVectorMethod.Invoke(this.handleObj, new object[] { holderOffset.ChildrensPtr }) is not IntPtr[] holderChildren ||
-                holderChildren.Length == 0 || holderChildren[0] == IntPtr.Zero) return false;
+            if (!handle.TryReadMemory<UiElementBaseOffset>(holderAddress, out var holderOffset) ||
+                !UiElementBaseFuncs.IsVisibleChecker(holderOffset.Flags)) return false;
+
+            var holderChildren = handle.ReadStdVector<IntPtr>(holderOffset.ChildrensPtr);
+            if (holderChildren.Length == 0 || holderChildren[0] == IntPtr.Zero) return false;
 
             var thumbAddress = holderChildren[0];
             if (!PluginUiElementReflection.TryGetAbsoluteRect(contentAddress, out var contentPosition, out var contentSize) ||
@@ -1195,13 +1581,15 @@ namespace LootValue
                 var drawPosition = new Vector2(
                     position.X + this.Settings.SlotOffsetX,
                     position.Y + slot.Size.Y - fontSize + this.Settings.SlotOffsetY);
+                var textColor = ImGui.ColorConvertFloat4ToU32(slot.Highlight ? this.Settings.HighlightColor : this.Settings.TextColor);
+                var bg = ImGui.ColorConvertFloat4ToU32(slot.Highlight ? this.Settings.HighlightBackgroundColor : this.Settings.BackgroundColor);
                 foreground.AddRectFilled(
                     drawPosition - new Vector2(3f, 1f),
                     drawPosition + new Vector2(textWidth + 3f, fontSize + 1f),
-                    0xB0000000u,
+                    bg,
                     3f);
                 foreground.AddText(font, fontSize, drawPosition + new Vector2(1f, 1f), 0xCC000000u, slot.ValueText);
-                foreground.AddText(font, fontSize, drawPosition, color, slot.ValueText);
+                foreground.AddText(font, fontSize, drawPosition, textColor, slot.ValueText);
             }
         }
 
@@ -1248,7 +1636,7 @@ namespace LootValue
             this.nextDiagUtc = now.AddMilliseconds(500);
 
             this.diagSamples.Clear();
-            int total = 0, wiPath = 0, metaItemsPath = 0, wiComp = 0, innerOk = 0, priced = 0, belowFloor = 0;
+            int total = 0, wiPath = 0, metaItemsPath = 0, wiComp = 0, innerOk = 0, priced = 0;
 
             var area = Core.States.InGameStateObject.CurrentAreaInstance;
             foreach (var entity in area.AwakeEntities.Values)
@@ -1272,13 +1660,12 @@ namespace LootValue
                 if (ok)
                 {
                     priced++;
-                    if (ex < this.Settings.MinValueEx) belowFloor++;
                 }
 
                 if (this.diagSamples.Count < 20)
                 {
                     this.diagSamples.Add(ok
-                        ? $"{rarity} {baseName} [art={art}] -> {lbl} ({ex:0.##} ex)"
+                        ? $"{rarity} {baseName} [art={art}] -> {lbl} ({ex:0.##})"
                         : $"{rarity} {baseName} [art={art}] -> {this.PluginText.T("diagnostics.no_price", "NO PRICE")}");
                 }
             }
@@ -1288,7 +1675,7 @@ namespace LootValue
                 this.PluginText.F("diagnostics.summary.awake_entities", "AwakeEntities={0}", total) + "\n" +
                 this.PluginText.F("diagnostics.summary.paths", "path contains 'WorldItem'={0}    path starts 'Metadata/Items'={1}", wiPath, metaItemsPath) + "\n" +
                 this.PluginText.F("diagnostics.summary.components", "WorldItem component (inner!=0)={0}    inner item read OK={1}", wiComp, innerOk) + "\n" +
-                this.PluginText.F("diagnostics.summary.pricing", "priced={0}    belowFloor(<{1}ex)={2}    would draw={3}", priced, this.Settings.MinValueEx, belowFloor, priced - belowFloor) + "\n" +
+                this.PluginText.F("diagnostics.summary.pricing", "priced={0}    would draw={1}", priced, priced) + "\n" +
                 this.PluginText.F("diagnostics.summary.price_db", "priceDB items={0}  fetching={1}", PoeNinjaPriceFetcher.LoadedItemCount, PoeNinjaPriceFetcher.IsFetching);
         }
 
@@ -1313,38 +1700,65 @@ namespace LootValue
         /// unidentified ones); everything else by base-type name.</summary>
         private bool TryPriceItem(Item item, out double valueEx, out string label, bool includeUniqueName = true)
         {
+            return this.TryPriceItem(item, out valueEx, out label, out _, out _, out _, includeUniqueName);
+        }
+
+        private bool TryPriceItem(
+            Item item,
+            out double valueEx,
+            out string label,
+            out double displayValue,
+            out string displayCurrency,
+            out string resolvedItemName,
+            bool includeUniqueName = true)
+        {
             valueEx = 0;
             label = string.Empty;
+            displayValue = 0;
+            displayCurrency = "ex";
+            resolvedItemName = string.Empty;
 
             var rarity = Rarity.Normal;
             if (item.TryGetComponent<Mods>(out var mods)) rarity = mods.Rarity;
 
             var baseName = item.TryGetComponent<Base>(out var baseComp) ? baseComp.BaseItemName?.Trim() ?? string.Empty : string.Empty;
-            var artBasename = item.TryGetComponent<RenderItem>(out var renderItem) ? ExtractArtBasename(renderItem.ResourcePath) : string.Empty;
+            var artPath = item.TryGetComponent<RenderItem>(out var renderItem) ? renderItem.ResourcePath : string.Empty;
+            var artBasename = ExtractArtBasename(artPath);
             var fullItemPath = item.Path ?? string.Empty;
             var internalName = fullItemPath.Contains('/') ? fullItemPath[(fullItemPath.LastIndexOf('/') + 1)..] : fullItemPath;
 
             var itemName = baseName;
-            if (rarity == Rarity.Unique && !string.IsNullOrEmpty(artBasename))
+            if (rarity == Rarity.Unique)
             {
-                foreach (var key in ArtKeyVariants(artBasename))
+                // 1. Check full art path (e.g. Art/2DItems/... from uniqueArtMapping.json)
+                if (!string.IsNullOrEmpty(artPath) &&
+                    PoeNinjaPriceFetcher.TryResolveDisplayName(artPath, out var uniqueNameFromPath) &&
+                    !PoeNinjaPriceFetcher.IsGenericLookupName(uniqueNameFromPath))
                 {
-                    if (PoeNinjaPriceFetcher.TryResolveDisplayName(key, out var uniqueName) &&
-                        !PoeNinjaPriceFetcher.IsGenericLookupName(uniqueName))
+                    itemName = uniqueNameFromPath;
+                }
+                else if (!string.IsNullOrEmpty(artBasename))
+                {
+                    foreach (var key in ArtKeyVariants(artBasename))
                     {
-                        itemName = uniqueName;
-                        break;
-                    }
+                        if (PoeNinjaPriceFetcher.TryResolveDisplayName(key, out var uniqueName) &&
+                            !PoeNinjaPriceFetcher.IsGenericLookupName(uniqueName))
+                        {
+                            itemName = uniqueName;
+                            break;
+                        }
 
-                    if (PoeNinjaPriceFetcher.HasPriceDataForName(key))
-                    {
-                        itemName = key;
-                        break;
+                        if (PoeNinjaPriceFetcher.HasPriceDataForName(key))
+                        {
+                            itemName = key;
+                            break;
+                        }
                     }
                 }
             }
 
             if (string.IsNullOrWhiteSpace(itemName)) return false;
+            resolvedItemName = itemName;
 
             var modLines = ItemModHelper.GetModLines(item);
             var price = PoeNinjaPriceFetcher.GetPrice(itemName, modLines, internalName, fullItemPath);
@@ -1354,11 +1768,12 @@ namespace LootValue
             var priceChaos = price.PriceChaos * stack;
 
             var priced = new PoeNinjaPrice { PriceChaos = priceChaos };
-            var (displayValue, displayCurrency) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
+            var (dispVal, dispCur) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, this.Settings.DisplayCurrency);
+            displayValue = dispVal;
+            displayCurrency = dispCur;
 
-            // Value floor / highlight compare in Exalted, independent of the chosen display currency.
-            var (exValue, _) = PoeNinjaPriceFetcher.GetDisplayPrice(priced, 1);
-            valueEx = exValue;
+            // Value floor / highlight compare in the chosen display currency (Divine, Exalted, or Chaos).
+            valueEx = displayValue;
 
             var valueText = FormatValue(displayValue, displayCurrency);
 
@@ -1436,13 +1851,15 @@ namespace LootValue
                 Vector2 position,
                 Vector2 size,
                 string valueText,
-                ScrollBinding scroll)
+                ScrollBinding scroll,
+                bool highlight = false)
             {
                 this.ItemAddress = itemAddress;
                 this.Position = position;
                 this.Size = size;
                 this.ValueText = valueText;
                 this.Scroll = scroll;
+                this.Highlight = highlight;
             }
 
             public IntPtr ItemAddress { get; }
@@ -1454,6 +1871,8 @@ namespace LootValue
             public string ValueText { get; }
 
             public ScrollBinding Scroll { get; }
+
+            public bool Highlight { get; }
         }
 
         private readonly struct ExchangePriceLabel
@@ -1473,6 +1892,22 @@ namespace LootValue
             public uint Color { get; }
 
             public bool Highlight { get; }
+        }
+
+        private readonly struct RuneshapeRowPriceLabel
+        {
+            public RuneshapeRowPriceLabel(Vector2 position, string text, bool isHigh)
+            {
+                this.Position = position;
+                this.Text = text;
+                this.IsHigh = isHigh;
+            }
+
+            public Vector2 Position { get; }
+
+            public string Text { get; }
+
+            public bool IsHigh { get; }
         }
 
         private readonly struct SlotElementCandidate
@@ -1623,6 +2058,565 @@ namespace LootValue
             public Vector2 Pos { get; }
 
             public Vector2 Vel { get; }
+        }
+
+        private void ProcessDropAlerts()
+        {
+            var now = DateTime.UtcNow;
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+            if (area == null || area.AwakeEntities == null) return;
+
+            var newAlertDrops = new List<ActiveDropAlert>();
+
+            foreach (var entity in area.AwakeEntities.Values)
+            {
+                if (!entity.TryGetComponent<WorldItem>(out var worldItem) || worldItem.ItemEntityAddress == IntPtr.Zero) continue;
+                if (!entity.TryGetComponent<Render>(out var render)) continue;
+
+                var item = ReadFreshItem(worldItem.ItemEntityAddress);
+                if (item == null) continue;
+
+                if (!this.TryPriceItem(item, out _, out _, out var displayVal, out var displayCur, out var itemName)) continue;
+                if (displayVal < this.Settings.AlertMinDisplayValue) continue;
+
+                var highlightColor = ImGui.ColorConvertFloat4ToU32(this.Settings.HighlightColor);
+                newAlertDrops.Add(new ActiveDropAlert(entity.Id, render, itemName, displayVal, displayCur, highlightColor));
+
+                // If newly discovered drop above threshold: trigger sound and banner!
+                if (this.alertedEntityIds.Add(entity.Id))
+                {
+                    this.PlayAlertSound();
+
+                    if (this.Settings.EnableAlertBanner)
+                    {
+                        lock (this.activeAlertBanners)
+                        {
+                            this.activeAlertBanners.Add(new DropAlertBanner(entity.Id, itemName, displayVal, displayCur, now));
+                            if (this.activeAlertBanners.Count > 5)
+                            {
+                                this.activeAlertBanners.RemoveRange(0, this.activeAlertBanners.Count - 5);
+                            }
+                        }
+                    }
+                }
+            }
+
+            this.activeAlertDrops = newAlertDrops;
+        }
+
+        private void DrawDropAlerts()
+        {
+            var inGameState = Core.States.InGameStateObject;
+            if (inGameState == null) return;
+            var world = inGameState.CurrentWorldInstance;
+            if (world == null) return;
+            var windowArea = Core.Process.WindowArea;
+            var fg = ImGui.GetForegroundDrawList();
+            var now = DateTime.UtcNow;
+
+            // 1. Draw Beams & Pointers to ground items
+            if (this.Settings.EnableAlertBeam && this.activeAlertDrops.Count > 0)
+            {
+                var playerRender = inGameState.CurrentAreaInstance?.Player?.TryGetComponent<Render>(out var pR) == true ? pR : null;
+                Vector2 playerScreen = Vector2.Zero;
+                if (playerRender != null)
+                {
+                    playerScreen = world.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
+                }
+
+                foreach (var drop in this.activeAlertDrops)
+                {
+                    var screen = world.WorldToScreen(drop.Render.WorldPosition, drop.Render.TerrainHeight);
+                    if (screen == Vector2.Zero) continue;
+
+                    bool isOnScreen = screen.X >= 20 && screen.X <= windowArea.Width - 20 &&
+                                      screen.Y >= 20 && screen.Y <= windowArea.Height - 20;
+
+                    var colorRgba = ImGui.ColorConvertU32ToFloat4(drop.BeamColor);
+                    var glowInner = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.85f));
+                    var glowOuter = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.35f));
+
+                    if (isOnScreen)
+                    {
+                        // Pulsing / glowing ground rings
+                        fg.AddCircleFilled(screen, 6f, glowInner);
+                        fg.AddCircle(screen, 16f, glowInner, 24, 2.5f);
+                        fg.AddCircle(screen, 26f, glowOuter, 24, 1.5f);
+
+                        // Vertical light beam rising into sky
+                        var topScreen = world.WorldToScreen(drop.Render.WorldPosition, drop.Render.TerrainHeight - 350f);
+                        if (topScreen == Vector2.Zero)
+                        {
+                            topScreen = new Vector2(screen.X, screen.Y - 220f);
+                        }
+
+                        // 3-layer glowing beam
+                        fg.AddLine(screen, topScreen, glowOuter, 8f);
+                        fg.AddLine(screen, topScreen, glowInner, 4f);
+                        fg.AddLine(screen, topScreen, 0xFFFFFFFFu, 1.5f);
+
+                        // Top star/circle cap
+                        fg.AddCircleFilled(topScreen, 4f, glowInner);
+
+                        // Direction trace line from player if far away
+                        if (playerScreen != Vector2.Zero && Vector2.Distance(playerScreen, screen) > 180f)
+                        {
+                            var lineCol = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.45f));
+                            fg.AddLine(playerScreen, screen, lineCol, 1.5f);
+                        }
+                    }
+                    else
+                    {
+                        // Off-screen indicator arrow clamped to screen border
+                        var screenCenter = new Vector2(windowArea.Width / 2f, windowArea.Height / 2f);
+                        var diff = screen - screenCenter;
+                        var dir = diff.LengthSquared() > 0.001f ? Vector2.Normalize(diff) : new Vector2(0, -1);
+
+                        var margin = 45f;
+                        var clampedX = Math.Clamp(screenCenter.X + (dir.X * (windowArea.Width / 2f - margin)), margin, windowArea.Width - margin);
+                        var clampedY = Math.Clamp(screenCenter.Y + (dir.Y * (windowArea.Height / 2f - margin)), margin, windowArea.Height - margin);
+                        var edgePos = new Vector2(clampedX, clampedY);
+
+                        var indicatorCol = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.95f));
+
+                        // Draw pointer diamond & line towards target
+                        fg.AddCircleFilled(edgePos, 8f, indicatorCol);
+                        fg.AddLine(edgePos, edgePos + (dir * 18f), indicatorCol, 3f);
+
+                        // Offscreen label chip
+                        var text = $"{drop.ItemName} ({drop.DisplayValue:0.##} {drop.DisplayCurrency})";
+                        var textSize = ImGui.CalcTextSize(text);
+                        var textPos = edgePos + new Vector2(-textSize.X / 2f, 12f);
+                        textPos.X = Math.Clamp(textPos.X, 10f, windowArea.Width - textSize.X - 10f);
+                        textPos.Y = Math.Clamp(textPos.Y, 10f, windowArea.Height - textSize.Y - 10f);
+
+                        fg.AddRectFilled(textPos - new Vector2(4f, 2f), textPos + textSize + new Vector2(4f, 2f), 0xDD101015u, 4f);
+                        fg.AddRect(textPos - new Vector2(4f, 2f), textPos + textSize + new Vector2(4f, 2f), indicatorCol, 4f);
+                        fg.AddText(textPos, 0xFFFFFFFFu, text);
+                    }
+                }
+            }
+
+            // 2. Draw On-Screen Alert Banner
+            if (this.Settings.EnableAlertBanner && this.activeAlertBanners.Count > 0)
+            {
+                lock (this.activeAlertBanners)
+                {
+                    var bannerDuration = Math.Max(2f, this.Settings.AlertBannerDurationSec);
+                    var bannerW = 460f;
+                    var bannerH = 68f;
+                    var startY = 110f;
+
+                    for (var i = this.activeAlertBanners.Count - 1; i >= 0; i--)
+                {
+                    var banner = this.activeAlertBanners[i];
+                    var elapsedSec = (float)(now - banner.CreatedUtc).TotalSeconds;
+
+                    if (elapsedSec >= bannerDuration)
+                    {
+                        this.activeAlertBanners.RemoveAt(i);
+                        continue;
+                    }
+
+                    // Compute smooth alpha (fade in first 0.3s, fade out last 1.2s)
+                    var alpha = 1.0f;
+                    if (elapsedSec < 0.3f)
+                    {
+                        alpha = elapsedSec / 0.3f;
+                    }
+                    else if (elapsedSec > bannerDuration - 1.2f)
+                    {
+                        alpha = Math.Max(0f, (bannerDuration - elapsedSec) / 1.2f);
+                    }
+
+                    var bannerX = (windowArea.Width - bannerW) / 2f;
+                    var bannerY = startY + (i * (bannerH + 10f));
+                    var min = new Vector2(bannerX, bannerY);
+                    var max = new Vector2(bannerX + bannerW, bannerY + bannerH);
+
+                    var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.04f, 0.04f, 0.07f, 0.92f * alpha));
+                    var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.78f, 0.15f, 0.90f * alpha));
+                    var headerCol = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.85f, 0.30f, 1.0f * alpha));
+                    var titleCol = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 1.0f, 1.0f, 1.0f * alpha));
+                    var valueCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.40f, 1.0f, 0.40f, 1.0f * alpha));
+
+                    // Rounded card background + glowing gold border
+                    fg.AddRectFilled(min, max, bgCol, 8f);
+                    fg.AddRect(min, max, borderCol, 8f, ImDrawFlags.None, 2f);
+
+                    // Header subtitle
+                    var subText = "★ VALUABLE DROP DETECTED ★";
+                    var subSize = ImGui.CalcTextSize(subText);
+                    fg.AddText(new Vector2(bannerX + (bannerW - subSize.X) / 2f, bannerY + 8f), headerCol, subText);
+
+                    // Item Name + Value
+                    var itemLine = banner.ItemName;
+                    var valueLine = $" ({banner.DisplayValue:0.##} {banner.DisplayCurrency})";
+                    var itemSize = ImGui.CalcTextSize(itemLine);
+                    var valSize = ImGui.CalcTextSize(valueLine);
+                    var totalTextW = itemSize.X + valSize.X;
+
+                    var itemTextX = bannerX + (bannerW - totalTextW) / 2f;
+                    var itemTextY = bannerY + 34f;
+
+                    fg.AddText(new Vector2(itemTextX, itemTextY), titleCol, itemLine);
+                    fg.AddText(new Vector2(itemTextX + itemSize.X, itemTextY), valueCol, valueLine);
+                }
+            }
+        }
+    }
+
+        private readonly struct ActiveDropAlert
+        {
+            public ActiveDropAlert(uint entityId, Render render, string itemName, double displayValue, string displayCurrency, uint beamColor)
+            {
+                this.EntityId = entityId;
+                this.Render = render;
+                this.ItemName = itemName;
+                this.DisplayValue = displayValue;
+                this.DisplayCurrency = displayCurrency;
+                this.BeamColor = beamColor;
+            }
+
+            public uint EntityId { get; }
+
+            public Render Render { get; }
+
+            public string ItemName { get; }
+
+            public double DisplayValue { get; }
+
+            public string DisplayCurrency { get; }
+
+            public uint BeamColor { get; }
+        }
+
+        private sealed class DropAlertBanner
+        {
+            public DropAlertBanner(uint entityId, string itemName, double displayValue, string displayCurrency, DateTime createdUtc)
+            {
+                this.EntityId = entityId;
+                this.ItemName = itemName;
+                this.DisplayValue = displayValue;
+                this.DisplayCurrency = displayCurrency;
+                this.CreatedUtc = createdUtc;
+            }
+
+            public uint EntityId { get; }
+
+            public string ItemName { get; }
+
+            public double DisplayValue { get; }
+
+            public string DisplayCurrency { get; }
+
+            public DateTime CreatedUtc { get; }
+        }
+
+        // =========================================================================
+        // PoE 2 Expedition (Runeshape Monolith & Crafting Panel)
+        // =========================================================================
+
+        private DateTime nextMonolithScanUtc = DateTime.MinValue;
+        private List<MonolithInfo> cachedMonoliths = new();
+
+        private void DrawExpeditionMonolithOverlay()
+        {
+            var now = DateTime.UtcNow;
+            if (now >= this.nextMonolithScanUtc && !this.isMonolithScanRunning)
+            {
+                this.nextMonolithScanUtc = now.AddMilliseconds(350);
+                this.isMonolithScanRunning = true;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        this.ScanExpeditionMonoliths();
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        this.isMonolithScanRunning = false;
+                    }
+                });
+            }
+
+            if (this.cachedMonoliths.Count == 0) return;
+
+            var world = Core.States.InGameStateObject.CurrentWorldInstance;
+            if (world == null) return;
+
+            var fg = ImGui.GetForegroundDrawList();
+
+            foreach (var m in this.cachedMonoliths)
+            {
+                if (this.Settings.HideCompletedMonoliths && m.IsCompleted) continue;
+
+                var worldPos = new StdTuple3D<float>
+                {
+                    X = m.WorldPosition.X,
+                    Y = m.WorldPosition.Y,
+                    Z = m.TerrainHeight - 220f
+                };
+
+                var screenPos = world.WorldToScreen(worldPos, worldPos.Z);
+                if (screenPos == Vector2.Zero) continue;
+
+                screenPos.X += this.Settings.ExpeditionBadgeOffsetX;
+                screenPos.Y += this.Settings.ExpeditionBadgeOffsetY;
+
+                this.DrawMonolithBadge(fg, screenPos, m);
+            }
+        }
+
+        private void ScanExpeditionMonoliths()
+        {
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+            if (area == null || area.AwakeEntities == null) return;
+
+            var areaLevel = area.CurrentAreaLevel;
+            var newMonoliths = new List<MonolithInfo>();
+            foreach (var entity in area.AwakeEntities.Values)
+            {
+                if (entity == null || entity.Address == IntPtr.Zero) continue;
+                if (!entity.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase) && entity.EntityCustomGroup != 103)
+                {
+                    continue;
+                }
+
+                if (RuneshapeReader.TryReadMonolith(entity, areaLevel, this.Settings.DisplayCurrency, out var info))
+                {
+                    newMonoliths.Add(info);
+                }
+            }
+
+            this.cachedMonoliths = newMonoliths;
+        }
+
+        private void DrawMonolithBadge(ImDrawListPtr fg, Vector2 screenPos, MonolithInfo m)
+        {
+            var best = m.BestOffer;
+            var anchorName = m.IsUnique ? "Unique" : (m.AnchorIdx >= 0 ? RuneshapeCatalog.Instance.GetRuneName(m.AnchorIdx) : "Random");
+            var headerText = $"[{m.HoleCount} Sockets] {anchorName}";
+
+            string rewardText;
+            string priceText = string.Empty;
+            bool isHigh = false;
+
+            if (best != null && !string.IsNullOrEmpty(best.Name))
+            {
+                rewardText = best.Count > 1 ? $"{best.Count}x {best.Name}" : best.Name;
+                if (best.DisplayPrice > 0)
+                {
+                    priceText = best.DisplayPrice >= 100 ? $"{best.DisplayPrice:F0} {best.CurrencySymbol}" : $"{best.DisplayPrice:F1} {best.CurrencySymbol}";
+                }
+                var chaosDiv = PoeNinjaPriceFetcher.ChaosPerDivine > 0 ? PoeNinjaPriceFetcher.ChaosPerDivine : 200.0;
+                isHigh = best.ChaosValue >= chaosDiv;
+            }
+            else
+            {
+                rewardText = "Expedition Encounter";
+            }
+
+            var headerSize = ImGui.CalcTextSize(headerText);
+            var rewardSize = ImGui.CalcTextSize(rewardText);
+            var priceSize = !string.IsNullOrEmpty(priceText) ? ImGui.CalcTextSize(priceText) : Vector2.Zero;
+
+            var contentW = Math.Max(headerSize.X, rewardSize.X + (priceSize.X > 0 ? priceSize.X + 14f : 0f));
+            var pad = new Vector2(9f, 6f);
+            var boxW = contentW + pad.X * 2;
+            var boxH = headerSize.Y + rewardSize.Y + pad.Y * 2 + 3f;
+
+            var min = new Vector2(screenPos.X - boxW / 2f, screenPos.Y - boxH / 2f);
+            var max = new Vector2(min.X + boxW, min.Y + boxH);
+
+            var bg = isHigh ? 0xF5181206u : 0xF0121216u;
+            var border = isHigh ? 0xFF40E040u : (m.HoleCount >= 7 ? 0xFFE6C84Du : 0xFF888899u);
+
+            // Shadow & Box
+            fg.AddRectFilled(min + new Vector2(2, 2), max + new Vector2(2, 2), 0x70000000u, 6f);
+            fg.AddRectFilled(min, max, bg, 6f);
+            fg.AddRect(min, max, border, 6f, ImDrawFlags.None, isHigh ? 2.2f : 1.4f);
+
+            // Header line: [X Sockets] AnchorName
+            var headerColor = m.HoleCount >= 5 ? 0xFF4040FFu : 0xFFE0E0E0u;
+            fg.AddText(new Vector2(min.X + pad.X, min.Y + pad.Y), headerColor, headerText);
+
+            // Reward name & price
+            var line2Y = min.Y + pad.Y + headerSize.Y + 3f;
+            fg.AddText(new Vector2(min.X + pad.X, line2Y), 0xFFFFFFFFu, rewardText);
+
+            if (!string.IsNullOrEmpty(priceText))
+            {
+                var priceColor = isHigh ? 0xFF40FF40u : 0xFFE6C84Du;
+                var priceX = max.X - pad.X - priceSize.X;
+                fg.AddText(new Vector2(priceX, line2Y), priceColor, priceText);
+            }
+
+            // Hover tooltip showing all possible offers
+            var mouse = ImGui.GetIO().MousePos;
+            if (mouse.X >= min.X && mouse.X <= max.X && mouse.Y >= min.Y && mouse.Y <= max.Y)
+            {
+                ImGui.BeginTooltip();
+                ImGui.TextColored(new Vector4(1f, 0.85f, 0.4f, 1f), $"=== Monolith ({m.HoleCount} Sockets) Recipes & Rewards ===");
+                ImGui.Separator();
+                if (m.AllOffers.Count > 0)
+                {
+                    var chaosDiv = PoeNinjaPriceFetcher.ChaosPerDivine > 0 ? PoeNinjaPriceFetcher.ChaosPerDivine : 200.0;
+                    foreach (var o in m.AllOffers.Take(10))
+                    {
+                        var pStr = o.DisplayPrice > 0 ? $"{o.DisplayPrice:F1} {o.CurrencySymbol}" : "---";
+                        var c = o.ChaosValue >= chaosDiv
+                            ? new Vector4(0.4f, 1f, 0.4f, 1f) : new Vector4(0.9f, 0.9f, 0.9f, 1f);
+                        ImGui.TextColored(c, $"[{o.Size}h] {o.Name} : {pStr}");
+                        if (!string.IsNullOrEmpty(o.RunesSummary))
+                        {
+                            ImGui.SameLine();
+                            ImGui.TextDisabled($"({o.RunesSummary})");
+                        }
+                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("No recipes unlocked at this area level.");
+                }
+                ImGui.EndTooltip();
+            }
+        }
+
+        private void DrawRuneshapeUiOverlay()
+        {
+            var now = DateTime.UtcNow;
+            if (now >= this.nextRuneshapeUiScanUtc && !this.isRuneshapeUiScanRunning)
+            {
+                this.nextRuneshapeUiScanUtc = now.AddMilliseconds(Math.Clamp(this.Settings.SlotRescanIntervalMs, 100, 2000));
+                this.isRuneshapeUiScanRunning = true;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        this.ScanRuneshapeUi();
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        this.isRuneshapeUiScanRunning = false;
+                    }
+                });
+            }
+
+            if (this.cachedRuneshapeRows.Count == 0) return;
+
+            var fg = ImGui.GetForegroundDrawList();
+            foreach (var row in this.cachedRuneshapeRows)
+            {
+                DrawRuneforgePriceChip(fg, row.Position, row.Text, row.IsHigh);
+            }
+        }
+
+        private void ScanRuneshapeUi()
+        {
+            var handle = Core.Process?.Handle;
+            if (handle == null)
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi == null || gameUi.Address == IntPtr.Zero)
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
+
+            var container = RuneshapeReader.ResolveRuneforgeContainer(
+                gameUi.Address,
+                addr => handle.TryReadMemory<UiElementBaseOffset>(addr, out var off) ? off : null,
+                vec => handle.ReadStdVector<IntPtr>(vec));
+
+            if (container == IntPtr.Zero || !handle.TryReadMemory<UiElementBaseOffset>(container, out var off))
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
+
+            var rows = handle.ReadStdVector<IntPtr>(off.ChildrensPtr);
+            if (rows.Length == 0)
+            {
+                this.cachedRuneshapeRows = new List<RuneshapeRowPriceLabel>();
+                return;
+            }
+
+            var newRows = new List<RuneshapeRowPriceLabel>();
+            var chaosDiv = PoeNinjaPriceFetcher.ChaosPerDivine > 0 ? PoeNinjaPriceFetcher.ChaosPerDivine : 200.0;
+
+            foreach (var row in rows)
+            {
+                if (row == IntPtr.Zero) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(row, out var rowOff) || !UiElementBaseFuncs.IsVisibleChecker(rowOff.Flags)) continue;
+
+                var rowKids = handle.ReadStdVector<IntPtr>(rowOff.ChildrensPtr);
+                if (rowKids.Length == 0) continue;
+
+                var label = rowKids[0];
+                var rawText = this.ReadUiElementText(label);
+                if (string.IsNullOrWhiteSpace(rawText)) continue;
+
+                ParseRuneforgeRowText(rawText, out var count, out var itemName);
+                if (string.IsNullOrWhiteSpace(itemName)) continue;
+
+                var price = PoeNinjaPriceFetcher.GetPrice(itemName);
+                if (price == null || price.PriceChaos <= 0) continue;
+
+                var totalChaos = price.PriceChaos * count;
+                var (dispVal, dispCur) = PoeNinjaPriceFetcher.GetDisplayPrice(totalChaos, this.Settings.DisplayCurrency);
+
+                if (!PluginUiElementReflection.TryGetAbsoluteRect(row, out var rowPos, out var rowSize)) continue;
+                if (rowSize.X <= 0f || rowSize.Y <= 0f) continue;
+
+                var chipText = dispVal >= 100 ? $"{dispVal:F0} {dispCur}" : $"{dispVal:F1} {dispCur}";
+                var chipPos = new Vector2(
+                    rowPos.X + rowSize.X + 8f + this.Settings.RuneshapeUiOffsetX,
+                    rowPos.Y + (rowSize.Y - 20f) / 2f + this.Settings.RuneshapeUiOffsetY);
+
+                var isHigh = (totalChaos / chaosDiv) >= 1.0;
+                newRows.Add(new RuneshapeRowPriceLabel(chipPos, chipText, isHigh));
+            }
+
+            this.cachedRuneshapeRows = newRows;
+        }
+
+        private static void ParseRuneforgeRowText(string raw, out int count, out string name)
+        {
+            count = 1;
+            name = raw.Trim();
+
+            var match = Regex.Match(name, @"^(\d+)[xX]\s*(.+)$");
+            if (match.Success)
+            {
+                if (int.TryParse(match.Groups[1].Value, out var c)) count = Math.Max(1, c);
+                name = match.Groups[2].Value.Trim();
+            }
+        }
+
+        private static void DrawRuneforgePriceChip(ImDrawListPtr fg, Vector2 pos, string text, bool isHigh)
+        {
+            var textSize = ImGui.CalcTextSize(text);
+            var pad = new Vector2(6f, 3f);
+            var min = pos;
+            var max = new Vector2(pos.X + textSize.X + pad.X * 2, pos.Y + textSize.Y + pad.Y * 2);
+
+            var bg = isHigh ? 0xF0201505u : 0xF0101010u;
+            var border = isHigh ? 0xFF40E040u : 0xFF888899u;
+            var textColor = isHigh ? 0xFF50FF50u : 0xFFFFFFFFu;
+
+            fg.AddRectFilled(min, max, bg, 4f);
+            fg.AddRect(min, max, border, 4f, ImDrawFlags.None, 1.2f);
+            fg.AddText(new Vector2(min.X + pad.X, min.Y + pad.Y), textColor, text);
         }
     }
 }

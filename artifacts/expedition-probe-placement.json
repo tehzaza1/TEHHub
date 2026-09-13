@@ -1,0 +1,2439 @@
+{
+  "utc": "2026-09-13T03:58:04.1251979Z",
+  "status": "completed",
+  "areaHash": "3D1080D2",
+  "awakeScanned": 158,
+  "sleepingScanned": 0,
+  "truncated": false,
+  "candidates": [
+    {
+      "entityId": 81,
+      "address": "0x27AD52EB600",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionDetonator",
+      "customGroup": 0,
+      "grid": {
+        "x": 1278.5,
+        "y": 1329.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13896.739,
+        "y": 14451.087,
+        "z": -90
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/plunger.ao",
+      "minimapIconName": "ExpeditionDetonator",
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "InteractionAction",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine",
+        "Targetable",
+        "WorldDescription"
+      ]
+    },
+    {
+      "entityId": 1476,
+      "address": "0x27AD52E1880",
+      "path": "Metadata/Monsters/LeagueExpedition/NPC/Home",
+      "customGroup": 0,
+      "grid": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "world": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "BaseEvents",
+        "ControlZone",
+        "Positioned"
+      ]
+    },
+    {
+      "entityId": 1477,
+      "address": "0x27AF1F58480",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1230.5,
+        "y": 1219.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13375,
+        "y": 13255.435,
+        "z": -86.11791
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1478,
+      "address": "0x27BE8789680",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1265.5,
+        "y": 1230.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13755.435,
+        "y": 13375,
+        "z": -92.79413
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker2_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1479,
+      "address": "0x27AEB297800",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1253.5,
+        "y": 1253.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13625,
+        "y": 13625,
+        "z": -86.11791
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1480,
+      "address": "0x27AF1F54100",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1242.5,
+        "y": 1368.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13505.435,
+        "y": 14875,
+        "z": -86.11791
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1481,
+      "address": "0x27AD52E9080",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1265.5,
+        "y": 1391.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13755.435,
+        "y": 15125,
+        "z": -92.651764
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker2_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1482,
+      "address": "0x27AE4ECEF80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1288.5,
+        "y": 1299.5,
+        "z": 0
+      },
+      "world": {
+        "x": 14005.435,
+        "y": 14125,
+        "z": -78.56804
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1483,
+      "address": "0x27BB797C900",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1196.5,
+        "y": 1242.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13005.435,
+        "y": 13505.435,
+        "z": -86.11791
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1484,
+      "address": "0x27AEB298C00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1253.5,
+        "y": 1276.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13625,
+        "y": 13875,
+        "z": -69.98408
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_01.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1485,
+      "address": "0x27AFFFA6780",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1219.5,
+        "y": 1380.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13255.435,
+        "y": 15005.435,
+        "z": -69.98408
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_01.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1486,
+      "address": "0x27AFFFA7900",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1219.5,
+        "y": 1299.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13255.435,
+        "y": 14125,
+        "z": -78.56804
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/chestmarker_signpost_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1487,
+      "address": "0x27ABA4ED400",
+      "path": "Metadata/MiscellaneousObjects/Expedition2/Expedition2Encounter",
+      "customGroup": 103,
+      "grid": {
+        "x": 1237.5,
+        "y": 1346.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13451.087,
+        "y": 14635.869,
+        "z": -127.02399
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Leagues/Expedition/Objects/ExpeditionRemnant/ExpeditionRemnant01.ao",
+      "minimapIconName": "Expedition2RemnantActive",
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Brackets",
+        "Buffs",
+        "Functions",
+        "InteractionAction",
+        "Life",
+        "MinimapIcon",
+        "Positioned",
+        "Preload",
+        "Render",
+        "StateMachine",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1488,
+      "address": "0x27AFFFA7E00",
+      "path": "Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController@80",
+      "customGroup": 0,
+      "grid": {
+        "x": 1237.5,
+        "y": 1346.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13451.087,
+        "y": 14635.869,
+        "z": 0
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Monsters/Daemon/Daemon.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Actor",
+        "Animated",
+        "BaseEvents",
+        "BuffOrbs",
+        "Buffs",
+        "DiesAfterTime",
+        "Functions",
+        "Inventories",
+        "Life",
+        "Monster",
+        "ObjectMagicProperties",
+        "Pathfinding",
+        "Positioned",
+        "Preload",
+        "Render",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1489,
+      "address": "0x27ABA4EED00",
+      "path": "Metadata/MiscellaneousObjects/Expedition2/Expedition2Encounter",
+      "customGroup": 103,
+      "grid": {
+        "x": 1229.5,
+        "y": 1407.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13364.13,
+        "y": 15298.913,
+        "z": -127.02399
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Leagues/Expedition/Objects/ExpeditionRemnant/ExpeditionRemnant01.ao",
+      "minimapIconName": "Expedition2RemnantActive",
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Brackets",
+        "Buffs",
+        "Functions",
+        "InteractionAction",
+        "Life",
+        "MinimapIcon",
+        "Positioned",
+        "Preload",
+        "Render",
+        "StateMachine",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1490,
+      "address": "0x27AFFFA4E80",
+      "path": "Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController@80",
+      "customGroup": 0,
+      "grid": {
+        "x": 1229.5,
+        "y": 1407.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13364.13,
+        "y": 15298.913,
+        "z": 0
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Monsters/Daemon/Daemon.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Actor",
+        "Animated",
+        "BaseEvents",
+        "BuffOrbs",
+        "Buffs",
+        "DiesAfterTime",
+        "Functions",
+        "Inventories",
+        "Life",
+        "Monster",
+        "ObjectMagicProperties",
+        "Pathfinding",
+        "Positioned",
+        "Preload",
+        "Render",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1491,
+      "address": "0x27ABA4E1380",
+      "path": "Metadata/MiscellaneousObjects/Expedition2/Expedition2Encounter",
+      "customGroup": 103,
+      "grid": {
+        "x": 1276.5,
+        "y": 1404.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13875,
+        "y": 15266.304,
+        "z": -127.02399
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Leagues/Expedition/Objects/ExpeditionRemnant/ExpeditionRemnant01.ao",
+      "minimapIconName": "Expedition2RemnantActive",
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Brackets",
+        "Buffs",
+        "Functions",
+        "InteractionAction",
+        "Life",
+        "MinimapIcon",
+        "Positioned",
+        "Preload",
+        "Render",
+        "StateMachine",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1492,
+      "address": "0x27AD52EC000",
+      "path": "Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController@80",
+      "customGroup": 0,
+      "grid": {
+        "x": 1276.5,
+        "y": 1404.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13875,
+        "y": 15266.304,
+        "z": 0
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Monsters/Daemon/Daemon.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Actor",
+        "Animated",
+        "BaseEvents",
+        "BuffOrbs",
+        "Buffs",
+        "DiesAfterTime",
+        "Functions",
+        "Inventories",
+        "Life",
+        "Monster",
+        "ObjectMagicProperties",
+        "Pathfinding",
+        "Positioned",
+        "Preload",
+        "Render",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1493,
+      "address": "0x27ABA4EC500",
+      "path": "Metadata/MiscellaneousObjects/Expedition2/Expedition2Encounter",
+      "customGroup": 103,
+      "grid": {
+        "x": 1212.5,
+        "y": 1254.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13179.348,
+        "y": 13635.869,
+        "z": -127.02399
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Leagues/Expedition/Objects/ExpeditionRemnant/ExpeditionRemnant01.ao",
+      "minimapIconName": "Expedition2RemnantActive",
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Brackets",
+        "Buffs",
+        "Functions",
+        "InteractionAction",
+        "Life",
+        "MinimapIcon",
+        "Positioned",
+        "Preload",
+        "Render",
+        "StateMachine",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1494,
+      "address": "0x27BB7971500",
+      "path": "Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController@80",
+      "customGroup": 0,
+      "grid": {
+        "x": 1212.5,
+        "y": 1254.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13179.348,
+        "y": 13635.869,
+        "z": 0
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Monsters/Daemon/Daemon.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Actor",
+        "Animated",
+        "BaseEvents",
+        "BuffOrbs",
+        "Buffs",
+        "DiesAfterTime",
+        "Functions",
+        "Inventories",
+        "Life",
+        "Monster",
+        "ObjectMagicProperties",
+        "Pathfinding",
+        "Positioned",
+        "Preload",
+        "Render",
+        "Stats",
+        "Targetable"
+      ]
+    },
+    {
+      "entityId": 1495,
+      "address": "0x27BB72EBC80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1185.5,
+        "y": 1407.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12885.869,
+        "y": 15298.913,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1496,
+      "address": "0x27AEED55000",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1160.5,
+        "y": 1241.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12614.13,
+        "y": 13494.565,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1497,
+      "address": "0x27AE4EC2780",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1304.5,
+        "y": 1312.5,
+        "z": 0
+      },
+      "world": {
+        "x": 14179.348,
+        "y": 14266.304,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1498,
+      "address": "0x27AFFFA8F80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1200.5,
+        "y": 1345.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13048.913,
+        "y": 14625,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1499,
+      "address": "0x27AF1F52A80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1237.5,
+        "y": 1177.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13451.087,
+        "y": 12798.913,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1500,
+      "address": "0x27BB72ED300",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1195.5,
+        "y": 1413.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12994.565,
+        "y": 15364.13,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1501,
+      "address": "0x27AEB29F000",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1254.5,
+        "y": 1242.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13635.869,
+        "y": 13505.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1502,
+      "address": "0x27AF1F5CF80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1201.5,
+        "y": 1306.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13059.782,
+        "y": 14201.087,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1503,
+      "address": "0x27BE878C100",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1281.5,
+        "y": 1219.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13929.348,
+        "y": 13255.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1504,
+      "address": "0x27AEED5C300",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1168.5,
+        "y": 1220.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12701.087,
+        "y": 13266.304,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1505,
+      "address": "0x27AEB297A80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1258.5,
+        "y": 1265.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13679.348,
+        "y": 13755.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1506,
+      "address": "0x27BB7974700",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1202.5,
+        "y": 1392.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13070.652,
+        "y": 15135.869,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1507,
+      "address": "0x27AFFFAD080",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1212.5,
+        "y": 1300.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13179.348,
+        "y": 14135.869,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1508,
+      "address": "0x27AF1F59380",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1237.5,
+        "y": 1183.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13451.087,
+        "y": 12864.13,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1509,
+      "address": "0x27AE4ECC500",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1300.5,
+        "y": 1317.5,
+        "z": 0
+      },
+      "world": {
+        "x": 14135.869,
+        "y": 14320.652,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1510,
+      "address": "0x27BB7971A00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1202.5,
+        "y": 1419.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13070.652,
+        "y": 15429.348,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1511,
+      "address": "0x27AD52E3180",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1275.5,
+        "y": 1317.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13864.13,
+        "y": 14320.652,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1512,
+      "address": "0x27AEED5A280",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1162.5,
+        "y": 1230.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12635.869,
+        "y": 13375,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1513,
+      "address": "0x27AF0D77180",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1195.5,
+        "y": 1190.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12994.565,
+        "y": 12940.217,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1514,
+      "address": "0x27AEED5B680",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1172.5,
+        "y": 1254.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12744.565,
+        "y": 13635.869,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1515,
+      "address": "0x27AD52E5C00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1206.5,
+        "y": 1191.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13114.13,
+        "y": 12951.087,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1516,
+      "address": "0x27AFFFA4700",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1214.5,
+        "y": 1317.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13201.087,
+        "y": 14320.652,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1517,
+      "address": "0x27AE4EC7F00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1243.5,
+        "y": 1242.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13516.304,
+        "y": 13505.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1518,
+      "address": "0x27AEB29A500",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1248.5,
+        "y": 1219.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13570.652,
+        "y": 13255.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1519,
+      "address": "0x27BB72E3800",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1166.5,
+        "y": 1269.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12679.348,
+        "y": 13798.913,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1520,
+      "address": "0x27AF1F55000",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1185.5,
+        "y": 1237.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12885.869,
+        "y": 13451.087,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1521,
+      "address": "0x27BBC0B9480",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1185.5,
+        "y": 1323.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12885.869,
+        "y": 14385.869,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1522,
+      "address": "0x27AF1F5E880",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1183.5,
+        "y": 1258.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12864.13,
+        "y": 13679.348,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1523,
+      "address": "0x27AEAF8EC80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1299.5,
+        "y": 1243.5,
+        "z": 0
+      },
+      "world": {
+        "x": 14125,
+        "y": 13516.304,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1524,
+      "address": "0x27BE8782D80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1270.5,
+        "y": 1287.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13809.782,
+        "y": 13994.565,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1525,
+      "address": "0x27BBC0BBC80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1178.5,
+        "y": 1369.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12809.782,
+        "y": 14885.869,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1526,
+      "address": "0x27BE8785300",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1277.5,
+        "y": 1252.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13885.869,
+        "y": 13614.13,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1527,
+      "address": "0x27AE4EC7000",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1247.5,
+        "y": 1253.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13559.782,
+        "y": 13625,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1528,
+      "address": "0x27AEB29C080",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1248.5,
+        "y": 1200.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13570.652,
+        "y": 13048.913,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1529,
+      "address": "0x27AEB29C300",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1247.5,
+        "y": 1235.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13559.782,
+        "y": 13429.348,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1530,
+      "address": "0x27BBC0B7E00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1190.5,
+        "y": 1375.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12940.217,
+        "y": 14951.087,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1531,
+      "address": "0x27AFFFA3D00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1241.5,
+        "y": 1235.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13494.565,
+        "y": 13429.348,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1532,
+      "address": "0x27AFFFA9980",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1201.5,
+        "y": 1294.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13059.782,
+        "y": 14070.652,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1533,
+      "address": "0x27AEAF81300",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1299.5,
+        "y": 1237.5,
+        "z": 0
+      },
+      "world": {
+        "x": 14125,
+        "y": 13451.087,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1534,
+      "address": "0x27BBC0BE980",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1184.5,
+        "y": 1369.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12875,
+        "y": 14885.869,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1535,
+      "address": "0x27AF1F5BB80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1237.5,
+        "y": 1200.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13451.087,
+        "y": 13048.913,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1536,
+      "address": "0x27AEB29CF80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1243.5,
+        "y": 1266.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13516.304,
+        "y": 13766.304,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1537,
+      "address": "0x27AF1F55A00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1241.5,
+        "y": 1212.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13494.565,
+        "y": 13179.348,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1538,
+      "address": "0x27AE4EC6D80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1299.5,
+        "y": 1304.5,
+        "z": 0
+      },
+      "world": {
+        "x": 14125,
+        "y": 14179.348,
+        "z": -78.39436
+      },
+      "terrainHeight": -7.8125,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1539,
+      "address": "0x27AEAF83B00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1293.5,
+        "y": 1219.5,
+        "z": 0
+      },
+      "world": {
+        "x": 14059.782,
+        "y": 13255.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1540,
+      "address": "0x27BBC0BCE00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1179.5,
+        "y": 1379.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12820.652,
+        "y": 14994.564,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1541,
+      "address": "0x27BB72E7E00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1184.5,
+        "y": 1403.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12875,
+        "y": 15255.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1542,
+      "address": "0x27AF1F55780",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1195.5,
+        "y": 1206.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12994.565,
+        "y": 13114.13,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1543,
+      "address": "0x27AF1F56B80",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1247.5,
+        "y": 1315.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13559.782,
+        "y": 14298.913,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1544,
+      "address": "0x27BB797A880",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1208.5,
+        "y": 1338.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13135.869,
+        "y": 14548.913,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1545,
+      "address": "0x27AD52E6380",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1275.5,
+        "y": 1282.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13864.13,
+        "y": 13940.217,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1546,
+      "address": "0x27AFFFA3300",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1208.5,
+        "y": 1322.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13135.869,
+        "y": 14375,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1547,
+      "address": "0x27AF1F55500",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1258.5,
+        "y": 1315.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13679.348,
+        "y": 14298.913,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1548,
+      "address": "0x27BB72E8080",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1191.5,
+        "y": 1403.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12951.087,
+        "y": 15255.435,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1549,
+      "address": "0x27AEB292580",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1247.5,
+        "y": 1281.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13559.782,
+        "y": 13929.348,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1550,
+      "address": "0x27AF1F52300",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1178.5,
+        "y": 1248.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12809.782,
+        "y": 13570.652,
+        "z": -140.80981
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/elitemarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1551,
+      "address": "0x27AFFFA6F00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1229.5,
+        "y": 1293.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13364.13,
+        "y": 14059.782,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1552,
+      "address": "0x27AE4ECBB00",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1243.5,
+        "y": 1246.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13516.304,
+        "y": 13548.913,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1553,
+      "address": "0x27AEB29E380",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1243.5,
+        "y": 1305.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13516.304,
+        "y": 14190.217,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_03.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1554,
+      "address": "0x27AD52EE800",
+      "path": "Metadata/MiscellaneousObjects/Expedition/ExpeditionMarker",
+      "customGroup": 100,
+      "grid": {
+        "x": 1270.5,
+        "y": 1310.5,
+        "z": 0
+      },
+      "world": {
+        "x": 13809.782,
+        "y": 14244.565,
+        "z": -70.58186
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Terrain/Doodads/Leagues/Expedition/monstermarker_02.ao",
+      "minimapIconName": null,
+      "modNames": [],
+      "componentNames": [
+        "Animated",
+        "BaseEvents",
+        "Functions",
+        "MinimapIcon",
+        "Positioned",
+        "Render",
+        "StateMachine"
+      ]
+    },
+    {
+      "entityId": 1556,
+      "address": "0x27AF0D70B00",
+      "path": "Metadata/Monsters/LeagueExpeditionNew/Sentinels/KalguurDrone@80",
+      "customGroup": 0,
+      "grid": {
+        "x": 1173.5,
+        "y": 1265.5,
+        "z": 0
+      },
+      "world": {
+        "x": 12755.435,
+        "y": 13755.435,
+        "z": 0
+      },
+      "terrainHeight": 0,
+      "animatedModelPath": "Metadata/Effects/Spells/monsters_effects/League_Expedition_New/Sentinel/AOs/Sentinel.ao",
+      "minimapIconName": null,
+      "modNames": [
+        "ExpeditionSentinelModRunePrismatic",
+        "ExpeditionSentinelTagLimit"
+      ],
+      "componentNames": [
+        "Actor",
+        "Animated",
+        "BaseEvents",
+        "BuffOrbs",
+        "Buffs",
+        "Functions",
+        "Inventories",
+        "Life",
+        "Monster",
+        "ObjectMagicProperties",
+        "Pathfinding",
+        "Positioned",
+        "Preload",
+        "Render",
+        "StateMachine",
+        "Stats",
+        "Targetable"
+      ]
+    }
+  ]
+}

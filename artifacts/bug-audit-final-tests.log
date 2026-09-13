@@ -1,0 +1,4 @@
+Opened a new handle using IntPtr 0x398
+PASS: 214 assertions; real memory projection, recovery validation, timing, rollback, toggle, quarantine and dumps.
+Releasing handle on 0x398
+

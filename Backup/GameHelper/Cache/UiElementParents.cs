@@ -6,9 +6,12 @@
 namespace GameHelper.Cache
 {
     using System;
+    using System.Buffers;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
+    using System.Runtime.CompilerServices;
+    using System.Runtime.InteropServices;
     using Coroutine;
     using GameHelper.RemoteObjects.UiElement;
     using GameHelper.CoroutineEvents;
@@ -19,6 +22,9 @@ namespace GameHelper.Cache
 
     internal class UiElementParents
     {
+        private const int MaxBatchSpanBytes = 64 * 1024;
+        private const int MaxGapAfterUiElementBytes = 0x200;
+        private const int MinBatchElements = 4;
         private readonly string name;
         private readonly UiElementParents? grandparent;
         private readonly GameStateTypes ownerState1;
@@ -115,7 +121,7 @@ namespace GameHelper.Cache
             return false;
         }
 
-        public void UpdateAllParentsParallel()
+        public void UpdateAllParentsParallel(bool refreshChildren = true)
         {
             KeyValuePair<IntPtr, UiElementBase>[] snapshot;
             lock (this.cache)
@@ -124,30 +130,23 @@ namespace GameHelper.Cache
                 ((ICollection<KeyValuePair<IntPtr, UiElementBase>>)this.cache).CopyTo(snapshot, 0);
             }
 
-            // A cached parent can be freed/reused by the game after we cached it (the atlas, for
-            // example, churns through many node-container parents). Re-validate each parent's
-            // self-pointer before updating: if it's no longer a Ui element, prune it instead of
-            // re-assigning its Address — the forceUpdate setter would otherwise throw "not a Ui
-            // Element" and spam the log every frame for every stale entry.
-            var stale = new ConcurrentBag<IntPtr>();
-            Parallel.ForEach(snapshot, (data) =>
+            // A cached parent can be freed/reused by the game after we cached it. For ordinary
+            // tree navigation preserve the historic full refresh. ImportantUiElements only uses
+            // this cache for parent-chain position/visibility, so it can reuse the validation
+            // snapshot and skip child-vector reads without making node positions stale.
+            if (refreshChildren || snapshot.Length < MinBatchElements)
             {
-                try
-                {
-                    var offsets = Core.Process.Handle.ReadMemory<UiElementBaseOffset>(data.Key);
-                    if (offsets.Self != IntPtr.Zero && offsets.Self != data.Key)
-                    {
-                        stale.Add(data.Key);
-                        return;
-                    }
+                this.UpdateParentsIndividually(snapshot, refreshChildren);
+                return;
+            }
 
-                    data.Value.Address = data.Key;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Failed to update the UiElement Parent in the cache. 0x{data.Key.ToInt64():X} due to {e}");
-                }
-            });
+            // Game UI elements are often allocated as nearby fixed-size objects. Combine only
+            // adjacent addresses and cap each span; a failed span falls back to the original
+            // scalar read path, preserving behaviour across heap/page boundaries.
+            Array.Sort(snapshot, static (left, right) => left.Key.CompareTo(right.Key));
+            var batches = BuildReadBatches(snapshot);
+            var stale = new ConcurrentBag<IntPtr>();
+            Parallel.ForEach(batches, batch => RefreshBatch(snapshot, batch, stale));
 
             if (!stale.IsEmpty)
             {
@@ -159,6 +158,150 @@ namespace GameHelper.Cache
                     }
                 }
             }
+        }
+
+        private static List<ReadBatch> BuildReadBatches(KeyValuePair<IntPtr, UiElementBase>[] sorted)
+        {
+            var batches = new List<ReadBatch>();
+            var elementSize = Unsafe.SizeOf<UiElementBaseOffset>();
+            var start = 0;
+            while (start < sorted.Length)
+            {
+                var firstAddress = sorted[start].Key.ToInt64();
+                var end = start + 1;
+                var previousAddress = firstAddress;
+                while (end < sorted.Length)
+                {
+                    var nextAddress = sorted[end].Key.ToInt64();
+                    var gapAfterPrevious = nextAddress - previousAddress - elementSize;
+                    var span = nextAddress - firstAddress + elementSize;
+                    if (gapAfterPrevious < 0 || gapAfterPrevious > MaxGapAfterUiElementBytes || span > MaxBatchSpanBytes)
+                    {
+                        break;
+                    }
+
+                    previousAddress = nextAddress;
+                    end++;
+                }
+
+                batches.Add(new ReadBatch(start, end, checked((int)(previousAddress - firstAddress + elementSize))));
+                start = end;
+            }
+
+            return batches;
+        }
+
+        private void UpdateParentsIndividually(KeyValuePair<IntPtr, UiElementBase>[] snapshot, bool refreshChildren)
+        {
+            var stale = new ConcurrentBag<IntPtr>();
+            Parallel.ForEach(snapshot, data => RefreshIndividually(data, refreshChildren, stale));
+            this.RemoveStale(stale);
+        }
+
+        private static void RefreshBatch(
+            KeyValuePair<IntPtr, UiElementBase>[] sorted,
+            ReadBatch batch,
+            ConcurrentBag<IntPtr> stale)
+        {
+            if (batch.Count < MinBatchElements)
+            {
+                for (var i = batch.StartIndex; i < batch.EndIndex; i++)
+                {
+                    RefreshIndividually(sorted[i], false, stale);
+                }
+
+                return;
+            }
+
+            var buffer = ArrayPool<byte>.Shared.Rent(batch.ByteCount);
+            try
+            {
+                var startAddress = sorted[batch.StartIndex].Key;
+                if (!Core.Process.Handle.TryReadMemoryArray(startAddress, buffer, batch.ByteCount, out _))
+                {
+                    for (var i = batch.StartIndex; i < batch.EndIndex; i++)
+                    {
+                        RefreshIndividually(sorted[i], false, stale);
+                    }
+
+                    return;
+                }
+
+                var startAddressValue = startAddress.ToInt64();
+                var elementSize = Unsafe.SizeOf<UiElementBaseOffset>();
+                for (var i = batch.StartIndex; i < batch.EndIndex; i++)
+                {
+                    var data = sorted[i];
+                    var offset = checked((int)(data.Key.ToInt64() - startAddressValue));
+                    var uiOffset = MemoryMarshal.Read<UiElementBaseOffset>(buffer.AsSpan(offset, elementSize));
+                    if (!data.Value.TryRefreshParentData(uiOffset))
+                    {
+                        stale.Add(data.Key);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to batch-update UiElement Parents at 0x{sorted[batch.StartIndex].Key.ToInt64():X} due to {e}");
+                for (var i = batch.StartIndex; i < batch.EndIndex; i++)
+                {
+                    RefreshIndividually(sorted[i], false, stale);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        private static void RefreshIndividually(
+            KeyValuePair<IntPtr, UiElementBase> data,
+            bool refreshChildren,
+            ConcurrentBag<IntPtr> stale)
+        {
+            try
+            {
+                var offsets = Core.Process.Handle.ReadMemory<UiElementBaseOffset>(data.Key);
+                if (offsets.Self != IntPtr.Zero && offsets.Self != data.Key)
+                {
+                    stale.Add(data.Key);
+                    return;
+                }
+
+                if (refreshChildren)
+                {
+                    data.Value.Address = data.Key;
+                }
+                else if (!data.Value.TryRefreshParentData(offsets))
+                {
+                    stale.Add(data.Key);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to update the UiElement Parent in the cache. 0x{data.Key.ToInt64():X} due to {e}");
+            }
+        }
+
+        private void RemoveStale(ConcurrentBag<IntPtr> stale)
+        {
+            if (stale.IsEmpty)
+            {
+                return;
+            }
+
+            lock (this.cache)
+            {
+                foreach (var key in stale)
+                {
+                    this.cache.Remove(key);
+                }
+            }
+        }
+
+        private readonly record struct ReadBatch(int StartIndex, int EndIndex, int ByteCount)
+        {
+            internal int Count => this.EndIndex - this.StartIndex;
         }
 
         public void Clear()

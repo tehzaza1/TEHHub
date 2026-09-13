@@ -1,0 +1,190 @@
+[
+  {
+    "category": "Currency",
+    "items": 52,
+    "lines": 52,
+    "sample": [
+      "Orb of Alchemy",
+      "Exalted Orb",
+      "Ancient Infuser"
+    ]
+  },
+  {
+    "category": "Fragments",
+    "items": 26,
+    "lines": 26,
+    "sample": [
+      "Azmeri Reliquary Key",
+      "Breachlord Sac",
+      "Call of the Shadows"
+    ]
+  },
+  {
+    "category": "UncutGems",
+    "items": 42,
+    "lines": 42,
+    "sample": [
+      "Uncut Skill Gem (Level 12)",
+      "Uncut Skill Gem (Level 14)",
+      "Uncut Skill Gem (Level 15)"
+    ]
+  },
+  {
+    "category": "Essences",
+    "items": 80,
+    "lines": 80,
+    "sample": [
+      "Essence of Delirium",
+      "Essence of Enhancement",
+      "Essence of Sorcery"
+    ]
+  },
+  {
+    "category": "SoulCores",
+    "items": 52,
+    "lines": 52,
+    "sample": [
+      "Atmohua's Soul Core of Retreat",
+      "Atziri's Soul Core of Alacrity",
+      "Atziri's Soul Core of Vitality"
+    ]
+  },
+  {
+    "category": "Idols",
+    "items": 35,
+    "lines": 35,
+    "sample": [
+      "Carved Cunning",
+      "Carved Majesty",
+      "Carved Mischief"
+    ]
+  },
+  {
+    "category": "Runes",
+    "items": 145,
+    "lines": 145,
+    "sample": [
+      "Adept Rune",
+      "Aldur's Legacy",
+      "Ancient Rune of Animosity"
+    ]
+  },
+  {
+    "category": "Expedition",
+    "items": 18,
+    "lines": 18,
+    "sample": [
+      "Blazing Flux",
+      "Chilling Flux",
+      "Crackling Flux"
+    ]
+  },
+  {
+    "category": "Verisium",
+    "items": 24,
+    "lines": 24,
+    "sample": [
+      "Adaptive Alloy",
+      "Celestial Alloy",
+      "Expansive Alloy"
+    ]
+  },
+  {
+    "category": "Ritual",
+    "items": 39,
+    "lines": 39,
+    "sample": [
+      "An Audience with the King",
+      "Omen of Abyssal Echoes",
+      "Omen of Answered Prayers"
+    ]
+  },
+  {
+    "category": "Delirium",
+    "items": 26,
+    "lines": 26,
+    "sample": [
+      "Ancient Concentrated Liquid Isolation",
+      "Ancient Concentrated Liquid Suffering",
+      "Ancient Diluted Liquid Greed"
+    ]
+  },
+  {
+    "category": "Breach",
+    "items": 28,
+    "lines": 28,
+    "sample": [
+      "Adaptive Catalyst",
+      "Breach Splinter",
+      "Breachstone"
+    ]
+  },
+  {
+    "category": "Abyss",
+    "items": 15,
+    "lines": 15,
+    "sample": [
+      "Altered Collarbone",
+      "Amanamu's Gaze",
+      "Ancient Collarbone"
+    ]
+  },
+  {
+    "category": "Ultimatum",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  },
+  {
+    "category": "Vaal",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  },
+  {
+    "category": "Incursion",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  },
+  {
+    "category": "VaultKeys",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  },
+  {
+    "category": "LineageSupportGems",
+    "items": 75,
+    "lines": 75,
+    "sample": [
+      "Ahn's Citadel",
+      "Ailith's Chimes",
+      "Amanamu's Tithe"
+    ]
+  },
+  {
+    "category": "LineageSupports",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  },
+  {
+    "category": "Sanctum",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  },
+  {
+    "category": "Catalysts",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  },
+  {
+    "category": "TrialCoins",
+    "items": 0,
+    "lines": 0,
+    "sample": []
+  }
+]

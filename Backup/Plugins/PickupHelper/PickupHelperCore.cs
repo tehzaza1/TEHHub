@@ -10,6 +10,7 @@ namespace PickupHelper
     using System.Linq;
     using System.Numerics;
     using System.Reflection;
+    using System.Text.Json;
     using ClickableTransparentOverlay.Win32;
     using GameHelper;
     using GameHelper.Plugin;
@@ -18,7 +19,6 @@ namespace PickupHelper
     using GameHelper.RemoteObjects.States.InGameStateObjects;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
 
     /// <summary>
     ///     A hover-to-pickup helper: when the item under the cursor matches the configured
@@ -42,7 +42,9 @@ namespace PickupHelper
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<PickupHelperSettings>(content) ?? new PickupHelperSettings();
+                this.Settings = JsonSerializer.Deserialize(
+                    content,
+                    PickupHelperJsonContext.Default.PickupHelperSettings) ?? new PickupHelperSettings();
             }
         }
 
@@ -55,7 +57,7 @@ namespace PickupHelper
         public override void SaveSettings()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-            var data = JsonConvert.SerializeObject(this.Settings, Formatting.Indented);
+            var data = JsonSerializer.Serialize(this.Settings, PickupHelperJsonContext.Default.PickupHelperSettings);
             File.WriteAllText(this.SettingPathname, data);
         }
 

@@ -1,0 +1,21 @@
+# Memory Read Diagnostics — 2026-09-11 05:00:50
+# Recent: 650695 calls/s, 253.38 MiB/s, 1.82 us/call, 0 failures/s
+# Session (30.0s): 19849971 calls, 661811 calls/s, 251.04 MiB/s, 1.84 us/call, 0 failures
+# Frames: 1703, 56.8 frames/s, 11656 reads/frame
+# Scalar calls: 13797518, Buffer/array calls: 6052453, Total requested: 7529.46 MiB
+# Read regions (regions can overlap):
+# Region	Invocations	TotalReads	AvgReads/Invocation	RequestedMiB
+# Core.ImportantUiElements	1727	19757389	11440.3	7594.06
+# Core.AtlasMapUpdate	1727	2553015	1478.3	316.59
+# Core.AreaInstance	1727	215993	125.1	26.49
+# Atlas2.Atlas2	1727	157043	90.9	1.08
+# Atlas2.DrawUI	1727	157043	90.9	1.08
+# Core.Inventory	865	8650	10.0	0.70
+# Core.InGameState	1727	6908	4.0	8.45
+# Core.GameStates	1727	3454	2.0	0.49
+# Core.WorldData	1727	1727	1.0	0.79
+# Distinct call sites: 0, Total failed reads: 0
+# Verdict guide: high Unique + low Max/Addr => races; low Unique + high Max/Addr => likely structural.
+Total	Unique	Max/Addr	Verdict	LastSeen(s)	Caller(Type)	TopAddresses
+
+# ===== Top failing addresses per call site (value decoded as string/float when printable) =====

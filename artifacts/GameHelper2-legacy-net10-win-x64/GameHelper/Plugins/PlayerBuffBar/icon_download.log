@@ -1,0 +1,24 @@
+[2026-09-06 18:33:38] FAIL granite: page HTTP 404 (Granite)
+[2026-09-06 18:33:38] OK herald: SkillIcons/HeraldOfAshSkill.webp
+[2026-09-06 18:33:38] OK haste: SkillIcons/auraspeed.webp
+[2026-09-06 18:33:38] OK grace: SkillIcons/auraevasion.webp
+[2026-09-06 18:33:38] OK power_charge: BuffIcons/chargeint.webp
+[2026-09-06 18:33:38] OK molten: SkillIcons/moltenshield.webp
+[2026-09-06 18:33:38] OK berserk: BuffIcons/Beserk.webp
+[2026-09-06 18:33:38] OK endurance_charge: BuffIcons/chargestr.webp
+[2026-09-06 18:33:38] OK frenzy_charge: BuffIcons/chargedex.webp
+[2026-09-06 18:33:39] OK adrenaline: SkillIcons/passives/Champion/FirstStrikeLastFall.webp
+[2026-09-06 19:08:17] FAIL granite: page HTTP 404 (Granite)
+[2026-09-06 19:09:34] FAIL granite: page HTTP 404 (Granite)
+[2026-09-06 19:12:54] FAIL granite: page HTTP 404 (Granite)
+[2026-09-06 19:14:17] FAIL granite: page HTTP 404 (Granite)
+[2026-09-06 19:15:32] FAIL granite: page HTTP 404 (Granite)
+[2026-09-06 19:16:29] FAIL granite: page HTTP 404 (Granite)
+[2026-09-06 19:19:17] FAIL granite: page HTTP 404 (Granite)
+[2026-09-07 10:48:43] FAIL granite: page HTTP 404 (Granite)
+[2026-09-07 10:50:01] FAIL granite: page HTTP 404 (Granite)
+[2026-09-07 10:53:40] FAIL granite: page HTTP 404 (Granite)
+[2026-09-07 10:59:38] FAIL granite: page HTTP 404 (Granite)
+[2026-09-11 06:56:37] FAIL granite: page HTTP 404 (Granite)
+[2026-09-11 06:59:48] FAIL granite: page HTTP 404 (Granite)
+[2026-09-11 07:03:45] FAIL granite: page HTTP 404 (Granite)

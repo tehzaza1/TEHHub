@@ -1,4 +1,4 @@
-﻿// <copyright file="PerformanceStats.cs" company="None">
+// <copyright file="PerformanceStats.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -91,6 +91,7 @@ namespace GameHelper.Ui
 
                     var fps = ImGui.GetIO().Framerate;
                     ImGui.Text($"FPS: {fps}");
+                    ImGui.Text($"Mode: {Core.GHSettings.CurrentGameMode}");
 
                     if (!Core.GHSettings.MinimumPerfStats)
                     {

@@ -1,0 +1,56 @@
+{
+  "EnableAutoQuit": false,
+  "AutoQuitCondition": {
+    "conditionSource": "PlayerVitals.HP.Percent \u003C= 30",
+    "component": null
+  },
+  "EnableAutoQuitKey": false,
+  "AutoQuitKey": "F11",
+  "Profiles": {
+    "LeagueStartDefaultProfile": {
+      "Rules": [
+        {
+          "Conditions": [
+            {
+              "conditionSource": "PlayerVitals.HP.Percent \u003C= 80 \u0026\u0026 Flasks.Flask1.IsUsable \u0026\u0026 !Flasks.Flask1.Active",
+              "component": null
+            }
+          ],
+          "delayBetweenRuns": 0,
+          "Enabled": true,
+          "Name": "LifeFlask",
+          "Key": "KEY_1",
+          "UseGamepadKey": false,
+          "GamepadKey": "DPadLeft"
+        },
+        {
+          "Conditions": [
+            {
+              "conditionSource": "PlayerVitals.MANA.Percent \u003C= 30 \u0026\u0026 Flasks.Flask2.IsUsable \u0026\u0026 !Flasks.Flask2.Active",
+              "component": null
+            }
+          ],
+          "delayBetweenRuns": 0,
+          "Enabled": true,
+          "Name": "ManaFlask",
+          "Key": "KEY_2",
+          "UseGamepadKey": false,
+          "GamepadKey": "DPadRight"
+        }
+      ]
+    },
+    "ProfileMidGame": {
+      "Rules": []
+    },
+    "ProfileEndGame": {
+      "Rules": []
+    }
+  },
+  "CurrentProfile": "LeagueStartDefaultProfile",
+  "DebugMode": false,
+  "ShouldRunInHideout": false,
+  "DumpStatusEffectOnMe": "F10",
+  "ScanUniqueInvulnMarkers": false,
+  "XInputControllerIndex": 0,
+  "EnableControllerMode": false
+}

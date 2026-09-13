@@ -161,6 +161,7 @@ namespace GameHelper.Plugin
                 return false;
             }
 
+
             var relative = new Vector2(data.RelativePosition.X, data.RelativePosition.Y);
             if (data.ParentPtr == IntPtr.Zero)
             {

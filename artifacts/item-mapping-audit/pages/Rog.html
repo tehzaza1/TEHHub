@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="us" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>Rog - PoE2DB, Path of Exile Wiki us</title>
+    <meta name="description" content="path of exile is simply a tool to test your path of building creation">
+    <link rel="alternate" hreflang="en" href="https://poe2db.tw/us/" />
+    <link rel="alternate" hreflang="zh-Hant" href="https://poe2db.tw/tw/" />
+    <link rel="alternate" hreflang="zh-Hans" href="https://poe2db.tw/cn/" />
+        <link href="/favicon2.png" rel="shortcut icon" >
+    
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha512-aOG0c6nPNzGk+5zjwyJaoRUgCdOrfSDhmMID2u4+OIslr0GjpLKo7Xm0Ao3xmpM4T8AmIouRkqwj1nrdVsLKEQ==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css" integrity="sha512-1k7mWiTNoyx2XtmI96o+hdjP8nn0f3Z2N4oF/9ZZRgijyV4omsKOXEnqL1gKQNPy2MTSP9rIEWGcH/CInulptA==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" integrity="sha512-nMNlpuaDPrqlEls3IX/Q56H36qvBASwb3ipuo3MxeWbsQB1881ox0cRv7UPTgBlriqoynt35KjEwgGUeUXIPnw==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-5-theme/1.3.0/select2-bootstrap-5-theme.min.css" integrity="sha512-z/90a5SWiu4MWVelb5+ny7sAayYUfMmdXKEAbpj27PfdkamNdyI3hcjxPxkOPbrXoKIm7r9V2mElt5f1OtVhqA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.7/tippy.min.css" integrity="sha512-HbPh+j4V7pXprvQMt2dtmK/zCEsUeZWYXRln4sOwmoyHPQAPqy/k9lIquKUyKNpNbDGAY06UdiDHcEkBc72yCQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.2.1/sweetalert2.min.css" integrity="sha512-OkYLbkJ4DB7ewvcpNLF9DSFmhdmxFXQ1Cs+XyjMsMMC94LynFJaA9cPXOokugkmZo6O6lwZg+V5dwQMH4S5/3g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modal-video@2.4.6/css/modal-video.min.css" integrity="sha256-nd8IBqNn9uqwZKfZcLIXQcNxk5TjqrxiLx7PzN5PFW0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.10.0/css/lightbox.min.css" integrity="sha256-auPoJwk/+RK6KSkib92Dkq1Y5hEkZvKtvSwucs15Skg=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.19.1/video-js.min.css" integrity="sha512-J3tx4ssoARFr4U9VmZmQe2q672q0jUeYizJW3vglkOBTlQ/N6kF3eVqZZzaey/TdIXH69s3HYe2nQwyxK/Emzw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+        <link rel="stylesheet" href="https://cdn.poe2db.tw/css/stdtheme.b9911322bcc6417a.css" />
+    
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js" integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js" integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/jquery.tablesorter.min.js" integrity="sha512-qzgd5cYSZcosqpzpn7zF2ZId8f/8CHmFKZ8j7mU4OUXTNRd5g+ZHBPsgKEwoqxCtdQvExE5LprwwPAgoicguNg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.countdown/2.2.0/jquery.countdown.min.js" integrity="sha256-Ikk5myJowmDQaYVCUD0Wr+vIDkN8hGI58SGWdE671A8=" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js" integrity="sha512-BkpSL20WETFylMrcirBahHfSnY++H2O1W+UnEEO4yNIl+jI2+zowyoGJpbtk6bx97fBXf++WJHSSK2MV4ghPcg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.full.min.js" integrity="sha512-RtZU3AyMVArmHLiW0suEZ9McadTdegwbgtiQl5Qqo9kunkVg1ofwueXD8/8wv3Af8jkME3DDe3yLfR8HSJfT2g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.6.0/umd/popper.min.js" integrity="sha512-BmM0/BQlqh02wuK5Gz9yrbe7VyIVwOzD1o40yi1IsTjriX/NGF37NyXHfmFzIlMmoSIBXgqDiG1VNU6kB5dBbA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.7/tippy-bundle.umd.min.js" integrity="sha512-gbruucq/Opx9jlHfqqZeAg2LNK3Y4BbpXHKDhRC88/tARL/izPOE4Zt2w6X9Sn1UeWaGbL38zW7nkL2jdn5JIw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.1/marked.min.js" integrity="sha512-VUuO/d6MS7hXmiFGEj7HtUa2FCI6Ll+xPvX9yX3bxn7ZqDWwleqXa8dtW13brbZ1ld2jiTrv8hWbpfp4B5mi4Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.2.1/sweetalert2.all.js" integrity="sha512-A7LzqKE/pm9ofgS0Lxu7qroQS5SkKJQaYJkJ/66nQiWZfEdeGlBq5zEXQ63VRmXZK8zPpCgFf2WQJIAljI0Vdw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdn.jsdelivr.net/npm/modal-video@2.4.6/js/modal-video.min.js" integrity="sha256-VqINwNxkS4VEDMq5O52YTckX+Mx84X6bafO8NxF21Xw=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.10.0/js/lightbox.min.js" integrity="sha256-DiHJ7hbvMejsMyP76bpVWacb5HSHQ2sQlrJV8n7KEvA=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.0.0/echarts.min.js" integrity="sha512-4/g9GAdOdTpUP2mKClpKsEzaK7FQNgMjq+No0rX8XZlfrCGtbi4r+T/p5fnacsEC3zIAmHKLJUL7sh3/yVA4OQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.0.0/theme/dark.min.js" integrity="sha512-3Zm64ayK7DflnnyO2pKkLJX3v9Sb90mvahbwPUuMzEf42HI6k8tquIx5VsNBjEWAcYJWzvimbqnTkLl2QdCUmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.19.1/video.min.js" integrity="sha512-48NkCweTzA9u2sP4GgKcEDm6IScPIMga142ipKFNcHfz7feUJXDJxO1jwc2l+5MvWfwMj4BDfQv8WIMhrPxZLQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/3.2.1/mustache.min.js" integrity="sha512-Qjrukx28QnvFWISw9y4wCB0kTB/ISnWXPz5/RME5o8OlZqllWygc1AB64dOBlngeTeStmYmNTNcM6kfEjUdnnQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js" integrity="sha512-7O5pXpc0oCRrxk8RUfDYFgn0nO1t+jLuIOQdOMRp4APB7uZ4vSjspzp5y6YDtDs4VzUSTbWzBFZ/LKJhnyFOKw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js" integrity="sha512-JRlcvSZAXT8+5SQQAvklXGJuxXTouyq8oIMaYERZQasB8SBDHZaUbeASsJWpk0UUrf89DP3/aefPPrlMR1h1yQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha512-g2TeAWw5GPnX7z0Kn8nFbYfeHcvAu/tx6d6mrLe/90mkCxO+RcptyYpksUz35EO337F83bZwcmUyHiHamspkfg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+        <script src="https://cdn.poe2db.tw/js/ModsView.f39fca410dd746d3.js"></script>
+        <script src="https://cdn.poe2db.tw/js/poedb_header.29bf8e795e0a583f.js"></script>
+    
+    <script data-cfasync="false">window.nitroAds=window.nitroAds||{createAd:function(){return new Promise(e=>{window.nitroAds.queue.push(["createAd",arguments,e])})},addUserToken:function(){window.nitroAds.queue.push(["addUserToken",arguments])},queue:[]};</script>
+    <script data-cfasync="false" async src="https://s.nitropay.com/ads-2013.js"></script>
+
+    <meta property="og:site_name" content="poe2db.tw">
+<meta property="og:title" content="Rog" />
+
+  </head>
+
+  <body>
+
+    <div id="consent-box" style="display:none">
+      <button onclick="window.__cmp('showModal');">
+        Update cookie preferences
+      </button>
+    </div>
+    
+    <script>
+      if (window["nitroAds"] && window["nitroAds"].loaded) {
+        document.getElementById("consent-box").style.display = window["__tcfapi"]
+          ? ""
+          : "none";
+      } else {
+        document.addEventListener(
+          "nitroAds.loaded",
+          () =>
+            (document.getElementById("consent-box").style.display = window["__tcfapi"]
+              ? ""
+              : "none")
+        );
+      }
+    </script>
+
+
+    <div class="background-image item-popup--poe2"></div>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6598Z863E2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-6598Z863E2');
+</script>
+
+
+    <header>
+        <!-- Fixed navbar -->
+        <nav class="navbar navbar-expand-lg navbar-dark">
+          <div class="container">
+            <a class="navbar-brand fw-bold" href="/us/">PoE2<span class='brand-suffix'>DB</span><sub></sub></a>
+            <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"  aria-controls="navbarsExample07" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse">
+              <ul class="navbar-nav me-auto">
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|UIOptionsSectionTitleItems|Name">Item</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="themes">
+                    <li><a class="dropdown-item" href="/us/Items" data-i18n="ClientStrings|UIOptionsSectionTitleItems|Name">Item</a></li>
+                    <li><a class="dropdown-item" href="/us/Unique_item" data-i18n="ClientStrings|ItemDisplayStringUnique|Name"></a></li>
+                    <li><a class="dropdown-item" href="/us/Reforging_Bench" data-i18n="ClientStrings|RecipeBenchTitle|Name"></a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/us/Gem" data-i18n="ClientStrings|ItemDisplayStringGem|Name">Gem</a></li>
+                    <li><a class="dropdown-item" href="/us/Skill_Gems" data-i18n="ItemClasses|Active Skill Gem|Name">Skill Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Support_Gems" data-i18n="ItemClasses|Support Skill Gem|Name">Support Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Spirit_Gems" data-i18n-tw="精神寶石">Spirit Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Lineage_Supports" data-i18n="KeywordPopups|LineageSupports|Name">Lineage Supports</a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|ExpeditionModsTitle|Name">Modifiers</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="themes">
+                    <li><a class="dropdown-item" href="/us/Modifiers" data-i18n="ClientStrings|ExpeditionModsTitle|Name">Modifiers</a></li>
+                    <li><a class="dropdown-item" href="/us/Keywords" data-i18n-tw="提示字">Keywords</a></li>
+                    <li><a class="dropdown-item" href="/us/Desecrated_Modifiers" data-i18n="KeywordPopups|Abyssalify|Name">Desecrated Modifiers</a></li>
+                    <li><a class="dropdown-item" href="/us/Crafting" data-i18n="ClientStrings|CraftingWindowTitle|Name">Crafting</a></li>
+                    <li><a class="dropdown-item" href="/us/Liquid_Emotions" data-i18n="KeywordPopups|DistilledEmotion|Name"></a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|ItemDisplayStringQuest|Name">Quest</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a class="dropdown-item" href="/us/Quest" data-i18n="ClientStrings|ItemDisplayStringQuest|Name">Quest</a></li>
+                    <li><a class="dropdown-item" href="/us/Ascendancy_class" data-i18n="ClientStrings|TutorialPanelAscendancies|Name">Ascendancy Classes</a></li>
+                    <li><a class="dropdown-item" href="/us/passive-skill-tree/" data-i18n="ClientStrings|ActionOpenPassivePanel|Name">Passive Skill Tree</a></li>
+                    <li><a class="dropdown-item" href="/us/Act" data-i18n-tw="章節">Act</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/us/Waystones" data-i18n="ItemClasses|Map|Name">Waystones</a></li>
+                    <li><a class="dropdown-item" href="/us/EndGame" data-i18n="Acts|Endgame|Name"></a></li>
+                    <li><a class="dropdown-item" href="/us/atlas-skill-tree/" data-i18n="ClientStrings|ActionOpenAtlasPassivesScreen|Name"></a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item"><a class="nav-link" href="Economy" data-i18n-tw="經濟" data-i18n-cn="经济">Economy</a></li>
+    
+                <li class="nav-item"><a class="ms-4 nav-link  bg-warning rounded-circle" style="color: white" href="/us/patreon">Patreon</a></li>
+              </ul>
+    
+    
+              <ul class="navbar-nav">
+                <li class="nav-item">
+                  <a class="nav-link fw-bold" aria-current="page" href="https://poedb.tw/us/Rog">PoE<span class="brand-suffix">DB</span></a>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> <i class="fas fa-language fa-lg"></i> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a class="dropdown-item" href="/tw/Rog">TW 繁體中文</a></li>
+                    <li><a class="dropdown-item" href="/cn/Rog">CN 简体中文</a></li>
+                    <li><a class="dropdown-item" href="/us/Rog">US English</a></li>
+                    <li><a class="dropdown-item" href="/kr/Rog">KR 한국어</a></li>
+                    <li><a class="dropdown-item" href="/ru/Rog">RU Русский</a></li>
+                    <li><a class="dropdown-item" href="/jp/Rog">JP Japanese</a></li>
+                    <li><a class="dropdown-item" href="/fr/Rog">FR Français</a></li>
+                    <li><a class="dropdown-item" href="/de/Rog">DE Deutsch</a></li>
+                    <li><a class="dropdown-item" href="/th/Rog">TH ภาษาไทย</a></li>
+                    <li><a class="dropdown-item" href="/pt/Rog">PO Português</a></li>
+                    <li><a class="dropdown-item" href="/sp/Rog">ES Spanish</a></li>
+                  </ul>
+                </li>
+              </ul>
+    
+            <form class="form-inline my-2 my-lg-0" role="search" action="search">
+              <input type="hidden" name="token" value="55fe9900c050f590a86216664aca7bed524f683740e43413114f68bafe53e278094f25">
+              <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search" name="q" id="navautosearch">
+            </form>
+    
+            </div><!--/.nav-collapse -->
+          </div><!--/.container-fluid -->
+        </nav>
+    </header>
+
+<script>sidebar160("leftside_banner", "left");</script>
+<script>sidebar160("rightside_banner", "right");</script>
+
+
+
+    <div class="page poe2">
+    <div class="page-content theme-showcase container" role="main">
+
+
+<div class="card mb-2" id="head_toolbar">
+  <div class="card-body p-1">
+    <div class="league_bar text-center">
+      <a href="Runes_of_Aldur_league" data-bs-toggle="tooltip" title="Runes of Aldur v0.5" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Expedition2RemnantActive.webp" alt="Expedition2RemnantActive" class="league_minimap" /></span></a><a href="Atziris_Temple" data-bs-toggle="tooltip" title="Atziri v0.4" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/IncursionAtziriActive.webp" alt="IncursionAtziriActive" class="league_minimap" /></span></a><a href="Waystones" data-bs-toggle="tooltip" title="Waystones" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/6967bef8f8e36673401bdc8734ca568f3658e345535c2de9861db9d98a3c6efa"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2ditems/maps/endgamemaps/endgamemap1.webp" class="league_minimap"/></a><a href="Shrine" data-bs-toggle="tooltip" title="Shrine" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/f3b7bd4d1b71efea5337f642ee2290b988c01bd82715f47a5fabd7b8806ffeed"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/ShrineActive.webp" alt="ShrineActive" class="league_minimap" /></span></a><a href="Strongbox" data-bs-toggle="tooltip" title="Strongbox" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/dd8569610376eaeaf3c76bac2aca75f93dfeeb0b08b8677b44aecf4aa7bd597a"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Strongbox.webp" alt="Strongbox" class="league_minimap" /></span></a><a href="Essence" data-bs-toggle="tooltip" title="Essence" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c300ee10453c0d3d4676fe3426f3cfa05d5758ec6d2c191dbc688110ed74c5ac"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Essence.webp" alt="Essence" class="league_minimap" /></span></a><a href="Archnemesis" data-bs-toggle="tooltip" title="Archnemesis" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/RareMonsterAlive.webp" alt="RareMonsterAlive" class="league_minimap" /></span></a><a href="Azmeri_Spirit" data-bs-toggle="tooltip" title="Azmeri Spirit v0.2" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c10c2802f88f4e4bc5c5d836b14b9783ba4e9401fc73703f23a6ba31fa09dd29"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/SpiritActivated.webp" alt="SpiritActivated" class="league_minimap" /></span></a><a href="Rogue_Exile" data-bs-toggle="tooltip" title="Rogue Exile" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/e2f177b41880870c4a928311cf516fed73a7566e723389f13d8fcbc86608a561"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/RogueExile.webp" alt="RogueExile" class="league_minimap" /></span></a><a href="Abyss" data-bs-toggle="tooltip" title="Abyss v0.3" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/6003fdff81f9d17ef8f0e7a87283185b667c6616526433d662e01bf5db25c440"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/textures/interface/2d/2dart/uiimages/ingame/worldmap/mapbuttonabysshub.webp" class="league_minimap"/></a><a href="Breach" data-bs-toggle="tooltip" title="Breach" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/0eac14cede43f4ac369319d118f9e058fad773b652259373cea970a34422c789"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentbreach.webp" class="league_minimap"/></a><a href="Ritual" data-bs-toggle="tooltip" title="Ritual" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/422d58c1d59cfa4eaa519e1b080f6805f7a953495d5e87b32161edf941ba6a55"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentritual.webp" class="league_minimap"/></a><a href="Delirium" data-bs-toggle="tooltip" title="Delirium" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/ee3f90b5c813b08eb8f10086acd631a6c320b3a2c44cb0683d6755557213ff29"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentdelirium.webp" class="league_minimap"/></a><a href="Expedition" data-bs-toggle="tooltip" title="Expedition" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/82090e1f6b3f4f6bbe404b10bc48aed4a89fdf72cb8f07822951dbbda7b001f1"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentexpedition.webp" class="league_minimap"/></a><a href="The_Burning_Monolith" data-bs-toggle="tooltip" title="The Burning Monolith" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/4e64bc88d5ecc1043e97cef77776c3a7578900ce6c2b439d9c611ee1d162a88d"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/maplegend/monolith.webp" class="league_minimap"/></a><a href="Trial_of_the_Sekhemas" data-bs-toggle="tooltip" title="Trial of the Sekhemas" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/105f81cab9c06cbc40ac8051a29ccc806981200b1acaf3680d95a4c508eec89a"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/WorldMap/MapButtonSanctum.webp" class="league_minimap"/></a><a href="The_Trial_of_Chaos" data-bs-toggle="tooltip" title="The Trial of Chaos" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/105f81cab9c06cbc40ac8051a29ccc806981200b1acaf3680d95a4c508eec89a"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/WorldMap/MapButtonUltimatum.webp" class="league_minimap"/></a>
+    </div>
+  </div>
+</div>
+
+
+
+<div id="topbanner970"></div><script>topbanner970("topbanner970");</script>
+
+<ul class="nav nav-tabs d-flex flex-wrap" role="tablist"><li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" role="tab" aria-selected="true" href="#RogExpeditionRog">Rog ExpeditionRog</a></li><li class="nav-item"><a class="nav-link" data-bs-toggle="tab" role="tab" aria-selected="false" href="#Rogmods">Rog mods /13 </a></li><li class="nav-item"><a class="nav-link" data-bs-toggle="tab" role="tab" aria-selected="false" href="#RogTopic">Rog Topic /8 </a></li><li class="nav-item"><a class="nav-link" data-bs-toggle="tab" role="tab" aria-selected="false" href="#RogRog">Rog Rog /5 </a></li></ul><div class="tab-content"><div id="RogExpeditionRog" class="tab-pane fade show active"><div class="d-flex flex-wrap">
+
+<div class="newItemPopup monsterNormalPopup item-popup--poe2 "
+>
+    <div class="itemHeader singleLine">
+
+        <div class="itemName typeLine">
+            <span class="lc">Rog</span>
+        </div>
+    </div>
+    <div class="content">
+        <div class="Stats">
+            <div class="property"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/HUD/EntityDisplay/CategoryHumanoid.webp" alt="CategoryHumanoid" class="size24" />Humanoid</div><div class="property"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyArmourStrong.webp" alt="IconEnemyArmourStrong" height="32" class="border-circle enemyStrong" /></div><div class="property">Area: <span class='colourDefault'><a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/32990cdb70073ac1be7b0303aca8d966f5722205a50bd2ad7d9b624d307e7319" href="/us/Craggy_Peninsula">Craggy Peninsula</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/0d8b09d7d1a6ed50b44a6bd1e637467cb20ba2327cf29cd9cdd56ffc984344b8" href="/us/Lush_Isle">Lush Isle</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/57666b8e36f9afba666e8cc2e8b66c1f1b710b9cbd28b9f39d52fed118512ba1" href="/us/Frigid_Bluffs">Frigid Bluffs</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/1c428b84756578acb880e5e52f44d9656e2ba5985fcc4223076eb90282d98f85" href="/us/Barren_Atoll">Barren Atoll</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/c36405b35f672ccd8419349a482c9f94fcfe2d6d7389ab354f173312d8183a0a" href="/us/Exhumed_Ruins">Exhumed Ruins</a></span></div><div class="separator"></div><div class="implicitMod"><span class="secondary">stance movement speed +% final [0]</span></div><div class="implicitMod">Regenerate <span class='mod-value'>2</span>% of maximum Life per second<br><span class='mod-value'>500</span>% increased Stealth<br><span class="secondary">expedition relic mods do not apply [1]</span></div>
+        </div>
+
+
+
+        <div>
+            
+        </div>
+    </div>
+</div>
+
+
+        <div class="itemboximage">
+
+
+        </div>
+
+
+
+</div>
+<span data-tabname="Rog <small>ExpeditionRog</small>" data-category="MonsterVarieties"></span><table class='table table-hover table-striped'><tr><th>Spectre<td><span class='fa-sloid fa-x'></span><tr><th>Area<td><a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/32990cdb70073ac1be7b0303aca8d966f5722205a50bd2ad7d9b624d307e7319" href="/us/Craggy_Peninsula">Craggy Peninsula</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/0d8b09d7d1a6ed50b44a6bd1e637467cb20ba2327cf29cd9cdd56ffc984344b8" href="/us/Lush_Isle">Lush Isle</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/57666b8e36f9afba666e8cc2e8b66c1f1b710b9cbd28b9f39d52fed118512ba1" href="/us/Frigid_Bluffs">Frigid Bluffs</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/1c428b84756578acb880e5e52f44d9656e2ba5985fcc4223076eb90282d98f85" href="/us/Barren_Atoll">Barren Atoll</a>, <a class="WorldAreas " data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_WorldAreas_hover/c36405b35f672ccd8419349a482c9f94fcfe2d6d7389ab354f173312d8183a0a" href="/us/Exhumed_Ruins">Exhumed Ruins</a><tr><th>Tags<td><i>bludgeoning_weapon</i>, Caster, <i>fire_affinity</i>, <i>has_one_hand_mace</i>, <i>has_one_handed_melee</i>, <i>human</i>, <i>humanoid</i>, <i>Mace2HWood_onhit_audio</i>, <i>melee</i>, <i>not_dex</i>, <i>physical_affinity</i>, <i>plate_armour</i>, <i>red_blood</i>, <i>very_slow_movement</i></table><div class='row row-cols-1 row-cols-lg-4 g-1 mb-2' style='background-color: #111'><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-shield-alt"></i>Life</div><div>150%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-shield-alt"></i>Energy Shield From Life</div><div>25%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-shield-alt"></i>Armour</div><div>+50%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-shield-alt"></i>Resistance</div><div><span data-bs-toggle="tooltip" data-bs-html="true" title="&lt;span class=&quot;normalitem&quot;&gt;Normal&lt;/span&gt; 0% / &lt;span class=&quot;magicitem&quot;&gt;Magic&lt;/span&gt; 0% / &lt;span class=&quot;rareitem&quot;&gt;Rare&lt;/span&gt; 0% / &lt;span class=&quot;uniqueitem&quot;&gt;Unique&lt;/span&gt; 0%"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceFire.webp" alt="IconEnemyResistanceFire" height="24" class="border-circle enemyNormal" />0%</span>
+<span data-bs-toggle="tooltip" data-bs-html="true" title="&lt;span class=&quot;normalitem&quot;&gt;Normal&lt;/span&gt; 0% / &lt;span class=&quot;magicitem&quot;&gt;Magic&lt;/span&gt; 0% / &lt;span class=&quot;rareitem&quot;&gt;Rare&lt;/span&gt; 0% / &lt;span class=&quot;uniqueitem&quot;&gt;Unique&lt;/span&gt; 0%"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceCold.webp" alt="IconEnemyResistanceCold" height="24" class="border-circle enemyNormal" />0%</span>
+<span data-bs-toggle="tooltip" data-bs-html="true" title="&lt;span class=&quot;normalitem&quot;&gt;Normal&lt;/span&gt; 0% / &lt;span class=&quot;magicitem&quot;&gt;Magic&lt;/span&gt; 0% / &lt;span class=&quot;rareitem&quot;&gt;Rare&lt;/span&gt; 0% / &lt;span class=&quot;uniqueitem&quot;&gt;Unique&lt;/span&gt; 0%"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceLightning.webp" alt="IconEnemyResistanceLightning" height="24" class="border-circle enemyNormal" />0%</span>
+<span data-bs-toggle="tooltip" data-bs-html="true" title="&lt;span class=&quot;normalitem&quot;&gt;Normal&lt;/span&gt; 0% / &lt;span class=&quot;magicitem&quot;&gt;Magic&lt;/span&gt; 0% / &lt;span class=&quot;rareitem&quot;&gt;Rare&lt;/span&gt; 0% / &lt;span class=&quot;uniqueitem&quot;&gt;Unique&lt;/span&gt; 0%"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceChaos.webp" alt="IconEnemyResistanceChaos" height="24" class="border-circle enemyNormal" />0%</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="far fa-hand-rock"></i>Damage</div><div>82%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="far fa-hand-rock"></i>Accuracy</div><div>100%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="far fa-hand-rock"></i><a class="KeywordPopups" data-keyword="Critical" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/3515f0a61f8e37fa4ff32da75203de3ee7244cb59d0aef46c56bbf44656a9171" href="Critical_Hits">Critical Hits</a> Chance</div><div>5%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="far fa-hand-rock"></i><a class="KeywordPopups" data-keyword="CriticalDamageBonus" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/8644597a9b33dfec4ba6b01bb1657eb6dd0bd79322d9eb0c07ca1907decfd244" href="Critical_Damage_Bonus">Critical Damage Bonus</a></div><div>+30%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="far fa-hand-rock"></i>Attack Distance</div><div>4 ~ 11</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="far fa-hand-rock"></i>Attack Time</div><div>1.17 Second</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="far fa-hand-rock"></i>Damage Spread</div><div>±20%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-book"></i>Experience</div><div>100%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-book"></i>Model Size</div><div>100%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-book"></i>Type</div><div>ExpeditionRog</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><i class="fas fa-book"></i>Metadata</div><div><span data-bs-toggle='tooltip' data-bs-title='Metadata/Monsters/LeagueExpedition/NPC/ExpeditionRog'>ExpeditionRog</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><img src="https://cdn.poe2db.tw/image/art/2dart/skillicons/4k/witchbindspectre.webp" class="size32" data-bs-toggle="tooltip" data-bs-title="Spectre">Reservation</div><div>50</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><img src="https://cdn.poe2db.tw/image/art/2dart/skillicons/4k/witchbindspectre.webp" class="size32" data-bs-toggle="tooltip" data-bs-title="Spectre">Resistance</div><div><span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceFire.webp" alt="IconEnemyResistanceFire" height="24" class="border-circle enemyNormal" />0%</span>
+<span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceCold.webp" alt="IconEnemyResistanceCold" height="24" class="border-circle enemyNormal" />0%</span>
+<span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceLightning.webp" alt="IconEnemyResistanceLightning" height="24" class="border-circle enemyNormal" />0%</span>
+<span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceChaos.webp" alt="IconEnemyResistanceChaos" height="24" class="border-circle enemyNormal" />0%</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><img src="https://cdn.poe2db.tw/image/art/2dart/skillicons/4k/huntresstamebeast.webp" class="size32" data-bs-toggle="tooltip" data-bs-title="Tame Beast">Reservation</div><div>30%</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div><img src="https://cdn.poe2db.tw/image/art/2dart/skillicons/4k/huntresstamebeast.webp" class="size32" data-bs-toggle="tooltip" data-bs-title="Tame Beast">Resistance</div><div><span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceFire.webp" alt="IconEnemyResistanceFire" height="24" class="border-circle enemyNormal" />0%</span>
+<span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceCold.webp" alt="IconEnemyResistanceCold" height="24" class="border-circle enemyNormal" />0%</span>
+<span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceLightning.webp" alt="IconEnemyResistanceLightning" height="24" class="border-circle enemyNormal" />0%</span>
+<span><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/EnemyHealthBars/IconEnemyResistanceChaos.webp" alt="IconEnemyResistanceChaos" height="24" class="border-circle enemyNormal" />0%</span></div></div></div></div><div class='px-2 mb-2' style='background-color: #111'><div class='alert alert-primary mb-2' role='alert'>The following values do not include map affix bonuses, monster buff bonuses, altar bonuses, atlas skill bonuses.</div><select class="w-100 form-select monsterEffect select2-single" data-monster-id="58708" data-placeholder="Select Monster Level">
+    <option></option>
+</select>
+<div class="mt-2" id="MonsterLevelSkill58708"><div class='row row-cols-1 row-cols-lg-4 g-1'><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Level</div><div>65</div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Life</div><div><span data-bs-toggle='tooltip' title='6555(Base Stat) * 1.5(Monster Multiplier) = 9832.5'>9,833</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Armour</div><div><span data-bs-toggle='tooltip' title='2023(Base Stat) * 1.5(Monster Type Multiplier) = 3034.5'>3,035</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Evasion Rating</div><div><span data-bs-toggle='tooltip' title='663(Base Stat) * 1(Monster Type Multiplier) = 663'>663</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Energy Shield</div><div><span data-bs-toggle='tooltip' title='6555(Base Stat) * 1.5(Monster Multiplier) * 0.25(Monster Multiplier) = 2458.125'>2,458</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Damage</div><div><span data-bs-toggle='tooltip' title='212.36(Base Stat) * 0.82(Monster Multiplier) = 174.1352'>174</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Spell Damage</div><div><span data-bs-toggle='tooltip' title='212.36(Base Stat) * 0.82(Monster Multiplier) = 174.1352'>174</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Accuracy</div><div><span data-bs-toggle='tooltip' title='1114(Base Stat) * 2(Monster Type Multiplier) = 2228'>2,228</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Attack Time</div><div><span data-bs-toggle='tooltip' title='1.17(Base Stat) = 1.17'>1.17</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Experience</div><div><span data-bs-toggle='tooltip' title='21507(Base Stat) * 1(Monster Multiplier) = 21507'>21,507</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Minion Life</div><div><span data-bs-toggle='tooltip' title='6282(Base Stat) * 1.5(Monster Multiplier) = 9423'>9,423</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Minion Energy Shield</div><div><span data-bs-toggle='tooltip' title='6282(Base Stat) * 1.5(Monster Multiplier) * 0.25(Monster Multiplier) = 2355.75'>2,356</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Minion Damage</div><div><span data-bs-toggle='tooltip' title='828.94(Minion Base Stat) * 0.82(Monster Multiplier) = 679.7308'>680</span></div></div></div><div class="col"><div class="border p-2 d-flex justify-content-between"><div>Minion Armour</div><div><span data-bs-toggle='tooltip' title='2023(Base Stat) * 2.5(Monster Type Multiplier) = 5057.5'>5,058</span></div></div></div></div><div class='alert alert-primary mt-4 mb-2' role='alert'>The following values are skill base values and do not include map affix bonuses, monster buff bonuses, altar bonuses, atlas skill bonuses, monster base damage(ex: The Maven 150% multiplier), monster rarity bonuses (ex: <span data-hover='?s=Data\Mods/MonsterUnique5' style='text-decoration-style: dotted;'>unique 70% more</span>, <span data-hover='?s=Data\Mods/MonsterUnique8' style='text-decoration-style: dotted;'>unique attack 33% less</span>).</div><div class='row row-cols-1 row-cols-lg-3'><div class='col'><div class='card pb-0 mb-2 col-monster border-dark'><div class='p-1 text-center newItemPopup gemPopup'><div class="hybridHeader"><div class="TitleBar TextGem">MeleeAtAnimationSpeedUnique</div></div><div class='Stats'><div class="property">Attack, RangedAttack, MirageArcherCanUse, Projectile, MeleeSingleTarget, Melee, ProjectilesFromUser, AttackInPlace</div><div class="property">Basic Attack</div><div class="property">Base Damage: <span class='colourDefault'>139<span class="ndash">—</span>209</span></div><div class="property"><a data-keyword="Critical" href="Critical_Hits" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/974f65aa29302e5d144fd3d444be0d603d069aa1e3f2ec43e986586263c458ed">Critical Hit</a> Chance: <span class='colourDefault'>5%</span></div><div class="property">Attack Time: <span class='colourDefault'>1.17 sec</span></div><div class="separator"></div><div class='text-gem'></div><div class="separator"></div><div class="explicitMod"><span class="secondary">action attack or cast time uses animation length [1]</span></div><div class="explicitMod"><span class="secondary">monster penalty against minions damage +% final vs player minions [100]</span></div><div class="explicitMod"><span class="secondary">projectile uses contact position [1]</span></div><div class="explicitMod"><span class="secondary">skill can fire wand projectiles [1]</span></div><div class="explicitMod"><span class="secondary">use scaled contact offset [1]</span></div><div class="separator"></div><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/SkillIcons/iconbasicattack.webp" alt="iconbasicattack" /></div></div></div></div><div class='col'><div class='card pb-0 mb-2 col-monster border-dark'><div class='p-1 text-center newItemPopup gemPopup'><div class="hybridHeader"><div class="TitleBar TextGem">MPSExpeditionRogProj</div></div><div class='Stats'><div class="property">Spell, Projectile, ProjectilesFromUser, Triggerable, Damage, AttackInPlace</div><div class="property">Cast Time: <span class='colourDefault'>1.6 sec</span></div><div class="separator"></div><div class='text-gem'></div><div class="separator"></div><div class="explicitMod">Deals <span class='mod-value'>48.87</span> to <span class='mod-value'>73.3</span> <a data-keyword="Fire" href="Fire_Damage" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/b5d8acaae74359659060318919bfa3de84e8587e6fa6487df3f2423250d85c87">Fire</a> Damage</div><div class="explicitMod"><span class="secondary">base is projectile [1]</span></div><div class="explicitMod"><span class="secondary">monster projectile variation [201]</span></div><div class="explicitMod"><span class="secondary">number of projectiles override [1]</span></div><div class="explicitMod"><span class="secondary">projectile uses contact position [1]</span></div><div class="explicitMod"><span class="secondary">spell maximum action distance +% [-50]</span></div><div class="explicitMod"><span class="secondary">use scaled contact offset [1]</span></div><div class="separator"></div><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/SkillIcons/passives/MaceNotable2.webp" alt="MaceNotable2" /></div></div></div></div></div></div></div><button class="btn btn-info" data-bs-toggle="collapse" data-bs-target="#NeJr36RSGU">Show AI Script</button> <div id="NeJr36RSGU" class="collapse"> <h4>Object Type</h4><pre>version 2
+extends "Metadata/NPC/League/Expedition/ExpeditionWildBase"
+
+Animated
+{
+	animated_object = "Metadata/NPC/League/Expedition/Rog/Rog.ao"
+}
+
+StateMachine
+{
+	define_shared_state = "expedition;"
+}</pre> </div><button class="btn btn-info" data-bs-toggle="collapse" data-bs-target="#fRbv942osa">Show Path of Building Spectre.lua</button> <div id="fRbv942osa" class="collapse"> <pre>-- src\Data\Spectres.lua
+minions["Metadata/Monsters/LeagueExpedition/NPC/ExpeditionRog"] = {
+    fireResist = 0,
+    coldResist = 0,
+    lightningResist = 0,
+    chaosResist = 0,
+    name = "Rog",
+    life = 1.5,
+    energyShield = 0.25,
+    damage = 0.82,
+    damageSpread = 0.2,
+    attackTime = 1.17,
+    attackRange = 11,
+    accuracy = 1,
+    weaponType1 = "One Hand Mace",
+    skillList = {
+        "MeleeAtAnimationSpeedUnique",
+        "MPSExpeditionRogProj",
+    },
+    modList = {
+    },
+}
+-- src\Data\Skills\spectre.lua
+skills["MeleeAtAnimationSpeedUnique"] = {
+    name = "Basic Attack",
+    hidden = true,
+    color = ,
+    baseEffectiveness = 0,
+    incrementalEffectiveness = 0,
+    skillTypes = {
+        [SkillType.Attack] = true,
+        [SkillType.RangedAttack] = true,
+        [SkillType.MirageArcherCanUse] = true,
+        [SkillType.Projectile] = true,
+        [SkillType.MeleeSingleTarget] = true,
+        [SkillType.Melee] = true,
+        [SkillType.ProjectilesFromUser] = true,
+        [SkillType.AttackInPlace] = true,
+    },
+    statDescriptionScope = "skill_stat_descriptions",
+    castTime = 1,
+    baseFlags = {
+        attack = true,
+        melee = true,
+        projectile = true,
+    },
+    baseMods = {
+    },
+    qualityStats = {
+    },
+    stats = {
+        "monster_penalty_against_minions_damage_+%_final_vs_player_minions",
+        "skill_can_fire_arrows",
+        "skill_can_fire_wand_projectiles",
+        "action_attack_or_cast_time_uses_animation_length",
+        "projectile_uses_contact_position",
+        "use_scaled_contact_offset",
+    },
+    levels = {
+        [1] = {100, levelRequirement = 1, statInterpolation = {},  cost = { }, },
+    },
+}
+-- src\Data\Skills\spectre.lua
+skills["MPSExpeditionRogProj"] = {
+    name = "MPSExpeditionRogProj",
+    hidden = true,
+    color = ,
+    baseEffectiveness = 0,
+    incrementalEffectiveness = 0,
+    skillTypes = {
+        [SkillType.Spell] = true,
+        [SkillType.Projectile] = true,
+        [SkillType.ProjectilesFromUser] = true,
+        [SkillType.Triggerable] = true,
+        [SkillType.Damage] = true,
+        [SkillType.AttackInPlace] = true,
+    },
+    statDescriptionScope = "skill_stat_descriptions",
+    castTime = 1.6,
+    baseFlags = {
+        spell = true,
+        projectile = true,
+    },
+    baseMods = {
+    },
+    qualityStats = {
+    },
+    stats = {
+        "spell_minimum_base_fire_damage",
+        "spell_maximum_base_fire_damage",
+        "monster_projectile_variation",
+        "spell_maximum_action_distance_+%",
+        "number_of_projectiles_override",
+        "base_is_projectile",
+        "projectile_uses_contact_position",
+        "use_scaled_contact_offset",
+    },
+    levels = {
+        [1] = {0.80000001192093, 1.2000000476837, 201, -50, 1, levelRequirement = 1, statInterpolation = {3, 3},  cost = { }, },
+    },
+}
+</pre> </div><div class='row p-2 mt-2' style='background-color: #111'><div class=''><div   class="card mb-2 ">
+   <h5 class="card-header"><span class='item_magic'></span></h5>   <table class='table table-hover table-striped mb-0'>
+<tr><th>Family<td>Nothing
+<tr><th>Domains<td>Monster (3)
+<tr><th>GenerationType<td>Unique (3)
+<tr><th>Req. level<td>1</table>  </div></div><div class=''><div   class="card mb-2 ">
+   <h5 class="card-header"><span class='item_magic'><span class="secondary">stance movement speed +% final [0]</span></span></h5>   <table class='table table-hover table-striped mb-0'>
+<tr><th>Family<td>Stance
+<tr><th>Domains<td>Monster (3)
+<tr><th>GenerationType<td>Unique (3)
+<tr><th>Req. level<td>1
+<tr><th>Stats<td><li>stance movement speed +% final <span class="badge bg-primary">0 <span class="ndash">—</span> 0</span> <span class="badge bg-secondary">Global</span></li>
+<tr><th>Craft Tags<td><span class='badge bg-primary'>Speed</span> </table>  </div></div><div class=''><div   class="card mb-2 ">
+   <h5 class="card-header"><span class='item_magic'>Regenerate <span class='mod-value'>2</span>% of maximum Life per second</span></h5>   <table class='table table-hover table-striped mb-0'>
+<tr><th>Family<td>LifeRegenerationRatePercentage
+<tr><th>Domains<td>Monster (3)
+<tr><th>GenerationType<td>Unique (3)
+<tr><th>Req. level<td>1
+<tr><th>Stats<td><li>life regeneration rate per minute % <span class="badge bg-primary">120 <span class="ndash">—</span> 120</span> <span class="badge bg-secondary">Global</span></li>
+<tr><th>Craft Tags<td><span class='badge bg-primary'><i>resource</i></span> <span class='badge bg-primary'>Life</span> </table>  </div></div><div class=''><div   class="card mb-2 ">
+   <h5 class="card-header"><span class='item_magic'><span class='mod-value'>500</span>% increased Stealth</span></h5>   <table class='table table-hover table-striped mb-0'>
+<tr><th>Family<td>Nothing
+<tr><th>Domains<td>Monster (3)
+<tr><th>GenerationType<td>Unique (3)
+<tr><th>Req. level<td>1
+<tr><th>Stats<td><li>stealth +% <span class="badge bg-primary">500 <span class="ndash">—</span> 500</span> <span class="badge bg-secondary">Global</span></li></table>  </div></div><div class=''><div   class="card mb-2 ">
+   <h5 class="card-header"><span class='item_magic'><span class="secondary">expedition relic mods do not apply [1]</span></span></h5>   <table class='table table-hover table-striped mb-0'>
+<tr><th>Family<td>ExpeditionUnaffectedByRemnants
+<tr><th>Domains<td>Monster (3)
+<tr><th>GenerationType<td>Unique (3)
+<tr><th>Req. level<td>1
+<tr><th>Stats<td><li>expedition relic mods do not apply <span class="badge bg-primary">1 <span class="ndash">—</span> 1</span> <span class="badge bg-secondary">Global</span></li></table>  </div></div></div></div><div id="Rogmods" class="tab-pane fade"><div   class="card mb-2 ">
+   <h5 class="card-header">Rog mods /13 </h5>   <form><div class="input-group"><input name="card-reset" type="reset" class="btn btn-outline-secondary" value="Reset"><input name="card-query" placeholder="Search" class="form-control" data-target="#ASZkVMgMPg tr"></div></form><div class="table-responsive"><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>Name</th></tr></thead><tbody id="ASZkVMgMPg"><tr><td>Reroll Prefix Modifiers.</td></tr><tr><td>Reroll Suffix Modifiers.</td></tr><tr><td>Reroll Modifier Values of a single Modifier.</td></tr><tr><td>Reroll Modifier Values of Prefixes.</td></tr><tr><td>Reroll Modifier Values of Suffixes.</td></tr><tr><td>Add a Prefix Modifier.</td></tr><tr><td>Add a Suffix Modifier.</td></tr><tr><td>Remove a single Modifier with the lowest Modifier level.</td></tr><tr><td>Remove all Prefix Modifiers.</td></tr><tr><td>Remove all Suffix Modifiers.</td></tr><tr><td>Upgrade the level of a Modifier by 1 tier.</td></tr><tr><td>Fill all empty Modifier slots.</td></tr><tr><td>Add a Modifier and make Rare.</td></tr></tbody></table></div>  </div></div><div id="RogTopic" class="tab-pane fade"><div   class="card mb-2 ">
+   <h5 class="card-header">Rog Topic /8 </h5>   <div class='table-responsive'><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>NPC</th><th>Name</th></tr></thead><tbody>
+<tr><td><a class="UniqueItems UniqueItem" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_UniqueItems_hover/98d548c38ff80cff776202d5bf6d914f6bbf0c07ad6514d758258568d557dc9c" href="Quecholli">Quecholli</a></td><td>"The finest prosperity grows from the direst<br />
+carnage. Such is the nature of progress."<br />
+- Doryani of the Vaal</td></tr>
+<tr><td><a class="UniqueItems UniqueItem" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_UniqueItems_hover/0c0b8e6f42b17e020a0256c5a2b6e81dae07600a50e02b17380fcfd4add8ddd6" href="Murkshaft">Murkshaft</a></td><td>"Boiling frogs isn't for spells, dear. That's a disgusting<br />
+rumour. They're actually for brewing poisons."<br />
+- Selassie of the Black Fen</td></tr>
+<tr><td><a class="item_currency StackableCurrency" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_BaseItemTypes_hover/f841404cbfd2c058996db0e2d21cf67898859bb9bd337f458639dd84f543ce3b" href="Rogues_Marker"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DItems/Currency/Heist/HeistCoinCurrency.webp" alt="HeistCoinCurrency" height="16" />Rogue's Marker</a></td><td></td></tr>
+<tr><td><a class="whiteitem BodyArmour" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_BaseItemTypes_hover/c520b1e900f6d9ebbd440fccd5e1c2b18b417180427eb8ad4f47b78d261b22da" href="Rogue_Armour">Rogue Armour</a></td><td></td></tr>
+<tr><td><a class="whiteitem BodyArmour" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_BaseItemTypes_hover/e9497102b2002f11e1f90888b2fec5ddaa4c2f49dfdf0af32db2af3ea082990e" href="Runeforged_Rogue_Armour">Runeforged Rogue Armour</a></td><td></td></tr>
+<tr><td><a class="whiteitem BodyArmour" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_BaseItemTypes_hover/1c21ebc57ce401cc4b26a39f5751f1db5c4e8b825a8627e7e499aa7d69f9b22a" href="Runemastered_Rogue_Armour">Runemastered Rogue Armour</a></td><td></td></tr>
+<tr><td><a class="whiteitem VaultKey" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_BaseItemTypes_hover/f2a1c7c8bcebc3e9f0c21101470cbb61aa311084cbf027c83b8023d11512be9d" href="Vaal_Reliquary_Key">Vaal Reliquary Key</a></td><td>Ambition followed progress,<br />
+Vanity followed passion,<br />
+Hubris followed intellect...<br />
+And silence followed all.</td></tr>
+<tr><td><a class="questitem QuestItem" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_BaseItemTypes_hover/d78bfd9a62e4aceea28bea79bac0a44ecc6945654414cd0a33496f6f50fbd6b0" href="Memory_Fragment_XI">Memory Fragment XI</a></td><td>"...Lack of progress on the device has given the High Templar cause for suspicion.<br />
+Clapped in irons, I was lead off to the Theopolis prisons for my insubordination.<br />
+I must find my way from these chains at all costs. The Elder is coming for us.<br />
+Only I can save us from this blasphemy that will soon befall Oriath..."</td></tr></tbody></table></div>  </div></div><div id="RogRog" class="tab-pane fade"><div class="d-flex flex-wrap">
+
+<div class="newItemPopup CurrencyPopup item-popup--poe2 "
+>
+    <div class="itemHeader singleLine">
+
+        <div class="itemName typeLine">
+            <span class="lc">Rog</span>
+        </div>
+    </div>
+    <div class="content">
+        <div class="Stats">
+            
+        </div>
+
+
+
+        <div>
+            
+        </div>
+    </div>
+</div>
+
+
+        <div class="itemboximage">
+
+                <img loading="lazy" class="" src="https://cdn.poe2db.tw/image/Art/2DItems/Hideout/Rog.webp"/>
+
+        </div>
+
+
+
+</div>
+<div   class="card mb-2 ">
+   <h5 class="card-header">Rog Rog /5 </h5>   <div class='table-responsive'><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>Name</th><th>Show Full Descriptions</th></tr></thead><tbody>
+<tr><td>Category</td><td>Hideout Item</td></tr>
+<tr><td>Hideout Doodad Category</td><td><a href="Images_of_the_Past">Images of the Past</a></td></tr>
+<tr><td>Path of Exile 1</td><td>0</td></tr>
+<tr><td>Path of Exile 2</td><td>1</td></tr>
+<tr><td>Metadata</td><td>Metadata/Items/HideoutNPCs/Rog</td></tr></tbody></table></div>  </div></div></div><div class="card mb-1">
+    <div class="card-body markdown-body">
+        <a class="btn btn-primary float-end" href='/us/marked?id=Rog' data-i18n="ClientStrings|HideoutEditControlEdit|Name">Edit</a>
+        
+        <div><hr style='border-top: 1px solid white'>Wikis Content is available under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank">CC BY-NC-SA 3.0</a> unless otherwise noted.</div>
+    </div>
+</div>
+
+
+<footer class="ccontainer text-center text-lg-left">
+  <div class="card p-4">
+    <div class="row">
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">Sites</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a target="_blank" href="https://poedb.tw/">poedb.tw</a> </li>
+          <li> <a target="_blank" href="https://tlidb.com/">tlidb.com</a> </li>
+          <!--<li> <a target="_blank" href="https://diablo4.cc/">diablo4.cc</a> </li>-->
+          <li> <a target="_blank" href="https://poe2db.tw/">poe2db.tw</a> </li>
+              <li> <a target="_blank" href="https://paldb.cc/">paldb.cc</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">News</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a href="news">GGG Tracker</a> </li>
+          <li> <a href="League#ConcurrentPlayers">Concurrent Players</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">About Site</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a href="privacy">Privacy</a> </li>
+          <li> <a href="General_disclaimer">Disclaimers</a> </li>
+          <li> <a href="patreon">Patreon</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">Community</h5>
+        <ul class="list-unstyled mb-0">
+
+
+
+          <li><a target="_blank" href="https://www.reddit.com/user/chuanhsing">/u/chuanhsing</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
+    Copyright &copy; 2014-2026 PoE2DB.
+  </div>
+</footer>
+
+<div style=""></div>
+<div class="clearfix"></div><div id="bottom_banner"></div><script>topbanner970("bottom_banner");</script>
+    </div>
+    </div>
+
+    <a href="#top" id="toTop"><span class="fas fa-arrow-circle-up fa-3x"></span></a>
+<script>
+ $(document).ready(function()
+ {
+    if (window.location.hostname != "poedb.tw" && window.location.hostname != "poe2db.tw") {
+        window.location.href="https://poedb.tw/";
+    }
+ });
+</script>
+    <script src="https://cdn.poe2db.tw/js/poedb_footer.4e9aa29eb48d77c7.js"></script>
+
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"369404df4026486bb42f428b903a2162","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

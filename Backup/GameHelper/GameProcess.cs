@@ -1,4 +1,4 @@
-﻿// <copyright file="GameProcess.cs" company="None">
+// <copyright file="GameProcess.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -82,6 +82,24 @@ namespace GameHelper
         public bool Foreground { get; private set; }
 
         /// <summary>
+        ///     Gets the main window handle of the game.
+        /// </summary>
+        public IntPtr MainWindowHandle
+        {
+            get
+            {
+                try
+                {
+                    return this.Information?.MainWindowHandle ?? IntPtr.Zero;
+                }
+                catch
+                {
+                    return IntPtr.Zero;
+                }
+            }
+        }
+
+        /// <summary>
         ///     Gets the game size and position with respect to the monitor screen.
         /// </summary>
         public Rectangle WindowArea { get; private set; } = Rectangle.Empty;
@@ -133,7 +151,7 @@ namespace GameHelper
         /// <summary>
         ///     Gets the game handle.
         /// </summary>
-        internal SafeMemoryHandle Handle { get; private set; } = null!;
+        public SafeMemoryHandle Handle { get; private set; } = null!;
 
         /// <summary>
         ///     Closes the handle for the game and releases all the resources.

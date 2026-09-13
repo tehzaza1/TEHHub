@@ -1,0 +1,609 @@
+{
+  "DefaultBackgroundColor": {
+    "X": 0,
+    "Y": 0,
+    "Z": 0,
+    "W": 0.85
+  },
+  "DefaultFontColor": {
+    "X": 1,
+    "Y": 1,
+    "Z": 1,
+    "W": 1
+  },
+  "ControllerMode": false,
+  "SearchQuery": "",
+  "CategorySettingsVersion": 10,
+  "DrawLinesToTowers": false,
+  "TowerPathColor": {
+    "X": 0.78,
+    "Y": 0.76,
+    "Z": 0.05,
+    "W": 0.19607843
+  },
+  "TowerMaxHops": 15,
+  "DrawLinesToSearch": true,
+  "SearchPathColor": {
+    "X": 1,
+    "Y": 1,
+    "Z": 1,
+    "W": 0.19607843
+  },
+  "SearchMaxHops": 15,
+  "DrawLinesToUniqueMaps": false,
+  "UniquePathColor": {
+    "X": 1,
+    "Y": 0.56078434,
+    "Z": 0,
+    "W": 0.19607843
+  },
+  "UniqueMaxHops": 15,
+  "DrawLinesToLineageMaps": false,
+  "LineagePathColor": {
+    "X": 0,
+    "Y": 0.88,
+    "Z": 0,
+    "W": 0.19607843
+  },
+  "LineageMaxHops": 15,
+  "DrawLinesToArbiterMaps": false,
+  "ArbiterPathColor": {
+    "X": 1,
+    "Y": 0,
+    "Z": 0,
+    "W": 0.19607843
+  },
+  "ArbiterMaxHops": 15,
+  "DrawLinesToQuests": false,
+  "QuestsPathColor": {
+    "X": 0,
+    "Y": 1,
+    "Z": 1,
+    "W": 1
+  },
+  "QuestsMaxHops": 15,
+  "DrawLinesToAtlasProgression": false,
+  "AtlasProgressionPathColor": {
+    "X": 0.55,
+    "Y": 0.27,
+    "Z": 0.07,
+    "W": 1
+  },
+  "AtlasProgressionMaxHops": 15,
+  "DrawLinesToRitual": false,
+  "RitualPathColor": {
+    "X": 0.2509804,
+    "Y": 0,
+    "Z": 0.95686275,
+    "W": 1
+  },
+  "RitualMaxHops": 15,
+  "DrawLinesToCorruptedNexus": false,
+  "CorruptedNexusPathColor": {
+    "X": 0.45,
+    "Y": 0,
+    "Z": 0,
+    "W": 1
+  },
+  "CorruptedNexusMaxHops": 15,
+  "DrawLinesToGrandMirror": false,
+  "GrandMirrorPathColor": {
+    "X": 0.7,
+    "Y": 0.9,
+    "Z": 1,
+    "W": 1
+  },
+  "GrandMirrorMaxHops": 15,
+  "DrawLinesToBreach": false,
+  "BreachPathColor": {
+    "X": 1,
+    "Y": 0.2,
+    "Z": 0.7411765,
+    "W": 1
+  },
+  "BreachMaxHops": 15,
+  "DrawLinesToExpedition": false,
+  "ExpeditionPathColor": {
+    "X": 0.35686275,
+    "Y": 0.75686276,
+    "Z": 0.92941177,
+    "W": 1
+  },
+  "ExpeditionMaxHops": 15,
+  "DrawLinesToAbyss": false,
+  "AbyssPathColor": {
+    "X": 0.14901961,
+    "Y": 1,
+    "Z": 0,
+    "W": 1
+  },
+  "AbyssMaxHops": 15,
+  "DrawLinesToTemple": false,
+  "TemplePathColor": {
+    "X": 0.87058824,
+    "Y": 0.654902,
+    "Z": 0,
+    "W": 1
+  },
+  "TempleMaxHops": 15,
+  "HideCompletedMaps": true,
+  "HideNotAccessibleMaps": false,
+  "ShowAtlasGraph": false,
+  "AtlasGraphLineColor": {
+    "X": 1,
+    "Y": 1,
+    "Z": 1,
+    "W": 0.35
+  },
+  "AtlasGraphOffsetX": -10,
+  "AtlasGraphOffsetY": -5,
+  "ShowUnchartedLeylines": false,
+  "UnchartedLeylineColor": {
+    "X": 0.2,
+    "Y": 0.85,
+    "Z": 1,
+    "W": 0.9
+  },
+  "UnchartedLeylineThickness": 10,
+  "ShowShipsInFog": false,
+  "ShipIconSize": 46,
+  "ShowRitualPrediction": false,
+  "LogRitualRolls": false,
+  "ShowRitualPlanner": true,
+  "RitualRewardFilter": "",
+  "RitualPlannerFontScale": 1,
+  "RitualRewardWeights": {},
+  "ShowMapBadges": true,
+  "ShowMapCounts": false,
+  "ShowContent": true,
+  "ShowNodeIndex": false,
+  "ShowContentIcons": false,
+  "ContentIconSize": 48,
+  "ShowContentDebug": false,
+  "ShowBiomeBorder": true,
+  "BiomeBorderThickness": 2.5,
+  "PathLineThickness": 6,
+  "BaseWidth": 1920,
+  "BaseHeight": 1080,
+  "AnchorNudge": {
+    "X": -8.5,
+    "Y": 45
+  },
+  "ScaleMultiplier": 0.5,
+  "MapGroups": [
+    {
+      "Name": "Search",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 1,
+        "Y": 1,
+        "Z": 1,
+        "W": 1
+      },
+      "DrawPath": true,
+      "MaxHops": 15,
+      "BuiltInKey": "search",
+      "BuiltInTargets": {
+        "Current search query": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Lineage Maps",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0.70980394,
+        "Z": 0.12941177,
+        "W": 1
+      },
+      "FontColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "lineage",
+      "BuiltInTargets": {
+        "Derelict Mansion": true,
+        "Sacred Reservoir": true,
+        "Sealed Vault": true,
+        "The Jade Isles": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Corrupted Nexus",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0.45,
+        "Y": 0,
+        "Z": 0,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "corrupted_nexus",
+      "BuiltInTargets": {
+        "Corrupted Nexus content": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Grand Mirror",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0,
+        "Y": 0.6666667,
+        "Z": 1,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "grand_mirror",
+      "BuiltInTargets": {
+        "Grand Mirror content": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Atlas Progression",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0.55,
+        "Y": 0.27,
+        "Z": 0.07,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "atlas_progression",
+      "BuiltInTargets": {
+        "Precursor Tower": true,
+        "Ancient Gateway": true,
+        "The Burning Monolith": true,
+        "Western Gateway": true,
+        "Eastern Gateway": true,
+        "Western Enigma Chamber": true,
+        "Eastern Enigma Chamber": true,
+        "The Origin Tower": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Quests",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0,
+        "Y": 1,
+        "Z": 1,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "quests",
+      "BuiltInTargets": {
+        "The Withered Willow": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Ritual",
+      "BackgroundColor": {
+        "X": 1,
+        "Y": 1,
+        "Z": 1,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0.25,
+        "Y": 0,
+        "Z": 0.96,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "ritual",
+      "BuiltInTargets": {
+        "Caer Tarth": true,
+        "Crux of Nothingness": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Breach",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 1,
+        "Y": 0.2,
+        "Z": 0.74,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "breach",
+      "BuiltInTargets": {
+        "Hive Colony": true,
+        "Hive Fortress": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Expedition",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0.36,
+        "Y": 0.76,
+        "Z": 0.93,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "expedition",
+      "BuiltInTargets": {
+        "Barren Atoll": false,
+        "Bleached Shoals": false,
+        "Craggy Peninsula": false,
+        "Exhumed Ruins": false,
+        "Frigid Bluffs": false,
+        "Grazed Prairie": false,
+        "Lush Isle": false,
+        "Moor of Fallen Skies": true,
+        "Mournful Cliffside": true,
+        "Obscure Island": true,
+        "Scorched Cay": false,
+        "Secluded Temple": true,
+        "Sloughed Gully": false,
+        "Sprawling Jungle": false,
+        "Stagnant Basin": false,
+        "The Chained Beast": true,
+        "The Fallen Star": true,
+        "Tomb of the Fallen Knight": true,
+        "Ruins of Kingsmarch": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Abyss",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0.15,
+        "Y": 1,
+        "Z": 0,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "abyss",
+      "BuiltInTargets": {
+        "The Well of Souls": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Temple",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 0.87,
+        "Y": 0.65,
+        "Z": 0,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "temple",
+      "BuiltInTargets": {
+        "Vaal Ruins": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Citadels",
+      "BackgroundColor": {
+        "X": 1,
+        "Y": 1,
+        "Z": 1,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 1,
+        "Y": 0,
+        "Z": 0,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "arbiter",
+      "BuiltInTargets": {
+        "The Copper Citadel": true,
+        "The Iron Citadel": true,
+        "The Stone Citadel": true,
+        "The Matriarch Halls": true,
+        "The Patriarch Halls": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Towers",
+      "BackgroundColor": {
+        "X": 0.86,
+        "Y": 0,
+        "Z": 0.88,
+        "W": 1
+      },
+      "FontColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "towers",
+      "BuiltInTargets": {
+        "Bluff": true,
+        "Lost Towers": true,
+        "Mesa": true,
+        "Sinking Spire": true,
+        "Alpine Ridge": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Good",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 1,
+        "Y": 1,
+        "Z": 0,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "good",
+      "BuiltInTargets": {
+        "Burial Bog": true,
+        "Creek": true,
+        "Rustbowl": true,
+        "Sandspit": true,
+        "Savannah": true,
+        "Steaming Springs": true,
+        "Steppe": true,
+        "Wetlands": true,
+        "Willow": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Unique Maps",
+      "BackgroundColor": {
+        "X": 1,
+        "Y": 0.56,
+        "Z": 0,
+        "W": 1
+      },
+      "FontColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "unique",
+      "BuiltInTargets": {
+        "Ancient Gateway": true,
+        "Castaway": true,
+        "Eastern Gateway": true,
+        "Freight": true,
+        "Jado\u0027s Campsite": true,
+        "Merchant\u0027s Campsite": true,
+        "Moment of Zen": true,
+        "Moor of Fallen Skies": true,
+        "Precursor Tower": true,
+        "Site of the Chosen": true,
+        "The Ezomyte Megaliths": true,
+        "The Fractured Lake": true,
+        "The Silent Cave": true,
+        "The Viridian Wildwood": true,
+        "The Voyage": true,
+        "Untainted Paradise": true,
+        "Vaults of Kamasa": true,
+        "Western Gateway": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    },
+    {
+      "Name": "Special",
+      "BackgroundColor": {
+        "X": 0,
+        "Y": 0,
+        "Z": 0,
+        "W": 0.85
+      },
+      "FontColor": {
+        "X": 1,
+        "Y": 1,
+        "Z": 1,
+        "W": 1
+      },
+      "DrawPath": false,
+      "MaxHops": 15,
+      "BuiltInKey": "special",
+      "BuiltInTargets": {
+        "Ice Cave": true
+      },
+      "Maps": [],
+      "MapNameInput": ""
+    }
+  ],
+  "GroupNameInput": "",
+  "ContentOverrides": {},
+  "BiomeOverrides": {}
+}

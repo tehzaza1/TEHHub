@@ -1,4 +1,4 @@
-﻿namespace Atlas2
+namespace Atlas2
 {
     using GameHelper;
     using GameHelper.Plugin;
@@ -7,8 +7,8 @@
     using GameHelper.RemoteObjects.UiElement;
     using GameHelper.Utils;
     using GameOffsets.Natives;
+    using GameOffsets.Objects.UiElement;
     using ImGuiNET;
-    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
@@ -19,6 +19,8 @@
     using System.Numerics;
     using System.Runtime.InteropServices;
     using System.Text;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
 
     public sealed partial class Atlas2 : PCore<Atlas2Settings>
     {
@@ -28,6 +30,12 @@
         private const uint CompletedNodeDotColor = 0xFF00FF00;
         private const uint DotOutlineColor = 0xFF000000;
         private static readonly Vector4 VaalBeaconBorderColor = new(1f, 0.84f, 0f, 1f);
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            IncludeFields = true,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true,
+        };
 
         private const int ChannelGrid = 0;
         private const int ChannelLines = 1;
@@ -41,6 +49,9 @@
         private static readonly Dictionary<string, ContentInfo> MapPlain = [];
         private static readonly Dictionary<byte, BiomeInfo> Biomes = [];
         private static readonly Dictionary<string, (IntPtr Ptr, int W, int H)> IconCache = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, string> TokenMap = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, (string Rumour, string Rating, string Mods)> RumourMap = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<uint, (string Name, string Description, string Icon)> MapContentDb = [];
         private readonly List<((int X, int Y) Chunk, Vector2 Center, float Half)> fogShipIcons = [];
 
         // Named-map pathfinding categories — matched by exact (normalized, case-insensitive) display
@@ -116,8 +127,7 @@
             if (File.Exists(SettingPathname))
             {
                 var content = File.ReadAllText(SettingPathname);
-                var serializerSettings = new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace };
-                Settings = JsonConvert.DeserializeObject<Atlas2Settings>(content, serializerSettings);
+                Settings = JsonSerializer.Deserialize(content, Atlas2JsonContext.Default.Atlas2Settings) ?? new Atlas2Settings();
             }
 
             if (Settings.CategorySettingsVersion != 10 || Settings.MapGroups == null
@@ -141,7 +151,7 @@
             if (!string.IsNullOrEmpty(dir))
                 Directory.CreateDirectory(dir);
 
-            var settingsData = JsonConvert.SerializeObject(Settings, Formatting.Indented);
+            var settingsData = JsonSerializer.Serialize(Settings, Atlas2JsonContext.Default.Atlas2Settings);
             File.WriteAllText(SettingPathname, settingsData);
         }
 
@@ -159,6 +169,9 @@
             ImGui.SliderFloat("Path Thickness", ref Settings.PathLineThickness, 1.0f, 8.0f);
 
             ImGui.SeparatorText("Atlas Settings");
+            ImGui.Checkbox("Controller Mode", ref Settings.ControllerMode);
+            ImGuiHelper.ToolTip("Enable when playing with a controller. Automatically aligns with GameHelper Controller Mode if active.");
+
             ImGui.Checkbox("Hide Completed Maps", ref Settings.HideCompletedMaps);
             ImGui.Checkbox("Hide Not Accessible Maps", ref Settings.HideNotAccessibleMaps);
             ImGui.Checkbox("Show Map Counts", ref Settings.ShowMapCounts);
@@ -349,10 +362,111 @@
                 ImGui.TreePop();
             }
             #endregion
+
+            // ── Controller Mode Atlas Debug Dump ─────────────────────────────
+            ImGui.SeparatorText("[Debug] Atlas Panel Inspector");
+            var dbgAtlasUi = Core.States.InGameStateObject.GameUi.Atlas;
+            var dbgIsController = Settings.ControllerMode || Core.GHSettings.EnableControllerMode;
+
+            // Show path-resolved address
+            ImGui.Text($"Path addr: 0x{dbgAtlasUi.Address.ToInt64():X}");
+            ImGui.Text($"Cache addr: 0x{discoveredControllerAtlasAddr.ToInt64():X}");
+
+            // Try cached address if path is wrong
+            var dbgAddr = dbgAtlasUi.Address;
+            if (dbgIsController && dbgAddr == IntPtr.Zero)
+                dbgAddr = discoveredControllerAtlasAddr;
+
+            if (dbgAddr != IntPtr.Zero)
+            {
+                var rawOff = Read<UiElementBaseOffset>(dbgAddr);
+                var childCount = GetChildCount(dbgAddr);
+                uint rawFlags = rawOff.Flags;
+                bool isVis = (rawFlags & 0x800) != 0;
+                var sz = dbgAtlasUi.Address == dbgAddr ? dbgAtlasUi.Size : default;
+                var pos = dbgAtlasUi.Address == dbgAddr ? dbgAtlasUi.Position : default;
+
+                ImGui.Text($"TotalChildrens: {childCount}");
+                ImGui.Text($"Flags: 0x{rawFlags:X8}   IsVisible(0x800): {isVis}");
+                ImGui.Text($"Size: {sz.X:F1} x {sz.Y:F1}");
+                ImGui.Text($"Position: {pos.X:F1}, {pos.Y:F1}");
+                ImGui.Text($"UnscaledSize offset 0x270: {rawOff.UnscaledSize.X:F1} x {rawOff.UnscaledSize.Y:F1}");
+                ImGui.Text($"LocalScaleMultiplier: {rawOff.LocalScaleMultiplier:F4}");
+                ImGui.Text($"ScaleIndex: {rawOff.ScaleIndex}");
+                ImGui.Text($"BackgroundColor: 0x{rawOff.BackgroundColor:X8}");
+                ImGui.Text($"ParentPtr: 0x{rawOff.ParentPtr.ToInt64():X}");
+
+                // Sample first child flags
+                if (childCount > 0 && rawOff.ChildrensPtr.First != IntPtr.Zero)
+                {
+                    var child0 = Read<IntPtr>(rawOff.ChildrensPtr.First);
+                    if (child0 != IntPtr.Zero)
+                    {
+                        var child0flags = Read<uint>(child0 + 0x168);
+                        ImGui.Text($"Child[0] flags: 0x{child0flags:X8}  fp(no vis): 0x{child0flags & ~0x800u:X6}");
+                    }
+                }
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(1, 0.3f, 0.3f, 1), "No atlas address found yet");
+            }
+
+            if (ImGui.Button("Dump Atlas Panel Info to File"))
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"=== Atlas Panel Dump @ {DateTime.Now} ===");
+                sb.AppendLine($"Controller Mode: {dbgIsController}");
+                sb.AppendLine($"Path addr: 0x{dbgAtlasUi.Address.ToInt64():X}");
+                sb.AppendLine($"Cache addr: 0x{discoveredControllerAtlasAddr.ToInt64():X}");
+
+                void DumpAddr(string label, IntPtr addr)
+                {
+                    sb.AppendLine($"--- {label} (0x{addr.ToInt64():X}) ---");
+                    if (addr == IntPtr.Zero) { sb.AppendLine("  (zero)"); return; }
+                    var off = Read<UiElementBaseOffset>(addr);
+                    sb.AppendLine($"  TotalChildrens : {(int)off.ChildrensPtr.TotalElements(IntPtr.Size)}");
+                    sb.AppendLine($"  Flags          : 0x{off.Flags:X8}");
+                    sb.AppendLine($"  IsVisible(0x800): {(off.Flags & 0x800) != 0}");
+                    sb.AppendLine($"  UnscaledSize   : {off.UnscaledSize.X:F2} x {off.UnscaledSize.Y:F2}");
+                    sb.AppendLine($"  RelativePos    : {off.RelativePosition.X:F2}, {off.RelativePosition.Y:F2}");
+                    sb.AppendLine($"  LocalScale     : {off.LocalScaleMultiplier:F4}");
+                    sb.AppendLine($"  ScaleIndex     : {off.ScaleIndex}");
+                    sb.AppendLine($"  BackgroundColor: 0x{off.BackgroundColor:X8}");
+                    sb.AppendLine($"  ParentPtr      : 0x{off.ParentPtr.ToInt64():X}");
+
+                    // Sample 8 children flags
+                    int cnt = (int)off.ChildrensPtr.TotalElements(IntPtr.Size);
+                    for (int ci = 0; ci < Math.Min(cnt, 8); ci++)
+                    {
+                        var caddr = Read<IntPtr>(off.ChildrensPtr.First + ci * IntPtr.Size);
+                        if (caddr == IntPtr.Zero) continue;
+                        var cflags = Read<uint>(caddr + 0x168);
+                        sb.AppendLine($"  Child[{ci}] addr=0x{caddr.ToInt64():X}  flags=0x{cflags:X8}  fp=0x{cflags & ~0x800u:X6}");
+                    }
+                }
+
+                DumpAddr("Path-resolved Atlas", dbgAtlasUi.Address);
+                DumpAddr("Cached Controller Atlas", discoveredControllerAtlasAddr);
+
+                // Dump GameUi root info
+                var rootAddr = Core.States.InGameStateObject.GameUi.Address;
+                sb.AppendLine($"--- GameUi root 0x{rootAddr.ToInt64():X} ---");
+                if (rootAddr != IntPtr.Zero)
+                {
+                    var rootOff = Read<UiElementBaseOffset>(rootAddr);
+                    sb.AppendLine($"  TotalChildrens: {(int)rootOff.ChildrensPtr.TotalElements(IntPtr.Size)}");
+                }
+
+                var dumpPath = Path.Join(DllDirectory, "atlas_dump.txt");
+                File.AppendAllText(dumpPath, sb.ToString() + Environment.NewLine);
+                System.Diagnostics.Process.Start("notepad.exe", dumpPath);
+            }
         }
 
         public override void DrawUI()
         {
+            using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Atlas2.DrawUI");
             var inventoryPanel = InventoryPanel();
 
             var isGameHelperForeground = Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();
@@ -366,25 +480,42 @@
             var drawList = ImGui.GetBackgroundDrawList();
 
             var atlasUi = Core.States.InGameStateObject.GameUi.Atlas;
-            if (atlasUi.Address == IntPtr.Zero || !atlasUi.IsVisible)
+            var isController = Settings.ControllerMode || Core.GHSettings.EnableControllerMode;
+
+            // In controller mode, atlasUi.IsVisible or direct 0x800 flag check handles both full cache
+            // and frame-1 transition states.
+            bool panelIsOpen = atlasUi.Address != IntPtr.Zero && (atlasUi.IsVisible || (isController && (Read<uint>(atlasUi.Address + 0x168) & 0x800) != 0));
+            if (!panelIsOpen)
                 return;
 
-            // The GameHelper Data Visualization entry GameUi.Atlas already resolves the atlas
-            // node-list panel and materializes its children as UiElementBase instances. Use that
-            // instead of opening a separate process handle just to walk UiElement ChildrensPtr.
-            var atlasCount = atlasUi.TotalChildrens;
+            // Do not draw when the Atlas Skills / Passive Tree is open
+            if (!isController)
+            {
+                var atlasSkillsUi = Core.States.InGameStateObject.GameUi.AtlasSkillsPanel;
+                if (atlasSkillsUi.Address != IntPtr.Zero && atlasSkillsUi.IsVisible)
+                    return;
+            }
+            else
+            {
+                if (IsControllerAtlasPassiveTreeOpen(atlasUi.Address))
+                    return;
+            }
+
+            var targetAtlasUi = atlasUi;
+
+            var atlasCount = targetAtlasUi.TotalChildrens;
 
             if (atlasCount <= 0 || atlasCount > 10000)
                 return;
 
             if (++cacheFrameCounter >= CacheRefreshFrames || cachedAtlasCount != atlasCount || nodeCache.Count == 0)
             {
-                this.RefreshNodeCache(atlasUi, atlasCount);
+                this.RefreshNodeCache(targetAtlasUi, atlasCount);
                 cacheFrameCounter = 0;
             }
 
-            var panelTopLeft = atlasUi.Position;
-            var panelSize = atlasUi.Size;
+            var panelTopLeft = targetAtlasUi.Position;
+            var panelSize = targetAtlasUi.Size;
             var panelRect = new RectangleF(panelTopLeft.X, panelTopLeft.Y, panelSize.X, panelSize.Y);
 
             // Screen positions change per frame (panning), but the graph
@@ -392,24 +523,24 @@
             var allCenters = new Dictionary<StdTuple2D<int>, Vector2>(nodeCache.Count);
             foreach (var nd in nodeCache)
             {
-                var nu = atlasUi[nd.Index];
+                var nu = targetAtlasUi[nd.Index];
                 if (nu == null) continue;
                 allCenters[nd.GridPosition] = nu.Position + nu.Size * 0.5f;
             }
 
-            bool ritualLineMode = Read<byte>(atlasUi.Address + PanelLineModeOffset) != 0;
+            bool ritualLineMode = Read<byte>(targetAtlasUi.Address + PanelLineModeOffset) != 0;
             ritualHoverGrid = nodeCache.Where(node => node.State == AtlasNodeState.AccessibleNow)
-                .Select(node => (Node: node, Ui: atlasUi[node.Index]))
+                .Select(node => (Node: node, Ui: targetAtlasUi[node.Index]))
                 .Where(entry => entry.Ui != null && ImGui.GetMousePos().X >= entry.Ui.Position.X &&
                     ImGui.GetMousePos().X <= entry.Ui.Position.X + entry.Ui.Size.X &&
                     ImGui.GetMousePos().Y >= entry.Ui.Position.Y &&
                     ImGui.GetMousePos().Y <= entry.Ui.Position.Y + entry.Ui.Size.Y)
                 .Select(entry => (StdTuple2D<int>?)entry.Node.GridPosition).FirstOrDefault();
             ritualPredictions = ritualLineMode && Settings.ShowRitualPrediction
-                ? BuildRitualPredictions(atlasUi.Address)
+                ? BuildRitualPredictions(targetAtlasUi.Address)
                 : EmptyRitualPredictions;
             if (ritualLineMode && Settings.ShowRitualPlanner)
-                BuildPlannerChains(atlasUi.Address);
+                BuildPlannerChains(targetAtlasUi.Address);
 
             var towers = new HashSet<string>(
                 Settings.MapGroups
@@ -432,9 +563,11 @@
             float uiScale = Math.Clamp(Settings.ScaleMultiplier * resScale, 0.5f, 4.0f);
             using (new FontScaleScope(uiScale))
             {
-                if (!Settings.ControllerMode)
+                if (!isController)
+                {
                     if (inventoryPanel)
                         return;
+                }
 
                 // Split into draw channels only after every early-return guard above has passed, so
                 // the shared background draw list's splitter is always merged before we return (an
@@ -582,7 +715,7 @@
                                 labels.Add(($"{mapName} ({hops})", routeColor));
                             }
                         }
-                        }
+                    }
 
                     if (!screenBounds.IntersectsWith(new RectangleF(bgPos.X, bgPos.Y, bgSize.X, bgSize.Y)))
                         continue;
@@ -655,6 +788,14 @@
                         DrawSquares(drawList, flags, labelCenterX, ref nextRowTopY, rowGap, uiScale);
 
                     DrawSquares(drawList, contents, labelCenterX, ref nextRowTopY, rowGap, uiScale);
+
+                    if (RumourMap.TryGetValue(mapName, out var rInfo))
+                    {
+                        var ratingColor = rInfo.Rating.StartsWith("S", StringComparison.OrdinalIgnoreCase)
+                            ? new Vector4(1f, 0.84f, 0f, 1f)
+                            : new Vector4(0.3f, 0.8f, 1f, 1f);
+                        DrawContentLine(drawList, $"★ [{rInfo.Rating}] {rInfo.Rumour}", labelCenterX, ref nextRowTopY, rowGap, ratingColor);
+                    }
 
                     if (Settings.ShowMapCounts)
                     {
@@ -773,6 +914,7 @@
                             AtlasMapNodeEffect effect => effect.Icon,
                             _ => null,
                         })
+                        .Concat(map.BadgeContentIds.Select(id => MapContentDb.TryGetValue(id & 0xFFFFu, out var mItem) ? mItem.Icon : null))
                         .Where(icon => !string.IsNullOrWhiteSpace(icon)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                     Type = map.Type ?? "normal",
                     Tags = map.Tags.ToList(),
@@ -1047,7 +1189,7 @@
                 return;
 
             var json = File.ReadAllText(path);
-            var contents = JsonConvert.DeserializeObject<Dictionary<string, BiomeInfo>>(json);
+            var contents = JsonSerializer.Deserialize<Dictionary<string, BiomeInfo>>(json, JsonOptions);
 
             Biomes.Clear();
 
@@ -1070,7 +1212,7 @@
                 return;
 
             var json = File.ReadAllText(path);
-            var contents = JsonConvert.DeserializeObject<Dictionary<string, ContentInfo>>(json);
+            var contents = JsonSerializer.Deserialize<Dictionary<string, ContentInfo>>(json, JsonOptions);
 
             MapTags.Clear();
             MapPlain.Clear();
@@ -1087,6 +1229,144 @@
             }
 
             ApplyContentOverrides();
+            LoadMapContentDb();
+            LoadTokensMap();
+            LoadRumoursMap();
+        }
+
+        private void LoadMapContentDb()
+        {
+            try
+            {
+                var path = Path.Join(DllDirectory, "json", "mapcontent.json");
+                if (!File.Exists(path)) return;
+
+                var json = File.ReadAllText(path);
+                var doc = JsonSerializer.Deserialize<Dictionary<string, MapContentItem>>(json, JsonOptions);
+                if (doc == null) return;
+
+                MapContentDb.Clear();
+                foreach (var (k, v) in doc)
+                {
+                    if (uint.TryParse(k, out var id))
+                    {
+                        MapContentDb[id] = (v.Name ?? string.Empty, v.Desc ?? string.Empty, v.Icon ?? string.Empty);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Atlas2] Failed to load mapcontent.json: {ex.Message}");
+            }
+        }
+
+        private void LoadTokensMap()
+        {
+            try
+            {
+                var path = Path.Join(DllDirectory, "json", "tokens.json");
+                if (!File.Exists(path)) return;
+
+                using var document = JsonDocument.Parse(File.ReadAllText(path));
+                var root = document.RootElement;
+                TokenMap.Clear();
+
+                if (root.TryGetProperty("exact", out var exact) && exact.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in exact.EnumerateObject())
+                    {
+                        var val = prop.Value.GetString() ?? string.Empty;
+                        TokenMap[prop.Name] = val;
+                        TokenMap["0x" + prop.Name] = val;
+                        if (prop.Name.Length > 4)
+                        {
+                            var low16 = prop.Name.Substring(prop.Name.Length - 4);
+                            TokenMap[low16] = val;
+                            TokenMap["0x" + low16] = val;
+                        }
+                    }
+                }
+
+                if (root.TryGetProperty("name_contents", out var nameContents) && nameContents.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in nameContents.EnumerateObject())
+                    {
+                        TokenMap[prop.Name] = prop.Value.GetString() ?? string.Empty;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Atlas2] Failed to load tokens.json: {ex.Message}");
+            }
+        }
+
+        private void LoadRumoursMap()
+        {
+            try
+            {
+                var path = Path.Join(DllDirectory, "json", "rumours.json");
+                if (!File.Exists(path)) return;
+
+                var json = File.ReadAllText(path);
+                var doc = JsonSerializer.Deserialize<RumoursRoot>(json, JsonOptions);
+                if (doc?.Sections == null) return;
+
+                RumourMap.Clear();
+                foreach (var sec in doc.Sections)
+                {
+                    if (sec.Rows == null) continue;
+                    foreach (var row in sec.Rows)
+                    {
+                        if (string.IsNullOrWhiteSpace(row.Map)) continue;
+                        RumourMap[row.Map.Trim()] = (row.Rumour ?? string.Empty, row.Rating ?? string.Empty, row.Mods ?? string.Empty);
+                        ExpeditionMaps.Add(row.Map.Trim());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Atlas2] Failed to load rumours.json: {ex.Message}");
+            }
+        }
+
+        private class MapContentItem
+        {
+            [JsonPropertyName("name")]
+            public string Name { get; set; } = string.Empty;
+
+            [JsonPropertyName("desc")]
+            public string Desc { get; set; } = string.Empty;
+
+            [JsonPropertyName("icon")]
+            public string Icon { get; set; } = string.Empty;
+        }
+
+        private class RumoursRoot
+        {
+            [JsonPropertyName("sections")]
+            public List<RumourSection> Sections { get; set; } = new();
+        }
+
+        private class RumourSection
+        {
+            [JsonPropertyName("rows")]
+            public List<RumourRow> Rows { get; set; } = new();
+        }
+
+        private class RumourRow
+        {
+            [JsonPropertyName("rumour")]
+            public string Rumour { get; set; } = string.Empty;
+
+            [JsonPropertyName("map")]
+            public string Map { get; set; } = string.Empty;
+
+            [JsonPropertyName("rating")]
+            public string Rating { get; set; } = string.Empty;
+
+            [JsonPropertyName("mods")]
+            public string Mods { get; set; } = string.Empty;
         }
 
         private static float ComputeDisplayScale(float refW, float refH)
@@ -1358,8 +1638,17 @@
 
         private static bool HasAtlasContent(NodeData node, string text)
         {
-            return node.ContentDisplay.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase)) ||
-                   node.RawContents.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase));
+            if (node.ContentDisplay.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase)) ||
+                node.RawContents.Any(content => content.Contains(text, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            foreach (var raw in node.RawContents)
+            {
+                if (TokenMap.TryGetValue(raw, out var resolved) && resolved.Contains(text, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool MatchesCategory(MapGroupSettings category, NodeData node, string mapName,
@@ -1405,8 +1694,19 @@
 
         private static bool MatchesSearch(NodeData node, string mapName, string searchTerm)
         {
-            return mapName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                   HasAtlasContent(node, searchTerm);
+            if (mapName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                HasAtlasContent(node, searchTerm))
+                return true;
+
+            if (RumourMap.TryGetValue(mapName, out var rInfo))
+            {
+                if (rInfo.Rumour.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    rInfo.Rating.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    rInfo.Mods.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool IsCorruptedNexus(NodeData node)
@@ -1425,6 +1725,9 @@
 
             var normalized = contentName.Replace("\u00A0", " ").Trim();
 
+            if (TokenMap.TryGetValue(normalized, out var mappedToken))
+                normalized = mappedToken;
+
             int lb = normalized.IndexOf('[');
             int rb = lb >= 0 ? normalized.IndexOf(']', lb + 1) : -1;
             if (lb >= 0 && rb > lb + 1)
@@ -1432,6 +1735,9 @@
                 var inside = normalized.Substring(lb + 1, rb - lb - 1);
                 var pipe = inside.IndexOf('|');
                 var tag = (pipe >= 0 ? inside[..pipe] : inside).Trim();
+
+                if (TokenMap.TryGetValue(tag, out var mappedTag))
+                    tag = mappedTag;
 
                 if (tagMap.TryGetValue(tag, out var tagInfo))
                     return tagInfo;
@@ -1589,8 +1895,100 @@
             }
         }
 
-        [DllImport("user32.dll")]
-        private static extern nint GetForegroundWindow();
+        private static IntPtr discoveredControllerAtlasAddr = IntPtr.Zero;
+
+        private static int GetChildCount(IntPtr address)
+        {
+            if (address == IntPtr.Zero) return 0;
+            var offset = Read<UiElementBaseOffset>(address);
+            return (int)offset.ChildrensPtr.TotalElements(IntPtr.Size);
+        }
+
+        private static IntPtr GetChildAddress(IntPtr address, int index)
+        {
+            if (address == IntPtr.Zero || index < 0) return IntPtr.Zero;
+            var offset = Read<UiElementBaseOffset>(address);
+            var count = (int)offset.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (index >= count || offset.ChildrensPtr.First == IntPtr.Zero) return IntPtr.Zero;
+            return Read<IntPtr>(offset.ChildrensPtr.First + (index * IntPtr.Size));
+        }
+
+        private static bool IsUiElementVisible(IntPtr address)
+        {
+            if (address == IntPtr.Zero) return false;
+            var offset = Read<UiElementBaseOffset>(address);
+            return (offset.Flags & 0x800) != 0;
+        }
+
+        private static IntPtr FindAtlasPanelRecursive(IntPtr address, int depth, int maxDepth)
+        {
+            if (address == IntPtr.Zero || depth > maxDepth) return IntPtr.Zero;
+            var count = GetChildCount(address);
+            if (count >= 200 && count < 15000)
+            {
+                int mapNodeCount = 0;
+                for (int i = 0; i < Math.Min(count, 32); i++)
+                {
+                    var childAddr = GetChildAddress(address, i);
+                    if (childAddr == IntPtr.Zero) continue;
+                    var flags = Read<uint>(childAddr + 0x168);
+                    var fp = flags & ~0x800u;
+                    if (fp == 0x542EF3 || fp == 0x442EF3)
+                    {
+                        mapNodeCount++;
+                    }
+                }
+                if (mapNodeCount >= 2)
+                {
+                    return address;
+                }
+            }
+
+            for (int i = 0; i < Math.Min(count, 80); i++)
+            {
+                var childAddr = GetChildAddress(address, i);
+                if (childAddr == IntPtr.Zero) continue;
+                var found = FindAtlasPanelRecursive(childAddr, depth + 1, maxDepth);
+                if (found != IntPtr.Zero) return found;
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private static bool IsValidPtr(IntPtr p)
+        {
+            long a = p.ToInt64();
+            return a > 0x10000 && a < 0x7FFFFFFFFFFF;
+        }
+
+        private static bool IsControllerAtlasPassiveTreeOpen(IntPtr atlasAddr)
+        {
+            if (!IsValidPtr(atlasAddr)) return false;
+            var atlasOff = Read<UiElementBaseOffset>(atlasAddr);
+            var pTabs = atlasOff.ParentPtr;
+            if (!IsValidPtr(pTabs)) return false;
+            var tabsOff = Read<UiElementBaseOffset>(pTabs);
+            var pMapRoot = tabsOff.ParentPtr;
+            if (!IsValidPtr(pMapRoot)) return false;
+            var mapRootOff = Read<UiElementBaseOffset>(pMapRoot);
+            var pWorldMap = mapRootOff.ParentPtr;
+            if (!IsValidPtr(pWorldMap)) return false;
+
+            // Child 4 under WorldMap is the Atlas Passive Tree panel
+            var passivePanel = GetChildAddress(pWorldMap, 4);
+            if (IsValidPtr(passivePanel))
+            {
+                if (IsUiElementVisible(passivePanel) && GetChildCount(passivePanel) > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        [LibraryImport("user32.dll")]
+        private static partial nint GetForegroundWindow();
 
     }
 }

@@ -10,6 +10,7 @@ namespace Radar
     using System.IO;
     using System.Linq;
     using System.Numerics;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Coroutine;
@@ -21,7 +22,6 @@ namespace Radar
     using GameHelper.RemoteObjects.Components;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
     using SixLabors.ImageSharp;
     using SixLabors.ImageSharp.PixelFormats;
     using SixLabors.ImageSharp.Processing.Processors.Transforms;
@@ -32,6 +32,12 @@ namespace Radar
     /// </summary>
     public sealed class Radar : PCore<RadarSettings>
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            IncludeFields = true,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true,
+        };
         private const string TempleTgtPrefix = "Metadata/Terrain/Leagues/Incursion/Tiles/Features/Waygates/WaygateDevice";
         private const string LoathsomeMirePath =
             "Metadata/MiscellaneousObjects/Delirium/DeliriumShardSeethingChyme";
@@ -100,11 +106,8 @@ namespace Radar
         // Static "tracked" map objects (Abyss cracks/pit, specific Strongboxes) remembered per map
         // instance. Fed by the awake-entity pass and a throttled scan of the game's larger-range
         // SleepingEntities map, so they appear well beyond the network bubble and persist once seen.
-        private const int TrackedScanIntervalMs = 1000;
         private readonly Dictionary<string, ConcurrentDictionary<string, (Vector2 gridPos, float height, string category, string iconKey)>> trackedNodesByArea = new();
         private ConcurrentDictionary<string, (Vector2 gridPos, float height, string category, string iconKey)> trackedNodes = new();
-        private long nextTrackedScanTime;
-        private Task? pendingTrackedScanTask;
 
         private string SettingPathname => Path.Join(this.DllDirectory, "config", "settings.txt");
 
@@ -146,6 +149,25 @@ namespace Radar
                 ImGui.Checkbox(this.PluginText.Label("settings.enable_coop_centering", "Enable Local Co-op Map Hack Centering", "RadarEnableCoopCentering"), ref this.Settings.EnableCoopMode);
                 ImGuiHelper.ToolTip(this.PluginText.T("settings.enable_coop_centering.tooltip", "Centers the map/maphack on the midpoint of P1 and P2 when playing co-op."));
             }
+
+            var isControllerDetected = Core.GHSettings.EnableControllerMode;
+            if (isControllerDetected)
+            {
+                var modeText = Core.GHSettings.IsCoopMode
+                    ? "[Controller Co-op Mode: Auto-Detected Active]"
+                    : "[Controller Solo Mode: Auto-Detected Active]";
+                ImGui.TextColored(new Vector4(0.2f, 1f, 0.2f, 1f), modeText);
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), this.PluginText.T("settings.controller_not_detected", "[Controller Mode: Not Detected]"));
+            }
+
+            if (ImGui.Checkbox(this.PluginText.Label("settings.controller_ignore_panels", "Controller Mode: Ignore Menu Panels", "RadarCtrlIgnorePanels"), ref this.Settings.ControllerModeIgnorePanels))
+            {
+                this.SaveSettings();
+            }
+            ImGuiHelper.ToolTip(this.PluginText.T("settings.controller_ignore_panels.tooltip", "Prevents false-positive menu panel detections from blocking Radar rendering in controller mode."));
 
             ImGui.Checkbox(this.PluginText.Label("settings.hide_hideout_town", "Hide Radar when in Hideout/Town", "RadarHideHideoutTown"), ref this.Settings.DrawWhenNotInHideoutOrTown);
             ImGui.Checkbox(this.PluginText.Label("settings.hide_background", "Hide Radar when game is in the background", "RadarHideBackground"), ref this.Settings.DrawWhenForeground);
@@ -393,7 +415,8 @@ namespace Radar
                 return;
             }
 
-            if (Core.States.InGameStateObject.GameUi.IsAnyLargePanelOpen)
+            var isController = Core.GHSettings.EnableControllerMode;
+            if (Core.States.InGameStateObject.GameUi.IsAnyLargePanelOpen && !(isController && this.Settings.ControllerModeIgnorePanels))
             {
                 return;
             }
@@ -416,9 +439,18 @@ namespace Radar
 
             var playerOther = currentAreaInstance.AwakeEntities.Values
                 .FirstOrDefault(e => e.EntitySubtype == EntitySubtypes.PlayerOther);
-            if (this.IsLocalCoopActive(playerRender, playerOther != null))
+            var hasCoopPartner = currentAreaInstance.LocalPlayerCount > 1 ||
+                                 currentAreaInstance.Player2.Address != IntPtr.Zero ||
+                                 playerOther != null;
+            if (this.IsLocalCoopActive(playerRender, hasCoopPartner))
             {
-                if (playerOther != null && playerOther.TryGetComponent<Render>(out var pOtherRender))
+                if (currentAreaInstance.Player2.Address != IntPtr.Zero &&
+                    currentAreaInstance.Player2.TryGetComponent<Render>(out var p2Render))
+                {
+                    trackingPos = (trackingPos + new Vector2(p2Render.GridPosition.X, p2Render.GridPosition.Y)) / 2f;
+                    trackingHeight = (trackingHeight + p2Render.TerrainHeight) / 2f;
+                }
+                else if (playerOther != null && playerOther.TryGetComponent<Render>(out var pOtherRender))
                 {
                     trackingPos = (trackingPos + new Vector2(pOtherRender.GridPosition.X, pOtherRender.GridPosition.Y)) / 2f;
                     trackingHeight = (trackingHeight + pOtherRender.TerrainHeight) / 2f;
@@ -429,14 +461,30 @@ namespace Radar
             this.RebuildEntityPaths();
             this.RebuildTrackedNodes();
 
-            if (largeMap.IsVisible && !Core.States.InGameStateObject.GameUi.WorldMapPanel.IsVisible)
+            var isLargeMapVisible = largeMap.Address != IntPtr.Zero && largeMap.IsVisible;
+            var isWorldMapOpen = Core.States.InGameStateObject.GameUi.WorldMapPanel.Address != IntPtr.Zero && Core.States.InGameStateObject.GameUi.WorldMapPanel.IsVisible;
+
+            if (isLargeMapVisible && !isWorldMapOpen)
             {
                 if (this.largeMapDiagonalLength <= 0)
                 {
                     this.UpdateLargeMapDetails();
                 }
 
-                var largeMapRealCenter = largeMap.Center + largeMap.Shift + largeMap.DefaultShift;
+                Vector2 largeMapRealCenter;
+                float largeMapZoom;
+                if (isLargeMapVisible)
+                {
+                    largeMapRealCenter = largeMap.Center + largeMap.Shift + largeMap.DefaultShift;
+                    largeMapZoom = largeMap.Zoom;
+                }
+                else
+                {
+                    var winArea = Core.Process.WindowArea.Size;
+                    largeMapRealCenter = new Vector2(winArea.Width / 2f, (winArea.Height / 2f) - 20f);
+                    largeMapZoom = 0.5f;
+                }
+
                 // Calibrated biases baked in so LargeMapXOffset/LargeMapYOffset default to 0.
                 const float LargeMapXBias = 0.6f;
                 const float LargeMapYBias = 0.3f;
@@ -444,7 +492,7 @@ namespace Radar
                 largeMapRealCenter.Y += LargeMapYBias + this.Settings.LargeMapYOffset;
                 // Scale factor calibrated so LargeMapScaleMultiplier = 1.0 produces correct placement.
                 const float LargeMapScaleBaseline = 0.187812f;
-                var largeMapModifiedZoom = this.Settings.LargeMapScaleMultiplier * largeMap.Zoom * LargeMapScaleBaseline;
+                var largeMapModifiedZoom = this.Settings.LargeMapScaleMultiplier * largeMapZoom * LargeMapScaleBaseline;
                 Helper.DiagonalLength = this.largeMapDiagonalLength;
                 Helper.Scale = largeMapModifiedZoom;
                 ImGui.SetNextWindowPos(this.Settings.CullWindowPos);
@@ -521,29 +569,29 @@ namespace Radar
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<RadarSettings>(content) ?? new RadarSettings();
+                this.Settings = JsonSerializer.Deserialize(content, RadarJsonContext.Default.RadarSettings) ?? new RadarSettings();
             }
 
             if (File.Exists(this.ImportantTgtPathName))
             {
                 var tgtfiles = File.ReadAllText(this.ImportantTgtPathName);
-                this.Settings.ImportantTgts = JsonConvert.DeserializeObject
-                    <Dictionary<string, Dictionary<string, string>>>(tgtfiles)
+                this.Settings.ImportantTgts = JsonSerializer.Deserialize
+                    <Dictionary<string, Dictionary<string, string>>>(tgtfiles, JsonOptions)
                     ?? new Dictionary<string, Dictionary<string, string>>();
             }
 
             if (File.Exists(this.BossArenaTgtPathName))
             {
                 var bossfiles = File.ReadAllText(this.BossArenaTgtPathName);
-                this.Settings.BossArenaTgts = JsonConvert.DeserializeObject
-                    <Dictionary<string, string>>(bossfiles) ?? new Dictionary<string, string>();
+                this.Settings.BossArenaTgts = JsonSerializer.Deserialize
+                    <Dictionary<string, string>>(bossfiles, JsonOptions) ?? new Dictionary<string, string>();
             }
 
             if (File.Exists(this.StairsTgtPathName))
             {
                 var stairsfiles = File.ReadAllText(this.StairsTgtPathName);
-                this.Settings.StairsTgts = JsonConvert.DeserializeObject
-                    <Dictionary<string, string>>(stairsfiles) ?? new Dictionary<string, string>();
+                this.Settings.StairsTgts = JsonSerializer.Deserialize
+                    <Dictionary<string, string>>(stairsfiles, JsonOptions) ?? new Dictionary<string, string>();
             }
 
             this.Settings.AddDefaultIcons(this.DllDirectory);
@@ -564,27 +612,24 @@ namespace Radar
         public override void SaveSettings()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-            var settingsData = JsonConvert.SerializeObject(this.Settings, Formatting.Indented);
+            var settingsData = JsonSerializer.Serialize(this.Settings, RadarJsonContext.Default.RadarSettings);
             File.WriteAllText(this.SettingPathname, settingsData);
 
             if (this.Settings.ImportantTgts.Count > 0)
             {
-                var tgtfiles = JsonConvert.SerializeObject(
-                    this.Settings.ImportantTgts, Formatting.Indented);
+                var tgtfiles = JsonSerializer.Serialize(this.Settings.ImportantTgts, JsonOptions);
                 File.WriteAllText(this.ImportantTgtPathName, tgtfiles);
             }
 
             if (this.Settings.BossArenaTgts.Count > 0)
             {
-                var bossfiles = JsonConvert.SerializeObject(
-                    this.Settings.BossArenaTgts, Formatting.Indented);
+                var bossfiles = JsonSerializer.Serialize(this.Settings.BossArenaTgts, JsonOptions);
                 File.WriteAllText(this.BossArenaTgtPathName, bossfiles);
             }
 
             if (this.Settings.StairsTgts.Count > 0)
             {
-                var stairsfiles = JsonConvert.SerializeObject(
-                    this.Settings.StairsTgts, Formatting.Indented);
+                var stairsfiles = JsonSerializer.Serialize(this.Settings.StairsTgts, JsonOptions);
                 File.WriteAllText(this.StairsTgtPathName, stairsfiles);
             }
         }
@@ -661,13 +706,14 @@ namespace Radar
             var clipMin = ImGui.GetWindowPos();
             var clipMax = clipMin + ImGui.GetWindowSize();
 
-            void drawString(string text, Vector2 location, Vector2 stringImGuiSize, bool drawBackground)
+            void drawString(string text, Vector2 location, Vector2 stringImGuiSize, bool drawBackground, uint? customColor = null)
             {
                 float height = 0;
-                if (location.X < currentAreaInstance.GridHeightData[0].Length &&
-                    location.Y < currentAreaInstance.GridHeightData.Length)
+                if (currentAreaInstance.GridHeightData.Length > 0 && currentAreaInstance.GridHeightData[0].Length > 0)
                 {
-                    height = currentAreaInstance.GridHeightData[(int)location.Y][(int)location.X];
+                    var locY = (int)Math.Clamp(location.Y, 0, currentAreaInstance.GridHeightData.Length - 1);
+                    var locX = (int)Math.Clamp(location.X, 0, currentAreaInstance.GridHeightData[0].Length - 1);
+                    height = currentAreaInstance.GridHeightData[locY][locX];
                 }
 
                 var fpos = Helper.DeltaInWorldToMapDelta(
@@ -691,7 +737,7 @@ namespace Radar
                     ImGui.GetFont(),
                     ImGui.GetFontSize(),
                     textMin,
-                    col,
+                    customColor ?? col,
                     text);
             }
 
@@ -720,34 +766,56 @@ namespace Radar
             }
             else if (this.Settings.ShowImportantPOI)
             {
-                if (this.Settings.ImportantTgts.TryGetValue(this.currentAreaName, out var importantTgtsOfCurrentArea))
+                var drawnPositions = new List<(string name, Vector2 pos)>();
+
+                void RenderPoiDict(Dictionary<string, string> tgts)
                 {
-                    foreach (var tile in importantTgtsOfCurrentArea)
+                    foreach (var tile in tgts)
                     {
-                        if (currentAreaInstance.TgtTilesLocations.TryGetValue(tile.Key, out var locations))
+                        if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
                         {
+                            var clusters = ClusterTileLocations(rawLocations, 350.0f);
                             var strSize = this.GetTextHalfSize(tile.Value);
-                            for (var i = 0; i < locations.Count; i++)
+
+                            for (var i = 0; i < clusters.Count; i++)
                             {
-                                drawString(tile.Value, locations[i], strSize, this.Settings.EnablePOIBackground);
+                                var loc = clusters[i];
+                                bool duplicate = false;
+                                for (int d = 0; d < drawnPositions.Count; d++)
+                                {
+                                    // If same POI name is within 400 grid units -> duplicate
+                                    if (drawnPositions[d].name == tile.Value && Vector2.DistanceSquared(loc, drawnPositions[d].pos) < 160000.0f)
+                                    {
+                                        duplicate = true;
+                                        break;
+                                    }
+
+                                    // If any label is within 60 grid units -> duplicate to avoid visual overlap
+                                    if (Vector2.DistanceSquared(loc, drawnPositions[d].pos) < 3600.0f)
+                                    {
+                                        duplicate = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!duplicate)
+                                {
+                                    drawnPositions.Add((tile.Value, loc));
+                                    drawString(tile.Value, loc, strSize, this.Settings.EnablePOIBackground);
+                                }
                             }
                         }
                     }
                 }
 
+                if (this.Settings.ImportantTgts.TryGetValue(this.currentAreaName, out var importantTgtsOfCurrentArea))
+                {
+                    RenderPoiDict(importantTgtsOfCurrentArea);
+                }
+
                 if (this.Settings.ImportantTgts.TryGetValue("common", out var importantTgtsOfAllAreas))
                 {
-                    foreach (var tile in importantTgtsOfAllAreas)
-                    {
-                        if (currentAreaInstance.TgtTilesLocations.TryGetValue(tile.Key, out var locations))
-                        {
-                            var strSize = this.GetTextHalfSize(tile.Value);
-                            for (var i = 0; i < locations.Count; i++)
-                            {
-                                drawString(tile.Value, locations[i], strSize, this.Settings.EnablePOIBackground);
-                            }
-                        }
-                    }
+                    RenderPoiDict(importantTgtsOfAllAreas);
                 }
             }
         }
@@ -816,18 +884,43 @@ namespace Radar
 
             // --- Collect POI snapshot ---
             var poiSnapshot = new List<(string cacheKey, Vector2 gridPos)>();
+            var collectedPositions = new List<(string name, Vector2 pos)>();
 
             void CollectFrom(Dictionary<string, string> tileDict, string prefix)
             {
                 foreach (var tile in tileDict)
                 {
-                    if (currentAreaInstance.TgtTilesLocations.TryGetValue(tile.Key, out var locations))
+                    if (TryGetTgtLocations(currentAreaInstance.TgtTilesLocations, tile.Key, out var rawLocations) && rawLocations.Count > 0)
                     {
-                        for (var i = 0; i < locations.Count; i++)
+                        var clusters = ClusterTileLocations(rawLocations, 350.0f);
+                        for (var i = 0; i < clusters.Count; i++)
                         {
-                            var poiKey = $"{prefix}|{tile.Key}|{i}";
-                            this.MarkReachedIfClose(poiKey, pPos, locations[i]);
-                            poiSnapshot.Add((poiKey, locations[i]));
+                            var loc = clusters[i];
+                            bool duplicate = false;
+                            for (int c = 0; c < collectedPositions.Count; c++)
+                            {
+                                // Same POI name within 400 grid units -> duplicate
+                                if (collectedPositions[c].name == tile.Value && Vector2.DistanceSquared(loc, collectedPositions[c].pos) < 160000.0f)
+                                {
+                                    duplicate = true;
+                                    break;
+                                }
+
+                                // Any POI within 60 grid units -> duplicate
+                                if (Vector2.DistanceSquared(loc, collectedPositions[c].pos) < 3600.0f)
+                                {
+                                    duplicate = true;
+                                    break;
+                                }
+                            }
+
+                            if (!duplicate)
+                            {
+                                collectedPositions.Add((tile.Value, loc));
+                                var poiKey = $"{prefix}|{tile.Key}|{i}";
+                                this.MarkReachedIfClose(poiKey, pPos, loc);
+                                poiSnapshot.Add((poiKey, loc));
+                            }
                         }
                     }
                 }
@@ -2168,60 +2261,15 @@ namespace Radar
         }
 
         /// <summary>
-        /// Throttled background scan of the game's SleepingEntities map for tracked static objects
-        /// only (Abyss cracks/pit and specific Strongboxes — never monsters/other, which move).
-        /// Found nodes are merged into the per-map cache so they're revealed at the larger
-        /// sleeping-entity radius and persist once seen.
+        /// Background scan of SleepingEntities is disabled: continuously reading the 500,000-node
+        /// SleepingEntities map in parallel causes memory contention, CoreCLR 0xc0000409 FailFast,
+        /// and PathOfExile.exe 0xc0000005 Access Violation crashes.
+        /// Tracked nodes (Abyss Crack, Abyss Pit, Strongbox) are already tracked and persisted
+        /// per-map when they enter the player's awake radius in DrawMapIcons.
         /// </summary>
         private void RebuildTrackedNodes()
         {
-            var anyEnabled =
-                (this.Settings.AbyssIcons.TryGetValue("Abyss Crack", out var crackIcon) && crackIcon.Draw) ||
-                (this.Settings.AbyssIcons.TryGetValue("Abyss Pit", out var pitIcon) && pitIcon.Draw) ||
-                this.Settings.StrongboxIcons.Values.Any(i => i.Draw);
-            if (!anyEnabled)
-            {
-                return;
-            }
-
-            var now = Environment.TickCount64;
-            if (now < this.nextTrackedScanTime)
-            {
-                return;
-            }
-
-            this.nextTrackedScanTime = now + TrackedScanIntervalMs;
-
-            if (this.pendingTrackedScanTask != null && !this.pendingTrackedScanTask.IsCompleted)
-            {
-                return;
-            }
-
-            var areaInstance = Core.States.InGameStateObject.CurrentAreaInstance;
-            var target = this.trackedNodes;
-            this.pendingTrackedScanTask = Task.Run(() =>
-            {
-                areaInstance.ScanSleepingEntities(
-                    p => ClassifyTrackedPath(p) != null,
-                    (key, entity) =>
-                    {
-                        if (!entity.TryGetComponent<Render>(out var r))
-                        {
-                            return;
-                        }
-
-                        var classified = ClassifyTrackedPath(entity.Path);
-                        if (classified == null)
-                        {
-                            return;
-                        }
-
-                        var (category, iconKey) = classified.Value;
-                        var gridPos = new Vector2(r.GridPosition.X, r.GridPosition.Y);
-                        var k = $"{category}|{iconKey}|{(int)gridPos.X}|{(int)gridPos.Y}";
-                        target[k] = (gridPos, r.TerrainHeight, category, iconKey);
-                    });
-            });
+            return;
         }
 
         /// <summary>
@@ -2470,7 +2518,8 @@ namespace Radar
             var map = Core.States.InGameStateObject.GameUi.LargeMap;
             var baseRes = GameOffsets.Objects.UiElement.UiElementBaseFuncs.BaseResolution;
             var baseDiag = Math.Sqrt((baseRes.X * baseRes.X) + (baseRes.Y * baseRes.Y));
-            this.largeMapDiagonalLength = baseDiag * map.Size.Y / baseRes.Y;
+            var mapHeight = map.Address != IntPtr.Zero && map.Size.Y > 0 ? map.Size.Y : Core.Process.WindowArea.Size.Height;
+            this.largeMapDiagonalLength = baseDiag * mapHeight / baseRes.Y;
         }
 
         private void ReloadMapTexture()
@@ -2610,6 +2659,194 @@ namespace Radar
         private string DelveChestPathToIcon(string path)
         {
             return path.Replace(this.delveChestStarting, null, StringComparison.Ordinal);
+        }
+
+        private static bool TryGetTgtLocations(
+            Dictionary<string, List<Vector2>> tgtTilesLocations,
+            string pattern,
+            out List<Vector2> locations)
+        {
+            locations = new();
+            if (tgtTilesLocations == null || tgtTilesLocations.Count == 0 || string.IsNullOrEmpty(pattern))
+            {
+                return false;
+            }
+
+            // 1. Fast path: exact match
+            if (tgtTilesLocations.TryGetValue(pattern, out var exactList))
+            {
+                locations = exactList;
+                return true;
+            }
+
+            // 2. Clean pattern: strip :[] or :X-y:Y rotation suffix
+            string cleanPattern = pattern;
+            if (cleanPattern.EndsWith(":[]", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanPattern = cleanPattern.Substring(0, cleanPattern.Length - 3);
+            }
+            else
+            {
+                var colonIdx = cleanPattern.LastIndexOf(':');
+                if (colonIdx > 0 && cleanPattern.IndexOf("-y:", colonIdx, StringComparison.OrdinalIgnoreCase) > 0)
+                {
+                    cleanPattern = cleanPattern.Substring(0, colonIdx);
+                }
+            }
+
+            List<Vector2>? matched = null;
+            bool hasWildcard = cleanPattern.Contains('*');
+
+            if (hasWildcard)
+            {
+                var parts = cleanPattern.Split('*', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var kv in tgtTilesLocations)
+                {
+                    if (MatchesWildcardParts(kv.Key, parts))
+                    {
+                        matched ??= new List<Vector2>();
+                        matched.AddRange(kv.Value);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var kv in tgtTilesLocations)
+                {
+                    if (kv.Key.StartsWith(cleanPattern, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (kv.Key.Length == cleanPattern.Length || kv.Key[cleanPattern.Length] == ':' || kv.Key[cleanPattern.Length] == 'x' || cleanPattern.EndsWith(".tdtx", StringComparison.OrdinalIgnoreCase))
+                        {
+                            matched ??= new List<Vector2>();
+                            matched.AddRange(kv.Value);
+                        }
+                    }
+                }
+            }
+
+            if (matched != null && matched.Count > 0)
+            {
+                locations = matched;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool MatchesWildcardParts(string key, string[] parts)
+        {
+            int currentIdx = 0;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                int foundIdx = key.IndexOf(parts[i], currentIdx, StringComparison.OrdinalIgnoreCase);
+                if (foundIdx < 0)
+                {
+                    return false;
+                }
+
+                currentIdx = foundIdx + parts[i].Length;
+            }
+
+            return true;
+        }
+
+        private static List<Vector2> DeduplicateLocations(List<Vector2> locations, float minDistance = 20.0f)
+        {
+            if (locations.Count <= 1)
+            {
+                return locations;
+            }
+
+            var result = new List<Vector2>(locations.Count);
+            float minDistSq = minDistance * minDistance;
+
+            for (int i = 0; i < locations.Count; i++)
+            {
+                var pt = locations[i];
+                bool isDupe = false;
+                for (int j = 0; j < result.Count; j++)
+                {
+                    if (Vector2.DistanceSquared(pt, result[j]) < minDistSq)
+                    {
+                        isDupe = true;
+                        break;
+                    }
+                }
+
+                if (!isDupe)
+                {
+                    result.Add(pt);
+                }
+            }
+
+            return result;
+        }
+
+        private static List<Vector2> ClusterTileLocations(List<Vector2> rawLocations, float clusterDistance = 80.0f)
+        {
+            if (rawLocations == null || rawLocations.Count == 0)
+            {
+                return new List<Vector2>();
+            }
+
+            if (rawLocations.Count == 1)
+            {
+                return rawLocations;
+            }
+
+            var clusterDistSq = clusterDistance * clusterDistance;
+            var clusters = new List<List<Vector2>>();
+
+            for (int i = 0; i < rawLocations.Count; i++)
+            {
+                var pt = rawLocations[i];
+                List<Vector2>? targetCluster = null;
+
+                for (int c = 0; c < clusters.Count; c++)
+                {
+                    var cluster = clusters[c];
+                    for (int j = 0; j < cluster.Count; j++)
+                    {
+                        if (Vector2.DistanceSquared(pt, cluster[j]) < clusterDistSq)
+                        {
+                            targetCluster = cluster;
+                            break;
+                        }
+                    }
+
+                    if (targetCluster != null)
+                    {
+                        break;
+                    }
+                }
+
+                if (targetCluster != null)
+                {
+                    targetCluster.Add(pt);
+                }
+                else
+                {
+                    clusters.Add(new List<Vector2> { pt });
+                }
+            }
+
+            // Centroid of each spatial cluster (prevents dozens of overlapping labels in boss arenas / multi-tile rooms)
+            var centroids = new List<Vector2>(clusters.Count);
+            for (int c = 0; c < clusters.Count; c++)
+            {
+                var cluster = clusters[c];
+                float sumX = 0;
+                float sumY = 0;
+                for (int j = 0; j < cluster.Count; j++)
+                {
+                    sumX += cluster[j].X;
+                    sumY += cluster[j].Y;
+                }
+
+                centroids.Add(new Vector2(sumX / cluster.Count, sumY / cluster.Count));
+            }
+
+            return centroids;
         }
 
         private void DrawEntityPathEnding(string path, ImDrawListPtr fgDraw, Vector2 pos)
@@ -2756,27 +2993,7 @@ namespace Radar
                 return this.Settings.EnableCoopMode;
             }
 
-            if (!Core.GHSettings.EnableControllerMode || !hasOtherPlayer)
-            {
-                return false;
-            }
-
-            var worldData = Core.States.InGameStateObject.CurrentWorldInstance;
-            if (worldData == null || worldData.Address == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            var screenPos = worldData.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
-            if (screenPos == Vector2.Zero)
-            {
-                return false;
-            }
-
-            var screenCenter = new Vector2(
-                Core.Process.WindowArea.Width / 2f,
-                Core.Process.WindowArea.Height / 2f);
-            return Vector2.Distance(screenPos, screenCenter) > 35f;
+            return Core.GHSettings.IsCoopMode;
         }
     }
 }

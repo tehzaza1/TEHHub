@@ -1,0 +1,20 @@
+  TEHhub.Offsets -> C:\Games\Hy-v Tool\GameHelper2-main\TEHhub.Offsets\bin\Debug\net10.0-windows\win-x64\TEHhub.Offsets.dll
+  TEHhub.Launcher -> C:\Games\Hy-v Tool\GameHelper2-main\TEHhub.Launcher\bin\Debug\net10.0-windows\win-x64\TEHhub.Launcher.dll
+  TEHhub -> C:\Games\Hy-v Tool\GameHelper2-main\TEHhub\bin\Debug\net10.0-windows\win-x64\TEHhub.dll
+  RitualWispAlert -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\RitualWispAlert\bin\Debug\net10.0-windows\win-x64\RitualWispAlert.dll
+  PickupHelper -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\PickupHelper\bin\Debug\net10.0-windows\win-x64\PickupHelper.dll
+  HealthBars -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\HealthBars\bin\Debug\net10.0-windows\win-x64\HealthBars.dll
+  AutoHotKeyTrigger -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\AutoHotKeyTrigger\bin\Debug\net10.0-windows\win-x64\AutoHotKeyTrigger.dll
+  AmanamuVoidAlert -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\AmanamuVoidAlert\bin\Debug\net10.0-windows\win-x64\AmanamuVoidAlert.dll
+  LootValue -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\LootValue\bin\Debug\net10.0-windows\win-x64\LootValue.dll
+  PlayerBuffBar -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\PlayerBuffBar\bin\Debug\net10.0-windows\win-x64\PlayerBuffBar.dll
+  Radar -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\Radar\bin\Debug\net10.0-windows\win-x64\Radar.dll
+  AutoExile2 -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\AutoExile2\bin\Debug\net10.0-windows\win-x64\AutoExile2.dll
+  PreloadAlert -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\PreloadAlert\bin\Debug\net10.0-windows\win-x64\PreloadAlert.dll
+  Atlas2 -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\Atlas2\bin\Debug\net10.0-windows\win-x64\Atlas2.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:02.70

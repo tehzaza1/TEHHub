@@ -26,6 +26,7 @@ namespace GameHelper.RemoteObjects.UiElement
         // first accessed. Eliminates the per-indexer-call new+UpdateData(true) hit
         // that was O(N) per traversal in passive-skill-tree-sized trees.
         private UiElementBase?[] childrenCache = Array.Empty<UiElementBase?>();
+        private bool preserveStableChildren;
         protected uint flags; // IsVisible and ShouldModifyPosition information
         private float localScaleMultiplier;
         private Vector2 relativePosition;
@@ -118,6 +119,16 @@ namespace GameHelper.RemoteObjects.UiElement
         ///     Gets the total number of childrens this Ui Element has.
         /// </summary>
         public int TotalChildrens => this.childrenAddresses.Length;
+
+        /// <summary>
+        ///     Keeps materialized child instances when their address remains at the same index.
+        ///     Callers that need live child fields must explicitly refresh those fields.
+        /// </summary>
+        internal bool PreserveStableChildren
+        {
+            get => this.preserveStableChildren;
+            set => this.preserveStableChildren = value;
+        }
 
         public bool TryGetParent([NotNullWhen(true)] out UiElementBase? parent)
         {
@@ -220,12 +231,57 @@ namespace GameHelper.RemoteObjects.UiElement
         }
 
         /// <summary>
+        ///     Refreshes only already-materialized children without re-reading their child
+        ///     vectors. This preserves live position/visibility while avoiding recursive UI-tree
+        ///     work for large, flat containers such as the Atlas.
+        /// </summary>
+        internal void RefreshMaterializedChildren()
+        {
+            for (var i = 0; i < this.childrenCache.Length; i++)
+            {
+                this.childrenCache[i]?.RefreshDataWithoutChildren();
+            }
+        }
+
+        /// <summary>
+        ///     Refreshes a cached parent from one already-read snapshot. Parent-chain position
+        ///     and visibility need these scalar fields, but never the parent's child vector.
+        /// </summary>
+        /// <returns>false when the address now identifies another Ui element.</returns>
+        internal bool TryRefreshParentData(UiElementBaseOffset data)
+        {
+            if (data.Self != IntPtr.Zero && data.Self != this.Address)
+            {
+                return false;
+            }
+
+            this.UpdateData(data, false, false);
+            return true;
+        }
+
+        private void RefreshDataWithoutChildren()
+        {
+            if (!Core.Process.Handle.TryReadMemory<UiElementBaseOffset>(this.Address, out var data) ||
+                (data.Self != IntPtr.Zero && data.Self != this.Address))
+            {
+                return;
+            }
+
+            this.UpdateData(data, false, false);
+        }
+
+        /// <summary>
         ///     Updates the UiElement data.
         /// </summary>
         /// <param name="data">UiElementBaseOffset structure read from the game memory.</param>
         /// <param name="hasAddressChanged">has the address of this object changed or not.</param>
         /// <exception cref="Exception">Throws an exception if it detects invalid UiElement.</exception>
         protected void UpdateData(UiElementBaseOffset data, bool hasAddressChanged)
+        {
+            this.UpdateData(data, hasAddressChanged, true);
+        }
+
+        private void UpdateData(UiElementBaseOffset data, bool hasAddressChanged, bool refreshChildren)
         {
             if (data.Self != IntPtr.Zero && data.Self != this.Address)
             {
@@ -235,11 +291,28 @@ namespace GameHelper.RemoteObjects.UiElement
 
             this.parentAddress = data.ParentPtr;
             this.parents.AddIfNotExists(data.ParentPtr);
-            this.childrenAddresses = Core.Process.Handle.ReadStdVector<IntPtr>(data.ChildrensPtr);
-            // F-136: rebuild cache slots to match the new childrenAddresses length.
-            // Existing materialised children are dropped; they'll be re-allocated
-            // lazily on next this[int] access if still needed.
-            this.childrenCache = new UiElementBase?[this.childrenAddresses.Length];
+            if (refreshChildren)
+            {
+                var nextChildrenAddresses = Core.Process.Handle.ReadStdVector<IntPtr>(data.ChildrensPtr);
+                var nextChildrenCache = new UiElementBase?[nextChildrenAddresses.Length];
+                if (this.preserveStableChildren && !hasAddressChanged)
+                {
+                    var reusableCount = Math.Min(this.childrenAddresses.Length, nextChildrenAddresses.Length);
+                    for (var i = 0; i < reusableCount; i++)
+                    {
+                        if (this.childrenAddresses[i] == nextChildrenAddresses[i])
+                        {
+                            nextChildrenCache[i] = this.childrenCache[i];
+                        }
+                    }
+                }
+
+                this.childrenAddresses = nextChildrenAddresses;
+                // F-136: rebuild cache slots to match the new childrenAddresses length.
+                // Stable containers can retain slots whose address did not change; all others
+                // are re-created lazily on the next this[int] access.
+                this.childrenCache = nextChildrenCache;
+            }
 
             this.positionModifier.X = data.PositionModifier.X;
             this.positionModifier.Y = data.PositionModifier.Y;

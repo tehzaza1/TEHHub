@@ -32,6 +32,22 @@ namespace TEHhub.RemoteObjects.Components
                 {
                     ImGui.TextColored(new System.Numerics.Vector4(1f, 0.4f, 0.4f, 1f), $"Proliferates: NO (Golden Slot #{rs.GoldenSlotIndex + 1} is Blue rune; {rs.AnchorRuneName} is local-only)");
                 }
+
+                // Per-slot rune enumeration
+                if (rs.SlotRunes != null && rs.SlotRunes.Length > 0)
+                {
+                    ImGui.TextColored(new System.Numerics.Vector4(0.6f, 0.9f, 1f, 1f), "Runes per slot:");
+                    for (int si = 0; si < rs.SlotRunes.Length; si++)
+                    {
+                        var isGolden = si == rs.GoldenSlotIndex;
+                        var marker = isGolden ? " ★" : "";
+                        var col = isGolden
+                            ? new System.Numerics.Vector4(1f, 0.84f, 0f, 1f)
+                            : new System.Numerics.Vector4(0.8f, 0.8f, 0.8f, 1f);
+                        ImGui.TextColored(col, $"  Slot #{si + 1}: {rs.SlotRunes[si]}{marker}");
+                    }
+                }
+
                 ImGui.Separator();
             }
 
@@ -195,6 +211,8 @@ namespace TEHhub.RemoteObjects.Components
             var rowPtr = reader.ReadMemory<IntPtr>(station + StationAnchorRefOffset);
             bool isUnique = rowPtr == IntPtr.Zero;
             int anchorIdx = -1;
+            long tableBase = 0;
+            int rowStride = 0;
 
             if (!isUnique)
             {
@@ -204,17 +222,17 @@ namespace TEHhub.RemoteObjects.Components
                     var p1 = reader.ReadMemory<IntPtr>(holder + 0x28);
                     if (p1 != IntPtr.Zero)
                     {
-                        var tableBase = reader.ReadMemory<long>(p1);
+                        tableBase = reader.ReadMemory<long>(p1);
                         if (tableBase != 0)
                         {
                             var delta = rowPtr.ToInt64() - tableBase;
                             if (delta >= 0)
                             {
-                                if (delta % 0x68 == 0) anchorIdx = (int)(delta / 0x68);
-                                else if (delta % 0x6C == 0) anchorIdx = (int)(delta / 0x6C);
+                                if (delta % 0x68 == 0) { anchorIdx = (int)(delta / 0x68); rowStride = 0x68; }
+                                else if (delta % 0x6C == 0) { anchorIdx = (int)(delta / 0x6C); rowStride = 0x6C; }
                             }
 
-                            if (anchorIdx < 0 || anchorIdx >= RuneNames.Length) anchorIdx = -1;
+                            if (anchorIdx < 0 || anchorIdx >= RuneNames.Length) { anchorIdx = -1; rowStride = 0; }
                         }
                     }
                 }
@@ -223,6 +241,51 @@ namespace TEHhub.RemoteObjects.Components
             var anchorName = isUnique ? "Unique Monolith" : (anchorIdx >= 0 && anchorIdx < RuneNames.Length ? RuneNames[anchorIdx] : "Rune Monolith");
             var isAnchorGolden = isUnique || (goldenSlot == anchorPos);
 
+            // --- Per-slot rune discovery ---
+            // Scan station offsets after the golden-slots vector (0x40 + 24 = 0x58) looking for
+            // a std::vector<IntPtr> with exactly socketCount elements, each resolvable to a valid
+            // rune index via the same dat table base used for the anchor rune.
+            string[]? slotRunes = null;
+            if (!isUnique && socketCount > 0 && socketCount <= 16 && tableBase != 0 && rowStride > 0)
+            {
+                foreach (var scanOffset in new[] { 0x58, 0x60, 0x68, 0x70, 0x78, 0x80 })
+                {
+                    try
+                    {
+                        var runeVec = reader.ReadMemory<StdVector>(station + scanOffset);
+                        var runeCount = runeVec.TotalElements(sizeof(long)); // IntPtr is 8 bytes
+                        if (runeCount != socketCount || runeCount <= 0)
+                            continue;
+
+                        var runePtrs = reader.ReadMemoryArray<long>(runeVec.First, (int)runeCount);
+                        if (runePtrs == null || runePtrs.Length != socketCount)
+                            continue;
+
+                        var names = new string[socketCount];
+                        bool allValid = true;
+                        for (int ri = 0; ri < socketCount; ri++)
+                        {
+                            if (runePtrs[ri] == 0) { allValid = false; break; }
+                            var d = runePtrs[ri] - tableBase;
+                            if (d < 0 || d % rowStride != 0) { allValid = false; break; }
+                            int idx = (int)(d / rowStride);
+                            if (idx < 0 || idx >= RuneNames.Length) { allValid = false; break; }
+                            names[ri] = RuneNames[idx];
+                        }
+
+                        if (allValid)
+                        {
+                            slotRunes = names;
+                            break;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore probe failures at this offset
+                    }
+                }
+            }
+
             details = new RuneStationDetails
             {
                 SocketCount = socketCount,
@@ -230,7 +293,8 @@ namespace TEHhub.RemoteObjects.Components
                 AnchorSlotIndex = anchorPos,
                 AnchorRuneName = anchorName,
                 IsUnique = isUnique,
-                IsAnchorInGoldenSlot = isAnchorGolden
+                IsAnchorInGoldenSlot = isAnchorGolden,
+                SlotRunes = slotRunes
             };
             return true;
         }
@@ -248,6 +312,33 @@ namespace TEHhub.RemoteObjects.Components
         public bool IsUnique { get; init; }
         public bool IsAnchorInGoldenSlot { get; init; }
         public bool Proliferates => this.IsUnique || this.IsAnchorInGoldenSlot;
+
+        /// <summary>
+        ///     Per-slot rune names resolved via heuristic memory scanning.
+        ///     Null when the per-slot vector was not discovered or the monolith is unique.
+        /// </summary>
+        public string[]? SlotRunes { get; init; }
+
+        /// <summary>
+        ///     Formatted summary of runes per slot for compact display.
+        ///     Example: "[1]Fire★ [2]Bond [3]Soul [4]Power"
+        /// </summary>
+        public string SlotRunesSummary
+        {
+            get
+            {
+                if (SlotRunes == null || SlotRunes.Length == 0)
+                    return string.Empty;
+
+                var parts = new string[SlotRunes.Length];
+                for (int i = 0; i < SlotRunes.Length; i++)
+                {
+                    var golden = i == GoldenSlotIndex ? "★" : "";
+                    parts[i] = $"[{i + 1}]{SlotRunes[i]}{golden}";
+                }
+                return string.Join(" ", parts);
+            }
+        }
     }
 
     public class StateMachineState(string name, long value)

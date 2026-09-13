@@ -1,4 +1,4 @@
-﻿// <copyright file="Item.cs" company="None">
+// <copyright file="Item.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -23,6 +23,15 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
         /// <inheritdoc />
         protected override void UpdateData(bool hasAddressChanged)
+        {
+            this.UpdateItem(hasAddressChanged);
+        }
+
+        /// <summary>
+        ///     Updates the item data. Can be invoked internally (e.g. from WorldItem component).
+        /// </summary>
+        /// <param name="hasAddressChanged">true if address changed.</param>
+        internal void UpdateItem(bool hasAddressChanged)
         {
             var reader = Core.Process.Handle;
 

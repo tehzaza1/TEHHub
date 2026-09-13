@@ -145,6 +145,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 yield return new Wait(0.2d);
                 if (this.Address != IntPtr.Zero)
                 {
+                    using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Core.ServerData");
                     this.UpdateData(false);
                 }
             }

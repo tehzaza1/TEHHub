@@ -6,7 +6,6 @@ namespace Launcher
 {
     using System;
     using System.IO;
-    using System.Reflection;
 
     public static class GameHelperFinder
     {
@@ -20,7 +19,7 @@ namespace Launcher
         /// <returns></returns>
         public static bool TryFindGameHelperExe(out string gameHelperDir, out string gameHelperLoc)
         {
-            gameHelperDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
+            gameHelperDir = AppContext.BaseDirectory;
             gameHelperLoc = Path.Join(gameHelperDir, GameHelperFileName);
             if (!new FileInfo(gameHelperLoc).Exists)
             {

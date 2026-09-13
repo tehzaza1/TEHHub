@@ -1,4 +1,4 @@
-﻿// <copyright file="Rule.cs" company="PlaceholderCompany">
+// <copyright file="Rule.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -10,9 +10,10 @@ namespace AutoHotKeyTrigger.ProfileManager
     using System.Linq;
     using System.Numerics;
     using AutoHotKeyTrigger;
+    using GameHelper;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
     using AutoHotKeyTrigger.ProfileManager.Enums;
     using AutoHotKeyTrigger.ProfileManager.Component;
     using ClickableTransparentOverlay.Win32;
@@ -30,10 +31,11 @@ namespace AutoHotKeyTrigger.ProfileManager
         private ConditionType newConditionType = ConditionType.AILMENT;
         private readonly Stopwatch cooldownStopwatch = Stopwatch.StartNew();
 
-        [JsonProperty("Conditions", NullValueHandling = NullValueHandling.Ignore)]
-        private readonly List<DynamicCondition> conditions = new();
+        [JsonInclude]
+        [JsonPropertyName("Conditions")]
+        private List<DynamicCondition> conditions = new();
 
-        [JsonProperty] private float delayBetweenRuns = 0;
+        [JsonInclude] private float delayBetweenRuns = 0;
 
         /// <summary>
         ///     Enable/Disable the rule.
@@ -49,6 +51,17 @@ namespace AutoHotKeyTrigger.ProfileManager
         ///     Rule key to press on success.
         /// </summary>
         public VK Key;
+
+        /// <summary>
+        ///     When true, the rule simulates pressing <see cref="GamepadKey"/> via ViGEm
+        ///     instead of sending keyboard <see cref="Key"/>.
+        /// </summary>
+        public bool UseGamepadKey;
+
+        /// <summary>
+        ///     The gamepad button to press (e.g. DPadLeft for LifeFlask, DPadRight for ManaFlask).
+        /// </summary>
+        public GamepadButton GamepadKey = GamepadButton.None;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Rule" /> class.
@@ -70,6 +83,8 @@ namespace AutoHotKeyTrigger.ProfileManager
             this.Enabled = false;
             this.Name = $"{other.Name}1";
             this.Key = other.Key;
+            this.UseGamepadKey = other.UseGamepadKey;
+            this.GamepadKey = other.GamepadKey;
             this.conditions = new();
             foreach (var condition in other.conditions)
             {
@@ -87,11 +102,13 @@ namespace AutoHotKeyTrigger.ProfileManager
             rules[0] = new("LifeFlask");
             rules[0].Enabled = true;
             rules[0].Key = VK.KEY_1;
+            rules[0].GamepadKey = GamepadButton.DPadLeft;
             rules[0].conditions.Add(new DynamicCondition($"PlayerVitals.HP.Percent <= 80 && Flasks.Flask1.IsUsable && !Flasks.Flask1.Active"));
 
             rules[1] = new($"ManaFlask");
             rules[1].Enabled = true;
             rules[1].Key = VK.KEY_2;
+            rules[1].GamepadKey = GamepadButton.DPadRight;
             rules[1].conditions.Add(new DynamicCondition($"PlayerVitals.MANA.Percent <= 30 && Flasks.Flask2.IsUsable && !Flasks.Flask2.Active"));
 
             return rules;
@@ -112,10 +129,23 @@ namespace AutoHotKeyTrigger.ProfileManager
         {
             ImGui.Checkbox(AhkText.Label("rule.enable", "Enable", "AhkRuleEnable"), ref this.Enabled);
             ImGui.InputText(AhkText.Label("rule.name", "Name", "AhkRuleName"), ref this.Name, 100);
-            var tmpKey = this.Key;
-            if (ImGuiHelper.NonContinuousEnumComboBox(AhkText.Label("rule.key", "Key", "AhkRuleKey"), ref tmpKey))
+            var isController = this.UseGamepadKey || Core.GHSettings.EnableControllerMode;
+            if (isController)
             {
-                this.Key = tmpKey;
+                var tmpGp = this.GamepadKey;
+                if (ImGuiHelper.NonContinuousEnumComboBox(
+                        AhkText.Label("rule.gamepad_key", "Gamepad Button", "AhkGamepadKey"), ref tmpGp))
+                {
+                    this.GamepadKey = tmpGp;
+                }
+            }
+            else
+            {
+                var tmpKey = this.Key;
+                if (ImGuiHelper.NonContinuousEnumComboBox(AhkText.Label("rule.key", "Key", "AhkRuleKey"), ref tmpKey))
+                {
+                    this.Key = tmpKey;
+                }
             }
 
             this.DrawCooldownWidget();
@@ -124,13 +154,40 @@ namespace AutoHotKeyTrigger.ProfileManager
         }
 
         /// <summary>
-        ///     Checks the rule conditions and presses its key if conditions are satisfied
+        ///     Checks the rule conditions and presses its key if conditions are satisfied.
         /// </summary>
-        /// <param name="logger"></param>
-        public void Execute(Action<string> logger)
+        /// <param name="logger">debug log callback.</param>
+        /// <param name="controllerIndex">XInput controller index (0-3).</param>
+        /// <param name="forceController">force controller mode override.</param>
+        public void Execute(Action<string> logger, int controllerIndex = 0, bool forceController = false)
         {
-            if (this.Enabled && this.Evaluate())
+            if (!this.Enabled || !this.Evaluate())
             {
+                return;
+            }
+
+            var isController = forceController || this.UseGamepadKey || Core.GHSettings.EnableControllerMode;
+            if (isController && this.GamepadKey != GamepadButton.None)
+            {
+                // Simulate gamepad button via ViGEmBus
+                if (BotInput.PressGamepadButton(this.GamepadKey))
+                {
+                    logger($"Gamepad {this.GamepadKey} is pressed.");
+                    this.cooldownStopwatch.Restart();
+                }
+            }
+            else if (isController)
+            {
+                // Controller mode with keyboard key fallback: bypass MiscHelper block
+                if (BotInput.PressKey(this.Key))
+                {
+                    logger($"{this.Key} is pressed (controller mode).");
+                    this.cooldownStopwatch.Restart();
+                }
+            }
+            else
+            {
+                // Normal keyboard mode: original MiscHelper path
                 if (MiscHelper.KeyUp(this.Key))
                 {
                     logger($"{this.Key} is pressed.");
@@ -221,7 +278,7 @@ namespace AutoHotKeyTrigger.ProfileManager
 
         private void DrawCooldownWidget()
         {
-            ImGui.DragFloat(AhkText.Label("rule.cooldown", "Cooldown time (seconds)", "DelayTimerConditionDelay"), ref this.delayBetweenRuns, 0.1f, 0.0f, 30.0f);
+            ImGui.DragFloat(AhkText.Label("rule.cooldown", "Cooldown time (seconds)", "DelayTimerConditionDelay"), ref this.delayBetweenRuns, 0.1f, 0.0f, 120.0f);
             if (this.delayBetweenRuns > 0)
             {
                 var cooldownTimeFraction = this.delayBetweenRuns <= 0f ? 1f :

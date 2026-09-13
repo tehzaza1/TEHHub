@@ -1,0 +1,11 @@
+[2026-09-12 17:48:27] OK herald: SkillIcons/HeraldOfAshSkill.webp
+[2026-09-12 17:48:27] OK fortify: BuffIcons/Fortify.webp
+[2026-09-12 17:48:27] OK molten: SkillIcons/moltenshield.webp
+[2026-09-12 17:48:27] OK endurance_charge: BuffIcons/chargestr.webp
+[2026-09-12 17:48:27] OK frenzy_charge: BuffIcons/chargedex.webp
+[2026-09-12 17:48:27] OK haste: SkillIcons/auraspeed.webp
+[2026-09-12 17:48:27] FAIL granite: page HTTP 404 (Granite)
+[2026-09-12 17:48:27] OK power_charge: BuffIcons/chargeint.webp
+[2026-09-12 17:48:27] OK grace: SkillIcons/auraevasion.webp
+[2026-09-12 17:48:27] OK blood_rage: BuffIcons/buffrage.webp
+[2026-09-12 17:48:27] OK adrenaline: SkillIcons/passives/Champion/FirstStrikeLastFall.webp

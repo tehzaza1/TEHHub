@@ -8,6 +8,7 @@
     using System.Numerics;
     using System.Runtime.InteropServices;
     using System.Text;
+    using System.Text.Json;
     using GameHelper;
     using GameHelper.Plugin;
     using GameHelper.RemoteEnums;
@@ -16,9 +17,8 @@
     using GameHelper.Utils;
     using GameOffsets.Objects.Components;
     using ImGuiNET;
-    using Newtonsoft.Json;
 
-    public sealed class PlayerBuffBarCore : PCore<PlayerBuffBarSettings>
+    public sealed partial class PlayerBuffBarCore : PCore<PlayerBuffBarSettings>
     {
         private readonly BuffIconLoader iconLoader = new();
 
@@ -35,7 +35,9 @@
                 try
                 {
                     var content = File.ReadAllText(this.SettingsPath);
-                    this.Settings = JsonConvert.DeserializeObject<PlayerBuffBarSettings>(content) ?? new PlayerBuffBarSettings();
+                    this.Settings = JsonSerializer.Deserialize(
+                        content,
+                        PlayerBuffBarJsonContext.Default.PlayerBuffBarSettings) ?? new PlayerBuffBarSettings();
                 }
                 catch
                 {
@@ -70,7 +72,9 @@
                 Directory.CreateDirectory(dir);
             }
 
-            File.WriteAllText(this.SettingsPath, JsonConvert.SerializeObject(this.Settings, Formatting.Indented));
+            File.WriteAllText(
+                this.SettingsPath,
+                JsonSerializer.Serialize(this.Settings, PlayerBuffBarJsonContext.Default.PlayerBuffBarSettings));
         }
 
         public override void DrawSettings()
@@ -1465,8 +1469,8 @@
             Core.Process.Foreground ||
             Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr GetForegroundWindow();
 
         private sealed class BuffDisplayEntry
         {

@@ -19,7 +19,7 @@ namespace GameHelper.RemoteObjects
     /// </summary>
     public class GameStates : RemoteObjectBase
     {
-        private readonly object gameStatesLock = new();
+        private readonly System.Threading.Lock gameStatesLock = new();
         private IntPtr currentStateAddress = IntPtr.Zero;
         private GameStateTypes currentStateName = GameStateTypes.GameNotLoaded;
         private GameStateStaticOffset myStaticObj;
@@ -154,6 +154,7 @@ namespace GameHelper.RemoteObjects
                     {
                         lock (this.gameStatesLock)
                         {
+                            using var memoryReadRegion = GameHelper.Ui.MemoryReadDiagnostics.MeasureRegion("Core.GameStates");
                             this.UpdateData(false);
                         }
                     }

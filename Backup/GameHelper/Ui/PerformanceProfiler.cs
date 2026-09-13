@@ -24,6 +24,8 @@ public static class PerformanceProfiler
     private static readonly ConcurrentDictionary<string, ProfileData> ProfileData = new();
     private static readonly ConcurrentDictionary<string, double> CurrentFrameNs = new();
     private static readonly ConcurrentDictionary<string, int> CurrentFrameCounts = new();
+    private static readonly ConcurrentDictionary<string, long> CurrentFrameAllocatedBytes = new();
+    private static readonly ConcurrentDictionary<(string NamespaceName, string MethodName), string> ProfileKeys = new();
     
     private static DateTime lastUpdate = DateTime.MinValue;
     private static List<ProfileRow> cachedRows = [];
@@ -41,8 +43,26 @@ public static class PerformanceProfiler
             return null;
         }
 
-        var stopwatch = Stopwatch.StartNew();
-        return new ProfileDisposable($"{namespaceName}.{methodName}", stopwatch, ProfileData, CurrentFrameNs, CurrentFrameCounts);
+        return new ProfileDisposable(
+            GetProfileKey(namespaceName, methodName),
+            Stopwatch.GetTimestamp(),
+            GC.GetAllocatedBytesForCurrentThread());
+    }
+
+    /// <summary>
+    ///     Creates an allocation-free profiling scope for GameHelper's internal hot paths.
+    /// </summary>
+    internal static ProfileScope Measure(string namespaceName, string methodName)
+    {
+        if (!Core.GHSettings.ShowPerfProfiler)
+        {
+            return default;
+        }
+
+        return new ProfileScope(
+            GetProfileKey(namespaceName, methodName),
+            Stopwatch.GetTimestamp(),
+            GC.GetAllocatedBytesForCurrentThread());
     }
 
     private static IEnumerator<Wait> RenderWindow()
@@ -83,6 +103,7 @@ public static class PerformanceProfiler
                         int count;
                         double avgPerCallNs;
                         double avgPerFrameNs;
+                        double avgAllocatedBytes;
                         if (showCurrentFrameOnly)
                         {
                             if (!CurrentFrameNs.TryGetValue(key, out double currentFrameContrib) || currentFrameContrib == 0) continue;
@@ -90,24 +111,37 @@ public static class PerformanceProfiler
                             count = currentFrameCount;
                             avgPerCallNs = currentFrameContrib / currentFrameCount;
                             avgPerFrameNs = currentFrameContrib;
+                            CurrentFrameAllocatedBytes.TryGetValue(key, out long currentFrameAllocatedBytes);
+                            avgAllocatedBytes = (double)currentFrameAllocatedBytes / currentFrameCount;
                         }
                         else
                         {
                             count = pd.Count;
                             avgPerCallNs = pd.AverageTicks * NsPerTick;
                             avgPerFrameNs = pd.AverageFrameNs;
+                            avgAllocatedBytes = pd.AverageAllocatedBytes;
                         }
-                        tempRows.Add(new ProfileRow(key, count, avgPerCallNs, avgPerFrameNs));
+                        tempRows.Add(new ProfileRow(
+                            key,
+                            count,
+                            avgPerCallNs,
+                            pd.GetPercentileTicks(0.95) * NsPerTick,
+                            pd.GetPercentileTicks(0.99) * NsPerTick,
+                            avgAllocatedBytes,
+                            avgPerFrameNs));
                     }
                     cachedRows = tempRows;
                 }
-                if (ImGui.BeginTable("profilerTable", 4,
+                if (ImGui.BeginTable("profilerTable", 7,
                         ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
                         ImGui.GetContentRegionAvail()))
                 {
                     ImGui.TableSetupColumn("Count");
                     ImGui.TableSetupColumn("Name");
                     ImGui.TableSetupColumn("Avg (Call)");
+                    ImGui.TableSetupColumn("P95 (Call)");
+                    ImGui.TableSetupColumn("P99 (Call)");
+                    ImGui.TableSetupColumn("Alloc (Call)");
                     ImGui.TableSetupColumn("Avg (Frame)", ImGuiTableColumnFlags.DefaultSort);
                     
                     ImGui.TableSetupScrollFreeze(0, 1);
@@ -126,7 +160,10 @@ public static class PerformanceProfiler
                             0 => ascending ? cachedRows.OrderBy(r => r.Count).ToList() : cachedRows.OrderByDescending(r => r.Count).ToList(), // Count
                             1 => ascending ? cachedRows.OrderBy(r => r.Name).ToList() : cachedRows.OrderByDescending(r => r.Name).ToList(), // Name
                             2 => ascending ? cachedRows.OrderBy(r => r.AvgPerCallNs).ToList() : cachedRows.OrderByDescending(r => r.AvgPerCallNs).ToList(), // Avg (Call)
-                            3 => ascending ? cachedRows.OrderBy(r => r.AvgPerFrameNs).ToList() : cachedRows.OrderByDescending(r => r.AvgPerFrameNs).ToList(), // Avg (Frame)
+                            3 => ascending ? cachedRows.OrderBy(r => r.P95PerCallNs).ToList() : cachedRows.OrderByDescending(r => r.P95PerCallNs).ToList(), // P95 (Call)
+                            4 => ascending ? cachedRows.OrderBy(r => r.P99PerCallNs).ToList() : cachedRows.OrderByDescending(r => r.P99PerCallNs).ToList(), // P99 (Call)
+                            5 => ascending ? cachedRows.OrderBy(r => r.AvgAllocatedBytes).ToList() : cachedRows.OrderByDescending(r => r.AvgAllocatedBytes).ToList(), // Alloc (Call)
+                            6 => ascending ? cachedRows.OrderBy(r => r.AvgPerFrameNs).ToList() : cachedRows.OrderByDescending(r => r.AvgPerFrameNs).ToList(), // Avg (Frame)
                             _ => cachedRows.OrderByDescending(r => r.AvgPerFrameNs).ToList()
                         };
                     }
@@ -142,7 +179,16 @@ public static class PerformanceProfiler
 
                         ImGui.TableNextColumn();
                         ImGui.Text(FormatTime(row.AvgPerCallNs));
-                            
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(FormatTime(row.P95PerCallNs));
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(FormatTime(row.P99PerCallNs));
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(FormatBytes(row.AvgAllocatedBytes));
+
                         ImGui.TableNextColumn();
                         ImGui.Text(FormatTime(row.AvgPerFrameNs));
                     }
@@ -163,6 +209,7 @@ public static class PerformanceProfiler
             
         CurrentFrameNs.Clear();
         CurrentFrameCounts.Clear();
+        CurrentFrameAllocatedBytes.Clear();
     }
         
     public static void EndFrame()
@@ -177,18 +224,35 @@ public static class PerformanceProfiler
         {
             var key = kvp.Key;
             var frameNs = kvp.Value;
-            ProfileData.AddOrUpdate(key,
-                _ => {
-                    var pd = new ProfileData();
-                    pd.AddFrameSample(frameNs);
-                    return pd;
-                },
-                (k, existing) => {
-                    existing.AddFrameSample(frameNs);
-                    return existing;
-                });
+            ProfileData.GetOrAdd(key, static _ => new ProfileData()).AddFrameSample(frameNs);
         }
     }
+
+    internal static void RecordSample(string methodName, long startTimestamp, long startAllocatedBytes)
+    {
+        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
+        var elapsedNs = elapsedTicks * NsPerTick;
+        var allocatedBytes = Math.Max(0, GC.GetAllocatedBytesForCurrentThread() - startAllocatedBytes);
+
+        ProfileData.GetOrAdd(methodName, static _ => new ProfileData())
+            .AddSample(elapsedTicks, allocatedBytes);
+        CurrentFrameNs.AddOrUpdate(
+            methodName,
+            static (_, value) => value,
+            static (_, existing, value) => existing + value,
+            elapsedNs);
+        CurrentFrameCounts.AddOrUpdate(methodName, 1, static (_, existing) => existing + 1);
+        CurrentFrameAllocatedBytes.AddOrUpdate(
+            methodName,
+            static (_, value) => value,
+            static (_, existing, value) => existing + value,
+            allocatedBytes);
+    }
+
+    private static string GetProfileKey(string namespaceName, string methodName) =>
+        ProfileKeys.GetOrAdd(
+            (namespaceName, methodName),
+            static key => string.Concat(key.NamespaceName, ".", key.MethodName));
         
     private static string FormatTime(double ns)
     {
@@ -200,6 +264,38 @@ public static class PerformanceProfiler
             _ => $"{ns:F2} ns"
         };
     }
+
+    private static string FormatBytes(double bytes)
+    {
+        return bytes switch
+        {
+            >= 1048576.0 => $"{bytes / 1048576.0:F2} MiB",
+            >= 1024.0 => $"{bytes / 1024.0:F2} KiB",
+            _ => $"{bytes:F0} B"
+        };
+    }
+
+    internal readonly struct ProfileScope : IDisposable
+    {
+        private readonly string? methodName;
+        private readonly long startTimestamp;
+        private readonly long startAllocatedBytes;
+
+        internal ProfileScope(string methodName, long startTimestamp, long startAllocatedBytes)
+        {
+            this.methodName = methodName;
+            this.startTimestamp = startTimestamp;
+            this.startAllocatedBytes = startAllocatedBytes;
+        }
+
+        public void Dispose()
+        {
+            if (this.methodName != null)
+            {
+                RecordSample(this.methodName, this.startTimestamp, this.startAllocatedBytes);
+            }
+        }
+    }
 }
 
 internal class ProfileData
@@ -207,19 +303,24 @@ internal class ProfileData
     private const int WindowSize = 100;
     private int totalCount;
     private long sumTicks;
+    private long sumAllocatedBytes;
     private double sumFrameNs;
     private readonly ConcurrentQueue<long> recentTicks = new();
+    private readonly ConcurrentQueue<long> recentAllocatedBytes = new();
     private readonly ConcurrentQueue<double> recentFrameNs = new();
     public int Count => totalCount;
 
     public double AverageTicks => !recentTicks.IsEmpty ? (double)sumTicks / recentTicks.Count : 0.0;
+    public double AverageAllocatedBytes => !recentAllocatedBytes.IsEmpty ? (double)sumAllocatedBytes / recentAllocatedBytes.Count : 0.0;
     public double AverageFrameNs => !recentFrameNs.IsEmpty ? sumFrameNs / recentFrameNs.Count : 0.0;
 
-    public void AddSample(long ticks)
+    public void AddSample(long ticks, long allocatedBytes)
     {
         Interlocked.Increment(ref totalCount);
         recentTicks.Enqueue(ticks);
+        recentAllocatedBytes.Enqueue(allocatedBytes);
         Interlocked.Add(ref sumTicks, ticks);
+        Interlocked.Add(ref sumAllocatedBytes, allocatedBytes);
         while (recentTicks.Count > WindowSize)
         {
             if (recentTicks.TryDequeue(out var old))
@@ -227,6 +328,27 @@ internal class ProfileData
                 Interlocked.Add(ref sumTicks, -old);
             }
         }
+
+        while (recentAllocatedBytes.Count > WindowSize)
+        {
+            if (recentAllocatedBytes.TryDequeue(out var old))
+            {
+                Interlocked.Add(ref sumAllocatedBytes, -old);
+            }
+        }
+    }
+
+    public long GetPercentileTicks(double percentile)
+    {
+        var samples = recentTicks.ToArray();
+        if (samples.Length == 0)
+        {
+            return 0;
+        }
+
+        Array.Sort(samples);
+        var index = Math.Clamp((int)Math.Ceiling(samples.Length * percentile) - 1, 0, samples.Length - 1);
+        return samples[index];
     }
 
     public void AddFrameSample(double ns)
@@ -258,35 +380,31 @@ internal class ProfileData
     }
 }
 
-internal class ProfileRow(string name, int count, double avgPerCallNs, double avgPerFrameNs)
+internal class ProfileRow(
+    string name,
+    int count,
+    double avgPerCallNs,
+    double p95PerCallNs,
+    double p99PerCallNs,
+    double avgAllocatedBytes,
+    double avgPerFrameNs)
 {
     public string Name { get; } = name;
     public int Count { get; } = count;
     public double AvgPerCallNs { get; } = avgPerCallNs;
+    public double P95PerCallNs { get; } = p95PerCallNs;
+    public double P99PerCallNs { get; } = p99PerCallNs;
+    public double AvgAllocatedBytes { get; } = avgAllocatedBytes;
     public double AvgPerFrameNs { get; } = avgPerFrameNs;
 }
 
-internal class ProfileDisposable(
+internal sealed class ProfileDisposable(
     string methodName,
-    Stopwatch stopwatch,
-    ConcurrentDictionary<string, ProfileData> profileData,
-    ConcurrentDictionary<string, double> currentFrameNs,
-    ConcurrentDictionary<string, int> currentFrameCounts)
-    : IDisposable
+    long startTimestamp,
+    long startAllocatedBytes) : IDisposable
 {
     public void Dispose()
     {
-        stopwatch.Stop();
-        var elapsedTicks = stopwatch.ElapsedTicks;
-        var elapsedNs = elapsedTicks * PerformanceProfiler.NsPerTick;
-        profileData.AddOrUpdate(methodName,
-            _ => { var pd = new ProfileData(); pd.AddSample(elapsedTicks); return pd; },
-            (key, existing) => { existing.AddSample(elapsedTicks); return existing; });
-        currentFrameNs.AddOrUpdate(methodName,
-            _ => elapsedNs,
-            (key, existing) => existing + elapsedNs);
-        currentFrameCounts.AddOrUpdate(methodName,
-            _ => 1,
-            (key, existing) => existing + 1);
+        PerformanceProfiler.RecordSample(methodName, startTimestamp, startAllocatedBytes);
     }
 }

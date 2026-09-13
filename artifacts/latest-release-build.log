@@ -1,0 +1,20 @@
+  TEHhub.Offsets -> C:\Games\Hy-v Tool\GameHelper2-main\TEHhub.Offsets\bin\Release\net10.0-windows\win-x64\TEHhub.Offsets.dll
+  TEHhub.Launcher -> C:\Games\Hy-v Tool\GameHelper2-main\TEHhub.Launcher\bin\Release\net10.0-windows\win-x64\TEHhub.Launcher.dll
+  TEHhub -> C:\Games\Hy-v Tool\GameHelper2-main\TEHhub\bin\Release\net10.0-windows\win-x64\TEHhub.dll
+  RitualWispAlert -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\RitualWispAlert\bin\Release\net10.0-windows\win-x64\RitualWispAlert.dll
+  HealthBars -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\HealthBars\bin\Release\net10.0-windows\win-x64\HealthBars.dll
+  AmanamuVoidAlert -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\AmanamuVoidAlert\bin\Release\net10.0-windows\win-x64\AmanamuVoidAlert.dll
+  PickupHelper -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\PickupHelper\bin\Release\net10.0-windows\win-x64\PickupHelper.dll
+  PlayerBuffBar -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\PlayerBuffBar\bin\Release\net10.0-windows\win-x64\PlayerBuffBar.dll
+  Radar -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\Radar\bin\Release\net10.0-windows\win-x64\Radar.dll
+  AutoExile2 -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\AutoExile2\bin\Release\net10.0-windows\win-x64\AutoExile2.dll
+  AutoHotKeyTrigger -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\AutoHotKeyTrigger\bin\Release\net10.0-windows\win-x64\AutoHotKeyTrigger.dll
+  Atlas2 -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\Atlas2\bin\Release\net10.0-windows\win-x64\Atlas2.dll
+  LootValue -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\LootValue\bin\Release\net10.0-windows\win-x64\LootValue.dll
+  PreloadAlert -> C:\Games\Hy-v Tool\GameHelper2-main\Plugins\PreloadAlert\bin\Release\net10.0-windows\win-x64\PreloadAlert.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:02.81

@@ -315,6 +315,21 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 {
                     ImGui.TextColored(new System.Numerics.Vector4(1f, 0.4f, 0.4f, 1f), $"Proliferating: NO (Golden Slot #{rs.GoldenSlotIndex + 1} has Blue rune; {rs.AnchorRuneName} is local-only)");
                 }
+
+                if (rs.SlotRunes != null && rs.SlotRunes.Length > 0)
+                {
+                    ImGui.TextColored(new System.Numerics.Vector4(0.6f, 0.9f, 1f, 1f), "Runes per slot:");
+                    for (int si = 0; si < rs.SlotRunes.Length; si++)
+                    {
+                        var isGolden = si == rs.GoldenSlotIndex;
+                        var marker = isGolden ? " ★" : "";
+                        var col = isGolden
+                            ? new System.Numerics.Vector4(1f, 0.84f, 0f, 1f)
+                            : new System.Numerics.Vector4(0.8f, 0.8f, 0.8f, 1f);
+                        ImGui.TextColored(col, $"  Slot #{si + 1}: {rs.SlotRunes[si]}{marker}");
+                    }
+                }
+
                 ImGui.Separator();
             }
 

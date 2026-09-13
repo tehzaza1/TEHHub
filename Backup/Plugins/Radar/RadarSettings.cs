@@ -10,7 +10,7 @@ namespace Radar
     using GameHelper.Localization;
     using GameHelper.Plugin;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
     using GameHelper.Utils;
 
     /// <summary>
@@ -125,6 +125,21 @@ namespace Radar
         /// Enable co-op mode maphack centering on the midpoint between P1 and P2.
         /// </summary>
         public bool EnableCoopMode = false;
+
+        /// <summary>
+        /// Always draw Radar in Controller Mode even if the game's LargeMap is not detected.
+        /// </summary>
+        public bool ControllerModeAlwaysDraw = false;
+
+        /// <summary>
+        /// Ignore large panel checks when in controller mode so radar is not blocked.
+        /// </summary>
+        public bool ControllerModeIgnorePanels = true;
+
+        /// <summary>
+        /// Force Controller Mode even if auto-detection fails.
+        /// </summary>
+        public bool ForceControllerMode = false;
 
         /// <summary>
         /// Do not draw the Radar plugin stuff when game is in the background.

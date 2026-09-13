@@ -1,9 +1,9 @@
 ﻿namespace PreloadAlert
 {
-    using Newtonsoft.Json;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Text.Json;
 
     internal class PreloadsContainer
     {
@@ -89,7 +89,9 @@
             if (File.Exists(filepathname))
             {
                 var content = File.ReadAllText(filepathname);
-                var preloadList = JsonConvert.DeserializeObject<List<KeyValuePair<string, PreloadInfo>>>(content);
+                var preloadList = JsonSerializer.Deserialize(
+                    content,
+                    PreloadAlertJsonContext.Default.ListKeyValuePairStringPreloadInfo);
                 if (preloadList != null)
                 {
                     for (var i = 0; i < preloadList.Count; i++)
@@ -112,7 +114,9 @@
                 dataToSave.Add(new KeyValuePair<string, PreloadInfo>(key, this.preloads[this.indexes[key]]));
             }
 
-            var preloadsDataString = JsonConvert.SerializeObject(dataToSave, Formatting.Indented);
+            var preloadsDataString = JsonSerializer.Serialize(
+                dataToSave,
+                PreloadAlertJsonContext.Default.ListKeyValuePairStringPreloadInfo);
             File.WriteAllText(filepathname, preloadsDataString);
         }
 

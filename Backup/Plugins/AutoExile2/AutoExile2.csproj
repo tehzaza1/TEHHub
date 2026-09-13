@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <NoWarn>1701;1702;1591</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="WebServer\wwwroot\index.html">
+      <LogicalName>webui.index.html</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="WebServer\wwwroot\style.css">
+      <LogicalName>webui.style.css</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="WebServer\wwwroot\settings.js">
+      <LogicalName>webui.settings.js</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\GameHelper\GameHelper.csproj">
+      <Private>false</Private>
+      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="CopyFiles" AfterTargets="Build">
+    <Copy SourceFiles="$(OutDir)$(TargetName)$(TargetExt);$(OutDir)$(TargetName).pdb;$(OutDir)Nefarius.ViGEm.Client.dll;"
+          DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+    <ItemGroup>
+      <WebFiles Include="WebServer\wwwroot\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WebFiles)"
+          DestinationFolder="..\..\GameHelper\$(OutDir)Plugins\$(ProjectName)\WebServer\wwwroot"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+  </Target>
+
+</Project>

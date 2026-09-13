@@ -50,6 +50,7 @@ namespace GameHelper
             Core.Initialize();
             Core.InitializeCororutines();
             this.VSync = Core.GHSettings.Vsync;
+            this.FPSLimit = Core.GHSettings.FPSLimit;
             await base.Run();
         }
 
@@ -94,6 +95,9 @@ namespace GameHelper
 
             try { CoroutineHandler.RaiseEvent(GameHelperEvents.OnPostRender); }
             catch (Exception ex) { Console.WriteLine($"[GameOverlay.Render.OnPostRender] {ex}"); }
+
+            PerformanceProfiler.EndFrame();
+            MemoryReadDiagnostics.RecordFrame();
 
             if (!Core.GHSettings.IsOverlayRunning)
             {

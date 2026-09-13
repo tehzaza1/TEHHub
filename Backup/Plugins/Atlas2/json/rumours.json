@@ -1,0 +1,426 @@
+{
+  "sections": [
+    {
+      "key": "islands",
+      "title": "Islands",
+      "rows": [
+        {
+          "rumour": "Fallen Stars",
+          "map": "Moor of Fallen Skies",
+          "map_loc": {
+            "french": "Lande des Cieux tombés",
+            "german": "Heide der Untergegangenen Himmel ",
+            "japanese": "落ちたる空の原野",
+            "korean": "무너진 하늘의 황야",
+            "portuguese": "Charneca dos Céus Caídos",
+            "russian": "Причал Падших небес",
+            "spanish": "Páramo del cielo caído",
+            "thai": "ทุ่งโล่งนภาร่วง",
+            "traditional chinese": "殞空荒原"
+          },
+          "mods": "Runestones",
+          "rating": "S+"
+        },
+        {
+          "rumour": "Cold as ice",
+          "map": "Frigid Bluffs",
+          "map_loc": {
+            "french": "Falaises glaciales",
+            "german": "Kalte Klippen",
+            "japanese": "凍てついた断崖",
+            "korean": "차디찬 절벽",
+            "portuguese": "Penhascos Frígidos",
+            "russian": "Холодные скалы",
+            "spanish": "Peñascos helados",
+            "thai": "ผาชันเยือกเย็น",
+            "traditional chinese": "寒風峭壁"
+          },
+          "mods": "Old Expedition",
+          "rating": "A+"
+        },
+        {
+          "rumour": "Nothing to drink",
+          "map": "Stagnant Basin",
+          "map_loc": {
+            "french": "Bassin stagnant",
+            "german": "Stagnierendes Becken",
+            "japanese": "淀んだ盆地",
+            "korean": "고인 분지",
+            "portuguese": "Bacia Estagnada",
+            "russian": "Застойный водоём",
+            "spanish": "Cuenca estancada",
+            "thai": "ลุ่มน้ำขัง",
+            "traditional chinese": "靜滯盆地"
+          },
+          "mods": "Oil",
+          "rating": "A"
+        },
+        {
+          "rumour": "Endless Cliffs",
+          "map": "Craggy Peninsula",
+          "map_loc": {
+            "french": "Péninsule escarpée ",
+            "german": "Zerklüftete Halbinsel",
+            "japanese": "岩だらけの半島",
+            "korean": "바위투성이 반도",
+            "portuguese": "Península Escarpada",
+            "russian": "Скалистый мыс",
+            "spanish": "Península escarpada",
+            "thai": "แหลมชะง่อน",
+            "traditional chinese": "崎嶇半島"
+          },
+          "mods": "Rarity / Rogue Exiles",
+          "rating": "A"
+        },
+        {
+          "rumour": "Sulphite!",
+          "map": "Scorched Cay",
+          "map_loc": {
+            "french": "Îlot calciné",
+            "german": "Verbrannte Sandbank",
+            "japanese": "焼け焦げた小島",
+            "korean": "그을린 암초",
+            "portuguese": "Recife Queimado",
+            "russian": "Выжженный островок",
+            "spanish": "Cayo calcinado",
+            "thai": "เกาะปริ่มน้ำร้อนระอุ",
+            "traditional chinese": "焦灼孤島"
+          },
+          "mods": "Increased Rarity",
+          "rating": "A"
+        },
+        {
+          "rumour": "Unknown Ruins",
+          "map": "Exhumed Ruins",
+          "map_loc": {
+            "french": "Excavation abandonnée ",
+            "german": "Exhumierte Ruinen",
+            "japanese": "掘り起こされた遺跡",
+            "korean": "파헤쳐진 폐허",
+            "portuguese": "Ruínas Exumadas",
+            "russian": "Разрытые руины",
+            "spanish": "Ruinas exhumadas",
+            "thai": "ซากที่ถูกขุดค้น",
+            "traditional chinese": "廢棄挖掘場"
+          },
+          "mods": "Precursor Leylines",
+          "rating": "B"
+        },
+        {
+          "rumour": "Something Fishy",
+          "map": "Bleached Shoals",
+          "map_loc": {
+            "french": "Bancs de sable blanchis",
+            "german": "Gebleichte Untiefen",
+            "japanese": "白化した浅瀬",
+            "korean": "표백된 모래톱",
+            "portuguese": "Bancos de Areia Descorados",
+            "russian": "Выбеленная отмель",
+            "spanish": "Bajíos blanquecinos",
+            "thai": "ดอนทรายซีดใต้น้ำ",
+            "traditional chinese": "白化淺灘"
+          },
+          "mods": "Gold",
+          "rating": "B"
+        },
+        {
+          "rumour": "It's Warm",
+          "map": "Lush Isle",
+          "map_loc": {
+            "french": "Île luxuriante",
+            "german": "Üppige Insel",
+            "japanese": "生い茂った島",
+            "korean": "우거진 섬",
+            "portuguese": "Ilha Viçosa",
+            "russian": "Зелёный островок",
+            "spanish": "Isla frondosa",
+            "thai": "เกาะเขียวขจี",
+            "traditional chinese": "蓊鬱群島"
+          },
+          "mods": "Exp / Beyond / Hoards",
+          "rating": "B"
+        },
+        {
+          "rumour": "Bleak and Awful",
+          "map": "Barren Atoll",
+          "map_loc": {
+            "french": "Atoll stérile",
+            "german": "Ödes Atoll",
+            "japanese": "荒れ果てた環礁",
+            "korean": "불모의 산호섬",
+            "portuguese": "Atoleiro Estéril",
+            "russian": "Бесплодный риф",
+            "spanish": "Atolón desierto",
+            "thai": "เกาะวงแหวนแห้งแล้ง",
+            "traditional chinese": "貧瘠環礁"
+          },
+          "mods": "Strongbox",
+          "rating": "B"
+        },
+        {
+          "rumour": "It's Dry At Least",
+          "map": "Sloughed Gully",
+          "map_loc": {
+            "french": "Ravin érodé",
+            "german": "Abgetragene Schlucht",
+            "japanese": "ぬかるんだ峡谷",
+            "korean": "진창이 된 고랑",
+            "portuguese": "Ravina Erodida",
+            "russian": "Осыпавшийся овраг",
+            "spanish": "Hondonada pantanosa",
+            "thai": "ร่องธารโคลน",
+            "traditional chinese": "滑塌溪谷"
+          },
+          "mods": "Monster effectiveness",
+          "rating": "D"
+        },
+        {
+          "rumour": "Wild, Roaming Free",
+          "map": "Grazed Prairie",
+          "map_loc": {
+            "french": "Prairie pâturée",
+            "german": "Abgegraste Prärie",
+            "japanese": "放牧の大草原",
+            "korean": "풀이 뜯긴 프레리",
+            "portuguese": "Pradaria Pastoreada",
+            "russian": "Травянистые прерии",
+            "spanish": "Pradera erosionada",
+            "thai": "ทุ่งหญ้าเตียนโล่ง",
+            "traditional chinese": "闊牧遼原"
+          },
+          "mods": "Azmeri Spirits",
+          "rating": "D"
+        }
+      ]
+    },
+    {
+      "key": "uniques",
+      "title": "Unique Maps",
+      "rows": [
+        {
+          "rumour": "Reflective Waters",
+          "map": "The Fractured Lake",
+          "map_loc": {
+            "french": "Le Lac fracturé",
+            "german": "Der zerbrochene See",
+            "japanese": "ひび割れた湖",
+            "korean": "분열된 호수",
+            "portuguese": "O Lago Rachado",
+            "russian": "Расколотое озеро",
+            "spanish": "El lago fracturado",
+            "thai": "ทะเลสาบแตกร้าว",
+            "traditional chinese": "破裂迷湖"
+          },
+          "mods": "Ring Bases",
+          "rating": "A"
+        },
+        {
+          "rumour": "All that Glitters",
+          "map": "Castaway",
+          "map_loc": {
+            "french": "Naufrage",
+            "german": "Schiffbruch",
+            "japanese": "難破",
+            "korean": "조난자",
+            "portuguese": "Náufrago",
+            "russian": "Изгой",
+            "spanish": "Naufragio",
+            "thai": "ซากเรืออับปาง",
+            "traditional chinese": "漂流者之所"
+          },
+          "mods": "Gold",
+          "rating": "A"
+        },
+        {
+          "rumour": "Almost paradise",
+          "map": "Untainted Paradise",
+          "map_loc": {
+            "french": "Paradis immaculé",
+            "german": "Unberührtes Paradies",
+            "japanese": "汚れなき楽園",
+            "korean": "때묻지 않은 낙원",
+            "portuguese": "Paraíso Imaculado",
+            "russian": "Нетронутый рай",
+            "spanish": "Paraíso prístino",
+            "thai": "เกาะสวรรค์ไร้มลทิน",
+            "traditional chinese": "純淨樂園"
+          },
+          "mods": "Exp",
+          "rating": "C"
+        },
+        {
+          "rumour": "A good fellow",
+          "map": "Moment of Zen",
+          "map_loc": {
+            "french": "Moment de quiétude",
+            "german": "Augenblick des Zen",
+            "japanese": "禅の刹那",
+            "korean": "한 순간의 선",
+            "portuguese": "Momento Zen",
+            "russian": "Безмятежность",
+            "spanish": "Momento zen",
+            "thai": "ช่วงเวลาสงบเงียบ",
+            "traditional chinese": "禪意時刻"
+          },
+          "mods": "Seer",
+          "rating": "C"
+        }
+      ]
+    },
+    {
+      "key": "bosses",
+      "title": "Bosses",
+      "rows": [
+        {
+          "rumour": "Origin of the Fall",
+          "map": "Obscure Island",
+          "map_loc": {
+            "french": "Île obscure",
+            "german": "Geheimnisvolle Insel",
+            "japanese": "隠れた島",
+            "korean": "후미진 섬",
+            "portuguese": "Ilha Obscura",
+            "russian": "Неясный остров",
+            "spanish": "Isla oscura",
+            "thai": "เกาะลับแล",
+            "traditional chinese": "幽隱島嶼"
+          },
+          "mods": "Olroth",
+          "rating": "A"
+        },
+        {
+          "rumour": "Stardrinker",
+          "map": "Secluded Temple",
+          "map_loc": {
+            "french": "Temple retiré",
+            "german": "Abgelegener Tempel",
+            "japanese": "孤立した寺院",
+            "korean": "외딴 사원",
+            "portuguese": "Templo Isolado",
+            "russian": "Уединённый храм",
+            "spanish": "Templo oculto",
+            "thai": "วิหารสันโดษ",
+            "traditional chinese": "隱密神廟"
+          },
+          "mods": "Uhtred",
+          "rating": "A"
+        },
+        {
+          "rumour": "Last To Fall",
+          "map": "Mournful Cliffside",
+          "map_loc": {
+            "french": "Falaise lugubre",
+            "german": "Trostlose Steilküste",
+            "japanese": "嘆きの崖",
+            "korean": "음울한 낭떠러지",
+            "portuguese": "Encosta Melancólica",
+            "russian": "Скорбный утёс",
+            "spanish": "Acantilado apenado",
+            "thai": "เชิงผาอาลัย",
+            "traditional chinese": "哀泣崖壁"
+          },
+          "mods": "Vorana",
+          "rating": "B"
+        },
+        {
+          "rumour": "End of the Circle",
+          "map": "Sprawling Jungle",
+          "map_loc": {
+            "french": "Jungle tentaculaire",
+            "german": "Weitläufiger Dschungel",
+            "japanese": "広がるジャングル",
+            "korean": "뻗어 가는 밀림",
+            "portuguese": "Selva Extensa",
+            "russian": "Разросшиеся джунгли",
+            "spanish": "Jungla expansiva",
+            "thai": "ป่าดงดิบกว้างไกล",
+            "traditional chinese": "蔓延叢林"
+          },
+          "mods": "Medved",
+          "rating": "B"
+        }
+      ]
+    },
+    {
+      "key": "sagas",
+      "title": "Sagas",
+      "rows": [
+        {
+          "rumour": "Aldurs",
+          "map": "",
+          "map_loc": {},
+          "mods": "Buffs expeditions",
+          "rating": "S+ (gamble)"
+        },
+        {
+          "rumour": "Olroth",
+          "map": "Obscure Island",
+          "map_loc": {
+            "french": "Île obscure",
+            "german": "Geheimnisvolle Insel",
+            "japanese": "隠れた島",
+            "korean": "후미진 섬",
+            "portuguese": "Ilha Obscura",
+            "russian": "Неясный остров",
+            "spanish": "Isla oscura",
+            "thai": "เกาะลับแล",
+            "traditional chinese": "幽隱島嶼"
+          },
+          "mods": "Boss Node",
+          "rating": "A"
+        },
+        {
+          "rumour": "Uhtred",
+          "map": "Secluded Temple",
+          "map_loc": {
+            "french": "Temple retiré",
+            "german": "Abgelegener Tempel",
+            "japanese": "孤立した寺院",
+            "korean": "외딴 사원",
+            "portuguese": "Templo Isolado",
+            "russian": "Уединённый храм",
+            "spanish": "Templo oculto",
+            "thai": "วิหารสันโดษ",
+            "traditional chinese": "隱密神廟"
+          },
+          "mods": "Boss Node",
+          "rating": "B+"
+        },
+        {
+          "rumour": "Medved",
+          "map": "Sprawling Jungle",
+          "map_loc": {
+            "french": "Jungle tentaculaire",
+            "german": "Weitläufiger Dschungel",
+            "japanese": "広がるジャングル",
+            "korean": "뻗어 가는 밀림",
+            "portuguese": "Selva Extensa",
+            "russian": "Разросшиеся джунгли",
+            "spanish": "Jungla expansiva",
+            "thai": "ป่าดงดิบกว้างไกล",
+            "traditional chinese": "蔓延叢林"
+          },
+          "mods": "Boss Node",
+          "rating": "B+"
+        },
+        {
+          "rumour": "Vorana",
+          "map": "Mournful Cliffside",
+          "map_loc": {
+            "french": "Falaise lugubre",
+            "german": "Trostlose Steilküste",
+            "japanese": "嘆きの崖",
+            "korean": "음울한 낭떠러지",
+            "portuguese": "Encosta Melancólica",
+            "russian": "Скорбный утёс",
+            "spanish": "Acantilado apenado",
+            "thai": "เชิงผาอาลัย",
+            "traditional chinese": "哀泣崖壁"
+          },
+          "mods": "Boss Node",
+          "rating": "B+"
+        }
+      ]
+    }
+  ]
+}

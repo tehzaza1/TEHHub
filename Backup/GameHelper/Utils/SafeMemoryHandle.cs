@@ -1,24 +1,25 @@
-﻿// <copyright file="SafeMemoryHandle.cs" company="None">
+// <copyright file="SafeMemoryHandle.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
 namespace GameHelper.Utils
 {
     using System;
+    using System.Buffers;
     using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using GameOffsets.Natives;
     using Microsoft.Win32.SafeHandles;
-    using ProcessMemoryUtilities.Managed;
-    using ProcessMemoryUtilities.Native;
 
     /// <summary>
     ///     Handle to a process.
     /// </summary>
-    internal class SafeMemoryHandle : SafeHandleZeroOrMinusOneIsInvalid
+    public class SafeMemoryHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         /// <summary>
         ///     Max valid user-mode address on 64-bit Windows (48-bit addressing).
@@ -53,11 +54,11 @@ namespace GameHelper.Utils
         internal SafeMemoryHandle(int processId)
             : base(true)
         {
-            var handle = NativeWrapper.OpenProcess(ProcessAccessFlags.VirtualMemoryRead, processId);
-            if (NativeWrapper.HasError)
+            var handle = NativeProcessMemory.OpenForRead(processId);
+            if (handle == IntPtr.Zero)
             {
                 Console.WriteLine($"Failed to open a new handle 0x{handle:X}" +
-                                  $" due to ErrorNo: {NativeWrapper.LastError}");
+                                  $" due to ErrorNo: {NativeProcessMemory.LastError}");
             }
             else
             {
@@ -73,7 +74,7 @@ namespace GameHelper.Utils
         /// <typeparam name="T">type of data structure to read.</typeparam>
         /// <param name="address">address to read the data from.</param>
         /// <returns>data from the process in T format.</returns>
-        internal T ReadMemory<T>(IntPtr address)
+        public T ReadMemory<T>(IntPtr address)
             where T : unmanaged
         {
             if (this.TryReadMemory<T>(address, out var result))
@@ -87,7 +88,7 @@ namespace GameHelper.Utils
             if (!this.IsInvalid && IsValidAddress(address))
             {
                 Console.WriteLine("ERROR: Failed To Read the Memory (T)" +
-                                  $" due to Error Number: 0x{NativeWrapper.LastError:X} on " +
+                                  $" due to Error Number: 0x{NativeProcessMemory.LastError:X} on " +
                                   $"adress 0x{address.ToInt64():X} for type {typeof(T).Name}" +
                                   $" [caller: {DescribeCaller()}]");
             }
@@ -108,7 +109,7 @@ namespace GameHelper.Utils
         /// <param name="address">address to read the data from.</param>
         /// <param name="result">data read from the process, or default on failure.</param>
         /// <returns>true if the read succeeded; otherwise false.</returns>
-        internal bool TryReadMemory<T>(IntPtr address, out T result)
+        public bool TryReadMemory<T>(IntPtr address, out T result)
             where T : unmanaged
         {
             result = default;
@@ -120,7 +121,20 @@ namespace GameHelper.Utils
 
             try
             {
-                if (!NativeWrapper.ReadProcessMemory(this.handle, address, ref result))
+                var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
+                var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
+                var succeeded = NativeProcessMemory.TryRead(this.handle, address, out result, out var bytesRead);
+                var expectedBytes = (nuint)Unsafe.SizeOf<T>();
+                if (measureRead)
+                {
+                    Ui.MemoryReadDiagnostics.RecordRead(
+                        Ui.MemoryReadKind.Scalar,
+                        (long)expectedBytes,
+                        Stopwatch.GetTimestamp() - startedAt,
+                        succeeded && bytesRead == expectedBytes);
+                }
+
+                if (!succeeded || bytesRead != expectedBytes)
                 {
                     result = default;
                     RecordDiagnosticFailure(typeof(T).Name, address);
@@ -175,7 +189,7 @@ namespace GameHelper.Utils
         internal T[] ReadStdVector<T>(StdVector nativeContainer)
             where T : unmanaged
         {
-            var typeSize = Marshal.SizeOf<T>();
+            var typeSize = Unsafe.SizeOf<T>();
             var length = nativeContainer.Last.ToInt64() - nativeContainer.First.ToInt64();
             if (length <= 0 || length % typeSize != 0 || length > 50_000_000)
             {
@@ -208,26 +222,82 @@ namespace GameHelper.Utils
             }
 
             var buffer = new T[nsize];
+            return this.TryReadMemoryArray(address, buffer, out _)
+                ? buffer
+                : Array.Empty<T>();
+        }
+
+        /// <summary>
+        ///     Reads into a caller-owned array without allocating a second buffer.
+        ///     Exposed for plugins that need bulk reads while sharing the process handle,
+        ///     validation and diagnostics owned by GameHelper.
+        /// </summary>
+        /// <typeparam name="T">unmanaged array element type.</typeparam>
+        /// <param name="address">source address in the target process.</param>
+        /// <param name="buffer">destination array.</param>
+        /// <param name="bytesRead">number of bytes copied by Windows.</param>
+        /// <returns>true only when the complete requested buffer was read.</returns>
+        public bool TryReadMemoryArray<T>(IntPtr address, T[] buffer, out nuint bytesRead)
+            where T : unmanaged
+        {
+            ArgumentNullException.ThrowIfNull(buffer);
+            return this.TryReadMemoryArray(address, buffer, buffer.Length, out bytesRead);
+        }
+
+        /// <summary>
+        ///     Reads a prefix of a caller-owned buffer. This permits pooled buffers to be used
+        ///     for an exact native read without exposing unused trailing capacity to the target.
+        /// </summary>
+        internal bool TryReadMemoryArray<T>(IntPtr address, T[] buffer, int elementCount, out nuint bytesRead)
+            where T : unmanaged
+        {
+            ArgumentNullException.ThrowIfNull(buffer);
+            bytesRead = 0;
+            ArgumentOutOfRangeException.ThrowIfNegative(elementCount);
+            if (elementCount > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(elementCount));
+            }
+
+            if (elementCount == 0)
+            {
+                return true;
+            }
+
+            if (this.IsInvalid || !IsValidAddress(address))
+            {
+                RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
+                return false;
+            }
+
             try
             {
-                // Array/blob/string reads are inherently speculative — the source pointer comes
-                // from a container (std::vector/string) that may be torn or stale, so failures
-                // and short reads are routine and recoverable. Record them for the diagnostics
-                // window but keep the console clean, matching TryReadMemory (audit: torn-read noise).
-                var expectedBytes = (long)nsize * Marshal.SizeOf<T>();
-                if (!NativeWrapper.ReadProcessMemoryArray(this.handle, address, buffer, out var numBytesRead) ||
-                    numBytesRead.ToInt64() < expectedBytes)
+                var expectedBytes = checked((nuint)elementCount * (nuint)Unsafe.SizeOf<T>());
+                var measureRead = Core.GHSettings.ShowMemoryDiagnostics;
+                var startedAt = measureRead ? Stopwatch.GetTimestamp() : 0;
+                var succeeded = NativeProcessMemory.TryRead(this.handle, address, buffer, elementCount, out bytesRead);
+                var complete = succeeded && bytesRead == expectedBytes;
+                if (measureRead)
                 {
-                    RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
-                    return Array.Empty<T>();
+                    Ui.MemoryReadDiagnostics.RecordRead(
+                        Ui.MemoryReadKind.Buffer,
+                        (long)expectedBytes,
+                        Stopwatch.GetTimestamp() - startedAt,
+                        complete);
                 }
 
-                return buffer;
+                if (!complete)
+                {
+                    RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
+                    return false;
+                }
+
+                return true;
             }
             catch
             {
                 RecordDiagnosticFailure($"{typeof(T).Name}[]", address);
-                return Array.Empty<T>();
+                return false;
             }
         }
 
@@ -314,14 +384,22 @@ namespace GameHelper.Utils
         /// <returns>string read.</returns>
         internal string ReadString(IntPtr address)
         {
-            var buffer = this.ReadMemoryArray<byte>(address, 128);
-            var count = Array.IndexOf<byte>(buffer, 0x00, 0);
-            if (count > 0)
+            const int bufferLength = 128;
+            var buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+            try
             {
-                return Encoding.ASCII.GetString(buffer, 0, count);
-            }
+                if (!this.TryReadMemoryArray(address, buffer, bufferLength, out _))
+                {
+                    return string.Empty;
+                }
 
-            return string.Empty;
+                var count = Array.IndexOf(buffer, (byte)0, 0, bufferLength);
+                return count > 0 ? Encoding.ASCII.GetString(buffer, 0, count) : string.Empty;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         /// <summary>
@@ -332,25 +410,32 @@ namespace GameHelper.Utils
         /// <returns>string read from the memory.</returns>
         internal string ReadUnicodeString(IntPtr address)
         {
-            var buffer = this.ReadMemoryArray<byte>(address, 256);
-            var count = 0x00;
-            for (var i = 0; i < buffer.Length - 2; i++)
+            const int bufferLength = 256;
+            var buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+            try
             {
-                if (buffer[i] == 0x00 && buffer[i + 1] == 0x00 && buffer[i + 2] == 0x00)
+                if (!this.TryReadMemoryArray(address, buffer, bufferLength, out _))
                 {
-                    count = i % 2 == 0 ? i : i + 1;
-                    break;
+                    return string.Empty;
                 }
-            }
 
-            // let's not return a string if null isn't found.
-            if (count == 0)
+                var count = 0;
+                for (var i = 0; i < bufferLength - 2; i++)
+                {
+                    if (buffer[i] == 0x00 && buffer[i + 1] == 0x00 && buffer[i + 2] == 0x00)
+                    {
+                        count = i % 2 == 0 ? i : i + 1;
+                        break;
+                    }
+                }
+
+                // Let's not return a string if a terminator isn't found.
+                return count == 0 ? string.Empty : Encoding.Unicode.GetString(buffer, 0, count);
+            }
+            finally
             {
-                return string.Empty;
+                ArrayPool<byte>.Shared.Return(buffer);
             }
-
-            var ret = Encoding.Unicode.GetString(buffer, 0, count);
-            return ret;
         }
 
         /// <summary>
@@ -568,7 +653,7 @@ namespace GameHelper.Utils
         protected override bool ReleaseHandle()
         {
             Console.WriteLine($"Releasing handle on 0x{this.handle:X}\n");
-            return NativeWrapper.CloseHandle(this.handle);
+            return NativeProcessMemory.Close(this.handle);
         }
     }
 }

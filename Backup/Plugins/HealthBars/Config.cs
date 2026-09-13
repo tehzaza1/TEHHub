@@ -4,7 +4,6 @@
     using GameHelper.Localization;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
 
     /// <summary>
     ///     Saves config of each type of healthbar.
@@ -127,7 +126,6 @@
         /// <summary>
         ///     Initializes a new instance of the <see cref="Config" /> class.
         /// </summary>
-        [JsonConstructor]
         public Config() :
             this(Vector4.One) { }
 

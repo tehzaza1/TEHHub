@@ -1,0 +1,129 @@
+[
+  {
+    "provider": "stash",
+    "category": "UniqueWeapons",
+    "lines": 146,
+    "sample": [
+      "Redbeak",
+      "Runeseeker's Call"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueArmours",
+    "lines": 429,
+    "sample": [
+      "Temporalis",
+      "The Auspex"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueAccessories",
+    "lines": 87,
+    "sample": [
+      "The Gnashing Sash",
+      "Mageblood"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueFlasks",
+    "lines": 6,
+    "sample": [
+      "Olroth's Resolve",
+      "Lavianga's Spirits"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueCharms",
+    "lines": 12,
+    "sample": [
+      "Rite of Passage",
+      "The Fall of the Axe"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueJewels",
+    "lines": 14,
+    "sample": [
+      "Voices",
+      "Grand Spectrum"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueTablets",
+    "lines": 9,
+    "sample": [
+      "Visions of Paradise",
+      "The Grand Project"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "PrecursorTablets",
+    "lines": 23,
+    "sample": [
+      "Breach Tablet",
+      "Irradiated Tablet"
+    ]
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueMaps",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "stash",
+    "category": "UniqueRelics",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "stash",
+    "category": "Relics",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "stash",
+    "category": "SkillGems",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "stash",
+    "category": "SupportGems",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "stash",
+    "category": "Waystones",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "stash",
+    "category": "Maps",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "stash",
+    "category": "ExpeditionLogbooks",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "provider": "scout",
+    "category": "Categories",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "provider": "scout",
+    "category": "Currencies/Categories",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "provider": "scout",
+    "category": "Uniques/Categories",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  }
+]

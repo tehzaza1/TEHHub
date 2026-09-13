@@ -1,0 +1,3465 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-09-13T11:40:37.108688+00:00",
+  "source_recipes": "Plugins/LootValue/expedition2_recipes.json",
+  "network_used": true,
+  "entries": [
+    {
+      "name": "Earth",
+      "source_url": "https://poe2db.tw/us/Earth_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:25.304230+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "2SlotGlassblowersBauble1",
+          "size": 2,
+          "reward_name": "Glassblower's Bauble",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotGreaterDesertRune1",
+          "size": 3,
+          "reward_name": "Greater Desert Rune",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotGreaterResolveRune1",
+          "size": 3,
+          "reward_name": "Greater Resolve Rune",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotRegalOrb3",
+          "size": 3,
+          "reward_name": "Regal Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotAdaptiveAlloy1",
+          "size": 3,
+          "reward_name": "Adaptive Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotRepulsion1",
+          "size": 3,
+          "reward_name": "Repulsion",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotVerisiumInfusion1",
+          "size": 3,
+          "reward_name": "Powered by Verisium",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotHollowShell1",
+          "size": 3,
+          "reward_name": "Hollow Shell",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneofReach1",
+          "size": 4,
+          "reward_name": "Rune of the Hunt",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneofFoundations1",
+          "size": 4,
+          "reward_name": "Rune of Acrobatics",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneofCulmination1",
+          "size": 4,
+          "reward_name": "Rune of Accumulation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotArchaicRuneofDueling1",
+          "size": 4,
+          "reward_name": "Ancient Rune of Dueling",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneofVitalFlame1",
+          "size": 4,
+          "reward_name": "Rune of Vital Flame",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotArchaicRuneofControl1",
+          "size": 4,
+          "reward_name": "Ancient Rune of Control",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20Repulsion1",
+          "size": 5,
+          "reward_name": "Repulsion",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20GrimPillars1",
+          "size": 5,
+          "reward_name": "Grim Pillars",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20VerisiumInfusion1",
+          "size": 5,
+          "reward_name": "Powered by Verisium",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20VoltaicBarrier1",
+          "size": 6,
+          "reward_name": "Voltaic Barrier",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotBlazingFlux1",
+          "size": 6,
+          "reward_name": "Blazing Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotPerfectExaltedOrb1",
+          "size": 6,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotCelestialAlloy1",
+          "size": 7,
+          "reward_name": "Celestial Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotPassionofAldur1",
+          "size": 7,
+          "reward_name": "Passion of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotThrudsMight1",
+          "size": 8,
+          "reward_name": "Thrud's Might",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotMedvedsTending1",
+          "size": 8,
+          "reward_name": "Medved's Tending",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotExtremelyRareUnique1",
+          "size": 9,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "Very Rare [Rarity|Unique] item",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotOrbofChance3",
+          "size": 9,
+          "reward_name": "Orb of Chance",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectChaosOrb3",
+          "size": 9,
+          "reward_name": "Perfect Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotMirrorofKalandra1",
+          "size": 9,
+          "reward_name": "Mirror of Kalandra",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsLegacyRune1",
+          "size": 10,
+          "reward_name": "Aldur's Legacy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotLevel5Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 5)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 13,
+          "max_level": 18
+        },
+        {
+          "id": "3SlotLevel6Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 6)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 19,
+          "max_level": 22
+        },
+        {
+          "id": "3SlotLevel7Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 7)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 23,
+          "max_level": 26
+        },
+        {
+          "id": "3SlotLevel8Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 8)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 27,
+          "max_level": 31
+        },
+        {
+          "id": "3SlotLevel9Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 9)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 32,
+          "max_level": 36
+        },
+        {
+          "id": "3SlotLevel10Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 10)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 37,
+          "max_level": 41
+        },
+        {
+          "id": "3SlotLevel11Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 11)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 42,
+          "max_level": 46
+        },
+        {
+          "id": "3SlotLevel12Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 12)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 47,
+          "max_level": 52
+        },
+        {
+          "id": "3SlotLevel13Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 13)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 53,
+          "max_level": 58
+        },
+        {
+          "id": "3SlotLevel14Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 14)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 59,
+          "max_level": 61
+        },
+        {
+          "id": "3SlotLevel15Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 15)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 62,
+          "max_level": 65
+        },
+        {
+          "id": "3SlotLevel16Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 16)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 66,
+          "max_level": 70
+        },
+        {
+          "id": "3SlotLevel17Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 17)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 71,
+          "max_level": 76
+        },
+        {
+          "id": "3SlotLevel18Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 18)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 77,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel19Flux1",
+          "size": 5,
+          "reward_name": "Thaumaturgic Flux (Level 19)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20Flux1",
+          "size": 6,
+          "reward_name": "Thaumaturgic Flux (Level 20)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Life",
+      "source_url": "https://poe2db.tw/us/Life_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:26.764335+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "{{{Monsters gain:}}}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "3SlotGreaterOrbofAugmentation1",
+          "size": 3,
+          "reward_name": "Greater Orb of Augmentation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotGreaterOrbofTransmutation1",
+          "size": 3,
+          "reward_name": "Greater Orb of Transmutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotWardingRuneofSymbiosis1",
+          "size": 4,
+          "reward_name": "Warding Rune of Symbiosis",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneofFoundations1",
+          "size": 4,
+          "reward_name": "Rune of Acrobatics",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneofthePrism1",
+          "size": 4,
+          "reward_name": "Rune of Culmination",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneoftheSoul1",
+          "size": 4,
+          "reward_name": "Rune of Renown",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotGreaterRegalOrb1",
+          "size": 4,
+          "reward_name": "Greater Regal Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotDivineOrb1",
+          "size": 4,
+          "reward_name": "Divine Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotUncutSpiritGem(Level19)1",
+          "size": 5,
+          "reward_name": "Uncut Spirit Gem (Level 19)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofObsession1",
+          "size": 5,
+          "reward_name": "Warding Rune of Obsession",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20DetonateLiving1",
+          "size": 5,
+          "reward_name": "Detonate Living",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20EternalMarch1",
+          "size": 5,
+          "reward_name": "Eternal March",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20FragmentsofthePast1",
+          "size": 5,
+          "reward_name": "Fragments Of The Past",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20FrostFlameNova1",
+          "size": 5,
+          "reward_name": "Frostflame Nova",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20Repulsion1",
+          "size": 5,
+          "reward_name": "Repulsion",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20RuneHazard1",
+          "size": 5,
+          "reward_name": "Conductive Runes",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotPerfectJewellersOrb1",
+          "size": 5,
+          "reward_name": "Perfect Jeweller's Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotCraiceannsRuneofWarding1",
+          "size": 5,
+          "reward_name": "Craiceann's Rune of Warding",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFarrulsRuneofGrace1",
+          "size": 5,
+          "reward_name": "Farrul's Rune of Grace",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotDivineOrb2",
+          "size": 5,
+          "reward_name": "Divine Orb",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20Leylines1",
+          "size": 6,
+          "reward_name": "Leylines",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20HollowShell1",
+          "size": 6,
+          "reward_name": "Hollow Shell",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotPerfectExaltedOrb1",
+          "size": 6,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotDivineOrb3",
+          "size": 6,
+          "reward_name": "Divine Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotAldursLogbook1",
+          "size": 7,
+          "reward_name": "Aldur's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotPassionofAldur1",
+          "size": 7,
+          "reward_name": "Passion of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotMedvedsTending1",
+          "size": 8,
+          "reward_name": "Medved's Tending",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotPerfectOrbofTransmutation3",
+          "size": 8,
+          "reward_name": "Perfect Orb of Transmutation",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotDivineOrb10",
+          "size": 9,
+          "reward_name": "Divine Orb",
+          "reward_count": 10,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectExaltedOrb3",
+          "size": 9,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectChaosOrb3",
+          "size": 9,
+          "reward_name": "Perfect Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotHinekorasLock1",
+          "size": 9,
+          "reward_name": "Hinekora's Lock",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotMedvedsBoon1",
+          "size": 10,
+          "reward_name": "Medved's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotCurrencyPerfectFlux1",
+          "size": 8,
+          "reward_name": "Perfect Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Bond",
+      "source_url": "https://poe2db.tw/us/Bond_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:27.980522+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "{{{Monsters gain:}}}",
+        "{Rare Monsters may transfer a Mod on death}",
+        "{Increased chance to spawn Rare Monsters}",
+        "{Rare Monsters have more Monster Modifiers}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "3SlotGemcuttersPrism2",
+          "size": 3,
+          "reward_name": "Gemcutter's Prism",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotUniqueBelt1",
+          "size": 4,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "[Rarity|Unique] Belt",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotGreaterExaltedOrb1",
+          "size": 4,
+          "reward_name": "Greater Exalted Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofArmature1",
+          "size": 5,
+          "reward_name": "Warding Rune of Armature",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotGreaterOrbofAugmentation3",
+          "size": 5,
+          "reward_name": "Greater Orb of Augmentation",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotGreaterOrbofTransmutation3",
+          "size": 5,
+          "reward_name": "Greater Orb of Transmutation",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotRareUnique1",
+          "size": 5,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "Rare [Rarity|Unique] Item",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotPrismaticAlloy1",
+          "size": 5,
+          "reward_name": "Prismatic Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFarrulsRuneoftheHunt1",
+          "size": 5,
+          "reward_name": "Farrul's Rune of the Hunt",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneMyrksRuneofSummer1",
+          "size": 5,
+          "reward_name": "Thane Myrk's Rune of Summer",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneLeldsRuneofSpring1",
+          "size": 5,
+          "reward_name": "Thane Leld's Rune of Spring",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneGrannellsRuneofMastery1",
+          "size": 5,
+          "reward_name": "Thane Grannell's Rune of Mastery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneGirtsRuneofWildness1",
+          "size": 5,
+          "reward_name": "Thane Girt's Rune of Wildness",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20TriskelionCascade1",
+          "size": 6,
+          "reward_name": "Triskelion Cascade",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotGreaterExaltedOrb3",
+          "size": 6,
+          "reward_name": "Greater Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotVoranasLogbook1",
+          "size": 6,
+          "reward_name": "Vorana's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20ExplosiveTransmutation1",
+          "size": 6,
+          "reward_name": "Explosive Transmutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotBreathofAldur1",
+          "size": 7,
+          "reward_name": "Breath of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotBetrayalofAldur1",
+          "size": 7,
+          "reward_name": "Betrayal of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotVoranasCarnage1",
+          "size": 8,
+          "reward_name": "Vorana's Carnage",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotKatlasGloom1",
+          "size": 8,
+          "reward_name": "Katla's Gloom",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotThrudsMight1",
+          "size": 8,
+          "reward_name": "Thrud's Might",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotKolrsHunt1",
+          "size": 8,
+          "reward_name": "Kolr's Hunt",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotMedvedsTending1",
+          "size": 8,
+          "reward_name": "Medved's Tending",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotUhtredsSidereus1",
+          "size": 8,
+          "reward_name": "Uhtred's Sidereus",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectExaltedOrb3",
+          "size": 9,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotHinekorasLock1",
+          "size": 9,
+          "reward_name": "Hinekora's Lock",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotMirrorofKalandra1",
+          "size": 9,
+          "reward_name": "Mirror of Kalandra",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsBoon1",
+          "size": 10,
+          "reward_name": "Olroth's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotVoranasBoon1",
+          "size": 10,
+          "reward_name": "Vorana's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotUhtredsBoon1",
+          "size": 10,
+          "reward_name": "Uhtred's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotMedvedsBoon1",
+          "size": 10,
+          "reward_name": "Medved's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsLegacyRune1",
+          "size": 10,
+          "reward_name": "Aldur's Legacy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Ward",
+      "source_url": "https://poe2db.tw/us/Ward_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:29.299299+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "Place into an empty Augment Socket in a Weapon or Armour to apply its effect to that item. Once socketed it cannot be retrieved but can be replaced by other Augment items.",
+        "{{{Monsters gain:}}}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "3SlotGreaterWardRune1",
+          "size": 3,
+          "reward_name": "Greater Ward Rune",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotGreaterChargingRune1",
+          "size": 3,
+          "reward_name": "Greater Charging Rune",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotBitterDead1",
+          "size": 3,
+          "reward_name": "Bitter Dead",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotGrimPillars1",
+          "size": 3,
+          "reward_name": "Grim Pillars",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotRemnantsofKalguur1",
+          "size": 3,
+          "reward_name": "Remnants of Kalguur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotVerisiumInfusion1",
+          "size": 3,
+          "reward_name": "Powered by Verisium",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotVerisiumManifestation1",
+          "size": 3,
+          "reward_name": "Verisium Manifestations",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotRuneforgedBlades1",
+          "size": 3,
+          "reward_name": "Runeforged Blades",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotScouringFlame1",
+          "size": 3,
+          "reward_name": "Scouring Flame",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotVoltaicBarrier1",
+          "size": 3,
+          "reward_name": "Voltaic Barrier",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotPileofVerisium1",
+          "size": 3,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "Verisium Pile",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotWardingRuneofReinforcement1",
+          "size": 3,
+          "reward_name": "Warding Rune of Reinforcement",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotWardingRuneofCourage1",
+          "size": 3,
+          "reward_name": "Warding Rune of Courage",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotAnimusExchange1",
+          "size": 4,
+          "reward_name": "Animus Exchange",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotLeylines1",
+          "size": 4,
+          "reward_name": "Leylines",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRuneWard1",
+          "size": 4,
+          "reward_name": "Runic Reprieve",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotRunicFortress1",
+          "size": 4,
+          "reward_name": "Refutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotTriskelionCascade1",
+          "size": 4,
+          "reward_name": "Triskelion Cascade",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotVerisiumComet1",
+          "size": 4,
+          "reward_name": "Skyfall",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotHealingRunes1",
+          "size": 4,
+          "reward_name": "Healing Runes",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotWardingRuneofStability1",
+          "size": 4,
+          "reward_name": "Warding Rune of Stability",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotWardingRuneofGlancing1",
+          "size": 4,
+          "reward_name": "Warding Rune of Glancing",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotWardingRuneoftheHeart1",
+          "size": 4,
+          "reward_name": "Warding Rune of Heart",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotWardingRuneofAnnihilation1",
+          "size": 4,
+          "reward_name": "Warding Rune of Annihilation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotWardingRuneofSalvaging1",
+          "size": 4,
+          "reward_name": "Warding Rune of Salvaging",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotWardingRuneofSymbiosis1",
+          "size": 4,
+          "reward_name": "Warding Rune of Symbiosis",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotUniqueBelt1",
+          "size": 4,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "[Rarity|Unique] Belt",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofArmature1",
+          "size": 5,
+          "reward_name": "Warding Rune of Armature",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofObsession1",
+          "size": 5,
+          "reward_name": "Warding Rune of Obsession",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofEquinox1",
+          "size": 5,
+          "reward_name": "Warding Rune of Equinox",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofBodyguards1",
+          "size": 5,
+          "reward_name": "Warding Rune of Bodyguards",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofHollowing1",
+          "size": 5,
+          "reward_name": "Warding Rune of Hollowing",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20BitterDead1",
+          "size": 5,
+          "reward_name": "Bitter Dead",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20GrimPillars1",
+          "size": 5,
+          "reward_name": "Grim Pillars",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20RemnantsofKalguur1",
+          "size": 5,
+          "reward_name": "Remnants of Kalguur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20VerisiumInfusion1",
+          "size": 5,
+          "reward_name": "Powered by Verisium",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20VerisiumManifestation1",
+          "size": 5,
+          "reward_name": "Verisium Manifestations",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotCraiceannsRuneofWarding1",
+          "size": 5,
+          "reward_name": "Craiceann's Rune of Warding",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20AnimusExchange1",
+          "size": 6,
+          "reward_name": "Animus Exchange",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20Leylines1",
+          "size": 6,
+          "reward_name": "Leylines",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20RuneWard1",
+          "size": 6,
+          "reward_name": "Runic Reprieve",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20RunicFortress1",
+          "size": 6,
+          "reward_name": "Refutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20TriskelionCascade1",
+          "size": 6,
+          "reward_name": "Triskelion Cascade",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20VerisiumComet1",
+          "size": 6,
+          "reward_name": "Skyfall",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotGreaterChaosOrb3",
+          "size": 6,
+          "reward_name": "Greater Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotUhtredsLogbook1",
+          "size": 6,
+          "reward_name": "Uhtred's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20AnimusSplinters1",
+          "size": 6,
+          "reward_name": "Animus Splinters",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20ExplosiveTransmutation1",
+          "size": 6,
+          "reward_name": "Explosive Transmutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20HollowShell1",
+          "size": 6,
+          "reward_name": "Hollow Shell",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20VoltaicBarrier1",
+          "size": 6,
+          "reward_name": "Voltaic Barrier",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20WardboundMinions1",
+          "size": 6,
+          "reward_name": "Wardbound Minions",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20RainOfBlades",
+          "size": 6,
+          "reward_name": "Rain of Blades",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotCountessSeskesRuneofArchery1",
+          "size": 6,
+          "reward_name": "Countess Seske's Rune of Archery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotHedgewitchAssandrasRuneofWisdom1",
+          "size": 6,
+          "reward_name": "Hedgewitch Assandra's Rune of Wisdom",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotAldursLogbook1",
+          "size": 7,
+          "reward_name": "Aldur's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotAldurAlloy1",
+          "size": 8,
+          "reward_name": "The Runebinder's Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotAncientAlloy1",
+          "size": 8,
+          "reward_name": "The Runefather's Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotThrudsMight1",
+          "size": 8,
+          "reward_name": "Thrud's Might",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotOrbofChance3",
+          "size": 9,
+          "reward_name": "Orb of Chance",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotHinekorasLock1",
+          "size": 9,
+          "reward_name": "Hinekora's Lock",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotUhtredsBoon1",
+          "size": 10,
+          "reward_name": "Uhtred's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "3SlotLevel5Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 5)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 13,
+          "max_level": 18
+        },
+        {
+          "id": "3SlotLevel6Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 6)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 19,
+          "max_level": 22
+        },
+        {
+          "id": "3SlotLevel7Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 7)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 23,
+          "max_level": 26
+        },
+        {
+          "id": "3SlotLevel8Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 8)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 27,
+          "max_level": 31
+        },
+        {
+          "id": "3SlotLevel9Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 9)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 32,
+          "max_level": 36
+        },
+        {
+          "id": "3SlotLevel10Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 10)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 37,
+          "max_level": 41
+        },
+        {
+          "id": "3SlotLevel11Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 11)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 42,
+          "max_level": 46
+        },
+        {
+          "id": "3SlotLevel12Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 12)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 47,
+          "max_level": 52
+        },
+        {
+          "id": "3SlotLevel13Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 13)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 53,
+          "max_level": 58
+        },
+        {
+          "id": "3SlotLevel14Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 14)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 59,
+          "max_level": 61
+        },
+        {
+          "id": "3SlotLevel15Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 15)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 62,
+          "max_level": 65
+        },
+        {
+          "id": "3SlotLevel16Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 16)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 66,
+          "max_level": 70
+        },
+        {
+          "id": "3SlotLevel17Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 17)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 71,
+          "max_level": 76
+        },
+        {
+          "id": "3SlotLevel18Flux1",
+          "size": 3,
+          "reward_name": "Thaumaturgic Flux (Level 18)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 77,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel19Flux1",
+          "size": 5,
+          "reward_name": "Thaumaturgic Flux (Level 19)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20Flux1",
+          "size": 6,
+          "reward_name": "Thaumaturgic Flux (Level 20)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Soul",
+      "source_url": "https://poe2db.tw/us/Soul_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:30.523165+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "{{{Monsters gain:}}}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "4SlotExaltedOrb3",
+          "size": 4,
+          "reward_name": "Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotGemcuttersPrism3",
+          "size": 4,
+          "reward_name": "Gemcutter's Prism",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotSwiftAlloy1",
+          "size": 4,
+          "reward_name": "Swift Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotDivineOrb1",
+          "size": 4,
+          "reward_name": "Divine Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofHollowing1",
+          "size": 5,
+          "reward_name": "Warding Rune of Hollowing",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20BitterDead1",
+          "size": 5,
+          "reward_name": "Bitter Dead",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20GrimPillars1",
+          "size": 5,
+          "reward_name": "Grim Pillars",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20RemnantsofKalguur1",
+          "size": 5,
+          "reward_name": "Remnants of Kalguur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20VerisiumInfusion1",
+          "size": 5,
+          "reward_name": "Powered by Verisium",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLevel20VerisiumManifestation1",
+          "size": 5,
+          "reward_name": "Verisium Manifestations",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotCraiceannsRuneofRecovery1",
+          "size": 5,
+          "reward_name": "Craiceann's Rune of Recovery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotSaqawalsRuneofMemory1",
+          "size": 5,
+          "reward_name": "Saqawal's Rune of Memory",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotDivineOrb2",
+          "size": 5,
+          "reward_name": "Divine Orb",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20RuneWard1",
+          "size": 6,
+          "reward_name": "Runic Reprieve",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20AnimusSplinters1",
+          "size": 6,
+          "reward_name": "Animus Splinters",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotBlazingFlux1",
+          "size": 6,
+          "reward_name": "Blazing Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotVoidFlux1",
+          "size": 6,
+          "reward_name": "Void Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotUncutSpiritGemLevel201",
+          "size": 6,
+          "reward_name": "Uncut Spirit Gem (Level 20)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotUncutSkillGemLevel201",
+          "size": 6,
+          "reward_name": "Uncut Skill Gem (Level 20)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotDivineOrb3",
+          "size": 6,
+          "reward_name": "Divine Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotOrbofChance2",
+          "size": 6,
+          "reward_name": "Orb of Chance",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotCelestialAlloy1",
+          "size": 7,
+          "reward_name": "Celestial Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotBreathofAldur1",
+          "size": 7,
+          "reward_name": "Breath of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotPassionofAldur1",
+          "size": 7,
+          "reward_name": "Passion of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotIreofAldur1",
+          "size": 7,
+          "reward_name": "Ire of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotBetrayalofAldur1",
+          "size": 7,
+          "reward_name": "Betrayal of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotCadigansEpiphany1",
+          "size": 7,
+          "reward_name": "Cadigan's Epiphany",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotAldurAlloy1",
+          "size": 8,
+          "reward_name": "The Runebinder's Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotPerfectRegalOrb3",
+          "size": 8,
+          "reward_name": "Perfect Regal Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotDivineOrb10",
+          "size": 9,
+          "reward_name": "Divine Orb",
+          "reward_count": 10,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectExaltedOrb3",
+          "size": 9,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotMirrorofKalandra1",
+          "size": 9,
+          "reward_name": "Mirror of Kalandra",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotUhtredsBoon1",
+          "size": 10,
+          "reward_name": "Uhtred's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Death",
+      "source_url": "https://poe2db.tw/us/Death_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:31.958843+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "{{{Monsters gain:}}}",
+        "{Slain Monsters may merge into stronger Monsters}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "4SlotDivineOrb1",
+          "size": 4,
+          "reward_name": "Divine Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotAstackofrandomcurrency1",
+          "size": 5,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "5x Random Currency",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotPerfectJewellersOrb1",
+          "size": 5,
+          "reward_name": "Perfect Jeweller's Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotChaosOrb3",
+          "size": 5,
+          "reward_name": "Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotCraiceannsRuneofRecovery1",
+          "size": 5,
+          "reward_name": "Craiceann's Rune of Recovery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFenumusRuneofDraining1",
+          "size": 5,
+          "reward_name": "Fenumus' Rune of Draining",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneMyrksRuneofSummer1",
+          "size": 5,
+          "reward_name": "Thane Myrk's Rune of Summer",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotPerfectOrbofTransmutation1",
+          "size": 5,
+          "reward_name": "Perfect Orb of Transmutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotDivineOrb2",
+          "size": 5,
+          "reward_name": "Divine Orb",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20RunicFortress1",
+          "size": 6,
+          "reward_name": "Refutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20VoltaicBarrier1",
+          "size": 6,
+          "reward_name": "Voltaic Barrier",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotChillingFlux1",
+          "size": 6,
+          "reward_name": "Chilling Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotFarrulsRuneoftheChase1",
+          "size": 6,
+          "reward_name": "Farrul's Rune of the Chase",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotVoidFlux1",
+          "size": 6,
+          "reward_name": "Void Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotUncutSkillGemLevel201",
+          "size": 6,
+          "reward_name": "Uncut Skill Gem (Level 20)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotDivineOrb3",
+          "size": 6,
+          "reward_name": "Divine Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotKalguuranAlloy1",
+          "size": 7,
+          "reward_name": "Transcendent Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotAstridsCreativity1",
+          "size": 7,
+          "reward_name": "Astrid's Creativity",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotBetrayalofAldur1",
+          "size": 7,
+          "reward_name": "Betrayal of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotKatlasGloom1",
+          "size": 8,
+          "reward_name": "Katla's Gloom",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotThrudsMight1",
+          "size": 8,
+          "reward_name": "Thrud's Might",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotPerfectOrbofTransmutation3",
+          "size": 8,
+          "reward_name": "Perfect Orb of Transmutation",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotDivineOrb10",
+          "size": 9,
+          "reward_name": "Divine Orb",
+          "reward_count": 10,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectExaltedOrb3",
+          "size": 9,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotHinekorasLock1",
+          "size": 9,
+          "reward_name": "Hinekora's Lock",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotMirrorofKalandra1",
+          "size": 9,
+          "reward_name": "Mirror of Kalandra",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotVoranasBoon1",
+          "size": 10,
+          "reward_name": "Vorana's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsLegacyRune1",
+          "size": 10,
+          "reward_name": "Aldur's Legacy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Oath",
+      "source_url": "https://poe2db.tw/us/Oath_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:33.197093+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "{{{Monsters gain:}}}",
+        "{A Monster summons Allies}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "4SlotChaosOrb2",
+          "size": 4,
+          "reward_name": "Chaos Orb",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotGreaterJewellersOrb1",
+          "size": 4,
+          "reward_name": "Greater Jeweller's Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotGreaterRegalOrb1",
+          "size": 4,
+          "reward_name": "Greater Regal Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotGreaterExaltedOrb1",
+          "size": 4,
+          "reward_name": "Greater Exalted Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "4SlotGreaterChaosOrb1",
+          "size": 4,
+          "reward_name": "Greater Chaos Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotWardingRuneofBodyguards1",
+          "size": 5,
+          "reward_name": "Warding Rune of Bodyguards",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotChaosOrb3",
+          "size": 5,
+          "reward_name": "Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotPerfectOrbofTransmutation1",
+          "size": 5,
+          "reward_name": "Perfect Orb of Transmutation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20AnimusExchange1",
+          "size": 6,
+          "reward_name": "Animus Exchange",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20VerisiumComet1",
+          "size": 6,
+          "reward_name": "Skyfall",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotGreaterExaltedOrb3",
+          "size": 6,
+          "reward_name": "Greater Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotGreaterChaosOrb3",
+          "size": 6,
+          "reward_name": "Greater Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotGreaterRegalOrb3",
+          "size": 6,
+          "reward_name": "Greater Regal Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20WardboundMinions1",
+          "size": 6,
+          "reward_name": "Wardbound Minions",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotCracklingFlux1",
+          "size": 6,
+          "reward_name": "Crackling Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotCountessSeskesRuneofArchery1",
+          "size": 6,
+          "reward_name": "Countess Seske's Rune of Archery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotHedgewitchAssandrasRuneofWisdom1",
+          "size": 6,
+          "reward_name": "Hedgewitch Assandra's Rune of Wisdom",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotFarrulsRuneoftheChase1",
+          "size": 6,
+          "reward_name": "Farrul's Rune of the Chase",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotPerfectExaltedOrb1",
+          "size": 6,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotUncutSpiritGemLevel201",
+          "size": 6,
+          "reward_name": "Uncut Spirit Gem (Level 20)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotPerfectChaosOrb1",
+          "size": 6,
+          "reward_name": "Perfect Chaos Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotSovereignAlloy1",
+          "size": 6,
+          "reward_name": "Sovereign Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotCadigansEpiphany1",
+          "size": 7,
+          "reward_name": "Cadigan's Epiphany",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotSerlesTriumph1",
+          "size": 8,
+          "reward_name": "Serle's Triumph",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectExaltedOrb3",
+          "size": 9,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectChaosOrb3",
+          "size": 9,
+          "reward_name": "Perfect Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotMirrorofKalandra1",
+          "size": 9,
+          "reward_name": "Mirror of Kalandra",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsBoon1",
+          "size": 10,
+          "reward_name": "Olroth's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotCurrencyPerfectFlux1",
+          "size": 8,
+          "reward_name": "Perfect Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotLevel20Flux1",
+          "size": 6,
+          "reward_name": "Thaumaturgic Flux (Level 20)",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Time",
+      "source_url": "https://poe2db.tw/us/Time_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:34.441896+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "{{{Monsters gain:}}}",
+        "{Slain Monsters may respawn as a higher Rarity}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "5SlotOrbofChance1",
+          "size": 5,
+          "reward_name": "Orb of Chance",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotMysticAlloy1",
+          "size": 5,
+          "reward_name": "Mystic Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotCraiceannsRuneofWarding1",
+          "size": 5,
+          "reward_name": "Craiceann's Rune of Warding",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotSaqawalsRuneofErosion1",
+          "size": 5,
+          "reward_name": "Saqawal's Rune of Erosion",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFarrulsRuneoftheHunt1",
+          "size": 5,
+          "reward_name": "Farrul's Rune of the Hunt",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotCraiceannsRuneofRecovery1",
+          "size": 5,
+          "reward_name": "Craiceann's Rune of Recovery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFenumusRuneofSpinning1",
+          "size": 5,
+          "reward_name": "Fenumus' Rune of Spinning",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFenumusRuneofDraining1",
+          "size": 5,
+          "reward_name": "Fenumus' Rune of Draining",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneMyrksRuneofSummer1",
+          "size": 5,
+          "reward_name": "Thane Myrk's Rune of Summer",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotLadyHestrasRuneofWinter1",
+          "size": 5,
+          "reward_name": "Lady Hestra's Rune of Winter",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneLeldsRuneofSpring1",
+          "size": 5,
+          "reward_name": "Thane Leld's Rune of Spring",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotTheGreatwolfsRuneofClaws1",
+          "size": 5,
+          "reward_name": "The Greatwolf's Rune of Claws",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotTheGreatwolfsRuneofWillpower1",
+          "size": 5,
+          "reward_name": "The Greatwolf's Rune of Willpower",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotSaqawalsRuneoftheSky1",
+          "size": 5,
+          "reward_name": "Saqawal's Rune of the Sky",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFenumusRuneofAgony1",
+          "size": 5,
+          "reward_name": "Fenumus' Rune of Agony",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotFarrulsRuneofGrace1",
+          "size": 5,
+          "reward_name": "Farrul's Rune of Grace",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotPerfectOrbofAugmentation1",
+          "size": 5,
+          "reward_name": "Perfect Orb of Augmentation",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneGrannellsRuneofMastery1",
+          "size": 5,
+          "reward_name": "Thane Grannell's Rune of Mastery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotSaqawalsRuneofMemory1",
+          "size": 5,
+          "reward_name": "Saqawal's Rune of Memory",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotCourtesanMannansRuneofCruelty1",
+          "size": 5,
+          "reward_name": "Courtesan Mannan's Rune of Cruelty",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotThaneGirtsRuneofWildness1",
+          "size": 5,
+          "reward_name": "Thane Girt's Rune of Wildness",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotGreaterChaosOrb3",
+          "size": 6,
+          "reward_name": "Greater Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotMedvedsLogbook1",
+          "size": 6,
+          "reward_name": "Medved's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotUhtredsLogbook1",
+          "size": 6,
+          "reward_name": "Uhtred's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotVoranasLogbook1",
+          "size": 6,
+          "reward_name": "Vorana's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotOlrothsLogbook1",
+          "size": 6,
+          "reward_name": "Olroth's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotCountessSeskesRuneofArchery1",
+          "size": 6,
+          "reward_name": "Countess Seske's Rune of Archery",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotHedgewitchAssandrasRuneofWisdom1",
+          "size": 6,
+          "reward_name": "Hedgewitch Assandra's Rune of Wisdom",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotFarrulsRuneoftheChase1",
+          "size": 6,
+          "reward_name": "Farrul's Rune of the Chase",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotVoidFlux1",
+          "size": 6,
+          "reward_name": "Void Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotOrbofAnnulment1",
+          "size": 6,
+          "reward_name": "Orb of Annulment",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotAldursLogbook1",
+          "size": 7,
+          "reward_name": "Aldur's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotAstridsCreativity1",
+          "size": 7,
+          "reward_name": "Astrid's Creativity",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotAncientAlloy1",
+          "size": 8,
+          "reward_name": "The Runefather's Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotUhtredsSidereus1",
+          "size": 8,
+          "reward_name": "Uhtred's Sidereus",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotPerfectOrbofAugmentation3",
+          "size": 8,
+          "reward_name": "Perfect Orb of Augmentation",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotPerfectOrbofTransmutation3",
+          "size": 8,
+          "reward_name": "Perfect Orb of Transmutation",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotHinekorasLock1",
+          "size": 9,
+          "reward_name": "Hinekora's Lock",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotMirrorofKalandra1",
+          "size": 9,
+          "reward_name": "Mirror of Kalandra",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsBoon1",
+          "size": 10,
+          "reward_name": "Olroth's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotVoranasBoon1",
+          "size": 10,
+          "reward_name": "Vorana's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotUhtredsBoon1",
+          "size": 10,
+          "reward_name": "Uhtred's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotMedvedsBoon1",
+          "size": 10,
+          "reward_name": "Medved's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsLegacyRune1",
+          "size": 10,
+          "reward_name": "Aldur's Legacy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotCurrencyPerfectFlux1",
+          "size": 8,
+          "reward_name": "Perfect Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Power",
+      "source_url": "https://poe2db.tw/us/Power_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:35.922830+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation",
+        "{{{Runes gain:}}}"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "4SlotDivineOrb1",
+          "size": 4,
+          "reward_name": "Divine Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "5SlotDivineOrb2",
+          "size": 5,
+          "reward_name": "Divine Orb",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotOlrothsLogbook1",
+          "size": 6,
+          "reward_name": "Olroth's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotPerfectExaltedOrb1",
+          "size": 6,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotVoidFlux1",
+          "size": 6,
+          "reward_name": "Void Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotDivineOrb3",
+          "size": 6,
+          "reward_name": "Divine Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotPerfectChaosOrb1",
+          "size": 6,
+          "reward_name": "Perfect Chaos Orb",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "6SlotSovereignAlloy1",
+          "size": 6,
+          "reward_name": "Sovereign Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotChaosOrb10",
+          "size": 7,
+          "reward_name": "Chaos Orb",
+          "reward_count": 10,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotAldursLogbook1",
+          "size": 7,
+          "reward_name": "Aldur's Saga",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotOrbofAnnulment2",
+          "size": 7,
+          "reward_name": "Orb of Annulment",
+          "reward_count": 2,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotCelestialAlloy1",
+          "size": 7,
+          "reward_name": "Celestial Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotKalguuranAlloy1",
+          "size": 7,
+          "reward_name": "Transcendent Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotBreathofAldur1",
+          "size": 7,
+          "reward_name": "Breath of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotPassionofAldur1",
+          "size": 7,
+          "reward_name": "Passion of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotIreofAldur1",
+          "size": 7,
+          "reward_name": "Ire of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotAstridsCreativity1",
+          "size": 7,
+          "reward_name": "Astrid's Creativity",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotBetrayalofAldur1",
+          "size": 7,
+          "reward_name": "Betrayal of Aldur",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "7SlotCadigansEpiphany1",
+          "size": 7,
+          "reward_name": "Cadigan's Epiphany",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotAldurAlloy1",
+          "size": 8,
+          "reward_name": "The Runebinder's Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotAncientAlloy1",
+          "size": 8,
+          "reward_name": "The Runefather's Alloy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotVoranasCarnage1",
+          "size": 8,
+          "reward_name": "Vorana's Carnage",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotKatlasGloom1",
+          "size": 8,
+          "reward_name": "Katla's Gloom",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotThrudsMight1",
+          "size": 8,
+          "reward_name": "Thrud's Might",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotKolrsHunt1",
+          "size": 8,
+          "reward_name": "Kolr's Hunt",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotMedvedsTending1",
+          "size": 8,
+          "reward_name": "Medved's Tending",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotUhtredsSidereus1",
+          "size": 8,
+          "reward_name": "Uhtred's Sidereus",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotSerlesTriumph1",
+          "size": 8,
+          "reward_name": "Serle's Triumph",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotPerfectRegalOrb3",
+          "size": 8,
+          "reward_name": "Perfect Regal Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotExtremelyRareUnique1",
+          "size": 9,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "Very Rare [Rarity|Unique] item",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotOrbofAnnulment3",
+          "size": 9,
+          "reward_name": "Orb of Annulment",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotDivineOrb10",
+          "size": 9,
+          "reward_name": "Divine Orb",
+          "reward_count": 10,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectExaltedOrb3",
+          "size": 9,
+          "reward_name": "Perfect Exalted Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotPerfectChaosOrb3",
+          "size": 9,
+          "reward_name": "Perfect Chaos Orb",
+          "reward_count": 3,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotHinekorasLock1",
+          "size": 9,
+          "reward_name": "Hinekora's Lock",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "9SlotMirrorofKalandra1",
+          "size": 9,
+          "reward_name": "Mirror of Kalandra",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsBoon1",
+          "size": 10,
+          "reward_name": "Olroth's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotVoranasBoon1",
+          "size": 10,
+          "reward_name": "Vorana's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotUhtredsBoon1",
+          "size": 10,
+          "reward_name": "Uhtred's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotMedvedsBoon1",
+          "size": 10,
+          "reward_name": "Medved's Boon",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "10SlotOlrothsLegacyRune1",
+          "size": 10,
+          "reward_name": "Aldur's Legacy",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        },
+        {
+          "id": "8SlotCurrencyPerfectFlux1",
+          "size": 8,
+          "reward_name": "Perfect Flux",
+          "reward_count": 1,
+          "description": "",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    },
+    {
+      "name": "Bait",
+      "source_url": "https://poe2db.tw/us/Bait_Rune",
+      "fetched_at_utc": "2026-09-13T11:40:37.108688+00:00",
+      "effects": [
+        "path of exile is simply a tool to test your path of building creation"
+      ],
+      "danger_tags": [],
+      "recipes": [
+        {
+          "id": "10SlotBait",
+          "size": 10,
+          "reward_name": null,
+          "reward_count": 1,
+          "description": "Krillson's Bay Key",
+          "min_level": 1,
+          "max_level": 100
+        }
+      ],
+      "source_status": "parsed",
+      "parse_notes": []
+    }
+  ]
+}

@@ -4,13 +4,10 @@
 
 namespace AutoHotKeyTrigger.ProfileManager.Enums
 {
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Converters;
 
     /// <summary>
     ///     Conditions supported by this plugin.
     /// </summary>
-    [JsonConverter(typeof(StringEnumConverter))]
     public enum ConditionType
     {
         /// <summary>

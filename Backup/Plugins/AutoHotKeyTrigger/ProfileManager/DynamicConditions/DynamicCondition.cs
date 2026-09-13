@@ -11,7 +11,7 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
     using AutoHotKeyTrigger.ProfileManager.Component;
     using GameHelper;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
 
     /// <summary>
     ///     A customizable condition allowing to specify when it is satisfied in user-supplied code
@@ -25,8 +25,8 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
 
         private static Lazy<DynamicConditionState> state = null!;
 
-        [JsonProperty] private string conditionSource;
-        [JsonProperty] private IComponent? component;
+        [JsonInclude] private string conditionSource;
+        [JsonInclude] private IComponent? component;
 
         private string? lastException;
         private Func<DynamicConditionState, bool>? func;

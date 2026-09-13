@@ -40,8 +40,8 @@ namespace LootValue
         /// instead of drawing free-floating world-space labels over each drop. Default mode.</summary>
         public bool AnchorToLootTags = true;
 
-        /// <summary>Price source: <see cref="PoeNinjaPriceFetcher.SourcePoeNinja"/> or <see cref="PoeNinjaPriceFetcher.SourcePoe2Scout"/>.</summary>
-        public int PriceSource = PoeNinjaPriceFetcher.SourcePoe2Scout;
+        /// <summary>Price source: <see cref="PoeNinjaPriceFetcher.SourcePoeNinja"/>.</summary>
+        public int PriceSource = PoeNinjaPriceFetcher.SourcePoeNinja;
 
         /// <summary>PoE2 league name for price lookups.</summary>
         public string League = "Forbidden Rites";
@@ -50,16 +50,40 @@ namespace LootValue
         public int? LeagueMigrationVersion;
 
         /// <summary>Automatic price refresh interval in minutes.</summary>
-        public int RefreshIntervalMin = 5;
+        public int RefreshIntervalMin = 30;
 
         /// <summary>Display currency: 0 = Divine, 1 = Exalted, 2 = Chaos.</summary>
         public int DisplayCurrency = 1;
 
-        /// <summary>Minimum value (in Exalted) for a drop to get a label. Hides chaff.</summary>
-        public float MinValueEx = 1f;
+        /// <summary>Minimum value for a drop to get a label (legacy/unused).</summary>
+        public float MinValueEx = 0f;
 
         /// <summary>Value (in Exalted) at/above which a label is drawn in the highlight color.</summary>
-        public float HighlightMinEx = 10f;
+        public float HighlightMinEx = 100f;
+
+        /// <summary>Value (in Chaos) at/above which a label is drawn in the highlight color.</summary>
+        public float HighlightMinChaos = 10f;
+
+        /// <summary>Value (in Divine) at/above which a label is drawn in the highlight color.</summary>
+        public float HighlightMinDiv = 1f;
+
+        /// <summary>Play sound when a valuable drop is detected.</summary>
+        public bool EnableAlertSound = true;
+
+        /// <summary>Alert sound volume (0 to 100 percent).</summary>
+        public int AlertVolumePercent = 50;
+
+        /// <summary>Show an on-screen alert banner for valuable drops.</summary>
+        public bool EnableAlertBanner = true;
+
+        /// <summary>Show a beam / pointer to valuable drops on the ground.</summary>
+        public bool EnableAlertBeam = true;
+
+        /// <summary>Minimum value in current Display Currency to trigger drop alert.</summary>
+        public float AlertMinDisplayValue = 1f;
+
+        /// <summary>Duration in seconds for the on-screen alert banner.</summary>
+        public float AlertBannerDurationSec = 6f;
 
         /// <summary>Reveal unidentified uniques by name (resolved from their icon art).</summary>
         public bool RevealUnidentifiedUniques = true;
@@ -109,5 +133,32 @@ namespace LootValue
 
         /// <summary>Highlight label text color (RGBA 0-1) for high-value drops.</summary>
         public Vector4 HighlightColor = new Vector4(0.4f, 1f, 0.4f, 1f);
+
+        /// <summary>Normal background color (RGBA 0-1) for value label chips.</summary>
+        public Vector4 BackgroundColor = new Vector4(0f, 0f, 0f, 0.7f);
+
+        /// <summary>Highlight label background color (RGBA 0-1) for high-value items.</summary>
+        public Vector4 HighlightBackgroundColor = new Vector4(0.08f, 0.28f, 0.12f, 0.85f);
+
+        /// <summary>Show 3D world badge above PoE 2 Expedition Runeshape Monoliths.</summary>
+        public bool EnableExpeditionWorldOverlay = true;
+
+        /// <summary>Horizontal pixel offset for Expedition monolith world badges (Left/Right).</summary>
+        public float ExpeditionBadgeOffsetX = 0f;
+
+        /// <summary>Vertical pixel offset for Expedition monolith world badges (Up/Down).</summary>
+        public float ExpeditionBadgeOffsetY = 0f;
+
+        /// <summary>Show prices on the in-game Runeshape Combinations recipe panel.</summary>
+        public bool EnableRuneshapeUiPrices = true;
+
+        /// <summary>Horizontal pixel offset for Runeshape UI price chips.</summary>
+        public float RuneshapeUiOffsetX = 0f;
+
+        /// <summary>Vertical pixel offset for Runeshape UI price chips.</summary>
+        public float RuneshapeUiOffsetY = 0f;
+
+        /// <summary>Hide monolith badge if the encounter was already completed / claimed.</summary>
+        public bool HideCompletedMonoliths = true;
     }
 }

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="us" data-bs-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>Jiquani's Thesis - PoE2DB, Path of Exile Wiki us</title>
+    <meta name="description" content="path of exile is simply a tool to test your path of building creation">
+    <link rel="alternate" hreflang="en" href="https://poe2db.tw/us/" />
+    <link rel="alternate" hreflang="zh-Hant" href="https://poe2db.tw/tw/" />
+    <link rel="alternate" hreflang="zh-Hans" href="https://poe2db.tw/cn/" />
+        <link href="/favicon2.png" rel="shortcut icon" >
+    
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css" integrity="sha512-2bBQCjcnw658Lho4nlXJcc6WkV/UxpE/sAokbXPxQNGqmNdQrWqtw26Ns9kFF/yG792pKR1Sx8/Y1Lf1XN4GKA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha512-aOG0c6nPNzGk+5zjwyJaoRUgCdOrfSDhmMID2u4+OIslr0GjpLKo7Xm0Ao3xmpM4T8AmIouRkqwj1nrdVsLKEQ==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/jquery.dataTables.min.css" integrity="sha512-1k7mWiTNoyx2XtmI96o+hdjP8nn0f3Z2N4oF/9ZZRgijyV4omsKOXEnqL1gKQNPy2MTSP9rIEWGcH/CInulptA==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" integrity="sha512-nMNlpuaDPrqlEls3IX/Q56H36qvBASwb3ipuo3MxeWbsQB1881ox0cRv7UPTgBlriqoynt35KjEwgGUeUXIPnw==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-5-theme/1.3.0/select2-bootstrap-5-theme.min.css" integrity="sha512-z/90a5SWiu4MWVelb5+ny7sAayYUfMmdXKEAbpj27PfdkamNdyI3hcjxPxkOPbrXoKIm7r9V2mElt5f1OtVhqA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.7/tippy.min.css" integrity="sha512-HbPh+j4V7pXprvQMt2dtmK/zCEsUeZWYXRln4sOwmoyHPQAPqy/k9lIquKUyKNpNbDGAY06UdiDHcEkBc72yCQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.2.1/sweetalert2.min.css" integrity="sha512-OkYLbkJ4DB7ewvcpNLF9DSFmhdmxFXQ1Cs+XyjMsMMC94LynFJaA9cPXOokugkmZo6O6lwZg+V5dwQMH4S5/3g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modal-video@2.4.6/css/modal-video.min.css" integrity="sha256-nd8IBqNn9uqwZKfZcLIXQcNxk5TjqrxiLx7PzN5PFW0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.10.0/css/lightbox.min.css" integrity="sha256-auPoJwk/+RK6KSkib92Dkq1Y5hEkZvKtvSwucs15Skg=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.19.1/video-js.min.css" integrity="sha512-J3tx4ssoARFr4U9VmZmQe2q672q0jUeYizJW3vglkOBTlQ/N6kF3eVqZZzaey/TdIXH69s3HYe2nQwyxK/Emzw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+        <link rel="stylesheet" href="https://cdn.poe2db.tw/css/stdtheme.b9911322bcc6417a.css" />
+    
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js" integrity="sha512-STof4xm1wgkfm7heWqFJVn58Hm3EtS31XFaagaa8VMReCXAkQnJZ+jEy8PCC/iT18dFy95WcExNHFTqLyp72eQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js" integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.31.3/js/jquery.tablesorter.min.js" integrity="sha512-qzgd5cYSZcosqpzpn7zF2ZId8f/8CHmFKZ8j7mU4OUXTNRd5g+ZHBPsgKEwoqxCtdQvExE5LprwwPAgoicguNg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.countdown/2.2.0/jquery.countdown.min.js" integrity="sha256-Ikk5myJowmDQaYVCUD0Wr+vIDkN8hGI58SGWdE671A8=" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js" integrity="sha512-BkpSL20WETFylMrcirBahHfSnY++H2O1W+UnEEO4yNIl+jI2+zowyoGJpbtk6bx97fBXf++WJHSSK2MV4ghPcg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.full.min.js" integrity="sha512-RtZU3AyMVArmHLiW0suEZ9McadTdegwbgtiQl5Qqo9kunkVg1ofwueXD8/8wv3Af8jkME3DDe3yLfR8HSJfT2g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.6.0/umd/popper.min.js" integrity="sha512-BmM0/BQlqh02wuK5Gz9yrbe7VyIVwOzD1o40yi1IsTjriX/NGF37NyXHfmFzIlMmoSIBXgqDiG1VNU6kB5dBbA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tippy.js/6.3.7/tippy-bundle.umd.min.js" integrity="sha512-gbruucq/Opx9jlHfqqZeAg2LNK3Y4BbpXHKDhRC88/tARL/izPOE4Zt2w6X9Sn1UeWaGbL38zW7nkL2jdn5JIw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/3.0.1/marked.min.js" integrity="sha512-VUuO/d6MS7hXmiFGEj7HtUa2FCI6Ll+xPvX9yX3bxn7ZqDWwleqXa8dtW13brbZ1ld2jiTrv8hWbpfp4B5mi4Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.2.1/sweetalert2.all.js" integrity="sha512-A7LzqKE/pm9ofgS0Lxu7qroQS5SkKJQaYJkJ/66nQiWZfEdeGlBq5zEXQ63VRmXZK8zPpCgFf2WQJIAljI0Vdw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdn.jsdelivr.net/npm/modal-video@2.4.6/js/modal-video.min.js" integrity="sha256-VqINwNxkS4VEDMq5O52YTckX+Mx84X6bafO8NxF21Xw=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.10.0/js/lightbox.min.js" integrity="sha256-DiHJ7hbvMejsMyP76bpVWacb5HSHQ2sQlrJV8n7KEvA=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.0.0/echarts.min.js" integrity="sha512-4/g9GAdOdTpUP2mKClpKsEzaK7FQNgMjq+No0rX8XZlfrCGtbi4r+T/p5fnacsEC3zIAmHKLJUL7sh3/yVA4OQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.0.0/theme/dark.min.js" integrity="sha512-3Zm64ayK7DflnnyO2pKkLJX3v9Sb90mvahbwPUuMzEf42HI6k8tquIx5VsNBjEWAcYJWzvimbqnTkLl2QdCUmw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.19.1/video.min.js" integrity="sha512-48NkCweTzA9u2sP4GgKcEDm6IScPIMga142ipKFNcHfz7feUJXDJxO1jwc2l+5MvWfwMj4BDfQv8WIMhrPxZLQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/3.2.1/mustache.min.js" integrity="sha512-Qjrukx28QnvFWISw9y4wCB0kTB/ISnWXPz5/RME5o8OlZqllWygc1AB64dOBlngeTeStmYmNTNcM6kfEjUdnnQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js" integrity="sha512-7O5pXpc0oCRrxk8RUfDYFgn0nO1t+jLuIOQdOMRp4APB7uZ4vSjspzp5y6YDtDs4VzUSTbWzBFZ/LKJhnyFOKw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js" integrity="sha512-JRlcvSZAXT8+5SQQAvklXGJuxXTouyq8oIMaYERZQasB8SBDHZaUbeASsJWpk0UUrf89DP3/aefPPrlMR1h1yQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha512-g2TeAWw5GPnX7z0Kn8nFbYfeHcvAu/tx6d6mrLe/90mkCxO+RcptyYpksUz35EO337F83bZwcmUyHiHamspkfg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+        <script src="https://cdn.poe2db.tw/js/ModsView.f39fca410dd746d3.js"></script>
+        <script src="https://cdn.poe2db.tw/js/poedb_header.29bf8e795e0a583f.js"></script>
+    
+    <script data-cfasync="false">window.nitroAds=window.nitroAds||{createAd:function(){return new Promise(e=>{window.nitroAds.queue.push(["createAd",arguments,e])})},addUserToken:function(){window.nitroAds.queue.push(["addUserToken",arguments])},queue:[]};</script>
+    <script data-cfasync="false" async src="https://s.nitropay.com/ads-2013.js"></script>
+
+    <meta property="og:site_name" content="poe2db.tw">
+<meta property="og:title" content="Jiquani's Thesis" />
+<meta property="og:image" content="https://cdn.poe2db.tw/image/Art/2DItems/Currency/PerfectSoulCores/SoulCoreSoul.webp" />
+
+  </head>
+
+  <body>
+
+    <div id="consent-box" style="display:none">
+      <button onclick="window.__cmp('showModal');">
+        Update cookie preferences
+      </button>
+    </div>
+    
+    <script>
+      if (window["nitroAds"] && window["nitroAds"].loaded) {
+        document.getElementById("consent-box").style.display = window["__tcfapi"]
+          ? ""
+          : "none";
+      } else {
+        document.addEventListener(
+          "nitroAds.loaded",
+          () =>
+            (document.getElementById("consent-box").style.display = window["__tcfapi"]
+              ? ""
+              : "none")
+        );
+      }
+    </script>
+
+
+    <div class="background-image item-popup--poe2"></div>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6598Z863E2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-6598Z863E2');
+</script>
+
+
+    <header>
+        <!-- Fixed navbar -->
+        <nav class="navbar navbar-expand-lg navbar-dark">
+          <div class="container">
+            <a class="navbar-brand fw-bold" href="/us/">PoE2<span class='brand-suffix'>DB</span><sub></sub></a>
+            <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"  aria-controls="navbarsExample07" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse">
+              <ul class="navbar-nav me-auto">
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|UIOptionsSectionTitleItems|Name">Item</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="themes">
+                    <li><a class="dropdown-item" href="/us/Items" data-i18n="ClientStrings|UIOptionsSectionTitleItems|Name">Item</a></li>
+                    <li><a class="dropdown-item" href="/us/Unique_item" data-i18n="ClientStrings|ItemDisplayStringUnique|Name"></a></li>
+                    <li><a class="dropdown-item" href="/us/Reforging_Bench" data-i18n="ClientStrings|RecipeBenchTitle|Name"></a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/us/Gem" data-i18n="ClientStrings|ItemDisplayStringGem|Name">Gem</a></li>
+                    <li><a class="dropdown-item" href="/us/Skill_Gems" data-i18n="ItemClasses|Active Skill Gem|Name">Skill Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Support_Gems" data-i18n="ItemClasses|Support Skill Gem|Name">Support Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Spirit_Gems" data-i18n-tw="精神寶石">Spirit Gems</a></li>
+                    <li><a class="dropdown-item" href="/us/Lineage_Supports" data-i18n="KeywordPopups|LineageSupports|Name">Lineage Supports</a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|ExpeditionModsTitle|Name">Modifiers</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu" aria-labelledby="themes">
+                    <li><a class="dropdown-item" href="/us/Modifiers" data-i18n="ClientStrings|ExpeditionModsTitle|Name">Modifiers</a></li>
+                    <li><a class="dropdown-item" href="/us/Keywords" data-i18n-tw="提示字">Keywords</a></li>
+                    <li><a class="dropdown-item" href="/us/Desecrated_Modifiers" data-i18n="KeywordPopups|Abyssalify|Name">Desecrated Modifiers</a></li>
+                    <li><a class="dropdown-item" href="/us/Crafting" data-i18n="ClientStrings|CraftingWindowTitle|Name">Crafting</a></li>
+                    <li><a class="dropdown-item" href="/us/Liquid_Emotions" data-i18n="KeywordPopups|DistilledEmotion|Name"></a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span data-i18n="ClientStrings|ItemDisplayStringQuest|Name">Quest</span> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a class="dropdown-item" href="/us/Quest" data-i18n="ClientStrings|ItemDisplayStringQuest|Name">Quest</a></li>
+                    <li><a class="dropdown-item" href="/us/Ascendancy_class" data-i18n="ClientStrings|TutorialPanelAscendancies|Name">Ascendancy Classes</a></li>
+                    <li><a class="dropdown-item" href="/us/passive-skill-tree/" data-i18n="ClientStrings|ActionOpenPassivePanel|Name">Passive Skill Tree</a></li>
+                    <li><a class="dropdown-item" href="/us/Act" data-i18n-tw="章節">Act</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/us/Waystones" data-i18n="ItemClasses|Map|Name">Waystones</a></li>
+                    <li><a class="dropdown-item" href="/us/EndGame" data-i18n="Acts|Endgame|Name"></a></li>
+                    <li><a class="dropdown-item" href="/us/atlas-skill-tree/" data-i18n="ClientStrings|ActionOpenAtlasPassivesScreen|Name"></a></li>
+                  </ul>
+                </li>
+    
+                <li class="nav-item"><a class="nav-link" href="Economy" data-i18n-tw="經濟" data-i18n-cn="经济">Economy</a></li>
+    
+                <li class="nav-item"><a class="ms-4 nav-link  bg-warning rounded-circle" style="color: white" href="/us/patreon">Patreon</a></li>
+              </ul>
+    
+    
+              <ul class="navbar-nav">
+                <li class="nav-item">
+                  <a class="nav-link fw-bold" aria-current="page" href="https://poedb.tw/us/">PoE<span class="brand-suffix">DB</span></a>
+                </li>
+    
+                <li class="nav-item dropdown">
+                  <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"> <i class="fas fa-language fa-lg"></i> <span class="caret"></span></a>
+                  <ul class="dropdown-menu" role="menu">
+                    <li><a class="dropdown-item" href="/tw/Jiquanis_Thesis">TW 繁體中文</a></li>
+                    <li><a class="dropdown-item" href="/cn/Jiquanis_Thesis">CN 简体中文</a></li>
+                    <li><a class="dropdown-item" href="/us/Jiquanis_Thesis">US English</a></li>
+                    <li><a class="dropdown-item" href="/kr/Jiquanis_Thesis">KR 한국어</a></li>
+                    <li><a class="dropdown-item" href="/ru/Jiquanis_Thesis">RU Русский</a></li>
+                    <li><a class="dropdown-item" href="/jp/Jiquanis_Thesis">JP Japanese</a></li>
+                    <li><a class="dropdown-item" href="/fr/Jiquanis_Thesis">FR Français</a></li>
+                    <li><a class="dropdown-item" href="/de/Jiquanis_Thesis">DE Deutsch</a></li>
+                    <li><a class="dropdown-item" href="/th/Jiquanis_Thesis">TH ภาษาไทย</a></li>
+                    <li><a class="dropdown-item" href="/pt/Jiquanis_Thesis">PO Português</a></li>
+                    <li><a class="dropdown-item" href="/sp/Jiquanis_Thesis">ES Spanish</a></li>
+                  </ul>
+                </li>
+              </ul>
+    
+            <form class="form-inline my-2 my-lg-0" role="search" action="search">
+              <input type="hidden" name="token" value="70738cdf56476ff3dbf810af7ad26b52ecf0595c62cad84cd5031fa81c93c0ce4b4979">
+              <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search" name="q" id="navautosearch">
+            </form>
+    
+            </div><!--/.nav-collapse -->
+          </div><!--/.container-fluid -->
+        </nav>
+    </header>
+
+<script>sidebar160("leftside_banner", "left");</script>
+<script>sidebar160("rightside_banner", "right");</script>
+
+
+
+    <div class="page poe2">
+    <div class="page-content theme-showcase container" role="main">
+
+
+<div class="card mb-2" id="head_toolbar">
+  <div class="card-body p-1">
+    <div class="league_bar text-center">
+      <a href="Runes_of_Aldur_league" data-bs-toggle="tooltip" title="Runes of Aldur v0.5" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Expedition2RemnantActive.webp" alt="Expedition2RemnantActive" class="league_minimap" /></span></a><a href="Atziris_Temple" data-bs-toggle="tooltip" title="Atziri v0.4" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/IncursionAtziriActive.webp" alt="IncursionAtziriActive" class="league_minimap" /></span></a><a href="Waystones" data-bs-toggle="tooltip" title="Waystones" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/6967bef8f8e36673401bdc8734ca568f3658e345535c2de9861db9d98a3c6efa"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2ditems/maps/endgamemaps/endgamemap1.webp" class="league_minimap"/></a><a href="Shrine" data-bs-toggle="tooltip" title="Shrine" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/f3b7bd4d1b71efea5337f642ee2290b988c01bd82715f47a5fabd7b8806ffeed"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/ShrineActive.webp" alt="ShrineActive" class="league_minimap" /></span></a><a href="Strongbox" data-bs-toggle="tooltip" title="Strongbox" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/dd8569610376eaeaf3c76bac2aca75f93dfeeb0b08b8677b44aecf4aa7bd597a"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Strongbox.webp" alt="Strongbox" class="league_minimap" /></span></a><a href="Essence" data-bs-toggle="tooltip" title="Essence" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c300ee10453c0d3d4676fe3426f3cfa05d5758ec6d2c191dbc688110ed74c5ac"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/Essence.webp" alt="Essence" class="league_minimap" /></span></a><a href="Archnemesis" data-bs-toggle="tooltip" title="Archnemesis" ><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/RareMonsterAlive.webp" alt="RareMonsterAlive" class="league_minimap" /></span></a><a href="Azmeri_Spirit" data-bs-toggle="tooltip" title="Azmeri Spirit v0.2" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c10c2802f88f4e4bc5c5d836b14b9783ba4e9401fc73703f23a6ba31fa09dd29"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/SpiritActivated.webp" alt="SpiritActivated" class="league_minimap" /></span></a><a href="Rogue_Exile" data-bs-toggle="tooltip" title="Rogue Exile" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/e2f177b41880870c4a928311cf516fed73a7566e723389f13d8fcbc86608a561"><span class="MinimapIcons"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/minimap/player/RogueExile.webp" alt="RogueExile" class="league_minimap" /></span></a><a href="Abyss" data-bs-toggle="tooltip" title="Abyss v0.3" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/6003fdff81f9d17ef8f0e7a87283185b667c6616526433d662e01bf5db25c440"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/textures/interface/2d/2dart/uiimages/ingame/worldmap/mapbuttonabysshub.webp" class="league_minimap"/></a><a href="Breach" data-bs-toggle="tooltip" title="Breach" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/0eac14cede43f4ac369319d118f9e058fad773b652259373cea970a34422c789"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentbreach.webp" class="league_minimap"/></a><a href="Ritual" data-bs-toggle="tooltip" title="Ritual" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/422d58c1d59cfa4eaa519e1b080f6805f7a953495d5e87b32161edf941ba6a55"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentritual.webp" class="league_minimap"/></a><a href="Delirium" data-bs-toggle="tooltip" title="Delirium" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/ee3f90b5c813b08eb8f10086acd631a6c320b3a2c44cb0683d6755557213ff29"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentdelirium.webp" class="league_minimap"/></a><a href="Expedition" data-bs-toggle="tooltip" title="Expedition" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/82090e1f6b3f4f6bbe404b10bc48aed4a89fdf72cb8f07822951dbbda7b001f1"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/atlasscreen/atlasiconcontent/atlasiconcontentexpedition.webp" class="league_minimap"/></a><a href="The_Burning_Monolith" data-bs-toggle="tooltip" title="The Burning Monolith" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/4e64bc88d5ecc1043e97cef77776c3a7578900ce6c2b439d9c611ee1d162a88d"><img loading="lazy" src="https://cdn.poe2db.tw/image/art/2dart/uiimages/ingame/maplegend/monolith.webp" class="league_minimap"/></a><a href="Trial_of_the_Sekhemas" data-bs-toggle="tooltip" title="Trial of the Sekhemas" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/105f81cab9c06cbc40ac8051a29ccc806981200b1acaf3680d95a4c508eec89a"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/WorldMap/MapButtonSanctum.webp" class="league_minimap"/></a><a href="The_Trial_of_Chaos" data-bs-toggle="tooltip" title="The Trial of Chaos" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/105f81cab9c06cbc40ac8051a29ccc806981200b1acaf3680d95a4c508eec89a"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DArt/UIImages/InGame/WorldMap/MapButtonUltimatum.webp" class="league_minimap"/></a>
+    </div>
+  </div>
+</div>
+
+
+
+<div id="topbanner970"></div><script>topbanner970("topbanner970");</script>
+
+<ul class="nav nav-tabs d-flex flex-wrap" role="tablist"><li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" role="tab" aria-selected="true" href="#JiquanisThesisThesisOfSouls">Jiquani's Thesis ThesisOfSouls</a></li><li class="nav-item"><a class="nav-link" data-bs-toggle="tab" role="tab" aria-selected="false" href="#JiquanisThesis">Jiquani's Thesis /1 </a></li><li class="nav-item"><a class="nav-link" data-bs-toggle="tab" role="tab" aria-selected="false" href="#JiquanisThesis_Markdown3">Jiquani's Thesis</a></li></ul><div class="tab-content"><div id="JiquanisThesisThesisOfSouls" class="tab-pane fade show active"><span data-tabname="Jiquani's Thesis <small>ThesisOfSouls</small>"></span><div class="py-2"><div class="d-flex flex-wrap">
+
+<div class="newItemPopup CurrencyPopup item-popup--poe2 "
+>
+    <div class="itemHeader singleLine">
+
+        <div class="itemName typeLine">
+            <span class="lc">Jiquani's Thesis</span>
+        </div>
+    </div>
+    <div class="content">
+        <div class="Stats">
+            <div class="property"><a data-keyword="SoulCore" href="Soul_Core" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/86293af6265a53115587f4c8b7961ecfab1ea71eb8ffa72f1f886fb35876a5be">Soul Core</a></div><div class="property">Limited to: <span class='colourDefault'>1 <a data-keyword="Ancient" href="Ancient_Augment" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/0e4d977dcb06ff5c6d94c7d53bdd754b21c13aa7b8f68b77e2eb38a0d1afca49">Ancient Augment</a></span></div><div class="separator"></div><div class="requirements">Requires:  <span class="colourDefault">Level 60</span></div><div class="separator"></div><div class="implicitMod"><a class="ItemClasses " href="Helmets">Helmets</a>: <span class='mod-value'>+1</span> to maximum Mana per 3 <a data-keyword="ItemArmour" href="Item_Armour" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/5d5d03ba3c2f4c1e582acb0a5a40679db1285ec79ade7f0974e08047473e2ef8">Item Armour</a> on <a data-keyword="Equipped" href="Equipped" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/00c8d1b27b176d9d66d6973d1d1b9139d7afb460cb4139fc9f9b0a5db9e4016a">Equipped</a> Helmet</div><div class="implicitMod"><a class="ItemClasses " href="Gloves">Gloves</a>: <a data-keyword="ESRecharge" href="Energy_Shield_Recharge" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/9875bc91d1015d2c995bef7235a7707d9b4e35ada9f7bd52ea7c7f4dbae27589">Energy Shield Recharge</a> starts after spending a total of<br/> 2000 Mana, no more than once every 2 seconds</div><div class="implicitMod"><a class="ItemClasses " href="Boots">Boots</a>: Increases and Reductions to Movement Speed also<br/> apply to <a data-keyword="ESRechargeRate" href="Energy_Shield_Recharge_Rate" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/a4c99c6b7e4fe2fd74d32f45f9deb2aebe477c44de9077e90c8cc915cc4c61e9">Energy Shield Recharge Rate</a></div>
+        </div>
+
+        <div class="separator"></div>
+        <div class="FlavourText">
+            "The soul carries the truth of what we are.<br/>That is where we should focus our efforts."
+        </div>
+
+        <div class="separator"></div>
+        <div class="default fst-italic">
+            Place into an empty <a data-keyword="Augment" href="Augment" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c39bcdf32d811d9233f59c1dced143bf90a65029a0c6aaa6947d388f3921d651">Augment</a> Socket in a Weapon or Armour to apply its effect to that item. Once socketed it cannot be retrieved but can be replaced by other <a data-keyword="Augment" href="Augment" class="KeywordPopups" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/c39bcdf32d811d9233f59c1dced143bf90a65029a0c6aaa6947d388f3921d651">Augment</a> items.
+        </div>
+
+        <div>
+            
+        </div>
+    </div>
+</div>
+
+
+        <div class="itemboximage">
+
+                <img loading="lazy" class="" src="https://cdn.poe2db.tw/image/Art/2DItems/Currency/PerfectSoulCores/SoulCoreSoul.webp"/>
+
+        </div>
+
+
+
+</div>
+</div><div   class="card mb-2 ">
+   <h5 class="card-header">Jiquani's Thesis ThesisOfSouls /9 </h5>   <div class='table-responsive'><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>Name</th><th>Show Full Descriptions</th></tr></thead><tbody>
+<tr><td>Currency Exchange</td><td>1500 Gold</td></tr>
+<tr><td>NoteCode</td><td>jiquanis-thesis</td></tr>
+<tr><td>DropLevel <span class='fas fa-info-circle' data-bs-toggle='tooltip' title='Item Filter'></span></td><td>65</td></tr>
+<tr><td>BaseType <span class='fas fa-info-circle' data-bs-toggle='tooltip' title='Item Filter'></span></td><td>Jiquani's Thesis</td></tr>
+<tr><td>Class <span class='fas fa-info-circle' data-bs-toggle='tooltip' title='Item Filter'></span></td><td><a class="ItemClasses  KeywordPopups" href="Augment" data-hover="https://cdn.poe2db.tw/cache2/us/Poe_Data_KeywordPopups_hover/cd1a2c111b6dfdd47307433c5c7bbb67b250a375a4916db0eb933a6baa6885ae">Augment</a></td></tr>
+<tr><td>Flags</td><td><span>AlwaysAllocate</span></td></tr>
+<tr><td>Type</td><td>Metadata/Items/SoulCores/ThesisOfSouls</td></tr>
+<tr><td>Tags</td><td>soul_core, soul_core_vaal</td></tr>
+<tr><td>Icon</td><td>Art/2DItems/Currency/PerfectSoulCores/SoulCoreSoul</td></tr></tbody></table></div>  </div><div class='clearfix row'></div><div   class="card mb-2 ">
+      <div class="table-responsive"><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>key</th><th>val</th></tr></thead><tbody id="VLR30ycwWW"><tr><td>Base.base_level</td><td>1</td></tr><tr><td>Base.tag</td><td>default</td></tr><tr><td>Base.x_size</td><td>1</td></tr><tr><td>Base.y_size</td><td>1</td></tr><tr><td>Base.description_text</td><td>ItemDescriptionSoulCore</td></tr></tbody></table></div>  </div></div><div id="JiquanisThesis" class="tab-pane fade"><div   class="card mb-2 ">
+   <h5 class="card-header">Jiquani's Thesis /1 </h5> <div class="card-body"><a href="Economy">US Realm Economy</a> / <a href="Jiquanis_Thesis" class="border p-1">Wiki</a></div>  <div class="table-responsive"><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>24h Value</th><th>24h volume traded</th></tr></thead><tbody id="PQ73AIaT4y"><tr><td>452 <a href="Economy_divine"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/2986e220b3/CurrencyModValues.png"/>Divine Orb</a> <i class="fa-solid fa-left-right text-muted"></i> 1 <a href="Economy_jiquanis-thesis"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvUGVyZmVjdFNvdWxDb3Jlcy9Tb3VsQ29yZVNvdWwiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/a45ab2bca2/SoulCoreSoul.png"/>Jiquani's Thesis</a></td><td><div class="text-end">5 <a href="Economy_jiquanis-thesis"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvUGVyZmVjdFNvdWxDb3Jlcy9Tb3VsQ29yZVNvdWwiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/a45ab2bca2/SoulCoreSoul.png"/></a></div></td></tr></tbody></table></div>  </div><div id="mainxRNKIKBirt" class="echarts" style="height: 600px;"></div>
+
+<script>
+
+var chartDom = document.getElementById('mainxRNKIKBirt');
+var myChart = echarts.init(chartDom, 'dark');
+var option;
+
+const upColor = '#ec0000';
+const upBorderColor = '#8A0000';
+const downColor = '#00da3c';
+const downBorderColor = '#008F28';
+// Each item: open，close，lowest，highest
+const data0 = splitData([["2026-08-14",427,436,427,490],["2026-08-15",445,372,372,488],["2026-08-16",362,381,344,431],["2026-08-17",367,476,367,529],["2026-08-18",470,448,374,473],["2026-08-19",467,441,415,497],["2026-08-20",452,473,422,473],["2026-08-21",499,524,457,552],["2026-08-22",514,480,472,543],["2026-08-23",471,493,471,527],["2026-08-24",467,493,467,525],["2026-08-25",493,473,473,517],["2026-08-26",497,479,470,499],["2026-08-27",485,465,445,495],["2026-08-28",499,459,391,500],["2026-08-29",483,494,457,494],["2026-08-30",495,489,472,544],["2026-08-31",498,524,471,811],["2026-09-01",498,484,430,499],["2026-09-02",460,451,450,496],["2026-09-03",485,489,454,492],["2026-09-04",475,548,475,550],["2026-09-05",545,493,493,570],["2026-09-06",569,549,491,579],["2026-09-07",522,549,464,595],["2026-09-08",407,404,402,549],["2026-09-09",529,401,401,1000],["2026-09-10",432,509,423,520],["2026-09-11",471,449,382,499],["2026-09-12",450,498,450,498],["2026-09-13",499,268,268,499]]);
+function splitData(rawData) {
+  const categoryData = [];
+  const values = [];
+  for (var i = 0; i < rawData.length; i++) {
+    categoryData.push(rawData[i].splice(0, 1)[0]);
+    values.push(rawData[i]);
+  }
+  return {
+    categoryData: categoryData,
+    values: values
+  };
+}
+function calculateMA(dayCount) {
+  var result = [];
+  for (var i = 0, len = data0.values.length; i < len; i++) {
+    if (i < dayCount) {
+      result.push('-');
+      continue;
+    }
+    var sum = 0;
+    for (var j = 0; j < dayCount; j++) {
+      sum += +data0.values[i - j][1];
+    }
+    result.push(sum / dayCount);
+  }
+  return result;
+}
+option = {
+  title: {
+    text: "Jiquani's Thesis <-> Divine Orb",
+    left: 0
+  },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: {
+      type: 'cross'
+    }
+  },
+  legend: {
+    data: ['MA1', 'MA5', 'MA10', 'MA20', 'MA30'],
+    top: 20
+  },
+  grid: {
+    left: '10%',
+    right: '10%',
+    bottom: '15%'
+  },
+  xAxis: {
+    type: 'category',
+    data: data0.categoryData,
+    boundaryGap: false,
+    axisLine: { onZero: false },
+    splitLine: { show: false },
+    min: 'dataMin',
+    max: 'dataMax'
+  },
+  yAxis: {
+    scale: true,
+    splitArea: {
+      show: true
+    }
+  },
+  dataZoom: [
+    {
+      type: 'slider',
+      start: 0,
+      end: 100
+    },
+    {
+      show: true,
+      type: 'slider',
+      top: '90%',
+      start: 0,
+      end: 100
+    }
+  ],
+  series: [
+    {
+      name: 'MA1',
+      type: 'candlestick',
+      data: data0.values,
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upBorderColor,
+        borderColor0: downBorderColor
+      },
+      markPoint: {
+        label: {
+          formatter: function (param) {
+            return param != null ? Math.round(param.value) + '' : '';
+          }
+        },
+        data: [
+          {
+            name: 'Mark',
+            coord: ['2013/5/31', 2300],
+            value: 2300,
+            itemStyle: {
+              color: 'rgb(41,60,85)'
+            }
+          },
+          {
+            name: 'highest value',
+            type: 'max',
+            valueDim: 'highest'
+          },
+          {
+            name: 'lowest value',
+            type: 'min',
+            valueDim: 'lowest'
+          },
+          {
+            name: 'average value on close',
+            type: 'average',
+            valueDim: 'close'
+          }
+        ],
+        tooltip: {
+          formatter: function (param) {
+            return param.name + '<br>' + (param.data.coord || '');
+          }
+        }
+      },
+      markLine: {
+        symbol: ['none', 'none'],
+        data: [
+          [
+            {
+              name: 'from lowest to highest',
+              type: 'min',
+              valueDim: 'lowest',
+              symbol: 'circle',
+              symbolSize: 10,
+              label: {
+                show: false
+              },
+              emphasis: {
+                label: {
+                  show: false
+                }
+              }
+            },
+            {
+              type: 'max',
+              valueDim: 'highest',
+              symbol: 'circle',
+              symbolSize: 10,
+              label: {
+                show: false
+              },
+              emphasis: {
+                label: {
+                  show: false
+                }
+              }
+            }
+          ],
+          {
+            name: 'min line on close',
+            type: 'min',
+            valueDim: 'close'
+          },
+          {
+            name: 'max line on close',
+            type: 'max',
+            valueDim: 'close'
+          }
+        ]
+      }
+    },
+    {
+      name: 'MA5',
+      type: 'line',
+      data: calculateMA(5),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    },
+    {
+      name: 'MA10',
+      type: 'line',
+      data: calculateMA(10),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    },
+    {
+      name: 'MA20',
+      type: 'line',
+      data: calculateMA(20),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    },
+    {
+      name: 'MA30',
+      type: 'line',
+      data: calculateMA(30),
+      smooth: true,
+      lineStyle: {
+        opacity: 0.5
+      }
+    }
+  ]
+};
+
+option && myChart.setOption(option);
+
+
+</script>
+
+<div id="KYJi2w9QWo" class="echarts echartCurrencyExchange"></div>
+<script>
+$(function() {
+    echarts.init(document.getElementById('KYJi2w9QWo'), 'dark').setOption({"title":{"text":"Jiquani's Thesis <-> Divine Orb day","left":0},"tooltip":{"trigger":"axis"},"axisPointer":{"link":{"xAxisIndex":"all"}},"dataZoom":[{"type":"slider","xAxisIndex":[0,1]},{"type":"slider","xAxisIndex":[0,1]}],"legend":{"data":["rate","volume traded"],"top":"20"},"grid":[{"left":"10%","height":"55%"},{"left":"10%","top":"75%","height":"15%"}],"xAxis":[{"name":"Date","data":["2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13"]},{"name":"Date","data":["2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-05","2026-09-06","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13"],"gridIndex":1,"show":false}],"yAxis":[{"type":"value","name":"rate"},{"type":"value","name":"volume traded","gridIndex":1}],"series":[{"name":"rate","type":"line","markPoint":{"data":[{"type":"min","name":"Min"},{"type":"max","name":"Max"}]},"data":[457,442,385,436,436,451,445,511,510,502,495,491,485,478,449,483,496,594,476,472,475,514,531,526,526,480,521,459,446,483,384]},{"name":"volume traded","type":"bar","xAxisIndex":1,"yAxisIndex":1,"data":["77","117","137","93","121","91","85","71","90","83","77","65","78","78","86","76","86","83","59","66","52","48","20","23","11","14","8","6","11","5","2"]}]});
+});
+</script>
+
+<div id="GpDCFd7lzK" class="echarts echartCurrencyExchange"></div>
+<script>
+$(function() {
+    echarts.init(document.getElementById('GpDCFd7lzK'), 'dark').setOption({"title":{"text":"Jiquani's Thesis <-> Divine Orb hour","left":0},"tooltip":{"trigger":"axis"},"axisPointer":{"link":{"xAxisIndex":"all"}},"dataZoom":[{"type":"slider","xAxisIndex":[0,1]},{"type":"slider","xAxisIndex":[0,1]}],"legend":{"data":["rate","volume traded"],"top":"20"},"grid":[{"left":"10%","height":"55%"},{"left":"10%","top":"75%","height":"15%"}],"xAxis":[{"name":"Date","data":["08-13 17 UTC","08-13 18 UTC","08-13 19 UTC","08-13 20 UTC","08-13 21 UTC","08-13 22 UTC","08-13 23 UTC","08-14 00 UTC","08-14 01 UTC","08-14 02 UTC","08-14 03 UTC","08-14 04 UTC","08-14 05 UTC","08-14 06 UTC","08-14 07 UTC","08-14 08 UTC","08-14 09 UTC","08-14 10 UTC","08-14 12 UTC","08-14 13 UTC","08-14 14 UTC","08-14 15 UTC","08-14 16 UTC","08-14 17 UTC","08-14 18 UTC","08-14 19 UTC","08-14 20 UTC","08-14 21 UTC","08-14 22 UTC","08-14 23 UTC","08-15 00 UTC","08-15 01 UTC","08-15 02 UTC","08-15 03 UTC","08-15 04 UTC","08-15 05 UTC","08-15 06 UTC","08-15 07 UTC","08-15 08 UTC","08-15 09 UTC","08-15 10 UTC","08-15 11 UTC","08-15 12 UTC","08-15 13 UTC","08-15 14 UTC","08-15 15 UTC","08-15 16 UTC","08-15 17 UTC","08-15 18 UTC","08-15 19 UTC","08-15 20 UTC","08-15 21 UTC","08-15 22 UTC","08-15 23 UTC","08-16 00 UTC","08-16 01 UTC","08-16 02 UTC","08-16 03 UTC","08-16 04 UTC","08-16 05 UTC","08-16 06 UTC","08-16 07 UTC","08-16 08 UTC","08-16 09 UTC","08-16 10 UTC","08-16 11 UTC","08-16 12 UTC","08-16 13 UTC","08-16 14 UTC","08-16 15 UTC","08-16 16 UTC","08-16 17 UTC","08-16 18 UTC","08-16 19 UTC","08-16 20 UTC","08-16 21 UTC","08-16 22 UTC","08-16 23 UTC","08-17 00 UTC","08-17 01 UTC","08-17 02 UTC","08-17 03 UTC","08-17 04 UTC","08-17 05 UTC","08-17 06 UTC","08-17 08 UTC","08-17 09 UTC","08-17 10 UTC","08-17 11 UTC","08-17 12 UTC","08-17 13 UTC","08-17 14 UTC","08-17 15 UTC","08-17 16 UTC","08-17 17 UTC","08-17 18 UTC","08-17 19 UTC","08-17 20 UTC","08-17 21 UTC","08-17 22 UTC","08-17 23 UTC","08-18 00 UTC","08-18 01 UTC","08-18 02 UTC","08-18 03 UTC","08-18 04 UTC","08-18 05 UTC","08-18 06 UTC","08-18 07 UTC","08-18 08 UTC","08-18 09 UTC","08-18 10 UTC","08-18 11 UTC","08-18 12 UTC","08-18 13 UTC","08-18 14 UTC","08-18 15 UTC","08-18 16 UTC","08-18 17 UTC","08-18 18 UTC","08-18 19 UTC","08-18 20 UTC","08-18 21 UTC","08-18 23 UTC","08-19 00 UTC","08-19 01 UTC","08-19 02 UTC","08-19 03 UTC","08-19 04 UTC","08-19 05 UTC","08-19 06 UTC","08-19 08 UTC","08-19 09 UTC","08-19 10 UTC","08-19 11 UTC","08-19 12 UTC","08-19 13 UTC","08-19 14 UTC","08-19 15 UTC","08-19 16 UTC","08-19 17 UTC","08-19 18 UTC","08-19 19 UTC","08-19 20 UTC","08-19 21 UTC","08-19 22 UTC","08-19 23 UTC","08-20 00 UTC","08-20 01 UTC","08-20 02 UTC","08-20 03 UTC","08-20 04 UTC","08-20 06 UTC","08-20 07 UTC","08-20 08 UTC","08-20 09 UTC","08-20 10 UTC","08-20 11 UTC","08-20 12 UTC","08-20 13 UTC","08-20 14 UTC","08-20 15 UTC","08-20 16 UTC","08-20 17 UTC","08-20 18 UTC","08-20 19 UTC","08-20 20 UTC","08-20 21 UTC","08-20 22 UTC","08-21 00 UTC","08-21 01 UTC","08-21 02 UTC","08-21 03 UTC","08-21 05 UTC","08-21 06 UTC","08-21 07 UTC","08-21 08 UTC","08-21 09 UTC","08-21 10 UTC","08-21 12 UTC","08-21 13 UTC","08-21 14 UTC","08-21 15 UTC","08-21 16 UTC","08-21 17 UTC","08-21 18 UTC","08-21 19 UTC","08-21 20 UTC","08-21 21 UTC","08-21 22 UTC","08-21 23 UTC","08-22 01 UTC","08-22 02 UTC","08-22 03 UTC","08-22 04 UTC","08-22 05 UTC","08-22 06 UTC","08-22 07 UTC","08-22 08 UTC","08-22 09 UTC","08-22 10 UTC","08-22 11 UTC","08-22 12 UTC","08-22 14 UTC","08-22 15 UTC","08-22 16 UTC","08-22 17 UTC","08-22 18 UTC","08-22 19 UTC","08-22 20 UTC","08-22 21 UTC","08-22 22 UTC","08-22 23 UTC","08-23 00 UTC","08-23 01 UTC","08-23 02 UTC","08-23 03 UTC","08-23 04 UTC","08-23 05 UTC","08-23 06 UTC","08-23 07 UTC","08-23 08 UTC","08-23 09 UTC","08-23 10 UTC","08-23 11 UTC","08-23 12 UTC","08-23 13 UTC","08-23 14 UTC","08-23 15 UTC","08-23 16 UTC","08-23 17 UTC","08-23 18 UTC","08-23 19 UTC","08-23 20 UTC","08-23 21 UTC","08-23 22 UTC","08-23 23 UTC","08-24 00 UTC","08-24 01 UTC","08-24 03 UTC","08-24 04 UTC","08-24 05 UTC","08-24 06 UTC","08-24 07 UTC","08-24 08 UTC","08-24 09 UTC","08-24 10 UTC","08-24 11 UTC","08-24 12 UTC","08-24 14 UTC","08-24 15 UTC","08-24 16 UTC","08-24 17 UTC","08-24 18 UTC","08-24 19 UTC","08-24 20 UTC","08-24 21 UTC","08-24 22 UTC","08-24 23 UTC","08-25 00 UTC","08-25 01 UTC","08-25 02 UTC","08-25 03 UTC","08-25 05 UTC","08-25 06 UTC","08-25 07 UTC","08-25 08 UTC","08-25 09 UTC","08-25 10 UTC","08-25 11 UTC","08-25 12 UTC","08-25 13 UTC","08-25 14 UTC","08-25 15 UTC","08-25 16 UTC","08-25 17 UTC","08-25 18 UTC","08-25 19 UTC","08-25 20 UTC","08-25 21 UTC","08-25 22 UTC","08-25 23 UTC","08-26 00 UTC","08-26 01 UTC","08-26 02 UTC","08-26 03 UTC","08-26 04 UTC","08-26 05 UTC","08-26 06 UTC","08-26 07 UTC","08-26 08 UTC","08-26 09 UTC","08-26 10 UTC","08-26 11 UTC","08-26 12 UTC","08-26 13 UTC","08-26 14 UTC","08-26 15 UTC","08-26 16 UTC","08-26 17 UTC","08-26 18 UTC","08-26 19 UTC","08-26 20 UTC","08-26 21 UTC","08-26 22 UTC","08-26 23 UTC","08-27 00 UTC","08-27 01 UTC","08-27 02 UTC","08-27 03 UTC","08-27 04 UTC","08-27 05 UTC","08-27 06 UTC","08-27 07 UTC","08-27 08 UTC","08-27 09 UTC","08-27 10 UTC","08-27 11 UTC","08-27 12 UTC","08-27 13 UTC","08-27 14 UTC","08-27 15 UTC","08-27 16 UTC","08-27 17 UTC","08-27 18 UTC","08-27 19 UTC","08-27 20 UTC","08-27 21 UTC","08-27 22 UTC","08-27 23 UTC","08-28 00 UTC","08-28 01 UTC","08-28 02 UTC","08-28 03 UTC","08-28 04 UTC","08-28 06 UTC","08-28 07 UTC","08-28 08 UTC","08-28 09 UTC","08-28 10 UTC","08-28 11 UTC","08-28 12 UTC","08-28 13 UTC","08-28 14 UTC","08-28 15 UTC","08-28 16 UTC","08-28 17 UTC","08-28 18 UTC","08-28 19 UTC","08-28 20 UTC","08-28 21 UTC","08-28 22 UTC","08-28 23 UTC","08-29 00 UTC","08-29 01 UTC","08-29 03 UTC","08-29 04 UTC","08-29 06 UTC","08-29 07 UTC","08-29 08 UTC","08-29 09 UTC","08-29 10 UTC","08-29 11 UTC","08-29 12 UTC","08-29 13 UTC","08-29 14 UTC","08-29 15 UTC","08-29 16 UTC","08-29 17 UTC","08-29 18 UTC","08-29 19 UTC","08-29 20 UTC","08-29 21 UTC","08-29 22 UTC","08-29 23 UTC","08-30 00 UTC","08-30 01 UTC","08-30 02 UTC","08-30 03 UTC","08-30 04 UTC","08-30 05 UTC","08-30 06 UTC","08-30 07 UTC","08-30 08 UTC","08-30 09 UTC","08-30 10 UTC","08-30 11 UTC","08-30 12 UTC","08-30 13 UTC","08-30 14 UTC","08-30 15 UTC","08-30 16 UTC","08-30 17 UTC","08-30 19 UTC","08-30 20 UTC","08-30 21 UTC","08-30 22 UTC","08-30 23 UTC","08-31 00 UTC","08-31 01 UTC","08-31 03 UTC","08-31 04 UTC","08-31 05 UTC","08-31 06 UTC","08-31 07 UTC","08-31 08 UTC","08-31 09 UTC","08-31 10 UTC","08-31 11 UTC","08-31 12 UTC","08-31 13 UTC","08-31 14 UTC","08-31 15 UTC","08-31 16 UTC","08-31 17 UTC","08-31 18 UTC","08-31 19 UTC","08-31 20 UTC","08-31 21 UTC","08-31 23 UTC","09-01 00 UTC","09-01 01 UTC","09-01 03 UTC","09-01 04 UTC","09-01 05 UTC","09-01 06 UTC","09-01 08 UTC","09-01 09 UTC","09-01 10 UTC","09-01 11 UTC","09-01 12 UTC","09-01 13 UTC","09-01 14 UTC","09-01 15 UTC","09-01 16 UTC","09-01 17 UTC","09-01 19 UTC","09-01 20 UTC","09-01 21 UTC","09-01 22 UTC","09-01 23 UTC","09-02 00 UTC","09-02 01 UTC","09-02 03 UTC","09-02 04 UTC","09-02 05 UTC","09-02 06 UTC","09-02 07 UTC","09-02 08 UTC","09-02 09 UTC","09-02 10 UTC","09-02 11 UTC","09-02 12 UTC","09-02 13 UTC","09-02 14 UTC","09-02 15 UTC","09-02 17 UTC","09-02 19 UTC","09-02 20 UTC","09-02 21 UTC","09-03 00 UTC","09-03 01 UTC","09-03 02 UTC","09-03 04 UTC","09-03 05 UTC","09-03 06 UTC","09-03 07 UTC","09-03 09 UTC","09-03 10 UTC","09-03 11 UTC","09-03 12 UTC","09-03 13 UTC","09-03 14 UTC","09-03 15 UTC","09-03 16 UTC","09-03 18 UTC","09-03 19 UTC","09-03 20 UTC","09-03 21 UTC","09-03 23 UTC","09-04 00 UTC","09-04 01 UTC","09-04 02 UTC","09-04 04 UTC","09-04 05 UTC","09-04 06 UTC","09-04 08 UTC","09-04 09 UTC","09-04 10 UTC","09-04 11 UTC","09-04 12 UTC","09-04 13 UTC","09-04 14 UTC","09-04 15 UTC","09-04 16 UTC","09-04 17 UTC","09-05 00 UTC","09-05 03 UTC","09-05 04 UTC","09-05 05 UTC","09-05 06 UTC","09-05 08 UTC","09-05 12 UTC","09-05 13 UTC","09-05 16 UTC","09-05 18 UTC","09-05 19 UTC","09-05 22 UTC","09-06 00 UTC","09-06 01 UTC","09-06 02 UTC","09-06 03 UTC","09-06 05 UTC","09-06 06 UTC","09-06 07 UTC","09-06 08 UTC","09-06 10 UTC","09-06 13 UTC","09-06 15 UTC","09-06 17 UTC","09-06 18 UTC","09-06 20 UTC","09-07 05 UTC","09-07 06 UTC","09-07 07 UTC","09-07 08 UTC","09-07 10 UTC","09-07 13 UTC","09-07 16 UTC","09-07 17 UTC","09-07 20 UTC","09-08 01 UTC","09-08 02 UTC","09-08 03 UTC","09-08 06 UTC","09-08 08 UTC","09-08 09 UTC","09-08 10 UTC","09-08 12 UTC","09-08 16 UTC","09-08 17 UTC","09-09 01 UTC","09-09 08 UTC","09-09 10 UTC","09-09 11 UTC","09-09 14 UTC","09-09 16 UTC","09-09 17 UTC","09-10 02 UTC","09-10 12 UTC","09-10 14 UTC","09-10 19 UTC","09-10 20 UTC","09-10 21 UTC","09-10 23 UTC","09-11 06 UTC","09-11 08 UTC","09-11 13 UTC","09-11 14 UTC","09-11 18 UTC","09-11 22 UTC","09-12 05 UTC","09-12 14 UTC","09-12 16 UTC","09-12 19 UTC"]},{"name":"Date","data":["08-13 17 UTC","08-13 18 UTC","08-13 19 UTC","08-13 20 UTC","08-13 21 UTC","08-13 22 UTC","08-13 23 UTC","08-14 00 UTC","08-14 01 UTC","08-14 02 UTC","08-14 03 UTC","08-14 04 UTC","08-14 05 UTC","08-14 06 UTC","08-14 07 UTC","08-14 08 UTC","08-14 09 UTC","08-14 10 UTC","08-14 12 UTC","08-14 13 UTC","08-14 14 UTC","08-14 15 UTC","08-14 16 UTC","08-14 17 UTC","08-14 18 UTC","08-14 19 UTC","08-14 20 UTC","08-14 21 UTC","08-14 22 UTC","08-14 23 UTC","08-15 00 UTC","08-15 01 UTC","08-15 02 UTC","08-15 03 UTC","08-15 04 UTC","08-15 05 UTC","08-15 06 UTC","08-15 07 UTC","08-15 08 UTC","08-15 09 UTC","08-15 10 UTC","08-15 11 UTC","08-15 12 UTC","08-15 13 UTC","08-15 14 UTC","08-15 15 UTC","08-15 16 UTC","08-15 17 UTC","08-15 18 UTC","08-15 19 UTC","08-15 20 UTC","08-15 21 UTC","08-15 22 UTC","08-15 23 UTC","08-16 00 UTC","08-16 01 UTC","08-16 02 UTC","08-16 03 UTC","08-16 04 UTC","08-16 05 UTC","08-16 06 UTC","08-16 07 UTC","08-16 08 UTC","08-16 09 UTC","08-16 10 UTC","08-16 11 UTC","08-16 12 UTC","08-16 13 UTC","08-16 14 UTC","08-16 15 UTC","08-16 16 UTC","08-16 17 UTC","08-16 18 UTC","08-16 19 UTC","08-16 20 UTC","08-16 21 UTC","08-16 22 UTC","08-16 23 UTC","08-17 00 UTC","08-17 01 UTC","08-17 02 UTC","08-17 03 UTC","08-17 04 UTC","08-17 05 UTC","08-17 06 UTC","08-17 08 UTC","08-17 09 UTC","08-17 10 UTC","08-17 11 UTC","08-17 12 UTC","08-17 13 UTC","08-17 14 UTC","08-17 15 UTC","08-17 16 UTC","08-17 17 UTC","08-17 18 UTC","08-17 19 UTC","08-17 20 UTC","08-17 21 UTC","08-17 22 UTC","08-17 23 UTC","08-18 00 UTC","08-18 01 UTC","08-18 02 UTC","08-18 03 UTC","08-18 04 UTC","08-18 05 UTC","08-18 06 UTC","08-18 07 UTC","08-18 08 UTC","08-18 09 UTC","08-18 10 UTC","08-18 11 UTC","08-18 12 UTC","08-18 13 UTC","08-18 14 UTC","08-18 15 UTC","08-18 16 UTC","08-18 17 UTC","08-18 18 UTC","08-18 19 UTC","08-18 20 UTC","08-18 21 UTC","08-18 23 UTC","08-19 00 UTC","08-19 01 UTC","08-19 02 UTC","08-19 03 UTC","08-19 04 UTC","08-19 05 UTC","08-19 06 UTC","08-19 08 UTC","08-19 09 UTC","08-19 10 UTC","08-19 11 UTC","08-19 12 UTC","08-19 13 UTC","08-19 14 UTC","08-19 15 UTC","08-19 16 UTC","08-19 17 UTC","08-19 18 UTC","08-19 19 UTC","08-19 20 UTC","08-19 21 UTC","08-19 22 UTC","08-19 23 UTC","08-20 00 UTC","08-20 01 UTC","08-20 02 UTC","08-20 03 UTC","08-20 04 UTC","08-20 06 UTC","08-20 07 UTC","08-20 08 UTC","08-20 09 UTC","08-20 10 UTC","08-20 11 UTC","08-20 12 UTC","08-20 13 UTC","08-20 14 UTC","08-20 15 UTC","08-20 16 UTC","08-20 17 UTC","08-20 18 UTC","08-20 19 UTC","08-20 20 UTC","08-20 21 UTC","08-20 22 UTC","08-21 00 UTC","08-21 01 UTC","08-21 02 UTC","08-21 03 UTC","08-21 05 UTC","08-21 06 UTC","08-21 07 UTC","08-21 08 UTC","08-21 09 UTC","08-21 10 UTC","08-21 12 UTC","08-21 13 UTC","08-21 14 UTC","08-21 15 UTC","08-21 16 UTC","08-21 17 UTC","08-21 18 UTC","08-21 19 UTC","08-21 20 UTC","08-21 21 UTC","08-21 22 UTC","08-21 23 UTC","08-22 01 UTC","08-22 02 UTC","08-22 03 UTC","08-22 04 UTC","08-22 05 UTC","08-22 06 UTC","08-22 07 UTC","08-22 08 UTC","08-22 09 UTC","08-22 10 UTC","08-22 11 UTC","08-22 12 UTC","08-22 14 UTC","08-22 15 UTC","08-22 16 UTC","08-22 17 UTC","08-22 18 UTC","08-22 19 UTC","08-22 20 UTC","08-22 21 UTC","08-22 22 UTC","08-22 23 UTC","08-23 00 UTC","08-23 01 UTC","08-23 02 UTC","08-23 03 UTC","08-23 04 UTC","08-23 05 UTC","08-23 06 UTC","08-23 07 UTC","08-23 08 UTC","08-23 09 UTC","08-23 10 UTC","08-23 11 UTC","08-23 12 UTC","08-23 13 UTC","08-23 14 UTC","08-23 15 UTC","08-23 16 UTC","08-23 17 UTC","08-23 18 UTC","08-23 19 UTC","08-23 20 UTC","08-23 21 UTC","08-23 22 UTC","08-23 23 UTC","08-24 00 UTC","08-24 01 UTC","08-24 03 UTC","08-24 04 UTC","08-24 05 UTC","08-24 06 UTC","08-24 07 UTC","08-24 08 UTC","08-24 09 UTC","08-24 10 UTC","08-24 11 UTC","08-24 12 UTC","08-24 14 UTC","08-24 15 UTC","08-24 16 UTC","08-24 17 UTC","08-24 18 UTC","08-24 19 UTC","08-24 20 UTC","08-24 21 UTC","08-24 22 UTC","08-24 23 UTC","08-25 00 UTC","08-25 01 UTC","08-25 02 UTC","08-25 03 UTC","08-25 05 UTC","08-25 06 UTC","08-25 07 UTC","08-25 08 UTC","08-25 09 UTC","08-25 10 UTC","08-25 11 UTC","08-25 12 UTC","08-25 13 UTC","08-25 14 UTC","08-25 15 UTC","08-25 16 UTC","08-25 17 UTC","08-25 18 UTC","08-25 19 UTC","08-25 20 UTC","08-25 21 UTC","08-25 22 UTC","08-25 23 UTC","08-26 00 UTC","08-26 01 UTC","08-26 02 UTC","08-26 03 UTC","08-26 04 UTC","08-26 05 UTC","08-26 06 UTC","08-26 07 UTC","08-26 08 UTC","08-26 09 UTC","08-26 10 UTC","08-26 11 UTC","08-26 12 UTC","08-26 13 UTC","08-26 14 UTC","08-26 15 UTC","08-26 16 UTC","08-26 17 UTC","08-26 18 UTC","08-26 19 UTC","08-26 20 UTC","08-26 21 UTC","08-26 22 UTC","08-26 23 UTC","08-27 00 UTC","08-27 01 UTC","08-27 02 UTC","08-27 03 UTC","08-27 04 UTC","08-27 05 UTC","08-27 06 UTC","08-27 07 UTC","08-27 08 UTC","08-27 09 UTC","08-27 10 UTC","08-27 11 UTC","08-27 12 UTC","08-27 13 UTC","08-27 14 UTC","08-27 15 UTC","08-27 16 UTC","08-27 17 UTC","08-27 18 UTC","08-27 19 UTC","08-27 20 UTC","08-27 21 UTC","08-27 22 UTC","08-27 23 UTC","08-28 00 UTC","08-28 01 UTC","08-28 02 UTC","08-28 03 UTC","08-28 04 UTC","08-28 06 UTC","08-28 07 UTC","08-28 08 UTC","08-28 09 UTC","08-28 10 UTC","08-28 11 UTC","08-28 12 UTC","08-28 13 UTC","08-28 14 UTC","08-28 15 UTC","08-28 16 UTC","08-28 17 UTC","08-28 18 UTC","08-28 19 UTC","08-28 20 UTC","08-28 21 UTC","08-28 22 UTC","08-28 23 UTC","08-29 00 UTC","08-29 01 UTC","08-29 03 UTC","08-29 04 UTC","08-29 06 UTC","08-29 07 UTC","08-29 08 UTC","08-29 09 UTC","08-29 10 UTC","08-29 11 UTC","08-29 12 UTC","08-29 13 UTC","08-29 14 UTC","08-29 15 UTC","08-29 16 UTC","08-29 17 UTC","08-29 18 UTC","08-29 19 UTC","08-29 20 UTC","08-29 21 UTC","08-29 22 UTC","08-29 23 UTC","08-30 00 UTC","08-30 01 UTC","08-30 02 UTC","08-30 03 UTC","08-30 04 UTC","08-30 05 UTC","08-30 06 UTC","08-30 07 UTC","08-30 08 UTC","08-30 09 UTC","08-30 10 UTC","08-30 11 UTC","08-30 12 UTC","08-30 13 UTC","08-30 14 UTC","08-30 15 UTC","08-30 16 UTC","08-30 17 UTC","08-30 19 UTC","08-30 20 UTC","08-30 21 UTC","08-30 22 UTC","08-30 23 UTC","08-31 00 UTC","08-31 01 UTC","08-31 03 UTC","08-31 04 UTC","08-31 05 UTC","08-31 06 UTC","08-31 07 UTC","08-31 08 UTC","08-31 09 UTC","08-31 10 UTC","08-31 11 UTC","08-31 12 UTC","08-31 13 UTC","08-31 14 UTC","08-31 15 UTC","08-31 16 UTC","08-31 17 UTC","08-31 18 UTC","08-31 19 UTC","08-31 20 UTC","08-31 21 UTC","08-31 23 UTC","09-01 00 UTC","09-01 01 UTC","09-01 03 UTC","09-01 04 UTC","09-01 05 UTC","09-01 06 UTC","09-01 08 UTC","09-01 09 UTC","09-01 10 UTC","09-01 11 UTC","09-01 12 UTC","09-01 13 UTC","09-01 14 UTC","09-01 15 UTC","09-01 16 UTC","09-01 17 UTC","09-01 19 UTC","09-01 20 UTC","09-01 21 UTC","09-01 22 UTC","09-01 23 UTC","09-02 00 UTC","09-02 01 UTC","09-02 03 UTC","09-02 04 UTC","09-02 05 UTC","09-02 06 UTC","09-02 07 UTC","09-02 08 UTC","09-02 09 UTC","09-02 10 UTC","09-02 11 UTC","09-02 12 UTC","09-02 13 UTC","09-02 14 UTC","09-02 15 UTC","09-02 17 UTC","09-02 19 UTC","09-02 20 UTC","09-02 21 UTC","09-03 00 UTC","09-03 01 UTC","09-03 02 UTC","09-03 04 UTC","09-03 05 UTC","09-03 06 UTC","09-03 07 UTC","09-03 09 UTC","09-03 10 UTC","09-03 11 UTC","09-03 12 UTC","09-03 13 UTC","09-03 14 UTC","09-03 15 UTC","09-03 16 UTC","09-03 18 UTC","09-03 19 UTC","09-03 20 UTC","09-03 21 UTC","09-03 23 UTC","09-04 00 UTC","09-04 01 UTC","09-04 02 UTC","09-04 04 UTC","09-04 05 UTC","09-04 06 UTC","09-04 08 UTC","09-04 09 UTC","09-04 10 UTC","09-04 11 UTC","09-04 12 UTC","09-04 13 UTC","09-04 14 UTC","09-04 15 UTC","09-04 16 UTC","09-04 17 UTC","09-05 00 UTC","09-05 03 UTC","09-05 04 UTC","09-05 05 UTC","09-05 06 UTC","09-05 08 UTC","09-05 12 UTC","09-05 13 UTC","09-05 16 UTC","09-05 18 UTC","09-05 19 UTC","09-05 22 UTC","09-06 00 UTC","09-06 01 UTC","09-06 02 UTC","09-06 03 UTC","09-06 05 UTC","09-06 06 UTC","09-06 07 UTC","09-06 08 UTC","09-06 10 UTC","09-06 13 UTC","09-06 15 UTC","09-06 17 UTC","09-06 18 UTC","09-06 20 UTC","09-07 05 UTC","09-07 06 UTC","09-07 07 UTC","09-07 08 UTC","09-07 10 UTC","09-07 13 UTC","09-07 16 UTC","09-07 17 UTC","09-07 20 UTC","09-08 01 UTC","09-08 02 UTC","09-08 03 UTC","09-08 06 UTC","09-08 08 UTC","09-08 09 UTC","09-08 10 UTC","09-08 12 UTC","09-08 16 UTC","09-08 17 UTC","09-09 01 UTC","09-09 08 UTC","09-09 10 UTC","09-09 11 UTC","09-09 14 UTC","09-09 16 UTC","09-09 17 UTC","09-10 02 UTC","09-10 12 UTC","09-10 14 UTC","09-10 19 UTC","09-10 20 UTC","09-10 21 UTC","09-10 23 UTC","09-11 06 UTC","09-11 08 UTC","09-11 13 UTC","09-11 14 UTC","09-11 18 UTC","09-11 22 UTC","09-12 05 UTC","09-12 14 UTC","09-12 16 UTC","09-12 19 UTC"],"gridIndex":1,"show":false}],"yAxis":[{"type":"value","name":"rate"},{"type":"value","name":"volume traded","gridIndex":1}],"series":[{"name":"rate","type":"line","markPoint":{"data":[{"type":"min","name":"Min"},{"type":"max","name":"Max"}]},"data":[427,433,447,458,468,463,479,490,488,479,461,464,471,472,463,467,442,444,431,437,443,436,445,439,461,454,452,434,450,459,450,448,460,472,488,450,465,462,467,480,470,471,463,465,445,372,362,390,368,359,344,366,370,360,345,352,364,359,378,393,411,420,431,418,406,406,409,414,418,381,367,374,382,409,407,415,408,418,433,430,437,434,436,434,438,450,447,438,467,499,529,484,476,470,473,464,463,457,461,457,451,447,453,458,463,431,429,413,432,457,464,448,387,398,374,448,448,467,465,440,436,460,460,463,465,454,452,448,462,497,491,489,478,422,415,430,448,435,441,452,436,424,442,422,423,440,443,436,444,442,447,455,450,444,447,447,454,432,462,472,459,473,499,457,493,529,503,505,505,488,476,504,507,522,524,515,552,501,525,525,519,532,524,514,543,516,499,519,539,518,514,537,531,507,542,533,511,498,497,511,494,523,535,472,480,471,475,499,513,519,518,520,515,506,502,508,501,509,520,512,521,527,522,507,492,492,487,490,493,467,484,511,484,499,507,525,507,504,504,510,511,512,506,498,497,497,504,506,499,489,493,493,504,502,512,513,517,493,502,498,477,496,481,491,481,479,487,501,491,487,475,481,483,473,497,497,499,491,483,474,483,476,470,474,474,479,498,489,499,499,492,494,482,486,473,471,477,479,485,488,480,489,495,490,488,491,472,485,490,487,451,451,465,455,470,460,445,491,495,495,484,465,499,500,497,477,490,480,440,391,434,490,448,433,432,399,394,430,434,429,440,450,470,451,459,483,457,482,477,479,473,479,468,475,480,474,482,485,489,481,482,479,481,490,494,490,494,495,493,493,483,476,484,510,479,510,499,519,544,541,486,484,481,487,498,476,474,472,496,509,489,498,499,501,505,499,510,513,540,579,560,553,580,595,548,535,619,491,583,811,471,553,524,498,499,493,499,476,483,470,491,495,477,496,467,466,462,450,479,430,478,474,454,484,460,458,476,461,494,483,487,471,486,496,496,495,495,475,470,478,494,496,472,450,450,451,485,492,459,475,469,469,459,468,468,454,474,470,480,483,485,487,481,489,475,487,499,499,500,489,500,521,489,500,510,524,525,509,539,535,550,539,509,548,545,556,570,494,569,513,494,494,569,493,569,529,495,492,519,491,504,520,534,530,579,491,549,516,549,522,490,485,584,595,556,555,464,549,407,499,500,520,402,547,452,548,549,495,404,529,530,1000,406,499,401,401,432,449,520,423,509,471,405,441,499,459,382,489,449,450,470,498,498,499,268]},{"name":"volume traded","type":"bar","xAxisIndex":1,"yAxisIndex":1,"data":["2","3","4","6","1","3","2","1","5","4","4","5","3","3","2","6","5","2","2","4","4","6","6","4","1","3","2","2","4","2","2","2","7","6","3","6","4","5","4","2","7","2","4","6","12","21","10","7","8","7","6","4","4","4","7","3","5","7","7","3","4","5","8","4","7","7","5","6","8","1","5","5","6","1","6","3","5","2","4","4","1","3","7","1","3","3","2","5","5","2","4","8","8","6","4","8","4","3","2","3","2","2","4","4","5","2","3","8","6","4","5","7","3","8","16","5","7","2","2","7","2","4","3","4","2","5","3","7","5","6","1","5","2","9","5","4","4","6","3","2","4","8","2","4","7","2","2","1","2","6","2","1","3","4","6","5","3","1","5","4","7","4","2","1","3","1","2","5","2","2","7","4","3","2","4","3","1","2","4","10","3","8","2","5","3","6","3","4","4","2","3","1","5","3","2","7","4","4","4","3","6","5","1","9","6","5","3","2","3","1","3","1","2","2","2","1","2","6","3","7","3","3","2","6","3","3","6","2","12","12","5","3","3","2","4","1","3","3","5","2","2","1","6","3","3","2","3","2","2","2","8","3","3","2","1","1","4","3","3","2","2","2","1","4","5","4","4","3","2","3","1","6","3","3","7","4","1","4","2","2","4","4","6","3","4","3","4","2","1","2","3","5","6","3","1","1","3","3","2","2","4","1","5","2","3","6","4","4","2","3","1","6","1","3","7","3","1","2","3","3","4","6","4","1","2","2","5","3","9","1","6","1","3","1","5","2","3","3","5","5","5","2","1","9","8","5","1","1","3","4","4","1","2","3","1","4","2","2","6","1","4","5","4","1","7","9","6","3","8","3","5","5","6","1","2","2","5","1","6","5","2","5","2","7","5","2","3","1","3","1","3","4","5","2","4","2","1","4","3","1","1","4","1","2","1","3","1","1","3","22","15","1","2","3","4","3","1","4","2","2","3","2","3","1","1","4","3","1","1","5","1","6","3","6","6","4","3","2","2","2","3","1","4","1","1","1","1","6","2","3","4","3","4","4","2","7","2","2","3","3","2","4","2","2","3","5","2","2","1","5","4","7","2","1","3","5","2","1","2","1","1","2","1","1","3","1","2","3","1","4","2","3","5","5","4","4","1","1","1","4","1","2","1","1","1","5","1","1","1","1","1","1","3","2","1","1","1","2","1","2","1","1","1","1","1","1","2","1","1","1","2","1","1","1","3","1","1","1","1","1","1","1","1","1","1","2","1","1","1","2","1","2","2","2","1","1","1","1","1","1","1","1","2","1","1"]}]});
+});
+</script>
+<div   class="card mb-2 ">
+   <h5 class="card-header">Jiquani's Thesis /1 </h5> <div class="card-body"><a href="Economy">US Realm Economy</a> / <a href="Jiquanis_Thesis" class="border p-1">Wiki</a></div>  <div class="table-responsive"><table class='table table-hover table-striped mb-0 filters bg-dark '><thead><tr><th>24h Value</th><th>24h volume traded</th></tr></thead><tbody id="i5hnDTx47T"><tr><td>452 <a href="Economy_divine"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/2986e220b3/CurrencyModValues.png"/>Divine Orb</a> <i class="fa-solid fa-left-right text-muted"></i> 1 <a href="Economy_jiquanis-thesis"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvUGVyZmVjdFNvdWxDb3Jlcy9Tb3VsQ29yZVNvdWwiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/a45ab2bca2/SoulCoreSoul.png"/>Jiquani's Thesis</a></td><td><div class="text-end">5 <a href="Economy_jiquanis-thesis"><img class="size32" src="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvUGVyZmVjdFNvdWxDb3Jlcy9Tb3VsQ29yZVNvdWwiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/a45ab2bca2/SoulCoreSoul.png"/></a></div></td></tr></tbody></table></div>  </div></div><div id="JiquanisThesis_Markdown3" class="tab-pane fade"><div class="card"><h4 class="card-header" data-tabname="Community Wiki">Community Wiki</h4></div><div class="card mb-1">
+    <div class="card-body markdown-body">
+        <a class="btn btn-primary float-end" href='/us/marked?id=Jiquanis_Thesis' data-i18n="ClientStrings|HideoutEditControlEdit|Name">Edit</a>
+        <div id="markContent"><h1 id="jiquanis-thesis">Jiquani&#39;s Thesis</h1>
+<p>Jiquani&#39;s Thesis is an ancient soul core. All ancient augments have a shared limit of 1.</p>
+<h2 id="item-acquisition">Item acquisition</h2>
+<p>Jiquani&#39;s Thesis has restrictions on where or how it can drop.</p>
+<p>Can sometimes be obtained by modifying a soul core with a <a class="item_currency StackableCurrency" data-hover="/cache2/us/Poe_Data_BaseItemTypes_hover/c4ecbeb696e44fb62f6659eb8cc437540952402f37be233bc781f2e571455a0b" href="Core_Destabiliser"><img loading="lazy" src="https://cdn.poe2db.tw/image/Art/2DItems/Currency/IncursionCraftingOrbs/IncursionCoreDestabliser.webp" height="16"/>Core Destabiliser</a>.</p>
+</div>
+        <div><hr style='border-top: 1px solid white'>Wikis Content is available under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/" target="_blank">CC BY-NC-SA 3.0</a> unless otherwise noted.</div>
+    </div>
+</div>
+<script>
+$(function() {
+    lightbox_panel();
+});
+</script>
+</div></div>
+
+<footer class="ccontainer text-center text-lg-left">
+  <div class="card p-4">
+    <div class="row">
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">Sites</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a target="_blank" href="https://poedb.tw/">poedb.tw</a> </li>
+          <li> <a target="_blank" href="https://tlidb.com/">tlidb.com</a> </li>
+          <!--<li> <a target="_blank" href="https://diablo4.cc/">diablo4.cc</a> </li>-->
+          <li> <a target="_blank" href="https://poe2db.tw/">poe2db.tw</a> </li>
+              <li> <a target="_blank" href="https://paldb.cc/">paldb.cc</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">News</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a href="news">GGG Tracker</a> </li>
+          <li> <a href="League#ConcurrentPlayers">Concurrent Players</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">About Site</h5>
+        <ul class="list-unstyled mb-0">
+          <li> <a href="privacy">Privacy</a> </li>
+          <li> <a href="General_disclaimer">Disclaimers</a> </li>
+          <li> <a href="patreon">Patreon</a> </li>
+        </ul>
+      </div>
+
+      <div class="col-lg-3 col-6 mb-4 mb-md-0">
+        <h5 class="text-uppercase">Community</h5>
+        <ul class="list-unstyled mb-0">
+
+
+
+          <li><a target="_blank" href="https://www.reddit.com/user/chuanhsing">/u/chuanhsing</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
+    Copyright &copy; 2014-2026 PoE2DB.
+  </div>
+</footer>
+
+<div style=""></div>
+<div class="clearfix"></div><div id="bottom_banner"></div><script>topbanner970("bottom_banner");</script>
+    </div>
+    </div>
+
+    <a href="#top" id="toTop"><span class="fas fa-arrow-circle-up fa-3x"></span></a>
+<script>
+ $(document).ready(function()
+ {
+    if (window.location.hostname != "poedb.tw" && window.location.hostname != "poe2db.tw") {
+        window.location.href="https://poedb.tw/";
+    }
+ });
+</script>
+    <script src="https://cdn.poe2db.tw/js/poedb_footer.4e9aa29eb48d77c7.js"></script>
+
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"369404df4026486bb42f428b903a2162","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

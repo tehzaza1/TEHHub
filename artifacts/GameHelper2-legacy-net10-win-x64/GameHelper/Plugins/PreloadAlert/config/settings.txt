@@ -1,0 +1,21 @@
+{
+  "BackgroundColor": {
+    "X": 0,
+    "Y": 0,
+    "Z": 0,
+    "W": 0.8
+  },
+  "EnableHideUi": true,
+  "HideWhenInTownOrHideout": true,
+  "HideWindowWhenEmpty": false,
+  "Locked": true,
+  "Pos": {
+    "X": 60,
+    "Y": 60
+  },
+  "Size": {
+    "X": 274,
+    "Y": 212
+  },
+  "TimeSinceLastMapSpawn": true
+}

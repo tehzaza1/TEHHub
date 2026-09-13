@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace LootValue
 {
@@ -46,18 +45,21 @@ namespace LootValue
         public double ChaosPerExalted { get; set; }
         public Dictionary<string, double> FlatPricesChaos { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, List<UniquePriceListing>> UniqueListings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, string> PathBasenameToItemName { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     public static class PoeNinjaPriceFetcher
     {
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true,
+        };
         public const int SourcePoeNinja = 0;
         public const int SourcePoe2Scout = 1;
 
         // Bump whenever the cache shape or how the art->name index is built changes, so caches written
-        // by an older plugin version are discarded instead of trusted. (v2: art index now built from
-        // both poe.ninja + poe2scout icons.)
-        private const int CacheSchemaVersion = 2;
+        // by an older plugin version are discarded instead of trusted. (v4: separate pathBasenameToItemName.json file)
+        private const int CacheSchemaVersion = 4;
 
         private static readonly string[] ScoutCurrencyCategories =
         {
@@ -73,13 +75,25 @@ namespace LootValue
 
         private static readonly string[] NinjaExchangeTypes =
         {
-            "Ritual", "Currency", "Runes", "Idols", "Essences", "Fragments", "Abyss", "Breach",
-            "Delirium", "Expedition", "Ultimatum", "UncutGems",
+            "Currency", "Fragments", "UncutGems", "Essences", "SoulCores", "Idols", "Runes",
+            "Expedition", "Verisium", "Ritual", "Delirium", "Breach",
         };
 
         private static readonly string[] NinjaStashTypes =
         {
-            "UniqueArmours", "UniqueAccessories", "UniqueCharms", "UniqueWeapons",
+            "UniqueWeapons", "UniqueArmours", "UniqueAccessories", "UniqueFlasks",
+            "UniqueCharms", "UniqueJewels", "UniqueTablets", "PrecursorTablets",
+        };
+
+        public static List<string> AvailableLeagues { get; private set; } = new()
+        {
+            "Forbidden Rites",
+            "HC Forbidden Rites",
+            "Standard",
+            "Rise of the Abyssal",
+            "HC Rise of the Abyssal",
+            "Runes of Aldur",
+            "HC Runes of Aldur",
         };
 
         private static readonly HashSet<string> GenericLookupNames = new(StringComparer.OrdinalIgnoreCase)
@@ -111,11 +125,13 @@ namespace LootValue
         private static Dictionary<string, double> flatPricesChaos = new(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, List<UniquePriceListing>> uniqueListingsByName = new(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, string> pathBasenameToItemName = new(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, string> uniqueArtMapping = new(StringComparer.OrdinalIgnoreCase);
 
         private static bool isFetching;
         private static bool isFailingOver;
         private static string pluginDir = string.Empty;
         private static string cacheFilePath = string.Empty;
+        private static string pathBasenameMappingFilePath = string.Empty;
         private static DateTime lastFetchTime = DateTime.MinValue;
         private static int configuredSource = SourcePoe2Scout;
         private static int activeSource = SourcePoe2Scout;
@@ -125,6 +141,8 @@ namespace LootValue
         private static double chaosPerExalted = 0.1;
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
 
+        public static double ChaosPerDivine => chaosPerDivine;
+        public static double ChaosPerExalted => chaosPerExalted;
         public static double DivineToExaltedRate { get; private set; } = 80.0;
         public static int LoadedItemCount { get; private set; }
         public static DateTime LastFetchUtc => lastFetchTime;
@@ -208,6 +226,12 @@ namespace LootValue
         {
             pluginDir = pluginDirectory;
             cacheFilePath = Path.Combine(pluginDirectory, "price_cache.json");
+            pathBasenameMappingFilePath = Path.Combine(pluginDirectory, "pathBasenameToItemName.json");
+
+            LoadUniqueArtMapping(pluginDirectory);
+            LoadPathBasenameMapping(pluginDirectory);
+
+            Task.Run(AutoScanLeaguesAsync);
 
             if (TryLoadCacheFromDisk())
             {
@@ -223,6 +247,159 @@ namespace LootValue
             StartFetch();
         }
 
+        public static void LoadUniqueArtMapping(string pluginDirectory)
+        {
+            try
+            {
+                var mappingPath = Path.Combine(pluginDirectory, "uniqueArtMapping.json");
+                if (!File.Exists(mappingPath))
+                {
+                    return;
+                }
+
+                var json = File.ReadAllText(mappingPath);
+                var raw = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json, JsonOptions);
+                if (raw == null)
+                {
+                    return;
+                }
+
+                lock (Gate)
+                {
+                    uniqueArtMapping.Clear();
+                    foreach (var (artPath, names) in raw)
+                    {
+                        if (names == null || names.Count == 0 || string.IsNullOrWhiteSpace(names[0]))
+                        {
+                            continue;
+                        }
+
+                        var name = names[0].Trim();
+
+                        // 1. Exact full path and normalized full path
+                        uniqueArtMapping[artPath.Trim()] = name;
+                        uniqueArtMapping[NormalizeKey(artPath)] = name;
+
+                        // 2. Basename without extension and normalized basename
+                        var filename = Path.GetFileNameWithoutExtension(artPath);
+                        if (!string.IsNullOrWhiteSpace(filename))
+                        {
+                            uniqueArtMapping[filename.Trim()] = name;
+                            uniqueArtMapping[NormalizeKey(filename)] = name;
+                        }
+                    }
+
+                    Console.WriteLine($"[LootValue] Loaded {uniqueArtMapping.Count} unique art mappings from {mappingPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LootValue] Failed to load uniqueArtMapping.json: {ex.Message}");
+            }
+        }
+
+        public static void LoadPathBasenameMapping(string pluginDirectory)
+        {
+            try
+            {
+                var mappingPath = Path.Combine(pluginDirectory, "pathBasenameToItemName.json");
+                if (!File.Exists(mappingPath))
+                {
+                    // Fall back to built-in default charm mapping if file does not exist yet
+                    lock (Gate)
+                    {
+                        foreach (var (k, v) in DefaultPathBasenames)
+                        {
+                            pathBasenameToItemName[NormalizeKey(k)] = v;
+                        }
+                    }
+                    return;
+                }
+
+                var json = File.ReadAllText(mappingPath);
+                var raw = JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions);
+                if (raw == null) return;
+
+                lock (Gate)
+                {
+                    foreach (var (key, itemName) in raw)
+                    {
+                        if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(itemName)) continue;
+                        pathBasenameToItemName[NormalizeKey(key)] = itemName.Trim();
+                    }
+
+                    Console.WriteLine($"[LootValue] Loaded {pathBasenameToItemName.Count} path basename mappings from {mappingPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LootValue] Failed to load pathBasenameToItemName.json: {ex.Message}");
+            }
+        }
+
+        private static void SavePathBasenameMapping()
+        {
+            if (string.IsNullOrEmpty(pathBasenameMappingFilePath)) return;
+
+            try
+            {
+                Dictionary<string, string> snapshot;
+                lock (Gate)
+                {
+                    snapshot = new Dictionary<string, string>(pathBasenameToItemName, StringComparer.OrdinalIgnoreCase);
+                }
+
+                File.WriteAllText(pathBasenameMappingFilePath, JsonSerializer.Serialize(snapshot, JsonOptions));
+            }
+            catch { }
+        }
+
+        public static async Task AutoScanLeaguesAsync()
+        {
+            var candidates = new[]
+            {
+                "Forbidden Rites",
+                "HC Forbidden Rites",
+                "Standard",
+                "Rise of the Abyssal",
+                "HC Rise of the Abyssal",
+                "Runes of Aldur",
+                "HC Runes of Aldur",
+            };
+
+            var active = new List<string>();
+            foreach (var league in candidates)
+            {
+                try
+                {
+                    var encoded = Uri.EscapeDataString(league).Replace("%20", "+");
+                    var url = $"https://poe.ninja/poe2/api/economy/exchange/current/overview?league={encoded}&type=Currency";
+                    var json = await Http.GetStringAsync(url).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(json))
+                    {
+                        using var data = JsonDocument.Parse(json);
+                        if (data.RootElement.TryGetProperty("lines", out var lines) &&
+                            lines.ValueKind == JsonValueKind.Array && lines.GetArrayLength() > 0)
+                        {
+                            active.Add(league);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore scan errors for individual candidate leagues
+                }
+            }
+
+            if (active.Count > 0)
+            {
+                lock (Gate)
+                {
+                    AvailableLeagues = active;
+                }
+            }
+        }
+
         public static void RefreshIfNeeded()
         {
             if (isFetching || pluginDir == null || pluginDir.Length == 0) return;
@@ -236,6 +413,7 @@ namespace LootValue
             if (!ignoreCooldown && DateTime.UtcNow - lastFetchTime < TimeSpan.FromSeconds(30)) return;
             pluginDir = pluginDirectory;
             cacheFilePath = Path.Combine(pluginDirectory, "price_cache.json");
+            LoadUniqueArtMapping(pluginDirectory);
             StartFetch();
         }
 
@@ -252,13 +430,27 @@ namespace LootValue
             displayName = string.Empty;
             if (string.IsNullOrWhiteSpace(internalPathBasename)) return false;
 
-            if (DefaultPathBasenames.TryGetValue(NormalizeKey(internalPathBasename), out var defaultName))
+            var trimmedKey = internalPathBasename.Trim();
+            var normalizedKey = NormalizeKey(internalPathBasename);
+
+            // PoE 2 unique art mapping (from poe2db) takes highest precedence
+            if (uniqueArtMapping.TryGetValue(trimmedKey, out var artName) ||
+                uniqueArtMapping.TryGetValue(normalizedKey, out artName))
+            {
+                if (!string.IsNullOrWhiteSpace(artName))
+                {
+                    displayName = artName;
+                    return true;
+                }
+            }
+
+            if (DefaultPathBasenames.TryGetValue(normalizedKey, out var defaultName))
             {
                 displayName = defaultName;
                 return true;
             }
 
-            if (pathBasenameToItemName.TryGetValue(NormalizeKey(internalPathBasename), out var resolvedName) &&
+            if (pathBasenameToItemName.TryGetValue(normalizedKey, out var resolvedName) &&
                 !string.IsNullOrWhiteSpace(resolvedName))
             {
                 displayName = resolvedName;
@@ -317,21 +509,25 @@ namespace LootValue
             }
         }
 
-        public static (double Value, string Currency) GetDisplayPrice(PoeNinjaPrice price, int displayCurrency)
+        public static (double Value, string Currency) GetDisplayPrice(double priceChaos, int displayCurrency)
         {
-            if (price == null) return (0, "divine");
-
             if (displayCurrency == 2)
-                return (Math.Round(price.PriceChaos, 1), "chaos");
+                return (Math.Round(priceChaos, 1), "chaos");
 
             if (displayCurrency == 1)
             {
-                var ex = chaosPerExalted > 0 ? price.PriceChaos / chaosPerExalted : price.Price;
+                var ex = chaosPerExalted > 0 ? priceChaos / chaosPerExalted : priceChaos;
                 return (Math.Round(ex, 1), "ex");
             }
 
-            var div = chaosPerDivine > 0 ? price.PriceChaos / chaosPerDivine : price.Price;
+            var div = chaosPerDivine > 0 ? priceChaos / chaosPerDivine : priceChaos;
             return (Math.Round(div, 3), "divine");
+        }
+
+        public static (double Value, string Currency) GetDisplayPrice(PoeNinjaPrice price, int displayCurrency)
+        {
+            if (price == null) return (0, "divine");
+            return GetDisplayPrice(price.PriceChaos, displayCurrency);
         }
 
         public static PoeNinjaPrice? GetPrice(
@@ -397,16 +593,20 @@ namespace LootValue
                 add(basename);
             }
 
+            // Real in-game item name takes highest priority (unless generic like 'Boots')
+            add(itemName);
             add(scoutText);
             addPathBasename(internalPathBasename);
 
             if (!string.IsNullOrWhiteSpace(fullItemPath))
             {
+                if (TryResolveDisplayNameCore(fullItemPath, out var mappedFull))
+                    add(mappedFull);
+
                 foreach (var segment in fullItemPath.Split('/', StringSplitOptions.RemoveEmptyEntries))
                     addPathBasename(segment);
             }
 
-            add(itemName);
             return candidates;
         }
 
@@ -632,11 +832,20 @@ namespace LootValue
                 divChaos = result.Rates.DivChaos;
                 exChaos = result.Rates.ExChaos;
 
+                var newMappingsDiscovered = false;
                 lock (Gate)
                 {
                     flatPricesChaos = flat;
                     uniqueListingsByName = uniques;
-                    pathBasenameToItemName = pathNames;
+                    foreach (var (k, v) in pathNames)
+                    {
+                        var normKey = NormalizeKey(k);
+                        if (!pathBasenameToItemName.ContainsKey(normKey))
+                        {
+                            pathBasenameToItemName[normKey] = v;
+                            newMappingsDiscovered = true;
+                        }
+                    }
                     chaosPerDivine = divChaos > 0 ? divChaos : chaosPerDivine;
                     chaosPerExalted = exChaos > 0 ? exChaos : chaosPerExalted;
                     if (chaosPerExalted > 0)
@@ -646,6 +855,10 @@ namespace LootValue
                 }
 
                 SaveCacheToDisk();
+                if (newMappingsDiscovered)
+                {
+                    SavePathBasenameMapping();
+                }
             }
             catch { }
             finally
@@ -676,13 +889,13 @@ namespace LootValue
                     // floor/ceiling check. This optional merge does not affect Scout's health.
                     var mergeHealth = new ProviderFetchState();
                     rates = await FetchNinjaStashOverviewsAsync(
-                        flat, pathNames, rates.DivChaos, rates.ExChaos, mergeHealth).ConfigureAwait(false);
+                        flat, uniques, pathNames, rates.DivChaos, rates.ExChaos, mergeHealth).ConfigureAwait(false);
                 }
             }
             else
             {
                 rates = await FetchFromNinjaAsync(
-                    flat, pathNames, divChaos, exChaos, health).ConfigureAwait(false);
+                    flat, uniques, pathNames, divChaos, exChaos, health).ConfigureAwait(false);
             }
 
             var success = !health.FailedRepeatedly &&
@@ -765,24 +978,22 @@ namespace LootValue
                 var json = await TryGetStringAsync("https://poe2scout.com/api/poe2/Leagues", health).ConfigureAwait(false);
                 if (json != null)
                 {
-                    var token = ParseScoutResponse(json);
-                    var leagues = token as JArray;
-                    if (leagues == null && token is JObject root)
-                    {
-                        leagues = root["value"] as JArray ?? root["Value"] as JArray;
-                    }
+                    using var document = ParseScoutResponse(json);
+                    var root = document.RootElement;
+                    var leagues = root.ValueKind == JsonValueKind.Array
+                        ? root
+                        : GetProperty(root, "value", "Value");
+                    if (leagues.ValueKind != JsonValueKind.Array) return new RatePair(divChaos, exChaos);
 
-                    if (leagues == null) return new RatePair(divChaos, exChaos);
-
-                    foreach (var league in leagues)
+                    foreach (var league in leagues.EnumerateArray())
                     {
-                        if (!string.Equals(league["Value"]?.ToString(), configuredLeague, StringComparison.OrdinalIgnoreCase))
+                        if (!string.Equals(GetString(league, "Value"), configuredLeague, StringComparison.OrdinalIgnoreCase))
                             continue;
 
-                        var chaosDiv = league["ChaosDivinePrice"]?.Value<double?>() ?? 0;
+                        var chaosDiv = GetDouble(league, "ChaosDivinePrice");
                         if (chaosDiv > 0) divChaos = chaosDiv;
 
-                        var divEx = league["DivinePrice"]?.Value<double?>() ?? 0;
+                        var divEx = GetDouble(league, "DivinePrice");
                         if (divEx > 0 && chaosDiv > 0)
                             exChaos = chaosDiv / divEx;
                         break;
@@ -801,13 +1012,14 @@ namespace LootValue
                 var url = $"https://poe2scout.com/api/poe2/Leagues/{leagueEscaped}/Currencies/ByCategory?Category=currency&ReferenceCurrency=chaos&PerPage=250&Page=1";
                 var json = await TryGetStringAsync(url, health).ConfigureAwait(false);
                 if (json == null) return new RatePair(divChaos, exChaos);
-                var items = (ParseScoutResponse(json) as JObject)?["Items"] as JArray;
-                if (items != null)
+                using var document = ParseScoutResponse(json);
+                var items = GetProperty(document.RootElement, "Items");
+                if (items.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var item in items)
+                    foreach (var item in items.EnumerateArray())
                     {
-                        var text = item["Text"]?.ToString();
-                        var price = item["CurrentPrice"]?.Value<double?>() ?? 0;
+                        var text = GetString(item, "Text");
+                        var price = GetDouble(item, "CurrentPrice");
                         if (string.IsNullOrEmpty(text) || price <= 0) continue;
 
                         if (text.Contains("Divine Orb", StringComparison.OrdinalIgnoreCase))
@@ -822,15 +1034,15 @@ namespace LootValue
             return new RatePair(divChaos, exChaos);
         }
 
-        private static JToken ParseScoutResponse(string json)
+        private static JsonDocument ParseScoutResponse(string json)
         {
-            var token = JToken.Parse(json);
-            if (token.Type == JTokenType.String && token.Value<string>() is { } nestedJson)
+            using var envelope = JsonDocument.Parse(json);
+            if (envelope.RootElement.ValueKind == JsonValueKind.String && envelope.RootElement.GetString() is { } nestedJson)
             {
-                token = JToken.Parse(nestedJson);
+                return JsonDocument.Parse(nestedJson);
             }
 
-            return token;
+            return JsonDocument.Parse(json);
         }
 
         private static async Task FetchScoutCurrencyCategoryAsync(
@@ -849,24 +1061,27 @@ namespace LootValue
                     var url = $"https://poe2scout.com/api/poe2/Leagues/{leagueEscaped}/Currencies/ByCategory?Category={category}&ReferenceCurrency=chaos&PerPage=250&Page={page}";
                     var json = await TryGetStringAsync(url, health).ConfigureAwait(false);
                     if (json == null) break;
-                    if (ParseScoutResponse(json) is not JObject data) break;
-                    pages = data["Pages"]?.Value<int?>() ?? 1;
+                    using var document = ParseScoutResponse(json);
+                    var data = document.RootElement;
+                    if (data.ValueKind != JsonValueKind.Object) break;
+                    pages = GetInt(data, "Pages", 1);
 
-                    if (data["Items"] is not JArray items) break;
+                    var items = GetProperty(data, "Items");
+                    if (items.ValueKind != JsonValueKind.Array) break;
 
-                    foreach (var item in items.OfType<JObject>())
+                    foreach (var item in items.EnumerateArray())
                     {
-                        var price = item["CurrentPrice"]?.Value<double?>() ?? 0;
+                        var price = GetDouble(item, "CurrentPrice");
                         if (price <= 0) continue;
 
-                        var text = item["Text"]?.ToString();
-                        var metadata = item["ItemMetadata"] as JObject;
+                        var text = GetString(item, "Text");
+                        var metadata = GetProperty(item, "ItemMetadata");
                         AddFlatPrice(flat, text, price);
-                        AddFlatPrice(flat, item["ApiId"]?.ToString(), price);
-                        AddFlatPrice(flat, metadata?["name"]?.ToString(), price);
-                        AddFlatPrice(flat, metadata?["base_type"]?.ToString(), price);
-                        IndexPathName(pathNames, item["ApiId"]?.ToString(), text);
-                        IndexPathName(pathNames, ExtractIconBasename(item["IconUrl"]?.ToString()), text);
+                        AddFlatPrice(flat, GetString(item, "ApiId"), price);
+                        AddFlatPrice(flat, GetString(metadata, "name"), price);
+                        AddFlatPrice(flat, GetString(metadata, "base_type"), price);
+                        IndexPathName(pathNames, GetString(item, "ApiId"), text);
+                        IndexPathName(pathNames, ExtractIconBasename(GetString(item, "IconUrl")), text);
                     }
                 }
                 catch { break; }
@@ -891,29 +1106,32 @@ namespace LootValue
                     var url = $"https://poe2scout.com/api/poe2/Leagues/{leagueEscaped}/Uniques/ByCategory?Category={category}&ReferenceCurrency=chaos&PerPage=250&Page={page}";
                     var json = await TryGetStringAsync(url, health).ConfigureAwait(false);
                     if (json == null) break;
-                    if (ParseScoutResponse(json) is not JObject data) break;
-                    pages = data["Pages"]?.Value<int?>() ?? 1;
-                    if (data["Items"] is not JArray items) break;
+                    using var document = ParseScoutResponse(json);
+                    var data = document.RootElement;
+                    if (data.ValueKind != JsonValueKind.Object) break;
+                    pages = GetInt(data, "Pages", 1);
+                    var items = GetProperty(data, "Items");
+                    if (items.ValueKind != JsonValueKind.Array) break;
 
-                    foreach (var item in items.OfType<JObject>())
+                    foreach (var item in items.EnumerateArray())
                     {
-                        var price = item["CurrentPrice"]?.Value<double?>() ?? 0;
+                        var price = GetDouble(item, "CurrentPrice");
                         if (price <= 0) continue;
 
-                        var metadata = item["ItemMetadata"] as JObject;
+                        var metadata = GetProperty(item, "ItemMetadata");
                         var listing = new UniquePriceListing
                         {
-                            Name = item["Name"]?.ToString() ?? string.Empty,
-                            Text = item["Text"]?.ToString() ?? string.Empty,
-                            BaseType = item["Type"]?.ToString() ?? metadata?["base_type"]?.ToString() ?? string.Empty,
+                            Name = GetString(item, "Name") ?? string.Empty,
+                            Text = GetString(item, "Text") ?? string.Empty,
+                            BaseType = GetString(item, "Type") ?? GetString(metadata, "base_type") ?? string.Empty,
                             PriceChaos = price,
                             ExplicitMods = CombineModLists(
-                                ReadScoutModList(metadata?["implicit_mods"]),
-                                ReadScoutModList(metadata?["explicit_mods"])),
+                                ReadScoutModList(GetProperty(metadata, "implicit_mods")),
+                                ReadScoutModList(GetProperty(metadata, "explicit_mods"))),
                         };
 
                         AddUniqueListing(uniques, listing);
-                        IndexPathName(pathNames, ExtractIconBasename(item["IconUrl"]?.ToString()), listing.Name);
+                        IndexPathName(pathNames, ExtractIconBasename(GetString(item, "IconUrl")), listing.Name);
                         IndexPathName(pathNames, listing.Name, listing.Name);
                     }
                 }
@@ -944,20 +1162,17 @@ namespace LootValue
             public void RecordFailure() => this.ConsecutiveFailures++;
         }
 
-        private static List<string> ReadScoutModList(JToken? token)
+        private static List<string> ReadScoutModList(JsonElement token)
         {
             var mods = new List<string>();
-            if (token is not JArray entries)
+            if (token.ValueKind != JsonValueKind.Array)
                 return mods;
 
-            foreach (var entry in entries)
+            foreach (var entry in token.EnumerateArray())
             {
-                var description = entry switch
-                {
-                    JValue { Type: JTokenType.String } value => value.Value<string>(),
-                    JObject value => value["description"]?.ToString(),
-                    _ => null,
-                };
+                var description = entry.ValueKind == JsonValueKind.String
+                    ? entry.GetString()
+                    : GetString(entry, "description");
 
                 if (!string.IsNullOrWhiteSpace(description))
                     mods.Add(description.Trim());
@@ -965,6 +1180,31 @@ namespace LootValue
 
             return mods;
         }
+
+        private static JsonElement GetProperty(JsonElement value, params string[] names)
+        {
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var name in names)
+                {
+                    if (value.TryGetProperty(name, out var property)) return property;
+                }
+            }
+
+            return default;
+        }
+
+        private static string? GetString(JsonElement value, params string[] names)
+        {
+            var property = GetProperty(value, names);
+            return property.ValueKind == JsonValueKind.String ? property.GetString() : null;
+        }
+
+        private static double GetDouble(JsonElement value, string name) =>
+            GetProperty(value, name).TryGetDouble(out var number) ? number : 0d;
+
+        private static int GetInt(JsonElement value, string name, int fallback) =>
+            GetProperty(value, name).TryGetInt32(out var number) ? number : fallback;
 
         private static List<string> CombineModLists(IReadOnlyList<string>? first, IReadOnlyList<string>? second)
         {
@@ -1024,6 +1264,7 @@ namespace LootValue
 
         private static async Task<RatePair> FetchFromNinjaAsync(
             Dictionary<string, double> flat,
+            Dictionary<string, List<UniquePriceListing>> uniques,
             Dictionary<string, string> pathNames,
             double divChaos,
             double exChaos,
@@ -1040,11 +1281,12 @@ namespace LootValue
                 if (health.FailedRepeatedly) return rates;
             }
 
-            return await FetchNinjaStashOverviewsAsync(flat, pathNames, divChaos, exChaos, health).ConfigureAwait(false);
+            return await FetchNinjaStashOverviewsAsync(flat, uniques, pathNames, divChaos, exChaos, health).ConfigureAwait(false);
         }
 
         private static async Task<RatePair> FetchNinjaStashOverviewsAsync(
             Dictionary<string, double> flat,
+            Dictionary<string, List<UniquePriceListing>> uniques,
             Dictionary<string, string> pathNames,
             double divChaos,
             double exChaos,
@@ -1055,7 +1297,7 @@ namespace LootValue
             foreach (var type in NinjaStashTypes)
             {
                 var url = $"https://poe.ninja/poe2/api/economy/stash/current/item/overview?league={leagueParam}&type={type}";
-                exChaos = await FetchNinjaStashApi(url, flat, pathNames, divChaos, exChaos, health).ConfigureAwait(false);
+                exChaos = await FetchNinjaStashApi(url, flat, uniques, pathNames, divChaos, exChaos, health).ConfigureAwait(false);
                 if (health.FailedRepeatedly) break;
             }
 
@@ -1074,39 +1316,53 @@ namespace LootValue
             {
                 var response = await TryGetStringAsync(url, health).ConfigureAwait(false);
                 if (response == null) return new RatePair(divChaos, exChaos);
-                var data = JObject.Parse(response);
-
-                var primaryCurrency = data["core"]?["primary"]?.ToString() ?? "divine";
-                var rateToken = data["core"]?["rates"]?["exalted"];
-                if (rateToken != null)
+                using var document = JsonDocument.Parse(response);
+                var data = document.RootElement;
+                var core = GetProperty(data, "core");
+                var rates = GetProperty(core, "rates");
+                var primaryCurrency = GetString(core, "primary") ?? "divine";
+                var exRateToken = GetProperty(rates, "exalted");
+                if (exRateToken.TryGetDouble(out var r))
                 {
-                    var r = rateToken.Value<double>();
                     if (r > 0) DivineToExaltedRate = r;
+                }
+
+                var chaosRateToken = GetProperty(rates, "chaos");
+                if (chaosRateToken.TryGetDouble(out var c))
+                {
+                    if (c > 0)
+                    {
+                        divChaos = c;
+                        if (DivineToExaltedRate > 0)
+                            exChaos = c / DivineToExaltedRate;
+                    }
                 }
 
                 var idToName = new Dictionary<string, string>();
                 var idToIcon = new Dictionary<string, string>();
-                if (data["items"] is JArray itemsArray)
+                var itemsArray = GetProperty(data, "items");
+                if (itemsArray.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var item in itemsArray)
+                    foreach (var item in itemsArray.EnumerateArray())
                     {
-                        var id = item["id"]?.ToString();
+                        var id = GetString(item, "id");
                         if (id == null) continue;
-                        var name = item["name"]?.ToString();
+                        var name = GetString(item, "name");
                         if (name != null) idToName[id] = name;
-                        var icon = item["image"]?.ToString() ?? item["icon"]?.ToString();
+                        var icon = GetString(item, "image") ?? GetString(item, "icon");
                         if (!string.IsNullOrEmpty(icon)) idToIcon[id] = icon;
                     }
                 }
 
-                if (data["lines"] is JArray lines)
+                var lines = GetProperty(data, "lines");
+                if (lines.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var line in lines)
+                    foreach (var line in lines.EnumerateArray())
                     {
-                        var id = line["id"]?.ToString();
+                        var id = GetString(line, "id");
                         if (id == null || !idToName.TryGetValue(id, out var name)) continue;
 
-                        var pval = line["primaryValue"]?.Value<double>() ?? 0.0;
+                        var pval = GetDouble(line, "primaryValue");
                         if (pval <= 0) continue;
 
                         var chaos = PrimaryValueToChaos(pval, primaryCurrency, divChaos, exChaos);
@@ -1114,9 +1370,11 @@ namespace LootValue
                         if (idToIcon.TryGetValue(id, out var iconUrl))
                             IndexPathName(pathNames, ExtractIconBasename(iconUrl), name);
 
-                        if (name.Contains("Divine", StringComparison.OrdinalIgnoreCase))
+                        // Only match exact currency names or IDs to avoid partial matches
+                        // like "Greater Exalted Orb" or "Perfect Chaos Orb" corrupting rates
+                        if (id == "divine" || string.Equals(name, "Divine Orb", StringComparison.OrdinalIgnoreCase))
                             divChaos = chaos;
-                        if (name.Contains("Exalted", StringComparison.OrdinalIgnoreCase))
+                        if (id == "exalted" || string.Equals(name, "Exalted Orb", StringComparison.OrdinalIgnoreCase))
                             exChaos = chaos;
                     }
                 }
@@ -1129,6 +1387,7 @@ namespace LootValue
         private static async Task<double> FetchNinjaStashApi(
             string url,
             Dictionary<string, double> flat,
+            Dictionary<string, List<UniquePriceListing>> uniques,
             Dictionary<string, string> pathNames,
             double divChaos,
             double exChaos,
@@ -1138,30 +1397,58 @@ namespace LootValue
             {
                 var response = await TryGetStringAsync(url, health).ConfigureAwait(false);
                 if (response == null) return exChaos;
-                var data = JObject.Parse(response);
-
-                var primaryCurrency = data["core"]?["primary"]?.ToString() ?? "exalted";
-                var rateToken = data["core"]?["rates"]?["exalted"];
-                if (rateToken != null)
+                using var document = JsonDocument.Parse(response);
+                var data = document.RootElement;
+                var core = GetProperty(data, "core");
+                var rates = GetProperty(core, "rates");
+                var primaryCurrency = GetString(core, "primary") ?? "divine";
+                var rateToken = GetProperty(rates, "exalted");
+                if (rateToken.TryGetDouble(out var r))
                 {
-                    var r = rateToken.Value<double>();
                     if (r > 0) DivineToExaltedRate = r;
                 }
 
-                if (data["lines"] is JArray lines)
+                var chaosRateToken = GetProperty(rates, "chaos");
+                if (chaosRateToken.TryGetDouble(out var c))
                 {
-                    foreach (var line in lines)
+                    if (c > 0)
                     {
-                        var name = line["name"]?.ToString();
-                        var baseType = line["baseType"]?.ToString() ?? string.Empty;
-                        var pval = line["primaryValue"]?.Value<double>() ?? 0.0;
+                        divChaos = c;
+                        if (DivineToExaltedRate > 0)
+                            exChaos = c / DivineToExaltedRate;
+                    }
+                }
+
+                var lines = GetProperty(data, "lines");
+                if (lines.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var line in lines.EnumerateArray())
+                    {
+                        var name = GetString(line, "name");
+                        var baseType = GetString(line, "baseType") ?? string.Empty;
+                        var pval = GetDouble(line, "primaryValue");
                         if (string.IsNullOrEmpty(name) || pval <= 0) continue;
 
                         var chaos = PrimaryValueToChaos(pval, primaryCurrency, divChaos, exChaos);
                         var cacheKey = BuildStashCacheKey(name, baseType);
                         AddFlatPrice(flat, cacheKey, chaos);
-                        var icon = line["icon"]?.ToString() ?? line["image"]?.ToString();
+                        AddFlatPrice(flat, name, chaos);
+
+                        var listing = new UniquePriceListing
+                        {
+                            Name = name,
+                            Text = GetString(line, "itemId") ?? name,
+                            BaseType = baseType,
+                            PriceChaos = chaos,
+                            ExplicitMods = CombineModLists(
+                                ReadScoutModList(GetProperty(line, "implicitModifiers")),
+                                ReadScoutModList(GetProperty(line, "explicitModifiers"))),
+                        };
+                        AddUniqueListing(uniques, listing);
+
+                        var icon = GetString(line, "icon") ?? GetString(line, "image");
                         IndexPathName(pathNames, ExtractIconBasename(icon), name);
+                        IndexPathName(pathNames, name, name);
                     }
                 }
             }
@@ -1201,7 +1488,7 @@ namespace LootValue
 
             try
             {
-                var snapshot = JsonConvert.DeserializeObject<PriceCacheSnapshot>(File.ReadAllText(cacheFilePath));
+                var snapshot = JsonSerializer.Deserialize<PriceCacheSnapshot>(File.ReadAllText(cacheFilePath), JsonOptions);
 
                 // Written by a different (older) plugin version, or missing required data: discard it
                 // entirely so we never trust a stale-schema cache. A fresh fetch rebuilds it.
@@ -1222,9 +1509,6 @@ namespace LootValue
                     uniqueListingsByName = snapshot.UniqueListings != null
                         ? new Dictionary<string, List<UniquePriceListing>>(snapshot.UniqueListings, StringComparer.OrdinalIgnoreCase)
                         : new Dictionary<string, List<UniquePriceListing>>(StringComparer.OrdinalIgnoreCase);
-                    pathBasenameToItemName = snapshot.PathBasenameToItemName != null
-                        ? new Dictionary<string, string>(snapshot.PathBasenameToItemName, StringComparer.OrdinalIgnoreCase)
-                        : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     chaosPerDivine = snapshot.ChaosPerDivine > 0 ? snapshot.ChaosPerDivine : chaosPerDivine;
                     chaosPerExalted = snapshot.ChaosPerExalted > 0 ? snapshot.ChaosPerExalted : chaosPerExalted;
                     if (chaosPerExalted > 0)
@@ -1275,11 +1559,10 @@ namespace LootValue
                         ChaosPerExalted = chaosPerExalted,
                         FlatPricesChaos = new Dictionary<string, double>(flatPricesChaos, StringComparer.OrdinalIgnoreCase),
                         UniqueListings = new Dictionary<string, List<UniquePriceListing>>(uniqueListingsByName, StringComparer.OrdinalIgnoreCase),
-                        PathBasenameToItemName = new Dictionary<string, string>(pathBasenameToItemName, StringComparer.OrdinalIgnoreCase),
                     };
                 }
 
-                File.WriteAllText(cacheFilePath, JsonConvert.SerializeObject(snapshot, Formatting.Indented));
+                File.WriteAllText(cacheFilePath, JsonSerializer.Serialize(snapshot, JsonOptions));
             }
             catch { }
         }

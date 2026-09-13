@@ -963,10 +963,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     if (entity.Value.TryGetComponent<StateMachine>(out var nodeSm, false) &&
                         nodeSm.TryGetRuneStationDetails(out var nodeRs) && nodeRs != null)
                     {
+                        var slotInfo = !string.IsNullOrEmpty(nodeRs.SlotRunesSummary) ? $" | {nodeRs.SlotRunesSummary}" : "";
                         var status = nodeRs.IsAnchorInGoldenSlot
                             ? $"★ Gold #{nodeRs.GoldenSlotIndex + 1}: {nodeRs.AnchorRuneName} (Proliferates)"
                             : $"Gold #{nodeRs.GoldenSlotIndex + 1}: Blue | Slot #{nodeRs.AnchorSlotIndex + 1}: {nodeRs.AnchorRuneName} (Local)";
-                        nodeLabel = $"{entity.Value.Id} [Expedition {nodeRs.SocketCount}s | {status}] {entity.Value.Path}";
+                        nodeLabel = $"{entity.Value.Id} [Expedition {nodeRs.SocketCount}s | {status}{slotInfo}] {entity.Value.Path}";
                     }
                     else
                     {

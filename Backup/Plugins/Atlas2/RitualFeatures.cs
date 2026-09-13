@@ -7,7 +7,6 @@ namespace Atlas2
     using GameOffsets.Natives;
     using GameOffsets.Objects.UiElement;
     using ImGuiNET;
-    using Newtonsoft.Json;
     using System;
     using System.Collections.Generic;
     using System.Drawing;
@@ -15,8 +14,9 @@ namespace Atlas2
     using System.IO;
     using System.Linq;
     using System.Numerics;
-    using System.Runtime.InteropServices;
+    using System.Runtime.CompilerServices;
     using System.Text;
+    using System.Text.Json;
 
     public sealed partial class Atlas2
     {
@@ -49,22 +49,6 @@ namespace Atlas2
         private const int CandTableEntryStride = 0x44;
         private const int CandTableMaxCandidates = 5;
         private string RitualRollLogPathname => Path.Join(DllDirectory, "config", "ritual_roll_log.jsonl");
-        private static IntPtr Handle;
-        private static int handlePid;
-        private static void EnsureProcessHandle()
-        {
-            int pid = (int)Core.Process.Pid;
-            if (Handle != IntPtr.Zero && handlePid == pid)
-                return;
-            if (Handle != IntPtr.Zero)
-                CloseHandle(Handle);
-            Handle = ProcessMemoryUtilities.Managed.NativeWrapper.OpenProcess(
-                ProcessMemoryUtilities.Native.ProcessAccessFlags.Read, pid);
-            handlePid = pid;
-        }
-
-        [DllImport("kernel32.dll")]
-        private static extern bool CloseHandle(IntPtr handle);
         private string L(string key, string fallback) => PluginText.T(key, fallback);
         private GameHelper.Localization.PluginLocalization Loc => PluginText;
 
@@ -73,7 +57,9 @@ namespace Atlas2
             if (address == IntPtr.Zero || stringLength <= 0)
                 return string.Empty;
             var bytes = new byte[stringLength * 2];
-            ProcessMemoryUtilities.Managed.NativeWrapper.ReadProcessMemoryArray(Handle, address, bytes);
+            var reader = Core.Process.Handle;
+            if (reader == null || !reader.TryReadMemoryArray(address, bytes, out _))
+                return string.Empty;
             return Encoding.Unicode.GetString(bytes).Split('\0')[0];
         }
 
@@ -82,11 +68,8 @@ namespace Atlas2
             if (address == IntPtr.Zero)
                 return default;
 
-            EnsureProcessHandle();
-            T result = default;
-            ProcessMemoryUtilities.Managed.NativeWrapper.ReadProcessMemory(Handle, address, ref result);
-
-            return result;
+            var reader = Core.Process.Handle;
+            return reader == null ? default : reader.ReadMemory<T>(address);
         }
 
         private static bool TryVectorCount<T>(in StdVector vector, out int count)
@@ -100,7 +83,7 @@ namespace Atlas2
             if (bytes <= 0)
                 return false;
 
-            int stride = Marshal.SizeOf<T>();
+            int stride = Unsafe.SizeOf<T>();
             if (stride <= 0 || (bytes % stride) != 0)
                 return false;
 
@@ -116,7 +99,7 @@ namespace Atlas2
         private static T ReadVectorAt<T>(in StdVector vector, int index)
             where T : unmanaged
         {
-            int stride = Marshal.SizeOf<T>();
+            int stride = Unsafe.SizeOf<T>();
             var addr = IntPtr.Add(vector.First, index * stride);
 
             return Read<T>(addr);
@@ -211,9 +194,9 @@ namespace Atlas2
                 return map;
             int n = (int)(bytes / CandTableEntryStride);
 
-            EnsureProcessHandle();
             byte[] buf = new byte[bytes];
-            if (!ProcessMemoryUtilities.Managed.NativeWrapper.ReadProcessMemoryArray(Handle, begin, buf))
+            var reader = Core.Process.Handle;
+            if (reader == null || !reader.TryReadMemoryArray(begin, buf, out _))
                 return map;
 
             bool anyCands = false;
@@ -367,7 +350,7 @@ namespace Atlas2
             {
                 var path = Path.Join(DllDirectory, "json", "ritualmods.json");
                 ritualPool = File.Exists(path)
-                    ? (JsonConvert.DeserializeObject<RitualPoolFile>(File.ReadAllText(path))?.Rows ?? new())
+                    ? (JsonSerializer.Deserialize<RitualPoolFile>(File.ReadAllText(path), JsonOptions)?.Rows ?? new())
                     : new();
             }
             catch { ritualPool = new(); }
@@ -407,9 +390,9 @@ namespace Atlas2
             long bytes = end.ToInt64() - begin.ToInt64();
             if (bytes <= 0 || bytes % 0x28 != 0 || bytes > 0x28 * 8192L) return stats;
             int n = (int)(bytes / 0x28);
-            EnsureProcessHandle();
             byte[] buf = new byte[bytes];
-            if (!ProcessMemoryUtilities.Managed.NativeWrapper.ReadProcessMemoryArray(Handle, begin, buf))
+            var reader = Core.Process.Handle;
+            if (reader == null || !reader.TryReadMemoryArray(begin, buf, out _))
                 return stats;
             for (int e = 0; e < n; e++)
             {
@@ -1469,7 +1452,7 @@ namespace Atlas2
                         "// Ritual Rite-mod roll ground-truth. One JSON snapshot per line state.\n");
                 ritualLogHeaderDone = true;
                 File.AppendAllText(RitualRollLogPathname,
-                    JsonConvert.SerializeObject(snapshot) + "\n");
+                    JsonSerializer.Serialize(snapshot, JsonOptions) + "\n");
             }
             catch { /* logging must never break the overlay */ }
         }

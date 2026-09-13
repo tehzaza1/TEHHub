@@ -1,4 +1,4 @@
-﻿// <copyright file="SettingsWindow.cs" company="None">
+// <copyright file="SettingsWindow.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -701,7 +701,11 @@ namespace GameHelper.Settings
                 ImGui.SameLine();
                 if (ImGui.Button($"{L.T("settings.common.add", "Add")}##monsterPathToRemove") && !string.IsNullOrEmpty(monterPathToIgnore))
                 {
-                    Core.GHSettings.MonstersPathsToIgnore.Add(monterPathToIgnore);
+                    // Prevent duplicate entries (case‑insensitive)
+                    if (!Core.GHSettings.MonstersPathsToIgnore.Any(p => string.Equals(p, monterPathToIgnore, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Core.GHSettings.MonstersPathsToIgnore.Add(monterPathToIgnore);
+                    }
                     monterPathToIgnore = string.Empty;
                 }
 
@@ -738,8 +742,12 @@ namespace GameHelper.Settings
                 ImGui.SameLine();
                 if (ImGui.Button($"{L.T("settings.common.add", "Add")}##specialNPCPath") && !string.IsNullOrEmpty(specialNpcPath))
                 {
-                    Core.GHSettings.SpecialNPCPaths.Add(specialNpcPath);
-                    specialNpcPath = string.Empty;
+                    if (!Core.GHSettings.SpecialNPCPaths.Any(p =>
+                            string.Equals(p, specialNpcPath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Core.GHSettings.SpecialNPCPaths.Add(specialNpcPath);
+                        specialNpcPath = string.Empty;
+                    }
                 }
 
                 for (var i = Core.GHSettings.SpecialNPCPaths.Count - 1; i >= 0; i--)
@@ -782,9 +790,14 @@ namespace GameHelper.Settings
                 ImGui.SameLine();
                 if (ImGui.Button($"{L.T("settings.common.add_lower", "add")}##MiscObjadd"))
                 {
-                    Core.GHSettings.SpecialMiscObjPaths.Add(new(specialMiscObjPath, filterGroup));
-                    specialMiscObjPath = string.Empty;
-                    filterGroup = 0;
+                    if (!string.IsNullOrEmpty(specialMiscObjPath) &&
+                        !Core.GHSettings.SpecialMiscObjPaths.Any(p =>
+                            string.Equals(p.path, specialMiscObjPath, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Core.GHSettings.SpecialMiscObjPaths.Add(new(specialMiscObjPath, filterGroup));
+                        specialMiscObjPath = string.Empty;
+                        filterGroup = 0;
+                    }
                 }
 
                 for (var i = Core.GHSettings.SpecialMiscObjPaths.Count - 1; i >= 0; i--)
@@ -1100,7 +1113,10 @@ namespace GameHelper.Settings
             while (true)
             {
                 yield return new Wait(GameHelperEvents.TimeToSaveAllSettings);
-                JsonHelper.SafeToFile(Core.GHSettings, State.CoreSettingFile);
+                JsonHelper.SafeToFile(
+                    Core.GHSettings,
+                    State.CoreSettingFile,
+                    StateJsonContext.Default.State);
             }
         }
     }

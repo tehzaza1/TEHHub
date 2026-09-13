@@ -6,7 +6,9 @@ namespace GameHelper.Utils
 {
     using System;
     using System.IO;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization.Metadata;
+    using SystemTextJson = System.Text.Json.JsonSerializer;
+    using SystemTextJsonException = System.Text.Json.JsonException;
 
     /// <summary>
     ///     Utility functions to help read/write to Json files.
@@ -14,17 +16,18 @@ namespace GameHelper.Utils
     internal static class JsonHelper
     {
         /// <summary>
-        ///     Creates new instance or loads from the file if it exists.
-        ///     If the file is unreadable or unparseable, logs a warning,
-        ///     renames the bad file aside (preserving it for diagnosis),
-        ///     and falls back to a fresh default-constructed <typeparamref name="T"/>.
+        ///     Creates or loads a JSON file through supplied source-generated metadata.
+        ///     This keeps the existing corruption recovery behaviour while avoiding reflection
+        ///     for stable schemas that do not depend on Newtonsoft-specific features.
         /// </summary>
-        /// <typeparam name="T">Class name to (De)serialize.</typeparam>
+        /// <typeparam name="T">Class name to (de)serialize.</typeparam>
         /// <param name="file">file to load from.</param>
+        /// <param name="jsonTypeInfo">source-generated type metadata.</param>
         /// <returns>class object containing the data (if data exists).</returns>
-        public static T CreateOrLoadJsonFile<T>(FileInfo file)
+        public static T CreateOrLoadJsonFile<T>(FileInfo file, JsonTypeInfo<T> jsonTypeInfo)
             where T : new()
         {
+            ArgumentNullException.ThrowIfNull(jsonTypeInfo);
             file.Refresh();
             file.Directory?.Create();
             if (file.Exists)
@@ -32,7 +35,7 @@ namespace GameHelper.Utils
                 try
                 {
                     var content = File.ReadAllText(file.FullName);
-                    var loaded = JsonConvert.DeserializeObject<T>(content);
+                    var loaded = SystemTextJson.Deserialize(content, jsonTypeInfo);
                     if (loaded != null)
                     {
                         return loaded;
@@ -40,7 +43,7 @@ namespace GameHelper.Utils
 
                     Console.WriteLine($"[JsonHelper] {file.FullName} deserialized to null; falling back to defaults.");
                 }
-                catch (JsonException ex)
+                catch (SystemTextJsonException ex)
                 {
                     Console.WriteLine($"[JsonHelper] {file.FullName} is corrupt or schema-mismatched: {ex.Message}. Falling back to defaults.");
                     QuarantineCorruptFile(file);
@@ -52,21 +55,21 @@ namespace GameHelper.Utils
             }
 
             T obj = new();
-            SafeToFile(obj, file);
+            SafeToFile(obj, file, jsonTypeInfo);
             return obj;
         }
 
         /// <summary>
-        ///     Saves the class object into the file atomically.
-        ///     Writes to a `.tmp` sibling first, then renames over the target —
-        ///     so a crash mid-write leaves either the old file intact or the
-        ///     new file complete, never a half-written truncation.
+        ///     Saves through source-generated metadata, preserving the existing atomic write.
         /// </summary>
-        /// <param name="classObject">class object to save in the file.</param>
+        /// <typeparam name="T">object type.</typeparam>
+        /// <param name="classObject">object to save.</param>
         /// <param name="file">file to save in.</param>
-        public static void SafeToFile(object classObject, FileInfo file)
+        /// <param name="jsonTypeInfo">source-generated type metadata.</param>
+        public static void SafeToFile<T>(T classObject, FileInfo file, JsonTypeInfo<T> jsonTypeInfo)
         {
-            var content = JsonConvert.SerializeObject(classObject, Formatting.Indented);
+            ArgumentNullException.ThrowIfNull(jsonTypeInfo);
+            var content = SystemTextJson.Serialize(classObject, jsonTypeInfo);
             var tempPath = file.FullName + ".tmp";
             File.WriteAllText(tempPath, content);
             File.Move(tempPath, file.FullName, overwrite: true);

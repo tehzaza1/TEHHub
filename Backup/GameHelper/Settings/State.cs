@@ -1,4 +1,4 @@
-﻿// <copyright file="State.cs" company="None">
+// <copyright file="State.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -7,16 +7,18 @@ namespace GameHelper.Settings
     using System.Collections.Generic;
     using System.IO;
     using ClickableTransparentOverlay;
-    using ClickableTransparentOverlay.Win32;
+    using System.Linq;
+    using System;
+    using System.Text.Json.Serialization;
     using GameHelper.Localization;
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
-    using Newtonsoft.Json;
+    using ClickableTransparentOverlay.Win32;
 
     /// <summary>
     ///     Game Helper Core Settings.
     /// </summary>
-    public class State
+    public class State : IJsonOnDeserialized
     {
         /// <summary>
         ///     Core Setting File Information.
@@ -126,7 +128,10 @@ namespace GameHelper.Settings
         /// <summary>
         ///     Gets or sets hotKey to show/hide the main menu.
         /// </summary>
-        public VK MainMenuHotKey = VK.F12;
+        public ClickableTransparentOverlay.Win32.VK MainMenuHotKey = ClickableTransparentOverlay.Win32.VK.F12;
+
+        // Added property for Taiwan client flag (used in UI)
+        public bool IsTaiwanClient = false;
 
         /// <summary>
         ///     Gets or sets a value indicating whether
@@ -220,6 +225,20 @@ namespace GameHelper.Settings
         public bool EnableControllerMode = false;
 
         /// <summary>
+        ///     Gets a value indicating if local Co-op mode (2 players sharing the same screen) is active.
+        /// </summary>
+        public bool IsCoopMode = false;
+
+        /// <summary>
+        ///     Gets the current detected game input mode.
+        /// </summary>
+        [JsonIgnore]
+        public GameInputMode CurrentGameMode =>
+            !this.EnableControllerMode
+                ? GameInputMode.KeyboardMouse
+                : (this.IsCoopMode ? GameInputMode.ControllerCoop : GameInputMode.ControllerSolo);
+
+        /// <summary>
         ///     Gets the party leader name.
         /// </summary>
         public string LeaderName = string.Empty;
@@ -227,12 +246,12 @@ namespace GameHelper.Settings
         /// <summary>
         ///     Gets or sets hotKey to disable/enable all rendering.
         /// </summary>
-        public VK DisableAllRenderingKey = VK.F9;
+        public ClickableTransparentOverlay.Win32.VK DisableAllRenderingKey = ClickableTransparentOverlay.Win32.VK.F9;
 
         /// <summary>
         ///     Gets or sets hotKey to trigger Element Finder search under cursor.
         /// </summary>
-        public VK ElementFinderHotKey = VK.F10;
+        public ClickableTransparentOverlay.Win32.VK ElementFinderHotKey = ClickableTransparentOverlay.Win32.VK.F10;
 
         /// <summary>
         ///     Gets or sets the important NPC Paths.
@@ -288,7 +307,31 @@ namespace GameHelper.Settings
         /// <summary>
         ///     Gets a value indicating if user is running Taiwan client or not.
         /// </summary>
-        public bool IsTaiwanClient = false;
+        void IJsonOnDeserialized.OnDeserialized()
+        {
+            if (MonstersPathsToIgnore != null)
+            {
+                MonstersPathsToIgnore = MonstersPathsToIgnore
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            if (SpecialMiscObjPaths != null)
+            {
+                SpecialMiscObjPaths = SpecialMiscObjPaths
+                    .GroupBy(x => x.path, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .ToList();
+            }
+
+            if (SpecialNPCPaths != null)
+            {
+                SpecialNPCPaths = SpecialNPCPaths
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+        }
+
 
         // ── Entity Staleness Fixes (toggleable) ──
 

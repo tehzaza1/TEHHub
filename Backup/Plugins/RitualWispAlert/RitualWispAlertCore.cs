@@ -7,6 +7,7 @@ namespace RitualWispAlert
     using System;
     using System.IO;
     using System.Numerics;
+    using System.Text.Json;
     using GameHelper;
     using GameHelper.Plugin;
     using GameHelper.RemoteEnums;
@@ -16,8 +17,6 @@ namespace RitualWispAlert
     using GameHelper.Utils;
     using GameOffsets.Natives;
     using ImGuiNET;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
 
     /// <summary>Draws the effective range around active Ritual wisps.</summary>
     public sealed class RitualWispAlertCore : PCore<RitualWispAlertSettings>
@@ -26,6 +25,7 @@ namespace RitualWispAlert
         private const int CircleSegments = 36;
         private const float GridUnitsPerMeter = 10f;
         private const float WorldUnitsPerGridUnit = 250f / 23f;
+        private static readonly JsonSerializerOptions LegacyVectorOptions = new() { IncludeFields = true };
 
         private string SettingsPath => Path.Join(this.DllDirectory, "config", "settings.txt");
 
@@ -36,8 +36,9 @@ namespace RitualWispAlert
             {
                 try
                 {
-                    this.Settings = JsonConvert.DeserializeObject<RitualWispAlertSettings>(File.ReadAllText(this.SettingsPath))
-                        ?? new RitualWispAlertSettings();
+                    this.Settings = JsonSerializer.Deserialize(
+                        File.ReadAllText(this.SettingsPath),
+                        RitualWispAlertJsonContext.Default.RitualWispAlertSettings) ?? new RitualWispAlertSettings();
                 }
                 catch (Exception ex)
                 {
@@ -64,16 +65,26 @@ namespace RitualWispAlert
 
             try
             {
-                var legacy = JObject.Parse(File.ReadAllText(legacyPath));
-                this.Settings.EnableOverlay = legacy.Value<bool?>("DrawWispCircle") ?? this.Settings.EnableOverlay;
-                this.Settings.HideWhenGameUnfocusedOrPaused = legacy.Value<bool?>("HideWispCircleInBackgroundOrPaused") ?? this.Settings.HideWhenGameUnfocusedOrPaused;
-                this.Settings.RadiusMeters = legacy.Value<float?>("WispCircleRadiusMeters") ?? this.Settings.RadiusMeters;
-                this.Settings.Thickness = legacy.Value<float?>("WispCircleThickness") ?? this.Settings.Thickness;
-                this.Settings.InsideColor = legacy["WispCircleColorInside"]?.ToObject<Vector4>() ?? this.Settings.InsideColor;
-                this.Settings.OutsideColor = legacy["WispCircleColorOutside"]?.ToObject<Vector4>() ?? this.Settings.OutsideColor;
-                this.Settings.OffsetX = legacy.Value<float?>("WispCircleOffsetX") ?? this.Settings.OffsetX;
-                this.Settings.OffsetY = legacy.Value<float?>("WispCircleOffsetY") ?? this.Settings.OffsetY;
-                this.Settings.OffsetZ = legacy.Value<float?>("WispCircleOffsetZ") ?? this.Settings.OffsetZ;
+                using var document = JsonDocument.Parse(File.ReadAllText(legacyPath));
+                var legacy = document.RootElement;
+                if (legacy.TryGetProperty("DrawWispCircle", out var drawWispCircle) && drawWispCircle.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    this.Settings.EnableOverlay = drawWispCircle.GetBoolean();
+                if (legacy.TryGetProperty("HideWispCircleInBackgroundOrPaused", out var hideWispCircle) && hideWispCircle.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    this.Settings.HideWhenGameUnfocusedOrPaused = hideWispCircle.GetBoolean();
+                if (legacy.TryGetProperty("WispCircleRadiusMeters", out var radius) && radius.TryGetSingle(out var radiusMeters))
+                    this.Settings.RadiusMeters = radiusMeters;
+                if (legacy.TryGetProperty("WispCircleThickness", out var thickness) && thickness.TryGetSingle(out var lineThickness))
+                    this.Settings.Thickness = lineThickness;
+                if (legacy.TryGetProperty("WispCircleColorInside", out var insideColor))
+                    this.Settings.InsideColor = JsonSerializer.Deserialize<Vector4>(insideColor, LegacyVectorOptions);
+                if (legacy.TryGetProperty("WispCircleColorOutside", out var outsideColor))
+                    this.Settings.OutsideColor = JsonSerializer.Deserialize<Vector4>(outsideColor, LegacyVectorOptions);
+                if (legacy.TryGetProperty("WispCircleOffsetX", out var offsetX) && offsetX.TryGetSingle(out var x))
+                    this.Settings.OffsetX = x;
+                if (legacy.TryGetProperty("WispCircleOffsetY", out var offsetY) && offsetY.TryGetSingle(out var y))
+                    this.Settings.OffsetY = y;
+                if (legacy.TryGetProperty("WispCircleOffsetZ", out var offsetZ) && offsetZ.TryGetSingle(out var z))
+                    this.Settings.OffsetZ = z;
                 return true;
             }
             catch (Exception ex)
@@ -94,7 +105,9 @@ namespace RitualWispAlert
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(this.SettingsPath) ?? string.Empty);
-                File.WriteAllText(this.SettingsPath, JsonConvert.SerializeObject(this.Settings, Formatting.Indented));
+                File.WriteAllText(
+                    this.SettingsPath,
+                    JsonSerializer.Serialize(this.Settings, RitualWispAlertJsonContext.Default.RitualWispAlertSettings));
             }
             catch (Exception ex)
             {

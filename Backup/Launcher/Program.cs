@@ -1,4 +1,4 @@
-﻿// <copyright file="Program.cs" company="None">
+// <copyright file="Program.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -35,8 +35,6 @@ namespace Launcher
                 if (!LocationValidator.IsGameHelperLocationGood(out var message))
                 {
                     Console.WriteLine(message);
-                    Console.Write("Press any key to ignore this warning.");
-                    Console.ReadKey();
                 }
             
                 var gameHelperPath = GameHelperTransformer.TransformGameHelperExecutable(gameHelperDir, gameHelperLoc, newName);

@@ -8,7 +8,7 @@ namespace GameHelper.Localization
     using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
-    using Newtonsoft.Json;
+    using System.Text.Json;
 
     /// <summary>
     ///     Languages supported by the main overlay UI.
@@ -197,7 +197,7 @@ namespace GameHelper.Localization
                 try
                 {
                     var content = File.ReadAllText(path);
-                    return JsonConvert.DeserializeObject<Dictionary<string, string>>(content) ??
+                    return JsonSerializer.Deserialize(content, LocalizationJsonContext.Default.DictionaryStringString) ??
                            new Dictionary<string, string>(StringComparer.Ordinal);
                 }
                 catch (IOException ex)

@@ -1,4 +1,4 @@
-﻿// <copyright file="AutoHotKeyTriggerCore.cs" company="PlaceholderCompany">
+// <copyright file="AutoHotKeyTriggerCore.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -19,7 +19,7 @@ namespace AutoHotKeyTrigger
     using GameHelper.RemoteObjects.Components;
     using GameHelper.Utils;
     using ImGuiNET;
-    using Newtonsoft.Json;
+    using System.Text.Json;
     using AutoHotKeyTrigger.ProfileManager;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
 
@@ -86,6 +86,35 @@ namespace AutoHotKeyTrigger
                 if (ImGui.Button(this.PluginText.Label("button.default_profile", "Add/Reset and Activate League Start Default Profile", "AhkDefaultProfile")))
                 {
                     this.CreateDefaultProfile();
+                }
+
+                ImGui.Separator();
+                if (ImGui.Checkbox("Enable Controller Mode (ViGEm Virtual Controller)", ref this.Settings.EnableControllerMode))
+                {
+                    if (this.Settings.EnableControllerMode)
+                    {
+                        BotInput.EnsureViGEm(this.Settings.XInputControllerIndex);
+                    }
+                    else
+                    {
+                        BotInput.Shutdown();
+                    }
+                }
+
+                if (this.Settings.EnableControllerMode)
+                {
+                    if (BotInput.ConnectedUserIndex >= 0)
+                    {
+                        ImGui.TextColored(new Vector4(0, 255, 0, 255), $"Status: Connected as Controller #{BotInput.ConnectedUserIndex + 1} (Slot {BotInput.ConnectedUserIndex})");
+                    }
+                    else
+                    {
+                        ImGui.TextColored(new Vector4(255, 255, 0, 255), "Status: Connecting...");
+                        if (ImGui.Button("Connect Virtual Controller"))
+                        {
+                            BotInput.EnsureViGEm(this.Settings.XInputControllerIndex);
+                        }
+                    }
                 }
             }
 
@@ -234,10 +263,9 @@ namespace AutoHotKeyTrigger
 
             if (Core.GHSettings.EnableControllerMode)
             {
-                // this is actually disabled in <see cref="MiscHelper.KeyUp"/> function.
-                // follow is done just to provide debug msg to end users.
-                this.debugMessage = "Controller mode enabled. this plugin doesn't support controllers";
-                return;
+                // Controller mode: rules still execute but use ControllerInput
+                // to send keys (bypassing MiscHelper which blocks in this mode).
+                this.debugMessage = string.Empty;
             }
 
             if (string.IsNullOrEmpty(this.Settings.CurrentProfile))
@@ -260,7 +288,7 @@ namespace AutoHotKeyTrigger
 
             foreach (var rule in this.Settings.Profiles[this.Settings.CurrentProfile].Rules)
             {
-                rule.Execute(this.DebugLog);
+                rule.Execute(this.DebugLog, this.Settings.XInputControllerIndex, this.Settings.EnableControllerMode);
             }
         }
 
@@ -388,25 +416,23 @@ namespace AutoHotKeyTrigger
         {
             this.onAreaChange?.Cancel();
             this.onAreaChange = null;
+            BotInput.Shutdown();
         }
 
         /// <inheritdoc />
         public override void OnEnable(bool isGameOpened)
         {
             var jsonData2 = File.ReadAllText(this.DllDirectory + @"/StatusEffectGroup.json");
-            JsonDataHelper.StatusEffectGroups = JsonConvert.DeserializeObject<
-                Dictionary<string, List<string>>>(jsonData2)
+            JsonDataHelper.StatusEffectGroups = JsonSerializer.Deserialize<
+                Dictionary<string, List<string>>>(jsonData2, AutoHotKeyJson.Options)
                 ?? new Dictionary<string, List<string>>();
 
             if (File.Exists(this.SettingPathname))
             {
                 var content = File.ReadAllText(this.SettingPathname);
-                this.Settings = JsonConvert.DeserializeObject<AutoHotKeyTriggerSettings>(
+                this.Settings = JsonSerializer.Deserialize<AutoHotKeyTriggerSettings>(
                     content,
-                    new JsonSerializerSettings
-                    {
-                        TypeNameHandling = TypeNameHandling.Auto
-                    }) ?? new AutoHotKeyTriggerSettings();
+                    AutoHotKeyJson.Options) ?? new AutoHotKeyTriggerSettings();
             }
             else
             {
@@ -414,18 +440,18 @@ namespace AutoHotKeyTrigger
             }
 
             this.onAreaChange = CoroutineHandler.Start(this.EnableAutoQuitWarningUiOnAreaChange());
+
+            if (this.Settings.EnableControllerMode)
+            {
+                BotInput.EnsureViGEm(this.Settings.XInputControllerIndex);
+            }
         }
 
         /// <inheritdoc />
         public override void SaveSettings()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(this.SettingPathname) ?? string.Empty);
-            var settingsData = JsonConvert.SerializeObject(this.Settings,
-                Formatting.Indented,
-                new JsonSerializerSettings
-                {
-                    TypeNameHandling = TypeNameHandling.Auto
-                });
+            var settingsData = JsonSerializer.Serialize(this.Settings, AutoHotKeyJson.Options);
             File.WriteAllText(this.SettingPathname, settingsData);
         }
 

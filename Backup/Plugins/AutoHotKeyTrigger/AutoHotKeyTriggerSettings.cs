@@ -1,4 +1,4 @@
-﻿// <copyright file="AutoHotKeyTriggerSettings.cs" company="PlaceholderCompany">
+// <copyright file="AutoHotKeyTriggerSettings.cs" company="PlaceholderCompany">
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
@@ -9,7 +9,7 @@ namespace AutoHotKeyTrigger
     using AutoHotKeyTrigger.ProfileManager;
     using ClickableTransparentOverlay.Win32;
     using AutoHotKeyTrigger.ProfileManager.DynamicConditions;
-    using Newtonsoft.Json;
+    using System.Text.Json.Serialization;
 
     /// <summary>
     ///     <see cref="AutoHotKeyTrigger" /> plugin settings class.
@@ -42,6 +42,7 @@ namespace AutoHotKeyTrigger
             this.ShouldRunInHideout = false;
             this.DumpStatusEffectOnMe = VK.F10;
             this.ScanUniqueInvulnMarkers = false;
+            this.XInputControllerIndex = 0;
         }
 
         /// <summary>
@@ -67,7 +68,7 @@ namespace AutoHotKeyTrigger
         /// <summary>
         ///     Gets all the profiles containing rules on when to perform the action.
         /// </summary>
-        public readonly Dictionary<string, Profile> Profiles;
+        public Dictionary<string, Profile> Profiles;
 
         /// <summary>
         ///     Gets the currently selected profile.
@@ -97,5 +98,15 @@ namespace AutoHotKeyTrigger
         ///     signal can be identified, then wired into a proper condition.
         /// </summary>
         public bool ScanUniqueInvulnMarkers;
+
+        /// <summary>
+        ///     XInput controller index (0-3) for gamepad button polling.
+        /// </summary>
+        public int XInputControllerIndex;
+
+        /// <summary>
+        ///     Enable/Disable Controller Mode (ViGEm Virtual Gamepad).
+        /// </summary>
+        public bool EnableControllerMode;
     }
 }

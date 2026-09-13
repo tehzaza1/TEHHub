@@ -1,4 +1,4 @@
-﻿// <copyright file="Entity.cs" company="None">
+// <copyright file="Entity.cs" company="None">
 // Copyright (c) None. All rights reserved.
 // </copyright>
 
@@ -12,6 +12,7 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
     using Components;
     using GameHelper.RemoteEnums;
     using GameHelper.RemoteEnums.Entity;
+    using GameHelper.Ui;
     using GameOffsets.Objects.States.InGameState;
     using ImGuiNET;
     using Utils;
@@ -253,6 +254,27 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
 
             ImGui.Text($"Entity Custom Group: {this.EntityCustomGroup}");
             ImGui.Text($"Entity State: {this.EntityState}");
+            if (this.EntitySubtype == EntitySubtypes.WorldItem || this.TryGetComponent<WorldItem>(out var _))
+            {
+                if (this.TryGetComponent<WorldItem>(out var wiComp))
+                {
+                    if (!string.IsNullOrEmpty(wiComp.ItemName))
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.2f, 1f, 0.4f, 1f), $"Ground Item: {wiComp.ItemName}");
+                    }
+
+                    if (!string.IsNullOrEmpty(wiComp.ItemPath))
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.4f, 0.8f, 1f, 1f), $"Item Type: {wiComp.ItemPath}");
+                    }
+
+                    if (!string.IsNullOrEmpty(wiComp.ItemIcon))
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(1f, 0.8f, 0.4f, 1f), $"Item Icon: {wiComp.ItemIcon}");
+                    }
+                }
+            }
+
             if (ImGui.TreeNode("Components"))
             {
                 foreach (var kv in this.componentAddresses)
@@ -332,6 +354,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             var reader = Core.Process.Handle;
             if (refreshComponentMap)
             {
+                using var refreshMapScope = PerformanceProfiler.Measure(
+                    nameof(Entity),
+                    "RefreshComponentMap");
                 this.componentAddresses.Clear();
                 this.componentCache.Clear();
 
@@ -377,6 +402,9 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
             }
             else
             {
+                using var refreshCachedComponentsScope = PerformanceProfiler.Measure(
+                    nameof(Entity),
+                    "RefreshCachedComponents");
                 foreach (var kv in this.componentCache)
                 {
                     kv.Value.Address = kv.Value.Address;
@@ -480,31 +508,38 @@ namespace GameHelper.RemoteObjects.States.InGameStateObjects
                 isUnresolved ||
                 (isMonster && this.EntityState == EntityStates.Useless);
 
-            if (!this.UpdateComponentData(entityData.ItemBase, shouldRefreshComponentMap))
             {
-                this.UpdateComponentData(entityData.ItemBase, true);
-            }
-
-            if (this.EntityType == EntityTypes.Unidentified)
-            {
-                if (!this.TryCalculateEntityType())
+                using var componentUpdateScope = PerformanceProfiler.Measure(nameof(Entity), "UpdateComponentData");
+                if (!this.UpdateComponentData(entityData.ItemBase, shouldRefreshComponentMap))
                 {
-                    this.unresolvedRetryCount++;
-                    this.EntityState = EntityStates.Useless;
-                    return;
+                    this.UpdateComponentData(entityData.ItemBase, true);
                 }
             }
 
-            if (this.EntitySubtype == EntitySubtypes.Unidentified)
             {
-                if (!this.TryCalculateEntitySubType())
+                using var classificationScope = PerformanceProfiler.Measure(nameof(Entity), "Classify");
+                if (this.EntityType == EntityTypes.Unidentified)
                 {
-                    this.unresolvedRetryCount++;
-                    this.EntityState = EntityStates.Useless;
-                    return;
+                    if (!this.TryCalculateEntityType())
+                    {
+                        this.unresolvedRetryCount++;
+                        this.EntityState = EntityStates.Useless;
+                        return;
+                    }
+                }
+
+                if (this.EntitySubtype == EntitySubtypes.Unidentified)
+                {
+                    if (!this.TryCalculateEntitySubType())
+                    {
+                        this.unresolvedRetryCount++;
+                        this.EntityState = EntityStates.Useless;
+                        return;
+                    }
                 }
             }
 
+            using var stateScope = PerformanceProfiler.Measure(nameof(Entity), "CalculateState");
             this.CalculateEntityState();
         }
 

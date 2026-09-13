@@ -10,8 +10,7 @@ namespace GameHelper.Utils
     using System.IO;
     using System.Linq;
     using System.Reflection;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
+    using System.Text.Json;
 
     /// <summary>
     ///     Classification metadata for one WorldArea MapId, loaded from the
@@ -78,21 +77,32 @@ namespace GameHelper.Utils
                     return result;
                 }
 
-                using var reader = new StreamReader(stream);
-                var json = reader.ReadToEnd();
-                var root = JsonConvert.DeserializeObject<Dictionary<string, JObject>>(json);
-                if (root == null)
+                using var document = JsonDocument.Parse(stream);
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
                 {
                     return result;
                 }
 
-                foreach (var kv in root)
+                foreach (var entry in document.RootElement.EnumerateObject())
                 {
-                    var type = kv.Value.Value<string>("type") ?? "normal";
-                    var tagsArr = kv.Value["tags"] as JArray;
-                    var tags = tagsArr?.Select(t => t.Value<string>()).Where(s => !string.IsNullOrEmpty(s)).ToList()
-                               ?? new List<string>();
-                    result[kv.Key] = new WorldAreaMeta(type, tags);
+                    var metadata = entry.Value;
+                    var type = metadata.TryGetProperty("type", out var typeElement)
+                        ? typeElement.GetString() ?? "normal"
+                        : "normal";
+                    var tags = new List<string>();
+                    if (metadata.TryGetProperty("tags", out var tagsElement) && tagsElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var tag in tagsElement.EnumerateArray())
+                        {
+                            var value = tag.GetString();
+                            if (!string.IsNullOrEmpty(value))
+                            {
+                                tags.Add(value);
+                            }
+                        }
+                    }
+
+                    result[entry.Name] = new WorldAreaMeta(type, tags);
                 }
             }
             catch (Exception ex)

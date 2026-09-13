@@ -1256,7 +1256,8 @@ namespace TEHhub.Ui
             if (e.TryGetComponent<StateMachine>(out var cardSm, false) &&
                 cardSm.TryGetRuneStationDetails(out var cardRs) && cardRs != null)
             {
-                ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"[Expedition Monolith] Sockets: {cardRs.SocketCount} | Golden Slot: #{cardRs.GoldenSlotIndex + 1} | Anchor: {cardRs.AnchorRuneName} (Slot #{cardRs.AnchorSlotIndex + 1}) | Proliferates: {(cardRs.IsAnchorInGoldenSlot ? "YES" : "NO")}");
+                var slotInfo = !string.IsNullOrEmpty(cardRs.SlotRunesSummary) ? $" | {cardRs.SlotRunesSummary}" : "";
+                ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"[Expedition Monolith] Sockets: {cardRs.SocketCount} | Golden Slot: #{cardRs.GoldenSlotIndex + 1} | Anchor: {cardRs.AnchorRuneName} (Slot #{cardRs.AnchorSlotIndex + 1}) | Proliferates: {(cardRs.IsAnchorInGoldenSlot ? "YES" : "NO")}{slotInfo}");
             }
             ImGui.Separator();
             ImGui.Text($"Components ({results.Count})");

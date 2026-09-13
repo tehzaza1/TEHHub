@@ -1,0 +1,1333 @@
+// <copyright file="CombatSystem.cs" company="None">
+// Copyright (c) None. All rights reserved.
+// </copyright>
+
+namespace AutoExile2.Systems
+{
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Linq;
+    using System.Numerics;
+    using GameHelper;
+    using GameHelper.RemoteEnums;
+    using GameHelper.RemoteEnums.Entity;
+    using GameHelper.RemoteObjects.Components;
+    using GameHelper.RemoteObjects.States.InGameStateObjects;
+    using GameOffsets.Natives;
+    using GameOffsets.Objects.Components;
+    using ClickableTransparentOverlay.Win32;
+    using AutoExile2.WebServer;
+
+    /// <summary>
+    /// Handles hostile monster scanning, smart target scoring, Auto Flasks,
+    /// and multi-skill execution based on individual skill slot configurations.
+    /// Ported and adapted from AutoExile 1's combat engine.
+    /// </summary>
+    public class CombatSystem
+    {
+        /// <summary>
+        /// Hardcoded debounce cooldown for life and mana flasks in milliseconds (200ms).
+        /// Prevents duplicate key triggers within the same server tick while effect/charges are evaluated.
+        /// </summary>
+        public const int FlaskDebounceMs = 200;
+
+        private DateTime nextAttackAllowed = DateTime.MinValue;
+        public DateTime LastLifeFlaskAt { get; set; } = DateTime.MinValue;
+        public DateTime LastManaFlaskAt { get; set; } = DateTime.MinValue;
+
+        // Target focus tracking (AutoExile 1 target timeout prevention)
+        private uint lastTargetId = 0;
+        private DateTime targetFocusStart = DateTime.MinValue;
+        private readonly HashSet<uint> deprioritizedTargets = new();
+        private const float TargetFocusTimeoutSec = 5.0f;
+
+        // Active channeling slot
+        private SkillSlotConfig? activeChannelSlot = null;
+
+        /// <summary>Currently targeted monster entity ID (0 if none).</summary>
+        public uint CurrentTargetId { get; private set; }
+
+        /// <summary>Currently targeted monster name or clean path.</summary>
+        public string CurrentTargetName { get; private set; } = string.Empty;
+
+        /// <summary>Currently targeted monster rarity.</summary>
+        public string CurrentTargetRarity { get; private set; } = string.Empty;
+
+        /// <summary>Number of hostile monsters in combat range.</summary>
+        public int NearbyHostileCount { get; private set; }
+
+        /// <summary>Weighted density of hostile monsters in combat range (Normal=1, Magic=2, Rare/Unique=3).</summary>
+        public int WeightedDensity { get; private set; }
+
+        /// <summary>Center of mass of nearby monster pack in grid coordinates.</summary>
+        public Vector2 PackCenter { get; private set; } = Vector2.Zero;
+
+        /// <summary>Distance to closest alive hostile monster in awareness range (or float.MaxValue if none).</summary>
+        public float ClosestHostileDistance { get; private set; } = float.MaxValue;
+
+        /// <summary>Current active skill action description for overlay/telemetry.</summary>
+        public string LastSkillAction { get; private set; } = "Idle";
+
+        /// <summary>Live debuffs observed on current or nearby hostile targets.</summary>
+        public List<ActiveBuffInfo> ObservedTargetDebuffs { get; } = new();
+
+        /// <summary>
+        /// Stops any currently active channeled skill and releases attack inputs.
+        /// </summary>
+        public void StopAllChannels()
+        {
+            if (this.activeChannelSlot != null)
+            {
+                BotInput.StopChannel(this.activeChannelSlot.InputType, this.activeChannelSlot.Key);
+                this.activeChannelSlot = null;
+            }
+
+            BotInput.ReleaseAllAttackInputs();
+        }
+
+        /// <summary>
+        /// Updates WASD movement during combat based on CombatStyle (Melee vs Ranged) and FightRange.
+        /// Melee: Closes in to FightRange, then holds ground to attack.
+        /// Ranged: Kites/orbits around the monster pack at FightRange, avoiding swarms.
+        /// </summary>
+        public void UpdateCombatMovement(
+            WorldData world,
+            Entity player,
+            AreaInstance area,
+            AutoExile2Settings settings)
+        {
+            if (player == null || area == null || world == null || this.NearbyHostileCount == 0 || this.PackCenter == Vector2.Zero)
+            {
+                BotInput.ReleaseAllMovementKeys(settings);
+                return;
+            }
+
+            if (!player.TryGetComponent<Render>(out var pRender))
+            {
+                BotInput.ReleaseAllMovementKeys(settings);
+                return;
+            }
+
+            var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
+            float dist = Vector2.Distance(playerGrid, this.PackCenter);
+            float fightRange = Math.Max(10f, settings.FightRange);
+
+            Vector2 desiredMoveDir = Vector2.Zero;
+
+            if (settings.CombatStyle == CombatStyle.Melee)
+            {
+                // Melee: Close in until within fightRange
+                if (dist > fightRange)
+                {
+                    desiredMoveDir = this.PackCenter - playerGrid;
+                }
+                else
+                {
+                    // In melee range: stop moving and focus on attacking
+                    BotInput.ReleaseAllMovementKeys(settings);
+                    return;
+                }
+            }
+            else // Ranged
+            {
+                if (dist > fightRange * 1.35f)
+                {
+                    // Too far from combat: close in towards pack
+                    desiredMoveDir = this.PackCenter - playerGrid;
+                }
+                else if (dist < fightRange * 0.75f)
+                {
+                    // Too close to monsters: back up / kite away from pack
+                    desiredMoveDir = playerGrid - this.PackCenter;
+                }
+                else
+                {
+                    // In the ideal fightRange zone: orbit perpendicular to pack
+                    var toPack = this.PackCenter - playerGrid;
+                    var perp = new Vector2(-toPack.Y, toPack.X); // 90 degree tangent
+                    desiredMoveDir = perp;
+                }
+            }
+
+            if (desiredMoveDir.LengthSquared() > 0.001f)
+            {
+                desiredMoveDir = Vector2.Normalize(desiredMoveDir);
+                var targetGridPos = playerGrid + (desiredMoveDir * 15f);
+                var screenDir = BotInput.GridToScreenDirection(
+                    world,
+                    player,
+                    targetGridPos,
+                    playerGrid,
+                    area.WorldToGridConvertor);
+
+                BotInput.WasdMove(screenDir, settings);
+            }
+            else
+            {
+                BotInput.ReleaseAllMovementKeys(settings);
+            }
+        }
+
+        /// <summary>
+        /// Scans for hostiles, runs Auto Flasks, evaluates skills by priority, and executes attacks.
+        /// Returns true if combat is active (monsters engaged or attacks executed).
+        /// </summary>
+        public bool TickCombat(
+            AreaInstance area,
+            WorldData world,
+            Entity player,
+            AutoExile2Settings settings)
+        {
+            if (player == null || area == null || world == null)
+            {
+                this.StopAllChannels();
+                this.CurrentTargetId = 0;
+                this.NearbyHostileCount = 0;
+                this.WeightedDensity = 0;
+                this.ClosestHostileDistance = float.MaxValue;
+                return false;
+            }
+
+            if (!player.TryGetComponent<Render>(out var pRender))
+            {
+                this.ClosestHostileDistance = float.MaxValue;
+                return false;
+            }
+
+            // 1. Player Vitals (HP, ES, Combined, and Mana percentages)
+            PlayerVitals vitals = player.TryGetComponent<Life>(out var pLife) ? new PlayerVitals(pLife) : default;
+
+            // 2. Auto Flasks (AutoExile 1 automated recovery)
+            this.TickAutoFlasks(settings, vitals.HpPercent, vitals.ManaPercent);
+
+            // 3. Scan Threats & Select Best Target
+            var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
+            Entity? bestTarget = null;
+            float bestScore = float.MinValue;
+            float closestDist = float.MaxValue;
+            int hostileCount = 0;
+            int weightedDensity = 0;
+            Vector2 hostileGridSum = Vector2.Zero;
+            Rarity bestTargetRarity = Rarity.Normal;
+
+            foreach (var entity in area.AwakeEntities.Values)
+            {
+                if (!IsHostileMonster(entity, player.Address))
+                {
+                    continue;
+                }
+
+                if (!entity.TryGetComponent<Render>(out var render))
+                {
+                    continue;
+                }
+
+                var entityGrid = new Vector2(render.GridPosition.X, render.GridPosition.Y);
+                float dist = Vector2.Distance(playerGrid, entityGrid);
+
+                if (dist < closestDist)
+                {
+                    closestDist = dist;
+                }
+
+                if (dist <= settings.CombatRange)
+                {
+                    hostileCount++;
+                    hostileGridSum += entityGrid;
+
+                    Rarity rarity = Rarity.Normal;
+                    if (entity.TryGetComponent<ObjectMagicProperties>(out var omp))
+                    {
+                        rarity = omp.Rarity;
+                    }
+
+                    // User Rule: normal = 1, magic = 2, rare / unique = 3
+                    int packWeight = rarity switch
+                    {
+                        Rarity.Magic => 2,
+                        >= Rarity.Rare => 3,
+                        _ => 1,
+                    };
+                    weightedDensity += packWeight;
+
+                    // AutoExile 1 Rarity Weighting for Targeting: Normal=1, Magic=3, Rare=10, Unique=25
+                    float rarityWeight = rarity switch
+                    {
+                        Rarity.Magic => 3.0f,
+                        Rarity.Rare => 10.0f,
+                        Rarity.Unique => 25.0f,
+                        _ => 1.0f,
+                    };
+
+                    float score = rarityWeight - (dist * 0.1f);
+
+                    // Boss / Unique Monster Priority: Always prioritize bosses over trash mobs
+                    string mPath = entity.Path ?? string.Empty;
+                    if (rarity == Rarity.Unique || mPath.Contains("Boss", StringComparison.OrdinalIgnoreCase))
+                    {
+                        score += 500f;
+                    }
+
+                    // Target Focus Timeout Penalty (-200 if stuck on this target > 5s)
+                    if (this.deprioritizedTargets.Contains(entity.Id))
+                    {
+                        score -= 200f;
+                    }
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestTarget = entity;
+                        bestTargetRarity = rarity;
+                    }
+                }
+            }
+
+            this.NearbyHostileCount = hostileCount;
+            this.WeightedDensity = weightedDensity;
+            this.ClosestHostileDistance = closestDist;
+            this.PackCenter = hostileCount > 0 ? (hostileGridSum / hostileCount) : playerGrid;
+
+            // Target focus duration tracker
+            if (bestTarget != null)
+            {
+                if (bestTarget.Id == this.lastTargetId)
+                {
+                    if ((DateTime.Now - this.targetFocusStart).TotalSeconds > TargetFocusTimeoutSec)
+                    {
+                        this.deprioritizedTargets.Add(bestTarget.Id);
+                    }
+                }
+                else
+                {
+                    this.lastTargetId = bestTarget.Id;
+                    this.targetFocusStart = DateTime.Now;
+                }
+            }
+            else
+            {
+                this.lastTargetId = 0;
+                this.deprioritizedTargets.Clear();
+            }
+
+            // 4. Tick Self-Cast Skills (Buffs, Guards, Cries) independently of target
+            bool executedSelfSkill = this.TickSelfSkills(player, settings, vitals, hostileCount);
+
+            if (bestTarget == null)
+            {
+                this.CurrentTargetId = 0;
+                this.CurrentTargetName = string.Empty;
+                this.CurrentTargetRarity = string.Empty;
+                this.StopAllChannels();
+                return executedSelfSkill;
+            }
+
+            this.CurrentTargetId = bestTarget.Id;
+            this.CurrentTargetRarity = bestTargetRarity.ToString();
+
+            // Extract readable target monster name
+            string targetName = string.Empty;
+            if (bestTarget.Path != null)
+            {
+                int lastSlash = bestTarget.Path.LastIndexOf('/');
+                targetName = lastSlash >= 0 ? bestTarget.Path.Substring(lastSlash + 1) : bestTarget.Path;
+                int atSign = targetName.IndexOf('@');
+                if (atSign >= 0) targetName = targetName.Substring(0, atSign);
+            }
+            this.CurrentTargetName = targetName;
+
+            // Live scan debuffs on the targeted monster
+            if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.StatusEffects != null)
+            {
+                this.ObservedTargetDebuffs.Clear();
+                foreach (var (debuffName, eff) in tBuffs.StatusEffects)
+                {
+                    if (string.IsNullOrWhiteSpace(debuffName)) continue;
+                    this.ObservedTargetDebuffs.Add(new ActiveBuffInfo
+                    {
+                        Name = debuffName,
+                        TimeLeft = float.IsInfinity(eff.TimeLeft) ? 0f : (float)Math.Round(eff.TimeLeft, 1),
+                        Charges = eff.Charges,
+                    });
+                }
+            }
+
+            // 5. Evaluate and Execute Targeted Skills by Priority
+            return this.TickTargetedSkills(
+                area,
+                world,
+                player,
+                pRender,
+                playerGrid,
+                bestTarget,
+                bestTargetRarity,
+                hostileCount,
+                vitals,
+                settings);
+        }
+
+        /// <summary>
+        /// Determines 0-indexed flask slot (0 to 4) from virtual key.
+        /// </summary>
+        public static int GetFlaskSlotFromKey(VK key, int defaultSlot)
+        {
+            return key switch
+            {
+                VK.KEY_1 => 0,
+                VK.KEY_2 => 1,
+                VK.KEY_3 => 2,
+                VK.KEY_4 => 3,
+                VK.KEY_5 => 4,
+                _ => defaultSlot,
+            };
+        }
+
+        /// <summary>
+        /// Checks whether the flask in the given slot is currently active on the player.
+        /// Uses GameHelper's parsed Buffs.FlaskActive array (identical to AutoHotKeyTrigger's FlaskInfo.Active)
+        /// and status effects scan to prevent drinking while the effect is running.
+        /// </summary>
+        public static bool IsFlaskActive(Entity? player, int slot, bool isLife)
+        {
+            if (player == null || !player.IsValid)
+            {
+                return false;
+            }
+
+            if (player.TryGetComponent<Buffs>(out var buffs))
+            {
+                // 1. Direct slot check from GameHelper's parsed FlaskActive array
+                if (slot >= 0 && slot < buffs.FlaskActive.Length && buffs.FlaskActive[slot])
+                {
+                    return true;
+                }
+
+                // 2. Fallback scan on active status effects
+                if (buffs.StatusEffects != null && buffs.StatusEffects.Count > 0)
+                {
+                    string target = isLife ? "life" : "mana";
+                    foreach (var kvp in buffs.StatusEffects)
+                    {
+                        if (kvp.Value.FlaskSlot == slot)
+                        {
+                            return true;
+                        }
+
+                        string name = kvp.Key.ToLowerInvariant();
+                        if (name.Contains("flask") && name.Contains(target))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks whether the flask item in the specified inventory slot has enough charges to use.
+        /// Directly mirrors AutoHotKeyTrigger's FlaskInfo.IsUsable implementation.
+        /// </summary>
+        public static bool HasFlaskCharges(ServerData? serverData, int slot)
+        {
+            if (serverData == null || slot < 0 || slot >= 5)
+            {
+                return true;
+            }
+
+            try
+            {
+                var flaskItem = serverData.FlaskInventory[0, slot];
+                if (flaskItem == null || flaskItem.Address == IntPtr.Zero)
+                {
+                    return true; // Empty slot or not loaded yet, allow trigger
+                }
+
+                if (flaskItem.TryGetComponent<Charges>(out var chargesComp))
+                {
+                    if (chargesComp.PerUseCharge > 0)
+                    {
+                        return chargesComp.Current >= chargesComp.PerUseCharge;
+                    }
+
+                    return chargesComp.Current > 0;
+                }
+            }
+            catch
+            {
+                // Fallback to true if read fails
+            }
+
+            return true;
+        }
+
+        public void TickAutoFlasks(AutoExile2Settings settings, float hpPercent, float manaPercent, CoopVirtualGamepad? pad = null)
+        {
+            var inGameState = GameHelper.Core.States.InGameStateObject;
+            var area = inGameState?.CurrentAreaInstance;
+            this.TickAutoFlasks(area?.Player, area?.ServerDataObject, settings, hpPercent, manaPercent, pad);
+        }
+
+        public void TickAutoFlasks(
+            Entity? player,
+            ServerData? serverData,
+            AutoExile2Settings settings,
+            float hpPercent,
+            float manaPercent,
+            CoopVirtualGamepad? pad = null)
+        {
+            var now = DateTime.Now;
+
+            // 1. Auto Life Flask
+            if (settings.AutoLifeFlask && hpPercent <= settings.LifeFlaskThresholdPercent)
+            {
+                int lifeSlot = GetFlaskSlotFromKey(settings.LifeFlaskKey, 0);
+
+                // Check active effect: do NOT drink if flask effect is already active!
+                bool active = settings.CheckFlaskActiveEffect && IsFlaskActive(player, lifeSlot, isLife: true);
+
+                // Check charges: do NOT drink if not enough charges!
+                bool hasCharges = !settings.CheckFlaskCharges || HasFlaskCharges(serverData, lifeSlot);
+
+                if (!active && hasCharges)
+                {
+                    const int debounceMs = FlaskDebounceMs;
+
+                    if ((now - this.LastLifeFlaskAt).TotalMilliseconds >= debounceMs)
+                    {
+                        this.LastLifeFlaskAt = now;
+                        if (pad != null && pad.IsLeaderConnected)
+                        {
+                            pad.PressLeaderFlask(true, debounceMs);
+                        }
+                        else
+                        {
+                            BotInput.FastPressKey(settings.LifeFlaskKey);
+                        }
+                    }
+                }
+            }
+
+            // 2. Auto Mana Flask
+            if (settings.AutoManaFlask && manaPercent <= settings.ManaFlaskThresholdPercent)
+            {
+                int manaSlot = GetFlaskSlotFromKey(settings.ManaFlaskKey, 1);
+
+                // Check active effect: do NOT drink if flask effect is already active!
+                bool active = settings.CheckFlaskActiveEffect && IsFlaskActive(player, manaSlot, isLife: false);
+
+                // Check charges: do NOT drink if not enough charges!
+                bool hasCharges = !settings.CheckFlaskCharges || HasFlaskCharges(serverData, manaSlot);
+
+                if (!active && hasCharges)
+                {
+                    const int debounceMs = FlaskDebounceMs;
+
+                    if ((now - this.LastManaFlaskAt).TotalMilliseconds >= debounceMs)
+                    {
+                        this.LastManaFlaskAt = now;
+                        if (pad != null && pad.IsLeaderConnected)
+                        {
+                            pad.PressLeaderFlask(false, debounceMs);
+                        }
+                        else
+                        {
+                            BotInput.FastPressKey(settings.ManaFlaskKey);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Instantly checks and fires emergency low-HP guard / panic defense skills (e.g. Steelskin, Molten Shell)
+        /// with zero delay, directly mirroring AutoHotKeyTrigger's emergency rule triggers.
+        /// </summary>
+        public bool TickEmergencyLowHpSkills(
+            Entity player,
+            AutoExile2Settings settings,
+            PlayerVitals vitals,
+            CoopVirtualGamepad? pad = null,
+            AreaInstance? area = null)
+        {
+            if (settings.Skills == null || settings.Skills.Count == 0)
+            {
+                return false;
+            }
+
+            var now = DateTime.Now;
+            foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard && s.OnlyOnLowHp).OrderByDescending(s => s.Priority))
+            {
+                if (!vitals.IsLowVital(slot))
+                {
+                    continue;
+                }
+
+                if (slot.MinNearbyEnemies > 0)
+                {
+                    int hostiles = this.NearbyHostileCount;
+                    if (hostiles < slot.MinNearbyEnemies && area != null && player.TryGetComponent<Render>(out var pRend))
+                    {
+                        hostiles = CountHostilesInRange(area, new Vector2(pRend.GridPosition.X, pRend.GridPosition.Y), settings.CombatRange);
+                    }
+
+                    if (hostiles < slot.MinNearbyEnemies)
+                    {
+                        continue;
+                    }
+                }
+
+                if (slot.MinManaPercent > 0 && vitals.ManaPercent < slot.MinManaPercent)
+                {
+                    continue;
+                }
+
+                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                if (effectiveInterval > 0 && (now - slot.LastCastAt).TotalMilliseconds < effectiveInterval)
+                {
+                    continue;
+                }
+
+                // In-game dynamic cooldown check (directly from PoE 2 engine memory)
+                if (!IsSkillReadyInGame(player, slot))
+                {
+                    continue;
+                }
+
+                // Check if buff is already active on the player
+                if (slot.OnlyWhenBuffMissing && HasBuff(player, slot))
+                {
+                    continue;
+                }
+
+                slot.LastCastAt = now;
+                this.LastSkillAction = $"Panic Guard: {slot.Name}";
+
+                if (pad != null && pad.IsLeaderConnected && slot.GamepadButton != CoopPadButton.None)
+                {
+                    pad.PressLeaderBuff(slot.GamepadButton, Math.Max(30, slot.HoldDurationMs));
+                }
+                else
+                {
+                    BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Max(30, slot.HoldDurationMs));
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool IsLowVital(SkillSlotConfig slot, float hpPercent, float esPercent, float combinedPercent, bool hasEs = true)
+        {
+            if (!slot.OnlyOnLowHp) return false;
+            float eval = slot.VitalCondition switch
+            {
+                VitalConditionType.HpOnly => hpPercent,
+                VitalConditionType.EsOnly => hasEs ? esPercent : 100f,
+                _ => combinedPercent,
+            };
+            return eval <= slot.LowHpThresholdPercent;
+        }
+
+        public bool TickSelfSkills(Entity player, AutoExile2Settings settings, PlayerVitals vitals, int nearbyHostiles)
+        {
+            if (settings.Skills == null || settings.Skills.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard).OrderByDescending(s => s.Priority))
+            {
+                if (slot.OnlyOnLowHp && !vitals.IsLowVital(slot))
+                {
+                    continue;
+                }
+
+                if (slot.MinNearbyEnemies > 0 && nearbyHostiles < slot.MinNearbyEnemies)
+                {
+                    continue;
+                }
+
+                if (slot.MinManaPercent > 0 && vitals.ManaPercent < slot.MinManaPercent)
+                {
+                    continue;
+                }
+
+                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                int totalInterval = effectiveInterval + Math.Max(30, slot.HoldDurationMs);
+                if (totalInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < totalInterval)
+                {
+                    continue;
+                }
+
+                // In-game dynamic cooldown check (directly from PoE 2 engine memory)
+                if (!IsSkillReadyInGame(player, slot))
+                {
+                    continue;
+                }
+
+                // Check if buff is already active on the player
+                if (slot.OnlyWhenBuffMissing && HasBuff(player, slot))
+                {
+                    continue; // Buff already present on player! Do not recast!
+                }
+
+                BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Max(30, slot.HoldDurationMs));
+
+                slot.LastCastAt = DateTime.Now;
+                this.LastSkillAction = $"Buff: {slot.Name}";
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool HasBuff(Entity entity, SkillSlotConfig slot)
+        {
+            if (slot == null) return false;
+            string rawName = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
+                ? slot.BuffDebuffName
+                : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
+            return HasBuff(entity, rawName);
+        }
+
+        public static bool HasBuff(Entity entity, string buffName)
+        {
+            if (entity == null || string.IsNullOrWhiteSpace(buffName) || !entity.TryGetComponent<Buffs>(out var pBuffs) || pBuffs.StatusEffects == null || pBuffs.StatusEffects.IsEmpty)
+            {
+                return false;
+            }
+
+            string clean = CleanBuffString(buffName);
+            if (string.IsNullOrWhiteSpace(clean))
+            {
+                return false;
+            }
+
+            var aliases = GetBuffAliases(clean);
+
+            foreach (var kv in pBuffs.StatusEffects)
+            {
+                string keyClean = CleanBuffString(kv.Key);
+                string keyCleanNoDigits = System.Text.RegularExpressions.Regex.Replace(keyClean, @"\d+$", "");
+
+                for (int i = 0; i < aliases.Count; i++)
+                {
+                    string alias = aliases[i];
+                    string aliasNoDigits = System.Text.RegularExpressions.Regex.Replace(alias, @"\d+$", "");
+
+                    if (keyClean.Contains(alias, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrEmpty(keyCleanNoDigits) && !string.IsNullOrEmpty(aliasNoDigits) && (keyCleanNoDigits.Contains(aliasNoDigits, StringComparison.OrdinalIgnoreCase) || aliasNoDigits.Contains(keyCleanNoDigits, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static int CountHostilesInRange(AreaInstance area, Vector2 playerGrid, float maxRange)
+        {
+            if (area == null || area.AwakeEntities == null) return 0;
+            int count = 0;
+            float maxDistSq = maxRange > 0 ? maxRange * maxRange : 50f * 50f;
+            foreach (var entity in area.AwakeEntities.Values)
+            {
+                if (!IsHostileMonster(entity, IntPtr.Zero)) continue;
+                if (!entity.TryGetComponent<Render>(out var render)) continue;
+                var eg = new Vector2(render.GridPosition.X, render.GridPosition.Y);
+                if (Vector2.DistanceSquared(playerGrid, eg) <= maxDistSq)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        public static bool IsSkillReadyInGame(Entity? player, SkillSlotConfig slot)
+        {
+            if (player == null || slot == null) return true;
+            if (!player.TryGetComponent<Actor>(out var actor) || actor.ActiveSkills == null || actor.ActiveSkills.Count == 0)
+            {
+                return true;
+            }
+
+            var (matchedKey, matchedDetails) = FindMatchingSkill(actor, slot);
+            if (matchedKey == null)
+            {
+                return true; // Not in actor.ActiveSkills (e.g. basic item action), allow through
+            }
+
+            // 1. Check in-game cooldown charges directly from Actor.ActiveSkillCooldowns
+            if (actor.ActiveSkillCooldowns != null &&
+                actor.ActiveSkillCooldowns.TryGetValue(matchedDetails.UnknownIdAndEquipmentInfo, out var cdInfo))
+            {
+                // If all cooldown charges are currently exhausted, the skill CANNOT be used!
+                if (cdInfo.CannotBeUsed())
+                {
+                    return false;
+                }
+            }
+
+            // 2. Check game engine usability flag (IsSkillUsable / "Can use skills" list)
+            // In GameHelper's "Can use skills" list, if a skill is on cooldown or unusable, it disappears from IsSkillUsable.
+            if (actor.IsSkillUsable != null)
+            {
+                if (!actor.IsSkillUsable.Contains(matchedKey))
+                {
+                    bool anyUsable = false;
+                    string cleanMatched = CleanBuffString(matchedKey);
+                    foreach (var usableName in actor.IsSkillUsable)
+                    {
+                        if (CleanBuffString(usableName) == cleanMatched)
+                        {
+                            anyUsable = true;
+                            break;
+                        }
+                    }
+                    if (!anyUsable)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        public static bool HasAvailableCharges(Entity? player, SkillSlotConfig slot)
+        {
+            if (player == null || slot == null) return false;
+            if (!player.TryGetComponent<Actor>(out var actor) || actor.ActiveSkills == null) return false;
+
+            var (matchedKey, matchedDetails) = FindMatchingSkill(actor, slot);
+            if (matchedKey == null) return false;
+
+            if (actor.ActiveSkillCooldowns != null &&
+                actor.ActiveSkillCooldowns.TryGetValue(matchedDetails.UnknownIdAndEquipmentInfo, out var cdInfo))
+            {
+                return cdInfo.MaxUses > 1 && cdInfo.TotalActiveCooldowns() < cdInfo.MaxUses;
+            }
+
+            return false;
+        }
+
+        private static (string? key, ActiveSkillDetails details) FindMatchingSkill(Actor actor, SkillSlotConfig slot)
+        {
+            if (actor.ActiveSkills == null || actor.ActiveSkills.Count == 0)
+                return (null, default);
+
+            string name1 = slot.AssignedSkillName ?? string.Empty;
+            string name2 = slot.Name ?? string.Empty;
+            string clean1 = CleanBuffString(name1);
+            string clean2 = CleanBuffString(name2);
+
+            var candidates = new List<(string key, ActiveSkillDetails details)>();
+            foreach (var (k, details) in actor.ActiveSkills)
+            {
+                if (k.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
+                    k.Equals(name2, StringComparison.OrdinalIgnoreCase))
+                {
+                    candidates.Add((k, details));
+                    continue;
+                }
+
+                string cleanK = CleanBuffString(k);
+                if ((!string.IsNullOrEmpty(clean1) && (cleanK.Contains(clean1) || clean1.Contains(cleanK))) ||
+                    (!string.IsNullOrEmpty(clean2) && (cleanK.Contains(clean2) || clean2.Contains(cleanK))))
+                {
+                    candidates.Add((k, details));
+                }
+            }
+
+            if (candidates.Count == 0)
+                return (null, default);
+
+            // 1. Prefer candidate that has an entry in ActiveSkillCooldowns (e.g. ConvalescenceActive over Convalescence)
+            if (actor.ActiveSkillCooldowns != null && actor.ActiveSkillCooldowns.Count > 0)
+            {
+                var withCooldown = candidates.FirstOrDefault(c =>
+                    actor.ActiveSkillCooldowns.ContainsKey(c.details.UnknownIdAndEquipmentInfo));
+                if (withCooldown.key != null)
+                    return withCooldown;
+            }
+
+            // 2. Prefer candidate that ends with "Active" if search term was base
+            var activeCandidate = candidates.FirstOrDefault(c =>
+                c.key.EndsWith("Active", StringComparison.OrdinalIgnoreCase));
+            if (activeCandidate.key != null)
+                return activeCandidate;
+
+            // 3. Prefer exact match
+            var exact = candidates.FirstOrDefault(c =>
+                c.key.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
+                c.key.Equals(name2, StringComparison.OrdinalIgnoreCase));
+            if (exact.key != null)
+                return exact;
+
+            return candidates[0];
+        }
+
+        private static string CleanBuffString(string s)
+        {
+            return s.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
+        }
+
+        private static List<string> GetBuffAliases(string clean)
+        {
+            var list = new List<string> { clean };
+
+            // Strip trailing "active" or "triggered" from skill gem names (e.g. ConvalescenceActive -> convalescence)
+            if (clean.EndsWith("active", StringComparison.OrdinalIgnoreCase) && clean.Length > 6)
+            {
+                string baseName = clean.Substring(0, clean.Length - 6);
+                if (!list.Contains(baseName)) list.Add(baseName);
+            }
+            if (clean.EndsWith("triggered", StringComparison.OrdinalIgnoreCase) && clean.Length > 9)
+            {
+                string baseName = clean.Substring(0, clean.Length - 9);
+                if (!list.Contains(baseName)) list.Add(baseName);
+            }
+
+            if (clean.Contains("convalescence"))
+            {
+                list.Add("convalescence");
+                list.Add("convalescenceenergyshield");
+            }
+            else if (clean.Contains("encaseinjade") || clean.Contains("jade"))
+            {
+                list.Add("encaseinjade");
+                list.Add("jade");
+            }
+            else if (clean.Contains("fortifyingcry") || clean.Contains("fortify"))
+            {
+                list.Add("fortifyingcry");
+                list.Add("fortify");
+            }
+            else if (clean.Contains("magmabarrier"))
+            {
+                list.Add("magma");
+            }
+            else if (clean.Contains("virtuousbarrier"))
+            {
+                list.Add("virtuous");
+            }
+            else if (clean.Contains("glacialbarrier"))
+            {
+                list.Add("glacial");
+            }
+            else if (clean.Contains("arcticarmour"))
+            {
+                list.Add("arctic");
+            }
+            else if (clean.Contains("exposure"))
+            {
+                list.Add("exposure");
+                list.Add("exposureelemental");
+                list.Add("exposurefire");
+                list.Add("exposurecold");
+                list.Add("exposurelightning");
+            }
+            return list;
+        }
+
+        private bool TickTargetedSkills(
+            AreaInstance? area,
+            WorldData world,
+            Entity player,
+            Render playerRender,
+            Vector2 playerGrid,
+            Entity bestTarget,
+            Rarity bestTargetRarity,
+            int hostileCount,
+            PlayerVitals vitals,
+            AutoExile2Settings settings)
+        {
+            // Calculate screen position of target
+            if (!bestTarget.TryGetComponent<Render>(out var targetRender))
+            {
+                return true;
+            }
+
+            var targetPos = targetRender.WorldPosition;
+            float targetZ = targetPos.Z + (targetRender.ModelBounds.Z * 0.5f);
+            var targetScreenPos = world.WorldToScreen(new StdTuple3D<float>
+            {
+                X = targetPos.X,
+                Y = targetPos.Y,
+                Z = targetZ,
+            }, targetZ);
+
+            if (targetScreenPos == Vector2.Zero || float.IsNaN(targetScreenPos.X))
+            {
+                return true;
+            }
+
+            float distToTarget = Vector2.Distance(
+                playerGrid,
+                new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y));
+
+            // If channeling an active skill, update cursor towards target
+            if (this.activeChannelSlot != null)
+            {
+                BotInput.MoveCursor(targetScreenPos);
+
+                // Check if channeling conditions are still met
+                if (distToTarget > (this.activeChannelSlot.MaxTargetRange > 0 ? this.activeChannelSlot.MaxTargetRange : settings.CombatRange))
+                {
+                    this.StopAllChannels();
+                }
+            }
+
+            // Attack pacing gate
+            if (DateTime.Now < this.nextAttackAllowed)
+            {
+                return true;
+            }
+
+            var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
+            var candidateSkills = configuredSkills
+                .Where(s => s.Enabled && s.Role != SkillRole.Disabled && s.Role != SkillRole.SelfBuffGuard)
+                .OrderByDescending(s => s.Priority)
+                .ToList();
+
+            // Fallback to legacy settings if no active skills found
+            if (candidateSkills.Count == 0)
+            {
+                return this.ExecuteLegacyAttack(world, bestTarget, bestTargetRarity, targetScreenPos, settings);
+            }
+
+            foreach (var slot in candidateSkills)
+            {
+                // Cooldown / Cast Interval check
+                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
+                int totalInterval = effectiveInterval + Math.Max(30, slot.HoldDurationMs);
+                if (totalInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < totalInterval)
+                {
+                    continue;
+                }
+
+                // In-game dynamic cooldown check (directly from PoE 2 engine memory)
+                if (!IsSkillReadyInGame(player, slot))
+                {
+                    continue;
+                }
+
+                // 1. Totem / Minion Max Count check
+                if (slot.Category == SkillClassifier.CategoryTotem || slot.Role == SkillRole.TotemOrMinion)
+                {
+                    int currentTotems = this.CountActiveTotems(area, player);
+                    int maxTotems = slot.MaxTotemCount > 0 ? slot.MaxTotemCount : 1;
+                    if (currentTotems >= maxTotems)
+                    {
+                        continue; // Max totem limit reached! Do not recast!
+                    }
+                }
+
+                // 2. Debuff / Curse presence check on target
+                if (slot.OnlyWhenBuffMissing && (slot.Category == SkillClassifier.CategoryCurse || slot.Role == SkillRole.PackTargeted))
+                {
+                    if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.StatusEffects != null)
+                    {
+                        string curseToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
+                            ? slot.BuffDebuffName
+                            : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
+                            string cleanCurse = CleanBuffString(curseToMatch);
+                            var aliases = GetBuffAliases(cleanCurse);
+                            bool hasDebuff = false;
+                            foreach (var kv in tBuffs.StatusEffects)
+                            {
+                                string targetBuffClean = CleanBuffString(kv.Key);
+                                string targetBuffCleanNoDigits = System.Text.RegularExpressions.Regex.Replace(targetBuffClean, @"\d+$", "");
+                                for (int i = 0; i < aliases.Count; i++)
+                                {
+                                    string a = aliases[i];
+                                    string aNoDigits = System.Text.RegularExpressions.Regex.Replace(a, @"\d+$", "");
+                                    if (targetBuffClean.Contains(a, StringComparison.OrdinalIgnoreCase) ||
+                                        (!string.IsNullOrEmpty(targetBuffCleanNoDigits) && !string.IsNullOrEmpty(aNoDigits) &&
+                                         (targetBuffCleanNoDigits.Contains(aNoDigits, StringComparison.OrdinalIgnoreCase) || aNoDigits.Contains(targetBuffCleanNoDigits, StringComparison.OrdinalIgnoreCase))))
+                                    {
+                                        hasDebuff = true;
+                                        break;
+                                    }
+                                }
+                                if (hasDebuff) break;
+                            }
+                            if (hasDebuff)
+                            {
+                                continue; // Monster already has this curse/debuff!
+                            }
+                    }
+                }
+
+                // Range check
+                float maxRange = slot.MaxTargetRange > 0 ? slot.MaxTargetRange : settings.CombatRange;
+                if (distToTarget > maxRange)
+                {
+                    continue;
+                }
+
+                // Min nearby enemies check
+                if (slot.MinNearbyEnemies > 0 && hostileCount < slot.MinNearbyEnemies)
+                {
+                    continue;
+                }
+
+                // Low HP / Vital condition check
+                if (slot.OnlyOnLowHp && !vitals.IsLowVital(slot))
+                {
+                    continue;
+                }
+
+                // Min Mana check
+                if (slot.MinManaPercent > 0 && vitals.ManaPercent < slot.MinManaPercent)
+                {
+                    continue;
+                }
+
+                // Target Filter check
+                if (!this.MatchesTargetFilter(slot.TargetFilter, bestTargetRarity))
+                {
+                    continue;
+                }
+
+                // Aim cursor based on SkillRole
+                Vector2 aimPos = targetScreenPos;
+                if (slot.Role == SkillRole.PackTargeted)
+                {
+                    aimPos = this.GetGridScreenPos(world, this.PackCenter, playerRender.TerrainHeight, targetScreenPos);
+                }
+                else if (slot.Role == SkillRole.TotemOrMinion)
+                {
+                    // Deploy totem slightly between player and target pack
+                    var totemGrid = Vector2.Lerp(playerGrid, new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y), 0.65f);
+                    aimPos = this.GetGridScreenPos(world, totemGrid, playerRender.TerrainHeight, targetScreenPos);
+                }
+
+                BotInput.MoveCursor(aimPos);
+
+                // Execute input
+                if (slot.IsChannel)
+                {
+                    if (this.activeChannelSlot != slot)
+                    {
+                        this.StopAllChannels();
+                        BotInput.StartChannel(slot.InputType, slot.Key);
+                        this.activeChannelSlot = slot;
+                    }
+                }
+                else
+                {
+                    if (this.activeChannelSlot != null)
+                    {
+                        this.StopAllChannels();
+                    }
+
+                    BotInput.ExecuteAttack(slot.InputType, slot.Key, slot.HoldDurationMs);
+                    this.nextAttackAllowed = DateTime.Now.AddMilliseconds(slot.HoldDurationMs + Math.Max(20, slot.MinCastIntervalMs));
+                }
+
+                slot.LastCastAt = DateTime.Now;
+                this.LastSkillAction = $"{slot.Name} ({slot.Role})";
+                return true;
+            }
+
+            return true;
+        }
+
+        private bool MatchesTargetFilter(SkillTargetFilter filter, Rarity rarity)
+        {
+            return filter switch
+            {
+                SkillTargetFilter.Any => true,
+                SkillTargetFilter.NormalOnly => rarity == Rarity.Normal,
+                SkillTargetFilter.MagicOrAbove => rarity >= Rarity.Magic,
+                SkillTargetFilter.RareOrAbove => rarity >= Rarity.Rare,
+                SkillTargetFilter.UniqueOnly => rarity >= Rarity.Unique,
+                _ => true,
+            };
+        }
+
+        private Vector2 GetGridScreenPos(WorldData world, Vector2 gridPos, float terrainZ, Vector2 fallbackScreenPos)
+        {
+            float wx = gridPos.X * 10.87f;
+            float wy = gridPos.Y * 10.87f;
+            var pos = world.WorldToScreen(new StdTuple3D<float> { X = wx, Y = wy, Z = terrainZ }, terrainZ);
+            if (pos == Vector2.Zero || float.IsNaN(pos.X))
+            {
+                return fallbackScreenPos;
+            }
+
+            return pos;
+        }
+
+        private bool ExecuteLegacyAttack(
+            WorldData world,
+            Entity bestTarget,
+            Rarity bestTargetRarity,
+            Vector2 targetScreenPos,
+            AutoExile2Settings settings)
+        {
+            BotInput.MoveCursor(targetScreenPos);
+
+            AttackInputType attackType = settings.PrimaryAttackType;
+            var attackKey = settings.PrimaryAttackKey;
+
+            if (bestTargetRarity >= Rarity.Rare && settings.UseSecondaryAttack)
+            {
+                attackType = settings.SecondaryAttackType;
+                attackKey = settings.SecondaryAttackKey;
+            }
+
+            BotInput.ExecuteAttack(attackType, attackKey, settings.AttackHoldDurationMs);
+            this.nextAttackAllowed = DateTime.Now.AddMilliseconds(settings.AttackHoldDurationMs + settings.AttackCooldownMs);
+            this.LastSkillAction = $"Legacy: {attackType}";
+            return true;
+        }
+
+        /// <summary>
+        /// Robustly counts active friendly totems using AwakeEntities, Actor.DeployedEntities, and totem reservation buffs.
+        /// </summary>
+        /// <summary>
+        /// Robustly counts active friendly totems within radius of the player (default 40g).
+        /// If a totem is farther than 40g, it is considered gone so the player will recast near them!
+        /// </summary>
+        public int CountActiveTotems(AreaInstance? area, Entity player, float maxDistanceGrid = 40f)
+        {
+            int awakeTotemCount = 0;
+            Vector2 playerGrid = Vector2.Zero;
+            bool hasPlayerGrid = false;
+            if (player != null && player.TryGetComponent<Render>(out var pR))
+            {
+                hasPlayerGrid = true;
+                playerGrid = new Vector2(pR.GridPosition.X, pR.GridPosition.Y);
+            }
+
+            if (area != null && area.AwakeEntities != null)
+            {
+                foreach (var entity in area.AwakeEntities.Values)
+                {
+                    if (!entity.IsValid) continue;
+                    if (entity.Path.Contains("Totem", StringComparison.OrdinalIgnoreCase) ||
+                        entity.Path.Contains("Ballista", StringComparison.OrdinalIgnoreCase) ||
+                        entity.Path.Contains("Ancestor", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (IsFriendlyTotem(entity) && IsTotemAlive(entity))
+                        {
+                            if (hasPlayerGrid && entity.TryGetComponent<Render>(out var tR) && tR != null)
+                            {
+                                var tGrid = new Vector2(tR.GridPosition.X, tR.GridPosition.Y);
+                                if (Vector2.Distance(playerGrid, tGrid) > maxDistanceGrid)
+                                {
+                                    continue; // Too far (> 40g), consider non-existent so bot recasts near player!
+                                }
+                            }
+                            awakeTotemCount++;
+                        }
+                    }
+                }
+            }
+
+            return awakeTotemCount;
+        }
+
+        public static bool IsFriendlyTotem(Entity entity)
+        {
+            if (entity.TryGetComponent<Positioned>(out var pos) && pos.IsFriendly)
+            {
+                return true;
+            }
+            if (entity.TryGetComponent<Stats>(out var stats))
+            {
+                if (stats.StatsChangedByBuffAndActions != null &&
+                    stats.StatsChangedByBuffAndActions.TryGetValue(GameStats.is_player_minion, out var mVal) && mVal > 0)
+                {
+                    return true;
+                }
+                if (stats.StatsChangedByItems != null &&
+                    stats.StatsChangedByItems.TryGetValue(GameStats.is_player_minion, out var mVal2) && mVal2 > 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static bool IsTotemAlive(Entity entity)
+        {
+            if (entity.TryGetComponent<Life>(out var l) && (!l.IsAlive || l.Health.Current <= 0))
+            {
+                return false;
+            }
+            if (entity.TryGetComponent<Stats>(out var stats))
+            {
+                if (stats.StatsChangedByBuffAndActions != null &&
+                    stats.StatsChangedByBuffAndActions.TryGetValue(GameStats.is_dead, out var dVal) && dVal > 0)
+                {
+                    return false;
+                }
+                if (stats.StatsChangedByItems != null &&
+                    stats.StatsChangedByItems.TryGetValue(GameStats.is_dead, out var dVal2) && dVal2 > 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static bool IsHostileMonster(Entity entity, IntPtr playerAddress)
+        {
+            if (!entity.IsValid || entity.Address == playerAddress) return false;
+            if (entity.EntityType == EntityTypes.Player || entity.EntityType == EntityTypes.NPC) return false;
+            if (entity.Path != null && (entity.Path.StartsWith("Metadata/Characters/") || entity.Path.StartsWith("Metadata/NPC/") || entity.Path.StartsWith("Metadata/Terrain/"))) return false;
+            if (entity.EntityState == EntityStates.MonsterFriendly) return false;
+            if (entity.TryGetComponent<Positioned>(out var posComp) && posComp.IsFriendly) return false;
+            if (IsFriendlyTotem(entity)) return false;
+
+            // Block Daemons (Map Mod aura generators like MapModEnfeebleDaemon), hazards, effigies, dummies, markers
+            if (entity.Path != null)
+            {
+                string p = entity.Path;
+
+                // 1. Check Ignore Monsters list configured in GameHelper Settings
+                if (Core.GHSettings?.MonstersPathsToIgnore != null &&
+                    Core.GHSettings.MonstersPathsToIgnore.Any(ignored => !string.IsNullOrEmpty(ignored) && p.StartsWith(ignored, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+
+                // 2. Block keywords for non-combat daemons, environment hazards, ambient critters
+                if (p.Contains("Daemon", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Hazard", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Triggerable", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Effigy", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Dummy", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Marker", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Firefly", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("FireFlies", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Wisp", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Beetle", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Ambient", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Critter", StringComparison.OrdinalIgnoreCase) ||
+                    p.Contains("Pet", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            if (!entity.TryGetComponent<Life>(out var mLife) || mLife.Health.Current <= 0) return false;
+            if (!entity.TryGetComponent<Render>(out _)) return false;
+
+            // Check if monster entity (via component, path, or magic properties)
+            bool isMonster = entity.EntityType == EntityTypes.Monster
+                || (entity.Path != null && (entity.Path.StartsWith("Metadata/Monsters/") || entity.Path.Contains("Monster")))
+                || entity.TryGetComponent<ObjectMagicProperties>(out _);
+
+            return isMonster;
+        }
+    }
+}

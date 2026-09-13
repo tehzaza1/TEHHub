@@ -5,7 +5,7 @@ namespace PlayerBuffBar
     using System.IO;
     using System.Linq;
     using System.Text.RegularExpressions;
-    using Newtonsoft.Json.Linq;
+    using System.Text.Json;
 
     internal static class BuffIconCatalog
     {
@@ -131,14 +131,19 @@ namespace PlayerBuffBar
 
             try
             {
-                var root = JObject.Parse(File.ReadAllText(path));
-                foreach (var prop in root.Properties())
+                using var document = JsonDocument.Parse(File.ReadAllText(path));
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
                 {
-                    if (prop.Name.Equals("_icons", StringComparison.OrdinalIgnoreCase) && prop.Value is JObject iconsObj)
+                    return new IconMapData(pageSlugs, directIcons);
+                }
+
+                foreach (var prop in document.RootElement.EnumerateObject())
+                {
+                    if (prop.Name.Equals("_icons", StringComparison.OrdinalIgnoreCase) && prop.Value.ValueKind == JsonValueKind.Object)
                     {
-                        foreach (var iconProp in iconsObj.Properties())
+                        foreach (var iconProp in prop.Value.EnumerateObject())
                         {
-                            var value = iconProp.Value?.ToString()?.Trim();
+                            var value = iconProp.Value.GetString()?.Trim();
                             if (!string.IsNullOrWhiteSpace(iconProp.Name) && !string.IsNullOrWhiteSpace(value))
                             {
                                 directIcons[iconProp.Name.Trim()] = NormalizeIconPath(value);
@@ -148,7 +153,7 @@ namespace PlayerBuffBar
                         continue;
                     }
 
-                    var slug = prop.Value?.ToString()?.Trim();
+                    var slug = prop.Value.GetString()?.Trim();
                     if (!string.IsNullOrWhiteSpace(prop.Name) && !string.IsNullOrWhiteSpace(slug))
                     {
                         pageSlugs[prop.Name.Trim()] = slug;

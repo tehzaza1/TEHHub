@@ -7,6 +7,7 @@ namespace GameHelper.Ui;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -35,10 +36,26 @@ public static class MemoryReadDiagnostics
 {
     private const int MaxTrackedAddressesPerKey = 1024;
     private static readonly ConcurrentDictionary<string, FailureStat> Stats = new();
+    private static readonly ConcurrentDictionary<string, ReadRegionStat> ReadRegions = new();
+    private static readonly AsyncLocal<ReadRegionContext?> CurrentReadRegion = new();
 
     private static DateTime lastUpdate = DateTime.MinValue;
     private static List<DiagnosticRow> cachedRows = [];
     private static string lastActionMessage = string.Empty;
+    private static long totalReadCalls;
+    private static long totalReadBytes;
+    private static long totalReadTicks;
+    private static long totalReadFailures;
+    private static long scalarReadCalls;
+    private static long bufferReadCalls;
+    private static long totalFrames;
+    private static long firstReadTimestamp;
+    private static long previousReadCalls;
+    private static long previousReadBytes;
+    private static long previousReadTicks;
+    private static long previousReadFailures;
+    private static long previousRateTimestamp = Stopwatch.GetTimestamp();
+    private static ReadRateSnapshot cachedReadRate;
 
     /// <summary>
     ///     Starts the window render coroutine.
@@ -75,6 +92,86 @@ public static class MemoryReadDiagnostics
         }
     }
 
+    /// <summary>
+    ///     Records the cost of one native ReadProcessMemory call while diagnostics are enabled.
+    ///     This deliberately avoids caller discovery so successful hot-path reads remain cheap
+    ///     enough to measure without substantially changing the workload.
+    /// </summary>
+    internal static void RecordRead(MemoryReadKind kind, long requestedBytes, long elapsedTicks, bool succeeded)
+    {
+        if (Volatile.Read(ref firstReadTimestamp) == 0)
+        {
+            Interlocked.CompareExchange(ref firstReadTimestamp, Stopwatch.GetTimestamp(), 0);
+        }
+
+        Interlocked.Increment(ref totalReadCalls);
+        Interlocked.Add(ref totalReadBytes, requestedBytes);
+        Interlocked.Add(ref totalReadTicks, elapsedTicks);
+        if (!succeeded)
+        {
+            Interlocked.Increment(ref totalReadFailures);
+        }
+
+        if (kind == MemoryReadKind.Scalar)
+        {
+            Interlocked.Increment(ref scalarReadCalls);
+        }
+        else
+        {
+            Interlocked.Increment(ref bufferReadCalls);
+        }
+
+        // Attribute the read to the current logical operation. AsyncLocal flows into the
+        // Parallel/Task workers used by entity and UI traversal, unlike a global before/after
+        // counter which also captured unrelated work running at the same time.
+        for (var region = CurrentReadRegion.Value; region != null; region = region.Parent)
+        {
+            Interlocked.Increment(ref region.ReadCalls);
+            Interlocked.Add(ref region.RequestedBytes, requestedBytes);
+        }
+    }
+
+    /// <summary>
+    ///     Records one completed overlay frame while memory diagnostics are enabled.
+    /// </summary>
+    internal static void RecordFrame()
+    {
+        if (Core.GHSettings.ShowMemoryDiagnostics)
+        {
+            Interlocked.Increment(ref totalFrames);
+        }
+    }
+
+    /// <summary>
+    ///     Measures how many process-memory calls and requested bytes happen inside a
+    ///     high-level operation. Unlike caller stack walking, this adds bookkeeping only
+    ///     once at region entry and exit rather than once per native read.
+    /// </summary>
+    public static MemoryReadRegionScope MeasureRegion(string name)
+    {
+        if (!Core.GHSettings.ShowMemoryDiagnostics)
+        {
+            return default;
+        }
+
+        var context = new ReadRegionContext(name, CurrentReadRegion.Value);
+        CurrentReadRegion.Value = context;
+        return new MemoryReadRegionScope(context);
+    }
+
+    internal static void CompleteRegion(ReadRegionContext context)
+    {
+        if (ReferenceEquals(CurrentReadRegion.Value, context))
+        {
+            CurrentReadRegion.Value = context.Parent;
+        }
+
+        var stat = ReadRegions.GetOrAdd(context.Name, static _ => new ReadRegionStat());
+        Interlocked.Increment(ref stat.Invocations);
+        Interlocked.Add(ref stat.ReadCalls, Interlocked.Read(ref context.ReadCalls));
+        Interlocked.Add(ref stat.RequestedBytes, Interlocked.Read(ref context.RequestedBytes));
+    }
+
     private static IEnumerator<Wait> RenderWindow()
     {
         while (true)
@@ -95,6 +192,8 @@ public static class MemoryReadDiagnostics
                     if (ImGui.MenuItem("Reset"))
                     {
                         Stats.Clear();
+                        ReadRegions.Clear();
+                        ResetReadMetrics();
                         cachedRows = [];
                         lastActionMessage = string.Empty;
                     }
@@ -125,6 +224,25 @@ public static class MemoryReadDiagnostics
                     ImGui.SameLine();
                     ImGui.TextDisabled($"|  {lastActionMessage}");
                 }
+
+                ImGui.Text(
+                    $"Recent: {cachedReadRate.CallsPerSecond:N0} calls/s  |  " +
+                    $"{cachedReadRate.MebibytesPerSecond:F2} MiB/s  |  " +
+                    $"{cachedReadRate.MicrosecondsPerCall:F2} us/call  |  " +
+                    $"fail {cachedReadRate.FailuresPerSecond:N0}/s");
+                ImGui.Text(
+                    $"Session ({cachedReadRate.SessionSeconds:F1}s): {cachedReadRate.TotalCalls:N0} calls  |  " +
+                    $"{cachedReadRate.AverageCallsPerSecond:N0} calls/s  |  " +
+                    $"{cachedReadRate.AverageMebibytesPerSecond:F2} MiB/s  |  " +
+                    $"{cachedReadRate.AverageMicrosecondsPerCall:F2} us/call  |  " +
+                    $"fail {cachedReadRate.TotalFailures:N0}");
+                ImGui.Text(
+                    $"Frames: {cachedReadRate.TotalFrames:N0}  |  " +
+                    $"{cachedReadRate.AverageFramesPerSecond:F1} frames/s  |  " +
+                    $"{cachedReadRate.AverageCallsPerFrame:N0} reads/frame");
+                ImGui.TextDisabled(
+                    $"Breakdown: Scalar {cachedReadRate.ScalarCalls:N0}    Buffer/array {cachedReadRate.BufferCalls:N0}    " +
+                    $"Requested: {cachedReadRate.TotalMebibytes:F2} MiB");
 
                 if (ImGui.BeginTable("memDiagTable", 6,
                         ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders |
@@ -197,12 +315,13 @@ public static class MemoryReadDiagnostics
     private static void RefreshRowsThrottled()
     {
         var now = DateTime.Now;
-        if ((now - lastUpdate).TotalMilliseconds < 500 && cachedRows.Count != 0)
+        if ((now - lastUpdate).TotalMilliseconds < 500)
         {
             return;
         }
 
         lastUpdate = now;
+        RefreshReadRateSnapshot();
         var nowTicks = Environment.TickCount64;
         var rows = new List<DiagnosticRow>(Stats.Count);
         foreach (var kvp in Stats.ToArray())
@@ -230,6 +349,72 @@ public static class MemoryReadDiagnostics
         cachedRows = rows;
     }
 
+    private static void RefreshReadRateSnapshot()
+    {
+        var nowTimestamp = Stopwatch.GetTimestamp();
+        var elapsedSeconds = (nowTimestamp - previousRateTimestamp) / (double)Stopwatch.Frequency;
+        if (elapsedSeconds <= 0)
+        {
+            return;
+        }
+
+        var calls = Interlocked.Read(ref totalReadCalls);
+        var bytes = Interlocked.Read(ref totalReadBytes);
+        var ticks = Interlocked.Read(ref totalReadTicks);
+        var failures = Interlocked.Read(ref totalReadFailures);
+        var frames = Interlocked.Read(ref totalFrames);
+        var callsDelta = calls - previousReadCalls;
+        var bytesDelta = bytes - previousReadBytes;
+        var ticksDelta = ticks - previousReadTicks;
+        var failuresDelta = failures - previousReadFailures;
+        var firstTimestamp = Volatile.Read(ref firstReadTimestamp);
+        var sessionSeconds = firstTimestamp == 0
+            ? 0
+            : Math.Max(0, (nowTimestamp - firstTimestamp) / (double)Stopwatch.Frequency);
+
+        cachedReadRate = new ReadRateSnapshot(
+            calls,
+            Interlocked.Read(ref scalarReadCalls),
+            Interlocked.Read(ref bufferReadCalls),
+            bytes / 1048576.0,
+            callsDelta / elapsedSeconds,
+            bytesDelta / 1048576.0 / elapsedSeconds,
+            callsDelta > 0 ? ticksDelta * 1_000_000.0 / Stopwatch.Frequency / callsDelta : 0,
+            failuresDelta / elapsedSeconds,
+            sessionSeconds,
+            sessionSeconds > 0 ? calls / sessionSeconds : 0,
+            sessionSeconds > 0 ? bytes / 1048576.0 / sessionSeconds : 0,
+            calls > 0 ? ticks * 1_000_000.0 / Stopwatch.Frequency / calls : 0,
+            failures,
+            frames,
+            sessionSeconds > 0 ? frames / sessionSeconds : 0,
+            frames > 0 ? (double)calls / frames : 0);
+
+        previousReadCalls = calls;
+        previousReadBytes = bytes;
+        previousReadTicks = ticks;
+        previousReadFailures = failures;
+        previousRateTimestamp = nowTimestamp;
+    }
+
+    private static void ResetReadMetrics()
+    {
+        Interlocked.Exchange(ref totalReadCalls, 0);
+        Interlocked.Exchange(ref totalReadBytes, 0);
+        Interlocked.Exchange(ref totalReadTicks, 0);
+        Interlocked.Exchange(ref totalReadFailures, 0);
+        Interlocked.Exchange(ref scalarReadCalls, 0);
+        Interlocked.Exchange(ref bufferReadCalls, 0);
+        Interlocked.Exchange(ref totalFrames, 0);
+        Interlocked.Exchange(ref firstReadTimestamp, 0);
+        previousReadCalls = 0;
+        previousReadBytes = 0;
+        previousReadTicks = 0;
+        previousReadFailures = 0;
+        previousRateTimestamp = Stopwatch.GetTimestamp();
+        cachedReadRate = default;
+    }
+
     /// <summary>
     ///     Builds a tab-separated, shareable text snapshot of the current table.
     /// </summary>
@@ -238,6 +423,36 @@ public static class MemoryReadDiagnostics
         var rows = cachedRows.OrderByDescending(r => r.Total).ToList();
         var sb = new StringBuilder();
         sb.AppendLine($"# Memory Read Diagnostics — {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine(
+            $"# Recent: " +
+            $"{cachedReadRate.CallsPerSecond:F0} calls/s, " +
+            $"{cachedReadRate.MebibytesPerSecond:F2} MiB/s, " +
+            $"{cachedReadRate.MicrosecondsPerCall:F2} us/call, " +
+            $"{cachedReadRate.FailuresPerSecond:F0} failures/s");
+        sb.AppendLine(
+            $"# Session ({cachedReadRate.SessionSeconds:F1}s): {cachedReadRate.TotalCalls} calls, " +
+            $"{cachedReadRate.AverageCallsPerSecond:F0} calls/s, " +
+            $"{cachedReadRate.AverageMebibytesPerSecond:F2} MiB/s, " +
+            $"{cachedReadRate.AverageMicrosecondsPerCall:F2} us/call, " +
+            $"{cachedReadRate.TotalFailures} failures");
+        sb.AppendLine(
+            $"# Frames: {cachedReadRate.TotalFrames}, " +
+            $"{cachedReadRate.AverageFramesPerSecond:F1} frames/s, " +
+            $"{cachedReadRate.AverageCallsPerFrame:F0} reads/frame");
+        sb.AppendLine(
+            $"# Scalar calls: {cachedReadRate.ScalarCalls}, Buffer/array calls: {cachedReadRate.BufferCalls}, " +
+            $"Total requested: {cachedReadRate.TotalMebibytes:F2} MiB");
+        sb.AppendLine("# Read regions (regions can overlap):");
+        sb.AppendLine("# Region\tInvocations\tTotalReads\tAvgReads/Invocation\tRequestedMiB");
+        foreach (var entry in ReadRegions.OrderByDescending(static entry => Interlocked.Read(ref entry.Value.ReadCalls)))
+        {
+            var invocations = Interlocked.Read(ref entry.Value.Invocations);
+            var calls = Interlocked.Read(ref entry.Value.ReadCalls);
+            var bytes = Interlocked.Read(ref entry.Value.RequestedBytes);
+            var averageCalls = invocations > 0 ? (double)calls / invocations : 0;
+            sb.AppendLine($"# {entry.Key}\t{invocations}\t{calls}\t{averageCalls:F1}\t{bytes / 1048576.0:F2}");
+        }
+
         sb.AppendLine($"# Distinct call sites: {rows.Count}, Total failed reads: {rows.Sum(r => r.Total)}");
         sb.AppendLine("# Verdict guide: high Unique + low Max/Addr => races; low Unique + high Max/Addr => likely structural.");
         sb.AppendLine("Total\tUnique\tMax/Addr\tVerdict\tLastSeen(s)\tCaller(Type)\tTopAddresses");
@@ -353,7 +568,7 @@ public static class MemoryReadDiagnostics
 
     private static void CopyReportToClipboard()
     {
-        if (cachedRows.Count == 0)
+        if (cachedRows.Count == 0 && cachedReadRate.TotalCalls == 0)
         {
             lastActionMessage = "Nothing to copy.";
             return;
@@ -372,7 +587,7 @@ public static class MemoryReadDiagnostics
 
     private static void DumpReportToFile()
     {
-        if (cachedRows.Count == 0)
+        if (cachedRows.Count == 0 && cachedReadRate.TotalCalls == 0)
         {
             lastActionMessage = "Nothing to dump.";
             return;
@@ -420,7 +635,76 @@ public static class MemoryReadDiagnostics
         public long LastTicks;
         public readonly ConcurrentDictionary<long, int> Addresses = new();
     }
+
+    private sealed class ReadRegionStat
+    {
+        public long Invocations;
+        public long ReadCalls;
+        public long RequestedBytes;
+    }
+
+    internal sealed class ReadRegionContext
+    {
+        internal ReadRegionContext(string name, ReadRegionContext? parent)
+        {
+            this.Name = name;
+            this.Parent = parent;
+        }
+
+        internal string Name { get; }
+
+        internal ReadRegionContext? Parent { get; }
+
+        internal long ReadCalls;
+
+        internal long RequestedBytes;
+    }
 }
+
+/// <summary>
+///     Allocation-free scope returned by <see cref="MemoryReadDiagnostics.MeasureRegion"/>.
+/// </summary>
+public readonly struct MemoryReadRegionScope : IDisposable
+{
+    private readonly MemoryReadDiagnostics.ReadRegionContext? context;
+
+    internal MemoryReadRegionScope(MemoryReadDiagnostics.ReadRegionContext context)
+    {
+        this.context = context;
+    }
+
+    public void Dispose()
+    {
+        if (this.context != null)
+        {
+            MemoryReadDiagnostics.CompleteRegion(this.context);
+        }
+    }
+}
+
+internal enum MemoryReadKind
+{
+    Scalar,
+    Buffer,
+}
+
+internal readonly record struct ReadRateSnapshot(
+    long TotalCalls,
+    long ScalarCalls,
+    long BufferCalls,
+    double TotalMebibytes,
+    double CallsPerSecond,
+    double MebibytesPerSecond,
+    double MicrosecondsPerCall,
+    double FailuresPerSecond,
+    double SessionSeconds,
+    double AverageCallsPerSecond,
+    double AverageMebibytesPerSecond,
+    double AverageMicrosecondsPerCall,
+    long TotalFailures,
+    long TotalFrames,
+    double AverageFramesPerSecond,
+    double AverageCallsPerFrame);
 
 /// <summary>
 ///     A snapshot row for the diagnostics table.
