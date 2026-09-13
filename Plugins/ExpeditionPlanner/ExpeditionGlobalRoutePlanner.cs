@@ -31,6 +31,11 @@ namespace ExpeditionPlanner
             var covered = new HashSet<uint>();
             var committed = placed.Select(x => x.GridPosition).ToList();
             var anchor = placed.Count > 0 ? placed[^1].GridPosition : startGrid;
+            var finalStackPillar = targets
+                .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
+                .OrderByDescending(t => t.HoleCount)
+                .ThenByDescending(t => Value(t, settings))
+                .FirstOrDefault();
             for (int step = 1; step <= count; step++)
             {
                 Vector3? best = null; float bestScore = float.NegativeInfinity; List<ExpeditionTarget>? hitBest = null;
@@ -40,6 +45,17 @@ namespace ExpeditionPlanner
                     var hit = targets.Where(t => !covered.Contains(t.EntityId) && Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
                     if (hit.Count == 0 && step == count) continue;
                     float score = hit.Sum(t => Value(t, settings));
+                    bool hasOpulent = HasCoveredRune(targets, covered, "Opulent");
+                    if (hit.Any(t => RuneName(t).Equals("Opulent", StringComparison.OrdinalIgnoreCase)) && !hasOpulent) score += 12_000f;
+                    // The farm plan values a continuing proliferation chain over the local
+                    // modifier text. Opening a propagating pillar early has more remaining
+                    // explosions to carry its rune forward, so it earns a larger bonus.
+                    int remainingExplosions = count - step;
+                    score += hit.Count(t => t.CanProliferate) * (4_000f + (remainingExplosions * 500f));
+                    if (finalStackPillar != null && hit.Any(t => t.EntityId == finalStackPillar.EntityId))
+                    {
+                        score += step == count ? 30_000f : -20_000f;
+                    }
                     // A whole route may use bridge points, but they must head toward an uncovered target.
                     if (hit.Count == 0)
                     {
@@ -72,26 +88,26 @@ namespace ExpeditionPlanner
 
         private static float Value(ExpeditionTarget t, ExpeditionPlannerSettings s)
         {
-            var rune = !string.IsNullOrWhiteSpace(t.ProliferatedRuneName)
-                ? t.ProliferatedRuneName
-                : t.AnchorRuneName;
+            var rune = RuneName(t);
 
             // Farming order: establish the largest loot multiplier first, then the
             // strongest proliferated modifiers. Lower-value runes naturally drop out
             // of a short explosive budget because their score cannot beat these picks.
             if (rune.Equals("Opulent", StringComparison.OrdinalIgnoreCase)) return 15_000f;
-            if (rune.Equals("Bond", StringComparison.OrdinalIgnoreCase)) return 10_000f;
-            if (rune.Equals("Oath", StringComparison.OrdinalIgnoreCase)) return 8_000f;
-            if (rune.Equals("Power", StringComparison.OrdinalIgnoreCase)) return 6_000f;
-
             return t.ProliferatedRuneTier switch
             {
-                RuneTier.Purple_S => 3_500f,
-                RuneTier.Purple_A => 1_200f,
-                RuneTier.Purple_B => 500f,
+                RuneTier.Purple_S => 500f,
+                RuneTier.Purple_A => 400f,
+                RuneTier.Purple_B => 300f,
                 _ => t.BaseWeight > 0 ? t.BaseWeight : 20f,
             };
         }
+
+        private static string RuneName(ExpeditionTarget target) => !string.IsNullOrWhiteSpace(target.ProliferatedRuneName)
+            ? target.ProliferatedRuneName : target.AnchorRuneName;
+
+        private static bool HasCoveredRune(IEnumerable<ExpeditionTarget> targets, HashSet<uint> covered, string rune) =>
+            targets.Any(t => covered.Contains(t.EntityId) && RuneName(t).Equals(rune, StringComparison.OrdinalIgnoreCase));
     }
 }
 
