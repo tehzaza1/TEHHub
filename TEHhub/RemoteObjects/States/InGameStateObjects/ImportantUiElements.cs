@@ -591,7 +591,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.CurrencyExchangePanel.Address = ResolveChildAddress(this.Address, CurrencyExchangePanelChildPath);
             this.GemcuttingPanel.Address = ResolveChildAddress(this.Address, GemcuttingPanelChildPath);
             this.SupportGemcuttingPanel.Address = ResolveChildAddress(this.Address, SupportGemcuttingPanelChildPath);
-            this.RuneshapeCombinationsPanel.Address = ResolveChildAddress(this.Address, RuneshapeCombinationsPanelChildPath);
+            this.RuneshapeCombinationsPanel.Address = this.ResolveRuneshapeCombinationsPanel();
             this.UpdateAtlasMapData();
         }
 
@@ -1293,6 +1293,17 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             }
 
             return results;
+        }
+
+        private IntPtr ResolveRuneshapeCombinationsPanel()
+        {
+            var reader = Core.Process.Handle;
+            if (!reader.TryReadMemory<UiElementBaseOffset>(this.Address, out var root)) return IntPtr.Zero;
+            var count = root.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (root.ChildrensPtr.First == IntPtr.Zero || count <= 39) return IntPtr.Zero;
+            if (!reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (39 * IntPtr.Size), out var panel) || panel == IntPtr.Zero) return IntPtr.Zero;
+            return reader.TryReadMemory<UiElementBaseOffset>(panel, out var data) && data.Self == panel && data.ParentPtr == this.Address
+                ? panel : IntPtr.Zero;
         }
 
         private static IntPtr ResolveChildAddress(IntPtr rootAddress, int[] childPath)
