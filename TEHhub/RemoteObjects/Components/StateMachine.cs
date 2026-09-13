@@ -267,6 +267,26 @@ namespace TEHhub.RemoteObjects.Components
                     }
                 }
 
+                var socketRecordVectors = 0;
+                foreach (var root in diagnosticRoots)
+                {
+                    if (root.Address == IntPtr.Zero || socketRecordVectors >= 24) continue;
+                    for (var offset = 0; offset <= 0x400 && socketRecordVectors < 24; offset += IntPtr.Size)
+                    {
+                        if (!reader.TryReadMemory<StdVector>(root.Address + offset, out var vector) || vector.First == IntPtr.Zero || vector.Last.ToInt64() < vector.First.ToInt64()) continue;
+                        var used = vector.Last.ToInt64() - vector.First.ToInt64();
+                        if (used <= 0 || used > 2048 || vector.End.ToInt64() < vector.Last.ToInt64()) continue;
+                        var matchingStride = 0;
+                        foreach (var stride in new[] { 4, 8, 12, 16, 24, 32, 40, 48, 64, 80, 96, 128 })
+                            if (used == (long)socketCount * stride) { matchingStride = stride; break; }
+                        if (matchingStride == 0) continue;
+                        var preview = new byte[(int)Math.Min(128, used)];
+                        if (!reader.TryReadMemoryArray(vector.First, preview, out var bytesRead)) continue;
+                        lines.Add($"Socket-record vector candidate: {root.Name}+0x{offset:X3}; stride={matchingStride}, raw={Convert.ToHexString(preview.AsSpan(0, Math.Min(preview.Length, checked((int)bytesRead))))}");
+                        socketRecordVectors++;
+                    }
+                }
+
                 // The paired RuneEncounterController exposes an Inventories component even though
                 // its rune rows are not referenced directly from the station. Inspect that one
                 // component as an inventory-shaped object before widening any raw pointer scan.

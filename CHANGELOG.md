@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.27 — 2026-09-14
+
+- Added bounded Debug-only detection of six-socket record vectors across verified Rune Station roots, reporting stride and capped payload for native layout identification.
+- Compatibility: Diagnostic-only; public Release builds compile it out.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors; live capture pending deployment.
+
 ## 1.8.26 — 2026-09-14
 
 - Added a bounded Debug-only search across verified Rune Station, listener, and paired-controller roots for vector layouts containing exactly the live socket count of valid Rune catalog indexes.
