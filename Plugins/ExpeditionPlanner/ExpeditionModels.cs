@@ -54,6 +54,8 @@ namespace ExpeditionPlanner
         public Vector3 GridPosition { get; set; }
         public Vector3 WorldPosition { get; set; }
         public float TerrainHeight { get; set; }
+        public float WireDistance { get; set; }
+        public bool IsObstructed { get; set; }
         public List<ExpeditionTarget> CoveredTargets { get; set; } = new();
         public List<string> GainedRunes { get; set; } = new();
     }

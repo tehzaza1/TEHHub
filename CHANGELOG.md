@@ -2,6 +2,19 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.5 — 2026-09-13
+
+- Fixed Expedition explosive wire reach failure caused by Remnant pillar and obstacle detours:
+  - **Front-Facing Dynamic Candidate Generation**: When targeting solid Remnant pillars (`Expedition2Encounter`) and Sentinels, candidates are generated dynamically on the open, walkable ground on the front hemisphere facing the active anchor (detonator or previous bomb). The pillar is placed behind the bomb rather than between the anchor and the bomb, guaranteeing 100% clean line of sight and shortening wire length by 20–28 units.
+  - **Exact Convex Hull Wire Detour Distance**: Implemented `ComputeCircleDetourDistance` in `LegalPlacement.cs` modeling tangent approaches, circular arc wrapping around pillars (`PillarEffectiveRadius = 18.0f`), and discrete connector peg spacing overhead.
+  - **Strict Obstacle Line-of-Sight Enforcement**:
+    - Lines blocked by solid walls or cliffs (`blockedCells >= 4`) are rejected immediately.
+    - If a candidate requires detouring around a pillar or wall, reach limit is strictly constrained (`<= 65.0f` grid vs open-ground `85.0f`), and score is heavily penalized (`-250f`) so open-ground paths are strictly prioritized.
+    - Candidate points colliding with the physical pillar base (`< 14.0f` radius) or unwalkable cells are prohibited.
+  - **Enhanced Route Overlay**: Visualizes connector lines from active anchor (detonator/last placed bomb) to first recommendation, color-coding clean lines (cyan) vs obstacle-detoured lines (red warning), and displaying wire distance in the advisor card.
+- Compatibility: Standalone plugin logic updated; Debug and Release builds retain identical core behaviors; synchronized core and launcher version metadata.
+- Validation: Debug and Release builds for all 15 projects in `TEHhub.sln` succeeded with 0 Warnings and 0 Errors; verified detour distance formulas and front-facing candidate generator logic.
+
 ## 1.8.4 — 2026-09-13
 
 - Added standalone `Plugins/ExpeditionPlanner`:

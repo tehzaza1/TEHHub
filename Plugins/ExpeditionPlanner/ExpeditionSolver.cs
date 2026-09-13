@@ -8,6 +8,8 @@ namespace ExpeditionPlanner
 
     public static class ExpeditionSolver
     {
+        private const float GridToWorldRatio = 10.87f;
+
         public static RouteEvaluation Solve(
             Vector3 startDetonatorGrid,
             Vector3 startDetonatorWorld,
@@ -30,22 +32,10 @@ namespace ExpeditionPlanner
             int budget = Math.Max(1, settings.MaxExplosiveBudget);
             int currentStep = currentPlacedBombs.Count;
 
-            // Generate candidate placement positions from cluster centers of high-value targets
-            var candidatePoints = GenerateCandidatePoints(availableTargets, settings);
-            if (candidatePoints.Count == 0)
-            {
-                evaluation.Reason = "No legal placement points could reach markers.";
-                return evaluation;
-            }
-
-            // Stateful search for best sequential route starting from last placed bomb or detonator
+            // Anchor point for next placement
             var startAnchor = currentPlacedBombs.Count > 0
                 ? currentPlacedBombs[^1].GridPosition
                 : startDetonatorGrid;
-
-            var currentAnchorWorld = currentPlacedBombs.Count > 0
-                ? currentPlacedBombs[^1].WorldPosition
-                : startDetonatorWorld;
 
             var chosenPlacements = new List<ProposedPlacement>();
             var accumulatedRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -64,7 +54,6 @@ namespace ExpeditionPlanner
 
             Vector3 activeAnchor = startAnchor;
             float totalScore = 0f;
-            bool routeUnsafe = false;
             var warnings = new List<string>();
 
             int neededSteps = Math.Min(3, budget - currentStep);
@@ -73,11 +62,38 @@ namespace ExpeditionPlanner
                 ProposedPlacement? bestPlacement = null;
                 float bestStepScore = float.NegativeInfinity;
 
+                // Dynamically generate candidate placement points oriented toward activeAnchor
+                var candidatePoints = GenerateCandidatesForAnchor(activeAnchor, availableTargets, area, settings);
+                if (candidatePoints.Count == 0)
+                {
+                    break;
+                }
+
                 foreach (var pt in candidatePoints)
                 {
-                    if (!LegalPlacement.IsPlaceable(pt.Grid, activeAnchor, area, settings))
+                    // 1. Legal placement check with pillar collision & detour verification
+                    if (!LegalPlacement.IsPlaceable(pt.Grid, activeAnchor, area, settings, availableTargets))
                     {
                         continue;
+                    }
+
+                    // 2. Check effective distance including detour around pillars
+                    var start2D = new Vector2(activeAnchor.X, activeAnchor.Y);
+                    var end2D = new Vector2(pt.Grid.X, pt.Grid.Y);
+                    var effectiveDist = LegalPlacement.CalculateEffectiveDistance(
+                        start2D,
+                        end2D,
+                        availableTargets,
+                        area,
+                        out var isObstructed);
+
+                    var maxRange = isObstructed
+                        ? MathF.Min(65.0f, settings.MaxPlacementRangeGrid - 18.0f)
+                        : (settings.MaxPlacementRangeGrid - 4.0f);
+
+                    if (effectiveDist > maxRange)
+                    {
+                        continue; // Cannot reach after detouring around pillar/wall
                     }
 
                     var targetsInRadius = FindTargetsInRadius(pt.Grid, availableTargets, settings.BlastRadiusGrid)
@@ -89,6 +105,16 @@ namespace ExpeditionPlanner
                     float stepScore = 0f;
                     var stepRunes = new List<string>();
                     bool stepHasForbidden = false;
+
+                    // Heavy penalty if path is obstructed by pillar or wall:
+                    // Strongly prioritize clean open-ground lines of sight!
+                    if (isObstructed)
+                    {
+                        stepScore -= 250f;
+                    }
+
+                    // Slight preference for shorter, tighter placements
+                    stepScore -= effectiveDist * 0.15f;
 
                     foreach (var target in targetsInRadius)
                     {
@@ -129,6 +155,8 @@ namespace ExpeditionPlanner
                             GridPosition = pt.Grid,
                             WorldPosition = pt.World,
                             TerrainHeight = pt.TerrainHeight,
+                            WireDistance = effectiveDist,
+                            IsObstructed = isObstructed,
                             CoveredTargets = targetsInRadius,
                             GainedRunes = stepRunes
                         };
@@ -140,6 +168,11 @@ namespace ExpeditionPlanner
                     chosenPlacements.Add(bestPlacement);
                     activeAnchor = bestPlacement.GridPosition;
                     totalScore += bestStepScore;
+
+                    if (bestPlacement.IsObstructed)
+                    {
+                        warnings.Add($"Step {bestPlacement.Step}: wire bends around pillar/wall ({bestPlacement.WireDistance:F0} grid). Keep on open ground.");
+                    }
 
                     foreach (var t in bestPlacement.CoveredTargets)
                     {
@@ -158,44 +191,117 @@ namespace ExpeditionPlanner
 
             evaluation.Placements = chosenPlacements;
             evaluation.NetScore = totalScore;
-            evaluation.IsUnsafe = routeUnsafe || warnings.Count > 0;
+            evaluation.IsUnsafe = warnings.Count > 0;
             evaluation.Warnings = warnings.Distinct().ToList();
 
             int totalCovered = chosenPlacements.Sum(p => p.CoveredTargets.Count);
             int remnantsHit = chosenPlacements.Sum(p => p.CoveredTargets.Count(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel));
+            bool anyObstructed = chosenPlacements.Any(p => p.IsObstructed);
+
             evaluation.Reason = chosenPlacements.Count > 0
-                ? $"{settings.Profile} path ({chosenPlacements.Count} bombs) hitting {totalCovered} targets including {remnantsHit} remnants/sentinels."
-                : "No valid sequential route found within legal placement range.";
+                ? $"{settings.Profile} route ({chosenPlacements.Count} bombs) hitting {totalCovered} targets ({remnantsHit} remnants/sentinels). {(anyObstructed ? "Contains obstacle detour (check wire)." : "100% clean line of sight (no pillar blockage).")}"
+                : "No valid sequential route found within legal reach without obstacle collision.";
 
             return evaluation;
         }
 
-        private static List<(Vector3 Grid, Vector3 World, float TerrainHeight)> GenerateCandidatePoints(
+        /// <summary>
+        /// Generates candidate placement points on open, walkable ground oriented toward <paramref name="anchorGrid"/>.
+        /// For Remnant pillars and Sentinels, bomb points are placed on the FRONT hemisphere facing the anchor,
+        /// ensuring the pillar is never between the anchor and the bomb!
+        /// </summary>
+        private static List<(Vector3 Grid, Vector3 World, float TerrainHeight)> GenerateCandidatesForAnchor(
+            Vector3 anchorGrid,
             List<ExpeditionTarget> targets,
+            AreaInstance? area,
             ExpeditionPlannerSettings settings)
         {
             var points = new List<(Vector3 Grid, Vector3 World, float TerrainHeight)>();
+            var anchor2D = new Vector2(anchorGrid.X, anchorGrid.Y);
+
             foreach (var t in targets)
             {
-                points.Add((t.GridPosition, t.WorldPosition, t.TerrainHeight));
+                var target2D = new Vector2(t.GridPosition.X, t.GridPosition.Y);
+                var toAnchor = anchor2D - target2D;
+                var distToAnchor = toAnchor.Length();
+
+                if (t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel)
+                {
+                    // Direction pointing from the pillar back towards the anchor
+                    var baseDir = distToAnchor > 1e-3f ? (toAnchor / distToAnchor) : new Vector2(1f, 0f);
+                    var baseAngle = MathF.Atan2(baseDir.Y, baseDir.X);
+
+                    // Sweep 5 angles on the front-facing hemisphere towards the anchor
+                    float[] angleOffsets = [0f, -0.28f, 0.28f, -0.56f, 0.56f];
+                    float[] distances = [20.0f, 24.0f, 28.0f]; // Within blast radius (46 units)
+
+                    foreach (var dist in distances)
+                    {
+                        foreach (var offset in angleOffsets)
+                        {
+                            var ang = baseAngle + offset;
+                            var dir = new Vector2(MathF.Cos(ang), MathF.Sin(ang));
+                            var gx = t.GridPosition.X + (dir.X * dist);
+                            var gy = t.GridPosition.Y + (dir.Y * dist);
+
+                            if (LegalPlacement.IsCellWalkable(area, (int)gx, (int)gy))
+                            {
+                                var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
+                                var offsetWorld = new Vector3(
+                                    t.WorldPosition.X + (dir.X * dist * GridToWorldRatio),
+                                    t.WorldPosition.Y + (dir.Y * dist * GridToWorldRatio),
+                                    t.WorldPosition.Z);
+                                points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // For chests and monsters: direct position or slight front offset
+                    if (LegalPlacement.IsCellWalkable(area, (int)t.GridPosition.X, (int)t.GridPosition.Y))
+                    {
+                        points.Add((t.GridPosition, t.WorldPosition, t.TerrainHeight));
+                    }
+
+                    if (distToAnchor > 15.0f)
+                    {
+                        var dir = toAnchor / distToAnchor;
+                        var gx = t.GridPosition.X + (dir.X * 12.0f);
+                        var gy = t.GridPosition.Y + (dir.Y * 12.0f);
+                        if (LegalPlacement.IsCellWalkable(area, (int)gx, (int)gy))
+                        {
+                            var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
+                            var offsetWorld = new Vector3(
+                                t.WorldPosition.X + (dir.X * 12.0f * GridToWorldRatio),
+                                t.WorldPosition.Y + (dir.Y * 12.0f * GridToWorldRatio),
+                                t.WorldPosition.Z);
+                            points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
+                        }
+                    }
+                }
             }
 
-            // Also add midpoints between close pairs of targets to maximize blast overlap
-            for (int i = 0; i < targets.Count && i < 30; i++)
+            // Also add midpoints between pairs of close targets to maximize blast overlap
+            for (int i = 0; i < targets.Count && i < 25; i++)
             {
-                for (int j = i + 1; j < targets.Count && j < 30; j++)
+                for (int j = i + 1; j < targets.Count && j < 25; j++)
                 {
                     var a = targets[i];
                     var b = targets[j];
                     var dx = a.GridPosition.X - b.GridPosition.X;
                     var dy = a.GridPosition.Y - b.GridPosition.Y;
                     var dist = MathF.Sqrt((dx * dx) + (dy * dy));
-                    if (dist < settings.BlastRadiusGrid * 1.5f && dist > 5.0f)
+
+                    if (dist < settings.BlastRadiusGrid * 1.5f && dist > 10.0f)
                     {
                         var midGrid = (a.GridPosition + b.GridPosition) * 0.5f;
-                        var midWorld = (a.WorldPosition + b.WorldPosition) * 0.5f;
-                        var midHeight = (a.TerrainHeight + b.TerrainHeight) * 0.5f;
-                        points.Add((midGrid, midWorld, midHeight));
+                        if (LegalPlacement.IsCellWalkable(area, (int)midGrid.X, (int)midGrid.Y))
+                        {
+                            var midWorld = (a.WorldPosition + b.WorldPosition) * 0.5f;
+                            var midHeight = (a.TerrainHeight + b.TerrainHeight) * 0.5f;
+                            points.Add((midGrid, midWorld, midHeight));
+                        }
                     }
                 }
             }

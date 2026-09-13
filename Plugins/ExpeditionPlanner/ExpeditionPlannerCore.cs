@@ -151,6 +151,32 @@ namespace ExpeditionPlanner
             // 2. Draw Recommended Placement Badges (1 -> 2 -> 3)
             if (this.Settings.ShowBadges && this.currentRoute.Placements.Count > 0)
             {
+                // Draw connector line from active anchor (detonator or last placed bomb) to first recommended placement
+                var firstP = this.currentRoute.Placements[0];
+                var firstScreen = world.WorldToScreen(ToStdTuple(firstP.WorldPosition), firstP.TerrainHeight);
+                if (firstScreen.X > 0 && firstScreen.Y > 0)
+                {
+                    Vector3? anchorPos = null;
+                    if (this.placedBombs.Count > 0)
+                    {
+                        anchorPos = this.placedBombs[^1].WorldPosition;
+                    }
+                    else if (this.hasDetonator)
+                    {
+                        anchorPos = this.detonatorWorld;
+                    }
+
+                    if (anchorPos.HasValue)
+                    {
+                        var aScreen = world.WorldToScreen(ToStdTuple(anchorPos.Value), anchorPos.Value.Z);
+                        if (aScreen.X > 0 && aScreen.Y > 0)
+                        {
+                            uint lineColor = firstP.IsObstructed ? 0xDD3333FF : 0xDD00E5FF;
+                            drawList.AddLine(aScreen, firstScreen, lineColor, firstP.IsObstructed ? 3.0f : 2.5f);
+                        }
+                    }
+                }
+
                 for (int i = 0; i < this.currentRoute.Placements.Count; i++)
                 {
                     var p = this.currentRoute.Placements[i];
@@ -163,8 +189,8 @@ namespace ExpeditionPlanner
                         drawList.AddCircle(sPos, this.Settings.BlastRadiusGrid * 2.2f, 0x77FFCC00, 32, 1.5f);
                     }
 
-                    // Badge circle (vibrant gold with dark core)
-                    uint badgeColor = this.currentRoute.IsUnsafe ? 0xFF3333DD : 0xFF00AAFF; // Red if unsafe, Gold if safe
+                    // Badge circle (vibrant gold with dark core, or red if obstructed/unsafe)
+                    uint badgeColor = p.IsObstructed ? 0xFF3333DD : (this.currentRoute.IsUnsafe ? 0xFF3388DD : 0xFF00AAFF);
                     drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius, 0xCC111111);
                     drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.85f, badgeColor);
                     drawList.AddCircle(sPos, this.Settings.BadgeRadius, 0xFFFFFFFF, 0, 2.0f);
@@ -180,7 +206,8 @@ namespace ExpeditionPlanner
                         var nextScreen = world.WorldToScreen(ToStdTuple(nextP.WorldPosition), nextP.TerrainHeight);
                         if (nextScreen.X > 0 && nextScreen.Y > 0)
                         {
-                            drawList.AddLine(sPos, nextScreen, 0xAAFFCC00, 2.5f);
+                            uint nextLineColor = nextP.IsObstructed ? 0xDD3333FF : 0xAAFFCC00;
+                            drawList.AddLine(sPos, nextScreen, nextLineColor, nextP.IsObstructed ? 3.0f : 2.5f);
                         }
                     }
                 }
