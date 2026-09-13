@@ -926,7 +926,6 @@ namespace TEHhub.RemoteObjects.Components
             bool isUnique = rowPtr == IntPtr.Zero;
             int anchorIdx = -1;
             long tableBase = 0;
-            int rowStride = 0;
 
             if (!isUnique)
             {
@@ -942,11 +941,11 @@ namespace TEHhub.RemoteObjects.Components
                             var delta = rowPtr.ToInt64() - tableBase;
                             if (delta >= 0)
                             {
-                                if (delta % 0x68 == 0) { anchorIdx = (int)(delta / 0x68); rowStride = 0x68; }
-                                else if (delta % 0x6C == 0) { anchorIdx = (int)(delta / 0x6C); rowStride = 0x6C; }
+                                if (delta % 0x68 == 0) anchorIdx = (int)(delta / 0x68);
+                                else if (delta % 0x6C == 0) anchorIdx = (int)(delta / 0x6C);
                             }
 
-                            if (anchorIdx < 0 || anchorIdx >= RuneNames.Length) { anchorIdx = -1; rowStride = 0; }
+                            if (anchorIdx < 0 || anchorIdx >= RuneNames.Length) anchorIdx = -1;
                         }
                     }
                 }
@@ -955,68 +954,9 @@ namespace TEHhub.RemoteObjects.Components
             var anchorName = isUnique ? "Unique Monolith" : (anchorIdx >= 0 && anchorIdx < RuneNames.Length ? RuneNames[anchorIdx] : "Rune Monolith");
             var isAnchorGolden = isUnique || (goldenSlot == anchorPos);
 
-            // --- Per-slot rune discovery ---
-            // Scan station offsets after the golden-slots vector (0x40 + 24 = 0x58) looking for
-            // a std::vector<IntPtr> with exactly socketCount elements, each resolvable to a valid
-            // rune index via the same dat table base used for the anchor rune.
+            // Note: Individual socketed runes (slot 0..N-1) are not stored as DAT row pointers on the station struct;
+            // they are delivered via the game UI (RuneshapeCombinationsPanel) when opened. See RUNE_MEMORY_RESEARCH.md.
             string[]? slotRunes = null;
-            if (!isUnique && socketCount > 0 && socketCount <= 16 && tableBase != 0)
-            {
-                // Try multiple rowStride values if the anchor resolution used a specific one;
-                // also include common dat row sizes observed across game patches.
-                var strides = rowStride > 0
-                    ? new[] { rowStride, 0x60, 0x64, 0x68, 0x6C, 0x70, 0x78, 0x80 }
-                    : new[] { 0x60, 0x64, 0x68, 0x6C, 0x70, 0x78, 0x80 };
-
-                // Scan a wider range of offsets from the station struct (0x58 through 0x120).
-                foreach (var scanOffset in new[]
-                {
-                    0x58, 0x60, 0x68, 0x70, 0x78, 0x80,
-                    0x88, 0x90, 0x98, 0xA0, 0xA8, 0xB0,
-                    0xB8, 0xC0, 0xC8, 0xD0, 0xD8, 0xE0,
-                    0xE8, 0xF0, 0xF8, 0x100, 0x108, 0x110, 0x118, 0x120
-                })
-                {
-                    if (slotRunes != null) break;
-                    try
-                    {
-                        var runeVec = reader.ReadMemory<StdVector>(station + scanOffset);
-                        var runeCount = runeVec.TotalElements(sizeof(long)); // IntPtr is 8 bytes
-                        if (runeCount != socketCount || runeCount <= 0)
-                            continue;
-
-                        var runePtrs = reader.ReadMemoryArray<long>(runeVec.First, (int)runeCount);
-                        if (runePtrs == null || runePtrs.Length != socketCount)
-                            continue;
-
-                        // Try each candidate row stride against the dat table base.
-                        foreach (var tryStride in strides)
-                        {
-                            var names = new string[socketCount];
-                            bool allValid = true;
-                            for (int ri = 0; ri < socketCount; ri++)
-                            {
-                                if (runePtrs[ri] == 0) { allValid = false; break; }
-                                var d = runePtrs[ri] - tableBase;
-                                if (d < 0 || d % tryStride != 0) { allValid = false; break; }
-                                int idx = (int)(d / tryStride);
-                                if (idx < 0 || idx >= RuneNames.Length) { allValid = false; break; }
-                                names[ri] = RuneNames[idx];
-                            }
-
-                            if (allValid)
-                            {
-                                slotRunes = names;
-                                break;
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore probe failures at this offset
-                    }
-                }
-            }
 
             details = new RuneStationDetails
             {
