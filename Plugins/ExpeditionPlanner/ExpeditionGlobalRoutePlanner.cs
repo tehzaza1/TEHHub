@@ -37,7 +37,7 @@ namespace ExpeditionPlanner
                 .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
                 .Select(t => t.EntityId).Distinct().Count();
             best.Reason = $"Bounded global route search: {coveredPillars}/{pillarCount} pillars via {best.Placements.Count} explosives ({maxCount * 12} route seeds).";
-            AppendUncoveredPillarDiagnostics(best, targets, startGrid, placed.Count, settings, finalStackPillar);
+            AppendUncoveredPillarDiagnostics(best, targets, startGrid, placed.Count, terrain, settings, finalStackPillar);
             return best;
         }
 
@@ -221,6 +221,7 @@ namespace ExpeditionPlanner
             IEnumerable<ExpeditionTarget> targets,
             Vector3 startGrid,
             int alreadyPlaced,
+            ExpeditionTerrainSnapshot? terrain,
             ExpeditionPlannerSettings settings,
             ExpeditionTarget? finalStackPillar)
         {
@@ -230,6 +231,7 @@ namespace ExpeditionPlanner
             if (uncovered.Count == 0) return;
 
             route.Warnings.Add($"Why stopped: {uncovered.Count} pillar(s) remain outside the selected legal chain.");
+            var anchors = new[] { startGrid }.Concat(route.Placements.Select(p => p.GridPosition)).ToList();
             foreach (var target in uncovered)
             {
                 var distance = Vector2.Distance(new Vector2(startGrid.X, startGrid.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y));
@@ -246,9 +248,33 @@ namespace ExpeditionPlanner
                 }
                 else
                 {
-                    route.Warnings.Add($"{label} ({target.HoleCount} slots): no legal route could include it while still ending at the {finalStackPillar?.HoleCount ?? 0}-slot pillar.");
+                    route.Warnings.Add($"{label} ({target.HoleCount} slots): {DiagnosePillarExclusion(target, anchors, startGrid, terrain, settings, finalStackPillar)}");
                 }
             }
+        }
+
+        private static string DiagnosePillarExclusion(ExpeditionTarget target, IReadOnlyList<Vector3> anchors, Vector3 detonator, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings, ExpeditionTarget? finalStackPillar)
+        {
+            var candidatePoints = new List<Vector3>();
+            float radius = MathF.Max(14f, settings.BlastRadiusGrid - 2f);
+            for (int i = 0; i < 12; i++)
+            {
+                float angle = i * MathF.PI / 6f;
+                candidatePoints.Add(target.GridPosition + new Vector3(MathF.Cos(angle) * radius, MathF.Sin(angle) * radius, 0));
+            }
+
+            var clearGround = candidatePoints.Where(p =>
+                LegalPlacement.HasWalkableClearance(terrain, p.X, p.Y, settings.BombClearanceRadiusGrid) &&
+                Vector2.Distance(new Vector2(p.X, p.Y), new Vector2(detonator.X, detonator.Y)) >= settings.CampExclusionRadiusGrid).ToList();
+            if (clearGround.Count == 0) return "every tested blast point is blocked by terrain clearance or the campsite exclusion zone";
+
+            var ranged = clearGround.Where(p => anchors.Any(a => Vector2.Distance(new Vector2(a.X, a.Y), new Vector2(p.X, p.Y)) <= settings.MaxPlacementRangeGrid)).ToList();
+            if (ranged.Count == 0) return "it still needs a bridge chain; no selected anchor is within one legal fuse segment";
+
+            var visible = ranged.Where(p => anchors.Any(a => LegalPlacement.IsLineClearOfTerrain(terrain, new Vector2(a.X, a.Y), new Vector2(p.X, p.Y), out _))).ToList();
+            if (visible.Count == 0) return "terrain blocks every in-range fuse segment; an A* detour is required";
+
+            return $"it was excluded to preserve a legal finish at the {finalStackPillar?.HoleCount ?? 0}-slot pillar";
         }
 
         private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
