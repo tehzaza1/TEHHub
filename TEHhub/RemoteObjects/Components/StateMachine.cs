@@ -202,6 +202,53 @@ namespace TEHhub.RemoteObjects.Components
                     {
                         lines.Add("No direct Rune DAT rows in Station/Anchor Holder first 0x400 bytes.");
                     }
+
+                    var nestedRows = 0;
+                    var inspectedPointers = 0;
+                    foreach (var source in new[] { (Name: "Station", Address: station), (Name: "Anchor holder", Address: anchorHolder) })
+                    {
+                        if (source.Address == IntPtr.Zero)
+                        {
+                            continue;
+                        }
+
+                        for (var sourceOffset = 0; sourceOffset <= 0x400 && inspectedPointers < 96; sourceOffset += IntPtr.Size)
+                        {
+                            if (!reader.TryReadMemory<IntPtr>(source.Address + sourceOffset, out var target, recordFailure: false) || target == IntPtr.Zero)
+                            {
+                                continue;
+                            }
+
+                            inspectedPointers++;
+                            for (var targetOffset = 0; targetOffset <= 0x200; targetOffset += IntPtr.Size)
+                            {
+                                if (!reader.TryReadMemory<IntPtr>(target + targetOffset, out var possibleRow, recordFailure: false))
+                                {
+                                    continue;
+                                }
+
+                                var rowDelta = possibleRow.ToInt64() - tableBase;
+                                if (rowDelta < 0 || rowDelta % rowStride != 0)
+                                {
+                                    continue;
+                                }
+
+                                var runeIndex = rowDelta / rowStride;
+                                if (runeIndex < 0 || runeIndex >= RuneNames.Length)
+                                {
+                                    continue;
+                                }
+
+                                lines.Add($"Nested rune ref: {source.Name}+0x{sourceOffset:X3} -> 0x{target.ToInt64():X}+0x{targetOffset:X3} -> {RuneNames[runeIndex]} (index {runeIndex})");
+                                nestedRows++;
+                            }
+                        }
+                    }
+
+                    if (nestedRows == 0)
+                    {
+                        lines.Add("No one-hop Rune DAT references from Station/Anchor Holder within the bounded scan.");
+                    }
                 }
 
                 lines.Add("Only valid, non-empty vector headers are listed. Raw data is capped at 128 bytes.");

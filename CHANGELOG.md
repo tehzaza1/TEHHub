@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.12 — 2026-09-14
+
+- Extended the Debug Rune Station snapshot with a bounded one-hop pointer scan from the verified Station and Anchor Holder structures.
+- Reports only nested references that resolve exactly into the verified Rune DAT range; traversal is capped at 96 source pointers and 0x200 bytes per target.
+- Compatibility: Diagnostic-only; public Release builds continue to compile it out.
+- Validation: `dotnet build TEHhub/TEHhub.csproj -c Debug --no-restore` succeeded with 0 warnings and 0 errors.
 ## 1.8.11 — 2026-09-14
 
 - Extended the Debug-only Expedition Rune Station inspector to scan bounded Station and Anchor Holder memory for direct pointers into the verified Rune DAT table.
