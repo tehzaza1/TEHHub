@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.0 — 2026-09-13
+
+- Added a Debug-only, read-only Expedition differential scanner at `POST /api/diagnostics/expedition-offset-scan?placedBombs=N`. It narrows integer candidates by the observed placed-bomb sequence while scanning only bounded windows rooted at live InGameState and declared UI anchors.
+- Added `POST /api/diagnostics/expedition-offset-scan/reset` to start an independent capture sequence. Results include root provenance, address, relative offset, value sequence, scan coverage and truncation status; every result remains an unverified candidate.
+- The scanner is limited to 64 KiB, 64 regions, 48 declared UI nodes and 25 ms per on-demand render capture. It never scans process-wide memory, follows arbitrary pointers, writes game memory, or imports PoE1 offsets/constants.
+- Updated the ExpeditionPlanner handoff with the live detonation observations, the explicit no-inference rules, and the reproducible native-wrapper discovery sequence for a handoff to another developer.
+- Compatibility: the scanner, routes and diagnostic JSON types compile out of Release; runtime gameplay behaviour is unchanged.
+- Validation: Debug and Release core and launcher builds passed without warnings or errors. Verified the Debug binary contains the scanner endpoint and Release does not.
 ## 1.7.1 — 2026-09-13
 
 - Fixed LootValue Runeshape recipe loading to use the plugin-local `expedition2_recipes.json` deployed beside `LootValue.dll`.

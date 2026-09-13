@@ -44,7 +44,7 @@ Large encounters must be treated as routine: the guide documents a 22-explosive 
 
 ## Confirmed live evidence
 
-Captured in a live Expedition encounter on 2026-09-13 using Debug TEHhub 1.6.6:
+Captured in live Expedition encounters on 2026-09-13 using Debug TEHhub through 1.8.0:
 
 | Meaning | Exact entity path | Model / icon evidence |
 | --- | --- | --- |
@@ -56,6 +56,16 @@ Captured in a live Expedition encounter on 2026-09-13 using Debug TEHhub 1.6.6:
 | Active remnant | `Metadata/MiscellaneousObjects/Expedition2/Expedition2Encounter` | `Expedition2RemnantActive` |
 
 The placed-explosive capture added one `ExpeditionExplosive`, two `ExpeditionConnectorPole`, and three `ExpeditionExplosiveFuse` entities. All exposed reliable grid/world positions. This confirms the visual phase can use normal entity components and does not require an unknown UI offset.
+
+The later three-explosive live capture established these **observations**, not gameplay constants:
+
+- A pre-placement baseline contained one detonator, zero bombs, zero fuse/pole entities, active remnants, and markers.
+- Each accepted placement added one `ExpeditionExplosive` and a continuous set of fuse/pole entities. The accepted consecutive bomb-pair distances were `90.35` and `90.03` grid units.
+- After detonation, the three explosive entities and fuse entities were no longer observed; connector-pole entities remained. Therefore poles are visual/topology evidence only and must not be used as an active-chain flag.
+- The generic placement indicator was not observed as an entity while placement mode was open. A wide UI-tree capture had no readable string IDs and was truncated, so it does not yet locate a stable placement UI field.
+- The terrain height grid had dimensions `4278 × 2208`, while the raw walkability vector was half the expected size. Its layout is not verified and must not be decoded as a legal-tile rule.
+
+Do **not** promote the observed accepted distances to a maximum placement range, or infer blast radius from entity-count changes. Cursor position, rejected positions, target state, map modifiers, and further live captures are required.
 
 PoE1's old `ExpeditionIcons` planner used a dedicated `ExpeditionDetonatorElement.Info` wrapper for placed count/positions and raw pathfinding/map-stat data. TEHhub does not yet have compatible PoE2 wrappers for those inputs. Do not copy those offsets or assume PoE1 placement rules.
 
@@ -99,10 +109,12 @@ Acceptance: all placed explosives and all detected fuse entities appear in the U
 
 Do not implement advice until each input is evidenced in PoE2.
 
-1. Use the Debug-only `POST /api/diagnostics/expedition-ui-probe` before placement and after exactly one placement to locate a stable UI panel and any count/placement state. The existing broad capture is bounded but child paths may shift, so compare structure and values across multiple captures instead of accepting one path.
-2. Add a typed UI wrapper only after a stable, repeatable field is confirmed across encounters.
-3. Investigate PoE2 equivalents of allowed tiles, placement range, and blast radius. Prefer documented/high-level game structures already exposed by TEHhub. If raw pathfinding or map-stat offsets are needed, add them only through the offset verification/recovery pipeline.
-4. Record confidence for each input. Missing or contradictory evidence must disable the corresponding recommendation.
+1. Start a new Debug differential scan with `POST /api/diagnostics/expedition-offset-scan/reset`, then capture the known placed-bomb sequence using `POST /api/diagnostics/expedition-offset-scan?placedBombs=N`: `0 → 1 → 2 → 3 → 0`. The scanner is a bounded, read-only CE-style search over live `InGameState`, UI-manager, UI-root, and declared UI-child windows; it never scans process-wide memory.
+2. Treat every returned address as a **candidate**. It becomes a typed `ExpeditionDetonatorElement.Info.PlacedExplosiveCount` field only when it exactly survives the full sequence with the same stable root, then repeats in an independent Expedition and passes the ordinary offset verification/fallback pipeline.
+3. After count is proven, use the same native structure only as a search anchor for total count, placement-active state, placement position, range, and radius. Each field needs its own controlled state changes and independent validation; proximity to a confirmed count field is not proof.
+4. For range, capture player-controlled cursor positions at both accepted and rejected placements alongside actual bomb grid positions. For radius, preserve target identity/position before detonation and compare its game-observed state after several routes. Do not derive either value from a single accepted pair or a total target count.
+5. Investigate PoE2 equivalents of legal tiles. The current walkability vector has an unverified layout; decode it only after a repeated correlation with accepted/rejected cursor positions. If raw pathfinding or map-stat offsets are needed, add them only through the offset verification/recovery pipeline.
+6. Record confidence and source capture for every input. Missing or contradictory evidence must disable the corresponding recommendation.
 
 Acceptance: the plugin can state where its bomb count, legal placement zone, and blast radius come from, with a reproducible live capture for each.
 
@@ -174,8 +186,11 @@ Debug-only, loopback-only endpoints already available:
 
 - `POST /api/diagnostics/expedition-probe` captures bounded Expedition entity evidence on the render thread.
 - `POST /api/diagnostics/expedition-ui-probe` captures a bounded visible Game UI tree for placement-screen comparison.
+- `POST` / `GET /api/diagnostics/expedition-placement-probe` captures entity-observed `ExpeditionDetonatorElement.Info`: detonators, bombs, poles, fuses, indicators, targets and bounded terrain samples. It is an evidence DTO, not a native-offset wrapper.
+- `POST /api/diagnostics/expedition-offset-scan/reset` clears one CE-style candidate sequence.
+- `POST /api/diagnostics/expedition-offset-scan?placedBombs=N` captures one known count state. `GET /api/diagnostics/expedition-offset-scan` returns surviving unverified candidates with their provenance, value sequence and scan coverage.
 
-Both are compiled out of Release. Local capture files from the session, if still present, are under `artifacts/expedition-*.json`; treat them as temporary research data, not release content.
+All are compiled out of Release. Local capture files from the session, if still present, are under `artifacts/expedition-*.json`; treat them as temporary research data, not release content.
 
 ### Strategy reference
 

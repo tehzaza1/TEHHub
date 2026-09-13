@@ -36,6 +36,7 @@ internal static class BottleneckCapture
         ExpeditionProbe.Collect();
         ExpeditionUiProbe.Collect();
         ExpeditionPlacementProbe.Collect();
+        ExpeditionOffsetScanner.Collect();
         ToolHub.Tick();
 #endif
         var requested = Interlocked.Exchange(ref command, 0);

@@ -104,6 +104,7 @@ namespace TEHhub.Ui
                         "POST /api/diagnostics/expedition-probe", "GET /api/diagnostics/expedition-probe",
                         "POST /api/diagnostics/expedition-ui-probe", "GET /api/diagnostics/expedition-ui-probe",
                         "POST /api/diagnostics/expedition-placement-probe", "GET /api/diagnostics/expedition-placement-probe",
+                        "POST /api/diagnostics/expedition-offset-scan/reset", "POST /api/diagnostics/expedition-offset-scan?placedBombs=0", "GET /api/diagnostics/expedition-offset-scan",
                         "POST /api/diagnostics/offset-verify", "GET /api/diagnostics/memory-status",
                         "GET /api/diagnostics/memory-snapshot", "POST /api/diagnostics/memory-reset",
                         "POST /api/diagnostics/memory-dump", "POST /api/diagnostics/memory-stop",
@@ -222,6 +223,38 @@ namespace TEHhub.Ui
                         await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("No Expedition placement probe has completed."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
                     else
                         await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.ExpeditionPlacementSnapshot).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path == "/api/diagnostics/expedition-offset-scan/reset")
+                {
+                    ExpeditionOffsetScanner.Reset();
+                    await WriteJsonAsync(context, 200, new DiagnosticsApiResponse("Expedition offset scan candidates reset."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path == "/api/diagnostics/expedition-offset-scan")
+                {
+                    if (!int.TryParse(context.Request.QueryString["placedBombs"], out var placedBombs) || placedBombs < 0 || placedBombs > 16)
+                    {
+                        await WriteJsonAsync(context, 400, new DiagnosticsApiResponse("Use placedBombs=0 through 16; this is an observed count, not a game-derived value."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                        return;
+                    }
+                    var capture = ExpeditionOffsetScanner.Queue(placedBombs);
+                    if (capture == null)
+                        await WriteJsonAsync(context, 409, new DiagnosticsApiResponse("Expedition offset scan is already pending."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                    {
+                        var scan = await capture.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        await WriteJsonAsync(context, 200, scan, DiagnosticsApiJsonContext.Default.ExpeditionOffsetScanSnapshot).ConfigureAwait(false);
+                    }
+                    return;
+                }
+                if (method == "GET" && path == "/api/diagnostics/expedition-offset-scan")
+                {
+                    var scan = ExpeditionOffsetScanner.Snapshot;
+                    if (scan == null)
+                        await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("No Expedition offset scan has completed."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                        await WriteJsonAsync(context, 200, scan, DiagnosticsApiJsonContext.Default.ExpeditionOffsetScanSnapshot).ConfigureAwait(false);
                     return;
                 }
                 if (method == "POST" && path == "/api/diagnostics/capture-area-start")
@@ -366,6 +399,7 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(ExpeditionProbeSnapshot))]
     [JsonSerializable(typeof(ExpeditionUiSnapshot))]
     [JsonSerializable(typeof(ExpeditionPlacementSnapshot))]
+    [JsonSerializable(typeof(ExpeditionOffsetScanSnapshot))]
 #endif
     internal sealed partial class DiagnosticsApiJsonContext : JsonSerializerContext
     {
