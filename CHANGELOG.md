@@ -2,6 +2,24 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.9 — 2026-09-13
+
+- Added Expedition Remnant and Monolith inspection across core TEHhub Entity views:
+  - **StateMachine Component Details**:
+    - Added `RuneStationDetails` struct and `StateMachine.TryGetRuneStationDetails(out RuneStationDetails)` to resolve authoritative socket counts, golden crown slot indices (`station + 0x40`), anchor rune names (`station + 0x28` / `0x30`), anchor slot indices (`station + 0x3C`), and proliferation status (`IsAnchorInGoldenSlot`).
+    - Extended `TryGetRuneStationSocketCount` to automatically leverage dual listener station candidate offsets (`sub - 0xA0` and `sub - 0x98`).
+    - Added colored Expedition Rune Station summary inside `StateMachine.ToImGui()`.
+  - **Core Entity ImGui View**:
+    - Added dedicated color-coded `[Expedition Monolith / Remnant]` section in `Entity.ToImGui()` displaying authoritative sockets, golden slot index, recipe anchor rune, and whether the rune proliferates or is local-only.
+  - **AreaInstance EntitiesWidget & JSON Dump**:
+    - Enhanced entity tree node labels in `EntitiesWidget` (`Awake Entities` and `Sleeping Entities`) to display `[Expedition Xs | ★ Gold #Y: Rune (Proliferates)]` or local status directly in the list.
+    - Added `ExpeditionMonolith` structured object into entity JSON dump payloads when using `dump##{entity.Key}`.
+    - Updated on-screen world labels to include Expedition socket, golden slot, and anchor rune info when filtering by path.
+  - **OffsetHelper Inspector**:
+    - Displayed Expedition Monolith summary inside pinned entity cards.
+- Compatibility: Core framework and launcher versions synchronized to 1.8.9.
+- Validation: Debug and Release builds for all projects in `TEHhub.sln` succeeded with 0 Warnings and 0 Errors.
+
 ## 1.8.8 — 2026-09-13
 
 - Fixed ExpeditionPlanner overlay visibility, 3D badge projection, and candidate reach failures:

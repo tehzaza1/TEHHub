@@ -1253,6 +1253,11 @@ namespace TEHhub.Ui
             ImGuiHelper.IntPtrToImGui("##odcardaddr", e.Address);
             ImGui.Text($"Path: {e.Path}");
             ImGui.Text($"Id: {e.Id}   State: {e.EntityState}");
+            if (e.TryGetComponent<StateMachine>(out var cardSm, false) &&
+                cardSm.TryGetRuneStationDetails(out var cardRs) && cardRs != null)
+            {
+                ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"[Expedition Monolith] Sockets: {cardRs.SocketCount} | Golden Slot: #{cardRs.GoldenSlotIndex + 1} | Anchor: {cardRs.AnchorRuneName} (Slot #{cardRs.AnchorSlotIndex + 1}) | Proliferates: {(cardRs.IsAnchorInGoldenSlot ? "YES" : "NO")}");
+            }
             ImGui.Separator();
             ImGui.Text($"Components ({results.Count})");
 

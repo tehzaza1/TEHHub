@@ -959,7 +959,21 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                             break;
                     }
 
-                    var isClicked = ImGui.TreeNode($"{entity.Value.Id} {entity.Value.Path}");
+                    string nodeLabel;
+                    if (entity.Value.TryGetComponent<StateMachine>(out var nodeSm, false) &&
+                        nodeSm.TryGetRuneStationDetails(out var nodeRs) && nodeRs != null)
+                    {
+                        var status = nodeRs.IsAnchorInGoldenSlot
+                            ? $"★ Gold #{nodeRs.GoldenSlotIndex + 1}: {nodeRs.AnchorRuneName} (Proliferates)"
+                            : $"Gold #{nodeRs.GoldenSlotIndex + 1}: Blue | Slot #{nodeRs.AnchorSlotIndex + 1}: {nodeRs.AnchorRuneName} (Local)";
+                        nodeLabel = $"{entity.Value.Id} [Expedition {nodeRs.SocketCount}s | {status}] {entity.Value.Path}";
+                    }
+                    else
+                    {
+                        nodeLabel = $"{entity.Value.Id} {entity.Value.Path}";
+                    }
+
+                    var isClicked = ImGui.TreeNode(nodeLabel);
                     ImGui.SameLine();
                     if (ImGui.SmallButton($"dump##{entity.Key}"))
                     {
@@ -1180,9 +1194,30 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                                 HellscapeMods = itemMods?.HellscapeMods.Select(x => x.ToString()).ToList()
                             };
                         }
+
+                        // -------- Expedition Monolith / RuneStation --------
+                        object? expeditionMonolith = null;
+                        if (entity.Value.TryGetComponent<StateMachine>(out var dumpSm, false) &&
+                            dumpSm.TryGetRuneStationDetails(out var dumpRs) && dumpRs != null)
+                        {
+                            expeditionMonolith = new
+                            {
+                                Sockets = dumpRs.SocketCount,
+                                GoldenSlotNumber = dumpRs.GoldenSlotIndex + 1,
+                                GoldenSlotIndex = dumpRs.GoldenSlotIndex,
+                                AnchorRune = dumpRs.AnchorRuneName,
+                                AnchorSlotNumber = dumpRs.AnchorSlotIndex + 1,
+                                AnchorSlotIndex = dumpRs.AnchorSlotIndex,
+                                IsAnchorInGoldenSlot = dumpRs.IsAnchorInGoldenSlot,
+                                Proliferates = dumpRs.Proliferates,
+                                IsUnique = dumpRs.IsUnique
+                            };
+                        }
+
                         var payload = new
                         {
                             WorldItem = groundItem,
+                            ExpeditionMonolith = expeditionMonolith,
                             EntityId = entity.Value.Id,
                             Key = new { entity.Key.id },
                             Path = path,
@@ -1237,7 +1272,10 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                         var entityLabel = this.filterBy switch
                         {
                             0 => $"ID: {entity.Key.id}",
-                            1 => $"Path: {entity.Value.Path}",
+                            1 => entity.Value.TryGetComponent<StateMachine>(out var labelSm, false) &&
+                                 labelSm.TryGetRuneStationDetails(out var labelRs) && labelRs != null
+                                ? $"[Expedition {labelRs.SocketCount}s Gold #{labelRs.GoldenSlotIndex + 1} {labelRs.AnchorRuneName}] {entity.Value.Path}"
+                                : $"Path: {entity.Value.Path}",
                             2 => entity.Value.TryGetComponent(out ObjectMagicProperties? omp)
                                 ? $"Rarity: {omp.Rarity}"
                                 : null,

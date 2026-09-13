@@ -300,6 +300,24 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 }
             }
 
+            if (this.TryGetComponent<StateMachine>(out var smComp, false) && smComp.TryGetRuneStationDetails(out var rs) && rs != null)
+            {
+                ImGui.Separator();
+                ImGui.TextColored(new System.Numerics.Vector4(1f, 0.84f, 0f, 1f), "[Expedition Monolith / Remnant]");
+                ImGui.Text($"Total Sockets: {rs.SocketCount}");
+                ImGui.Text($"Golden Crown Slot: #{rs.GoldenSlotIndex + 1} (index: {rs.GoldenSlotIndex})");
+                ImGui.Text($"Recipe Anchor Rune: {rs.AnchorRuneName} at Slot #{rs.AnchorSlotIndex + 1} (index: {rs.AnchorSlotIndex})");
+                if (rs.IsAnchorInGoldenSlot)
+                {
+                    ImGui.TextColored(new System.Numerics.Vector4(0.2f, 1f, 0.4f, 1f), $"Proliferating: YES ({rs.AnchorRuneName} in Golden Slot)");
+                }
+                else
+                {
+                    ImGui.TextColored(new System.Numerics.Vector4(1f, 0.4f, 0.4f, 1f), $"Proliferating: NO (Golden Slot #{rs.GoldenSlotIndex + 1} has Blue rune; {rs.AnchorRuneName} is local-only)");
+                }
+                ImGui.Separator();
+            }
+
             if (ImGui.TreeNode("Components"))
             {
                 foreach (var kv in this.componentAddresses)
