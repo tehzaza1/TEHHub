@@ -10,7 +10,6 @@ namespace ExpeditionPlanner
     public static class ExpeditionSolver
     {
         private const float GridToWorldRatio = 10.87f;
-        private const int MaxDetourSearchesPerStep = 6;
 
         public static RouteEvaluation Solve(
             Vector3 startDetonatorGrid,
@@ -77,6 +76,7 @@ namespace ExpeditionPlanner
             Vector3 activeAnchor = startAnchor;
             float totalScore = 0f;
             var warnings = new List<string>();
+            ExpeditionTarget? bridgeTarget = null;
 
             int neededSteps = Math.Max(0, budget - currentStep);
             for (int step = 1; step <= neededSteps; step++)
@@ -84,9 +84,14 @@ namespace ExpeditionPlanner
                 ProposedPlacement? bestPlacement = null;
                 float bestStepScore = float.NegativeInfinity;
 
+                if (bridgeTarget == null || coveredEntityIds.Contains(bridgeTarget.EntityId))
+                {
+                    bridgeTarget = SelectBridgeTarget(activeAnchor, availableTargets, coveredEntityIds, settings);
+                }
+
                 // Dynamically generate candidate placement points oriented toward activeAnchor
                 bool isDetonatorAnchor = (activeAnchor == startDetonatorGrid);
-                var candidatePoints = GenerateCandidatesForAnchor(activeAnchor, availableTargets, area, settings, isDetonatorAnchor);
+                var candidatePoints = GenerateCandidatesForAnchor(activeAnchor, availableTargets, area, settings, isDetonatorAnchor, bridgeTarget);
                 if (candidatePoints.Count == 0)
                 {
                     break;
@@ -134,19 +139,9 @@ namespace ExpeditionPlanner
                         // Bridging candidate: allows connecting anchor to distant target clusters when out of 1-bomb reach
                         if (step >= neededSteps) continue; // Final bomb must hit targets
 
-                        // In PillarFirst mode, only bridge toward uncovered pillars
-                        var bestUncovered = availableTargets
-                            .Where(t => !coveredEntityIds.Contains(t.EntityId) &&
-                                        (settings.Profile != PlannerProfile.PillarFirst ||
-                                         t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel))
-                            .OrderByDescending(t => (t.ProliferatedRuneTier == RuneTier.Golden ? 10000f : 0f) +
-                                                    (t.ProliferatedRuneTier == RuneTier.Purple_S ? 3000f : 0f) +
-                                                    (t.BaseWeight > 0 ? t.BaseWeight : GetTargetValue(t, settings)))
-                            .FirstOrDefault();
+                        if (bridgeTarget == null) continue;
 
-                        if (bestUncovered == null) continue;
-
-                        var targetPos2D = new Vector2(bestUncovered.GridPosition.X, bestUncovered.GridPosition.Y);
+                        var targetPos2D = new Vector2(bridgeTarget.GridPosition.X, bridgeTarget.GridPosition.Y);
                         float distBefore = Vector2.Distance(start2D, targetPos2D);
                         float distAfter = Vector2.Distance(end2D, targetPos2D);
                         float advance = distBefore - distAfter;
@@ -310,6 +305,11 @@ namespace ExpeditionPlanner
                     {
                         accumulatedRunes.Add(r);
                     }
+
+                    if (bridgeTarget != null && bestPlacement.CoveredTargets.Any(t => t.EntityId == bridgeTarget.EntityId))
+                    {
+                        bridgeTarget = null;
+                    }
                 }
                 else
                 {
@@ -346,6 +346,46 @@ namespace ExpeditionPlanner
             return evaluation;
         }
 
+        private static ExpeditionTarget? SelectBridgeTarget(
+            Vector3 anchor,
+            List<ExpeditionTarget> targets,
+            HashSet<uint> coveredEntityIds,
+            ExpeditionPlannerSettings settings)
+        {
+            ExpeditionTarget? selected = null;
+            float bestScore = float.NegativeInfinity;
+            var anchor2D = new Vector2(anchor.X, anchor.Y);
+
+            foreach (var target in targets)
+            {
+                if (coveredEntityIds.Contains(target.EntityId) ||
+                    (settings.Profile == PlannerProfile.PillarFirst &&
+                     target.Kind != TargetKind.RemnantPillar && target.Kind != TargetKind.VerisiumSentinel))
+                {
+                    continue;
+                }
+
+                float priority = target.ProliferatedRuneTier switch
+                {
+                    RuneTier.Golden => 10_000f,
+                    RuneTier.Purple_S => 3_000f,
+                    RuneTier.Purple_A => 1_200f,
+                    _ => target.BaseWeight > 0 ? target.BaseWeight : GetTargetValue(target, settings),
+                };
+                var target2D = new Vector2(target.GridPosition.X, target.GridPosition.Y);
+                float distance = Vector2.Distance(anchor2D, target2D);
+                float score = priority - (distance * 4f);
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    selected = target;
+                }
+            }
+
+            return selected;
+        }
+
         /// <summary>
         /// Generates candidate placement points on open, walkable ground oriented toward <paramref name="anchorGrid"/>.
         /// For Remnant pillars and Sentinels, bomb points are placed on the FRONT hemisphere facing the anchor,
@@ -356,11 +396,11 @@ namespace ExpeditionPlanner
             List<ExpeditionTarget> targets,
             AreaInstance? area,
             ExpeditionPlannerSettings settings,
-            bool isDetonatorAnchor = false)
+            bool isDetonatorAnchor = false,
+            ExpeditionTarget? bridgeTarget = null)
         {
             var points = new List<(Vector3 Grid, Vector3 World, float TerrainHeight)>();
             var anchor2D = new Vector2(anchorGrid.X, anchorGrid.Y);
-            int detourSearches = 0;
 
             void AddCandidate(float gx, float gy, ExpeditionTarget refTarget)
             {
@@ -413,15 +453,15 @@ namespace ExpeditionPlanner
                             AddCandidate(bgx, bgy, t);
                         }
                     }
+
                 }
 
                 // If a wall or height boundary blocks the direct approach, derive a legal
                 // bridging point from a walkable A* path. The next solver iteration can then
                 // continue around the obstacle instead of drawing a wire through it.
-                if (detourSearches < MaxDetourSearchesPerStep &&
+                if (bridgeTarget != null && t.EntityId == bridgeTarget.EntityId &&
                     !LegalPlacement.IsLineClearOfTerrain(area, anchor2D, target2D, out _))
                 {
-                    detourSearches++;
                     if (LegalPlacement.TryFindTerrainDetourWaypoint(
                         area,
                         anchor2D,
