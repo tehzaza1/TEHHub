@@ -8,7 +8,6 @@ namespace ExpeditionPlanner
     using System.Text.Json.Serialization;
     using TEHhub;
     using TEHhub.Offsets.Natives;
-    using TEHhub.Offsets.Objects.UiElement;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
 
@@ -21,12 +20,6 @@ namespace ExpeditionPlanner
         private const int StationHoleCountOffset = 0x38;
         private const int StationAnchorPosOffset = 0x3C;
         private const int StationGoldenSlotsOffset = 0x40;
-
-        // Runeshape Combinations UI constants
-        public static readonly uint[] PanelFlagFingerprints =
-            { 0x00462EF1, 0x00502EF3, 0x00502EF7, 0x00542EF1, 0x00502EF1 };
-        public const uint UiVisibleMask = 0x800;
-        private const int UiElementTextOffset = 0x3F8;
 
         private static readonly string[] RuneNames =
         [
@@ -266,8 +259,6 @@ namespace ExpeditionPlanner
                 }
             }
 
-            var bestOffer = PickBestRecipe(anchorIdx, anchorPos, holeCount, isUnique, areaLevel, anchorTier);
-
             if (isAnchorInGoldenSlot)
             {
                 goldenRuneCandidate = anchorName;
@@ -313,18 +304,6 @@ namespace ExpeditionPlanner
                     }
                 }
 
-                // If bestOffer's recipe has a golden slot rune, prioritize it
-                if (bestOffer?.Recipe?.runeIdx != null && bestOffer.Recipe.runeIdx.Count > goldenSlotIndex)
-                {
-                    var gIdx = bestOffer.Recipe.runeIdx[goldenSlotIndex];
-                    if (gIdx >= 0 && gIdx < RuneNames.Length)
-                    {
-                        var rName = RuneNames[gIdx];
-                        bestCandidateRune = rName;
-                        bestCandidateTier = GetRuneTier(rName);
-                    }
-                }
-
                 proliferatedTier = bestCandidateTier;
                 if (candidateRunes.Count > 1)
                 {
@@ -358,20 +337,12 @@ namespace ExpeditionPlanner
                 proliferatedTier = RuneTier.Blue_C;
             }
 
-            if (bestOffer != null)
-            {
-                recommendedChoice = bestOffer.Name;
-                description = bestOffer.Description;
-                estimatedValue = bestOffer.Score;
-                candidateRuneSequence = bestOffer.Recipe?.runes != null ? new List<string>(bestOffer.Recipe.runes) : new List<string>();
-            }
-            else
-            {
-                recommendedChoice = $"[{holeCount}x {anchorName}] Craft";
-                description = "Excavate for Runic Monsters and proliferated modifier buffs";
-                estimatedValue = GetTierBaseScore(proliferatedTier, holeCount);
-                candidateRuneSequence = new List<string>();
-            }
+            recommendedChoice = isAnchorInGoldenSlot
+                ? $"[{holeCount} Sockets] {anchorName}"
+                : $"[{holeCount} Sockets] Golden: {goldenRuneCandidate}";
+            description = "Excavate for Runic Monsters and proliferated modifier buffs";
+            estimatedValue = GetTierBaseScore(proliferatedTier, holeCount);
+            candidateRuneSequence = new List<string>();
 
             return true;
         }
@@ -388,63 +359,6 @@ namespace ExpeditionPlanner
             };
         }
 
-        private static OfferResult? PickBestRecipe(int anchorIdx, int anchorPos, int holeCount, bool isUnique, int areaLevel, RuneTier tier)
-        {
-            if (loadedRecipes.Count == 0) return null;
-
-            OfferResult? best = null;
-            float maxScore = float.NegativeInfinity;
-
-            foreach (var rec in loadedRecipes)
-            {
-                if (rec.size > holeCount) continue;
-                if (areaLevel > 0 && rec.maxLevel > 0 && (areaLevel < rec.minLevel || areaLevel > rec.maxLevel)) continue;
-
-                if (!isUnique && anchorIdx >= 0)
-                {
-                    if (rec.runeIdx == null || rec.runeIdx.Count <= anchorPos || rec.runeIdx[anchorPos] != anchorIdx)
-                    {
-                        continue;
-                    }
-                }
-
-                var name = rec.reward?.name ?? rec.description ?? rec.id ?? string.Empty;
-                var desc = rec.description ?? string.Empty;
-
-                float score = GetTierBaseScore(tier, rec.size);
-
-                // Priority keywords
-                if (name.Contains("Divine", StringComparison.OrdinalIgnoreCase) || name.Contains("Mirror", StringComparison.OrdinalIgnoreCase)) score += 300f;
-                else if (name.Contains("Exalted", StringComparison.OrdinalIgnoreCase) || name.Contains("Chaos", StringComparison.OrdinalIgnoreCase)) score += 150f;
-                else if (name.Contains("Greater", StringComparison.OrdinalIgnoreCase) || name.Contains("Grand", StringComparison.OrdinalIgnoreCase)) score += 100f;
-                else if (name.Contains("Logbook", StringComparison.OrdinalIgnoreCase)) score += 140f;
-                else if (name.Contains("Foundations", StringComparison.OrdinalIgnoreCase)) score += 80f;
-                else if (name.Contains("Currency", StringComparison.OrdinalIgnoreCase)) score += 70f;
-
-                if (score > maxScore)
-                {
-                    maxScore = score;
-                    best = new OfferResult
-                    {
-                        Name = name,
-                        Description = desc,
-                        Score = score,
-                        Recipe = rec
-                    };
-                }
-            }
-
-            return best;
-        }
-
-        private sealed class OfferResult
-        {
-            public string Name { get; set; } = string.Empty;
-            public string Description { get; set; } = string.Empty;
-            public float Score { get; set; }
-            public RecipeDef? Recipe { get; set; }
-        }
-
         private sealed class CatalogFile
         {
             public Dictionary<string, string>? runes { get; set; }
@@ -458,178 +372,6 @@ namespace ExpeditionPlanner
             public int minLevel { get; set; }
             public int maxLevel { get; set; }
             public List<int>? runeIdx { get; set; }
-            public List<string>? runes { get; set; }
-            public RewardDef? reward { get; set; }
-            public string? description { get; set; }
-        }
-
-        private sealed class RewardDef
-        {
-            public string? name { get; set; }
-            public int count { get; set; }
-        }
-
-        /// <summary>
-        /// Reads recipe texts directly from the live RuneshapeCombinationsPanel UI when open.
-        /// </summary>
-        public static bool TryReadOpenPanel(out List<string> recipes)
-        {
-            recipes = new List<string>();
-            var gameUi = Core.States.InGameStateObject?.GameUi;
-            if (gameUi == null || gameUi.Address == IntPtr.Zero) return false;
-
-            var panel = gameUi.RuneshapeCombinationsPanel;
-            if (panel.Address == IntPtr.Zero || !panel.IsVisible) return false;
-
-            var reader = Core.Process.Handle;
-            if (reader == null) return false;
-
-            var container = WalkPanelUi(panel.Address, 1);
-            if (container == IntPtr.Zero) return false;
-
-            if (!reader.TryReadMemory<UiElementBaseOffset>(container, out var cOff)) return false;
-            var rows = reader.ReadStdVector<IntPtr>(cOff.ChildrensPtr);
-            if (rows == null || rows.Length == 0) return false;
-
-            foreach (var row in rows)
-            {
-                if (row == IntPtr.Zero) continue;
-                if (!reader.TryReadMemory<UiElementBaseOffset>(row, out var rowOff)) continue;
-                if ((rowOff.Flags & UiVisibleMask) == 0) continue;
-
-                var rowKids = reader.ReadStdVector<IntPtr>(rowOff.ChildrensPtr);
-                if (rowKids == null || rowKids.Length == 0 || rowKids[0] == IntPtr.Zero) continue;
-
-                try
-                {
-                    var ws = reader.ReadMemory<StdWString>(rowKids[0] + UiElementTextOffset);
-                    var text = reader.ReadStdWString(ws);
-                    if (!string.IsNullOrWhiteSpace(text))
-                    {
-                        recipes.Add(text.Trim());
-                    }
-                }
-                catch
-                {
-                    // Ignore transient memory read exceptions
-                }
-            }
-
-            return recipes.Count > 0;
-        }
-
-        /// <summary>
-        /// Selects the highest priority / highest value craft option from a list of recipes found in an open monolith UI.
-        /// </summary>
-        public static string GetBestRecipeFromList(List<string> recipes)
-        {
-            if (recipes == null || recipes.Count == 0) return string.Empty;
-            if (recipes.Count == 1) return recipes[0];
-
-            string best = recipes[0];
-            double maxPrice = double.NegativeInfinity;
-            int uniqueGambleIdx = -1;
-
-            for (int i = 0; i < recipes.Count; i++)
-            {
-                var r = recipes[i];
-                double price = TryGetItemPriceChaos(r);
-                if (price > maxPrice)
-                {
-                    maxPrice = price;
-                    best = r;
-                }
-
-                if (uniqueGambleIdx == -1 && (r.Contains("Unique", StringComparison.OrdinalIgnoreCase) || r.Contains("ส้ม", StringComparison.OrdinalIgnoreCase)))
-                {
-                    uniqueGambleIdx = i;
-                }
-            }
-
-            if (maxPrice <= 0 && uniqueGambleIdx >= 0)
-            {
-                return recipes[uniqueGambleIdx];
-            }
-
-            return best;
-        }
-
-        private static double TryGetItemPriceChaos(string rawRecipeText)
-        {
-            try
-            {
-                var fetcherType = AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(a => a.GetName().Name == "LootValue")?
-                    .GetType("LootValue.PoeNinjaPriceFetcher");
-
-                if (fetcherType != null)
-                {
-                    var getPriceMethod = fetcherType.GetMethod("GetPrice", new[] { typeof(string), typeof(IReadOnlyList<string>), typeof(string), typeof(string), typeof(string) })
-                        ?? fetcherType.GetMethods().FirstOrDefault(m => m.Name == "GetPrice" && m.GetParameters().Length >= 1);
-
-                    if (getPriceMethod != null)
-                    {
-                        int count = 1;
-                        string name = rawRecipeText.Trim();
-                        var m = System.Text.RegularExpressions.Regex.Match(name, @"^(\d+)[xX]\s*(.+)$");
-                        if (m.Success)
-                        {
-                            if (int.TryParse(m.Groups[1].Value, out var c)) count = Math.Max(1, c);
-                            name = m.Groups[2].Value.Trim();
-                        }
-
-                        var priceObj = getPriceMethod.GetParameters().Length == 1
-                            ? getPriceMethod.Invoke(null, new object?[] { name })
-                            : getPriceMethod.Invoke(null, new object?[] { name, null, null, null, null });
-
-                        if (priceObj != null)
-                        {
-                            var prop = priceObj.GetType().GetProperty("PriceChaos");
-                            if (prop != null)
-                            {
-                                var val = prop.GetValue(priceObj);
-                                if (val is double d) return d * count;
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // Fallback if LootValue is not loaded or reflection fails
-            }
-            return 0;
-        }
-
-        private static IntPtr WalkPanelUi(IntPtr parent, int step)
-        {
-            if (parent == IntPtr.Zero || step >= PanelFlagFingerprints.Length) return parent;
-
-            var reader = Core.Process.Handle;
-            if (!reader.TryReadMemory<UiElementBaseOffset>(parent, out var off)) return IntPtr.Zero;
-
-            var kids = reader.ReadStdVector<IntPtr>(off.ChildrensPtr);
-            if (kids == null || kids.Length == 0) return IntPtr.Zero;
-
-            var targetFp = PanelFlagFingerprints[step] & ~UiVisibleMask;
-            for (var pass = 0; pass < 2; pass++)
-            {
-                var wantVisible = pass == 0;
-                foreach (var child in kids)
-                {
-                    if (child == IntPtr.Zero) continue;
-                    if (!reader.TryReadMemory<UiElementBaseOffset>(child, out var coff)) continue;
-                    var visible = (coff.Flags & UiVisibleMask) != 0;
-                    if (visible != wantVisible) continue;
-                    if ((coff.Flags & ~UiVisibleMask) == targetFp)
-                    {
-                        var res = WalkPanelUi(child, step + 1);
-                        if (res != IntPtr.Zero) return res;
-                    }
-                }
-            }
-
-            return IntPtr.Zero;
         }
     }
 }

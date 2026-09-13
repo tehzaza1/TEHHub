@@ -42,7 +42,6 @@ namespace ExpeditionPlanner
         private readonly List<PlacedBombInfo> placedBombs = new();
         private readonly Dictionary<uint, ExpeditionTarget> rememberedTargets = new();
         private readonly List<ExpeditionTarget> activeTargets = new();
-        private readonly Dictionary<uint, List<string>> verifiedMonolithRecipes = new();
         private RouteEvaluation currentRoute = new();
 
         // Caching and calculation tracking
@@ -110,7 +109,6 @@ namespace ExpeditionPlanner
             this.placedBombs.Clear();
             this.rememberedTargets.Clear();
             this.activeTargets.Clear();
-            this.verifiedMonolithRecipes.Clear();
             this.currentRoute = new RouteEvaluation();
             this.lastPlacedBombCount = 0;
             this.isRouteCalculated = false;
@@ -245,11 +243,7 @@ namespace ExpeditionPlanner
                             RuneTier.Purple_B => "[B-TIER PURPLE]",
                             _ => (remnantTarget.IsAnchorInGoldenSlot ? "[BLUE RUNE]" : "[NON-PROLIFERATING]")
                         };
-                        if (remnantTarget.IsVerifiedFromUi)
-                        {
-                            tierTag = "[VERIFIED] " + tierTag;
-                        }
-                        uint tagColor = remnantTarget.IsVerifiedFromUi ? 0xFF00FF7F : remnantTarget.ProliferatedRuneTier switch
+                        uint tagColor = remnantTarget.ProliferatedRuneTier switch
                         {
                             RuneTier.Golden => 0xFFFFD700,
                             RuneTier.Purple_S => 0xFFFF55FF,
@@ -345,7 +339,7 @@ namespace ExpeditionPlanner
 
                     var goldenSlotText = target.GoldenSlotIndex >= 0 ? $"#{target.GoldenSlotIndex + 1}" : "";
                     var gText = !string.IsNullOrEmpty(target.GoldenRuneCandidate) ? target.GoldenRuneCandidate : target.AnchorRuneName;
-                    var lbl = target.IsVerifiedFromUi ? $"[VERIFIED] {target.RecommendedRuneChoice}" : $"{goldenSlotText} {gText}";
+                    var lbl = $"{goldenSlotText} {gText}";
                     var lSize = ImGui.CalcTextSize(lbl);
                     var bMin = sPos + new Vector2(-lSize.X * 0.5f - 4, this.Settings.BadgeRadius * 0.7f + 2);
                     var bMax = sPos + new Vector2(lSize.X * 0.5f + 4, this.Settings.BadgeRadius * 0.7f + 4 + lSize.Y);
@@ -554,45 +548,6 @@ namespace ExpeditionPlanner
                 this.activeTargets.AddRange(this.rememberedTargets.Values);
             }
 
-            // Live UI Sync: If player opened a Monolith UI, sync verified recipes to the closest Remnant
-            if (RemnantRuneAdvisor.TryReadOpenPanel(out var openRecipes) && openRecipes.Count > 0)
-            {
-                var player = area.Player;
-                if (player != null && player.TryGetComponent<Render>(out var pRender, false))
-                {
-                    var playerGrid = new Vector3(pRender.GridPosition.X, pRender.GridPosition.Y, pRender.GridPosition.Z);
-                    ExpeditionTarget? closest = null;
-                    float closestDist = float.MaxValue;
-                    foreach (var target in this.activeTargets)
-                    {
-                        if (target.Kind != TargetKind.RemnantPillar) continue;
-                        var d = Vector3.Distance(target.GridPosition, playerGrid);
-                        if (d < closestDist)
-                        {
-                            closestDist = d;
-                            closest = target;
-                        }
-                    }
-
-                    if (closest != null && closestDist < 30f)
-                    {
-                        this.verifiedMonolithRecipes[closest.EntityId] = openRecipes;
-                        closest.IsVerifiedFromUi = true;
-                        closest.VerifiedRecipes = openRecipes;
-                        var bestPick = RemnantRuneAdvisor.GetBestRecipeFromList(openRecipes);
-                        closest.RecommendedRuneChoice = $"[VERIFIED] Pick: {bestPick} ★";
-                        closest.RecipeDescription = string.Join(" | ", openRecipes);
-                        closest.NeedsReroll = false;
-                        closest.BaseWeight += 250f;
-
-                        if (this.isRouteCalculated)
-                        {
-                            this.CalculateRoute(area, "Live Monolith Verified");
-                        }
-                    }
-                }
-            }
-
             // Automatic calculation triggers
             if (this.Settings.AutoCalculateOnBombPlaced && bombsChanged && this.isRouteCalculated)
             {
@@ -695,17 +650,6 @@ namespace ExpeditionPlanner
                         : $"Remnant [{goldenText} {goldenRune} | {anchor} @ #{anchorSlot + 1}]";
                 }
 
-                bool isVerified = this.verifiedMonolithRecipes.TryGetValue(entity.Id, out var vRecipes) && vRecipes.Count > 0;
-                if (isVerified && vRecipes != null)
-                {
-                    var bestPick = RemnantRuneAdvisor.GetBestRecipeFromList(vRecipes);
-                    choice = $"[VERIFIED] Pick: {bestPick} ★";
-                    desc = string.Join(" | ", vRecipes);
-                    needsReroll = false;
-                    score += 250f;
-                    displayName += " [VERIFIED]";
-                }
-
                 var remnantMods = new List<string>();
                 if (entity.TryGetComponent<ObjectMagicProperties>(out var remOmp, false))
                 {
@@ -740,8 +684,6 @@ namespace ExpeditionPlanner
                     ProliferatedRuneTier = tier,
                     NeedsReroll = needsReroll,
                     RerollReason = rerollReason,
-                    IsVerifiedFromUi = isVerified,
-                    VerifiedRecipes = isVerified && vRecipes != null ? vRecipes : new()
                 };
             }
             else if (path.Contains(SentinelPath, StringComparison.OrdinalIgnoreCase))
