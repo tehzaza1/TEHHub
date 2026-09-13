@@ -64,6 +64,10 @@ namespace ExpeditionPlanner
         public bool NeedsReroll { get; set; }
         public string RerollReason { get; set; } = string.Empty;
         public bool IsDuplicateProliferation { get; set; }
+
+        // Live UI Panel Verification
+        public bool IsVerifiedFromUi { get; set; }
+        public List<string> VerifiedRecipes { get; set; } = new();
     }
 
     public sealed class PlacedBombInfo

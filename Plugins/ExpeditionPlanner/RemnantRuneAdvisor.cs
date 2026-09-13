@@ -7,6 +7,7 @@ namespace ExpeditionPlanner
     using System.Text.Json.Serialization;
     using TEHhub;
     using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.UiElement;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
 
@@ -19,6 +20,12 @@ namespace ExpeditionPlanner
         private const int StationHoleCountOffset = 0x38;
         private const int StationAnchorPosOffset = 0x3C;
         private const int StationGoldenSlotsOffset = 0x40;
+
+        // Runeshape Combinations UI constants
+        public static readonly uint[] PanelFlagFingerprints =
+            { 0x00462EF1, 0x00502EF3, 0x00502EF7, 0x00542EF1, 0x00502EF1 };
+        public const uint UiVisibleMask = 0x800;
+        private const int UiElementTextOffset = 0x3F8;
 
         private static readonly string[] RuneNames =
         [
@@ -235,34 +242,56 @@ namespace ExpeditionPlanner
             anchorName = isUnique ? "Unique Monolith" : (anchorIdx >= 0 && anchorIdx < RuneNames.Length ? RuneNames[anchorIdx] : "Rune Monolith");
             var anchorTier = GetRuneTier(anchorName);
 
+            EnsureRecipesLoaded();
+
             // Crucial: Only the rune IN the Golden Slot proliferates to subsequent remnants!
             isAnchorInGoldenSlot = isUnique || (goldenSlotIndex == anchorSlotIndex);
             if (isAnchorInGoldenSlot)
             {
                 proliferatedTier = anchorTier;
             }
+            else if (!isUnique && goldenSlotIndex >= 0 && anchorIdx >= 0)
+            {
+                // Inspect matching candidate recipes to deduce whether the golden slot holds a high-tier rune
+                RuneTier bestGoldenCandidateTier = RuneTier.Blue_C;
+                foreach (var rec in loadedRecipes)
+                {
+                    if (rec.size > holeCount) continue;
+                    if (areaLevel > 0 && rec.maxLevel > 0 && (areaLevel < rec.minLevel || areaLevel > rec.maxLevel)) continue;
+                    if (rec.runeIdx != null && rec.runeIdx.Count > anchorPos && rec.runeIdx[anchorPos] == anchorIdx &&
+                        rec.runeIdx.Count > goldenSlotIndex)
+                    {
+                        var gIdx = rec.runeIdx[goldenSlotIndex];
+                        if (gIdx >= 0 && gIdx < RuneNames.Length)
+                        {
+                            var gTier = GetRuneTier(RuneNames[gIdx]);
+                            if (gTier < bestGoldenCandidateTier)
+                            {
+                                bestGoldenCandidateTier = gTier;
+                            }
+                        }
+                    }
+                }
+
+                proliferatedTier = bestGoldenCandidateTier;
+            }
             else
             {
-                // Anchor rune is in a regular non-golden socket; golden slot contains a generic blue rune
                 proliferatedTier = RuneTier.Blue_C;
             }
 
-            // Reroll detection: Remnants with no purple runes in the golden slot should always be rerolled
+            // Reroll detection: Remnants with no purple/golden runes in the golden slot should be rerolled
             if (!isUnique)
             {
-                if (!isAnchorInGoldenSlot)
+                if (proliferatedTier == RuneTier.Blue_C)
                 {
                     needsReroll = true;
-                    rerollReason = $"Golden Slot #{goldenSlotIndex + 1} has a Blue rune ({anchorName} is in regular Slot #{anchorSlotIndex + 1} and will NOT proliferate). Reroll recommended!";
-                }
-                else if (proliferatedTier == RuneTier.Blue_C)
-                {
-                    needsReroll = true;
-                    rerollReason = $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!";
+                    rerollReason = isAnchorInGoldenSlot
+                        ? $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!"
+                        : $"Golden Slot #{goldenSlotIndex + 1} has a Blue rune ({anchorName} is in regular Slot #{anchorSlotIndex + 1} and will NOT proliferate). Reroll recommended!";
                 }
             }
 
-            EnsureRecipesLoaded();
             var bestOffer = PickBestRecipe(anchorIdx, anchorPos, holeCount, isUnique, areaLevel, proliferatedTier);
             if (bestOffer != null)
             {
@@ -369,6 +398,86 @@ namespace ExpeditionPlanner
         {
             public string? name { get; set; }
             public int count { get; set; }
+        }
+
+        /// <summary>
+        /// Reads recipe texts directly from the live RuneshapeCombinationsPanel UI when open.
+        /// </summary>
+        public static bool TryReadOpenPanel(out List<string> recipes)
+        {
+            recipes = new List<string>();
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi == null || gameUi.Address == IntPtr.Zero) return false;
+
+            var panel = gameUi.RuneshapeCombinationsPanel;
+            if (panel.Address == IntPtr.Zero || !panel.IsVisible) return false;
+
+            var reader = Core.Process.Handle;
+            if (reader == null) return false;
+
+            var container = WalkPanelUi(panel.Address, 1);
+            if (container == IntPtr.Zero) return false;
+
+            if (!reader.TryReadMemory<UiElementBaseOffset>(container, out var cOff)) return false;
+            var rows = reader.ReadStdVector<IntPtr>(cOff.ChildrensPtr);
+            if (rows == null || rows.Length == 0) return false;
+
+            foreach (var row in rows)
+            {
+                if (row == IntPtr.Zero) continue;
+                if (!reader.TryReadMemory<UiElementBaseOffset>(row, out var rowOff)) continue;
+                if ((rowOff.Flags & UiVisibleMask) == 0) continue;
+
+                var rowKids = reader.ReadStdVector<IntPtr>(rowOff.ChildrensPtr);
+                if (rowKids == null || rowKids.Length == 0 || rowKids[0] == IntPtr.Zero) continue;
+
+                try
+                {
+                    var ws = reader.ReadMemory<StdWString>(rowKids[0] + UiElementTextOffset);
+                    var text = reader.ReadStdWString(ws);
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        recipes.Add(text.Trim());
+                    }
+                }
+                catch
+                {
+                    // Ignore transient memory read exceptions
+                }
+            }
+
+            return recipes.Count > 0;
+        }
+
+        private static IntPtr WalkPanelUi(IntPtr parent, int step)
+        {
+            if (parent == IntPtr.Zero || step >= PanelFlagFingerprints.Length) return parent;
+
+            var reader = Core.Process.Handle;
+            if (!reader.TryReadMemory<UiElementBaseOffset>(parent, out var off)) return IntPtr.Zero;
+
+            var kids = reader.ReadStdVector<IntPtr>(off.ChildrensPtr);
+            if (kids == null || kids.Length == 0) return IntPtr.Zero;
+
+            var targetFp = PanelFlagFingerprints[step] & ~UiVisibleMask;
+            for (var pass = 0; pass < 2; pass++)
+            {
+                var wantVisible = pass == 0;
+                foreach (var child in kids)
+                {
+                    if (child == IntPtr.Zero) continue;
+                    if (!reader.TryReadMemory<UiElementBaseOffset>(child, out var coff)) continue;
+                    var visible = (coff.Flags & UiVisibleMask) != 0;
+                    if (visible != wantVisible) continue;
+                    if ((coff.Flags & ~UiVisibleMask) == targetFp)
+                    {
+                        var res = WalkPanelUi(child, step + 1);
+                        if (res != IntPtr.Zero) return res;
+                    }
+                }
+            }
+
+            return IntPtr.Zero;
         }
     }
 }
