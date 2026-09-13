@@ -16,9 +16,11 @@ namespace ExpeditionPlanner
             var random = new Random(17);
             int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
             var finalStackPillar = FindFinalStackPillar(targets, settings);
-            int maxCount = Math.Max(1, Math.Min(settings.MaxExplosiveBudget - placed.Count, pillarCount));
-            // The stack receiver must be the last placement actually chosen, not an
-            // artificial "bomb #20". Try every usable route length and retain the best.
+            // Bridge bombs consume slots too. Do not cap the route by pillar count:
+            // a remote pillar may need several legal fuse segments before it can be hit.
+            int maxCount = Math.Max(1, settings.MaxExplosiveBudget - placed.Count);
+            // The stack receiver must be the last placement actually chosen. Try every
+            // usable route length and retain the route that covers the most pillars.
             for (int count = 1; count <= maxCount; count++)
             {
                 // ExpeditionIcons evolves a bounded pool of complete paths. Keep this
