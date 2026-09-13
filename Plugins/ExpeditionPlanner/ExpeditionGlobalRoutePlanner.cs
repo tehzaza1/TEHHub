@@ -12,9 +12,10 @@ namespace ExpeditionPlanner
         public static RouteEvaluation Solve(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings)
         {
             var candidates = BuildCandidates(targets, settings);
-            var best = new RouteEvaluation { Profile = settings.Profile.ToString() };
+            RouteEvaluation? best = null;
             var random = new Random(17);
             int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
+            var finalStackPillar = FindFinalStackPillar(targets, settings);
             int maxCount = Math.Max(1, Math.Min(settings.MaxExplosiveBudget - placed.Count, pillarCount));
             // The stack receiver must be the last placement actually chosen, not an
             // artificial "bomb #20". Try every usable route length and retain the best.
@@ -26,9 +27,10 @@ namespace ExpeditionPlanner
                 for (int attempt = 0; attempt < 12; attempt++)
                 {
                     var route = BuildRoute(startGrid, startWorld, placed, targets, candidates, terrain, settings, count, random);
-                    if (route.NetScore > best.NetScore) best = route;
+                    if (IsBetterRoute(route, best, finalStackPillar)) best = route;
                 }
             }
+            best ??= new RouteEvaluation { Profile = settings.Profile.ToString() };
             var coveredPillars = best.Placements.SelectMany(p => p.CoveredTargets)
                 .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
                 .Select(t => t.EntityId).Distinct().Count();
@@ -42,11 +44,7 @@ namespace ExpeditionPlanner
             var covered = new HashSet<uint>();
             var committed = placed.Select(x => x.GridPosition).ToList();
             var anchor = placed.Count > 0 ? placed[^1].GridPosition : startGrid;
-            var finalStackPillar = targets
-                .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
-                .OrderByDescending(t => t.HoleCount)
-                .ThenByDescending(t => Value(t, settings))
-                .FirstOrDefault();
+            var finalStackPillar = FindFinalStackPillar(targets, settings);
             for (int step = 1; step <= count; step++)
             {
                 Vector3? best = null; float bestScore = float.NegativeInfinity; List<ExpeditionTarget>? hitBest = null;
@@ -129,6 +127,51 @@ namespace ExpeditionPlanner
                     yield return new Vector3(point.X, point.Y, target.GridPosition.Z);
                 }
             }
+        }
+
+        // The winning route is selected by farming rules, not a weighted total:
+        // coverage first, widest pillar as final receiver, early Opulent, then fewer
+        // bridge-only placements. Route length is intentionally not a criterion.
+        private static bool IsBetterRoute(RouteEvaluation candidate, RouteEvaluation? current, ExpeditionTarget? finalStackPillar)
+        {
+            if (current == null) return true;
+            int candidateCoverage = CountCoveredPillars(candidate);
+            int currentCoverage = CountCoveredPillars(current);
+            if (candidateCoverage != currentCoverage) return candidateCoverage > currentCoverage;
+
+            bool candidateEndsAtFinal = EndsAt(candidate, finalStackPillar);
+            bool currentEndsAtFinal = EndsAt(current, finalStackPillar);
+            if (candidateEndsAtFinal != currentEndsAtFinal) return candidateEndsAtFinal;
+
+            int candidateOpulentStep = FirstRuneStep(candidate, "Opulent");
+            int currentOpulentStep = FirstRuneStep(current, "Opulent");
+            if (candidateOpulentStep != currentOpulentStep) return candidateOpulentStep < currentOpulentStep;
+
+            int candidateBridges = candidate.Placements.Count(p => p.CoveredTargets.Count == 0);
+            int currentBridges = current.Placements.Count(p => p.CoveredTargets.Count == 0);
+            return candidateBridges < currentBridges;
+        }
+
+        private static ExpeditionTarget? FindFinalStackPillar(IEnumerable<ExpeditionTarget> targets, ExpeditionPlannerSettings settings) => targets
+            .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
+            .OrderByDescending(t => t.HoleCount)
+            .ThenByDescending(t => Value(t, settings))
+            .FirstOrDefault();
+
+        private static int CountCoveredPillars(RouteEvaluation route) => route.Placements.SelectMany(p => p.CoveredTargets)
+            .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
+            .Select(t => t.EntityId).Distinct().Count();
+
+        private static bool EndsAt(RouteEvaluation route, ExpeditionTarget? target) => target != null && route.Placements.Count > 0 &&
+            route.Placements[^1].CoveredTargets.Any(t => t.EntityId == target.EntityId);
+
+        private static int FirstRuneStep(RouteEvaluation route, string rune)
+        {
+            for (int index = 0; index < route.Placements.Count; index++)
+            {
+                if (route.Placements[index].CoveredTargets.Any(t => RuneName(t).Equals(rune, StringComparison.OrdinalIgnoreCase))) return index;
+            }
+            return int.MaxValue;
         }
 
         private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
