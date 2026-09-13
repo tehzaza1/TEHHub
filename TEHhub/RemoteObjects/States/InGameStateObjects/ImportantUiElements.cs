@@ -1302,7 +1302,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             var count = root.ChildrensPtr.TotalElements(IntPtr.Size);
             if (root.ChildrensPtr.First == IntPtr.Zero || count <= 39) return IntPtr.Zero;
             if (!reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (39 * IntPtr.Size), out var panel) || panel == IntPtr.Zero) return IntPtr.Zero;
-            return reader.TryReadMemory<UiElementBaseOffset>(panel, out var data) && data.Self == panel && data.ParentPtr == this.Address
+            // The panel is a child in GameUi's vector but its UiElement parent can be an
+            // intermediate layout container, so require a live parent rather than the manager.
+            return reader.TryReadMemory<UiElementBaseOffset>(panel, out var data) && data.Self == panel && data.ParentPtr != IntPtr.Zero
                 ? panel : IntPtr.Zero;
         }
 

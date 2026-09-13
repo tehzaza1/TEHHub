@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.33 — 2026-09-14
+
+- Fixed Runeshape panel static-chain validation: its UI parent is an intermediate container, so the resolver now validates a non-zero live parent instead of requiring the GameUi manager address.
+- Compatibility: Core UI resolver fix.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors.
+
 ## 1.8.32 — 2026-09-14
 
 - Replaced the generic Runeshape panel lookup with its verified static child-vector chain: GameUi children +0x10, index 39, then Self and Parent validation before publishing the root.
