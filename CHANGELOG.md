@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.7 — 2026-09-13
+
+- Added an implementation handoff for a standalone ExpeditionPlanner plugin, including verified PoE2 entity evidence, the small/large encounter design, safety boundaries, phased delivery, and validation criteria.
+- The plan keeps Expedition planning separate from Radar and centralizes its future settings under `configs/plugins/ExpeditionPlanner`.
+- Compatibility: documentation only; runtime behaviour is unchanged.
+- Validation: reviewed against the live Debug evidence captures collected for an explosive, connector poles, and fuses; Debug and Release core builds passed without warnings/errors.
+
 ## 1.6.6 — 2026-09-13
 
 - Added a Debug-only, on-demand Expedition UI probe. It walks only declared Game UI children with limits of 4,096 nodes, depth 12, 512 children per node, and 150 ms; output contains visible nodes and their ancestor paths, flags, local bounds, and sane string IDs.
