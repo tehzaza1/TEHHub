@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.16 — 2026-09-14
+
+- Extended the Debug Rune Station probe to include non-station listener sidecars as bounded Rune DAT scan roots. This allows the diagnostic to inspect runtime controller structures that are not valid game Entities.
+- Compatibility: Diagnostic-only; public Release builds continue to compile it out.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors.
 ## 1.8.15 — 2026-09-14
 
 - Added `POST /api/diagnostics/rune-station-probe?entityId={id}` and `GET /api/diagnostics/rune-station-probe` to the Debug loopback API.

@@ -177,6 +177,7 @@ namespace TEHhub.RemoteObjects.Components
                 lines.Add($"Anchor row: 0x{anchorRow.ToInt64():X}; holder: 0x{anchorHolder.ToInt64():X}; Rune DAT: 0x{tableBase:X}; stride: {(rowStride > 0 ? $"0x{rowStride:X}" : "unknown")}");
                 lines.Add($"Listener nodes: {nodes.Length} (showing up to 24)");
                 var linkedOwnerAddresses = new HashSet<long>();
+                var diagnosticRoots = new List<(string Name, IntPtr Address)> { ("Station", station), ("Anchor holder", anchorHolder) };
                 for (var listenerIndex = 0; listenerIndex < nodes.Length && listenerIndex < 24; listenerIndex++)
                 {
                     var nodeValue = nodes[listenerIndex];
@@ -192,8 +193,16 @@ namespace TEHhub.RemoteObjects.Components
                     reader.TryReadMemory(candidate98 + StationDeviceBackPtr, out IntPtr owner98, recordFailure: false);
                     var owned = ownerA0 == this.OwnerEntityAddress ? " (-0xA0 owns station)" : owner98 == this.OwnerEntityAddress ? " (-0x98 owns station)" : string.Empty;
                     lines.Add($"Listener[{listenerIndex}]: node=0x{nodeValue:X}; ptr=0x{listener.ToInt64():X}; owner@-0xA0=0x{ownerA0.ToInt64():X}; owner@-0x98=0x{owner98.ToInt64():X}{owned}");
-                    if (ownerA0 != IntPtr.Zero && ownerA0 != this.OwnerEntityAddress) linkedOwnerAddresses.Add(ownerA0.ToInt64());
-                    if (owner98 != IntPtr.Zero && owner98 != this.OwnerEntityAddress) linkedOwnerAddresses.Add(owner98.ToInt64());
+                    if (ownerA0 != IntPtr.Zero && ownerA0 != this.OwnerEntityAddress)
+                    {
+                        linkedOwnerAddresses.Add(ownerA0.ToInt64());
+                        diagnosticRoots.Add(($"Listener[{listenerIndex}]-0xA0", candidateA0));
+                    }
+                    if (owner98 != IntPtr.Zero && owner98 != this.OwnerEntityAddress && owner98.ToInt64() < 0x0000800000000000)
+                    {
+                        linkedOwnerAddresses.Add(owner98.ToInt64());
+                        diagnosticRoots.Add(($"Listener[{listenerIndex}]-0x98", candidate98));
+                    }
                 }
 
                 var linkedOwnerCount = 0;
@@ -222,7 +231,7 @@ namespace TEHhub.RemoteObjects.Components
                 if (rowStride > 0)
                 {
                     var directRows = 0;
-                    foreach (var target in new[] { (Name: "Station", Address: station), (Name: "Anchor holder", Address: anchorHolder) })
+                    foreach (var target in diagnosticRoots)
                     {
                         if (target.Address == IntPtr.Zero)
                         {
@@ -260,7 +269,7 @@ namespace TEHhub.RemoteObjects.Components
 
                     var nestedRows = 0;
                     var inspectedPointers = 0;
-                    foreach (var source in new[] { (Name: "Station", Address: station), (Name: "Anchor holder", Address: anchorHolder) })
+                    foreach (var source in diagnosticRoots)
                     {
                         if (source.Address == IntPtr.Zero)
                         {
