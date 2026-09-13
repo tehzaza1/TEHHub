@@ -25,8 +25,12 @@
     </ProjectReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="expedition2_recipes.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <Target Name="CopyFiles" AfterTargets="Build">
-    <Copy SourceFiles="$(OutDir)$(TargetName)$(TargetExt); $(OutDir)$(TargetName).pdb;" DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(OutDir)$(TargetName)$(TargetExt); $(OutDir)$(TargetName).pdb; $(MSBuildProjectDirectory)\expedition2_recipes.json;" DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

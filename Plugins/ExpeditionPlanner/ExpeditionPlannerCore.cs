@@ -210,6 +210,27 @@ namespace ExpeditionPlanner
                             drawList.AddLine(sPos, nextScreen, nextLineColor, nextP.IsObstructed ? 3.0f : 2.5f);
                         }
                     }
+
+                    // Floating recommendation card for Remnant pillars
+                    var remnantTarget = p.CoveredTargets.Find(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
+                    if (remnantTarget != null && !string.IsNullOrEmpty(remnantTarget.RecommendedRuneChoice))
+                    {
+                        var choiceText = $"* Choice: {remnantTarget.RecommendedRuneChoice}";
+                        var subText = remnantTarget.ProliferationRemaining > 0
+                            ? $"Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
+                            : "Final blast in chain";
+
+                        var cSize = ImGui.CalcTextSize(choiceText);
+                        var sSize = ImGui.CalcTextSize(subText);
+                        var boxW = MathF.Max(cSize.X, sSize.X) + 12f;
+                        var boxH = 32f;
+                        var boxPos = sPos + new Vector2(-boxW * 0.5f, this.Settings.BadgeRadius + 6f);
+
+                        drawList.AddRectFilled(boxPos, boxPos + new Vector2(boxW, boxH), 0xEE111111, 4f);
+                        drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), 0xFF00E5FF, 4f, 0, 1.2f);
+                        drawList.AddText(boxPos + new Vector2(6, 2), 0xFF00FFFF, choiceText);
+                        drawList.AddText(boxPos + new Vector2(6, 16), 0xFFFFAA00, subText);
+                    }
                 }
             }
 
@@ -217,7 +238,7 @@ namespace ExpeditionPlanner
             if (this.Settings.ShowReasonCard && this.currentRoute.Placements.Count > 0)
             {
                 ImGui.SetNextWindowPos(new Vector2(20, 220), ImGuiCond.FirstUseEver);
-                ImGui.SetNextWindowSize(new Vector2(360, 0), ImGuiCond.Always);
+                ImGui.SetNextWindowSize(new Vector2(380, 0), ImGuiCond.Always);
                 var flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize;
                 if (ImGui.Begin("Expedition Route Advisor###ExpeditionPlannerCard", flags))
                 {
@@ -226,6 +247,27 @@ namespace ExpeditionPlanner
                     ImGui.Separator();
 
                     ImGui.TextWrapped(this.currentRoute.Reason);
+
+                    ImGui.Separator();
+                    ImGui.TextColored(new Vector4(0.2f, 1f, 0.8f, 1f), "Pillar Rune & Monster Directives:");
+                    foreach (var p in this.currentRoute.Placements)
+                    {
+                        var remnant = p.CoveredTargets.Find(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
+                        if (remnant != null && !string.IsNullOrEmpty(remnant.RecommendedRuneChoice))
+                        {
+                            ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), $"Step [{p.Step}] Pillar ({remnant.HoleCount}x {remnant.AnchorRuneName}):");
+                            ImGui.BulletText($"Select Rune: {remnant.RecommendedRuneChoice}");
+                            if (remnant.ProliferationRemaining > 0)
+                            {
+                                ImGui.TextDisabled($"   -> Proliferates to {remnant.ProliferationRemaining} subsequent bombs!");
+                            }
+                        }
+                        else
+                        {
+                            ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.8f, 1f), $"Step [{p.Step}] Excavation:");
+                            ImGui.BulletText($"Excavates {p.CoveredTargets.Count} targets (inherits all active Remnant buffs)");
+                        }
+                    }
 
                     if (this.currentRoute.Warnings.Count > 0)
                     {
@@ -277,7 +319,7 @@ namespace ExpeditionPlanner
                 }
                 else
                 {
-                    var classified = ClassifyTarget(entity);
+                    var classified = ClassifyTarget(entity, area);
                     if (classified != null)
                     {
                         this.activeTargets.Add(classified);
@@ -295,7 +337,7 @@ namespace ExpeditionPlanner
                 this.Settings);
         }
 
-        private static ExpeditionTarget? ClassifyTarget(Entity entity)
+        private static ExpeditionTarget? ClassifyTarget(Entity entity, AreaInstance area)
         {
             if (!entity.TryGetComponent<Render>(out var render, false)) return null;
 
@@ -326,6 +368,44 @@ namespace ExpeditionPlanner
             {
                 kind = TargetKind.RemnantPillar;
                 displayName = "Remnant";
+
+                int holes = 0;
+                string anchor = string.Empty;
+                string choice = string.Empty;
+                string desc = string.Empty;
+                float score = 40f;
+
+                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out anchor, out choice, out desc, out score))
+                {
+                    displayName = $"Remnant [{holes}x {anchor}]";
+                }
+
+                var remnantMods = new List<string>();
+                if (entity.TryGetComponent<ObjectMagicProperties>(out var remOmp, false))
+                {
+                    remnantMods.AddRange(remOmp.ModNames);
+                }
+                if (!string.IsNullOrEmpty(anchor))
+                {
+                    remnantMods.Add(anchor);
+                }
+
+                return new ExpeditionTarget
+                {
+                    EntityId = entity.Id,
+                    Path = path,
+                    Kind = kind,
+                    DisplayName = displayName,
+                    GridPosition = new Vector3(render.GridPosition.X, render.GridPosition.Y, render.GridPosition.Z),
+                    WorldPosition = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.WorldPosition.Z),
+                    TerrainHeight = render.TerrainHeight,
+                    ModNames = remnantMods,
+                    HoleCount = holes,
+                    AnchorRuneName = anchor,
+                    RecommendedRuneChoice = choice,
+                    RecipeDescription = desc,
+                    BaseWeight = score
+                };
             }
             else if (path.Contains(SentinelPath, StringComparison.OrdinalIgnoreCase))
             {

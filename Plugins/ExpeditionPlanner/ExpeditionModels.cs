@@ -38,6 +38,13 @@ namespace ExpeditionPlanner
         public List<string> ModNames { get; set; } = new();
         public float BaseWeight { get; set; }
         public bool IsDangerous { get; set; }
+
+        // Remnant Pillar / Monolith specific details
+        public int HoleCount { get; set; }
+        public string AnchorRuneName { get; set; } = string.Empty;
+        public string RecommendedRuneChoice { get; set; } = string.Empty;
+        public string RecipeDescription { get; set; } = string.Empty;
+        public int ProliferationRemaining { get; set; }
     }
 
     public sealed class PlacedBombInfo

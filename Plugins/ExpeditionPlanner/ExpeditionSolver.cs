@@ -116,9 +116,19 @@ namespace ExpeditionPlanner
                     // Slight preference for shorter, tighter placements
                     stepScore -= effectiveDist * 0.15f;
 
+                    // Remaining bombs in the sequence that will benefit from runes detonated at this step
+                    int remainingBombs = Math.Max(0, budget - (currentStep + step));
+                    float proliferationMultiplier = 1.0f + (1.2f * remainingBombs);
+
                     foreach (var target in targetsInRadius)
                     {
                         float val = GetTargetValue(target, settings);
+                        if (target.Kind == TargetKind.RemnantPillar || target.Kind == TargetKind.VerisiumSentinel)
+                        {
+                            // Remnants spawn Runic monsters and proliferate their modifiers to all remaining bombs!
+                            val = (val + target.BaseWeight) * proliferationMultiplier;
+                        }
+
                         stepScore += val;
 
                         foreach (var mod in target.ModNames)
@@ -132,7 +142,7 @@ namespace ExpeditionPlanner
 
                             if (!accumulatedRunes.Contains(mod))
                             {
-                                stepScore += GetRuneWeight(mod, settings);
+                                stepScore += GetRuneWeight(mod, settings) * proliferationMultiplier;
                             }
                         }
                     }
@@ -174,8 +184,10 @@ namespace ExpeditionPlanner
                         warnings.Add($"Step {bestPlacement.Step}: wire bends around pillar/wall ({bestPlacement.WireDistance:F0} grid). Keep on open ground.");
                     }
 
+                    int remainingBombs = Math.Max(0, budget - bestPlacement.Step);
                     foreach (var t in bestPlacement.CoveredTargets)
                     {
+                        t.ProliferationRemaining = remainingBombs;
                         coveredEntityIds.Add(t.EntityId);
                     }
                     foreach (var r in bestPlacement.GainedRunes)
@@ -233,7 +245,7 @@ namespace ExpeditionPlanner
 
                     // Sweep 5 angles on the front-facing hemisphere towards the anchor
                     float[] angleOffsets = [0f, -0.28f, 0.28f, -0.56f, 0.56f];
-                    float[] distances = [20.0f, 24.0f, 28.0f]; // Within blast radius (46 units)
+                    float[] distances = [16.0f, 20.0f, 24.0f]; // Within blast radius (30 units)
 
                     foreach (var dist in distances)
                     {

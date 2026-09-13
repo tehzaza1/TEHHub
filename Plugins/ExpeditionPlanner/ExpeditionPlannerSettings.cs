@@ -7,8 +7,8 @@ namespace ExpeditionPlanner
     {
         public PlannerProfile Profile { get; set; } = PlannerProfile.Balanced;
 
-        public float MaxPlacementRangeGrid { get; set; } = 85.0f;
-        public float BlastRadiusGrid { get; set; } = 46.0f;
+        public float MaxPlacementRangeGrid { get; set; } = 90.0f;
+        public float BlastRadiusGrid { get; set; } = 30.0f;
         public int MaxExplosiveBudget { get; set; } = 4;
 
         // Reward Marker Weights

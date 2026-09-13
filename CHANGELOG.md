@@ -2,6 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.6 — 2026-09-13
+
+- Added autonomous Remnant pillar rune recommendation and sequential proliferation weighting:
+  - **Self-Contained Runeshape Assets**: Bundled and deployed `expedition2_recipes.json` directly within `Plugins/ExpeditionPlanner/` with zero dependencies on `LootValue`.
+  - **Remnant Rune Advisor**: `RemnantRuneAdvisor.cs` reads `StateMachine` station offsets (`HoleCount`, `AnchorIdx`, `AnchorPos`) on active `Expedition2Encounter` entities, evaluates available recipe combinations against area level, and recommends the optimal rune/recipe to forge into each pillar.
+  - **Sequential Rune Proliferation Weighting**: Modeled Runic monster and modifier proliferation across the explosive chain. Early Remnant detonations inherit buffs to all remaining bombs (`multiplier = 1.0 + 1.2 * remainingBombs`), prioritizing high-value Remnant pillars early in the sequence.
+  - **In-World & Advisor Guidance**: Displays floating rune choice cards (`★ Choice: [Rune Name]` and `Proliferates: xN bombs`) directly beneath the 3D bomb badges and lists step-by-step pillar rune selection directives in the route summary card.
+  - **Settings Calibration**: Restored `MaxPlacementRangeGrid` to `90.0f` and calibrated baseline `BlastRadiusGrid` to `30.0f` (PoE 2 base explosive radius).
+- Compatibility: Fully self-contained within ExpeditionPlanner plugin; synchronized core and launcher version metadata.
+- Validation: Debug and Release builds for all 15 projects in `TEHhub.sln` succeeded with 0 Warnings and 0 Errors.
+
 ## 1.8.5 — 2026-09-13
 
 - Fixed Expedition explosive wire reach failure caused by Remnant pillar and obstacle detours:
