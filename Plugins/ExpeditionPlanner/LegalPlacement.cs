@@ -602,5 +602,79 @@ namespace ExpeditionPlanner
             if (!IsLineClearOfTerrain(terrain, anchor, candidate, out _)) return false;
             return CalculateEffectiveDistance(anchor, candidate, obstacles, terrain, out _) <= settings.MaxPlacementRangeGrid;
         }
+
+        /// <summary>
+        /// Snapshot-safe A* fallback. It is called only after straight candidates fail,
+        /// and returns one visible waypoint within a single legal fuse segment.
+        /// </summary>
+        internal static bool TryFindTerrainDetourWaypoint(ExpeditionTerrainSnapshot? terrain, Vector2 start, Vector2 target, float maxSegmentLength, out Vector2 waypoint)
+        {
+            waypoint = default;
+            if (terrain == null || IsLineClearOfTerrain(terrain, start, target, out _)) return false;
+            int rows = terrain.Data.Length / terrain.BytesPerRow;
+            int columns = terrain.BytesPerRow * 2;
+            if (rows <= 0 || columns <= 0) return false;
+
+            (int X, int Y)? FindOpen(Vector2 point, int radius)
+            {
+                int px = Math.Clamp((int)MathF.Round(point.X), 0, columns - 1);
+                int py = Math.Clamp((int)MathF.Round(point.Y), 0, rows - 1);
+                for (int r = 0; r <= radius; r++)
+                for (int dy = -r; dy <= r; dy++)
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r) continue;
+                    int x = px + dx, y = py + dy;
+                    if (x >= 0 && y >= 0 && x < columns && y < rows && IsCellWalkable(terrain, x, y)) return (x, y);
+                }
+                return null;
+            }
+
+            var startCell = FindOpen(start, 8);
+            var targetCell = FindOpen(target, 14);
+            if (startCell == null || targetCell == null) return false;
+            var open = new PriorityQueue<(int X, int Y), float>();
+            var costs = new Dictionary<(int X, int Y), float> { [startCell.Value] = 0f };
+            var parents = new Dictionary<(int X, int Y), (int X, int Y)>();
+            open.Enqueue(startCell.Value, Distance(startCell.Value, targetCell.Value));
+            var offsets = new (int X, int Y)[] { (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1) };
+            int visited = 0;
+            bool found = false;
+            var current = startCell.Value;
+            while (open.Count > 0 && visited++ < DetourPathNodeLimit)
+            {
+                current = open.Dequeue();
+                if (current == targetCell.Value) { found = true; break; }
+                foreach (var offset in offsets)
+                {
+                    int x = current.X + offset.X, y = current.Y + offset.Y;
+                    if (x < 0 || y < 0 || x >= columns || y >= rows || !IsCellWalkable(terrain, x, y)) continue;
+                    if (offset.X != 0 && offset.Y != 0 && (!IsCellWalkable(terrain, current.X + offset.X, current.Y) || !IsCellWalkable(terrain, current.X, current.Y + offset.Y))) continue;
+                    var next = (x, y);
+                    float nextCost = costs[current] + (offset.X == 0 || offset.Y == 0 ? 1f : 1.414214f);
+                    if (costs.TryGetValue(next, out var known) && known <= nextCost) continue;
+                    costs[next] = nextCost;
+                    parents[next] = current;
+                    open.Enqueue(next, nextCost + Distance(next, targetCell.Value));
+                }
+            }
+            if (!found) return false;
+            var path = new List<(int X, int Y)> { targetCell.Value };
+            while (path[^1] != startCell.Value) path.Add(parents[path[^1]]);
+            path.Reverse();
+            float maxDistanceSquared = maxSegmentLength * maxSegmentLength;
+            for (int i = path.Count - 1; i > 0; i--)
+            {
+                var point = new Vector2(path[i].X, path[i].Y);
+                if (Vector2.DistanceSquared(start, point) <= maxDistanceSquared && IsLineClearOfTerrain(terrain, start, point, out _)) { waypoint = point; return true; }
+            }
+            return false;
+
+            static float Distance((int X, int Y) a, (int X, int Y) b)
+            {
+                float x = a.X - b.X, y = a.Y - b.Y;
+                return MathF.Sqrt((x * x) + (y * y));
+            }
+        }
     }
 }

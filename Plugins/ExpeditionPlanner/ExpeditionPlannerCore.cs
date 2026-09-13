@@ -360,9 +360,10 @@ namespace ExpeditionPlanner
             if (this.Settings.ShowReasonCard)
             {
                 ImGui.SetNextWindowPos(new Vector2(20, 220), ImGuiCond.FirstUseEver);
-                ImGui.SetNextWindowSize(new Vector2(420, 0), ImGuiCond.Always);
-                var flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize;
-                if (ImGui.Begin("Expedition Route Advisor###ExpeditionPlannerCard", flags))
+                ImGui.SetNextWindowSize(new Vector2(520, 680), ImGuiCond.FirstUseEver);
+                var flags = ImGuiWindowFlags.NoCollapse;
+                var advisorOpen = this.Settings.ShowReasonCard;
+                if (ImGui.Begin("Expedition Route Advisor###ExpeditionPlannerCard", ref advisorOpen, flags))
                 {
                     int remnantCount = 0, chestCount = 0, monsterCount = 0;
                     foreach (var t in this.activeTargets)
@@ -497,6 +498,7 @@ namespace ExpeditionPlanner
                 // ImGui requires End for every Begin, including the collapsed/closed case.
                 // Leaving it inside the true branch triggers "Missing EndChild" and aborts TEHhub.
                 ImGui.End();
+                this.Settings.ShowReasonCard = advisorOpen;
             }
         }
 

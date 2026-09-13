@@ -37,6 +37,7 @@ namespace ExpeditionPlanner
                 .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
                 .Select(t => t.EntityId).Distinct().Count();
             best.Reason = $"Bounded global route search: {coveredPillars}/{pillarCount} pillars via {best.Placements.Count} explosives ({maxCount * 12} route seeds).";
+            AppendUncoveredPillarDiagnostics(best, targets, startGrid, placed.Count, settings, finalStackPillar);
             return best;
         }
 
@@ -109,6 +110,23 @@ namespace ExpeditionPlanner
                         score = Vector2.Distance(new Vector2(anchor.X, anchor.Y), new Vector2(next.GridPosition.X, next.GridPosition.Y)) - Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(next.GridPosition.X, next.GridPosition.Y));
                     }
                     if (score > bestScore) { bestScore = score; best = point; hitBest = hit; }
+                }
+                if (best == null && finalStackPillar != null && !covered.Contains(finalStackPillar.EntityId) &&
+                    LegalPlacement.TryFindTerrainDetourWaypoint(
+                        terrain,
+                        new Vector2(anchor.X, anchor.Y),
+                        new Vector2(finalStackPillar.GridPosition.X, finalStackPillar.GridPosition.Y),
+                        settings.MaxPlacementRangeGrid,
+                        out var detourWaypoint))
+                {
+                    var detourPoint = new Vector3(detourWaypoint.X, detourWaypoint.Y, finalStackPillar.GridPosition.Z);
+                    if (LegalPlacement.IsPlaceable(detourPoint, anchor, terrain, settings, targets, startGrid, committed))
+                    {
+                        best = detourPoint;
+                        bestScore = 0f;
+                        hitBest = new List<ExpeditionTarget>();
+                        result.Warnings.Add($"Step {placed.Count + step}: A* terrain detour added to reach the {finalStackPillar.HoleCount}-slot final pillar.");
+                    }
                 }
                 if (best == null) break;
                 var p = best.Value; var selectedHits = hitBest!;
@@ -196,6 +214,41 @@ namespace ExpeditionPlanner
                 if (route.Placements[index].CoveredTargets.Any(t => RuneName(t).Equals(rune, StringComparison.OrdinalIgnoreCase))) return index;
             }
             return int.MaxValue;
+        }
+
+        private static void AppendUncoveredPillarDiagnostics(
+            RouteEvaluation route,
+            IEnumerable<ExpeditionTarget> targets,
+            Vector3 startGrid,
+            int alreadyPlaced,
+            ExpeditionPlannerSettings settings,
+            ExpeditionTarget? finalStackPillar)
+        {
+            var covered = route.Placements.SelectMany(p => p.CoveredTargets).Select(t => t.EntityId).ToHashSet();
+            var uncovered = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
+                .Where(t => !covered.Contains(t.EntityId)).ToList();
+            if (uncovered.Count == 0) return;
+
+            route.Warnings.Add($"Why stopped: {uncovered.Count} pillar(s) remain outside the selected legal chain.");
+            foreach (var target in uncovered)
+            {
+                var distance = Vector2.Distance(new Vector2(startGrid.X, startGrid.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y));
+                var reachDistance = MathF.Max(0f, distance - settings.BlastRadiusGrid);
+                int minimumSegments = (int)MathF.Ceiling(reachDistance / MathF.Max(1f, settings.MaxPlacementRangeGrid));
+                var label = !string.IsNullOrWhiteSpace(RuneName(target)) ? RuneName(target) : target.DisplayName;
+                if (minimumSegments > settings.MaxExplosiveBudget - alreadyPlaced)
+                {
+                    route.Warnings.Add($"{label} ({target.HoleCount} slots): needs at least {minimumSegments} fuse segments from the detonator; only {settings.MaxExplosiveBudget - alreadyPlaced} remain.");
+                }
+                else if (target.EntityId == finalStackPillar?.EntityId)
+                {
+                    route.Warnings.Add($"{label} ({target.HoleCount} slots): mandatory final pillar has no complete legal chain (terrain, camp clearance, or fuse range blocked it).");
+                }
+                else
+                {
+                    route.Warnings.Add($"{label} ({target.HoleCount} slots): no legal route could include it while still ending at the {finalStackPillar?.HoleCount ?? 0}-slot pillar.");
+                }
+            }
         }
 
         private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
