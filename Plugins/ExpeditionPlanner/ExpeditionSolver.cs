@@ -93,11 +93,18 @@ namespace ExpeditionPlanner
 
                 foreach (var pt in candidatePoints)
                 {
-                    // 1. Legal placement check with pillar collision, camp exclusion & detour verification
-                    if (!LegalPlacement.IsPlaceable(pt.Grid, activeAnchor, area, settings, availableTargets, startDetonatorGrid))
+                    // Build list of all bomb positions already committed in this route (planned + already placed)
+                    var plannedPositions = new List<Vector3>(chosenPlacements.Count + currentPlacedBombs.Count);
+                    foreach (var cp in chosenPlacements) plannedPositions.Add(cp.GridPosition);
+                    foreach (var pb in currentPlacedBombs) plannedPositions.Add(pb.GridPosition);
+
+                    // 1. Legal placement check with pillar collision, camp exclusion, detour verification,
+                    //    and minimum 22-grid separation from all planned/placed bombs
+                    if (!LegalPlacement.IsPlaceable(pt.Grid, activeAnchor, area, settings, availableTargets, startDetonatorGrid, plannedPositions))
                     {
                         continue;
                     }
+
 
                     // 2. Check effective distance including detour around pillars
                     var start2D = new Vector2(activeAnchor.X, activeAnchor.Y);

@@ -19,6 +19,12 @@ namespace ExpeditionPlanner
         public const float PillarEffectiveRadius = 7.0f;
 
         /// <summary>
+        /// Minimum grid distance between any two bomb placements (including already-planned bombs).
+        /// Bombs closer than this will overlap blast radii wastefully and confuse the wire path.
+        /// </summary>
+        public const float MinBombSeparationGrid = 22.0f;
+
+        /// <summary>
         /// Checks whether a single grid cell is walkable using AreaInstance.GridWalkableData.
         /// (0 = blocked, 1-5 = walkable).
         /// </summary>
@@ -258,7 +264,8 @@ namespace ExpeditionPlanner
             AreaInstance? area,
             ExpeditionPlannerSettings settings,
             IEnumerable<ExpeditionTarget>? obstacles = null,
-            Vector3? detonatorGrid = null)
+            Vector3? detonatorGrid = null,
+            IReadOnlyList<Vector3>? plannedPositions = null)
         {
             // 1. Grid boundary and physical clearance check (bomb footprint clearance from tent, wagon, wall)
             if (!HasWalkableClearance(area, candidateGrid.X, candidateGrid.Y, settings.BombClearanceRadiusGrid))
@@ -290,6 +297,20 @@ namespace ExpeditionPlanner
                         {
                             return false; // Inside solid pillar footprint
                         }
+                    }
+                }
+            }
+
+            // 3b. Minimum separation from all already-planned bomb positions in this route
+            if (plannedPositions != null)
+            {
+                float minSepSq = MinBombSeparationGrid * MinBombSeparationGrid;
+                foreach (var planned in plannedPositions)
+                {
+                    var plan2D = new Vector2(planned.X, planned.Y);
+                    if (Vector2.DistanceSquared(cand2D, plan2D) < minSepSq)
+                    {
+                        return false; // Too close to an already-planned bomb in this route
                     }
                 }
             }
