@@ -84,7 +84,8 @@ namespace ExpeditionPlanner
                 float bestStepScore = float.NegativeInfinity;
 
                 // Dynamically generate candidate placement points oriented toward activeAnchor
-                var candidatePoints = GenerateCandidatesForAnchor(activeAnchor, availableTargets, area, settings);
+                bool isDetonatorAnchor = (activeAnchor == startDetonatorGrid);
+                var candidatePoints = GenerateCandidatesForAnchor(activeAnchor, availableTargets, area, settings, isDetonatorAnchor);
                 if (candidatePoints.Count == 0)
                 {
                     break;
@@ -92,8 +93,8 @@ namespace ExpeditionPlanner
 
                 foreach (var pt in candidatePoints)
                 {
-                    // 1. Legal placement check with pillar collision & detour verification
-                    if (!LegalPlacement.IsPlaceable(pt.Grid, activeAnchor, area, settings, availableTargets))
+                    // 1. Legal placement check with pillar collision, camp exclusion & detour verification
+                    if (!LegalPlacement.IsPlaceable(pt.Grid, activeAnchor, area, settings, availableTargets, startDetonatorGrid))
                     {
                         continue;
                     }
@@ -310,7 +311,8 @@ namespace ExpeditionPlanner
             Vector3 anchorGrid,
             List<ExpeditionTarget> targets,
             AreaInstance? area,
-            ExpeditionPlannerSettings settings)
+            ExpeditionPlannerSettings settings,
+            bool isDetonatorAnchor = false)
         {
             var points = new List<(Vector3 Grid, Vector3 World, float TerrainHeight)>();
             var anchor2D = new Vector2(anchorGrid.X, anchorGrid.Y);
@@ -341,7 +343,8 @@ namespace ExpeditionPlanner
                 // 1. Direct approach points between Anchor and Target
                 if (distToAnchor <= settings.MaxPlacementRangeGrid + settings.BlastRadiusGrid - 2.0f)
                 {
-                    float minD = MathF.Max(4.0f, distToAnchor - (settings.BlastRadiusGrid - 2.0f));
+                    float minLimit = isDetonatorAnchor ? MathF.Max(settings.CampExclusionRadiusGrid, 4.0f) : 4.0f;
+                    float minD = MathF.Max(minLimit, distToAnchor - (settings.BlastRadiusGrid - 2.0f));
                     float maxD = MathF.Min(settings.MaxPlacementRangeGrid - 1.0f, distToAnchor + (settings.BlastRadiusGrid - 4.0f));
                     for (float d = minD; d <= maxD; d += 6.0f)
                     {

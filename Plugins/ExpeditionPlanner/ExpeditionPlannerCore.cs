@@ -753,6 +753,16 @@ namespace ExpeditionPlanner
                 this.Settings.BlastRadiusGrid = radius;
             }
 
+            var campRadius = this.Settings.CampExclusionRadiusGrid;
+            if (ImGui.SliderFloat("Camp Exclusion Radius", ref campRadius, 10f, 35f, "%.1f grid"))
+            {
+                this.Settings.CampExclusionRadiusGrid = campRadius;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Minimum distance from the Detonator / Campsite (tent & wagon) where explosives cannot be placed.");
+            }
+
             var budget = this.Settings.MaxExplosiveBudget;
             if (ImGui.SliderInt("Max Explosives", ref budget, 1, 35))
             {

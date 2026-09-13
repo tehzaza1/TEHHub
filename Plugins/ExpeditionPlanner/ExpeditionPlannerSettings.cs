@@ -15,6 +15,7 @@ namespace ExpeditionPlanner
 
         public float MaxPlacementRangeGrid { get; set; } = 90.0f;
         public float BlastRadiusGrid { get; set; } = 30.0f;
+        public float CampExclusionRadiusGrid { get; set; } = 18.0f;
         public int MaxExplosiveBudget { get; set; } = 4;
 
         // Reward Marker Weights

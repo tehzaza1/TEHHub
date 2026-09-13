@@ -226,7 +226,8 @@ namespace ExpeditionPlanner
             Vector3? anchorGrid,
             AreaInstance? area,
             ExpeditionPlannerSettings settings,
-            IEnumerable<ExpeditionTarget>? obstacles = null)
+            IEnumerable<ExpeditionTarget>? obstacles = null,
+            Vector3? detonatorGrid = null)
         {
             // 1. Grid boundary check
             if (area != null && area.GridHeightData.Length > 0)
@@ -247,8 +248,19 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // 2. Check distance from obstacles (do not place bomb inside a pillar base)
             var cand2D = new Vector2(candidateGrid.X, candidateGrid.Y);
+
+            // 2. Check campsite exclusion zone: do not place bomb inside the campsite tent/wagon area near Detonator
+            if (detonatorGrid.HasValue && detonatorGrid.Value.LengthSquared() > 1f)
+            {
+                var det2D = new Vector2(detonatorGrid.Value.X, detonatorGrid.Value.Y);
+                if (Vector2.Distance(cand2D, det2D) < settings.CampExclusionRadiusGrid)
+                {
+                    return false; // Inside camp exclusion zone!
+                }
+            }
+
+            // 3. Check distance from obstacles (do not place bomb inside a pillar base)
             if (obstacles != null)
             {
                 foreach (var obs in obstacles)
@@ -264,7 +276,7 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // 3. Fuse reach check from anchor
+            // 4. Fuse reach check from anchor
             if (anchorGrid.HasValue)
             {
                 var start2D = new Vector2(anchorGrid.Value.X, anchorGrid.Value.Y);
