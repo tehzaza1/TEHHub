@@ -33,6 +33,7 @@ internal static class BottleneckCapture
     {
         SkillResearchCapture.Collect();
 #if DEBUG
+        ExpeditionProbe.Collect();
         ToolHub.Tick();
 #endif
         var requested = Interlocked.Exchange(ref command, 0);

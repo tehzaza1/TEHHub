@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.5 — 2026-09-13
+
+- Added a Debug-only, on-demand Expedition2 evidence probe. It captures bounded, read-only candidate entity data during active encounters: paths, model/minimap identifiers, grid/world positions, mods and component names.
+- Added `POST` and `GET /api/diagnostics/expedition-probe` on the loopback Debug API. The probe runs on the render thread only when requested; Release compiles it and its endpoint out.
+- This is research instrumentation, not an Expedition planner or automated placement system. Live Expedition2 evidence is still required before adding placement/radius overlays.
+- Validation: Debug and Release core builds passed without warnings/errors. Live probe capture remains pending.
+
 ## 1.6.4 — 2026-09-13
 
 - Fixed reversed couch co-op selection semantics: selecting Player 1's name now confirms Player 2 as the follower; selecting Player 2's own name cannot reverse the pair. An empty leader selection continues to auto-detect the pair.
