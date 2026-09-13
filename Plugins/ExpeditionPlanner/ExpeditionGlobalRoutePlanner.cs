@@ -74,6 +74,18 @@ namespace ExpeditionPlanner
                     {
                         continue;
                     }
+
+                    // The widest pillar is mandatory. Before selecting any other
+                    // point, reserve enough remaining fuse segments to get a blast
+                    // radius onto it. This is a lower-bound check, so it never rejects
+                    // a route that could still reach the pillar by straight segments.
+                    if (finalStackPillar != null &&
+                        !covered.Contains(finalStackPillar.EntityId) &&
+                        !hit.Any(t => t.EntityId == finalStackPillar.EntityId) &&
+                        !CanStillReachFinalPillar(point, finalStackPillar, count - step, settings))
+                    {
+                        continue;
+                    }
                     // Score only new pillar coverage and its usable rune chain. A
                     // bridge has no value by itself; it exists only to reach a pillar.
                     float score = hit.Sum(t => Value(t, settings));
@@ -117,7 +129,8 @@ namespace ExpeditionPlanner
             ExpeditionPlannerSettings settings)
         {
             float stepLength = MathF.Max(12f, settings.MaxPlacementRangeGrid - 3f);
-            foreach (var target in targets.Where(t => !covered.Contains(t.EntityId) && t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel))
+            foreach (var target in targets.Where(t => !covered.Contains(t.EntityId) &&
+                         t.Kind is (TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)))
             {
                 var direction = new Vector2(target.GridPosition.X - anchor.X, target.GridPosition.Y - anchor.Y);
                 if (direction.LengthSquared() < 1f) continue;
@@ -131,19 +144,28 @@ namespace ExpeditionPlanner
             }
         }
 
+        private static bool CanStillReachFinalPillar(Vector3 from, ExpeditionTarget finalStackPillar, int remainingExplosions, ExpeditionPlannerSettings settings)
+        {
+            if (remainingExplosions <= 0) return false;
+            var distance = Vector2.Distance(new Vector2(from.X, from.Y), new Vector2(finalStackPillar.GridPosition.X, finalStackPillar.GridPosition.Y));
+            var fuseDistanceRequired = MathF.Max(0f, distance - settings.BlastRadiusGrid);
+            int segmentsRequired = (int)MathF.Ceiling(fuseDistanceRequired / MathF.Max(1f, settings.MaxPlacementRangeGrid));
+            return segmentsRequired <= remainingExplosions;
+        }
+
         // The winning route is selected by farming rules, not a weighted total:
-        // coverage first, widest pillar as final receiver, early Opulent, then fewer
-        // bridge-only placements. Route length is intentionally not a criterion.
+        // widest pillar as final receiver first, then coverage, early Opulent, then
+        // fewer bridge-only placements. Route length is intentionally not a criterion.
         private static bool IsBetterRoute(RouteEvaluation candidate, RouteEvaluation? current, ExpeditionTarget? finalStackPillar)
         {
             if (current == null) return true;
-            int candidateCoverage = CountCoveredPillars(candidate);
-            int currentCoverage = CountCoveredPillars(current);
-            if (candidateCoverage != currentCoverage) return candidateCoverage > currentCoverage;
-
             bool candidateEndsAtFinal = EndsAt(candidate, finalStackPillar);
             bool currentEndsAtFinal = EndsAt(current, finalStackPillar);
             if (candidateEndsAtFinal != currentEndsAtFinal) return candidateEndsAtFinal;
+
+            int candidateCoverage = CountCoveredPillars(candidate);
+            int currentCoverage = CountCoveredPillars(current);
+            if (candidateCoverage != currentCoverage) return candidateCoverage > currentCoverage;
 
             int candidateOpulentStep = FirstRuneStep(candidate, "Opulent");
             int currentOpulentStep = FirstRuneStep(current, "Opulent");
