@@ -18,6 +18,7 @@ namespace ExpeditionPlanner
         private const int StationAnchorHolderOffset = 0x30;
         private const int StationHoleCountOffset = 0x38;
         private const int StationAnchorPosOffset = 0x3C;
+        private const int StationGoldenSlotsOffset = 0x40;
 
         private static readonly string[] RuneNames =
         [
@@ -121,22 +122,26 @@ namespace ExpeditionPlanner
             Entity entity,
             int areaLevel,
             out int holeCount,
+            out int goldenSlotIndex,
             out int anchorSlotIndex,
             out string anchorName,
             out string recommendedChoice,
             out string description,
             out float estimatedValue,
             out RuneTier proliferatedTier,
+            out bool isAnchorInGoldenSlot,
             out bool needsReroll,
             out string rerollReason)
         {
             holeCount = 0;
+            goldenSlotIndex = -1;
             anchorSlotIndex = -1;
             anchorName = string.Empty;
             recommendedChoice = string.Empty;
             description = string.Empty;
             estimatedValue = 30f;
             proliferatedTier = RuneTier.Blue_C;
+            isAnchorInGoldenSlot = true;
             needsReroll = false;
             rerollReason = string.Empty;
 
@@ -177,6 +182,28 @@ namespace ExpeditionPlanner
 
             var anchorPos = reader.ReadMemory<int>(station + StationAnchorPosOffset);
             anchorSlotIndex = anchorPos;
+
+            // Authoritative Golden Crown socket index (stored in std::vector<int> at station + 0x40)
+            var goldenVec = reader.ReadMemory<StdVector>(station + StationGoldenSlotsOffset);
+            int goldenSlot = -1;
+            var goldenCount = goldenVec.TotalElements(sizeof(int));
+            if (goldenCount > 0 && goldenCount <= 16)
+            {
+                var goldenSlots = reader.ReadMemoryArray<int>(goldenVec.First, (int)goldenCount);
+                if (goldenSlots != null && goldenSlots.Length > 0)
+                {
+                    goldenSlot = goldenSlots[0];
+                }
+            }
+
+            // Fallback to anchorPos if no golden slot vector was found
+            if (goldenSlot < 0)
+            {
+                goldenSlot = anchorPos;
+            }
+
+            goldenSlotIndex = goldenSlot;
+
             var rowPtr = reader.ReadMemory<IntPtr>(station + StationAnchorRefOffset);
             bool isUnique = rowPtr == IntPtr.Zero;
             int anchorIdx = -1;
@@ -206,13 +233,33 @@ namespace ExpeditionPlanner
             }
 
             anchorName = isUnique ? "Unique Monolith" : (anchorIdx >= 0 && anchorIdx < RuneNames.Length ? RuneNames[anchorIdx] : "Rune Monolith");
-            proliferatedTier = GetRuneTier(anchorName);
+            var anchorTier = GetRuneTier(anchorName);
 
-            // Reroll detection: "Remnants with no purple runes should always be rerolled"
-            if (!isUnique && proliferatedTier == RuneTier.Blue_C)
+            // Crucial: Only the rune IN the Golden Slot proliferates to subsequent remnants!
+            isAnchorInGoldenSlot = isUnique || (goldenSlotIndex == anchorSlotIndex);
+            if (isAnchorInGoldenSlot)
             {
-                needsReroll = true;
-                rerollReason = $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!";
+                proliferatedTier = anchorTier;
+            }
+            else
+            {
+                // Anchor rune is in a regular non-golden socket; golden slot contains a generic blue rune
+                proliferatedTier = RuneTier.Blue_C;
+            }
+
+            // Reroll detection: Remnants with no purple runes in the golden slot should always be rerolled
+            if (!isUnique)
+            {
+                if (!isAnchorInGoldenSlot)
+                {
+                    needsReroll = true;
+                    rerollReason = $"Golden Slot #{goldenSlotIndex + 1} has a Blue rune ({anchorName} is in regular Slot #{anchorSlotIndex + 1} and will NOT proliferate). Reroll recommended!";
+                }
+                else if (proliferatedTier == RuneTier.Blue_C)
+                {
+                    needsReroll = true;
+                    rerollReason = $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!";
+                }
             }
 
             EnsureRecipesLoaded();

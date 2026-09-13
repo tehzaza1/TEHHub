@@ -161,10 +161,13 @@ namespace ExpeditionPlanner
                             {
                                 // "Runes do not stack. If a rune is already proliferated, another duplicate rune is useless."
                                 bool isDuplicate = !string.IsNullOrEmpty(target.AnchorRuneName) &&
+                                                   target.IsAnchorInGoldenSlot &&
                                                    accumulatedProliferatedRunes.Contains(target.AnchorRuneName);
                                 target.IsDuplicateProliferation = isDuplicate;
 
-                                float proliferationMultiplier = isDuplicate ? 1.0f : (1.0f + (1.5f * remainingBombs));
+                                float proliferationMultiplier = (!target.IsAnchorInGoldenSlot || isDuplicate)
+                                    ? 1.0f
+                                    : (1.0f + (1.5f * remainingBombs));
                                 float baseVal = target.BaseWeight > 0 ? target.BaseWeight : settings.WeightRemnant;
 
                                 // Opulent (Golden): SSS-Tier, doubles loot drops, must be prioritized first
@@ -246,9 +249,9 @@ namespace ExpeditionPlanner
                     int remainingBombs = Math.Max(0, budget - bestPlacement.Step);
                     foreach (var t in bestPlacement.CoveredTargets)
                     {
-                        t.ProliferationRemaining = remainingBombs;
+                        t.ProliferationRemaining = t.IsAnchorInGoldenSlot ? remainingBombs : 0;
                         coveredEntityIds.Add(t.EntityId);
-                        if (t.Kind == TargetKind.RemnantPillar && !string.IsNullOrEmpty(t.AnchorRuneName))
+                        if (t.Kind == TargetKind.RemnantPillar && !string.IsNullOrEmpty(t.AnchorRuneName) && t.IsAnchorInGoldenSlot)
                         {
                             if (!accumulatedProliferatedRunes.Contains(t.AnchorRuneName))
                             {
