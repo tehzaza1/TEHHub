@@ -40,14 +40,11 @@ namespace ExpeditionPlanner
         private Vector3 detonatorWorld = Vector3.Zero;
         private bool hasDetonator = false;
         private readonly List<PlacedBombInfo> placedBombs = new();
+        private readonly HashSet<uint> placedTargetIds = new();
         private readonly Dictionary<uint, ExpeditionTarget> rememberedTargets = new();
         private readonly List<ExpeditionTarget> activeTargets = new();
         private RouteEvaluation currentRoute = new();
 
-        // Caching and calculation tracking
-        private int lastPlacedBombCount = 0;
-        private DateTime lastCalculationUtc = DateTime.MinValue;
-        private bool isRouteCalculated = false;
         private string calculationStatusMessage = string.Empty;
 
         public override void OnEnable(bool isGameOpened)
@@ -107,11 +104,10 @@ namespace ExpeditionPlanner
             this.detonatorGrid = Vector3.Zero;
             this.detonatorWorld = Vector3.Zero;
             this.placedBombs.Clear();
+            this.placedTargetIds.Clear();
             this.rememberedTargets.Clear();
             this.activeTargets.Clear();
             this.currentRoute = new RouteEvaluation();
-            this.lastPlacedBombCount = 0;
-            this.isRouteCalculated = false;
             this.calculationStatusMessage = string.Empty;
         }
 
@@ -296,6 +292,11 @@ namespace ExpeditionPlanner
                             subText = $"[!] REROLL: {goldenDisplay} is Blue ({remnantTarget.RerollReason})";
                         }
 
+                        if (remnantTarget.WasCoveredByPlacedBomb)
+                        {
+                            subText = $"[PLACED] {subText}";
+                        }
+
                         var cSize = ImGui.CalcTextSize(choiceText);
                         var sSize = ImGui.CalcTextSize(subText);
                         var padX = 14f;
@@ -380,6 +381,7 @@ namespace ExpeditionPlanner
 
                     ImGui.TextDisabled($"Discovered: {this.activeTargets.Count} targets ({remnantCount} Remnants, {chestCount} Chests, {monsterCount} Monsters)");
                     ImGui.TextDisabled($"Placed: {this.placedBombs.Count} / Budget: {this.Settings.MaxExplosiveBudget} (Remaining: {Math.Max(0, this.Settings.MaxExplosiveBudget - this.placedBombs.Count)})");
+                    ImGui.TextDisabled($"Covered by placed explosives: {this.placedTargetIds.Count} targets");
                     if (!string.IsNullOrEmpty(this.calculationStatusMessage))
                     {
                         ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f), this.calculationStatusMessage);
@@ -536,9 +538,8 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // Update placed bombs
-            bool bombsChanged = currentBombs.Count != this.lastPlacedBombCount;
-            this.lastPlacedBombCount = currentBombs.Count;
+            // Update placed bombs. A snapshot never solves a route: calculation is manual
+            // so the route stays fixed while the player is placing explosives.
             this.placedBombs.Clear();
             this.placedBombs.AddRange(currentBombs);
 
@@ -549,14 +550,30 @@ namespace ExpeditionPlanner
                 this.activeTargets.AddRange(this.rememberedTargets.Values);
             }
 
-            // Automatic calculation triggers
-            if (this.Settings.AutoCalculateOnBombPlaced && bombsChanged && this.isRouteCalculated)
+            this.MarkTargetsCoveredByPlacedBombs();
+        }
+
+        private void MarkTargetsCoveredByPlacedBombs()
+        {
+            this.placedTargetIds.Clear();
+            var radiusSquared = this.Settings.BlastRadiusGrid * this.Settings.BlastRadiusGrid;
+
+            foreach (var bomb in this.placedBombs)
             {
-                this.CalculateRoute(area, "Auto (Bomb Placed/Removed)");
+                foreach (var target in this.activeTargets)
+                {
+                    var dx = target.GridPosition.X - bomb.GridPosition.X;
+                    var dy = target.GridPosition.Y - bomb.GridPosition.Y;
+                    if ((dx * dx) + (dy * dy) <= radiusSquared)
+                    {
+                        this.placedTargetIds.Add(target.EntityId);
+                    }
+                }
             }
-            else if (!this.Settings.ManualCalculationOnly && newTargetsFound)
+
+            foreach (var target in this.activeTargets)
             {
-                this.CalculateRoute(area, "Auto (New Targets)");
+                target.WasCoveredByPlacedBomb = this.placedTargetIds.Contains(target.EntityId);
             }
         }
 
@@ -592,8 +609,6 @@ namespace ExpeditionPlanner
                 area,
                 this.Settings);
 
-            this.isRouteCalculated = true;
-            this.lastCalculationUtc = DateTime.UtcNow;
             this.calculationStatusMessage = $"Calculated ({triggerSource}) @ {DateTime.Now:HH:mm:ss} | {this.activeTargets.Count} targets";
         }
 
@@ -740,7 +755,6 @@ namespace ExpeditionPlanner
             {
                 this.Settings.Profile = (PlannerProfile)profile;
                 this.currentRoute = new RouteEvaluation();
-                this.isRouteCalculated = false;
             }
             if (ImGui.IsItemHovered())
             {
@@ -833,24 +847,10 @@ namespace ExpeditionPlanner
                 this.Settings.CalculateHotkey = hotkey;
             }
 
-            var manualOnly = this.Settings.ManualCalculationOnly;
-            if (ImGui.Checkbox("Manual Calculation (Hotkey / Button only)", ref manualOnly))
-            {
-                this.Settings.ManualCalculationOnly = manualOnly;
-            }
+            ImGui.TextDisabled("Route calculation runs only when you press the hotkey or Calculate button.");
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("When enabled, the plugin quietly harvests all Expedition objects as you explore,\nand solves the route only when you press the hotkey or click Calculate.");
-            }
-
-            var autoBomb = this.Settings.AutoCalculateOnBombPlaced;
-            if (ImGui.Checkbox("Auto-Recalculate When Bombs Are Placed/Removed", ref autoBomb))
-            {
-                this.Settings.AutoCalculateOnBombPlaced = autoBomb;
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Automatically adapts the remaining bomb route whenever you place or pick up an explosive in the game.");
+                ImGui.SetTooltip("While you place explosives, the current route remains locked.\nPlaced explosives are used only to mark covered targets.");
             }
         }
     }

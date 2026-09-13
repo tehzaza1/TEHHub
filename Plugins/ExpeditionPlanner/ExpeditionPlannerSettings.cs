@@ -8,10 +8,8 @@ namespace ExpeditionPlanner
     {
         public PlannerProfile Profile { get; set; } = PlannerProfile.PillarFirst;
 
-        // Calculation and Caching options
+        // Route calculation is intentionally manual: hotkey or button only.
         public VK CalculateHotkey { get; set; } = VK.F6;
-        public bool ManualCalculationOnly { get; set; } = true;
-        public bool AutoCalculateOnBombPlaced { get; set; } = true;
 
         public float MaxPlacementRangeGrid { get; set; } = 90.0f;
         public float BlastRadiusGrid { get; set; } = 30.0f;

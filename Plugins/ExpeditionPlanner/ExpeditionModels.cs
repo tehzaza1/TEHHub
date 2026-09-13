@@ -49,6 +49,8 @@ namespace ExpeditionPlanner
         public List<string> ModNames { get; set; } = new();
         public float BaseWeight { get; set; }
         public bool IsDangerous { get; set; }
+        /// <summary>Target was inside a bomb radius observed in this area.</summary>
+        public bool WasCoveredByPlacedBomb { get; set; }
 
         // Remnant Pillar / Monolith specific details
         public int HoleCount { get; set; }
