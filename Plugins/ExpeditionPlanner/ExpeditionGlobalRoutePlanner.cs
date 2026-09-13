@@ -44,6 +44,15 @@ namespace ExpeditionPlanner
                     if (!LegalPlacement.IsPlaceable(point, anchor, area, settings, targets, startGrid, committed)) continue;
                     var hit = targets.Where(t => !covered.Contains(t.EntityId) && Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
                     if (hit.Count == 0 && step == count) continue;
+                    // The widest non-Opulent pillar is the stack receiver. A shared radius
+                    // must not consume it early: split the two placements or leave it for
+                    // the final activation.
+                    if (finalStackPillar != null && step < count &&
+                        !RuneName(finalStackPillar).Equals("Opulent", StringComparison.OrdinalIgnoreCase) &&
+                        hit.Any(t => t.EntityId == finalStackPillar.EntityId))
+                    {
+                        continue;
+                    }
                     float score = hit.Sum(t => Value(t, settings));
                     bool hasOpulent = HasCoveredRune(targets, covered, "Opulent");
                     if (hit.Any(t => RuneName(t).Equals("Opulent", StringComparison.OrdinalIgnoreCase)) && !hasOpulent) score += 12_000f;
@@ -54,7 +63,7 @@ namespace ExpeditionPlanner
                     score += hit.Count(t => t.CanProliferate) * (4_000f + (remainingExplosions * 500f));
                     if (finalStackPillar != null && hit.Any(t => t.EntityId == finalStackPillar.EntityId))
                     {
-                        score += step == count ? 30_000f : -20_000f;
+                        score += step == count ? 30_000f : 0f;
                     }
                     // A whole route may use bridge points, but they must head toward an uncovered target.
                     if (hit.Count == 0)
