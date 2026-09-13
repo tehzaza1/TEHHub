@@ -164,6 +164,24 @@ namespace TEHhub.RemoteObjects.Components
                 }
 
                 lines.Add($"Anchor row: 0x{anchorRow.ToInt64():X}; holder: 0x{anchorHolder.ToInt64():X}; Rune DAT: 0x{tableBase:X}; stride: {(rowStride > 0 ? $"0x{rowStride:X}" : "unknown")}");
+                lines.Add($"Listener nodes: {nodes.Length} (showing up to 24)");
+                for (var listenerIndex = 0; listenerIndex < nodes.Length && listenerIndex < 24; listenerIndex++)
+                {
+                    var nodeValue = nodes[listenerIndex];
+                    if (nodeValue == 0 || !reader.TryReadMemory<IntPtr>(new IntPtr(nodeValue), out var listener, recordFailure: false) || listener == IntPtr.Zero)
+                    {
+                        lines.Add($"Listener[{listenerIndex}]: unreadable");
+                        continue;
+                    }
+
+                    var candidateA0 = listener - 0xA0;
+                    var candidate98 = listener - StationFromListener;
+                    reader.TryReadMemory(candidateA0 + StationDeviceBackPtr, out IntPtr ownerA0, recordFailure: false);
+                    reader.TryReadMemory(candidate98 + StationDeviceBackPtr, out IntPtr owner98, recordFailure: false);
+                    var owned = ownerA0 == this.OwnerEntityAddress ? " (-0xA0 owns station)" : owner98 == this.OwnerEntityAddress ? " (-0x98 owns station)" : string.Empty;
+                    lines.Add($"Listener[{listenerIndex}]: node=0x{nodeValue:X}; ptr=0x{listener.ToInt64():X}; owner@-0xA0=0x{ownerA0.ToInt64():X}; owner@-0x98=0x{owner98.ToInt64():X}{owned}");
+                }
+
                 if (rowStride > 0)
                 {
                     var directRows = 0;

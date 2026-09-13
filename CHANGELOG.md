@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.13 — 2026-09-14
+
+- Extended the Debug Rune Station snapshot with a bounded listener map: up to 24 StateMachine listener nodes now report their pointers and both known station-owner candidate relationships (`-0xA0` and `-0x98`).
+- Compatibility: Diagnostic-only; public Release builds continue to compile it out.
+- Validation: `dotnet build TEHhub/TEHhub.csproj -c Debug --no-restore` succeeded with 0 warnings and 0 errors.
 ## 1.8.12 — 2026-09-14
 
 - Extended the Debug Rune Station snapshot with a bounded one-hop pointer scan from the verified Station and Anchor Holder structures.
