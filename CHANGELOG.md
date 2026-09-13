@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.10 — 2026-09-13
+
+- Added the Grand Expedition route model to the ExpeditionPlanner handoff: scoring is ordered and stateful for golden-slot proliferation, non-stacking duplicates, explosive budget, and projected downstream rune value.
+- Added configurable initial priority seeds for Opulent, Power, Death, Bond, Oath, Time, and Rebirth from the supplied 0.5 strategy reference; combat-danger data remains a separate verified input.
+- Compatibility: documentation and synchronized version metadata only; runtime behaviour is unchanged.
+- Validation: reviewed against the cited guide; Debug and Release core builds passed without warnings/errors after the version update.
+
 ## 1.6.9 — 2026-09-13
 
 - Expanded the ExpeditionPlanner handoff with a net-score model for reward value, beneficial rune weights, dangerous-rune penalties, uncertainty, Safe/Balanced/Greedy profiles, and per-rune `never take` rules.

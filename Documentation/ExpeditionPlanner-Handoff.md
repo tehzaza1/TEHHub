@@ -18,6 +18,30 @@ The completed plugin is a dependable manual decision aid for both small and larg
 
 The end product does **not** control the game. The player retains every placement and detonation action. A recommendation is hidden whenever the necessary PoE2 evidence cannot be read or validated.
 
+## Grand Expedition strategy model
+
+The route scorer must be **stateful**. A Grand Expedition route is not just a collection of independent target values:
+
+- The golden slot's rune proliferates to every subsequent remnant in the chain.
+- Other runes apply only to their current remnant.
+- Duplicate runes do not stack, so taking the same rune again has no incremental value.
+- The value of a rune depends on where it is taken: an early proliferating rune has more future value than the same rune at the final remnant.
+
+Therefore, evaluate a candidate route in order. Its state contains the selected/proliferated rune set, current chain position, consumed explosives, affected rewards, and any dangerous modifiers. The transition score for a target is its direct reward plus the projected value it adds to later reachable remnants; a duplicate contributes zero unless the game evidence proves an additional effect.
+
+Use the following **editable default priority seeds** from the 0.5 Grand Expedition guide, not as immutable game truth:
+
+| Initial priority | Rune |
+| --- | --- |
+| Highest | Opulent (golden) |
+| Strong purple | Power, Death, Bond, Oath |
+| Good purple | Time, Rebirth |
+| Low individual value | Other purple / blue runes |
+
+Keep those values in the external per-user settings catalog, include the source/patch label, and allow an update to change or remove every default. Combat danger is a separate input: the source describes loot priorities but does not provide a reliable build-danger catalog.
+
+Large encounters must be treated as routine: the guide documents a 22-explosive run. The search may be bounded for performance, but must report when it uses a heuristic rather than silently truncating an optimal search.
+
 ## Confirmed live evidence
 
 Captured in a live Expedition encounter on 2026-09-13 using Debug TEHhub 1.6.6:
@@ -115,9 +139,10 @@ The settings UI must let the user set individual reward weights, beneficial rune
 2. Add a remnant/rune classifier only after the actual PoE2 mod text or stable identifiers are captured. The first evidence capture showed empty `ObjectMagicProperties.ModNames` on active `Expedition2Encounter` entities, so the implementation must first investigate the UI/other confirmed component that exposes the displayed rune effect.
 3. Enumerate legal candidate placements and resulting blast chains only after range, radius, and walkable-tile inputs have been verified in Phase 3.
 4. Score each candidate with the model above, select the best safe option, and retain the next two alternatives for comparison.
-5. Display the recommended point/route, affected rewards/remnants, total score, danger warnings, and the reason it won. Let the player choose and click manually.
-6. Explain uncertainty in the overlay when constraints or link endpoints cannot be verified.
-7. Keep all interaction manual. There must be no simulated input, click, placement, or detonation path.
+5. For Grand Expeditions, score the ordered route with the proliferated-rune state. Prefer an early high-value proliferating rune when its projected downstream gain exceeds an immediately larger isolated reward.
+6. Display the recommended point/route, affected rewards/remnants, total score, danger warnings, selected rune set, and the reason it won. Let the player choose and click manually.
+7. Explain uncertainty in the overlay when constraints or link endpoints cannot be verified.
+8. Keep all interaction manual. There must be no simulated input, click, placement, or detonation path.
 
 Acceptance: recommendations disappear when their source evidence is stale, the area changes, or a required constraint cannot be verified.
 
@@ -131,6 +156,7 @@ The project is complete when all of the following are true:
 - Placement recommendations are based on verified PoE2 count, range, blast-radius, and target data, with an explanation and confidence state.
 - The score explains reward gains, every affected beneficial/dangerous rune, the selected profile, and why other reachable routes lost.
 - Any `never take` rune makes its route unsafe; missing rune data prevents a confident recommendation rather than silently treating the rune as safe.
+- Grand Expedition recommendations account for rune order, propagation, duplicates, and the available explosive budget; they disclose when a bounded heuristic was used.
 - The Release package remains lean and excludes the Debug evidence endpoints/tools.
 - Debug and Release builds, packaging checks, and the live validation results are recorded in `CHANGELOG.md`.
 
@@ -150,3 +176,7 @@ Debug-only, loopback-only endpoints already available:
 - `POST /api/diagnostics/expedition-ui-probe` captures a bounded visible Game UI tree for placement-screen comparison.
 
 Both are compiled out of Release. Local capture files from the session, if still present, are under `artifacts/expedition-*.json`; treat them as temporary research data, not release content.
+
+### Strategy reference
+
+- [PoE 2 0.5 Grand Expedition Guide: Best Currency Farm Strategy](https://www.mmoexp.com/News/poe-2-0-5-grand-expedition-guide-best-currency-farm-strategy.html), accessed 2026-09-13. Use it only as configurable strategy input; validate live identifiers and mechanics before relying on it at runtime.
