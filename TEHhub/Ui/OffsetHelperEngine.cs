@@ -44,6 +44,7 @@ namespace TEHhub.Ui
     {
         /// <summary>Max live instances verified per struct type in a sweep.</summary>
         internal const int MaxRootsPerType = 6;
+        private const int MaxUiRoots = 12;
 
         /// <summary>Upper bound on awake entities walked while gathering roots.</summary>
         internal const int MaxEntitiesScanned = 256;
@@ -762,7 +763,7 @@ namespace TEHhub.Ui
 
             void Add(string name, IntPtr addr)
             {
-                if (addr != IntPtr.Zero && roots.Count < MaxRootsPerType)
+                if (addr != IntPtr.Zero && roots.Count < MaxUiRoots)
                 {
                     roots.Add(new Root(name, addr, addr));
                 }
