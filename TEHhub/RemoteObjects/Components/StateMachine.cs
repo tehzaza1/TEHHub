@@ -415,6 +415,85 @@ namespace TEHhub.RemoteObjects.Components
                     {
                         lines.Add("No one-hop Rune DAT references from Station/Anchor Holder within the bounded scan.");
                     }
+
+                    // The controller inventory is now known to contain small vectors of runtime
+                    // records. Follow only those vector elements for one additional hop. This is
+                    // the minimum extra depth needed to distinguish an indirect rune reference
+                    // from an unrelated controller cache, while keeping the capture bounded.
+                    var inventoryDeepRows = 0;
+                    var inspectedInventoryRecords = new HashSet<long>();
+                    foreach (var inventoryRoot in diagnosticRoots)
+                    {
+                        if (!string.Equals(inventoryRoot.Name, "Controller.Inventories", StringComparison.Ordinal) || inventoryRoot.Address == IntPtr.Zero)
+                        {
+                            continue;
+                        }
+
+                        for (var vectorOffset = 0; vectorOffset <= 0x240 && inspectedInventoryRecords.Count < 24; vectorOffset += IntPtr.Size)
+                        {
+                            if (!reader.TryReadMemory<StdVector>(inventoryRoot.Address + vectorOffset, out var vector))
+                            {
+                                continue;
+                            }
+
+                            var bytes = vector.Last.ToInt64() - vector.First.ToInt64();
+                            if (vector.First == IntPtr.Zero || bytes <= 0 || bytes % IntPtr.Size != 0 || bytes / IntPtr.Size > 16 || vector.End.ToInt64() < vector.Last.ToInt64())
+                            {
+                                continue;
+                            }
+
+                            var records = new long[(int)(bytes / IntPtr.Size)];
+                            if (!reader.TryReadMemoryArray(vector.First, records, out _))
+                            {
+                                continue;
+                            }
+
+                            for (var recordIndex = 0; recordIndex < records.Length && inspectedInventoryRecords.Count < 24; recordIndex++)
+                            {
+                                var record = records[recordIndex];
+                                if (record == 0 || !inspectedInventoryRecords.Add(record))
+                                {
+                                    continue;
+                                }
+
+                                for (var recordOffset = 0; recordOffset <= 0x100; recordOffset += IntPtr.Size)
+                                {
+                                    if (!reader.TryReadMemory<IntPtr>(new IntPtr(record) + recordOffset, out var target, recordFailure: false) || target == IntPtr.Zero)
+                                    {
+                                        continue;
+                                    }
+
+                                    for (var targetOffset = 0; targetOffset <= 0x200; targetOffset += IntPtr.Size)
+                                    {
+                                        if (!reader.TryReadMemory<IntPtr>(target + targetOffset, out var possibleRow, recordFailure: false))
+                                        {
+                                            continue;
+                                        }
+
+                                        var rowDelta = possibleRow.ToInt64() - tableBase;
+                                        if (rowDelta < 0 || rowDelta % rowStride != 0)
+                                        {
+                                            continue;
+                                        }
+
+                                        var runeIndex = rowDelta / rowStride;
+                                        if (runeIndex < 0 || runeIndex >= RuneNames.Length)
+                                        {
+                                            continue;
+                                        }
+
+                                        lines.Add($"Inventory deep rune ref: +0x{vectorOffset:X3}[{recordIndex}] -> 0x{record:X}+0x{recordOffset:X3} -> 0x{target.ToInt64():X}+0x{targetOffset:X3} -> {RuneNames[runeIndex]} (index {runeIndex})");
+                                        inventoryDeepRows++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (inventoryDeepRows == 0)
+                    {
+                        lines.Add("No two-hop Rune DAT references from the bounded Inventory vectors.");
+                    }
                 }
 
                 lines.Add("Only valid, non-empty vector headers are listed. Raw data is capped at 128 bytes.");
