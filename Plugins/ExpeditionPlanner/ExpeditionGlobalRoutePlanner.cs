@@ -42,7 +42,9 @@ namespace ExpeditionPlanner
                 foreach (var point in candidates.OrderBy(_ => random.Next()).Take(160))
                 {
                     if (!LegalPlacement.IsPlaceable(point, anchor, area, settings, targets, startGrid, committed)) continue;
-                    var hit = targets.Where(t => !covered.Contains(t.EntityId) && Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
+                    var hit = targets.Where(t => !covered.Contains(t.EntityId) &&
+                        (t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel) &&
+                        Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
                     if (hit.Count == 0 && step == count) continue;
                     // The widest non-Opulent pillar is the stack receiver. A shared radius
                     // must not consume it early: split the two placements or leave it for
@@ -88,15 +90,12 @@ namespace ExpeditionPlanner
             var result = new List<Vector3>();
             foreach (var t in targets)
             {
-                if (t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
-                {
-                    // Inner points evaluate the shared blast. Outer points near the blast edge
-                    // let the search evaluate hitting this pillar without its overlapping neighbour.
-                    float[] radii = [14f, MathF.Max(14f, settings.BlastRadiusGrid - 2f)];
-                    foreach (var radius in radii)
-                        for (int i = 0; i < 12; i++) { float a = i * MathF.PI / 6; result.Add(t.GridPosition + new Vector3(MathF.Cos(a) * radius, MathF.Sin(a) * radius, 0)); }
-                }
-                else result.Add(t.GridPosition);
+                if (t.Kind is not (TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)) continue;
+                // Inner points evaluate the shared blast. Outer points near the blast edge
+                // let the search evaluate hitting this pillar without its overlapping neighbour.
+                float[] radii = [14f, MathF.Max(14f, settings.BlastRadiusGrid - 2f)];
+                foreach (var radius in radii)
+                    for (int i = 0; i < 12; i++) { float a = i * MathF.PI / 6; result.Add(t.GridPosition + new Vector3(MathF.Cos(a) * radius, MathF.Sin(a) * radius, 0)); }
             }
             return result.Distinct().ToList();
         }
