@@ -102,11 +102,7 @@ namespace ExpeditionPlanner
                         area,
                         out var isObstructed);
 
-                    var maxRange = isObstructed
-                        ? MathF.Max(70.0f, settings.MaxPlacementRangeGrid - 10.0f)
-                        : settings.MaxPlacementRangeGrid;
-
-                    if (effectiveDist > maxRange)
+                    if (effectiveDist > settings.MaxPlacementRangeGrid)
                     {
                         continue; // Cannot reach after detouring around pillar/wall
                     }
@@ -138,7 +134,7 @@ namespace ExpeditionPlanner
                         float distAfter = Vector2.Distance(end2D, targetPos2D);
                         float advance = distBefore - distAfter;
 
-                        if (advance <= 8.0f) continue; // Must significantly advance towards target
+                        if (advance <= 3.0f) continue; // Must advance towards target
 
                         // Bridging score: rewards moving closer to high-priority targets while penalizing obstructions
                         stepScore = (advance * 6.0f) - (effectiveDist * 0.1f) - (isObstructed ? 40f : 0f);
@@ -332,11 +328,10 @@ namespace ExpeditionPlanner
                 var toAnchor = -dirToTarget;
 
                 // 1. Direct approach points between Anchor and Target
-                // If target is within 1-bomb reachable range (<= 118 grid units)
                 if (distToAnchor <= settings.MaxPlacementRangeGrid + settings.BlastRadiusGrid - 2.0f)
                 {
-                    float minD = MathF.Max(8.0f, distToAnchor - (settings.BlastRadiusGrid - 3.0f));
-                    float maxD = MathF.Min(settings.MaxPlacementRangeGrid - 3.0f, distToAnchor - 6.0f);
+                    float minD = MathF.Max(4.0f, distToAnchor - (settings.BlastRadiusGrid - 2.0f));
+                    float maxD = MathF.Min(settings.MaxPlacementRangeGrid - 1.0f, distToAnchor + (settings.BlastRadiusGrid - 4.0f));
                     for (float d = minD; d <= maxD; d += 6.0f)
                     {
                         var gx = anchor2D.X + (dirToTarget.X * d);
@@ -347,8 +342,8 @@ namespace ExpeditionPlanner
                 else
                 {
                     // Bridging stepping stone points along approach vector to distant target
-                    float[] bridgeSteps = [settings.MaxPlacementRangeGrid - 5.0f, settings.MaxPlacementRangeGrid - 15.0f, 70.0f];
-                    float[] angleDeviations = [0f, -0.15f, 0.15f];
+                    float[] bridgeSteps = [settings.MaxPlacementRangeGrid - 3.0f, settings.MaxPlacementRangeGrid - 12.0f, 70.0f, 55.0f];
+                    float[] angleDeviations = [0f, -0.15f, 0.15f, -0.3f, 0.3f];
                     foreach (var bd in bridgeSteps)
                     {
                         foreach (var dev in angleDeviations)
@@ -365,8 +360,8 @@ namespace ExpeditionPlanner
                 if (t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel)
                 {
                     var baseAngle = MathF.Atan2(toAnchor.Y, toAnchor.X);
-                    float[] angleOffsets = [0f, -0.28f, 0.28f, -0.56f, 0.56f];
-                    float[] distances = [14.0f, 18.0f, 22.0f, 26.0f];
+                    float[] angleOffsets = [0f, -0.28f, 0.28f, -0.56f, 0.56f, -0.84f, 0.84f];
+                    float[] distances = [6.0f, 10.0f, 15.0f, 20.0f, 25.0f];
 
                     foreach (var dist in distances)
                     {
@@ -383,10 +378,10 @@ namespace ExpeditionPlanner
                 {
                     AddCandidate(t.GridPosition.X, t.GridPosition.Y, t);
 
-                    if (distToAnchor > 15.0f)
+                    if (distToAnchor > 10.0f)
                     {
-                        var gx = t.GridPosition.X + (toAnchor.X * 12.0f);
-                        var gy = t.GridPosition.Y + (toAnchor.Y * 12.0f);
+                        var gx = t.GridPosition.X + (toAnchor.X * 8.0f);
+                        var gy = t.GridPosition.Y + (toAnchor.Y * 8.0f);
                         AddCandidate(gx, gy, t);
                     }
                 }

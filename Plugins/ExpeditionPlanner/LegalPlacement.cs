@@ -9,14 +9,14 @@ namespace ExpeditionPlanner
     {
         /// <summary>
         /// Physical footprint radius around a Remnant pillar or Sentinel where a bomb cannot be placed.
+        /// In PoE 2 grid coordinates, the base collision is ~4.5 units (~50 world units).
         /// </summary>
-        public const float PillarPhysicalRadius = 14.0f;
+        public const float PillarPhysicalRadius = 4.5f;
 
         /// <summary>
         /// Effective collision radius around a pillar for fuse wire routing and peg placement.
-        /// In-game connector pegs are dropped on open ground outside the pillar base (~18 units from center).
         /// </summary>
-        public const float PillarEffectiveRadius = 18.0f;
+        public const float PillarEffectiveRadius = 7.0f;
 
         /// <summary>
         /// Checks whether a single grid cell is walkable using AreaInstance.GridWalkableData.
@@ -89,6 +89,7 @@ namespace ExpeditionPlanner
         /// <summary>
         /// Determines if the line segment from <paramref name="a"/> to <paramref name="b"/>
         /// penetrates a circular obstacle with center <paramref name="center"/> and radius <paramref name="radius"/>.
+        /// Obstacles lying behind <paramref name="a"/> or beyond <paramref name="b"/> do NOT obstruct the segment.
         /// </summary>
         public static bool IntersectsObstacle(Vector2 a, Vector2 b, Vector2 center, float radius, out float penetrationDepth)
         {
@@ -97,16 +98,17 @@ namespace ExpeditionPlanner
             var abLenSq = ab.LengthSquared();
             if (abLenSq < 1e-4f)
             {
-                var d = Vector2.Distance(a, center);
-                if (d < radius)
-                {
-                    penetrationDepth = radius - d;
-                    return true;
-                }
                 return false;
             }
 
-            var t = Math.Clamp(Vector2.Dot(center - a, ab) / abLenSq, 0f, 1f);
+            // Obstacle center must project strictly between a and b along the line segment
+            var t = Vector2.Dot(center - a, ab) / abLenSq;
+            if (t <= 0.05f || t >= 0.95f)
+            {
+                // Obstacle is behind start point or beyond end point
+                return false;
+            }
+
             var closest = a + (ab * t);
             var dist = Vector2.Distance(closest, center);
 
@@ -120,23 +122,18 @@ namespace ExpeditionPlanner
         }
 
         /// <summary>
-        /// Computes the exact convex hull detour distance for a wire wrapping around a circular obstacle.
+        /// Computes the convex hull detour distance for a wire wrapping around a circular obstacle.
         /// Consists of tangent from A to circle, circular arc along obstacle boundary, tangent from circle to B,
         /// plus discrete peg spacing overhead.
         /// </summary>
         public static float ComputeCircleDetourDistance(Vector2 a, Vector2 b, Vector2 c, float radius)
         {
-            var da = Vector2.Distance(a, c);
-            var db = Vector2.Distance(b, c);
+            var directDist = Vector2.Distance(a, b);
+            var da = MathF.Max(radius + 0.1f, Vector2.Distance(a, c));
+            var db = MathF.Max(radius + 0.1f, Vector2.Distance(b, c));
 
-            // If either point is inside or very close to the obstacle radius, wire cannot enter
-            if (da <= radius || db <= radius)
-            {
-                return 9999.0f;
-            }
-
-            var la = MathF.Sqrt((da * da) - (radius * radius));
-            var lb = MathF.Sqrt((db * db) - (radius * radius));
+            var la = MathF.Sqrt(MathF.Max(0.01f, (da * da) - (radius * radius)));
+            var lb = MathF.Sqrt(MathF.Max(0.01f, (db * db) - (radius * radius)));
 
             var vA = a - c;
             var vB = b - c;
@@ -146,22 +143,22 @@ namespace ExpeditionPlanner
             var deltaTheta = MathF.Acos(dot);
 
             // Tangent angles
-            var alphaA = MathF.Acos(radius / da);
-            var alphaB = MathF.Acos(radius / db);
+            var alphaA = MathF.Acos(Math.Clamp(radius / da, -1.0f, 1.0f));
+            var alphaB = MathF.Acos(Math.Clamp(radius / db, -1.0f, 1.0f));
 
             var arcAngle = deltaTheta - (alphaA + alphaB);
             if (arcAngle <= 0f)
             {
                 // Line of sight tangents do not cross the circle core
-                return Vector2.Distance(a, b);
+                return directDist;
             }
 
             var arcLength = radius * arcAngle;
             var continuousDetour = la + lb + arcLength;
 
             // The game drops connector poles (pegs) around obstacles,
-            // adding cornering slack and peg spacing overhead (~12% + 4 units)
-            return (continuousDetour * 1.12f) + 4.0f;
+            // adding cornering slack and peg spacing overhead (~10% + 2 units)
+            return MathF.Max(directDist, (continuousDetour * 1.10f) + 2.0f);
         }
 
         /// <summary>
@@ -273,19 +270,15 @@ namespace ExpeditionPlanner
                 var start2D = new Vector2(anchorGrid.Value.X, anchorGrid.Value.Y);
                 var directDist = Vector2.Distance(start2D, cand2D);
 
-                if (directDist < 4.0f) return false; // Too close to existing bomb
+                if (directDist < 3.5f) return false; // Too close to existing bomb
 
-                // Direct Euclidean distance must have reasonable headroom
-                if (directDist > settings.MaxPlacementRangeGrid - 2.0f) return false;
+                // Direct Euclidean distance must not exceed max placement range
+                if (directDist > settings.MaxPlacementRangeGrid) return false;
 
                 var effectiveDist = CalculateEffectiveDistance(start2D, cand2D, obstacles, area, out var obstructed);
 
-                // Allow placements up to MaxPlacementRangeGrid
-                var maxAllowed = obstructed
-                    ? MathF.Max(70.0f, settings.MaxPlacementRangeGrid - 10.0f)
-                    : settings.MaxPlacementRangeGrid;
-
-                if (effectiveDist > maxAllowed)
+                // Allow placements up to MaxPlacementRangeGrid (effectiveDist already accounts for detours and wire slack)
+                if (effectiveDist > settings.MaxPlacementRangeGrid)
                 {
                     return false; // Fuse will NOT reach after bending around obstacles!
                 }

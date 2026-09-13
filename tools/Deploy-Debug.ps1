@@ -19,6 +19,7 @@ $robocopyArgs = @(
     $sourceDir,
     $targetDir,
     "/E",
+    "/R:2", "/W:1",
     "/XD", "configs", "logs",
     "/XF", "*.ini", "*.log",
     "/NJH", "/NJS", "/NDL", "/NC", "/NS"
