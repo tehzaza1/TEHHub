@@ -33,6 +33,12 @@ namespace ExpeditionPlanner
             int budget = Math.Max(1, settings.MaxExplosiveBudget);
             int currentStep = currentPlacedBombs.Count;
 
+            // If player has placed up to or beyond configured budget, dynamically expand so the solver continues planning next bomb
+            if (currentStep >= budget)
+            {
+                budget = currentStep + 1;
+            }
+
             // Anchor point for next placement
             var startAnchor = currentPlacedBombs.Count > 0
                 ? currentPlacedBombs[^1].GridPosition

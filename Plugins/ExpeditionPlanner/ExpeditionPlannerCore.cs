@@ -379,6 +379,7 @@ namespace ExpeditionPlanner
                     }
 
                     ImGui.TextDisabled($"Discovered: {this.activeTargets.Count} targets ({remnantCount} Remnants, {chestCount} Chests, {monsterCount} Monsters)");
+                    ImGui.TextDisabled($"Placed: {this.placedBombs.Count} / Budget: {this.Settings.MaxExplosiveBudget} (Remaining: {Math.Max(0, this.Settings.MaxExplosiveBudget - this.placedBombs.Count)})");
                     if (!string.IsNullOrEmpty(this.calculationStatusMessage))
                     {
                         ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f), this.calculationStatusMessage);
@@ -753,9 +754,19 @@ namespace ExpeditionPlanner
             }
 
             var budget = this.Settings.MaxExplosiveBudget;
-            if (ImGui.SliderInt("Max Explosives", ref budget, 2, 10))
+            if (ImGui.SliderInt("Max Explosives", ref budget, 1, 35))
             {
                 this.Settings.MaxExplosiveBudget = budget;
+            }
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Map (4)"))
+            {
+                this.Settings.MaxExplosiveBudget = 4;
+            }
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Logbook (20)"))
+            {
+                this.Settings.MaxExplosiveBudget = 20;
             }
 
             ImGui.Separator();
