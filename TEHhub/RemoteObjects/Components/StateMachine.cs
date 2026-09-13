@@ -259,6 +259,46 @@ namespace TEHhub.RemoteObjects.Components
                             : $"<payload read failed; {bytesRead} bytes>";
                         lines.Add($"  +0x{offset:X3}: First=0x{first:X} Last=0x{last:X} End=0x{end:X}; used={usedBytes}, capacity={capacityBytes}");
                         lines.Add($"    raw: {raw}");
+
+                        // An InventoryStruct.ItemList is a vector of pointers to small records
+                        // whose first word is an Item Entity pointer. Classify only a tiny,
+                        // pointer-aligned candidate as a control check; no hit is promoted into
+                        // planner data until it resolves through the normal Entity reader.
+                        if (usedBytes % IntPtr.Size == 0 && usedBytes / IntPtr.Size <= 16)
+                        {
+                            var recordPointers = new long[(int)(usedBytes / IntPtr.Size)];
+                            if (reader.TryReadMemoryArray(vector.First, recordPointers, out _))
+                            {
+                                var itemPaths = new List<string>();
+                                foreach (var recordPointer in recordPointers)
+                                {
+                                    if (recordPointer == 0 || !reader.TryReadMemory<IntPtr>(new IntPtr(recordPointer), out var itemAddress, recordFailure: false) || itemAddress == IntPtr.Zero)
+                                    {
+                                        continue;
+                                    }
+
+                                    try
+                                    {
+                                        var item = new TEHhub.RemoteObjects.States.InGameStateObjects.Entity(itemAddress);
+                                        item.RefreshDataNow();
+                                        if (item.IsValid && !string.IsNullOrEmpty(item.Path))
+                                        {
+                                            itemPaths.Add(item.Path);
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        // This vector may not be an inventory list. Its payload
+                                        // remains diagnostic evidence only.
+                                    }
+                                }
+
+                                if (itemPaths.Count > 0)
+                                {
+                                    lines.Add($"    inventory-shaped entries: {string.Join(", ", itemPaths)}");
+                                }
+                            }
+                        }
                         inventoryCandidates++;
                     }
 
