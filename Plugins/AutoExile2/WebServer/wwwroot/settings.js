@@ -1442,7 +1442,7 @@ function clearFollowerName() {
     updateFollowerLockUI();
     const sel = document.getElementById('followerPlayerSelect');
     if (sel) sel.value = '';
-    showToast('ล้างชื่อตัวตามแล้ว (กลับสู่โหมด Auto-Detect)');
+    showToast('ล้างชื่อหัวแล้ว (กลับสู่โหมด Auto-Detect)');
   }
 }
 
@@ -1454,7 +1454,7 @@ function selectFollowerName(name) {
     updateFollowerLockUI();
     const sel = document.getElementById('followerPlayerSelect');
     if (sel) sel.value = name;
-    showToast(`ล็อกตัวตาม: ${name}`);
+    showToast(`ล็อกหัวที่จะตาม: ${name}`);
   }
 }
 

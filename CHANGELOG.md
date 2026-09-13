@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.4 — 2026-09-13
+
+- Fixed reversed couch co-op selection semantics: selecting Player 1's name now confirms Player 2 as the follower; selecting Player 2's own name cannot reverse the pair. An empty leader selection continues to auto-detect the pair.
+- Renamed the web control and messages to identify the selected character as the leader/head, with an in-app explanation of the Player 1 → Player 2 relationship.
+- Validation: AutoExile2 Debug and Release builds passed without warnings/errors; player-picker JavaScript syntax and regression checks passed. Live couch co-op testing remains pending.
+
 ## 1.6.3 — 2026-09-13
 
 - Fixed AutoEx co-op player name discovery: the picker includes Player 1, direct Player 2 and awake player names with matching details, and retains names when detail records are incomplete. A lone local player is not automatically selected as the follow target.

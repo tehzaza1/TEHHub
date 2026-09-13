@@ -477,27 +477,27 @@ namespace AutoExile2.Modes
             return leaderGrid + offset;
         }
 
-        private Entity? FindFollowerEntity(AreaInstance area, Entity leader, string followerNameFilter)
+        private Entity? FindFollowerEntity(AreaInstance area, Entity leader, string leaderNameFilter)
         {
-            // 1. Direct Couch Co-op Player 2 from TEHhub Engine (Instant, Zero-Lag, 100% Reliable!)
+            // 1. In couch co-op the game exposes Player 1 as leader and Player 2 as the entity
+            // driven by this mode. The picker therefore identifies the leader, never Player 2.
             if (area.Player2 != null && area.Player2.Address != IntPtr.Zero && area.Player2.IsValid)
             {
-                // If a specific name filter is configured and Player component is populated, verify name
-                if (!string.IsNullOrWhiteSpace(followerNameFilter) &&
-                    area.Player2.TryGetComponent<Player>(out var p2PlayerComp) &&
-                    !string.IsNullOrEmpty(p2PlayerComp.Name))
+                if (string.IsNullOrWhiteSpace(leaderNameFilter))
                 {
-                    if (p2PlayerComp.Name.Equals(followerNameFilter.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                        p2PlayerComp.Name.Contains(followerNameFilter.Trim(), StringComparison.OrdinalIgnoreCase))
-                    {
-                        return area.Player2;
-                    }
-                }
-                else
-                {
-                    // Couch Co-op Player 2 instance verified directly
                     return area.Player2;
                 }
+
+                if (leader.TryGetComponent<Player>(out var leaderPlayer) &&
+                    !string.IsNullOrWhiteSpace(leaderPlayer.Name) &&
+                    (leaderPlayer.Name.Equals(leaderNameFilter.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                     leaderPlayer.Name.Contains(leaderNameFilter.Trim(), StringComparison.OrdinalIgnoreCase)))
+                {
+                    return area.Player2;
+                }
+
+                // A configured name that is not Player 1 must not silently reverse the pair.
+                return null;
             }
 
             // 2. Fallback: Search AwakeEntities (for LAN/Network party or before Player2 pointer links)
@@ -521,9 +521,9 @@ namespace AutoExile2.Modes
             }
 
             // 1. If a specific follower name is configured, STRICTLY match by name!
-            if (!string.IsNullOrWhiteSpace(followerNameFilter))
+            if (!string.IsNullOrWhiteSpace(leaderNameFilter))
             {
-                string target = followerNameFilter.Trim();
+                string target = leaderNameFilter.Trim();
 
                 // Exact match (case-insensitive)
                 var exact = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c.name) && c.name.Equals(target, StringComparison.OrdinalIgnoreCase));

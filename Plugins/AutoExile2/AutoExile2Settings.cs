@@ -178,7 +178,7 @@ namespace AutoExile2
         /// <summary>Check if flask has enough charges before attempting to drink.</summary>
         public bool CheckFlaskCharges = true;
 
-        /// <summary>Party follower character name in Co-op mode (locks strictly onto this specific character).</summary>
+        /// <summary>Leader character name in couch co-op. Player 2 follows Player 1 only when this name matches Player 1.</summary>
         public string FollowerCharacterName = string.Empty;
 
         /// <summary>Party leader character name to follow in Follower mode (alias for FollowerCharacterName).</summary>
