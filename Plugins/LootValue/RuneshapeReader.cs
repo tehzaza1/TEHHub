@@ -185,6 +185,32 @@ namespace LootValue
                 return IntPtr.Zero;
             }
 
+            // Fast path: Check the registered RuneshapeCombinationsPanel from ImportantUiElements
+            var importantUi = Core.States.InGameStateObject?.GameUi;
+            if (importantUi != null && importantUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero)
+            {
+                var panelAddr = importantUi.RuneshapeCombinationsPanel.Address;
+                var pOff = readUiOffset(panelAddr);
+                if (pOff != null)
+                {
+                    if ((pOff.Value.Flags & UiVisibleMask) != 0)
+                    {
+                        var found = WalkRuneforgeUi(panelAddr, 1, readUiOffset, readStdVec);
+                        if (found != IntPtr.Zero)
+                        {
+                            cachedRecipesContainer = found;
+                            return cachedRecipesContainer;
+                        }
+                    }
+                    else if (!Core.GHSettings.EnableControllerMode)
+                    {
+                        // In KBM mode, if the primary Runeshape panel is invisible, it is closed.
+                        cachedRecipesContainer = IntPtr.Zero;
+                        return IntPtr.Zero;
+                    }
+                }
+            }
+
             if (Core.GHSettings.EnableControllerMode)
             {
                 cachedRecipesContainer = ResolveControllerRuneforgeContainer(gameUiAddress, readUiOffset, readStdVec);
