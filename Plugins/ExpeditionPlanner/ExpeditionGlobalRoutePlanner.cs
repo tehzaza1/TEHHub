@@ -29,7 +29,10 @@ namespace ExpeditionPlanner
                     if (route.NetScore > best.NetScore) best = route;
                 }
             }
-            best.Reason = $"Bounded global route search ({best.Placements.Count} bombs, {maxCount * 12} complete-route seeds).";
+            var coveredPillars = best.Placements.SelectMany(p => p.CoveredTargets)
+                .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
+                .Select(t => t.EntityId).Distinct().Count();
+            best.Reason = $"Bounded global route search: {coveredPillars}/{pillarCount} pillars via {best.Placements.Count} explosives ({maxCount * 12} route seeds).";
             return best;
         }
 
@@ -54,8 +57,7 @@ namespace ExpeditionPlanner
                 var routeCandidates = candidates
                     .Concat(BuildBridgeCandidates(anchor, targets, covered, settings))
                     .Distinct()
-                    .OrderBy(_ => random.Next())
-                    .Take(220);
+                    .OrderBy(_ => random.Next());
                 foreach (var point in routeCandidates)
                 {
                     if (!LegalPlacement.IsPlaceable(point, anchor, terrain, settings, targets, startGrid, committed)) continue;
@@ -72,17 +74,20 @@ namespace ExpeditionPlanner
                     {
                         continue;
                     }
+                    // Score only new pillar coverage and its usable rune chain. A
+                    // bridge has no value by itself; it exists only to reach a pillar.
                     float score = hit.Sum(t => Value(t, settings));
+                    score += hit.Count * 10_000f;
                     bool hasOpulent = HasCoveredRune(targets, covered, "Opulent");
                     if (hit.Any(t => RuneName(t).Equals("Opulent", StringComparison.OrdinalIgnoreCase)) && !hasOpulent) score += 12_000f;
                     // The farm plan values a continuing proliferation chain over the local
                     // modifier text. Opening a propagating pillar early has more remaining
                     // explosions to carry its rune forward, so it earns a larger bonus.
                     int remainingExplosions = count - step;
-                    score += hit.Count(t => t.CanProliferate) * (4_000f + (remainingExplosions * 500f));
+                    score += hit.Count(t => t.CanProliferate) * (8_000f + (remainingExplosions * 750f));
                     if (finalStackPillar != null && hit.Any(t => t.EntityId == finalStackPillar.EntityId))
                     {
-                        score += step == count ? 30_000f : 0f;
+                        score += step == count ? 8_000f : 0f;
                     }
                     // A whole route may use bridge points, but they must head toward an uncovered target.
                     if (hit.Count == 0)
