@@ -45,6 +45,7 @@ namespace LootValue
         public double ChaosPerExalted { get; set; }
         public Dictionary<string, double> FlatPricesChaos { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, List<UniquePriceListing>> UniqueListings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> ProviderNameAliases { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     public static class PoeNinjaPriceFetcher
@@ -54,7 +55,7 @@ namespace LootValue
 
         // Bump whenever the cache shape or how the art->name index is built changes, so caches written
         // by an older plugin version are discarded instead of trusted. (v4: separate pathBasenameToItemName.json file)
-        private const int CacheSchemaVersion = 6;
+        private const int CacheSchemaVersion = 7;
 
         private static readonly string[] ScoutCurrencyCategories =
         {
@@ -1482,6 +1483,9 @@ namespace LootValue
                     uniqueListingsByName = snapshot.UniqueListings != null
                         ? new Dictionary<string, List<UniquePriceListing>>(snapshot.UniqueListings, StringComparer.OrdinalIgnoreCase)
                         : new Dictionary<string, List<UniquePriceListing>>(StringComparer.OrdinalIgnoreCase);
+                    providerNameAliases = snapshot.ProviderNameAliases != null
+                        ? new Dictionary<string, string>(snapshot.ProviderNameAliases, StringComparer.OrdinalIgnoreCase)
+                        : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     chaosPerDivine = snapshot.ChaosPerDivine > 0 ? snapshot.ChaosPerDivine : chaosPerDivine;
                     chaosPerExalted = snapshot.ChaosPerExalted > 0 ? snapshot.ChaosPerExalted : chaosPerExalted;
                     if (chaosPerExalted > 0)
@@ -1532,6 +1536,7 @@ namespace LootValue
                         ChaosPerExalted = chaosPerExalted,
                         FlatPricesChaos = new Dictionary<string, double>(flatPricesChaos, StringComparer.OrdinalIgnoreCase),
                         UniqueListings = new Dictionary<string, List<UniquePriceListing>>(uniqueListingsByName, StringComparer.OrdinalIgnoreCase),
+                        ProviderNameAliases = new Dictionary<string, string>(providerNameAliases, StringComparer.OrdinalIgnoreCase),
                     };
                 }
 

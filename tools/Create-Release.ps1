@@ -25,7 +25,7 @@ try {
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     foreach ($file in Get-ChildItem -LiteralPath $buildOutput -File -Recurse) {
         $relative = $file.FullName.Substring($buildOutput.Length + 1)
-        if ($file.Extension -eq '.pdb' -or $relative -match '^(configs|logs|entity_dumps|offset-recovery)[\\/]' -or $relative -match '^(TEHhub\.Launcher\.(exe|dll|deps\.json|runtimeconfig\.json)|AsmResolver.*\.dll)$') { continue }
+        if ($file.Extension -eq '.pdb' -or $relative -match '^(configs|logs|entity_dumps|offset-recovery|tools)[\\/]' -or $relative -match '^(Start|Stop)-PerformanceMonitor\.bat$' -or $relative -match '^(TEHhub\.Launcher\.(exe|dll|deps\.json|runtimeconfig\.json)|AsmResolver.*\.dll)$') { continue }
         $destination = Join-Path $stage $relative
         New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
         Copy-Item -LiteralPath $file.FullName -Destination $destination
@@ -49,8 +49,22 @@ try {
         if (!(Test-Path -LiteralPath (Join-Path $stage $name))) { throw "Missing package file: $name" }
     }
     if (Get-ChildItem -LiteralPath $stage -Filter '*.pdb' -Recurse -File) { throw 'Debug symbols must not be shipped.' }
+    $coreBytes = [IO.File]::ReadAllBytes((Join-Path $stage 'TEHhub.dll'))
+    $coreMetadata = [Text.Encoding]::UTF8.GetString($coreBytes)
+    foreach ($typeName in @('LocalDiagnosticsApi', 'ToolHubSnapshot', 'ToolDiagnostics')) {
+        if ($coreMetadata.Contains($typeName)) { throw "Debug API type found in Release: $typeName" }
+    }
+    foreach ($mappingName in @('pathBasenameToItemName.json', 'uniqueArtMapping.json')) {
+        $sourceMapping = Join-Path $worktree "Plugins/LootValue/$mappingName"
+        $packagedMapping = Join-Path $stage "Plugins/LootValue/$mappingName"
+        if (!(Test-Path -LiteralPath $packagedMapping) -or
+            (Get-FileHash -LiteralPath $sourceMapping).Hash -ne (Get-FileHash -LiteralPath $packagedMapping).Hash) {
+            throw "Missing or outdated LootValue mapping: $mappingName"
+        }
+    }
     if (!(Get-ChildItem -LiteralPath (Join-Path $stage 'Plugins') -Filter '*.dll' -Recurse -File)) { throw 'No plugins were packaged.' }
-    Invoke-ReleaseCommand (Join-Path $stage 'TEHhub.Launcher.exe') @('--check')
+    $launcherCheck = Start-Process -FilePath (Join-Path $stage 'TEHhub.Launcher.exe') -ArgumentList '--check' -WindowStyle Hidden -Wait -PassThru
+    if ($launcherCheck.ExitCode -ne 0) { throw "Launcher check failed with exit code $($launcherCheck.ExitCode)" }
     $zipPath = Join-Path $artifactRoot "TEHhub-v$version-$($commit.Substring(0,8))-win-x64.zip"
     if (Test-Path -LiteralPath $zipPath) { throw "Release already exists: $zipPath" }
     Compress-Archive -LiteralPath $stage -DestinationPath $zipPath

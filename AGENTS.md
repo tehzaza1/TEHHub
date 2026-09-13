@@ -2,6 +2,14 @@
 
 TEHhub starts at 1.0.0 and uses MAJOR.MINOR.PATCH (x.x.x). For every completed change, including small fixes and documentation changes, update CHANGELOG.md and advance the appropriate version. Group related edits delivered together into one version. MAJOR is for incompatible changes, MINOR for compatible new features, PATCH for fixes and small improvements. Keep core and launcher versions synchronized; assembly/file versions use x.x.x.0. Changelog entries must include date, concrete changes, compatibility notes when relevant, and validation actually performed. Do not claim live-game testing unless performed.
 
+# Sub-agent implementation and debugging policy
+
+For substantial implementation work and bug audits, use separate sub-agents when independent work is available: assign one agent to code implementation and another to debugging, tests, Release/Debug separation, and regression review. The primary agent coordinates scope, reviews their results, integrates changes, and owns version/changelog updates. Do not have agents edit the same files concurrently; define file ownership before delegation. Reuse available agents when new-agent limits are reached.
+
+Choose the least expensive suitable model and reasoning effort for each assignment. Send only necessary context, request concise evidence, and avoid duplicate investigations. Use additional agents only for concrete independent tasks; handle trivial changes directly when delegation would waste tokens. User authorization for this delegation persists across tasks in this project.
+
+User installations use Debug with diagnostics and local APIs. Public Release packages must compile out diagnostic API listeners and unnecessary Debug tooling, rather than merely leaving them disabled. Verify both configurations after changes affecting this boundary. Ordinary bounded application error logs remain available in Release.
+
 # PoE 2 Controller Mode UI & Memory Architecture Reference
 
 ## Overview

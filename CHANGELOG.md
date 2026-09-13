@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.2 — 2026-09-13
+
+- Fixed price-cache restart recovery: fetched provider name aliases are now saved/restored separately from verified metadata mappings. Cache schema 7 refetches older incomplete caches; existing user settings remain compatible.
+- Release packaging excludes API-dependent monitor scripts and verifies that Debug API types are absent and both LootValue mapping files exactly match source. Launcher validation now waits for the GUI process and checks its actual exit code.
+- Added project policy for separate code/debug sub-agents, file ownership, efficient models and Debug/Release validation.
+- Validation: Debug suite passed 214 assertions; Release solution build passed without warnings/errors; release script syntax passed. An offline probe verified save/reload/alias resolution and rejection of schema-6 caches. Live-game price validation remains pending.
+
 ## 1.6.1 — 2026-09-13
 
 - Removed the unused runtime metadata mapping writer; mapping files are loaded read-only. LootValue builds now deploy both verified mapping files alongside the plugin DLL.
