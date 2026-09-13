@@ -2735,19 +2735,19 @@ namespace LootValue
                 {
                     if (isVeryRareUnique)
                     {
-                        chipText = "Very Rare Unique";
+                        chipText = this.PluginText.T("runeshape.very_rare_unique", "Very Rare Unique");
                         score = 500;
                         isHigh = true;
                     }
                     else if (isRareUnique)
                     {
-                        chipText = "Rare Unique";
+                        chipText = this.PluginText.T("runeshape.rare_unique", "Rare Unique");
                         score = 100;
                         isHigh = false;
                     }
                     else
                     {
-                        // Generic unique crafts (Body Armour, Boots, ขวาน ยูนิค, etc.) show NOTHING AT ALL!
+                        // Generic unique crafts (Body Armour, Boots, etc.) show NOTHING AT ALL!
                         continue;
                     }
                 }
@@ -2783,12 +2783,14 @@ namespace LootValue
                     }
                 }
 
+                var pickLabel = this.PluginText.T("runeshape.pick", "PICK");
+
                 for (int i = 0; i < rowCandidates.Count; i++)
                 {
                     var cand = rowCandidates[i];
                     // Only mark as recommended pick if it has meaningful value (>= 1.0 Chaos)
                     bool isBest = (i == bestIdx && bestScore >= 1.0);
-                    var text = isBest ? $"[PICK] {cand.chip}" : cand.chip;
+                    var text = isBest ? $"[{pickLabel}] {cand.chip}" : cand.chip;
                     var chipPos = new Vector2(
                         cand.pos.X + cand.size.X + 8f + this.Settings.RuneshapeUiOffsetX,
                         cand.pos.Y + (cand.size.Y - 20f) / 2f + this.Settings.RuneshapeUiOffsetY);

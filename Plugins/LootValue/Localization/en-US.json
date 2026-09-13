@@ -61,5 +61,8 @@
   "status.loading": "Loading...",
   "status.loading_provider": "Loading from {0}...",
   "status.switching_provider": "Switching to {0}...",
-  "status.automatic_fallback": "Automatic fallback active: {0}"
+  "status.automatic_fallback": "Automatic fallback active: {0}",
+  "runeshape.very_rare_unique": "Very Rare Unique",
+  "runeshape.rare_unique": "Rare Unique",
+  "runeshape.pick": "PICK"
 }

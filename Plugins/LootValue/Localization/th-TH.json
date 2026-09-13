@@ -43,5 +43,8 @@
   "settings.hide_completed_monoliths": "ซ่อนเสา Monolith ที่เปิดไปแล้ว",
   "settings.vertical_offset": "ชดเชยแนวตั้ง",
   "status.loaded_items": "{0} รายการ | {1} นาทีที่แล้ว",
-  "status.loading": "กำลังโหลด..."
+  "status.loading": "กำลังโหลด...",
+  "runeshape.very_rare_unique": "ยูนิคหายากมาก",
+  "runeshape.rare_unique": "ยูนิคหายาก",
+  "runeshape.pick": "เลือก"
 }
