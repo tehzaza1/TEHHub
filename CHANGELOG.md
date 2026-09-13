@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.9 — 2026-09-13
+
+- Expanded the ExpeditionPlanner handoff with a net-score model for reward value, beneficial rune weights, dangerous-rune penalties, uncertainty, Safe/Balanced/Greedy profiles, and per-rune `never take` rules.
+- Defined the required outcome: the recommendation explains its rewards, dangers, score, and rejected alternatives; unknown rune data cannot silently be treated as safe.
+- Compatibility: documentation and synchronized version metadata only; runtime behaviour is unchanged.
+- Validation: documentation reviewed; Debug and Release core builds passed without warnings/errors after the version update.
+
 ## 1.6.8 — 2026-09-13
 
 - Defined the ExpeditionPlanner end state and definition of done: a standalone, manual recommendation tool for small and large encounters with verified placement constraints, clear explanations, and no game input.

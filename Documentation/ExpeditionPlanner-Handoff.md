@@ -84,10 +84,40 @@ Acceptance: the plugin can state where its bomb count, legal placement zone, and
 
 ## Phase 4 — recommendation only
 
-1. Score reachable markers/remnants with user-configurable priorities.
-2. Display one or more suggested placement locations and the expected affected targets.
-3. Explain uncertainty in the overlay when constraints or link endpoints cannot be verified.
-4. Keep all interaction manual. There must be no simulated input, click, placement, or detonation path.
+### Decision model
+
+The planner chooses the manual placement route with the highest **net score**, not simply the route that reaches the most icons.
+
+For every possible blast/chain, calculate:
+
+```
+net score = reward value + desired-remnant value - dangerous-remnant penalty - uncertainty penalty
+```
+
+- **Reward value:** each confirmed marker class has a configurable base weight. Valuable reward types can receive a high positive weight; ordinary monster markers can receive a low weight.
+- **Desired remnant value:** beneficial rune/remnant effects receive positive weights selected by the user.
+- **Dangerous remnant penalty:** build-breaking effects receive large negative weights. Examples are immunity to the player's main damage type, immunity to a required ailment, extreme speed/damage modifiers, or any user-marked forbidden rune. A route whose total score is positive but touches a forbidden remnant is displayed as unsafe, not as the default recommendation.
+- **Uncertainty penalty:** if the plugin cannot decode a remnant effect, prove a fuse endpoint, or verify a placement constraint, it reduces confidence and avoids presenting that route as certain.
+
+Start with three editable profiles:
+
+| Profile | Behaviour |
+| --- | --- |
+| Safe | Rejects forbidden/dangerous remnants; prefers reliable rewards. |
+| Balanced | Takes moderate risk only when the reward increase exceeds the configured penalty. |
+| Greedy | Maximizes reward score but still labels dangerous effects clearly. |
+
+The settings UI must let the user set individual reward weights, beneficial rune weights, dangerous rune penalties, and a hard **never take** toggle. Store them in `configs/plugins/ExpeditionPlanner/settings.json`.
+
+### Delivery steps
+
+1. Build a classified target list from verified marker models/icons and remnant data. Unknown types remain explicitly `Unknown`; never assign them a guessed value.
+2. Add a remnant/rune classifier only after the actual PoE2 mod text or stable identifiers are captured. The first evidence capture showed empty `ObjectMagicProperties.ModNames` on active `Expedition2Encounter` entities, so the implementation must first investigate the UI/other confirmed component that exposes the displayed rune effect.
+3. Enumerate legal candidate placements and resulting blast chains only after range, radius, and walkable-tile inputs have been verified in Phase 3.
+4. Score each candidate with the model above, select the best safe option, and retain the next two alternatives for comparison.
+5. Display the recommended point/route, affected rewards/remnants, total score, danger warnings, and the reason it won. Let the player choose and click manually.
+6. Explain uncertainty in the overlay when constraints or link endpoints cannot be verified.
+7. Keep all interaction manual. There must be no simulated input, click, placement, or detonation path.
 
 Acceptance: recommendations disappear when their source evidence is stale, the area changes, or a required constraint cannot be verified.
 
@@ -99,6 +129,8 @@ The project is complete when all of the following are true:
 - It has been live-tested in at least one small and one large Expedition.
 - The overlay shows the complete confirmed network before detonation and does not leave stale drawings after an area change.
 - Placement recommendations are based on verified PoE2 count, range, blast-radius, and target data, with an explanation and confidence state.
+- The score explains reward gains, every affected beneficial/dangerous rune, the selected profile, and why other reachable routes lost.
+- Any `never take` rune makes its route unsafe; missing rune data prevents a confident recommendation rather than silently treating the rune as safe.
 - The Release package remains lean and excludes the Debug evidence endpoints/tools.
 - Debug and Release builds, packaging checks, and the live validation results are recorded in `CHANGELOG.md`.
 
