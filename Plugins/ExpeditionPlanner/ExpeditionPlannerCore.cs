@@ -623,7 +623,7 @@ namespace ExpeditionPlanner
             var anchorWorld = this.detonatorWorld;
             var settings = this.Settings;
             this.pendingRouteAreaHash = area.AreaHash ?? string.Empty;
-            this.pendingRouteCalculation = Task.Run(() => ExpeditionSolver.Solve(
+            this.pendingRouteCalculation = Task.Run(() => ExpeditionGlobalRoutePlanner.Solve(
                 anchorGrid, anchorWorld, bombSnapshot, targetSnapshot, area, settings));
             this.calculationStatusMessage = $"Calculating ({triggerSource})...";
         }
