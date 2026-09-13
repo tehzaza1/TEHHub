@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.22 — 2026-09-14
+
+- Extended the Debug Rune Station probe with capped raw previews and nested vector-header inspection for up to eight verified controller-inventory records, so their native container layout can be identified before further traversal.
+- Compatibility: Diagnostic-only; public Release builds compile it out.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors; live Debug API capture pending deployment.
 ## 1.8.21 — 2026-09-14
 
 - Extended the Debug Rune Station probe to follow at most 24 unique records from verified RuneEncounterController.Inventories vectors by one bounded pointer hop, reporting only exact references into the verified Rune DAT table.

@@ -422,6 +422,7 @@ namespace TEHhub.RemoteObjects.Components
                     // from an unrelated controller cache, while keeping the capture bounded.
                     var inventoryDeepRows = 0;
                     var inspectedInventoryRecords = new HashSet<long>();
+                    var previewedInventoryRecords = 0;
                     foreach (var inventoryRoot in diagnosticRoots)
                     {
                         if (!string.Equals(inventoryRoot.Name, "Controller.Inventories", StringComparison.Ordinal) || inventoryRoot.Address == IntPtr.Zero)
@@ -454,6 +455,40 @@ namespace TEHhub.RemoteObjects.Components
                                 if (record == 0 || !inspectedInventoryRecords.Add(record))
                                 {
                                     continue;
+                                }
+
+                                if (previewedInventoryRecords++ < 8)
+                                {
+                                    var recordPreview = new byte[128];
+                                    var readRecord = reader.TryReadMemoryArray(new IntPtr(record), recordPreview, out var recordBytes);
+                                    var recordRaw = readRecord
+                                        ? Convert.ToHexString(recordPreview.AsSpan(0, Math.Min(recordPreview.Length, checked((int)recordBytes))))
+                                        : $"<record read failed; {recordBytes} bytes>";
+                                    lines.Add($"Inventory record: +0x{vectorOffset:X3}[{recordIndex}] = 0x{record:X}; first 128B: {recordRaw}");
+
+                                    var nestedVectorCount = 0;
+                                    for (var nestedVectorOffset = 0; nestedVectorOffset <= 0x200 && nestedVectorCount < 4; nestedVectorOffset += IntPtr.Size)
+                                    {
+                                        if (!reader.TryReadMemory<StdVector>(new IntPtr(record) + nestedVectorOffset, out var nestedVector))
+                                        {
+                                            continue;
+                                        }
+
+                                        var nestedBytes = nestedVector.Last.ToInt64() - nestedVector.First.ToInt64();
+                                        if (nestedVector.First == IntPtr.Zero || nestedBytes <= 0 || nestedBytes > 1024 || nestedVector.End.ToInt64() < nestedVector.Last.ToInt64() || nestedVector.End.ToInt64() - nestedVector.First.ToInt64() > 4096)
+                                        {
+                                            continue;
+                                        }
+
+                                        var nestedPreviewLength = (int)Math.Min(64, nestedBytes);
+                                        var nestedPreview = new byte[nestedPreviewLength];
+                                        var readNested = reader.TryReadMemoryArray(nestedVector.First, nestedPreview, out var nestedRead);
+                                        var nestedRaw = readNested
+                                            ? Convert.ToHexString(nestedPreview.AsSpan(0, Math.Min(nestedPreviewLength, checked((int)nestedRead))))
+                                            : $"<payload read failed; {nestedRead} bytes>";
+                                        lines.Add($"  record vector +0x{nestedVectorOffset:X3}: used={nestedBytes}, raw={nestedRaw}");
+                                        nestedVectorCount++;
+                                    }
                                 }
 
                                 for (var recordOffset = 0; recordOffset <= 0x100; recordOffset += IntPtr.Size)
