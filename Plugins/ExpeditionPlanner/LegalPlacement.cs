@@ -326,6 +326,14 @@ namespace ExpeditionPlanner
                 // Direct Euclidean distance must not exceed max placement range
                 if (directDist > settings.MaxPlacementRangeGrid) return false;
 
+                // A fuse may route around a Remnant pillar, but it cannot pass through terrain.
+                // Previously small terrain intersections were converted into a score penalty,
+                // which still allowed a proposed wire to cut through tents, walls, or cliffs.
+                if (!IsLineClearOfTerrain(area, start2D, cand2D, out _))
+                {
+                    return false;
+                }
+
                 var effectiveDist = CalculateEffectiveDistance(start2D, cand2D, obstacles, area, out var obstructed);
 
                 // Allow placements up to MaxPlacementRangeGrid (effectiveDist already accounts for detours and wire slack)

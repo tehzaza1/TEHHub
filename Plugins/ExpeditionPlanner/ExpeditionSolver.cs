@@ -274,7 +274,7 @@ namespace ExpeditionPlanner
 
                     if (bestPlacement.IsObstructed)
                     {
-                        warnings.Add($"Step {bestPlacement.Step}: wire bends around pillar/wall ({bestPlacement.WireDistance:F0} grid). Keep on open ground.");
+                        warnings.Add($"Step {bestPlacement.Step}: wire bends around a pillar ({bestPlacement.WireDistance:F0} grid). Keep on open ground.");
                     }
 
                     int remainingBombs = Math.Max(0, budget - bestPlacement.Step);
