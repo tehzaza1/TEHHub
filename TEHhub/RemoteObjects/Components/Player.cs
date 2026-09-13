@@ -13,6 +13,10 @@ namespace TEHhub.RemoteObjects.Components
     /// </summary>
     public class Player : ComponentBase
     {
+        // A Player component can be discovered before its name string is populated. Retry until
+        // it resolves, but rate-limit empty reads so a delayed buffer does not add a per-frame cost.
+        private DateTime nextNameReadUtc = DateTime.MinValue;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="Player" /> class.
         /// </summary>
@@ -55,7 +59,27 @@ namespace TEHhub.RemoteObjects.Components
 
             if (hasAddressChanged)
             {
-                this.Name = reader.ReadStdWString(data.Name);
+                this.Name = string.Empty;
+                this.nextNameReadUtc = DateTime.MinValue;
+            }
+
+            var now = DateTime.UtcNow;
+            if (string.IsNullOrWhiteSpace(this.Name) && now >= this.nextNameReadUtc)
+            {
+                this.nextNameReadUtc = now.AddMilliseconds(500);
+                try
+                {
+                    var name = reader.ReadStdWString(data.Name);
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        this.Name = name;
+                    }
+                }
+                catch
+                {
+                    // The component may arrive before its string buffer is readable. The throttled
+                    // retry rate handles that case without preventing XP/level refreshes.
+                }
             }
 
             this.Xp = data.Xp;

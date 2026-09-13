@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.3 — 2026-09-13
+
+- Fixed AutoEx co-op player name discovery: the picker includes Player 1, direct Player 2 and awake player names with matching details, and retains names when detail records are incomplete. A lone local player is not automatically selected as the follow target.
+- Player components retry initially empty/unreadable names at most once per 500 ms until resolved, instead of caching an empty name permanently. Successful names remain cached; XP/level refreshes continue during name-read failures.
+- Validation: AutoEx/core Debug and Release builds passed without warnings/errors; JavaScript syntax and player-picker regression checks passed. No live co-op testing or deployment performed.
+
 ## 1.6.2 — 2026-09-13
 
 - Fixed price-cache restart recovery: fetched provider name aliases are now saved/restored separately from verified metadata mappings. Cache schema 7 refetches older incomplete caches; existing user settings remain compatible.

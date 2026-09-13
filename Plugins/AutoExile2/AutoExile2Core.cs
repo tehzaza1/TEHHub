@@ -338,16 +338,28 @@ namespace AutoExile2
                 leaderPos = new Vector2(lRnd.GridPosition.X, lRnd.GridPosition.Y);
             }
 
+            void AddNearbyPlayer(Entity ent, string name)
+            {
+                if (string.IsNullOrWhiteSpace(name) || nearbyPlayerNames.Contains(name, StringComparer.OrdinalIgnoreCase)) return;
+                nearbyPlayerNames.Add(name);
+                float distance = ent.TryGetComponent<Render>(out var render)
+                    ? Vector2.Distance(leaderPos, new Vector2(render.GridPosition.X, render.GridPosition.Y)) : 0f;
+                int hp = ent.TryGetComponent<Life>(out var lifeComponent) && lifeComponent.Health.Total > 0
+                    ? (int)((float)lifeComponent.Health.Current / lifeComponent.Health.Total * 100f) : 100;
+                nearbyPlayers.Add(new NearbyPlayerDetail { Name = name, ClassName = ParseCharacterClass(ent.Path),
+                    Distance = (float)Math.Round(distance, 1), HpPercent = hp });
+            }
+
+            // The name picker lists both local co-op players; follower targeting still excludes Player 1 below.
+            if (player != null && player.IsValid) AddNearbyPlayer(player, leaderPlayerName);
+
             if (currentArea?.Player2 != null && currentArea.Player2.Address != IntPtr.Zero && currentArea.Player2.IsValid)
             {
                 targetFollowerEntity = currentArea.Player2;
                 if (targetFollowerEntity.TryGetComponent<Player>(out var fPlayerComp) && !string.IsNullOrEmpty(fPlayerComp.Name))
                 {
                     followerPlayerName = fPlayerComp.Name;
-                    if (!nearbyPlayerNames.Contains(followerPlayerName))
-                    {
-                        nearbyPlayerNames.Add(followerPlayerName);
-                    }
+                    AddNearbyPlayer(targetFollowerEntity, followerPlayerName);
                 }
             }
 
@@ -364,32 +376,7 @@ namespace AutoExile2
                     {
                         string pName = ent.TryGetComponent<Player>(out var fPlayerComp) ? fPlayerComp.Name : string.Empty;
                         candidates.Add((ent, pName));
-                        if (!string.IsNullOrWhiteSpace(pName) && !nearbyPlayerNames.Contains(pName))
-                        {
-                            nearbyPlayerNames.Add(pName);
-
-                            float dist = 0f;
-                            if (ent.TryGetComponent<Render>(out var eRnd))
-                            {
-                                dist = Vector2.Distance(leaderPos, new Vector2(eRnd.GridPosition.X, eRnd.GridPosition.Y));
-                            }
-
-                            int php = 100;
-                            if (ent.TryGetComponent<Life>(out var eLife) && eLife.Health.Total > 0)
-                            {
-                                php = (int)((float)eLife.Health.Current / eLife.Health.Total * 100f);
-                            }
-
-                            string cls = ParseCharacterClass(ent.Path);
-
-                            nearbyPlayers.Add(new NearbyPlayerDetail
-                            {
-                                Name = pName,
-                                ClassName = cls,
-                                Distance = (float)Math.Round(dist, 1),
-                                HpPercent = php,
-                            });
-                        }
+                        AddNearbyPlayer(ent, pName);
                     }
                 }
 

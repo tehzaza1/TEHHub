@@ -1477,7 +1477,7 @@ let lastPlayerNamesHash = '';
 function populatePlayerOptions(players, playerNames) {
   const datalist = document.getElementById('followerNameDatalist');
   const select = document.getElementById('followerPlayerSelect');
-  const names = playerNames || (players ? players.map(p => typeof p === 'string' ? p : p.Name) : []);
+  const names = [...new Set([...(playerNames || []), ...(players || []).map(p => typeof p === 'string' ? p : p.Name)].filter(Boolean))];
   const hash = names.slice().sort().join(',');
 
   if (datalist) {
@@ -1491,7 +1491,8 @@ function populatePlayerOptions(players, playerNames) {
         lastPlayerNamesHash = hash;
         let html = `<option value="">-- เลือกจากรายชื่อที่สแกนเจอ (${names.length} คน) --</option>`;
         if (players && players.length > 0 && typeof players[0] === 'object') {
-          html += players.map(p => {
+          html += names.map(name => {
+            const p = players.find(player => player.Name === name) || { Name: name };
             const detail = [p.ClassName, p.Distance ? `${p.Distance}g` : ''].filter(Boolean).join(' | ');
             const label = detail ? `${p.Name} (${detail})` : p.Name;
             return `<option value="${p.Name}">👤 ${label}</option>`;
@@ -1527,7 +1528,7 @@ async function fetchAndPopulatePlayerNames() {
 
     if (playerNames.length === 0) {
       showToast('⚠️ ไม่พบผู้เล่นอื่นในพื้นที่/แมพขณะนี้ (ต้องอยู่ในแมพหรือห้องเดียวกัน)');
-    } else if (playerNames.length === 1) {
+    } else if (playerNames.length === 1 && playerNames[0] !== data.leader) {
       const targetName = playerNames[0];
       selectFollowerName(targetName);
       showToast(`✅ ดึงชื่อตัวละครสำเร็จ: [${targetName}] ล็อกเป้าหมายเรียบร้อย`);
@@ -1546,7 +1547,7 @@ async function fetchAndPopulatePlayerNames() {
       const sData = await sRes.json();
       const names = sData.NearbyPlayerNames || [];
       populatePlayerOptions(null, names);
-      if (names.length === 1) {
+      if (names.length === 1 && names[0] !== sData.LeaderPlayerName) {
         selectFollowerName(names[0]);
         showToast(`✅ ดึงชื่อตัวละครสำเร็จ: [${names[0]}] ล็อกเป้าหมายเรียบร้อย`);
       } else if (names.length > 1) {
