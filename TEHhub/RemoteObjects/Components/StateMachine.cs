@@ -215,6 +215,59 @@ namespace TEHhub.RemoteObjects.Components
                     }
                 }
 
+                // The paired RuneEncounterController exposes an Inventories component even though
+                // its rune rows are not referenced directly from the station. Inspect that one
+                // component as an inventory-shaped object before widening any raw pointer scan.
+                // This is deliberately bounded and Debug-only: it gives us evidence for the next
+                // offset without adding a speculative runtime dependency to the planner.
+                foreach (var inventoryRoot in diagnosticRoots)
+                {
+                    if (!string.Equals(inventoryRoot.Name, "Controller.Inventories", StringComparison.Ordinal) || inventoryRoot.Address == IntPtr.Zero)
+                    {
+                        continue;
+                    }
+
+                    lines.Add($"Inventory component: 0x{inventoryRoot.Address.ToInt64():X}; vector headers 0x000-0x240");
+                    var inventoryCandidates = 0;
+                    for (var offset = 0; offset <= 0x240; offset += IntPtr.Size)
+                    {
+                        if (!reader.TryReadMemory<StdVector>(inventoryRoot.Address + offset, out var vector))
+                        {
+                            continue;
+                        }
+
+                        var first = vector.First.ToInt64();
+                        var last = vector.Last.ToInt64();
+                        var end = vector.End.ToInt64();
+                        if (first == 0 || last < first || end < last)
+                        {
+                            continue;
+                        }
+
+                        var usedBytes = last - first;
+                        var capacityBytes = end - first;
+                        if (usedBytes <= 0 || usedBytes > 4096 || capacityBytes > 16384)
+                        {
+                            continue;
+                        }
+
+                        var previewLength = (int)Math.Min(128, usedBytes);
+                        var preview = new byte[previewLength];
+                        var readSucceeded = reader.TryReadMemoryArray(vector.First, preview, out var bytesRead);
+                        var raw = readSucceeded
+                            ? Convert.ToHexString(preview.AsSpan(0, Math.Min(previewLength, checked((int)bytesRead))))
+                            : $"<payload read failed; {bytesRead} bytes>";
+                        lines.Add($"  +0x{offset:X3}: First=0x{first:X} Last=0x{last:X} End=0x{end:X}; used={usedBytes}, capacity={capacityBytes}");
+                        lines.Add($"    raw: {raw}");
+                        inventoryCandidates++;
+                    }
+
+                    if (inventoryCandidates == 0)
+                    {
+                        lines.Add("  No valid non-empty vectors; Inventories is a component map or indirect holder.");
+                    }
+                }
+
                 var linkedOwnerCount = 0;
                 foreach (var ownerAddress in linkedOwnerAddresses)
                 {
