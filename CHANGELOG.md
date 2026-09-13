@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.34 — 2026-09-14
+
+- Fixed Offset Helper UI root truncation: updated VerifyProbe and FindOffsetRecoveries to use MaxUiRoots (16) when evaluating UiElementBaseOffset, allowing RuneshapeCombinationsPanel and subsequent UI panels to be verified and displayed under probe roots.
+- Added CleanUpData reset for RuneshapeCombinationsPanel.Address to ensure proper lifecycle cleanup.
+- Compatibility: Core diagnostics and UI element management improvement.
+- Validation: Debug and Release builds succeeded with 0 warnings and 0 errors.
+
 ## 1.8.33 — 2026-09-14
 
 - Fixed Runeshape panel static-chain validation: its UI parent is an intermediate container, so the resolver now validates a non-zero live parent instead of requiring the GameUi manager address.

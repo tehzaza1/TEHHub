@@ -519,6 +519,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.CurrencyExchangePanel.Address = IntPtr.Zero;
             this.GemcuttingPanel.Address = IntPtr.Zero;
             this.SupportGemcuttingPanel.Address = IntPtr.Zero;
+            this.RuneshapeCombinationsPanel.Address = IntPtr.Zero;
             this.LeftPanel.Address = IntPtr.Zero;
             this.RightPanel.Address = IntPtr.Zero;
             this.ChatParent.Address = IntPtr.Zero;

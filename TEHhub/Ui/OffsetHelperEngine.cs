@@ -44,7 +44,7 @@ namespace TEHhub.Ui
     {
         /// <summary>Max live instances verified per struct type in a sweep.</summary>
         internal const int MaxRootsPerType = 6;
-        private const int MaxUiRoots = 12;
+        private const int MaxUiRoots = 16;
 
         /// <summary>Upper bound on awake entities walked while gathering roots.</summary>
         internal const int MaxEntitiesScanned = 256;
@@ -809,7 +809,8 @@ namespace TEHhub.Ui
             // Unmapped markers have no layout — we can still confirm the component header
             // back-points to the owner, which proves the component pointer itself is real.
             var probeType = structType ?? typeof(ComponentHeader);
-            var take = Math.Min(roots.Count, MaxRootsPerType);
+            var maxRoots = structType == typeof(UiElementBaseOffset) ? MaxUiRoots : MaxRootsPerType;
+            var take = Math.Min(roots.Count, maxRoots);
             for (var i = 0; i < take; i++)
             {
                 var rootHints = roots[i].UseRecoveryHints ? hints : null;
@@ -914,7 +915,8 @@ namespace TEHhub.Ui
             OffsetRecoveryHints? hints)
         {
             var suggestions = new List<OffsetRecoverySuggestion>();
-            var sampledRoots = roots.Take(MaxRootsPerType).ToList();
+            var maxRoots = structType == typeof(UiElementBaseOffset) ? MaxUiRoots : MaxRootsPerType;
+            var sampledRoots = roots.Take(maxRoots).ToList();
             foreach (var (field, configuredOffset) in LayoutFields(structType))
             {
                 if (field.Name.StartsWith("PAD", StringComparison.OrdinalIgnoreCase) ||
