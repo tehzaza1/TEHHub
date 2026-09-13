@@ -12,7 +12,7 @@ namespace ExpeditionPlanner
     {
         public static RouteEvaluation Solve(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, AreaInstance area, ExpeditionPlannerSettings settings)
         {
-            var candidates = BuildCandidates(targets);
+            var candidates = BuildCandidates(targets, settings);
             var best = new RouteEvaluation { Profile = settings.Profile.ToString() };
             var random = new Random(17);
             int count = Math.Max(1, settings.MaxExplosiveBudget - placed.Count);
@@ -74,13 +74,19 @@ namespace ExpeditionPlanner
             return result;
         }
 
-        private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets)
+        private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
         {
             var result = new List<Vector3>();
             foreach (var t in targets)
             {
                 if (t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
-                    for (int i = 0; i < 8; i++) { float a = i * MathF.PI / 4; result.Add(t.GridPosition + new Vector3(MathF.Cos(a) * 14, MathF.Sin(a) * 14, 0)); }
+                {
+                    // Inner points evaluate the shared blast. Outer points near the blast edge
+                    // let the search evaluate hitting this pillar without its overlapping neighbour.
+                    float[] radii = [14f, MathF.Max(14f, settings.BlastRadiusGrid - 2f)];
+                    foreach (var radius in radii)
+                        for (int i = 0; i < 12; i++) { float a = i * MathF.PI / 6; result.Add(t.GridPosition + new Vector3(MathF.Cos(a) * radius, MathF.Sin(a) * radius, 0)); }
+                }
                 else result.Add(t.GridPosition);
             }
             return result.Distinct().ToList();
