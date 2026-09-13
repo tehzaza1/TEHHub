@@ -71,7 +71,7 @@ namespace ExpeditionPlanner
             float totalScore = 0f;
             var warnings = new List<string>();
 
-            int neededSteps = Math.Min(3, budget - currentStep);
+            int neededSteps = Math.Max(0, budget - currentStep);
             for (int step = 1; step <= neededSteps; step++)
             {
                 ProposedPlacement? bestPlacement = null;

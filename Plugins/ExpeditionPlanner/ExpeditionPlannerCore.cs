@@ -761,7 +761,7 @@ namespace ExpeditionPlanner
             ImGui.Separator();
             ImGui.Text("Overlay Elements:");
             var showBadges = this.Settings.ShowBadges;
-            if (ImGui.Checkbox("Show Recommended Badges (1 -> 2 -> 3)", ref showBadges))
+            if (ImGui.Checkbox("Show Recommended Badges (1 -> 2 -> 3 -> 4...)", ref showBadges))
             {
                 this.Settings.ShowBadges = showBadges;
             }
