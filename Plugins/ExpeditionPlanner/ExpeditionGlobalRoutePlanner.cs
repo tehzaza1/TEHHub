@@ -16,14 +16,16 @@ namespace ExpeditionPlanner
             var best = new RouteEvaluation { Profile = settings.Profile.ToString() };
             var random = new Random(17);
             int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
-            // In pillar-only mode there is no reason to emit a 20-bomb Logbook route
-            // when only a handful of pillars exist. The final stack receiver must be
-            // reachable within this actual pillar plan, not artificial empty steps.
-            int count = Math.Max(1, Math.Min(settings.MaxExplosiveBudget - placed.Count, pillarCount));
-            for (int attempt = 0; attempt < 96; attempt++)
+            int maxCount = Math.Max(1, Math.Min(settings.MaxExplosiveBudget - placed.Count, pillarCount));
+            // The stack receiver must be the last placement actually chosen, not an
+            // artificial "bomb #20". Try every usable route length and retain the best.
+            for (int count = 1; count <= maxCount; count++)
             {
-                var route = BuildRoute(startGrid, startWorld, placed, targets, candidates, area, settings, count, random);
-                if (route.NetScore > best.NetScore) best = route;
+                for (int attempt = 0; attempt < 32; attempt++)
+                {
+                    var route = BuildRoute(startGrid, startWorld, placed, targets, candidates, area, settings, count, random);
+                    if (route.NetScore > best.NetScore) best = route;
+                }
             }
             best.Reason = $"Global route search ({best.Placements.Count} bombs, 96 full-route candidates).";
             return best;
@@ -85,6 +87,10 @@ namespace ExpeditionPlanner
                 result.Placements.Add(new ProposedPlacement { Step = placed.Count + step, GridPosition = p, WorldPosition = startWorld + ((p - startGrid) * 10.87f), WireDistance = Vector2.Distance(new Vector2(anchor.X, anchor.Y), new Vector2(p.X, p.Y)), CoveredTargets = selectedHits });
                 foreach (var t in selectedHits) covered.Add(t.EntityId);
                 result.NetScore += bestScore; committed.Add(p); anchor = p;
+            }
+            if (finalStackPillar != null && !covered.Contains(finalStackPillar.EntityId))
+            {
+                result.NetScore = float.NegativeInfinity;
             }
             return result;
         }
