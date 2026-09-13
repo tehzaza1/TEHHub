@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.14 — 2026-09-14
+
+- Extended the Debug Rune Station listener map to resolve non-station listener owners through the normal Entity reader and report their validated entity ID, metadata path, and component names.
+- Compatibility: Diagnostic-only; public Release builds continue to compile it out.
+- Validation: `dotnet build TEHhub/TEHhub.csproj -c Debug --no-restore` succeeded with 0 warnings and 0 errors.
 ## 1.8.13 — 2026-09-14
 
 - Extended the Debug Rune Station snapshot with a bounded listener map: up to 24 StateMachine listener nodes now report their pointers and both known station-owner candidate relationships (`-0xA0` and `-0x98`).

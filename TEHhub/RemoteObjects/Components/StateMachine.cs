@@ -165,6 +165,7 @@ namespace TEHhub.RemoteObjects.Components
 
                 lines.Add($"Anchor row: 0x{anchorRow.ToInt64():X}; holder: 0x{anchorHolder.ToInt64():X}; Rune DAT: 0x{tableBase:X}; stride: {(rowStride > 0 ? $"0x{rowStride:X}" : "unknown")}");
                 lines.Add($"Listener nodes: {nodes.Length} (showing up to 24)");
+                var linkedOwnerAddresses = new HashSet<long>();
                 for (var listenerIndex = 0; listenerIndex < nodes.Length && listenerIndex < 24; listenerIndex++)
                 {
                     var nodeValue = nodes[listenerIndex];
@@ -180,6 +181,31 @@ namespace TEHhub.RemoteObjects.Components
                     reader.TryReadMemory(candidate98 + StationDeviceBackPtr, out IntPtr owner98, recordFailure: false);
                     var owned = ownerA0 == this.OwnerEntityAddress ? " (-0xA0 owns station)" : owner98 == this.OwnerEntityAddress ? " (-0x98 owns station)" : string.Empty;
                     lines.Add($"Listener[{listenerIndex}]: node=0x{nodeValue:X}; ptr=0x{listener.ToInt64():X}; owner@-0xA0=0x{ownerA0.ToInt64():X}; owner@-0x98=0x{owner98.ToInt64():X}{owned}");
+                    if (ownerA0 != IntPtr.Zero && ownerA0 != this.OwnerEntityAddress) linkedOwnerAddresses.Add(ownerA0.ToInt64());
+                    if (owner98 != IntPtr.Zero && owner98 != this.OwnerEntityAddress) linkedOwnerAddresses.Add(owner98.ToInt64());
+                }
+
+                var linkedOwnerCount = 0;
+                foreach (var ownerAddress in linkedOwnerAddresses)
+                {
+                    if (linkedOwnerCount++ >= 8) break;
+                    try
+                    {
+                        var linkedEntity = new TEHhub.RemoteObjects.States.InGameStateObjects.Entity(new IntPtr(ownerAddress));
+                        linkedEntity.RefreshDataNow();
+                        if (linkedEntity.IsValid)
+                        {
+                            lines.Add($"Linked owner 0x{ownerAddress:X}: id={linkedEntity.Id}; path={linkedEntity.Path}; components={string.Join(", ", linkedEntity.GetComponentNames())}");
+                        }
+                        else
+                        {
+                            lines.Add($"Linked owner 0x{ownerAddress:X}: not a valid live Entity.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        lines.Add($"Linked owner 0x{ownerAddress:X}: entity read failed ({ex.GetType().Name}).");
+                    }
                 }
 
                 if (rowStride > 0)
