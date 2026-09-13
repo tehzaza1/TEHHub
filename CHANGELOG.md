@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.7.0 — 2026-09-13
+
+- Added a Debug-only, on-demand Expedition placement evidence capture at `POST` and `GET /api/diagnostics/expedition-placement-probe`. Its `ExpeditionDetonatorElement.Info` is explicitly entity-observed: it records detonator, placed bombs, connector poles, fuses, placement indicators, known Expedition targets, and bounded terrain samples around indicators.
+- The capture makes no claim about native PoE2 UI offsets and does not copy PoE1 placement constants. Raw walkability values are emitted only when their layout exactly matches the observed terrain grid; otherwise they remain unmapped evidence.
+- Simplified the Expedition research catalog to canonical rune names and local Runeshape recipe references. Removed scraped rune-effect text and inferred danger tags so a future planner cannot make decisions from unverified effects.
+- Compatibility: the placement API and diagnostic code compile out of public Release builds; runtime gameplay behaviour is unchanged.
+- Validation: Python catalog regeneration and compilation passed; Debug and Release core builds passed without warnings or errors. Verified the Debug binary contains the placement endpoint while the Release binary does not.
 ## 1.6.11 — 2026-09-13
 
 - Added a maintainer-only PoE2DB rune catalog importer and a generated 34-rune research catalog that links bounded effect evidence, conservative danger tags, and local Runeshape recipe references.

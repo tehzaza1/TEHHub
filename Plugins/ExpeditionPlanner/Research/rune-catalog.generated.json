@@ -1,17 +1,10 @@
 {
-  "schema_version": 1,
-  "generated_at_utc": "2026-09-13T11:42:44.952163+00:00",
+  "schema_version": 2,
+  "generated_at_utc": "2026-09-13T11:58:43.048998+00:00",
   "source_recipes": "Plugins/LootValue/expedition2_recipes.json",
-  "network_used": true,
   "entries": [
     {
       "name": "Fire",
-      "source_url": "https://poe2db.tw/us/Fire_Rune",
-      "fetched_at_utc": "2026-09-13T11:41:51.432138+00:00",
-      "effects": [
-        "Monsters gain: Extra Fire Damage"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotUncutSkillGem1",
@@ -301,18 +294,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Cold",
-      "source_url": "https://poe2db.tw/us/Cold_Rune",
-      "fetched_at_utc": "2026-09-13T11:41:52.670750+00:00",
-      "effects": [
-        "Monsters gain: Extra Cold Damage"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotOrbofTransmutation1",
@@ -674,18 +659,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Lightning",
-      "source_url": "https://poe2db.tw/us/Lightning_Rune",
-      "fetched_at_utc": "2026-09-13T11:41:53.878486+00:00",
-      "effects": [
-        "Monsters gain: Extra Lightning Damage"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotOrbofAugmentation1",
@@ -984,19 +961,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Tempest",
-      "source_url": "https://poe2db.tw/us/Tempest_Rune",
-      "fetched_at_utc": "2026-09-13T11:41:55.116510+00:00",
-      "effects": [
-        "Monsters gain: Cannot be Shocked or Chilled",
-        "Cannot be Shocked or Chilled"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotOrbofAugmentation1",
@@ -1322,19 +1290,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Momentum",
-      "source_url": "https://poe2db.tw/us/Momentum_Rune",
-      "fetched_at_utc": "2026-09-13T11:41:56.332659+00:00",
-      "effects": [
-        "Monsters gain: Increased Movement Speed",
-        "Movement Speed Cannot be Slowed below base"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotUncutSkillGem1",
@@ -1660,23 +1619,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Bloodletting",
-      "source_url": "https://poe2db.tw/us/Bloodletting_Rune",
-      "fetched_at_utc": "2026-09-13T11:41:57.565271+00:00",
-      "effects": [
-        "Monsters gain: Life Leech",
-        "Cannot have Life Leeched from",
-        "Inflicts Corrupted Blood on Hit"
-      ],
-      "danger_tags": [
-        "leech-block",
-        "corrupted-blood"
-      ],
       "recipes": [
         {
           "id": "3SlotChaosOrb1",
@@ -1939,22 +1885,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Stone",
-      "source_url": "https://poe2db.tw/us/Stone_Rune",
-      "fetched_at_utc": "2026-09-13T11:41:59.036745+00:00",
-      "effects": [
-        "Wand or Staff: Gain additional Stun Threshold equal to 12% of maximum Energy Shield",
-        "Bonded: Martial Weapon: 40% increased Damage against Immobilised Enemies",
-        "Martial Weapon: 40% increased Damage against Immobilised Enemies",
-        "Place into an empty Augment Socket in a Weapon or Armour to apply its effect to that item. Once socketed it cannot be retrieved but can be replaced by other Augment items.",
-        "Monsters gain: Armoured"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotUncutSupportGem1",
@@ -2406,18 +2340,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Adaptive",
-      "source_url": "https://poe2db.tw/us/Adaptive_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:00.258864+00:00",
-      "effects": [
-        "Monsters gain: Adaptation"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotExaltedOrb1",
@@ -2851,19 +2777,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Arcane",
-      "source_url": "https://poe2db.tw/us/Arcane_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:00.697344+00:00",
-      "effects": [
-        "Monsters gain: Extra Energy Shield",
-        "Trigger a Stunning nova when Energy Shield is depleted"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotArtificersOrb1",
@@ -3297,18 +3214,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Toxic",
-      "source_url": "https://poe2db.tw/us/Toxic_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:01.935353+00:00",
-      "effects": [
-        "Monsters gain: Chance to Poison on Hit"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "3SlotGlassblowersBauble2",
@@ -3553,18 +3462,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Electrocuting",
-      "source_url": "https://poe2db.tw/us/Electrocuting_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:03.169410+00:00",
-      "effects": [
-        "Monsters gain: Extra Lightning Damage"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotLesserVisionRune1",
@@ -3890,19 +3791,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Protective",
-      "source_url": "https://poe2db.tw/us/Protective_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:04.394450+00:00",
-      "effects": [
-        "Monsters gain: Periodically gain Verisium Proximity Shields",
-        "Periodically gain Verisium Proximity Shields"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotExaltedOrb1",
@@ -4336,18 +4228,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Cyclonic",
-      "source_url": "https://poe2db.tw/us/Cyclonic_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:05.875154+00:00",
-      "effects": [
-        "Monsters gain: Chance to inflict Exposure on Hit"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotLesserChargingRune1",
@@ -4799,21 +4683,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Vision",
-      "source_url": "https://poe2db.tw/us/Vision_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:07.220963+00:00",
-      "effects": [
-        "Bonded: Martial Weapon: Attacks have +1% to Critical Hit Chance",
-        "Martial Weapon: Attacks have +1% to Critical Hit Chance",
-        "Place into an empty Augment Socket in a Weapon or Armour to apply its effect to that item. Once socketed it cannot be retrieved but can be replaced by other Augment items.",
-        "Monsters gain: Reflect Curses"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotVisionRune1",
@@ -5193,16 +5066,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Tidal",
-      "source_url": "https://poe2db.tw/us/Tidal_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:08.448537+00:00",
-      "effects": [],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotLesserChargingRune1",
@@ -5546,22 +5413,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "unverified",
-      "parse_notes": [
-        "No effect-like text found; retain as unverified."
       ]
     },
     {
       "name": "Rebirth",
-      "source_url": "https://poe2db.tw/us/Rebirth_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:10.017144+00:00",
-      "effects": [
-        "Martial Weapon: Gain 25 Life per enemy killed",
-        "Place into an empty Augment Socket in a Weapon or Armour to apply its effect to that item. Once socketed it cannot be retrieved but can be replaced by other Augment items.",
-        "Monsters gain: Chance to Rebirth on death"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotLesserVisionRune1",
@@ -6049,18 +5904,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Prismatic",
-      "source_url": "https://poe2db.tw/us/Prismatic_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:23.644726+00:00",
-      "effects": [
-        "Monsters gain: All Damage can Shock"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotOrbofAugmentation2",
@@ -6512,20 +6359,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Gasp",
-      "source_url": "https://poe2db.tw/us/Gasp_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:24.851064+00:00",
-      "effects": [
-        "Monsters gain: Extra Fire Damage",
-        "Wikis Content is available under CC BY-NC-SA 3.0 unless otherwise noted.",
-        "Concurrent Players"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotBodyRune1",
@@ -6860,16 +6697,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Moon",
-      "source_url": "https://poe2db.tw/us/Moon_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:26.320150+00:00",
-      "effects": [],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotRegalOrb1",
@@ -7213,20 +7044,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "unverified",
-      "parse_notes": [
-        "No effect-like text found; retain as unverified."
       ]
     },
     {
       "name": "Celestial",
-      "source_url": "https://poe2db.tw/us/Celestial_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:27.565751+00:00",
-      "effects": [
-        "Monsters gain: Chance for a Fire Explosion on Death"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotUncutSpiritGem1",
@@ -7705,19 +7526,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Opulent",
-      "source_url": "https://poe2db.tw/us/Opulent_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:28.804001+00:00",
-      "effects": [
-        "Monsters gain: Increased Monster Rarity",
-        "Increased Monster Rarity"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "4SlotArchaicRuneofSplinters1",
@@ -8016,18 +7828,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Rage",
-      "source_url": "https://poe2db.tw/us/Rage_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:30.042782+00:00",
-      "effects": [
-        "Monsters gain: Periodically Enrage"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotDesertRune1",
@@ -8416,18 +8220,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Wisdom",
-      "source_url": "https://poe2db.tw/us/Wisdom_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:31.294797+00:00",
-      "effects": [
-        "Monsters gain: Increased Experience"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "3SlotUniqueBodyArmour1",
@@ -8933,16 +8729,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Sky",
-      "source_url": "https://poe2db.tw/us/Sky_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:32.827512+00:00",
-      "effects": [],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotGemcuttersPrism1",
@@ -9331,18 +9121,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "unverified",
-      "parse_notes": [
-        "No effect-like text found; retain as unverified."
       ]
     },
     {
       "name": "Earth",
-      "source_url": "https://poe2db.tw/us/Earth_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:33.207945+00:00",
-      "effects": [],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "2SlotGlassblowersBauble1",
@@ -9749,20 +9531,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "unverified",
-      "parse_notes": [
-        "No effect-like text found; retain as unverified."
       ]
     },
     {
       "name": "Life",
-      "source_url": "https://poe2db.tw/us/Life_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:34.447183+00:00",
-      "effects": [
-        "Monsters gain: Shared Life"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "3SlotGreaterOrbofAugmentation1",
@@ -10070,22 +9842,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Bond",
-      "source_url": "https://poe2db.tw/us/Bond_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:35.712961+00:00",
-      "effects": [
-        "Monsters gain: Rare Monsters may transfer a Mod on death",
-        "Rare Monsters may transfer a Mod on death",
-        "Remnant gains: Increased chance to spawn Rare Monsters",
-        "Increased chance to spawn Rare Monsters",
-        "Rare Monsters have more Monster Modifiers"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "3SlotGemcuttersPrism2",
@@ -10384,19 +10144,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Ward",
-      "source_url": "https://poe2db.tw/us/Ward_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:37.097012+00:00",
-      "effects": [
-        "Place into an empty Augment Socket in a Weapon or Armour to apply its effect to that item. Once socketed it cannot be retrieved but can be replaced by other Augment items.",
-        "Monsters gain: Protected by Runic Ward"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "3SlotGreaterWardRune1",
@@ -11091,18 +10842,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Soul",
-      "source_url": "https://poe2db.tw/us/Soul_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:38.341774+00:00",
-      "effects": [
-        "Monsters gain: Union of Souls"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "4SlotExaltedOrb3",
@@ -11401,19 +11144,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Death",
-      "source_url": "https://poe2db.tw/us/Death_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:39.591596+00:00",
-      "effects": [
-        "Monsters gain: Slain Monsters may merge into stronger Monsters",
-        "Slain Monsters may merge into stronger Monsters"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "4SlotDivineOrb1",
@@ -11667,19 +11401,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Oath",
-      "source_url": "https://poe2db.tw/us/Oath_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:40.816836+00:00",
-      "effects": [
-        "Monsters gain: A Monster summons Allies",
-        "A Monster summons Allies"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "4SlotChaosOrb2",
@@ -11951,19 +11676,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Time",
-      "source_url": "https://poe2db.tw/us/Time_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:42.160303+00:00",
-      "effects": [
-        "Monsters gain: Slain Monsters may respawn as a higher Rarity",
-        "Slain Monsters may respawn as a higher Rarity"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "5SlotOrbofChance1",
@@ -12370,18 +12086,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Power",
-      "source_url": "https://poe2db.tw/us/Power_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:43.756057+00:00",
-      "effects": [
-        "Runes gain: Empowered"
-      ],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "4SlotDivineOrb1",
@@ -12761,16 +12469,10 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "parsed",
-      "parse_notes": []
+      ]
     },
     {
       "name": "Bait",
-      "source_url": "https://poe2db.tw/us/Bait_Rune",
-      "fetched_at_utc": "2026-09-13T11:42:44.952163+00:00",
-      "effects": [],
-      "danger_tags": [],
       "recipes": [
         {
           "id": "10SlotBait",
@@ -12781,10 +12483,6 @@
           "min_level": 1,
           "max_level": 100
         }
-      ],
-      "source_status": "unverified",
-      "parse_notes": [
-        "No effect-like text found; retain as unverified."
       ]
     }
   ]
