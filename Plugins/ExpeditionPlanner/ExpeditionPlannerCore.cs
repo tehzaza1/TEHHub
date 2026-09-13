@@ -6,6 +6,7 @@ namespace ExpeditionPlanner
     using System.Linq;
     using System.Numerics;
     using System.Text.Json;
+    using System.Threading.Tasks;
     using ClickableTransparentOverlay.Win32;
     using Coroutine;
     using ImGuiNET;
@@ -44,6 +45,8 @@ namespace ExpeditionPlanner
         private readonly Dictionary<uint, ExpeditionTarget> rememberedTargets = new();
         private readonly List<ExpeditionTarget> activeTargets = new();
         private RouteEvaluation currentRoute = new();
+        private Task<RouteEvaluation>? pendingRouteCalculation;
+        private string pendingRouteAreaHash = string.Empty;
 
         private string calculationStatusMessage = string.Empty;
 
@@ -108,6 +111,8 @@ namespace ExpeditionPlanner
             this.rememberedTargets.Clear();
             this.activeTargets.Clear();
             this.currentRoute = new RouteEvaluation();
+            this.pendingRouteCalculation = null;
+            this.pendingRouteAreaHash = string.Empty;
             this.calculationStatusMessage = string.Empty;
         }
 
@@ -131,6 +136,8 @@ namespace ExpeditionPlanner
                 this.nextScanUtc = DateTime.UtcNow.AddMilliseconds(150);
                 this.RefreshSnapshot(area);
             }
+
+            this.ApplyCompletedRouteCalculation(area);
 
             // Hotkey trigger to calculate route on demand
             if (Utils.IsKeyPressedAndNotTimeout(this.Settings.CalculateHotkey, 250))
@@ -579,6 +586,12 @@ namespace ExpeditionPlanner
 
         private void CalculateRoute(AreaInstance area, string triggerSource = "Manual")
         {
+            if (this.pendingRouteCalculation is { IsCompleted: false })
+            {
+                this.calculationStatusMessage = "Calculating route...";
+                return;
+            }
+
             if (this.activeTargets.Count == 0 && this.rememberedTargets.Count == 0)
             {
                 this.calculationStatusMessage = "No targets found to calculate";
@@ -601,16 +614,56 @@ namespace ExpeditionPlanner
                 }
             }
 
-            this.currentRoute = ExpeditionSolver.Solve(
-                this.detonatorGrid,
-                this.detonatorWorld,
-                this.placedBombs,
-                this.activeTargets,
-                area,
-                this.Settings);
-
-            this.calculationStatusMessage = $"Calculated ({triggerSource}) @ {DateTime.Now:HH:mm:ss} | {this.activeTargets.Count} targets";
+            var targetSnapshot = this.activeTargets.Select(CloneTarget).ToList();
+            var bombSnapshot = this.placedBombs.Select(b => new PlacedBombInfo
+            {
+                EntityId = b.EntityId, GridPosition = b.GridPosition, WorldPosition = b.WorldPosition, Order = b.Order
+            }).ToList();
+            var anchorGrid = this.detonatorGrid;
+            var anchorWorld = this.detonatorWorld;
+            var settings = this.Settings;
+            this.pendingRouteAreaHash = area.AreaHash ?? string.Empty;
+            this.pendingRouteCalculation = Task.Run(() => ExpeditionSolver.Solve(
+                anchorGrid, anchorWorld, bombSnapshot, targetSnapshot, area, settings));
+            this.calculationStatusMessage = $"Calculating ({triggerSource})...";
         }
+
+        private void ApplyCompletedRouteCalculation(AreaInstance area)
+        {
+            if (this.pendingRouteCalculation is not { IsCompleted: true } calculation)
+            {
+                return;
+            }
+
+            this.pendingRouteCalculation = null;
+            if (!string.Equals(this.pendingRouteAreaHash, area.AreaHash ?? string.Empty, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            try
+            {
+                this.currentRoute = calculation.GetAwaiter().GetResult();
+                this.calculationStatusMessage = $"Calculated @ {DateTime.Now:HH:mm:ss} | {this.activeTargets.Count} targets";
+            }
+            catch (Exception ex)
+            {
+                this.calculationStatusMessage = $"Route calculation failed: {ex.GetType().Name}";
+            }
+        }
+
+        private static ExpeditionTarget CloneTarget(ExpeditionTarget source) => new()
+        {
+            EntityId = source.EntityId, Path = source.Path, Kind = source.Kind, DisplayName = source.DisplayName,
+            GridPosition = source.GridPosition, WorldPosition = source.WorldPosition, TerrainHeight = source.TerrainHeight,
+            ModNames = new List<string>(source.ModNames), BaseWeight = source.BaseWeight, IsDangerous = source.IsDangerous,
+            HoleCount = source.HoleCount, GoldenSlotIndex = source.GoldenSlotIndex, AnchorSlotIndex = source.AnchorSlotIndex,
+            AnchorRuneName = source.AnchorRuneName, IsAnchorInGoldenSlot = source.IsAnchorInGoldenSlot,
+            RecommendedRuneChoice = source.RecommendedRuneChoice, RecipeDescription = source.RecipeDescription,
+            GoldenRuneCandidate = source.GoldenRuneCandidate, CandidateRuneSequence = new List<string>(source.CandidateRuneSequence),
+            ProliferatedRuneName = source.ProliferatedRuneName, ProliferatedRuneTier = source.ProliferatedRuneTier,
+            NeedsReroll = source.NeedsReroll, RerollReason = source.RerollReason
+        };
 
         private ExpeditionTarget? ClassifyTarget(Entity entity, AreaInstance area)
         {
