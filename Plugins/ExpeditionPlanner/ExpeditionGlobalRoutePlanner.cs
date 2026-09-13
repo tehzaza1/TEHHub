@@ -70,7 +70,28 @@ namespace ExpeditionPlanner
             return result.Distinct().ToList();
         }
 
-        private static float Value(ExpeditionTarget t, ExpeditionPlannerSettings s) => t.ProliferatedRuneTier switch { RuneTier.Golden => 15000, RuneTier.Purple_S => 4500, RuneTier.Purple_A => 1600, _ => t.BaseWeight > 0 ? t.BaseWeight : 20 };
+        private static float Value(ExpeditionTarget t, ExpeditionPlannerSettings s)
+        {
+            var rune = !string.IsNullOrWhiteSpace(t.ProliferatedRuneName)
+                ? t.ProliferatedRuneName
+                : t.AnchorRuneName;
+
+            // Farming order: establish the largest loot multiplier first, then the
+            // strongest proliferated modifiers. Lower-value runes naturally drop out
+            // of a short explosive budget because their score cannot beat these picks.
+            if (rune.Equals("Opulent", StringComparison.OrdinalIgnoreCase)) return 15_000f;
+            if (rune.Equals("Bond", StringComparison.OrdinalIgnoreCase)) return 10_000f;
+            if (rune.Equals("Oath", StringComparison.OrdinalIgnoreCase)) return 8_000f;
+            if (rune.Equals("Power", StringComparison.OrdinalIgnoreCase)) return 6_000f;
+
+            return t.ProliferatedRuneTier switch
+            {
+                RuneTier.Purple_S => 3_500f,
+                RuneTier.Purple_A => 1_200f,
+                RuneTier.Purple_B => 500f,
+                _ => t.BaseWeight > 0 ? t.BaseWeight : 20f,
+            };
+        }
     }
 }
 
