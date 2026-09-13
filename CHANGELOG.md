@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.8 — 2026-09-13
+
+- Defined the ExpeditionPlanner end state and definition of done: a standalone, manual recommendation tool for small and large encounters with verified placement constraints, clear explanations, and no game input.
+- Compatibility: documentation and synchronized version metadata only; runtime behaviour is unchanged.
+- Validation: documentation reviewed; Debug and Release core builds passed without warnings/errors after the version update.
+
 ## 1.6.7 — 2026-09-13
 
 - Added an implementation handoff for a standalone ExpeditionPlanner plugin, including verified PoE2 entity evidence, the small/large encounter design, safety boundaries, phased delivery, and validation criteria.

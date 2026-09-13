@@ -6,6 +6,18 @@ Create a standalone `ExpeditionPlanner` plugin for PoE 2. It must not add code, 
 
 The first deliverable is a read-only visual aid: show Expedition explosives, connector poles, and fuse links that the game has already placed. The later planner recommends a route; it never clicks, places, or detonates for the player.
 
+## Final target
+
+The completed plugin is a dependable manual decision aid for both small and large Expeditions:
+
+1. Before detonation, it identifies every placed explosive, fuse chain, connector, reward marker, and active remnant visible to the game.
+2. It draws the explosion network clearly enough for the player to understand which rewards and remnants each chain can reach.
+3. When PoE2 placement limits and blast radius have been verified, it evaluates the available choices and highlights the best manual placement route for the user's configured priorities.
+4. It explains why a route is preferred and marks missing or uncertain evidence instead of inventing an answer.
+5. It remains stable across area changes, supports any valid number of explosives/chains, and adds negligible work outside an active Expedition.
+
+The end product does **not** control the game. The player retains every placement and detonation action. A recommendation is hidden whenever the necessary PoE2 evidence cannot be read or validated.
+
 ## Confirmed live evidence
 
 Captured in a live Expedition encounter on 2026-09-13 using Debug TEHhub 1.6.6:
@@ -78,6 +90,17 @@ Acceptance: the plugin can state where its bomb count, legal placement zone, and
 4. Keep all interaction manual. There must be no simulated input, click, placement, or detonation path.
 
 Acceptance: recommendations disappear when their source evidence is stale, the area changes, or a required constraint cannot be verified.
+
+## Definition of done
+
+The project is complete when all of the following are true:
+
+- A standalone ExpeditionPlanner DLL loads with its own centralized settings and no Radar dependency.
+- It has been live-tested in at least one small and one large Expedition.
+- The overlay shows the complete confirmed network before detonation and does not leave stale drawings after an area change.
+- Placement recommendations are based on verified PoE2 count, range, blast-radius, and target data, with an explanation and confidence state.
+- The Release package remains lean and excludes the Debug evidence endpoints/tools.
+- Debug and Release builds, packaging checks, and the live validation results are recorded in `CHANGELOG.md`.
 
 ## Required validation and release rules
 
