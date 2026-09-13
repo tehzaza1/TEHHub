@@ -16,7 +16,7 @@
   <Target Name="CopyFiles" AfterTargets="Build">
     <ItemGroup>
       <_LootValueDeployFiles Include="$(OutDir)$(TargetName)$(TargetExt)" />
-      <_LootValueDeployFiles Include="$(MSBuildProjectDirectory)\pathBasenameToItemName.json;$(MSBuildProjectDirectory)\uniqueArtMapping.json" />
+      <_LootValueDeployFiles Include="$(MSBuildProjectDirectory)\pathBasenameToItemName.json;$(MSBuildProjectDirectory)\uniqueArtMapping.json;$(MSBuildProjectDirectory)\expedition2_recipes.json" />
     </ItemGroup>
     <Copy SourceFiles="@(_LootValueDeployFiles)"
           DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)"

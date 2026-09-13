@@ -199,7 +199,6 @@ namespace LootValue
 
                 candidates.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Plugins", "LootValue", "expedition2_recipes.json"));
                 candidates.Add(Path.Combine("Plugins", "LootValue", "expedition2_recipes.json"));
-                candidates.Add(@"C:\Games\Hy-v Tool\DXPEOE\trade\resources\runeshape\expedition2_recipes.json");
 
                 string? foundPath = null;
                 foreach (var c in candidates)

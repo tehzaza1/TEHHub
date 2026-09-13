@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.7.1 — 2026-09-13
+
+- Fixed LootValue Runeshape recipe loading to use the plugin-local `expedition2_recipes.json` deployed beside `LootValue.dll`.
+- Removed the machine-specific legacy fallback under `C:\Games\Hy-v Tool\DXPEOE\trade\resources`; a missing plugin-local catalog now fails visibly instead of silently using an external copy.
+- Compatibility: the recipe catalog is packaged with both Debug and Release LootValue builds. Existing settings are unchanged.
+- Validation: Debug and Release LootValue builds passed without warnings or errors; verified the deployed plugin output contains `expedition2_recipes.json`.
 ## 1.7.0 — 2026-09-13
 
 - Added a Debug-only, on-demand Expedition placement evidence capture at `POST` and `GET /api/diagnostics/expedition-placement-probe`. Its `ExpeditionDetonatorElement.Info` is explicitly entity-observed: it records detonator, placed bombs, connector poles, fuses, placement indicators, known Expedition targets, and bounded terrain samples around indicators.
