@@ -163,8 +163,10 @@ namespace ExpeditionPlanner
                             stepScore -= 40f;
                         }
 
-                        // Slight preference for shorter, tighter placements
-                        stepScore -= effectiveDist * 0.15f;
+                        // Keep a small wire-cost penalty, but do not let it force every
+                        // placement beside its current target. Forward progress toward the
+                        // next uncovered cluster is scored below.
+                        stepScore -= effectiveDist * 0.05f;
 
                         // Remaining bombs in the sequence that will benefit from runes detonated at this step
                         int remainingBombs = Math.Max(0, budget - (currentStep + step));
@@ -246,6 +248,17 @@ namespace ExpeditionPlanner
                                 }
                             }
                         }
+
+                        // When several positions hit the same targets, prefer the one that
+                        // also advances the fuse toward a target that remains uncovered.
+                        // This consumes the available placement range only when it opens the
+                        // next step; it does not make a long, purposeless wire attractive.
+                        stepScore += GetForwardProgressScore(
+                            start2D,
+                            end2D,
+                            availableTargets,
+                            coveredEntityIds,
+                            targetsInRadius) * 2.0f;
                     }
 
 
@@ -400,6 +413,19 @@ namespace ExpeditionPlanner
                     }
                 }
 
+                // If a wall or height boundary blocks the direct approach, derive a legal
+                // bridging point from a walkable A* path. The next solver iteration can then
+                // continue around the obstacle instead of drawing a wire through it.
+                if (LegalPlacement.TryFindTerrainDetourWaypoint(
+                    area,
+                    anchor2D,
+                    target2D,
+                    settings.MaxPlacementRangeGrid - 2.0f,
+                    out var detourWaypoint))
+                {
+                    AddCandidate(detourWaypoint.X, detourWaypoint.Y, t);
+                }
+
                 // 2. Circular perimeter sweep around the target (for multi-target clustering)
                 if (t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel)
                 {
@@ -451,6 +477,34 @@ namespace ExpeditionPlanner
             }
 
             return points;
+        }
+
+        private static float GetForwardProgressScore(
+            Vector2 anchor,
+            Vector2 candidate,
+            List<ExpeditionTarget> targets,
+            HashSet<uint> alreadyCovered,
+            List<ExpeditionTarget> targetsCoveredNow)
+        {
+            var coveredNow = targetsCoveredNow.Select(t => t.EntityId).ToHashSet();
+            float bestAdvance = 0f;
+
+            foreach (var target in targets)
+            {
+                if (alreadyCovered.Contains(target.EntityId) || coveredNow.Contains(target.EntityId))
+                {
+                    continue;
+                }
+
+                var targetPosition = new Vector2(target.GridPosition.X, target.GridPosition.Y);
+                var advance = Vector2.Distance(anchor, targetPosition) - Vector2.Distance(candidate, targetPosition);
+                if (advance > bestAdvance)
+                {
+                    bestAdvance = advance;
+                }
+            }
+
+            return bestAdvance;
         }
 
         private static List<ExpeditionTarget> FindTargetsInRadius(

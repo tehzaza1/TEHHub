@@ -7,6 +7,7 @@ namespace ExpeditionPlanner
 
     public static class LegalPlacement
     {
+        private const int DetourPathNodeLimit = 20_000;
         /// <summary>
         /// Physical footprint radius around a Remnant pillar or Sentinel where a bomb cannot be placed.
         /// In PoE 2 grid coordinates, the base collision is ~4.5 units (~50 world units).
@@ -121,6 +122,157 @@ namespace ExpeditionPlanner
 
             // Line is strictly clear if no blocked cells encountered
             return blockedCells == 0;
+        }
+
+        /// <summary>
+        /// Finds the first open-ground waypoint that progresses around terrain toward a target.
+        /// The returned point is both visible from <paramref name="start"/> and reachable by
+        /// one legal fuse segment, so the solver can use it as a bridging explosive.
+        /// </summary>
+        public static bool TryFindTerrainDetourWaypoint(
+            AreaInstance? area,
+            Vector2 start,
+            Vector2 target,
+            float maxSegmentLength,
+            out Vector2 waypoint)
+        {
+            waypoint = default;
+            if (area == null || IsLineClearOfTerrain(area, start, target, out _))
+            {
+                return false;
+            }
+
+            var data = area.GridWalkableData;
+            var bytesPerRow = area.TerrainMetadata.BytesPerRow;
+            if (data == null || data.Length == 0 || bytesPerRow <= 0)
+            {
+                return false;
+            }
+
+            int rows = data.Length / bytesPerRow;
+            int columns = bytesPerRow * 2;
+            if (rows <= 0 || columns <= 0)
+            {
+                return false;
+            }
+
+            (int X, int Y)? FindNearestOpen(Vector2 point, int radius)
+            {
+                int px = Math.Clamp((int)MathF.Round(point.X), 0, columns - 1);
+                int py = Math.Clamp((int)MathF.Round(point.Y), 0, rows - 1);
+                for (int r = 0; r <= radius; r++)
+                {
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        for (int dx = -r; dx <= r; dx++)
+                        {
+                            if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != r) continue;
+                            int x = px + dx;
+                            int y = py + dy;
+                            if (x >= 0 && y >= 0 && x < columns && y < rows && IsCellWalkable(area, x, y))
+                            {
+                                return (x, y);
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+
+            var startCell = FindNearestOpen(start, 8);
+            var targetCell = FindNearestOpen(target, 14);
+            if (startCell == null || targetCell == null)
+            {
+                return false;
+            }
+
+            var open = new PriorityQueue<(int X, int Y), float>();
+            var cost = new Dictionary<(int X, int Y), float>();
+            var parent = new Dictionary<(int X, int Y), (int X, int Y)>();
+            var startKey = startCell.Value;
+            var targetKey = targetCell.Value;
+            cost[startKey] = 0f;
+            open.Enqueue(startKey, Heuristic(startKey, targetKey));
+
+            int visited = 0;
+            bool found = false;
+            (int X, int Y) current = startKey;
+            (int X, int Y)[] neighbors =
+            [
+                (1, 0), (-1, 0), (0, 1), (0, -1),
+                (1, 1), (1, -1), (-1, 1), (-1, -1),
+            ];
+
+            while (open.Count > 0 && visited++ < DetourPathNodeLimit)
+            {
+                current = open.Dequeue();
+                if (current == targetKey)
+                {
+                    found = true;
+                    break;
+                }
+
+                foreach (var (dx, dy) in neighbors)
+                {
+                    int nx = current.X + dx;
+                    int ny = current.Y + dy;
+                    if (nx < 0 || ny < 0 || nx >= columns || ny >= rows || !IsCellWalkable(area, nx, ny))
+                    {
+                        continue;
+                    }
+
+                    // A diagonal must not cut through the corner of a wall.
+                    if (dx != 0 && dy != 0 && (!IsCellWalkable(area, current.X + dx, current.Y) || !IsCellWalkable(area, current.X, current.Y + dy)))
+                    {
+                        continue;
+                    }
+
+                    var next = (nx, ny);
+                    float stepCost = (dx == 0 || dy == 0) ? 1f : 1.414214f;
+                    float nextCost = cost[current] + stepCost;
+                    if (cost.TryGetValue(next, out var knownCost) && nextCost >= knownCost)
+                    {
+                        continue;
+                    }
+
+                    cost[next] = nextCost;
+                    parent[next] = current;
+                    open.Enqueue(next, nextCost + Heuristic(next, targetKey));
+                }
+            }
+
+            if (!found)
+            {
+                return false;
+            }
+
+            var path = new List<(int X, int Y)> { targetKey };
+            while (path[^1] != startKey)
+            {
+                path.Add(parent[path[^1]]);
+            }
+            path.Reverse();
+
+            float maxDistanceSquared = maxSegmentLength * maxSegmentLength;
+            for (int i = path.Count - 1; i > 0; i--)
+            {
+                var point = new Vector2(path[i].X, path[i].Y);
+                if (Vector2.DistanceSquared(start, point) <= maxDistanceSquared && IsLineClearOfTerrain(area, start, point, out _))
+                {
+                    waypoint = point;
+                    return true;
+                }
+            }
+
+            return false;
+
+            static float Heuristic((int X, int Y) a, (int X, int Y) b)
+            {
+                float dx = a.X - b.X;
+                float dy = a.Y - b.Y;
+                return MathF.Sqrt((dx * dx) + (dy * dy));
+            }
         }
 
         /// <summary>
