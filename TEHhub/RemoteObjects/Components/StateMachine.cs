@@ -532,11 +532,9 @@ namespace TEHhub.RemoteObjects.Components
                         lines.Add("No two-hop Rune DAT references from the bounded Inventory vectors.");
                     }
 
-                    var reverseScanRoot = diagnosticRoots.Find(static root => string.Equals(root.Name, "Controller.Inventories", StringComparison.Ordinal));
-                    if (reverseScanRoot.Address != IntPtr.Zero)
-                    {
-                        AppendLocalRunePointerReferences(lines, reverseScanRoot.Address, tableBase, rowStride);
-                    }
+                    // Process-wide reverse traversal is intentionally not run in the live capture
+                    // path. A first trial could stall while the game is transitioning memory
+                    // pages; the next discovery pass must use a separately scheduled worker.
                 }
 
                 lines.Add("Only valid, non-empty vector headers are listed. Raw data is capped at 128 bytes.");

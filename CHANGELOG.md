@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.24 — 2026-09-14
+
+- Disabled execution of the experimental local reverse Rune-pointer scan after its first live invocation stalled the Debug diagnostic request. The scanner remains isolated from runtime planning pending a worker-based design.
+- Compatibility: Diagnostic-only safety fix; public Release builds remain unaffected.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors; live probe recovery test pending deployment.
 ## 1.8.23 — 2026-09-14
 
 - Added a bounded Debug-only reverse-pointer scan around the paired RuneEncounterController. It searches committed readable local heap chunks for exact references to verified Rune DAT rows, exposing otherwise disconnected runtime holders without a process-wide scan.
