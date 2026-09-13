@@ -268,15 +268,18 @@ namespace ExpeditionPlanner
 
                         var cSize = ImGui.CalcTextSize(choiceText);
                         var sSize = ImGui.CalcTextSize(subText);
-                        var boxW = MathF.Max(cSize.X, sSize.X) + 16f;
-                        var boxH = 34f;
-                        var boxPos = sPos + new Vector2(-boxW * 0.5f, this.Settings.BadgeRadius + 6f);
+                        var padX = 14f;
+                        var padY = 8f;
+                        var lineGap = 4f;
+                        var boxW = MathF.Max(cSize.X, sSize.X) + (padX * 2f);
+                        var boxH = (padY * 2f) + cSize.Y + sSize.Y + lineGap;
+                        var boxPos = sPos + new Vector2(-boxW * 0.5f, this.Settings.BadgeRadius + 8f);
 
                         uint boxBorder = remnantTarget.NeedsReroll ? 0xFF0033FF : (remnantTarget.ProliferatedRuneTier == RuneTier.Golden ? 0xFFFFD700 : 0xFF00E5FF);
-                        drawList.AddRectFilled(boxPos, boxPos + new Vector2(boxW, boxH), 0xEE111111, 4f);
-                        drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), boxBorder, 4f, 0, 1.5f);
-                        drawList.AddText(boxPos + new Vector2(8, 2), tagColor, choiceText);
-                        drawList.AddText(boxPos + new Vector2(8, 17), remnantTarget.NeedsReroll ? 0xFF3333FF : 0xFFFFAA00, subText);
+                        drawList.AddRectFilled(boxPos, boxPos + new Vector2(boxW, boxH), 0xF0141414, 6f);
+                        drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), boxBorder, 6f, 0, 2.0f);
+                        drawList.AddText(boxPos + new Vector2(padX, padY), tagColor, choiceText);
+                        drawList.AddText(boxPos + new Vector2(padX, padY + cSize.Y + lineGap), remnantTarget.NeedsReroll ? 0xFF3333FF : 0xFFFFAA00, subText);
                     }
                 }
             }
@@ -675,6 +678,12 @@ namespace ExpeditionPlanner
             if (ImGui.Checkbox("Show Blast Radius Circles", ref showBlast))
             {
                 this.Settings.ShowBlastRadius = showBlast;
+            }
+
+            var bRadius = this.Settings.BadgeRadius;
+            if (ImGui.SliderFloat("Badge Circle Radius", ref bRadius, 15f, 45f, "%.0f px"))
+            {
+                this.Settings.BadgeRadius = bRadius;
             }
 
             ImGui.Separator();
