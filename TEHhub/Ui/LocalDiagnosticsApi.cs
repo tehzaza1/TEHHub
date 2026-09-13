@@ -397,6 +397,7 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(RuntimeLogEntry[]))]
     [JsonSerializable(typeof(ToolApiCatalog))]
     [JsonSerializable(typeof(ExpeditionProbeSnapshot))]
+    [JsonSerializable(typeof(ExpeditionProbeStat))]
     [JsonSerializable(typeof(ExpeditionUiSnapshot))]
     [JsonSerializable(typeof(ExpeditionPlacementSnapshot))]
     [JsonSerializable(typeof(ExpeditionOffsetScanSnapshot))]

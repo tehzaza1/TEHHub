@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.3 — 2026-09-13
+
+- Added `tools/Capture-ExpeditionScan.ps1`: interactive CLI wizard and command runner to execute the differential offset scan sequence `0 → 1 → 2 → 3 → 0` in live Expeditions and record surviving candidates.
+- Added `tools/Deploy-Debug.ps1`: safe Debug deployment script syncing binaries and plugins to `C:\Games\Hy-v Tool\DXPEOE\TEHhub` while strictly preserving `configs/`, `.ini`, and local runtime logs.
+- Enhanced `ExpeditionProbe.cs`: captures `Buffs` (`StatusEffects`) and `Stats` on candidate entities (including `Expedition2Encounter`) to identify Remnant modifier data sources without guessing.
+- Registered `ExpeditionProbeStat` in `DiagnosticsApiJsonContext` for source-generated JSON serialization.
+- Compatibility: Debug diagnostic probe enriched; Release builds cleanly compile out diagnostic endpoints; synchronized core and launcher version metadata.
+- Validation: Debug and Release builds succeeded with 0 Warnings and 0 Errors; verified robocopy deployment to `C:\Games\Hy-v Tool\DXPEOE\TEHhub` preserved existing configuration.
+
 ## 1.8.2 — 2026-09-13
 
 - Defined the ExpeditionPlanner pipeline explicitly: read current Rune/Remnant data, score it against the active player objective, filter candidate bomb points through `IsPlaceable`, then recommend only a legal ordered route.

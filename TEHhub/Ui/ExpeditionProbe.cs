@@ -146,6 +146,21 @@ namespace TEHhub.Ui
                 modNames = magic.ModNames.Take(MaxModsPerCandidate).OrderBy(name => name, StringComparer.Ordinal).ToList();
             }
 
+            var buffNames = new List<string>();
+            if (entity.TryGetComponent<Buffs>(out var buffs, shouldCache: false))
+            {
+                buffNames = buffs.StatusEffects.Keys.Take(MaxModsPerCandidate).OrderBy(name => name, StringComparer.Ordinal).ToList();
+            }
+
+            var stats = new List<ExpeditionProbeStat>();
+            if (entity.TryGetComponent<Stats>(out var statsComp, shouldCache: false))
+            {
+                foreach (var kv in statsComp.StatsChangedByBuffAndActions.Take(MaxModsPerCandidate))
+                {
+                    stats.Add(new ExpeditionProbeStat(kv.Key.ToString(), kv.Value));
+                }
+            }
+
             return new ExpeditionProbeCandidate(
                 entity.Id,
                 "0x" + entity.Address.ToInt64().ToString("X"),
@@ -157,7 +172,9 @@ namespace TEHhub.Ui
                 modelPath ?? string.Empty,
                 minimapIcon,
                 modNames,
-                componentNames);
+                componentNames,
+                buffNames,
+                stats);
         }
     }
 
@@ -183,7 +200,11 @@ namespace TEHhub.Ui
         string AnimatedModelPath,
         string? MinimapIconName,
         List<string> ModNames,
-        List<string> ComponentNames);
+        List<string> ComponentNames,
+        List<string> BuffNames,
+        List<ExpeditionProbeStat> Stats);
+
+    internal sealed record ExpeditionProbeStat(string Name, int Value);
 
     /// <summary>Simple coordinate DTO that does not expose native tuple implementation details.</summary>
     internal sealed record ExpeditionProbeVector(float X, float Y, float Z)
