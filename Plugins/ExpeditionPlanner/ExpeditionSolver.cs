@@ -207,13 +207,15 @@ namespace ExpeditionPlanner
                             }
                             else if (settings.Profile == PlannerProfile.PillarFirst)
                             {
-                                // In PillarFirst mode, non-pillar targets contribute nothing to score
-                                // (they may still be hit as collateral but don't drive placement decision)
-                                val = 0f;
+                                // PillarFirst: non-pillar targets score at 15% — large enough to tiebreak
+                                // between two equally-pillar-heavy positions, and still picks sensibly when
+                                // all pillars are already covered. Pillar bonuses (5000+) guarantee pillars
+                                // always beat any non-pillar cluster.
+                                val = GetTargetValue(target, settings) * 0.15f;
                             }
                             else
                             {
-                                // Optimal: non-pillar targets score normally
+                                // Optimal: non-pillar targets score at full value
                                 val = GetTargetValue(target, settings);
                             }
 
@@ -225,11 +227,11 @@ namespace ExpeditionPlanner
                                 if (settings.NeverTakeRunes.Contains(mod))
                                 {
                                     warnings.Add($"Forbidden rune detected: {mod}");
-                                    stepScore -= 200f; // Large penalty in both profiles
+                                    stepScore -= 200f;
                                 }
 
                                 // In PoE 2 Grand Expedition: ONLY the Golden Slot rune (target.AnchorRuneName) proliferates!
-                                // Other runes and mods in non-golden slots apply ONLY LOCALLY to this remnant (no proliferation multiplier).
+                                // Other runes and mods in non-golden slots apply ONLY LOCALLY to this remnant.
                                 bool isGoldenSlotRune = string.Equals(mod, target.AnchorRuneName, StringComparison.OrdinalIgnoreCase);
                                 if (!isGoldenSlotRune)
                                 {
@@ -237,18 +239,8 @@ namespace ExpeditionPlanner
                                 }
                             }
                         }
-
-                        // PillarFirst: if no pillar was hit by this placement, penalize heavily
-                        // so the solver strongly prefers placements that include at least one pillar
-                        if (settings.Profile == PlannerProfile.PillarFirst)
-                        {
-                            bool hasPillar = targetsInRadius.Any(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
-                            if (!hasPillar)
-                            {
-                                stepScore -= 2000f; // Massive penalty: only place bomb here if absolutely no pillar is reachable
-                            }
-                        }
                     }
+
 
                     if (stepScore > bestStepScore)
                     {
