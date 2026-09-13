@@ -337,12 +337,81 @@ namespace ExpeditionPlanner
                 proliferatedTier = RuneTier.Blue_C;
             }
 
-            recommendedChoice = isAnchorInGoldenSlot
-                ? $"[{holeCount} Sockets] {anchorName}"
-                : $"[{holeCount} Sockets] Golden: {goldenRuneCandidate}";
+            // Build the best recipe reference so the player knows WHICH ROW to click in the Runeshape Combinations dialog
+            // Strategy: pick the best matching recipe (highest golden-slot tier, then highest rewardCount)
+            RecipeDef? bestRecipe = null;
+            if (!isUnique && matchingRecipes.Count > 0)
+            {
+                int capturedGoldenSlot = goldenSlotIndex; // capture out-param for use inside lambda
+                bestRecipe = matchingRecipes
+                    .Where(r => r.runeIdx != null && r.runeIdx.Count > capturedGoldenSlot)
+                    .OrderBy(r =>
+                    {
+                        var gIdx = r.runeIdx![capturedGoldenSlot];
+                        var rName = (gIdx >= 0 && gIdx < RuneNames.Length) ? RuneNames[gIdx] : string.Empty;
+                        return (int)GetRuneTier(rName);
+                    })
+                    .ThenByDescending(r => r.rewardCount)
+                    .ThenByDescending(r => r.size)
+                    .FirstOrDefault();
+            }
+
+            // Build candidateRuneSequence from best recipe (player can match visually)
+            if (bestRecipe?.runes != null && bestRecipe.runes.Count > 0)
+            {
+                candidateRuneSequence = bestRecipe.runes;
+            }
+            else if (bestRecipe?.runeIdx != null)
+            {
+                candidateRuneSequence = bestRecipe.runeIdx
+                    .Select(idx => (idx >= 0 && idx < RuneNames.Length) ? RuneNames[idx] : "?")
+                    .ToList();
+            }
+            else
+            {
+                candidateRuneSequence = new List<string>();
+            }
+
+            // Build the "Pick:" text that tells the player exactly what row to click
+            string rewardLabel;
+            if (bestRecipe?.reward != null && !string.IsNullOrEmpty(bestRecipe.reward.name))
+            {
+                rewardLabel = bestRecipe.rewardCount > 1
+                    ? $"{bestRecipe.rewardCount}x {bestRecipe.reward.name}"
+                    : bestRecipe.reward.name;
+            }
+            else if (!string.IsNullOrEmpty(bestRecipe?.description))
+            {
+                rewardLabel = bestRecipe!.description!;
+            }
+            else
+            {
+                rewardLabel = string.Empty;
+            }
+
+            string runeRow = candidateRuneSequence.Count > 0
+                ? string.Join(" - ", candidateRuneSequence)
+                : string.Empty;
+
+            if (!string.IsNullOrEmpty(rewardLabel) && !string.IsNullOrEmpty(runeRow))
+            {
+                recommendedChoice = $"Pick: {rewardLabel}  [{runeRow}]";
+            }
+            else if (!string.IsNullOrEmpty(rewardLabel))
+            {
+                recommendedChoice = $"Pick: {rewardLabel}";
+            }
+            else if (isAnchorInGoldenSlot)
+            {
+                recommendedChoice = $"[{holeCount} Sockets] {anchorName}";
+            }
+            else
+            {
+                recommendedChoice = $"[{holeCount} Sockets] Golden: {goldenRuneCandidate}";
+            }
+
             description = "Excavate for Runic Monsters and proliferated modifier buffs";
             estimatedValue = GetTierBaseScore(proliferatedTier, holeCount);
-            candidateRuneSequence = new List<string>();
 
             return true;
         }
@@ -367,11 +436,22 @@ namespace ExpeditionPlanner
 
         private sealed class RecipeDef
         {
+            public int row { get; set; }
             public string? id { get; set; }
             public int size { get; set; }
             public int minLevel { get; set; }
             public int maxLevel { get; set; }
             public List<int>? runeIdx { get; set; }
+            public List<string>? runes { get; set; }   // human-readable rune names per slot
+            public RewardInfo? reward { get; set; }
+            public int rewardCount { get; set; } = 1;
+            public string? description { get; set; }
+        }
+
+        private sealed class RewardInfo
+        {
+            public string? id { get; set; }
+            public string? name { get; set; }
         }
     }
 }
