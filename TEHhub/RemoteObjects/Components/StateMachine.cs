@@ -217,6 +217,19 @@ namespace TEHhub.RemoteObjects.Components
                     }
                 }
 
+                // Rune rows can be represented by compact table indexes rather than pointers.
+                // Record only non-zero values that fit the verified 34-rune catalog, from the
+                // station and its immediate sidecars. This is evidence gathering, not decoding.
+                AppendSmallRuneIndexValues(lines, "Station", station);
+                AppendSmallRuneIndexValues(lines, "Anchor holder", anchorHolder);
+                foreach (var root in diagnosticRoots)
+                {
+                    if (root.Name.StartsWith("Listener[", StringComparison.Ordinal))
+                    {
+                        AppendSmallRuneIndexValues(lines, root.Name, root.Address);
+                    }
+                }
+
                 // The paired RuneEncounterController exposes an Inventories component even though
                 // its rune rows are not referenced directly from the station. Inspect that one
                 // component as an inventory-shaped object before widening any raw pointer scan.
@@ -682,6 +695,26 @@ namespace TEHhub.RemoteObjects.Components
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern UIntPtr VirtualQueryEx(IntPtr process, IntPtr address, out MemoryBasicInformation buffer, UIntPtr length);
+
+        private static void AppendSmallRuneIndexValues(List<string> lines, string name, IntPtr address)
+        {
+            if (address == IntPtr.Zero) return;
+            var values = new List<string>();
+            for (var offset = 0; offset <= 0x400 && values.Count < 32; offset += sizeof(int))
+            {
+                if (!Core.Process.Handle.TryReadMemory<int>(address + offset, out var value, recordFailure: false) || value <= 0 || value >= RuneNames.Length)
+                {
+                    continue;
+                }
+
+                values.Add($"+0x{offset:X3}={value}({RuneNames[value]})");
+            }
+
+            if (values.Count > 0)
+            {
+                lines.Add($"Small Rune-index candidates {name}: {string.Join(", ", values)}");
+            }
+        }
 #endif
         private const int MaxStateMachineStates = 256;
 

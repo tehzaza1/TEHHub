@@ -2,6 +2,11 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.25 — 2026-09-14
+
+- Added a bounded Debug-only scan for compact non-zero values within the verified Rune catalog range in Rune Station and listener-sidecar structures, to test index-based rather than pointer-based rune storage.
+- Compatibility: Diagnostic-only; public Release builds compile it out.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors; live Debug API capture pending deployment.
 ## 1.8.24 — 2026-09-14
 
 - Disabled execution of the experimental local reverse Rune-pointer scan after its first live invocation stalled the Debug diagnostic request. The scanner remains isolated from runtime planning pending a worker-based design.
