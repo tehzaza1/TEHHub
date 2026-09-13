@@ -4,13 +4,12 @@ namespace ExpeditionPlanner
     using System.Collections.Generic;
     using System.Linq;
     using System.Numerics;
-    using TEHhub.RemoteObjects.States.InGameStateObjects;
 
     // Global, whole-route search inspired by ExpeditionIcons: evaluate complete legal routes,
     // then retain the highest-value route rather than committing a greedy next point.
     internal static class ExpeditionGlobalRoutePlanner
     {
-        public static RouteEvaluation Solve(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, AreaInstance area, ExpeditionPlannerSettings settings)
+        public static RouteEvaluation Solve(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings)
         {
             var candidates = BuildCandidates(targets, settings);
             var best = new RouteEvaluation { Profile = settings.Profile.ToString() };
@@ -21,17 +20,20 @@ namespace ExpeditionPlanner
             // artificial "bomb #20". Try every usable route length and retain the best.
             for (int count = 1; count <= maxCount; count++)
             {
-                for (int attempt = 0; attempt < 32; attempt++)
+                // ExpeditionIcons evolves a bounded pool of complete paths. Keep this
+                // similarly bounded; 12 seeds per length is enough for pillar-only mode
+                // and cannot monopolize a CPU core for seconds.
+                for (int attempt = 0; attempt < 12; attempt++)
                 {
-                    var route = BuildRoute(startGrid, startWorld, placed, targets, candidates, area, settings, count, random);
+                    var route = BuildRoute(startGrid, startWorld, placed, targets, candidates, terrain, settings, count, random);
                     if (route.NetScore > best.NetScore) best = route;
                 }
             }
-            best.Reason = $"Global route search ({best.Placements.Count} bombs, 96 full-route candidates).";
+            best.Reason = $"Bounded global route search ({best.Placements.Count} bombs, {maxCount * 12} complete-route seeds).";
             return best;
         }
 
-        private static RouteEvaluation BuildRoute(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, List<Vector3> candidates, AreaInstance area, ExpeditionPlannerSettings settings, int count, Random random)
+        private static RouteEvaluation BuildRoute(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, List<Vector3> candidates, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings, int count, Random random)
         {
             var result = new RouteEvaluation { Profile = settings.Profile.ToString() };
             var covered = new HashSet<uint>();
@@ -47,7 +49,7 @@ namespace ExpeditionPlanner
                 Vector3? best = null; float bestScore = float.NegativeInfinity; List<ExpeditionTarget>? hitBest = null;
                 foreach (var point in candidates.OrderBy(_ => random.Next()).Take(160))
                 {
-                    if (!LegalPlacement.IsPlaceable(point, anchor, area, settings, targets, startGrid, committed)) continue;
+                    if (!LegalPlacement.IsPlaceable(point, anchor, terrain, settings, targets, startGrid, committed)) continue;
                     var hit = targets.Where(t => !covered.Contains(t.EntityId) &&
                         (t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel) &&
                         Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();

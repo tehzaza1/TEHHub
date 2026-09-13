@@ -621,10 +621,13 @@ namespace ExpeditionPlanner
             }).ToList();
             var anchorGrid = this.detonatorGrid;
             var anchorWorld = this.detonatorWorld;
-            var settings = this.Settings;
+            // Capture every native-backed value and mutable setting before starting the
+            // route worker. This mirrors ExpeditionIcons' immutable environment model.
+            var terrain = ExpeditionTerrainSnapshot.Capture(area);
+            var settings = CloneSettings(this.Settings);
             this.pendingRouteAreaHash = area.AreaHash ?? string.Empty;
             this.pendingRouteCalculation = Task.Run(() => ExpeditionGlobalRoutePlanner.Solve(
-                anchorGrid, anchorWorld, bombSnapshot, targetSnapshot, area, settings));
+                anchorGrid, anchorWorld, bombSnapshot, targetSnapshot, terrain, settings));
             this.calculationStatusMessage = $"Calculating ({triggerSource})...";
         }
 
@@ -662,7 +665,28 @@ namespace ExpeditionPlanner
             RecommendedRuneChoice = source.RecommendedRuneChoice, RecipeDescription = source.RecipeDescription,
             GoldenRuneCandidate = source.GoldenRuneCandidate, CandidateRuneSequence = new List<string>(source.CandidateRuneSequence),
             ProliferatedRuneName = source.ProliferatedRuneName, ProliferatedRuneTier = source.ProliferatedRuneTier,
-            NeedsReroll = source.NeedsReroll, RerollReason = source.RerollReason
+            NeedsReroll = source.NeedsReroll, RerollReason = source.RerollReason,
+            WasCoveredByPlacedBomb = source.WasCoveredByPlacedBomb,
+            IsDuplicateProliferation = source.IsDuplicateProliferation,
+            ProliferationRemaining = source.ProliferationRemaining
+        };
+
+        private static ExpeditionPlannerSettings CloneSettings(ExpeditionPlannerSettings source) => new()
+        {
+            Profile = source.Profile,
+            CalculateHotkey = source.CalculateHotkey,
+            MaxPlacementRangeGrid = source.MaxPlacementRangeGrid,
+            BlastRadiusGrid = source.BlastRadiusGrid,
+            BombClearanceRadiusGrid = source.BombClearanceRadiusGrid,
+            CampExclusionRadiusGrid = source.CampExclusionRadiusGrid,
+            MaxExplosiveBudget = source.MaxExplosiveBudget,
+            WeightChest = source.WeightChest, WeightElite = source.WeightElite, WeightMonster = source.WeightMonster,
+            WeightRemnant = source.WeightRemnant, WeightSentinel = source.WeightSentinel, WeightBoss = source.WeightBoss,
+            RuneWeights = new Dictionary<string, float>(source.RuneWeights),
+            NeverTakeRunes = new HashSet<string>(source.NeverTakeRunes),
+            ShowBadges = source.ShowBadges, ShowReasonCard = source.ShowReasonCard,
+            ShowBlastRadius = source.ShowBlastRadius, ShowTargetScores = source.ShowTargetScores,
+            BadgeRadius = source.BadgeRadius
         };
 
         private ExpeditionTarget? ClassifyTarget(Entity entity, AreaInstance area)

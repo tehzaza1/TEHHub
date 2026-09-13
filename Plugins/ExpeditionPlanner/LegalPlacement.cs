@@ -499,5 +499,108 @@ namespace ExpeditionPlanner
 
             return true;
         }
+
+        // Snapshot overloads are deliberately separate from the AreaInstance overloads.
+        // The former are safe in Task.Run because they only touch a copied byte array.
+        internal static bool IsCellWalkable(ExpeditionTerrainSnapshot? terrain, int gx, int gy)
+        {
+            if (terrain == null || gx < 0 || gy < 0) return true;
+            var byteIndex = (gy * terrain.BytesPerRow) + (gx / 2);
+            if ((uint)byteIndex >= (uint)terrain.Data.Length) return false;
+            var shift = (gx & 1) == 0 ? 0 : 4;
+            return ((terrain.Data[byteIndex] >> shift) & 0xF) != 0;
+        }
+
+        internal static bool HasWalkableClearance(ExpeditionTerrainSnapshot? terrain, float gx, float gy, float clearanceRadius = 5.0f)
+        {
+            if (terrain == null) return true;
+            int radius = (int)MathF.Ceiling(clearanceRadius);
+            int cx = (int)MathF.Round(gx);
+            int cy = (int)MathF.Round(gy);
+            float radiusSquared = clearanceRadius * clearanceRadius;
+            for (int dy = -radius; dy <= radius; dy++)
+            for (int dx = -radius; dx <= radius; dx++)
+            {
+                if ((dx * dx) + (dy * dy) <= radiusSquared && !IsCellWalkable(terrain, cx + dx, cy + dy)) return false;
+            }
+            return true;
+        }
+
+        internal static bool IsLineClearOfTerrain(ExpeditionTerrainSnapshot? terrain, Vector2 start, Vector2 end, out int blockedCells)
+        {
+            blockedCells = 0;
+            if (terrain == null) return true;
+            int x0 = (int)start.X, y0 = (int)start.Y, x1 = (int)end.X, y1 = (int)end.Y;
+            int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, error = dx - dy;
+            while (x0 != x1 || y0 != y1)
+            {
+                if (!IsCellWalkable(terrain, x0, y0)) blockedCells++;
+                var twiceError = 2 * error;
+                if (twiceError > -dy) { error -= dy; x0 += sx; }
+                if (twiceError < dx) { error += dx; y0 += sy; }
+            }
+            return blockedCells == 0;
+        }
+
+        internal static float CalculateEffectiveDistance(Vector2 start, Vector2 candidate, IEnumerable<ExpeditionTarget>? obstacles, ExpeditionTerrainSnapshot? terrain, out bool isLineObstructed)
+        {
+            var directDistance = Vector2.Distance(start, candidate);
+            isLineObstructed = false;
+            float effectiveDistance = directDistance;
+            if (obstacles != null)
+            {
+                foreach (var obstacle in obstacles)
+                {
+                    if (obstacle.Kind is not (TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)) continue;
+                    if (IntersectsObstacle(start, candidate, new Vector2(obstacle.GridPosition.X, obstacle.GridPosition.Y), PillarEffectiveRadius, out _))
+                    {
+                        isLineObstructed = true;
+                        effectiveDistance = MathF.Max(effectiveDistance, ComputeCircleDetourDistance(start, candidate, new Vector2(obstacle.GridPosition.X, obstacle.GridPosition.Y), PillarEffectiveRadius));
+                    }
+                }
+            }
+            if (terrain != null && !IsLineClearOfTerrain(terrain, start, candidate, out var blocked))
+            {
+                isLineObstructed = true;
+                if (blocked >= 35) return 9999f;
+                effectiveDistance += MathF.Min(20f, blocked * 1.5f);
+            }
+            return effectiveDistance;
+        }
+
+        internal static bool IsPlaceable(
+            Vector3 candidateGrid,
+            Vector3? anchorGrid,
+            ExpeditionTerrainSnapshot? terrain,
+            ExpeditionPlannerSettings settings,
+            IEnumerable<ExpeditionTarget>? obstacles = null,
+            Vector3? detonatorGrid = null,
+            IReadOnlyList<Vector3>? plannedPositions = null)
+        {
+            if (!HasWalkableClearance(terrain, candidateGrid.X, candidateGrid.Y, settings.BombClearanceRadiusGrid)) return false;
+            var candidate = new Vector2(candidateGrid.X, candidateGrid.Y);
+            if (detonatorGrid.HasValue && detonatorGrid.Value.LengthSquared() > 1f && Vector2.Distance(candidate, new Vector2(detonatorGrid.Value.X, detonatorGrid.Value.Y)) < settings.CampExclusionRadiusGrid) return false;
+            if (obstacles != null)
+            {
+                foreach (var obstacle in obstacles)
+                {
+                    if (obstacle.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel && Vector2.Distance(candidate, new Vector2(obstacle.GridPosition.X, obstacle.GridPosition.Y)) < PillarPhysicalRadius) return false;
+                }
+            }
+            if (plannedPositions != null)
+            {
+                float minSeparationSquared = MinBombSeparationGrid * MinBombSeparationGrid;
+                foreach (var placed in plannedPositions)
+                {
+                    if (Vector2.DistanceSquared(candidate, new Vector2(placed.X, placed.Y)) < minSeparationSquared) return false;
+                }
+            }
+            if (!anchorGrid.HasValue) return true;
+            var anchor = new Vector2(anchorGrid.Value.X, anchorGrid.Value.Y);
+            var directDistance = Vector2.Distance(anchor, candidate);
+            if (directDistance < 3.5f || directDistance > settings.MaxPlacementRangeGrid) return false;
+            if (!IsLineClearOfTerrain(terrain, anchor, candidate, out _)) return false;
+            return CalculateEffectiveDistance(anchor, candidate, obstacles, terrain, out _) <= settings.MaxPlacementRangeGrid;
+        }
     }
 }
