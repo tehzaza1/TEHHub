@@ -94,14 +94,14 @@ namespace TEHhub.RemoteObjects.Components
         /// Captures the bounded Rune Station diagnostic for the local Debug API. The capture is
         /// explicitly on-demand and is called from the render-thread diagnostic queue.
         /// </summary>
-        internal string CaptureRuneStationDiagnostic()
+        internal string CaptureRuneStationDiagnostic(IEnumerable<(string Name, IntPtr Address)>? extraRoots = null)
         {
             return this.TryGetRuneStationDetails(out var details) && details != null
-                ? this.CaptureStationVectorDiagnostic(details.SocketCount)
+                ? this.CaptureStationVectorDiagnostic(details.SocketCount, extraRoots)
                 : "This StateMachine does not resolve to a live Rune Station.";
         }
 
-        private string CaptureStationVectorDiagnostic(int socketCount)
+        private string CaptureStationVectorDiagnostic(int socketCount, IEnumerable<(string Name, IntPtr Address)>? extraRoots = null)
         {
             var lines = new List<string>();
             try
@@ -178,6 +178,16 @@ namespace TEHhub.RemoteObjects.Components
                 lines.Add($"Listener nodes: {nodes.Length} (showing up to 24)");
                 var linkedOwnerAddresses = new HashSet<long>();
                 var diagnosticRoots = new List<(string Name, IntPtr Address)> { ("Station", station), ("Anchor holder", anchorHolder) };
+                if (extraRoots != null)
+                {
+                    foreach (var root in extraRoots)
+                    {
+                        if (root.Address != IntPtr.Zero && diagnosticRoots.Count < 40)
+                        {
+                            diagnosticRoots.Add(root);
+                        }
+                    }
+                }
                 for (var listenerIndex = 0; listenerIndex < nodes.Length && listenerIndex < 24; listenerIndex++)
                 {
                     var nodeValue = nodes[listenerIndex];

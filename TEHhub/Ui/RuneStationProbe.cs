@@ -2,6 +2,7 @@
 namespace TEHhub.Ui;
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using TEHhub.RemoteObjects.Components;
@@ -58,12 +59,13 @@ internal static class RuneStationProbe
                 }
                 else
                 {
+                    var controllerRoots = FindPairedControllerRoots(area, entity);
                     result = new RuneStationProbeSnapshot(
                         DateTime.UtcNow,
                         request.EntityId,
                         "completed",
                         entity.Path,
-                        stateMachine.CaptureRuneStationDiagnostic());
+                        stateMachine.CaptureRuneStationDiagnostic(controllerRoots));
                 }
             }
         }
@@ -74,6 +76,32 @@ internal static class RuneStationProbe
 
         Volatile.Write(ref snapshot, result);
         request.Completion.SetResult(result);
+    }
+
+    private static List<(string Name, IntPtr Address)> FindPairedControllerRoots(
+        TEHhub.RemoteObjects.States.InGameStateObjects.AreaInstance area,
+        TEHhub.RemoteObjects.States.InGameStateObjects.Entity remnant)
+    {
+        const string ControllerPath = "Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController";
+        var roots = new List<(string Name, IntPtr Address)>();
+        if (!remnant.TryGetComponent<Render>(out var remnantRender, shouldCache: false)) return roots;
+
+        foreach (var candidate in area.AwakeEntities.Values)
+        {
+            if (candidate == null || !candidate.Path.StartsWith(ControllerPath, StringComparison.Ordinal) ||
+                !candidate.TryGetComponent<Render>(out var controllerRender, shouldCache: false)) continue;
+            if (Math.Abs(controllerRender.GridPosition.X - remnantRender.GridPosition.X) > 0.01f ||
+                Math.Abs(controllerRender.GridPosition.Y - remnantRender.GridPosition.Y) > 0.01f) continue;
+
+            foreach (var pair in candidate.GetComponentAddressPairs())
+            {
+                roots.Add(($"Controller.{pair.Key}", pair.Value));
+            }
+
+            break;
+        }
+
+        return roots;
     }
 
     private sealed class ProbeRequest(uint entityId)
