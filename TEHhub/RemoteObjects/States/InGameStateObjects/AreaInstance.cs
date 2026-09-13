@@ -1150,8 +1150,39 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                         }
 
                         // -------- Build payload --------
+                        object? groundItem = null;
+                        if (entity.Value.TryGetComponent<WorldItem>(out var worldItem))
+                        {
+                            var item = worldItem.Item;
+                            Base? itemBase = null;
+                            Mods? itemMods = null;
+                            Stack? itemStack = null;
+                            if (item != null)
+                            {
+                                item.TryGetComponent<Base>(out itemBase);
+                                item.TryGetComponent<Mods>(out itemMods);
+                                item.TryGetComponent<Stack>(out itemStack);
+                            }
+                            groundItem = new
+                            {
+                                ItemEntityAddress = worldItem.ItemEntityAddress.ToInt64().ToString("X"),
+                                Status = item == null ? "Unavailable" : item.IsValid ? "Available" : "Invalid",
+                                Name = worldItem.ItemName,
+                                Path = worldItem.ItemPath,
+                                Icon = worldItem.ItemIcon,
+                                InternalName = itemBase?.InternalName,
+                                Rarity = itemMods?.Rarity.ToString(),
+                                StackCount = itemStack?.Count,
+                                Components = item?.GetComponentNames()?.ToList(),
+                                ImplicitMods = itemMods?.ImplicitMods.Select(x => x.ToString()).ToList(),
+                                ExplicitMods = itemMods?.ExplicitMods.Select(x => x.ToString()).ToList(),
+                                EnchantMods = itemMods?.EnchantMods.Select(x => x.ToString()).ToList(),
+                                HellscapeMods = itemMods?.HellscapeMods.Select(x => x.ToString()).ToList()
+                            };
+                        }
                         var payload = new
                         {
+                            WorldItem = groundItem,
                             EntityId = entity.Value.Id,
                             Key = new { entity.Key.id },
                             Path = path,

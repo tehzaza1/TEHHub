@@ -8,9 +8,9 @@
     <Product>TEHhub</Product>
     <Title>TEHhub</Title>
     <Description>TEHhub overlay and plugin platform for Path of Exile 2, based on GameHelper2.</Description>
-    <Version>1.4.0</Version>
-    <AssemblyVersion>1.4.0.0</AssemblyVersion>
-    <FileVersion>1.4.0.0</FileVersion>
+    <Version>1.6.1</Version>
+    <AssemblyVersion>1.6.1.0</AssemblyVersion>
+    <FileVersion>1.6.1.0</FileVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -75,6 +75,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TEHhub.Offsets\TEHhub.Offsets.csproj" />
+    <None Include="..\tools\Capture-Barrage.ps1" Link="tools\Capture-Barrage.ps1" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="DeleteDebugSymbolFiles" AfterTargets="Build" Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

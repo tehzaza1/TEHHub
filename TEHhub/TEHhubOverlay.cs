@@ -34,7 +34,9 @@ namespace TEHhub
             PerformanceProfiler.InitializeCoroutines();
             MemoryReadDiagnostics.InitializeCoroutines();
             OffsetHelper.InitializeCoroutines();
+#if DEBUG
             LocalDiagnosticsApi.Start();
+#endif
             OverlayKiller.InitializeCoroutines();
             NearbyVisualization.InitializeCoroutines();
             KrangledPassiveDetector.InitializeCoroutines();
@@ -60,7 +62,9 @@ namespace TEHhub
         {
             if (disposing)
             {
+#if DEBUG
                 LocalDiagnosticsApi.Stop();
+#endif
                 Core.Dispose();
             }
 

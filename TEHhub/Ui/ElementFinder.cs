@@ -33,6 +33,12 @@ namespace TEHhub.Ui
         private static int lastSearchFrame = -1;
         private static string rootAddressHex = string.Empty;
         private static string lastError = string.Empty;
+        internal static Dictionary<string, string> GetToolStatus() => new()
+        {
+            ["root"] = rootAddressHex, ["lastError"] = lastError,
+            ["lastSearchFrame"] = lastSearchFrame.ToString(),
+            ["matches"] = string.Join("\n", Results.ConvertAll(r => $"{r.Element.Address:X}: {r.ChainDisplay}"))
+        };
 
         /// <summary>
         ///     Initializes the co-routines.

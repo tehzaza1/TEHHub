@@ -2,6 +2,109 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.1 — 2026-09-13
+
+- Removed the unused runtime metadata mapping writer; mapping files are loaded read-only. LootValue builds now deploy both verified mapping files alongside the plugin DLL.
+- Inspection of the user's live metadata file found 1,882 keys; all 836 verified aliases were still present with unchanged names. The missing-price cause is not established by this inspection.
+- Validation: Release solution build and launcher package checks recorded in the release build artifacts. Live price testing remains pending.
+
+## 1.6.0 — 2026-09-13
+
+- Added a central Debug tool API catalog, cached application/UI/plugin state, tool diagnostics, runtime logs and render-thread tool window requests. Added a bounded diagnostic publishing contract for plugins and usage documentation.
+- Compiled out the HTTP listener, tool hub and publisher from Release; ordinary in-program logs remain available. Core and launcher versions are synchronized at 1.6.0.
+- Added Currency Exchange list discovery using validated cached/fixed paths and a bounded fallback search, with scan diagnostics exposed to Debug tooling.
+- Validation: Release core/LootValue and launcher builds passed without warnings/errors; Debug recovery/diagnostics suite passed 214 assertions. Live Exchange overlay validation and deployment remain pending.
+
+## 1.5.14 — 2026-09-13
+
+- Re-audited the full 3,446-page cached linked catalog with two independent agents: metadata fields include all Type/ItemType rows and nearest item names; unique art pairs item headers with their own images rather than page og:image.
+- Added 104 verified metadata aliases and four unique art variants (Grand Spectrum Emerald and Grip of Kulemak TokenOfPassage02/03/04). Fixed mojibake Mjölner names in both maps.
+- Added independent audit tools and final reports. Validation after integration: 836/836 eligible metadata aliases covered, zero missing/conflicts; 454/454 unique art paths covered, zero missing/wrong names/loader collisions.
+- Scope excludes non-unique equipment and inactive entries; 855 pages expose no parsed metadata, one catalog category returns 404. This is not proof of all hidden/unlinked game items. Debug LootValue/core and launcher builds passed; deployment/live price validation pending.
+
+## 1.5.13 — 2026-09-13
+
+- Fixed audit parsing to accept gem ItemType metadata instead of requiring Type. Recovered and added all 12 previously unresolved gem metadata aliases from cached detail pages.
+- Added Briarpatch unique boots art separately, using the item Icon table instead of the page's gem og:image. Corrects prior unresolved classification; older audit counts remain historical.
+- Validation: recovered full metadata paths documented with source URLs; Debug LootValue/core and launcher builds passed. Deployment/live price validation pending.
+
+## 1.5.12 — 2026-09-13
+
+- Added five missing unique item art mappings from cached PoE2DB detail pages: Grand Spectrum (Sapphire art), Grip of Kulemak, Infernoclasp, The Remembered Tales, The Wailing Wall.
+- Extended conservative fill tooling to unique detail pages outside aggregate catalog; gem and skill/passive icons are excluded. Metadata mapping remains path-only; no guessed paths or prices added.
+- Validation: primary item popups identify the added items as Unique; JSON parsed and Debug LootValue/core and launcher builds passed. Deployment and live price validation pending.
+
+## 1.5.11 — 2026-09-13
+
+- Restricted bundled pathBasenameToItemName to 720 aliases verified against metadata basenames in the audit; moved 1,131 icon/unverified aliases to a review report rather than treating them as metadata.
+- Provider IDs/icon aliases now remain in a separate transient runtime dictionary and no longer merge into or save the metadata mapping file. Unique art remains separate.
+- Validation: JSON filtering and Preserved Cranium metadata alias checked; Debug LootValue/core and launcher builds passed. Unverified removed aliases may require future real metadata evidence. Deployment pending.
+
+## 1.5.10 — 2026-09-13
+
+- Refined 950 unparsed-metadata pages against both mapping files: 516 covered, 411 without identified item art, 23 unmatched item-art records (15 after excluding DNT/Removed Skill). Added readable/source-linked unresolved report.
+- Validation: cached page parsing and normalized mapping comparisons completed. Candidates are not yet verified as tradeable items; documentation/version-only update, no binary rebuild.
+
+## 1.5.9 — 2026-09-13
+
+- Added a readable list of all 1,761 excluded equipment metadata aliases and audit pages without parsed metadata, clarifying that unresolved metadata pages are not necessarily missing unique art mappings.
+- Validation: generated list from audit/fill JSON and checked category totals sum to 1,761. Documentation/version-only change; binaries not rebuilt in this step.
+
+## 1.5.8 — 2026-09-13
+
+- Added 679 unambiguous metadata-basename aliases to pathBasenameToItemName from the cached PoE2DB audit. Excluded 1,761 equipment aliases from the initial fill; non-unique equipment is excluded from future fills. Unique art remains in uniqueArtMapping; all art/name entries extracted from the linked Unique_item catalog were already present, so none were duplicated.
+- Added a repeatable conservative fill script and provenance report; existing mappings are preserved, unused/DNT items excluded, ambiguous aliases rejected. This does not establish full coverage of hidden or unlinked game items and does not add market prices.
+- Validation: both JSON files parsed, expected addition count and Preserved Cranium alias verified; Debug LootValue/core and launcher builds passed. Deployment/live price validation pending.
+
+## 1.5.7 — 2026-09-13
+
+- Added a repeatable cached PoE2DB linked-item mapping audit and a report of missing/conflicting aliases; no ambiguous mappings were merged.
+- Validation: audited 64 linked categories and 3,446 detail links; 2,496 pages expose item metadata, 2,814 unambiguous aliases are absent, 335 aliases conflict or are ambiguous. One category returned 404; 950 details lacked parsed item metadata. Scope is the site's linked catalog, not proof of all game items.
+- Core and launcher versions synchronized; Debug builds passed. No live-game changes tested.
+
+## 1.5.6 — 2026-09-13
+
+- Added 88 missing icon-basename mappings from live poe.ninja Abyss and LineageSupportGems responses to the bundled mapping file.
+- Added AbyssalBenchTicketJewel -> Preserved Cranium metadata alias confirmed by the user's live inspector; no fixed prices added.
+- Validation: JSON parsed successfully, provider mapping extraction uses the existing normalization rules; Debug LootValue/core and launcher builds passed. Deployment pending.
+
+## 1.5.5 — 2026-09-13
+
+- Added missing poe.ninja LineageSupportGems exchange category (75 listings returned for Forbidden Rites at audit time). Bumped cache schema to 6 to rebuild incomplete caches.
+- Validation: checked 22 exchange type candidates and 16 stash type candidates against live provider endpoints; all eight configured stash types returned data. Additional guessed exchange types returned empty and stash types returned 404, so were not added. Scout live audit was blocked by HTML/403 responses and remains inconclusive.
+- Debug LootValue/core and launcher builds passed. No updated in-game price validation or deployment performed.
+
+## 1.5.4 — 2026-09-13
+
+- Fixed missing poe.ninja Abyss currency prices by fetching the Abyss exchange category, including Preserved Cranium.
+- Bumped price-cache schema to 5 so old caches missing this category are rebuilt.
+- Validation: live provider response for Forbidden Rites contains preserved-cranium in Abyss; Debug LootValue, core and launcher builds passed. Updated in-game overlay is not deployed/tested yet.
+
+## 1.5.3 — 2026-09-13
+
+- Fixed ground entity dumps to include the WorldItem inner item: availability, address, display/internal names, metadata/icon paths, rarity, stack count, components and mod lists.
+- Existing outer entity fields are retained; the new WorldItem section is null for other entities and reports unavailable/invalid inner items explicitly.
+- Validation: Debug core and launcher builds passed. Updated dump has not been validated live or deployed yet.
+
+## 1.5.2 — 2026-09-12
+
+- Extended UI research to read bounded UI identifiers and one level of payload pointers from visible compact controls; retains pointer addresses and read success for comparisons.
+- Expanded traversal to 16,384 nodes/depth 20 with a 250 ms scheduling budget and 2,048 unique payload pointers. Captures remain on demand and report limits; a temporary capture hitch is possible.
+- Validation: Debug core and launcher builds passed. Live expanded UI capture and remaining-use identification are pending. Prior 3/2/1/0 samples yielded no exact counter among captured bytes.
+
+## 1.5.1 — 2026-09-12
+
+- Extended on-demand Barrage research with raw 0x80-byte buff records and UI node fields/raw bytes (0x400 per node), retaining unknown fields for comparison.
+- UI traversal is bounded by 4,096 nodes, depth 12 and a 100 ms scheduling budget; reports explicitly record truncation. This can cause a short frame hitch on capture and is inactive otherwise.
+- Validation: Debug core build passed. Live UI capture and Barrage remaining-use identification are pending; prior component captures at observed 3/2/1/0 confirmed the visual buff disappears at zero.
+
+## 1.5.0 — 2026-09-12
+
+- Added on-demand player buff, active skill and cooldown research snapshots through the loopback API, copied from cached components on the render thread.
+- Added Capture-Barrage.ps1 to save snapshots labeled with the remaining uses observed in game. This collects evidence; it does not expose a verified Barrage remaining-use counter.
+- Added area capture controls excluding town/hideout; deployment and whole-map live validation remain pending.
+- Core and launcher versions synchronized at 1.5.0. Validation: Debug core build passed; no live Barrage capture performed yet.
+
 ## 1.4.0 — 2026-09-12
 
 - Added a small hidden background monitor for normal Release gameplay: collect 20 seconds every three minutes, stop instrumentation between rounds, and write bounded reports under logs/performance-monitor.

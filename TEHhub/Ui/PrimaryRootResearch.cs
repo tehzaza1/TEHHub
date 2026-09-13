@@ -22,6 +22,11 @@ namespace TEHhub.Ui
         private static string status = "idle";
         private static string localModel = OffsetAiResearch.DefaultModel;
         private static bool requestAi;
+        internal static Dictionary<string, string> GetToolStatus() => new()
+        {
+            ["status"] = status, ["running"] = (running != null).ToString(),
+            ["model"] = localModel, ["aiRequested"] = requestAi.ToString()
+        };
 
         internal static void Tick()
         {

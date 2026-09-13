@@ -54,7 +54,7 @@ namespace LootValue
 
         // Bump whenever the cache shape or how the art->name index is built changes, so caches written
         // by an older plugin version are discarded instead of trusted. (v4: separate pathBasenameToItemName.json file)
-        private const int CacheSchemaVersion = 4;
+        private const int CacheSchemaVersion = 6;
 
         private static readonly string[] ScoutCurrencyCategories =
         {
@@ -71,7 +71,7 @@ namespace LootValue
         private static readonly string[] NinjaExchangeTypes =
         {
             "Currency", "Fragments", "UncutGems", "Essences", "SoulCores", "Idols", "Runes",
-            "Expedition", "Verisium", "Ritual", "Delirium", "Breach",
+            "Expedition", "Verisium", "Ritual", "Delirium", "Breach", "Abyss", "LineageSupportGems",
         };
 
         private static readonly string[] NinjaStashTypes =
@@ -120,13 +120,14 @@ namespace LootValue
         private static Dictionary<string, double> flatPricesChaos = new(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, List<UniquePriceListing>> uniqueListingsByName = new(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, string> pathBasenameToItemName = new(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, string> providerNameAliases = new(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, string> uniqueArtMapping = new(StringComparer.OrdinalIgnoreCase);
 
         private static bool isFetching;
         private static bool isFailingOver;
         private static string pluginDir = string.Empty;
         private static string cacheFilePath = string.Empty;
-        private static string pathBasenameMappingFilePath = string.Empty;
+
         private static DateTime lastFetchTime = DateTime.MinValue;
         private static int configuredSource = SourcePoe2Scout;
         private static int activeSource = SourcePoe2Scout;
@@ -221,7 +222,7 @@ namespace LootValue
         {
             pluginDir = pluginDirectory;
             cacheFilePath = Path.Combine(pluginDirectory, "price_cache.json");
-            pathBasenameMappingFilePath = Path.Combine(pluginDirectory, "pathBasenameToItemName.json");
+
 
             LoadUniqueArtMapping(pluginDirectory);
             LoadPathBasenameMapping(pluginDirectory);
@@ -332,23 +333,6 @@ namespace LootValue
             }
         }
 
-        private static void SavePathBasenameMapping()
-        {
-            if (string.IsNullOrEmpty(pathBasenameMappingFilePath)) return;
-
-            try
-            {
-                Dictionary<string, string> snapshot;
-                lock (Gate)
-                {
-                    snapshot = new Dictionary<string, string>(pathBasenameToItemName, StringComparer.OrdinalIgnoreCase);
-                }
-
-                File.WriteAllText(pathBasenameMappingFilePath, JsonSerializer.Serialize(snapshot, LootValueJsonContext.Default.DictionaryStringString));
-            }
-            catch { }
-        }
-
         public static async Task AutoScanLeaguesAsync()
         {
             var candidates = new[]
@@ -449,6 +433,12 @@ namespace LootValue
                 !string.IsNullOrWhiteSpace(resolvedName))
             {
                 displayName = resolvedName;
+                return true;
+            }
+
+            if (providerNameAliases.TryGetValue(normalizedKey, out var providerName))
+            {
+                displayName = providerName;
                 return true;
             }
 
@@ -827,20 +817,12 @@ namespace LootValue
                 divChaos = result.Rates.DivChaos;
                 exChaos = result.Rates.ExChaos;
 
-                var newMappingsDiscovered = false;
                 lock (Gate)
                 {
                     flatPricesChaos = flat;
                     uniqueListingsByName = uniques;
-                    foreach (var (k, v) in pathNames)
-                    {
-                        var normKey = NormalizeKey(k);
-                        if (!pathBasenameToItemName.ContainsKey(normKey))
-                        {
-                            pathBasenameToItemName[normKey] = v;
-                            newMappingsDiscovered = true;
-                        }
-                    }
+                    // Provider IDs/icon names are transient aliases, not metadata paths.
+                    providerNameAliases = new Dictionary<string, string>(pathNames, StringComparer.OrdinalIgnoreCase);
                     chaosPerDivine = divChaos > 0 ? divChaos : chaosPerDivine;
                     chaosPerExalted = exChaos > 0 ? exChaos : chaosPerExalted;
                     if (chaosPerExalted > 0)
@@ -850,10 +832,6 @@ namespace LootValue
                 }
 
                 SaveCacheToDisk();
-                if (newMappingsDiscovered)
-                {
-                    SavePathBasenameMapping();
-                }
             }
             catch { }
             finally

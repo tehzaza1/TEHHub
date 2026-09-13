@@ -3,7 +3,8 @@ param(
     [ValidateSet('Run','Start','Stop','Status')][string]$Mode = 'Run',
     [ValidateRange(5,60)][int]$CaptureSeconds = 20,
     [ValidateRange(90,3600)][int]$IntervalSeconds = 180,
-    [ValidateSet('Any','Debug','Release')][string]$ExpectedBuild = 'Any'
+    [ValidateSet('Any','Debug','Release')][string]$ExpectedBuild = 'Any',
+    [ValidateSet('Area','Timed')][string]$TrackingMode = 'Area'
 )
 $ErrorActionPreference = 'Stop'
 $monitorRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../logs/performance-monitor'))
@@ -13,7 +14,7 @@ New-Item -ItemType Directory -Path $monitorRoot -Force | Out-Null
 if ($Mode -eq 'Stop') { [IO.File]::WriteAllText($stopPath, 'stop'); Write-Output 'Monitor stop requested.'; return }
 if ($Mode -eq 'Status') { if (Test-Path -LiteralPath $statePath) { Get-Content -LiteralPath $statePath -Raw }; return }
 if ($Mode -eq 'Start') {
-    $startArguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}" -Mode Run -CaptureSeconds {1} -IntervalSeconds {2} -ExpectedBuild {3}' -f $PSCommandPath, $CaptureSeconds, $IntervalSeconds, $ExpectedBuild
+    $startArguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}" -Mode Run -CaptureSeconds {1} -IntervalSeconds {2} -ExpectedBuild {3} -TrackingMode {4}' -f $PSCommandPath, $CaptureSeconds, $IntervalSeconds, $ExpectedBuild, $TrackingMode
     $backgroundMonitor = Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $startArguments -PassThru
     Write-Output "Monitor started: PID $($backgroundMonitor.Id). Reports: $monitorRoot"
     return
@@ -30,6 +31,7 @@ $roundCount = 0
 $ownedCapture = ''
 $ownedPid = 0
 $lastReportPath = ''
+$ownsAreaMode = $false
 function Save-State([string]$Stage, [string]$Message, [string]$Report = '') {
     if ($Report) { $script:lastReportPath = $Report }
     $state = @{ monitorPid=$PID; updatedUtc=[DateTime]::UtcNow.ToString('o'); stage=$Stage; message=$Message; completedRounds=$roundCount; lastReport=$lastReportPath; captureSeconds=$CaptureSeconds; intervalSeconds=$IntervalSeconds }
@@ -46,10 +48,10 @@ function Wait-Monitor([double]$Seconds) {
     return $true
 }
 function Stop-OwnedCapture {
-    if (!$ownedCapture) { return }
+    if (!$ownedCapture -and !$ownsAreaMode) { return }
     try {
         $currentStatus = Invoke-RestMethod "$baseUri/capture-status" -TimeoutSec 3
-        if ($currentStatus.processId -eq $ownedPid -and $currentStatus.captureId -eq $ownedCapture -and $currentStatus.active) {
+        if ($currentStatus.processId -eq $ownedPid -and (($ownsAreaMode -and $currentStatus.areaMode) -or ($currentStatus.captureId -eq $ownedCapture -and $currentStatus.active))) {
             Invoke-RestMethod "$baseUri/capture-stop" -Method Post -ContentType 'application/json' -Body '{}' -TimeoutSec 3 | Out-Null
         }
     } catch { }
@@ -57,6 +59,29 @@ function Stop-OwnedCapture {
 try {
     if (Test-Path -LiteralPath $stopPath) { Remove-Item -LiteralPath $stopPath }
     Save-State 'waiting' 'Waiting for TEHhub diagnostics API.'
+    if ($TrackingMode -eq 'Area') {
+        while (!(Test-Path -LiteralPath $stopPath)) {
+            try {
+                $areaStatus = Invoke-RestMethod "$baseUri/capture-status" -TimeoutSec 3
+                if ($ExpectedBuild -ne 'Any' -and $areaStatus.build -ne $ExpectedBuild) { throw "Waiting for $ExpectedBuild." }
+                if (!$areaStatus.areaMode) {
+                    if ($areaStatus.active) { throw 'Another capture is active; waiting without resetting it.' }
+                    Invoke-RestMethod "$baseUri/capture-area-start" -Method Post -ContentType 'application/json' -Body '{}' -TimeoutSec 3 | Out-Null
+                }
+                $ownedPid = $areaStatus.processId
+                $ownsAreaMode = $true
+                if ($areaStatus.active) {
+                    $areaSample = Invoke-RestMethod "$baseUri/bottleneck-snapshot" -TimeoutSec 3
+                    if ($areaSample.processId -eq $ownedPid -and $areaSample.captureId -eq $areaStatus.captureId) {
+                        [IO.File]::WriteAllText((Join-Path $monitorRoot 'current-map.json'), ($areaSample | ConvertTo-Json -Depth 16), $utf8)
+                        Save-State 'capturing-map' "Tracking the whole area $($areaSample.areaHash)."
+                    }
+                } else { Save-State 'waiting-map' 'Town, hideout, loading or unknown area: not counting.' }
+            } catch { Save-State 'waiting' $_.Exception.Message }
+            if (!(Wait-Monitor 2)) { break }
+        }
+        return
+    }
     while (!(Test-Path -LiteralPath $stopPath)) {
         $samples = [Collections.Generic.List[object]]::new()
         $ownedCapture = ''

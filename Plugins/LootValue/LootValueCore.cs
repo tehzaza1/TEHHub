@@ -76,6 +76,11 @@ namespace LootValue
         private bool isSlotScanRunning = false;
         private List<ExchangePriceLabel> cachedExchangeLabels = new();
         private DateTime nextExchangeScanUtc = DateTime.MinValue;
+        // Currency Exchange moved several times between game patches.  Keep a discovered list
+        // address while it remains valid and only search the UI tree occasionally when it is not.
+        private IntPtr cachedExchangeListAddress;
+        private DateTime nextExchangeDiscoveryUtc = DateTime.MinValue;
+        private string exchangeDiagnostic = "Currency Exchange: waiting for scan.";
         private bool isRecomputeRunning = false;
         private bool isTagScanRunning = false;
         private bool isAlertScanRunning = false;
@@ -234,6 +239,9 @@ namespace LootValue
             this.cachedRitualGridAddress = IntPtr.Zero;
             this.cachedExchangeLabels.Clear();
             this.nextExchangeScanUtc = DateTime.MinValue;
+            this.cachedExchangeListAddress = IntPtr.Zero;
+            this.nextExchangeDiscoveryUtc = DateTime.MinValue;
+            this.exchangeDiagnostic = "Currency Exchange: waiting for scan.";
             this.cachedMonoliths.Clear();
             this.nextMonolithScanUtc = DateTime.MinValue;
             this.cachedRuneshapeRows.Clear();
@@ -1001,22 +1009,17 @@ namespace LootValue
 
         private void ScanCurrencyExchange()
         {
-            var root = this.ResolveUiPath(Core.States.InGameStateObject.GameUi.Address, CurrencyExchangeRootPath);
-            if (root == IntPtr.Zero || !this.TryGetVisibleChildren(root, out var rootChildren) || rootChildren.Length <= 1)
+            try
+            {
+            var gameUiAddress = Core.States.InGameStateObject?.GameUi.Address ?? IntPtr.Zero;
+            var listAddress = this.ResolveCurrencyExchangeList(gameUiAddress);
+            if (listAddress == IntPtr.Zero || !this.TryGetVisibleChildren(listAddress, out var categoryAddresses))
             {
                 this.cachedExchangeLabels = new List<ExchangePriceLabel>();
                 return;
             }
 
-            // [114][20][6][1] is the complete item list. Its visibility is the reliable signal that
-            // Currency Exchange is open; only categories enabled by the selected tab are visible below it.
-            var listAddress = rootChildren[1];
-            if (!this.TryGetVisibleChildren(listAddress, out var categoryAddresses))
-            {
-                this.cachedExchangeLabels = new List<ExchangePriceLabel>();
-                return;
-            }
-            if (!PluginUiElementReflection.TryGetAbsoluteRect(root, out var viewportPosition, out var viewportSize))
+            if (!PluginUiElementReflection.TryGetAbsoluteRect(listAddress, out var viewportPosition, out var viewportSize))
             {
                 this.cachedExchangeLabels = new List<ExchangePriceLabel>();
                 return;
@@ -1061,6 +1064,126 @@ namespace LootValue
             }
 
             this.cachedExchangeLabels = newLabels;
+            this.exchangeDiagnostic = $"Currency Exchange: list=0x{listAddress.ToInt64():X}, validatedRows={this.CountCurrencyExchangeRows(categoryAddresses)}+, priced={newLabels.Count}.";
+            }
+            finally
+            {
+#if DEBUG
+                TEHhub.Ui.ToolDiagnostics.Publish("loot-value-exchange", new Dictionary<string, string>
+                {
+                    ["status"] = this.exchangeDiagnostic,
+                    ["listAddress"] = this.cachedExchangeListAddress.ToString("X"),
+                    ["pricedLabels"] = this.cachedExchangeLabels.Count.ToString(),
+                    ["enabled"] = this.Settings.ShowCurrencyExchangeOverlay.ToString()
+                });
+#endif
+            }
+        }
+
+        /// <summary>
+        /// Resolves the exchange list using the previous fixed path first, then a bounded semantic
+        /// search. The latter recognizes the stable category/group/row shape rather than a patch-fragile
+        /// absolute GameUi child path.
+        /// </summary>
+        private IntPtr ResolveCurrencyExchangeList(IntPtr gameUiAddress)
+        {
+            if (gameUiAddress == IntPtr.Zero)
+            {
+                this.exchangeDiagnostic = "Currency Exchange: GameUi is unavailable.";
+                return IntPtr.Zero;
+            }
+
+            if (this.IsCurrencyExchangeList(this.cachedExchangeListAddress))
+            {
+                return this.cachedExchangeListAddress;
+            }
+
+            var fixedRoot = this.ResolveUiPath(gameUiAddress, CurrencyExchangeRootPath);
+            if (this.TryGetVisibleChildren(fixedRoot, out var fixedRootChildren) && fixedRootChildren.Length > 1 &&
+                this.IsCurrencyExchangeList(fixedRootChildren[1]))
+            {
+                this.cachedExchangeListAddress = fixedRootChildren[1];
+                return this.cachedExchangeListAddress;
+            }
+
+            var now = DateTime.UtcNow;
+            if (now < this.nextExchangeDiscoveryUtc)
+            {
+                this.exchangeDiagnostic = "Currency Exchange: fixed path is stale; semantic search is throttled.";
+                return IntPtr.Zero;
+            }
+
+            this.nextExchangeDiscoveryUtc = now.AddSeconds(2);
+            this.cachedExchangeListAddress = this.FindCurrencyExchangeList(gameUiAddress);
+            if (this.cachedExchangeListAddress == IntPtr.Zero)
+            {
+                this.exchangeDiagnostic = "Currency Exchange: no visible list with currency row structure found.";
+            }
+
+            return this.cachedExchangeListAddress;
+        }
+
+        private IntPtr FindCurrencyExchangeList(IntPtr gameUiAddress)
+        {
+            const int maxVisited = 6000;
+            var queue = new Queue<IntPtr>();
+            var visited = new HashSet<IntPtr>();
+            queue.Enqueue(gameUiAddress);
+
+            while (queue.Count > 0 && visited.Count < maxVisited)
+            {
+                var candidate = queue.Dequeue();
+                if (candidate == IntPtr.Zero || !visited.Add(candidate)) continue;
+
+                if (candidate != gameUiAddress && this.IsCurrencyExchangeList(candidate))
+                {
+                    return candidate;
+                }
+
+                if (!this.TryGetVisibleChildren(candidate, out var children)) continue;
+                foreach (var child in children)
+                {
+                    queue.Enqueue(child);
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private bool IsCurrencyExchangeList(IntPtr candidate)
+        {
+            if (candidate == IntPtr.Zero || !this.TryGetVisibleChildren(candidate, out var categories) || categories.Length == 0)
+            {
+                return false;
+            }
+
+            // A populated exchange list has many currency rows. Requiring two parseable rows prevents
+            // matching a regular item panel which happens to use a similar two-child layout.
+            return this.CountCurrencyExchangeRows(categories) >= 2;
+        }
+
+        private int CountCurrencyExchangeRows(IReadOnlyList<IntPtr> categoryAddresses)
+        {
+            var count = 0;
+            foreach (var categoryAddress in categoryAddresses)
+            {
+                if (!this.TryGetVisibleChildren(categoryAddress, out var groupAddresses)) continue;
+                foreach (var groupAddress in groupAddresses)
+                {
+                    if (!this.TryGetVisibleChildren(groupAddress, out var rowAddresses)) continue;
+                    for (var rowIndex = 1; rowIndex < rowAddresses.Length; rowIndex++)
+                    {
+                        if (!this.TryGetVisibleChildren(rowAddresses[rowIndex], out var rowChildren) || rowChildren.Length <= 1 ||
+                            !this.TryGetVisibleChildren(rowChildren[1], out var iconChildren) || iconChildren.Length == 0) continue;
+
+                        var name = this.ReadUiElementText(rowChildren[0]).Split('\n')[0].Trim();
+                        if (name.Length < 2 || !TryParseOwnedAmount(this.ReadUiElementText(iconChildren[0]), out _)) continue;
+                        if (++count >= 2) return count;
+                    }
+                }
+            }
+
+            return count;
         }
 
         private bool TryGetVisibleChildren(IntPtr address, out IntPtr[] children)
@@ -1685,6 +1808,7 @@ namespace LootValue
             if (ImGui.Begin(this.PluginText.Title("diagnostics.window_title", "LootValue Diagnostics", "LootValueDiagnostics"), ref this.Settings.DiagnosticsMode))
             {
                 ImGui.TextUnformatted(this.diagSummary);
+                ImGui.TextUnformatted(this.exchangeDiagnostic);
                 ImGui.Separator();
                 ImGui.TextUnformatted(this.PluginText.F("diagnostics.samples", "Samples ({0}):", this.diagSamples.Count));
                 foreach (var s in this.diagSamples)

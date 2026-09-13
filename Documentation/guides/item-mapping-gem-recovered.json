@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Briarpatch",
+    "path": "Metadata/Items/Gems/SkillGemBriarpatch",
+    "source": "https://poe2db.tw/us/Briarpatch"
+  },
+  {
+    "name": "Chance to Freeze",
+    "path": "Metadata/Items/Gems/SupportGemChanceToFreeze",
+    "source": "https://poe2db.tw/us/Chance_to_Freeze"
+  },
+  {
+    "name": "Dreamer's Knell",
+    "path": "Metadata/Items/Gem/SupportGemDreamersKnell",
+    "source": "https://poe2db.tw/us/Dreamers_Knell"
+  },
+  {
+    "name": "Enervation",
+    "path": "Metadata/Items/Gems/SupportEnervation",
+    "source": "https://poe2db.tw/us/Enervation"
+  },
+  {
+    "name": "Eonyr's Thunder",
+    "path": "Metadata/Items/Gems/SupportGemEonyrsThunder",
+    "source": "https://poe2db.tw/us/Eonyrs_Thunder"
+  },
+  {
+    "name": "Helbrym's Hide",
+    "path": "Metadata/Items/Gem/SupportGemHelbrymsHide",
+    "source": "https://poe2db.tw/us/Helbryms_Hide"
+  },
+  {
+    "name": "Infusion",
+    "path": "Metadata/Items/Gems/SupportGemInfusion",
+    "source": "https://poe2db.tw/us/Infusion"
+  },
+  {
+    "name": "Invocation",
+    "path": "Metadata/Items/Gems/SupportGemInvocation",
+    "source": "https://poe2db.tw/us/Invocation"
+  },
+  {
+    "name": "Spreading Frost",
+    "path": "Metadata/Items/Gems/SupportGemSpreadingFrost",
+    "source": "https://poe2db.tw/us/Spreading_Frost"
+  },
+  {
+    "name": "Styrn's Anthem",
+    "path": "Metadata/Items/Gem/SupportGemKnightsAnthem",
+    "source": "https://poe2db.tw/us/Styrns_Anthem"
+  },
+  {
+    "name": "Styrn's Ferocity",
+    "path": "Metadata/Items/Gem/SupportGemStyrnsFerocity",
+    "source": "https://poe2db.tw/us/Styrns_Ferocity"
+  },
+  {
+    "name": "Styrn's Mountain",
+    "path": "Metadata/Items/Gem/SupportGemStyrnsMountain",
+    "source": "https://poe2db.tw/us/Styrns_Mountain"
+  }
+]

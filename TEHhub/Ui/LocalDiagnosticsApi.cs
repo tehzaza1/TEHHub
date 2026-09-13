@@ -13,6 +13,7 @@ namespace TEHhub.Ui
     /// A loopback-only diagnostic endpoint for local tooling. It intentionally exposes no game
     /// input, plugin control, or network listener outside this computer.
     /// </summary>
+#if DEBUG
     internal static class LocalDiagnosticsApi
     {
         private const int Port = 9877;
@@ -94,6 +95,75 @@ namespace TEHhub.Ui
             {
                 var path = context.Request.Url?.AbsolutePath;
                 var method = context.Request.HttpMethod;
+                if (method == "GET" && path == "/api/tools")
+                {
+                    var catalog = new ToolApiCatalog($"http://localhost:{Port}", new[] {
+                        "GET /api/tools/state", "GET /api/tools/diagnostics", "GET /api/tools/diagnostics/{id}",
+                        "GET /api/tools/logs", "POST /api/tools/windows/{ShowSetting}?visible=true|false",
+                        "POST /api/diagnostics/skill-research", "GET /api/diagnostics/offset-status",
+                        "POST /api/diagnostics/offset-verify", "GET /api/diagnostics/memory-status",
+                        "GET /api/diagnostics/memory-snapshot", "POST /api/diagnostics/memory-reset",
+                        "POST /api/diagnostics/memory-dump", "POST /api/diagnostics/memory-stop",
+                        "GET /api/diagnostics/performance-snapshot", "POST /api/diagnostics/performance-reset",
+                        "GET /api/diagnostics/capture-status", "GET /api/diagnostics/bottleneck-snapshot",
+                        "POST /api/diagnostics/capture-start", "POST /api/diagnostics/capture-area-start",
+                        "POST /api/diagnostics/capture-stop" }, Array.ConvertAll(ToolDiagnostics.Snapshot(), t => t.Id));
+                    await WriteJsonAsync(context, 200, catalog, DiagnosticsApiJsonContext.Default.ToolApiCatalog).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path != null && path.StartsWith("/api/tools/windows/", StringComparison.Ordinal))
+                {
+                    var valid = bool.TryParse(context.Request.QueryString["visible"], out var visible) &&
+                        ToolHub.RequestWindow(path["/api/tools/windows/".Length..], visible);
+                    await WriteJsonAsync(context, valid ? 202 : 400, new DiagnosticsApiResponse(valid ? "Window change queued on render thread." : "Invalid window or visible flag."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "GET" && path == "/api/tools/state")
+                {
+                    var state = ToolHub.Snapshot;
+                    if (state == null)
+                        await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Waiting for render-thread state."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                        await WriteJsonAsync(context, 200, state, DiagnosticsApiJsonContext.Default.ToolHubSnapshot).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "GET" && path == "/api/tools/diagnostics")
+                {
+                    await WriteJsonAsync(context, 200, ToolDiagnostics.Snapshot(), DiagnosticsApiJsonContext.Default.ToolDiagnosticArray).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "GET" && path == "/api/tools/logs")
+                {
+                    await WriteJsonAsync(context, 200, RuntimeLog.Snapshot(), DiagnosticsApiJsonContext.Default.RuntimeLogEntryArray).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "GET" && path != null && path.StartsWith("/api/tools/diagnostics/", StringComparison.Ordinal))
+                {
+                    var entry = ToolDiagnostics.Find(Uri.UnescapeDataString(path["/api/tools/diagnostics/".Length..]));
+                    if (entry == null)
+                        await WriteJsonAsync(context, 404, new DiagnosticsApiResponse("Tool has not published diagnostics."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                        await WriteJsonAsync(context, 200, entry, DiagnosticsApiJsonContext.Default.ToolDiagnostic).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path == "/api/diagnostics/skill-research")
+                {
+                    var capture = SkillResearchCapture.Request();
+                    if (capture == null)
+                        await WriteJsonAsync(context, 409, new DiagnosticsApiResponse("Capture already pending."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                    {
+                        var snapshot = await capture.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.SkillResearchSnapshot).ConfigureAwait(false);
+                    }
+                    return;
+                }
+                if (method == "POST" && path == "/api/diagnostics/capture-area-start")
+                {
+                    BottleneckCapture.RequestAreaStart();
+                    await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("Area capture queued; excludes town and hideout."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    return;
+                }
                 if (method == "GET" && path == "/api/diagnostics/capture-status")
                 {
                     await WriteJsonAsync(context, 200, BottleneckCapture.GetStatus(), DiagnosticsApiJsonContext.Default.CaptureStatus).ConfigureAwait(false);
@@ -208,6 +278,7 @@ namespace TEHhub.Ui
         }
     }
 
+#endif
     internal sealed record DiagnosticsApiResponse(string Message);
 
     [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
@@ -218,6 +289,15 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(DiagnosticsApiResponse))]
     [JsonSerializable(typeof(BottleneckSnapshot))]
     [JsonSerializable(typeof(CaptureStatus))]
+    [JsonSerializable(typeof(AreaCaptureReport))]
+    [JsonSerializable(typeof(SkillResearchSnapshot))]
+#if DEBUG
+    [JsonSerializable(typeof(ToolHubSnapshot))]
+    [JsonSerializable(typeof(ToolDiagnostic[]))]
+    [JsonSerializable(typeof(ToolDiagnostic))]
+    [JsonSerializable(typeof(RuntimeLogEntry[]))]
+    [JsonSerializable(typeof(ToolApiCatalog))]
+#endif
     internal sealed partial class DiagnosticsApiJsonContext : JsonSerializerContext
     {
     }

@@ -7,6 +7,20 @@ internal static class BottleneckTests
 {
     internal static void Run(Action<bool, string> check)
     {
+        var toolValues = new System.Collections.Generic.Dictionary<string, string> { ["status"] = "ready" };
+        ToolDiagnostics.Publish("fixture-tool", toolValues);
+        toolValues["status"] = "mutated";
+        check(ToolDiagnostics.Find("fixture-tool")!.Values["status"] == "ready", "tool diagnostics detach published values from caller mutations");
+        ToolDiagnostics.Publish("fixture-tool", new System.Collections.Generic.Dictionary<string, string> { ["status"] = new string('x', 4000) });
+        check(ToolDiagnostics.Find("fixture-tool")!.Values["status"].Length == 2000, "tool diagnostics bound provider payload size");
+        check(ToolDiagnostics.Find("missing-tool") == null, "unpublished tool is unavailable rather than healthy");
+        var toolJson = JsonSerializer.Serialize(ToolDiagnostics.Snapshot(), DiagnosticsApiJsonContext.Default.ToolDiagnosticArray);
+        check(toolJson.Contains("fixture-tool"), "tool diagnostics serialize through generated JSON metadata");
+        check(!ToolHub.RequestWindow("EnableControllerMode", true), "tool window API rejects unrelated operational settings");
+        check(BottleneckCapture.EligibleArea(true, true, false, false, "mapA") == "mapA", "area capture accepts valid playable map");
+        check(BottleneckCapture.EligibleArea(true, true, true, false, "town") == "", "area capture excludes towns");
+        check(BottleneckCapture.EligibleArea(true, true, false, true, "home") == "", "area capture excludes hideouts");
+        check(BottleneckCapture.EligibleArea(false, true, false, false, "mapA") == "" && BottleneckCapture.EligibleArea(true, false, false, false, "mapA") == "", "area capture excludes loading and unavailable metadata");
         Core.GHSettings.ShowPerfProfiler = false;
         Core.GHSettings.ShowMemoryDiagnostics = false;
         check(!BottleneckCapture.Enabled && BottleneckCapture.BeginFrame() == 0, "capture disabled has no frame timing");

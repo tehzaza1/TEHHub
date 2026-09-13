@@ -1,0 +1,4758 @@
+{
+  "unmappedItemArt": [
+    {
+      "name": "Briarpatch",
+      "icon": "Art/2DItems/Gems/New/DruidBriarpatchSkillGem.dds",
+      "source": "https://poe2db.tw/us/Briarpatch"
+    },
+    {
+      "name": "Chance to Freeze",
+      "icon": "Art/2DItems/Gems/Support/ChancetoFlee.dds",
+      "source": "https://poe2db.tw/us/Chance_to_Freeze"
+    },
+    {
+      "name": "[DNT] Arbiters Calling",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/ArbitersCalling.dds",
+      "source": "https://poe2db.tw/us/DNT_Arbiters_Calling"
+    },
+    {
+      "name": "[DNT] Greybeard's Fuse",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/GreybeardsFuse.dds",
+      "source": "https://poe2db.tw/us/DNT_Greybeards_Fuse"
+    },
+    {
+      "name": "[DNT] Mhacha's Guidance",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/MhachasGuidance.dds",
+      "source": "https://poe2db.tw/us/DNT_Mhachas_Guidance"
+    },
+    {
+      "name": "[DNT] Tekaru's Snare",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/TekarusSnare.dds",
+      "source": "https://poe2db.tw/us/DNT_Tekarus_Snare"
+    },
+    {
+      "name": "[DNT] Vorana's Touch",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/VoranasTouch.dds",
+      "source": "https://poe2db.tw/us/DNT_Voranas_Touch"
+    },
+    {
+      "name": "[DNT] Wendigos Authority",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/WendigosAuthority.dds",
+      "source": "https://poe2db.tw/us/DNT_Wendigos_Authority"
+    },
+    {
+      "name": "[DNT] Wendigo's Pareidolia",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/WendigosPareidolia.dds",
+      "source": "https://poe2db.tw/us/DNT_Wendigos_Pareidolia"
+    },
+    {
+      "name": "Dreamer's Knell",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageDreamer.dds",
+      "source": "https://poe2db.tw/us/Dreamers_Knell"
+    },
+    {
+      "name": "Enervation",
+      "icon": "Art/2DItems/Gems/New/NewSupport/EnervationSupportGem.dds",
+      "source": "https://poe2db.tw/us/Enervation"
+    },
+    {
+      "name": "Eonyr's Thunder",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/ScaleofEonyr.dds",
+      "source": "https://poe2db.tw/us/Eonyrs_Thunder"
+    },
+    {
+      "name": "Helbrym's Hide",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/HideofHelbrym.dds",
+      "source": "https://poe2db.tw/us/Helbryms_Hide"
+    },
+    {
+      "name": "Infernoclasp Plate Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Infernoclasp.dds",
+      "source": "https://poe2db.tw/us/Infernoclasp"
+    },
+    {
+      "name": "Infusion",
+      "icon": "Art/2DItems/Gems/New/NewSupport/BuffedHeraldSupportGem.dds",
+      "source": "https://poe2db.tw/us/Infusion"
+    },
+    {
+      "name": "Invocation",
+      "icon": "Art/2DItems/Gems/Support/UnleashSupport.dds",
+      "source": "https://poe2db.tw/us/Invocation"
+    },
+    {
+      "name": "Removed Skill",
+      "icon": "Art/2DItems/Gems/New/BlankGem.dds",
+      "source": "https://poe2db.tw/us/Removed_Skill"
+    },
+    {
+      "name": "Spreading Frost",
+      "icon": "Art/2DItems/Gems/New/NewSupport/BlankBlueSupportGem.dds",
+      "source": "https://poe2db.tw/us/Spreading_Frost"
+    },
+    {
+      "name": "Styrn's Anthem",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/KnightsAnthem.dds",
+      "source": "https://poe2db.tw/us/Styrns_Anthem"
+    },
+    {
+      "name": "Styrn's Ferocity",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/KnightsFerocity.dds",
+      "source": "https://poe2db.tw/us/Styrns_Ferocity"
+    },
+    {
+      "name": "Styrn's Mountain",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/KnightsLegacy.dds",
+      "source": "https://poe2db.tw/us/Styrns_Mountain"
+    },
+    {
+      "name": "The Remembered Tales Coffer Relic",
+      "icon": "Art/2DItems/Relics/RelicUnique2x2.dds",
+      "source": "https://poe2db.tw/us/The_Remembered_Tales"
+    },
+    {
+      "name": "The Wailing Wall Effigial Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/TheWailingWall.dds",
+      "source": "https://poe2db.tw/us/The_Wailing_Wall"
+    }
+  ],
+  "coveredByExistingMapping": [
+    {
+      "name": "Ab Aeterno Grand Cuisses",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/AbAeterno.dds",
+      "source": "https://poe2db.tw/us/Ab_Aeterno"
+    },
+    {
+      "name": "Adonia's Ego Siphoning Wand",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/CourtlyDiscord.dds",
+      "source": "https://poe2db.tw/us/Adonias_Ego"
+    },
+    {
+      "name": "Aerisvane's Wings Burnished Gauntlets",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/AerisvanesWings.dds",
+      "source": "https://poe2db.tw/us/Aerisvanes_Wings"
+    },
+    {
+      "name": "Against the Darkness Time-Lost Diamond",
+      "icon": "Art/2DItems/Jewels/SanctumJewel.dds",
+      "source": "https://poe2db.tw/us/Against_the_Darkness"
+    },
+    {
+      "name": "Ahn's Citadel",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageAhnChisel.dds",
+      "source": "https://poe2db.tw/us/Ahns_Citadel"
+    },
+    {
+      "name": "Ailith's Chimes",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Monastic.dds",
+      "source": "https://poe2db.tw/us/Ailiths_Chimes"
+    },
+    {
+      "name": "Alkem Eira Blazon Crest Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/AlkemEira.dds",
+      "source": "https://poe2db.tw/us/Alkem_Eira"
+    },
+    {
+      "name": "Alpha's Howl Armoured Cap",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/AlphasHowl.dds",
+      "source": "https://poe2db.tw/us/Alphas_Howl"
+    },
+    {
+      "name": "Amanamu's Tithe",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageAmanamu.dds",
+      "source": "https://poe2db.tw/us/Amanamus_Tithe"
+    },
+    {
+      "name": "Amor Mandragora Changeling Talisman",
+      "icon": "Art/2DItems/Offhand/Talismans/Uniques/AmorMandragora.dds",
+      "source": "https://poe2db.tw/us/Amor_Mandragora"
+    },
+    {
+      "name": "Andvarius Gold Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Andvarius.dds",
+      "source": "https://poe2db.tw/us/Andvarius"
+    },
+    {
+      "name": "Apep's Supremacy Voodoo Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/ApepsSupremacy.dds",
+      "source": "https://poe2db.tw/us/Apeps_Supremacy"
+    },
+    {
+      "name": "Apron of Emiran Hermit Garb",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/ApronOfEmiran.dds",
+      "source": "https://poe2db.tw/us/Apron_of_Emiran"
+    },
+    {
+      "name": "Arakaali's Gift Antidote Charm",
+      "icon": "Art/2DItems/Charms/Uniques/AntidoteUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Arakaalis_Gift"
+    },
+    {
+      "name": "Arakaali's Lust",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageArakaali.dds",
+      "source": "https://poe2db.tw/us/Arakaalis_Lust"
+    },
+    {
+      "name": "Arbiter's Ignition",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageArbiter.dds",
+      "source": "https://poe2db.tw/us/Arbiters_Ignition"
+    },
+    {
+      "name": "Arbiter's Reach",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/MothersWard.dds",
+      "source": "https://poe2db.tw/us/Arbiters_Reach"
+    },
+    {
+      "name": "Arjun's Medal",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/AmmoConservation.dds",
+      "source": "https://poe2db.tw/us/Arjuns_Medal"
+    },
+    {
+      "name": "Arvil's Wheel Hardwood Targe",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/ArvilsWheel.dds",
+      "source": "https://poe2db.tw/us/Arvils_Wheel"
+    },
+    {
+      "name": "Ashrend Pathfinder Coat",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Ashrend.dds",
+      "source": "https://poe2db.tw/us/Ashrend"
+    },
+    {
+      "name": "Asphyxia's Wrath Broadhead Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/AsphyxiasWrath.dds",
+      "source": "https://poe2db.tw/us/Asphyxias_Wrath"
+    },
+    {
+      "name": "Assailum Closed Helm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Assailum.dds",
+      "source": "https://poe2db.tw/us/Assailum"
+    },
+    {
+      "name": "Astramentis Stellar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/Astramentis.dds",
+      "source": "https://poe2db.tw/us/Astramentis"
+    },
+    {
+      "name": "Atalui's Bloodletting",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageLifetap.dds",
+      "source": "https://poe2db.tw/us/Ataluis_Bloodletting"
+    },
+    {
+      "name": "Atsak's Sight Veiled Mask",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/BalefulTemperance.dds",
+      "source": "https://poe2db.tw/us/Atsaks_Sight"
+    },
+    {
+      "name": "Atziri's Acuity Moulded Mitts",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/AtzirisAcuity.dds",
+      "source": "https://poe2db.tw/us/Atziris_Acuity"
+    },
+    {
+      "name": "Atziri's Allure",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageAtziri.dds",
+      "source": "https://poe2db.tw/us/Atziris_Allure"
+    },
+    {
+      "name": "Atziri's Communion",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/AtziriCommunion.dds",
+      "source": "https://poe2db.tw/us/Atziris_Communion"
+    },
+    {
+      "name": "Atziri's Contempt Pronged Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/AtziriStaffBlood.dds",
+      "source": "https://poe2db.tw/us/Atziris_Contempt"
+    },
+    {
+      "name": "Atziri's Disdain Gold Circlet",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/AtzirisDisdain.dds",
+      "source": "https://poe2db.tw/us/Atziris_Disdain"
+    },
+    {
+      "name": "Atziri's Impatience",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/AtziriImpatience.dds",
+      "source": "https://poe2db.tw/us/Atziris_Impatience"
+    },
+    {
+      "name": "Atziri's Rule Reflecting Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/AtziriStaff.dds",
+      "source": "https://poe2db.tw/us/Atziris_Rule"
+    },
+    {
+      "name": "Atziri's Splendour Sacrificial Regalia",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/AtzirisSplendour.dds",
+      "source": "https://poe2db.tw/us/Atziris_Splendour"
+    },
+    {
+      "name": "Atziri's Step Cinched Boots",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/AtzirisStep.dds",
+      "source": "https://poe2db.tw/us/Atziris_Step"
+    },
+    {
+      "name": "Aurseize Layered Gauntlets",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Aurseize.dds",
+      "source": "https://poe2db.tw/us/Aurseize"
+    },
+    {
+      "name": "Beacon of Azis Solar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/BeaconOfAzis.dds",
+      "source": "https://poe2db.tw/us/Beacon_of_Azis"
+    },
+    {
+      "name": "Beetlebite Velour Shoes",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/ChainsOfDeshret.dds",
+      "source": "https://poe2db.tw/us/Beetlebite"
+    },
+    {
+      "name": "Beira's Anguish Dousing Charm",
+      "icon": "Art/2DItems/Charms/Uniques/DousingUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Beiras_Anguish"
+    },
+    {
+      "name": "Belly of the Beast Explorer Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/BellyOfTheBeast.dds",
+      "source": "https://poe2db.tw/us/Belly_of_the_Beast"
+    },
+    {
+      "name": "Berek's Grip Two-Stone Ring",
+      "icon": "Art/2DItems/Rings/Uniques/BereksGrip.dds",
+      "source": "https://poe2db.tw/us/Bereks_Grip"
+    },
+    {
+      "name": "Berek's Pass Two-Stone Ring",
+      "icon": "Art/2DItems/Rings/Uniques/BereksPass.dds",
+      "source": "https://poe2db.tw/us/Bereks_Pass"
+    },
+    {
+      "name": "Berek's Respite Two-Stone Ring",
+      "icon": "Art/2DItems/Rings/Uniques/BereksRespite.dds",
+      "source": "https://poe2db.tw/us/Bereks_Respite"
+    },
+    {
+      "name": "Beyond Reach Visceral Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/BreachQuiver.dds",
+      "source": "https://poe2db.tw/us/Beyond_Reach"
+    },
+    {
+      "name": "Bhatair's Vengeance",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/ShatteredFang.dds",
+      "source": "https://poe2db.tw/us/Bhatairs_Vengeance"
+    },
+    {
+      "name": "Bijouborne Double Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Twinclasp.dds",
+      "source": "https://poe2db.tw/us/Bijouborne"
+    },
+    {
+      "name": "Birth of Fury Stone Greaves",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/BirthOfFury.dds",
+      "source": "https://poe2db.tw/us/Birth_of_Fury"
+    },
+    {
+      "name": "Birthright Buckle Wide Belt",
+      "icon": "Art/2DItems/Belts/Uniques/BirthrightBuckle.dds",
+      "source": "https://poe2db.tw/us/Birthright_Buckle"
+    },
+    {
+      "name": "Bitterbloom Feathered Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/DarkwoodPerianth.dds",
+      "source": "https://poe2db.tw/us/Bitterbloom"
+    },
+    {
+      "name": "Black Sun Crest Wrapped Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/BlackSunCrest.dds",
+      "source": "https://poe2db.tw/us/Black_Sun_Crest"
+    },
+    {
+      "name": "Blackbraid Fur Plate",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Blackbraid.dds",
+      "source": "https://poe2db.tw/us/Blackbraid"
+    },
+    {
+      "name": "Blackflame Amethyst Ring",
+      "icon": "Art/2DItems/Rings/BlackFlameChaos.dds",
+      "source": "https://poe2db.tw/us/Blackflame"
+    },
+    {
+      "name": "Blackgleam Fire Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/Blackgleam.dds",
+      "source": "https://poe2db.tw/us/Blackgleam"
+    },
+    {
+      "name": "Blackheart Iron Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Blackheart.dds",
+      "source": "https://poe2db.tw/us/Blackheart"
+    },
+    {
+      "name": "Blistering Bond Ruby Ring",
+      "icon": "Art/2DItems/Rings/Uniques/BlisteringBond.dds",
+      "source": "https://poe2db.tw/us/Blistering_Bond"
+    },
+    {
+      "name": "Blood Price Fierce Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/BloodPrice.dds",
+      "source": "https://poe2db.tw/us/Blood_Price"
+    },
+    {
+      "name": "Blood of the Warrior Gargantuan Life Flask",
+      "icon": "Art/2DItems/Flasks/Uniques/BloodOfTheKarui.dds",
+      "source": "https://poe2db.tw/us/Blood_of_the_Warrior"
+    },
+    {
+      "name": "Bloodbarrier Iron Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/BloodBarrier.dds",
+      "source": "https://poe2db.tw/us/Bloodbarrier"
+    },
+    {
+      "name": "Blueflame Bracers Goldcast Cuffs",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/SunConstrictor.dds",
+      "source": "https://poe2db.tw/us/Blueflame_Bracers"
+    },
+    {
+      "name": "Bones of Ullr Lattice Sandals",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/BonesOfUllr.dds",
+      "source": "https://poe2db.tw/us/Bones_of_Ullr"
+    },
+    {
+      "name": "Brain Rattler Studded Greatclub",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Brainrattler.dds",
+      "source": "https://poe2db.tw/us/Brain_Rattler"
+    },
+    {
+      "name": "Bramblejack Rusted Cuirass",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Bramblejack.dds",
+      "source": "https://poe2db.tw/us/Bramblejack"
+    },
+    {
+      "name": "Breachlord's Amalgam",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/BreachlordsAmalgam.dds",
+      "source": "https://poe2db.tw/us/Breachlords_Amalgam"
+    },
+    {
+      "name": "Breachlord's Rift",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/BreachlordsRemorse.dds",
+      "source": "https://poe2db.tw/us/Breachlords_Rift"
+    },
+    {
+      "name": "Breath of the Mountains Sapphire Charm",
+      "icon": "Art/2DItems/Charms/Uniques/SapphireUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Breath_of_the_Mountains"
+    },
+    {
+      "name": "Briskwrap Rhoahide Coat",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Briskwrap.dds",
+      "source": "https://poe2db.tw/us/Briskwrap"
+    },
+    {
+      "name": "Bristleboar Leather Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Bristleboar.dds",
+      "source": "https://poe2db.tw/us/Bristleboar"
+    },
+    {
+      "name": "Bronzebeard Horned Crown",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Bronzebeard.dds",
+      "source": "https://poe2db.tw/us/Bronzebeard"
+    },
+    {
+      "name": "Brutus' Brain",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageMeatshield.dds",
+      "source": "https://poe2db.tw/us/Brutus_Brain"
+    },
+    {
+      "name": "Brutus' Lead Sprinkler Morning Star",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/BrutusLeadSprinkler.dds",
+      "source": "https://poe2db.tw/us/Brutus_Lead_Sprinkler"
+    },
+    {
+      "name": "Brynhand's Mark Wooden Club",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/BrynhandsMark.dds",
+      "source": "https://poe2db.tw/us/Brynhands_Mark"
+    },
+    {
+      "name": "Bursting Decay Unset Ring",
+      "icon": "Art/2DItems/Rings/Uniques/BurstingDecay.dds",
+      "source": "https://poe2db.tw/us/Bursting_Decay"
+    },
+    {
+      "name": "Bushwhack Lizardscale Boots",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Bushwack.dds",
+      "source": "https://poe2db.tw/us/Bushwhack"
+    },
+    {
+      "name": "Byrnabas Wide Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Byrnabas.dds",
+      "source": "https://poe2db.tw/us/Byrnabas"
+    },
+    {
+      "name": "Cadiro's Gambit Primed Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/PerandusTurnstile.dds",
+      "source": "https://poe2db.tw/us/Cadiros_Gambit"
+    },
+    {
+      "name": "Calgyra's Arc Ornate Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/CalgyrasArc.dds",
+      "source": "https://poe2db.tw/us/Calgyras_Arc"
+    },
+    {
+      "name": "Call of the Brotherhood Topaz Ring",
+      "icon": "Art/2DItems/Rings/Uniques/CallOfTheBrotherhood.dds",
+      "source": "https://poe2db.tw/us/Call_of_the_Brotherhood"
+    },
+    {
+      "name": "Candlemaker Sombre Gloves",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Candlemaker.dds",
+      "source": "https://poe2db.tw/us/Candlemaker"
+    },
+    {
+      "name": "Carnage Heart Amber Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/CarnageHeart.dds",
+      "source": "https://poe2db.tw/us/Carnage_Heart"
+    },
+    {
+      "name": "Carrion Call Engraved Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/CarrionCall.dds",
+      "source": "https://poe2db.tw/us/Carrion_Call"
+    },
+    {
+      "name": "Cat O' Nine Tails Utility Belt",
+      "icon": "Art/2DItems/Belts/Uniques/CatONineTails.dds",
+      "source": "https://poe2db.tw/us/Cat_O_Nine_Tails"
+    },
+    {
+      "name": "Catha's Brilliance",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/CathasBrilliance.dds",
+      "source": "https://poe2db.tw/us/Cathas_Brilliance"
+    },
+    {
+      "name": "Chainsting Hunting Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/Chainsting.dds",
+      "source": "https://poe2db.tw/us/Chainsting"
+    },
+    {
+      "name": "Chernobog's Pillar Blacksteel Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/ChernobogsPillar.dds",
+      "source": "https://poe2db.tw/us/Chernobogs_Pillar"
+    },
+    {
+      "name": "Chober Chaber Leaden Greathammer",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/ChoberChaber.dds",
+      "source": "https://poe2db.tw/us/Chober_Chaber"
+    },
+    {
+      "name": "Choir of the Storm Jade Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/ChoirOfTheStorm.dds",
+      "source": "https://poe2db.tw/us/Choir_of_the_Storm"
+    },
+    {
+      "name": "Cirel's Cultivation",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Greatwood.dds",
+      "source": "https://poe2db.tw/us/Cirels_Cultivation"
+    },
+    {
+      "name": "Clear Skies Delirium Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletDeliriumUnique1.dds",
+      "source": "https://poe2db.tw/us/Clear_Skies"
+    },
+    {
+      "name": "Cloak of Defiance Havoc Raiment",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/CloakOfDefiance.dds",
+      "source": "https://poe2db.tw/us/Cloak_of_Defiance"
+    },
+    {
+      "name": "Cloak of Flame Silk Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/CloakOfFlame.dds",
+      "source": "https://poe2db.tw/us/Cloak_of_Flame"
+    },
+    {
+      "name": "Coat of Red Chain Mail",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/CoatOfRed.dds",
+      "source": "https://poe2db.tw/us/Coat_of_Red"
+    },
+    {
+      "name": "Collapsing Horizon Wyrm Quarterstaff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/CollapsingHorizon.dds",
+      "source": "https://poe2db.tw/us/Collapsing_Horizon"
+    },
+    {
+      "name": "Constricting Command Viper Cap",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/ConstrictingCommand.dds",
+      "source": "https://poe2db.tw/us/Constricting_Command"
+    },
+    {
+      "name": "Controlled Metamorphosis",
+      "icon": "Art/2DItems/Jewels/BreachJewel.dds",
+      "source": "https://poe2db.tw/us/Controlled_Metamorphosis"
+    },
+    {
+      "name": "Cornathaum Heavy Crown",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Cornathaum.dds",
+      "source": "https://poe2db.tw/us/Cornathaum"
+    },
+    {
+      "name": "Corona of the Red Sun Warrior Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/CoronaOfTheRedSun.dds",
+      "source": "https://poe2db.tw/us/Corona_of_the_Red_Sun"
+    },
+    {
+      "name": "Corpsewade Iron Greaves",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Corpsewade.dds",
+      "source": "https://poe2db.tw/us/Corpsewade"
+    },
+    {
+      "name": "Cospri's Will Assassin Garb",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/CosprisWill.dds",
+      "source": "https://poe2db.tw/us/Cospris_Will"
+    },
+    {
+      "name": "Couture of Crimson Gilded Vestments",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/CoutureOfCrimson.dds",
+      "source": "https://poe2db.tw/us/Couture_of_Crimson"
+    },
+    {
+      "name": "Coward's Legacy Mail Belt",
+      "icon": "Art/2DItems/Belts/Uniques/CowardsLegacy.dds",
+      "source": "https://poe2db.tw/us/Cowards_Legacy"
+    },
+    {
+      "name": "Cracklecreep Ruby Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Cracklecreep.dds",
+      "source": "https://poe2db.tw/us/Cracklecreep"
+    },
+    {
+      "name": "Crest of Ardura Jingling Crest Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/CrestOfArdura.dds",
+      "source": "https://poe2db.tw/us/Crest_of_Ardura"
+    },
+    {
+      "name": "Crown of Eyes Vermeil Circlet",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/CrownOfEyes.dds",
+      "source": "https://poe2db.tw/us/Crown_of_Eyes"
+    },
+    {
+      "name": "Crown of Thorns Twig Circlet",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/CrownOfThorns.dds",
+      "source": "https://poe2db.tw/us/Crown_of_Thorns"
+    },
+    {
+      "name": "Crown of the Pale King Cultist Crown",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/CrownOfThePaleKing.dds",
+      "source": "https://poe2db.tw/us/Crown_of_the_Pale_King"
+    },
+    {
+      "name": "Crown of the Victor Iron Crown",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/CrownOfTheVictor.dds",
+      "source": "https://poe2db.tw/us/Crown_of_the_Victor"
+    },
+    {
+      "name": "Cruel Hegemony Overseer Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletOverseerUnique2.dds",
+      "source": "https://poe2db.tw/us/Cruel_Hegemony"
+    },
+    {
+      "name": "Cursecarver Acrid Wand",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/Clawmark.dds",
+      "source": "https://poe2db.tw/us/Cursecarver"
+    },
+    {
+      "name": "Daevata's Wind War Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/DaevatasWind.dds",
+      "source": "https://poe2db.tw/us/Daevatas_Wind"
+    },
+    {
+      "name": "Daresso's Passion",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageDaresso.dds",
+      "source": "https://poe2db.tw/us/Daressos_Passion"
+    },
+    {
+      "name": "Darkness Enthroned Fine Belt",
+      "icon": "Art/2DItems/Belts/Uniques/DarknessEnthroned.dds",
+      "source": "https://poe2db.tw/us/Darkness_Enthroned"
+    },
+    {
+      "name": "Darkray Vectors Braced Sabatons",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/DarkrayVectors.dds",
+      "source": "https://poe2db.tw/us/Darkray_Vectors"
+    },
+    {
+      "name": "Death Articulated Ornate Gauntlets",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/DeathArticulated.dds",
+      "source": "https://poe2db.tw/us/Death_Articulated"
+    },
+    {
+      "name": "Death Rush Emerald Ring",
+      "icon": "Art/2DItems/Rings/Uniques/DeathRush.dds",
+      "source": "https://poe2db.tw/us/Death_Rush"
+    },
+    {
+      "name": "Deathblow Doubled Gauntlets",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Deathblow.dds",
+      "source": "https://poe2db.tw/us/Deathblow"
+    },
+    {
+      "name": "Deathrattle Twig Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/DeathRattle.dds",
+      "source": "https://poe2db.tw/us/Deathrattle"
+    },
+    {
+      "name": "Death's Harp Dualstring Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/DeathsHarp.dds",
+      "source": "https://poe2db.tw/us/Deaths_Harp"
+    },
+    {
+      "name": "Decree of Acuity Ancient Visor",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/SightlessConviction.dds",
+      "source": "https://poe2db.tw/us/Decree_of_Acuity"
+    },
+    {
+      "name": "Decree of Flight Ancient Leggings",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/BoundlessAuthority.dds",
+      "source": "https://poe2db.tw/us/Decree_of_Flight"
+    },
+    {
+      "name": "Decree of Loyalty Ancient Mail",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/UnfalteringFaith.dds",
+      "source": "https://poe2db.tw/us/Decree_of_Loyalty"
+    },
+    {
+      "name": "Defiance of Destiny Jade Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/DefianceOfDestiny.dds",
+      "source": "https://poe2db.tw/us/Defiance_of_Destiny"
+    },
+    {
+      "name": "Deidbell Elite Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Deidbell.dds",
+      "source": "https://poe2db.tw/us/Deidbell"
+    },
+    {
+      "name": "Demon Stitcher Intricate Gloves",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/DemonStitcher.dds",
+      "source": "https://poe2db.tw/us/Demon_Stitcher"
+    },
+    {
+      "name": "Dialla's Desire",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Dialla.dds",
+      "source": "https://poe2db.tw/us/Diallas_Desire"
+    },
+    {
+      "name": "Dionadair Splintered Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Dionadair.dds",
+      "source": "https://poe2db.tw/us/Dionadair"
+    },
+    {
+      "name": "Doedre's Damning Lazuli Ring",
+      "icon": "Art/2DItems/Rings/Uniques/DoedresDamning.dds",
+      "source": "https://poe2db.tw/us/Doedres_Damning"
+    },
+    {
+      "name": "Doedre's Tenure Stitched Gloves",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/EnraptHands.dds",
+      "source": "https://poe2db.tw/us/Doedres_Tenure"
+    },
+    {
+      "name": "Doedre's Undoing",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageDoedre.dds",
+      "source": "https://poe2db.tw/us/Doedres_Undoing"
+    },
+    {
+      "name": "Dominus' Grasp",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageMercy.dds",
+      "source": "https://poe2db.tw/us/Dominus_Grasp"
+    },
+    {
+      "name": "Doomfletch Composite Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Doomfletch.dds",
+      "source": "https://poe2db.tw/us/Doomfletch"
+    },
+    {
+      "name": "Doomgate Braced Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Doomgate.dds",
+      "source": "https://poe2db.tw/us/Doomgate"
+    },
+    {
+      "name": "Doryani's Prototype Scale Mail",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/DoryanisPrototype.dds",
+      "source": "https://poe2db.tw/us/Doryanis_Prototype"
+    },
+    {
+      "name": "Double Vision Dyad Crossbow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/DoubleVision.dds",
+      "source": "https://poe2db.tw/us/Double_Vision"
+    },
+    {
+      "name": "Dreadfist Bolstered Mitts",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Dreadfist.dds",
+      "source": "https://poe2db.tw/us/Dreadfist"
+    },
+    {
+      "name": "Dream Fragments Sapphire Ring",
+      "icon": "Art/2DItems/Rings/Uniques/DreamFragments.dds",
+      "source": "https://poe2db.tw/us/Dream_Fragments"
+    },
+    {
+      "name": "Drillneck Penetrating Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/Drillneck.dds",
+      "source": "https://poe2db.tw/us/Drillneck"
+    },
+    {
+      "name": "Duality Warding Quarterstaff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/Stjorvar.dds",
+      "source": "https://poe2db.tw/us/Duality"
+    },
+    {
+      "name": "Dunkelhalt Leather Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Dunkelhalt.dds",
+      "source": "https://poe2db.tw/us/Dunkelhalt"
+    },
+    {
+      "name": "Dusk Vigil Ashen Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/DuskVigil.dds",
+      "source": "https://poe2db.tw/us/Dusk_Vigil"
+    },
+    {
+      "name": "Dustbloom Studded Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Dustbloom.dds",
+      "source": "https://poe2db.tw/us/Dustbloom"
+    },
+    {
+      "name": "Earthbound Voltaic Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/Earthbound.dds",
+      "source": "https://poe2db.tw/us/Earthbound"
+    },
+    {
+      "name": "Edyrn's Tusks Iron Cuirass",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/EdyrnsTusks.dds",
+      "source": "https://poe2db.tw/us/Edyrns_Tusks"
+    },
+    {
+      "name": "Effigy of Cruelty Antler Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/EffigyOfCruelty.dds",
+      "source": "https://poe2db.tw/us/Effigy_of_Cruelty"
+    },
+    {
+      "name": "Einhar's Beastrite",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageEinhar.dds",
+      "source": "https://poe2db.tw/us/Einhars_Beastrite"
+    },
+    {
+      "name": "Elevore Hunter Hood",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Elevore.dds",
+      "source": "https://poe2db.tw/us/Elevore"
+    },
+    {
+      "name": "Empire's Grasp Titan Mitts",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/EmpiresGrasp.dds",
+      "source": "https://poe2db.tw/us/Empires_Grasp"
+    },
+    {
+      "name": "Enezun's Charge Volatile Wand",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/EnezunsCharge.dds",
+      "source": "https://poe2db.tw/us/Enezuns_Charge"
+    },
+    {
+      "name": "Enfolding Dawn Pilgrim Vestments",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/EnfoldingDawn.dds",
+      "source": "https://poe2db.tw/us/Enfolding_Dawn"
+    },
+    {
+      "name": "Erian's Cobble Guarded Helm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/GrimrotCoif.dds",
+      "source": "https://poe2db.tw/us/Erians_Cobble"
+    },
+    {
+      "name": "Esh's Prowess",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/EshsProwess.dds",
+      "source": "https://poe2db.tw/us/Eshs_Prowess"
+    },
+    {
+      "name": "Esh's Radiance",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageEsh.dds",
+      "source": "https://poe2db.tw/us/Eshs_Radiance"
+    },
+    {
+      "name": "Eshtera's Path Ring",
+      "icon": "Art/2DItems/Rings/Uniques/RimeveilSeal.dds",
+      "source": "https://poe2db.tw/us/Eshteras_Path"
+    },
+    {
+      "name": "Essentia Sanguis Furtive Wraps",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/EssentiaSanguis.dds",
+      "source": "https://poe2db.tw/us/Essentia_Sanguis"
+    },
+    {
+      "name": "Eventide Petals Veridical Chain",
+      "icon": "Art/2DItems/Amulets/Uniques/Nattblom.dds",
+      "source": "https://poe2db.tw/us/Eventide_Petals"
+    },
+    {
+      "name": "Evergrasping Ring Pearl Ring",
+      "icon": "Art/2DItems/Rings/Uniques/EvergraspingRing.dds",
+      "source": "https://poe2db.tw/us/Evergrasping_Ring"
+    },
+    {
+      "name": "Eye of Chayula Gold Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/EyeOfChayula.dds",
+      "source": "https://poe2db.tw/us/Eye_of_Chayula"
+    },
+    {
+      "name": "Eyes of the Runefather Venerable Defender",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Vindromyr.dds",
+      "source": "https://poe2db.tw/us/Eyes_of_the_Runefather"
+    },
+    {
+      "name": "Ezomyte Peak Soldier Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/EzomytePeak.dds",
+      "source": "https://poe2db.tw/us/Ezomyte_Peak"
+    },
+    {
+      "name": "Facebreaker",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Facebreaker.dds",
+      "source": "https://poe2db.tw/us/Facebreaker"
+    },
+    {
+      "name": "Fairgraves' Curse Artillery Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/DealersHand.dds",
+      "source": "https://poe2db.tw/us/Fairgraves_Curse"
+    },
+    {
+      "name": "Feathered Fortress Crescent Targe",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/FeatheredFortress.dds",
+      "source": "https://poe2db.tw/us/Feathered_Fortress"
+    },
+    {
+      "name": "Fireflower Solar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/Fireflower.dds",
+      "source": "https://poe2db.tw/us/Fireflower"
+    },
+    {
+      "name": "Fixation of Yix Stellar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/FixationOfYix.dds",
+      "source": "https://poe2db.tw/us/Fixation_of_Yix"
+    },
+    {
+      "name": "Flesh Crucible Diamond",
+      "icon": "Art/2DItems/Jewels/Uniques/Vivisection.dds",
+      "source": "https://poe2db.tw/us/Flesh_Crucible"
+    },
+    {
+      "name": "Font of Power Omen Sceptre",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/FontOfPower.dds",
+      "source": "https://poe2db.tw/us/Font_of_Power"
+    },
+    {
+      "name": "For Utopia Stone Charm",
+      "icon": "Art/2DItems/Charms/Uniques/StoneUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/For_Utopia"
+    },
+    {
+      "name": "Forgotten Warden Primal Markings",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheAncientOrder.dds",
+      "source": "https://poe2db.tw/us/Forgotten_Warden"
+    },
+    {
+      "name": "Forsaken Bangle Amethyst Charm",
+      "icon": "Art/2DItems/Charms/Uniques/ChaosUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Forsaken_Bangle"
+    },
+    {
+      "name": "Foxshade Quilted Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Foxform.dds",
+      "source": "https://poe2db.tw/us/Foxshade"
+    },
+    {
+      "name": "Freedom of Faith Ritual Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletRitualUnique1.dds",
+      "source": "https://poe2db.tw/us/Freedom_of_Faith"
+    },
+    {
+      "name": "From Nothing",
+      "icon": "Art/2DItems/Jewels/RitualJewel.dds",
+      "source": "https://poe2db.tw/us/From_Nothing"
+    },
+    {
+      "name": "Frostbreath Slim Mace",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Frostbreath.dds",
+      "source": "https://poe2db.tw/us/Frostbreath"
+    },
+    {
+      "name": "Fury of the King Ashbark Talisman",
+      "icon": "Art/2DItems/Offhand/Talismans/Uniques/VesselOfWrath.dds",
+      "source": "https://poe2db.tw/us/Fury_of_the_King"
+    },
+    {
+      "name": "Gamblesprint Embossed Boots",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Gamblesprint.dds",
+      "source": "https://poe2db.tw/us/Gamblesprint"
+    },
+    {
+      "name": "Garukhan's Resolve",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Garukhan.dds",
+      "source": "https://poe2db.tw/us/Garukhans_Resolve"
+    },
+    {
+      "name": "Geofri's Sanctuary Revered Vestments",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/GeofrisSanctuary.dds",
+      "source": "https://poe2db.tw/us/Geofris_Sanctuary"
+    },
+    {
+      "name": "Ghostmarch Threaded Shoes",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Ghostmarch.dds",
+      "source": "https://poe2db.tw/us/Ghostmarch"
+    },
+    {
+      "name": "Ghostwrithe Tattered Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Ghostwrithe.dds",
+      "source": "https://poe2db.tw/us/Ghostwrithe"
+    },
+    {
+      "name": "Gifts from Above Prismatic Ring",
+      "icon": "Art/2DItems/Rings/Uniques/GiftsFromAbove.dds",
+      "source": "https://poe2db.tw/us/Gifts_from_Above"
+    },
+    {
+      "name": "Glimpse of Chaos Tribal Mask",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/GlimpseOfChaos.dds",
+      "source": "https://poe2db.tw/us/Glimpse_of_Chaos"
+    },
+    {
+      "name": "Gloamgown Elementalist Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Gloamgown.dds",
+      "source": "https://poe2db.tw/us/Gloamgown"
+    },
+    {
+      "name": "Gloomform Waxed Jacket",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/GatheringGloom.dds",
+      "source": "https://poe2db.tw/us/Gloomform"
+    },
+    {
+      "name": "Glowswarm Lazuli Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Glowswarm.dds",
+      "source": "https://poe2db.tw/us/Glowswarm"
+    },
+    {
+      "name": "Goldrim Felt Cap",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Goldrim.dds",
+      "source": "https://poe2db.tw/us/Goldrim"
+    },
+    {
+      "name": "Goregirdle Plate Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Goregirdle.dds",
+      "source": "https://poe2db.tw/us/Goregirdle"
+    },
+    {
+      "name": "Grand Spectrum Sapphire",
+      "icon": "Art/2DItems/Jewels/Uniques/GrandSpectrum_Sapphire.dds",
+      "source": "https://poe2db.tw/us/Grand_Spectrum"
+    },
+    {
+      "name": "Gravebind Rope Cuffs",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Gravebind.dds",
+      "source": "https://poe2db.tw/us/Gravebind"
+    },
+    {
+      "name": "Greatwood II",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Greatwood.dds",
+      "source": "https://poe2db.tw/us/Greatwood_II"
+    },
+    {
+      "name": "Greed's Embrace Vaal Cuirass",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/GreedsEmbrace.dds",
+      "source": "https://poe2db.tw/us/Greeds_Embrace"
+    },
+    {
+      "name": "Greymake Brimmed Helm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Greymake.dds",
+      "source": "https://poe2db.tw/us/Greymake"
+    },
+    {
+      "name": "Grip of Kulemak",
+      "icon": "Art/2DItems/Rings/Uniques/TokenOfPassage05.dds",
+      "source": "https://poe2db.tw/us/Grip_of_Kulemak"
+    },
+    {
+      "name": "Grip of Winter Firm Bracers",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/GripOfWinter.dds",
+      "source": "https://poe2db.tw/us/Grip_of_Winter"
+    },
+    {
+      "name": "Guatelitzi's Ablation",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Guatelitzi.dds",
+      "source": "https://poe2db.tw/us/Guatelitzis_Ablation"
+    },
+    {
+      "name": "Guiding Palm of the Eye Shrine Sceptre",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/GuidingPalmCold.dds",
+      "source": "https://poe2db.tw/us/Guiding_Palm_of_the_Eye"
+    },
+    {
+      "name": "Guiding Palm of the Heart Shrine Sceptre",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/GuidingPalmFire.dds",
+      "source": "https://poe2db.tw/us/Guiding_Palm_of_the_Heart"
+    },
+    {
+      "name": "Guiding Palm of the Mind Shrine Sceptre",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/GuidingPalmLightning.dds",
+      "source": "https://poe2db.tw/us/Guiding_Palm_of_the_Mind"
+    },
+    {
+      "name": "Hand of Wisdom and Action Spiral Wraps",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/HandOfWisdomAndAction.dds",
+      "source": "https://poe2db.tw/us/Hand_of_Wisdom_and_Action"
+    },
+    {
+      "name": "Hateforge Moulded Mitts",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Hateforge.dds",
+      "source": "https://poe2db.tw/us/Hateforge"
+    },
+    {
+      "name": "Hayoxi's Fulmination",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Hayoxi.dds",
+      "source": "https://poe2db.tw/us/Hayoxis_Fulmination"
+    },
+    {
+      "name": "Headhunter Heavy Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Headhunter.dds",
+      "source": "https://poe2db.tw/us/Headhunter"
+    },
+    {
+      "name": "Heart of the Well",
+      "icon": "Art/2DItems/Jewels/Uniques/ApostatesHeart.dds",
+      "source": "https://poe2db.tw/us/Heart_of_the_Well"
+    },
+    {
+      "name": "Heartbound Loop Pearl Ring",
+      "icon": "Art/2DItems/Rings/Uniques/HeartboundLoop.dds",
+      "source": "https://poe2db.tw/us/Heartbound_Loop"
+    },
+    {
+      "name": "Heatshiver Velvet Cap",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Heatshiver.dds",
+      "source": "https://poe2db.tw/us/Heatshiver"
+    },
+    {
+      "name": "Her Declaration",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/MothersDeclaration.dds",
+      "source": "https://poe2db.tw/us/Her_Declaration"
+    },
+    {
+      "name": "Heroic Tragedy Timeless Jewel",
+      "icon": "Art/2DItems/Jewels/ExpeditionJewel.dds",
+      "source": "https://poe2db.tw/us/Heroic_Tragedy"
+    },
+    {
+      "name": "Hinekora's Sight Stellar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/HinekorasSight.dds",
+      "source": "https://poe2db.tw/us/Hinekoras_Sight"
+    },
+    {
+      "name": "Hoghunt Felled Greatclub",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Hoghunt.dds",
+      "source": "https://poe2db.tw/us/Hoghunt"
+    },
+    {
+      "name": "Horns of Bynden Rusted Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/HornsOfBrynden.dds",
+      "source": "https://poe2db.tw/us/Horns_of_Bynden"
+    },
+    {
+      "name": "Horror's Flight Engraved Bracers",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/ChokingMists.dds",
+      "source": "https://poe2db.tw/us/Horrors_Flight"
+    },
+    {
+      "name": "Hrimnor's Hymn Oak Greathammer",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/HrimnorsHymn.dds",
+      "source": "https://poe2db.tw/us/Hrimnors_Hymn"
+    },
+    {
+      "name": "Hyrri's Ire Armoured Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/HyrrisIre.dds",
+      "source": "https://poe2db.tw/us/Hyrris_Ire"
+    },
+    {
+      "name": "Hysseg's Claw Familial Talisman",
+      "icon": "Art/2DItems/Offhand/Talismans/Uniques/HandOfTheClan.dds",
+      "source": "https://poe2db.tw/us/Hyssegs_Claw"
+    },
+    {
+      "name": "Icefang Orbit Iron Ring",
+      "icon": "Art/2DItems/Rings/Uniques/IcefangOrbit.dds",
+      "source": "https://poe2db.tw/us/Icefang_Orbit"
+    },
+    {
+      "name": "Icetomb Mail Vestments",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Icetomb.dds",
+      "source": "https://poe2db.tw/us/Icetomb"
+    },
+    {
+      "name": "Idle Hands Sectioned Bracers",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/IdleHands.dds",
+      "source": "https://poe2db.tw/us/Idle_Hands"
+    },
+    {
+      "name": "Idol of Uldurn Crimson Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/IdolOfUldurn.dds",
+      "source": "https://poe2db.tw/us/Idol_of_Uldurn"
+    },
+    {
+      "name": "Igniferis Crimson Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/Igniferis.dds",
+      "source": "https://poe2db.tw/us/Igniferis"
+    },
+    {
+      "name": "Immaculate Adherence Solar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/ChainsOfAdherence.dds",
+      "source": "https://poe2db.tw/us/Immaculate_Adherence"
+    },
+    {
+      "name": "Indigon Magus Tiara",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Indigon.dds",
+      "source": "https://poe2db.tw/us/Indigon"
+    },
+    {
+      "name": "Innsmouth Shabby Hood",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Innsmouth.dds",
+      "source": "https://poe2db.tw/us/Innsmouth"
+    },
+    {
+      "name": "Ironbound Warden Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Ironbound.dds",
+      "source": "https://poe2db.tw/us/Ironbound"
+    },
+    {
+      "name": "Irongrasp Vagabond Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Irongrasp.dds",
+      "source": "https://poe2db.tw/us/Irongrasp"
+    },
+    {
+      "name": "Ironride Visored Helm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Ironride.dds",
+      "source": "https://poe2db.tw/us/Ironride"
+    },
+    {
+      "name": "Ixchel's Torment",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Trialmaster.dds",
+      "source": "https://poe2db.tw/us/Ixchels_Torment"
+    },
+    {
+      "name": "Jarngreipr Ringmail Gauntlets",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Jarngreipr.dds",
+      "source": "https://poe2db.tw/us/Jarngreipr"
+    },
+    {
+      "name": "Kalandra's Touch Ring",
+      "icon": "Art/2DItems/Rings/MirrorRing.dds",
+      "source": "https://poe2db.tw/us/Kalandras_Touch"
+    },
+    {
+      "name": "Kalisa's Crescendo",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageKalisaChorus.dds",
+      "source": "https://poe2db.tw/us/Kalisas_Crescendo"
+    },
+    {
+      "name": "Kaltenhalt Ridged Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Kaltenhalt.dds",
+      "source": "https://poe2db.tw/us/Kaltenhalt"
+    },
+    {
+      "name": "Kaom's Heart Conqueror Plate",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/KaomsHeart.dds",
+      "source": "https://poe2db.tw/us/Kaoms_Heart"
+    },
+    {
+      "name": "Kaom's Madness",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageKaom.dds",
+      "source": "https://poe2db.tw/us/Kaoms_Madness"
+    },
+    {
+      "name": "Keelhaul Linen Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Keelhaul.dds",
+      "source": "https://poe2db.tw/us/Keelhaul"
+    },
+    {
+      "name": "Keeper of the Arc Spiritbone Crown",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/KeeperOfTheArc.dds",
+      "source": "https://poe2db.tw/us/Keeper_of_the_Arc"
+    },
+    {
+      "name": "Khatal's Rejuvenation",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageKhatal.dds",
+      "source": "https://poe2db.tw/us/Khatals_Rejuvenation"
+    },
+    {
+      "name": "Killjoy Linen Wraps",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Killjoy.dds",
+      "source": "https://poe2db.tw/us/Killjoy"
+    },
+    {
+      "name": "Kingsguard Full Plate",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Kingsguard.dds",
+      "source": "https://poe2db.tw/us/Kingsguard"
+    },
+    {
+      "name": "Kitoko's Current Jewelled Gloves",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/GaruksCurrent.dds",
+      "source": "https://poe2db.tw/us/Kitokos_Current"
+    },
+    {
+      "name": "Kulemak's Dominion",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageKulemakSpire.dds",
+      "source": "https://poe2db.tw/us/Kulemaks_Dominion"
+    },
+    {
+      "name": "Kurgal's Leash",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/AbyssKurgal.dds",
+      "source": "https://poe2db.tw/us/Kurgals_Leash"
+    },
+    {
+      "name": "Lavianga's Spirits Gargantuan Mana Flask",
+      "icon": "Art/2DItems/Flasks/Uniques/LaviangasSpirit.dds",
+      "source": "https://poe2db.tw/us/Laviangas_Spirits"
+    },
+    {
+      "name": "Leer Cast Hooded Mask",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Leercast.dds",
+      "source": "https://poe2db.tw/us/Leer_Cast"
+    },
+    {
+      "name": "Legionstride Rough Greaves",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Legionstride.dds",
+      "source": "https://poe2db.tw/us/Legionstride"
+    },
+    {
+      "name": "Leopold's Applause Embroidered Gloves",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/LeopoldsApplause.dds",
+      "source": "https://poe2db.tw/us/Leopolds_Applause"
+    },
+    {
+      "name": "Levinstone Topaz Ring",
+      "icon": "Art/2DItems/Rings/Uniques/StoneOfOndar.dds",
+      "source": "https://poe2db.tw/us/Levinstone"
+    },
+    {
+      "name": "Lifesprig Attuned Wand",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/Lifesprig.dds",
+      "source": "https://poe2db.tw/us/Lifesprig"
+    },
+    {
+      "name": "Lightning Coil Ancestral Mail",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/LightningCoil.dds",
+      "source": "https://poe2db.tw/us/Lightning_Coil"
+    },
+    {
+      "name": "Ligurium Talisman Lapis Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/LiguriumTalisman.dds",
+      "source": "https://poe2db.tw/us/Ligurium_Talisman"
+    },
+    {
+      "name": "Liminal Coil Twisted Wand",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/CoilOfUndoing.dds",
+      "source": "https://poe2db.tw/us/Liminal_Coil"
+    },
+    {
+      "name": "Lioneye's Glare Heavy Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/LioneyesGlare.dds",
+      "source": "https://poe2db.tw/us/Lioneyes_Glare"
+    },
+    {
+      "name": "Lochtonial Caress Tempered Mitts",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/LochtonialCaress.dds",
+      "source": "https://poe2db.tw/us/Lochtonial_Caress"
+    },
+    {
+      "name": "Loreweave",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Loreweave.dds",
+      "source": "https://poe2db.tw/us/Loreweave"
+    },
+    {
+      "name": "Luminous Pace Straw Sandals",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/BatedPace.dds",
+      "source": "https://poe2db.tw/us/Luminous_Pace"
+    },
+    {
+      "name": "Lycosidae Rampart Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Lycosa.dds",
+      "source": "https://poe2db.tw/us/Lycosidae"
+    },
+    {
+      "name": "Mórrigan's Insight",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/MorrigansRefuge.dds",
+      "source": "https://poe2db.tw/us/M%C3%B3rrigans_Insight"
+    },
+    {
+      "name": "Mageblood Utility Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Mageblood.dds",
+      "source": "https://poe2db.tw/us/Mageblood"
+    },
+    {
+      "name": "Mahuxotl's Machination Omen Crest Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/MahuxotlsMachination.dds",
+      "source": "https://poe2db.tw/us/Mahuxotls_Machination"
+    },
+    {
+      "name": "Maligaro's Virtuosity Fine Bracers",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/MaligarosVirtuosity.dds",
+      "source": "https://poe2db.tw/us/Maligaros_Virtuosity"
+    },
+    {
+      "name": "Marohi Erqi Totemic Greatclub",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/MarohiErqi.dds",
+      "source": "https://poe2db.tw/us/Marohi_Erqi"
+    },
+    {
+      "name": "Mask of the Sanguimancer Face Mask",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/PhantomBlood.dds",
+      "source": "https://poe2db.tw/us/Mask_of_the_Sanguimancer"
+    },
+    {
+      "name": "Mask of the Stitched Demon Feathered Tiara",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/MaskOfTheStitchedDemon.dds",
+      "source": "https://poe2db.tw/us/Mask_of_the_Stitched_Demon"
+    },
+    {
+      "name": "Mastered Domain",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletMasteredDomain.dds",
+      "source": "https://poe2db.tw/us/Mastered_Domain"
+    },
+    {
+      "name": "Matsya Crescent Quarterstaff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/Matsya.dds",
+      "source": "https://poe2db.tw/us/Matsya"
+    },
+    {
+      "name": "Medved's Felling",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/MedvedsFelling.dds",
+      "source": "https://poe2db.tw/us/Medveds_Felling"
+    },
+    {
+      "name": "Megalomaniac",
+      "icon": "Art/2DItems/Jewels/DeliriumJewel.dds",
+      "source": "https://poe2db.tw/us/Megalomaniac"
+    },
+    {
+      "name": "Meginord's Girdle Rawhide Belt",
+      "icon": "Art/2DItems/Belts/Uniques/MeginordsGirdle.dds",
+      "source": "https://poe2db.tw/us/Meginords_Girdle"
+    },
+    {
+      "name": "Melting Maelstrom Ultimate Mana Flask",
+      "icon": "Art/2DItems/Flasks/Uniques/MeltingMaelstrom.dds",
+      "source": "https://poe2db.tw/us/Melting_Maelstrom"
+    },
+    {
+      "name": "Midnight Braid Rawhide Belt",
+      "icon": "Art/2DItems/Belts/Uniques/MidnightBraid.dds",
+      "source": "https://poe2db.tw/us/Midnight_Braid"
+    },
+    {
+      "name": "Mind of the Council Death Mask",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/MindOfTheCouncil.dds",
+      "source": "https://poe2db.tw/us/Mind_of_the_Council"
+    },
+    {
+      "name": "Ming's Heart Amethyst Ring",
+      "icon": "Art/2DItems/Rings/Uniques/MingsHeart.dds",
+      "source": "https://poe2db.tw/us/Mings_Heart"
+    },
+    {
+      "name": "Mist Whisper Makeshift Crossbow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/MistWhisper.dds",
+      "source": "https://poe2db.tw/us/Mist_Whisper"
+    },
+    {
+      "name": "Mjölner Torment Club",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Mjolner.dds",
+      "source": "https://poe2db.tw/us/Mj%C3%B6lner"
+    },
+    {
+      "name": "Morgana's Tempest",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/MorganasTempest.dds",
+      "source": "https://poe2db.tw/us/Morganas_Tempest"
+    },
+    {
+      "name": "Morior Invictus Grand Regalia",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/MoriorInvictus_M.dds",
+      "source": "https://poe2db.tw/us/Morior_Invictus"
+    },
+    {
+      "name": "Murkshaft Toxic Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/Murkshaft.dds",
+      "source": "https://poe2db.tw/us/Murkshaft"
+    },
+    {
+      "name": "Myris Uxor Covert Hood",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/MyrisUxor.dds",
+      "source": "https://poe2db.tw/us/Myris_Uxor"
+    },
+    {
+      "name": "Nascent Hope Thawing Charm",
+      "icon": "Art/2DItems/Charms/Uniques/ThawingUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Nascent_Hope"
+    },
+    {
+      "name": "Nazir's Judgement Steelpoint Quarterstaff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/NazirsJudgement.dds",
+      "source": "https://poe2db.tw/us/Nazirs_Judgement"
+    },
+    {
+      "name": "Nebuloch Execratus Hammer",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Nebuloch.dds",
+      "source": "https://poe2db.tw/us/Nebuloch"
+    },
+    {
+      "name": "Necromantle Bone Raiment",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Necromantle.dds",
+      "source": "https://poe2db.tw/us/Necromantle"
+    },
+    {
+      "name": "Ngamahu's Chosen Ruby Charm",
+      "icon": "Art/2DItems/Charms/Uniques/RubyUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Ngamahus_Chosen"
+    },
+    {
+      "name": "Nightfall Glacial Fortress",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/TulShield.dds",
+      "source": "https://poe2db.tw/us/Nightfall"
+    },
+    {
+      "name": "Nightscale Pauascale Gloves",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Nightscale.dds",
+      "source": "https://poe2db.tw/us/Nightscale"
+    },
+    {
+      "name": "Nocturne Wooden Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Nocturne.dds",
+      "source": "https://poe2db.tw/us/Nocturne"
+    },
+    {
+      "name": "Northpaw Suede Bracers",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Northpaw.dds",
+      "source": "https://poe2db.tw/us/Northpaw"
+    },
+    {
+      "name": "Oaksworn Sigil Crest Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Oaksworn.dds",
+      "source": "https://poe2db.tw/us/Oaksworn"
+    },
+    {
+      "name": "Obern's Bastion Stacked Sabatons",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/ObernsBastion.dds",
+      "source": "https://poe2db.tw/us/Oberns_Bastion"
+    },
+    {
+      "name": "Oisín's Oath",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/WalkeroftheWilds.dds",
+      "source": "https://poe2db.tw/us/Ois%C3%ADns_Oath"
+    },
+    {
+      "name": "Olroth's Conviction",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/OlrothsConviction.dds",
+      "source": "https://poe2db.tw/us/Olroths_Conviction"
+    },
+    {
+      "name": "Olroth's Hubris",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/OlrothsHubris.dds",
+      "source": "https://poe2db.tw/us/Olroths_Hubris"
+    },
+    {
+      "name": "Olroth's Resolve Ultimate Life Flask",
+      "icon": "Art/2DItems/Flasks/Uniques/OlrothsResolve.dds",
+      "source": "https://poe2db.tw/us/Olroths_Resolve"
+    },
+    {
+      "name": "Olrovasara Torment Club",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Olrovasara.dds",
+      "source": "https://poe2db.tw/us/Olrovasara"
+    },
+    {
+      "name": "Opportunity Ultimate Life Flask",
+      "icon": "Art/2DItems/Flasks/Uniques/TranscendantThirst.dds",
+      "source": "https://poe2db.tw/us/Opportunity"
+    },
+    {
+      "name": "Original Sin Amethyst Ring",
+      "icon": "Art/2DItems/Rings/Uniques/OriginalSin.dds",
+      "source": "https://poe2db.tw/us/Original_Sin"
+    },
+    {
+      "name": "Painter's Servant Torn Gloves",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/PaintersServant.dds",
+      "source": "https://poe2db.tw/us/Painters_Servant"
+    },
+    {
+      "name": "Palm of the Dreamer",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/OpenPalmOfTheDreamer.dds",
+      "source": "https://poe2db.tw/us/Palm_of_the_Dreamer"
+    },
+    {
+      "name": "Paquate's Pact",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Paquate.dds",
+      "source": "https://poe2db.tw/us/Paquates_Pact"
+    },
+    {
+      "name": "Pariah's Embrace Cloaked Mail",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/PariahsEmbrace.dds",
+      "source": "https://poe2db.tw/us/Pariahs_Embrace"
+    },
+    {
+      "name": "Perandus Seal Gold Ring",
+      "icon": "Art/2DItems/Rings/Uniques/PerandusSeal.dds",
+      "source": "https://poe2db.tw/us/Perandus_Seal"
+    },
+    {
+      "name": "Perfidy Knight Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Perfidy.dds",
+      "source": "https://poe2db.tw/us/Perfidy"
+    },
+    {
+      "name": "Periphery Heartwood Shortbow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Fluttermoth.dds",
+      "source": "https://poe2db.tw/us/Periphery"
+    },
+    {
+      "name": "Pillar of the Caged God Long Quarterstaff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/PillarOfTheCagedGod.dds",
+      "source": "https://poe2db.tw/us/Pillar_of_the_Caged_God"
+    },
+    {
+      "name": "Plaguefinger Gauze Wraps",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Plaguefinger.dds",
+      "source": "https://poe2db.tw/us/Plaguefinger"
+    },
+    {
+      "name": "Polcirkeln Sapphire Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Polcirkeln.dds",
+      "source": "https://poe2db.tw/us/Polcirkeln"
+    },
+    {
+      "name": "Powertread Hunting Shoes",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Powertread.dds",
+      "source": "https://poe2db.tw/us/Powertread"
+    },
+    {
+      "name": "Pragmatism Explorer Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Pragmatism.dds",
+      "source": "https://poe2db.tw/us/Pragmatism"
+    },
+    {
+      "name": "Prayers for Rain Keth Raiment",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/PrayersForRain.dds",
+      "source": "https://poe2db.tw/us/Prayers_for_Rain"
+    },
+    {
+      "name": "Prism Guardian Intricate Crest Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/PrismGuardian.dds",
+      "source": "https://poe2db.tw/us/Prism_Guardian"
+    },
+    {
+      "name": "Prism of Belief Diamond",
+      "icon": "Art/2DItems/Jewels/SacredFlameJewel.dds",
+      "source": "https://poe2db.tw/us/Prism_of_Belief"
+    },
+    {
+      "name": "Prized Pain Iron Ring",
+      "icon": "Art/2DItems/Rings/Uniques/PrizedPain.dds",
+      "source": "https://poe2db.tw/us/Prized_Pain"
+    },
+    {
+      "name": "Prototype Seventeen",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/PrototypeSeventeen.dds",
+      "source": "https://poe2db.tw/us/Prototype_Seventeen"
+    },
+    {
+      "name": "Quatl's Molt Serpentscale Coat",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/QuatlsMolt.dds",
+      "source": "https://poe2db.tw/us/Quatls_Molt"
+    },
+    {
+      "name": "Quecholli Crumbling Maul",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Quecholli.dds",
+      "source": "https://poe2db.tw/us/Quecholli"
+    },
+    {
+      "name": "Queen of the Forest Smuggler Coat",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/QueenOfTheForest.dds",
+      "source": "https://poe2db.tw/us/Queen_of_the_Forest"
+    },
+    {
+      "name": "Quill Rain Shortbow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/QuillRain.dds",
+      "source": "https://poe2db.tw/us/Quill_Rain"
+    },
+    {
+      "name": "Radiant Grief Lace Hood",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/RadiantGrief.dds",
+      "source": "https://poe2db.tw/us/Radiant_Grief"
+    },
+    {
+      "name": "Rakiata's Flow",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Rakiata.dds",
+      "source": "https://poe2db.tw/us/Rakiatas_Flow"
+    },
+    {
+      "name": "Rampart Raptor Tense Crossbow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/RampartRaptor.dds",
+      "source": "https://poe2db.tw/us/Rampart_Raptor"
+    },
+    {
+      "name": "Ratha's Assault",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Azadian.dds",
+      "source": "https://poe2db.tw/us/Rathas_Assault"
+    },
+    {
+      "name": "Rathpith Globe Sacred Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/RathpithGlobe.dds",
+      "source": "https://poe2db.tw/us/Rathpith_Globe"
+    },
+    {
+      "name": "Rearguard Blunt Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/Rearguard.dds",
+      "source": "https://poe2db.tw/us/Rearguard"
+    },
+    {
+      "name": "Redblade Banner Heraldric Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/RedbladeBanner.dds",
+      "source": "https://poe2db.tw/us/Redblade_Banner"
+    },
+    {
+      "name": "Redemption Trarthan Cannon",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/TheRedemption.dds",
+      "source": "https://poe2db.tw/us/Redemption"
+    },
+    {
+      "name": "Redflare Conduit Anchorite Garb",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/RedflareConduit.dds",
+      "source": "https://poe2db.tw/us/Redflare_Conduit"
+    },
+    {
+      "name": "Revered Resin Amber Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/ReveredResin.dds",
+      "source": "https://poe2db.tw/us/Revered_Resin"
+    },
+    {
+      "name": "Reverie Shaman Mantle",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/HuskOfDreams.dds",
+      "source": "https://poe2db.tw/us/Reverie"
+    },
+    {
+      "name": "Rigwald's Ferocity",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Rigwald.dds",
+      "source": "https://poe2db.tw/us/Rigwalds_Ferocity"
+    },
+    {
+      "name": "Rise of the Phoenix Omen Crest Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Crest06.dds",
+      "source": "https://poe2db.tw/us/Rise_of_the_Phoenix"
+    },
+    {
+      "name": "Rite of Passage Golden Charm",
+      "icon": "Art/2DItems/Charms/Uniques/GoldenUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Rite_of_Passage"
+    },
+    {
+      "name": "Romira's Requital",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageRomira.dds",
+      "source": "https://poe2db.tw/us/Romiras_Requital"
+    },
+    {
+      "name": "Rondel de Ezo Plated Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/RondelDeEzo.dds",
+      "source": "https://poe2db.tw/us/Rondel_de_Ezo"
+    },
+    {
+      "name": "Rondel of Fragility Lunar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/RondelOfFragility.dds",
+      "source": "https://poe2db.tw/us/Rondel_of_Fragility"
+    },
+    {
+      "name": "Runeseeker's Call",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/RunicDiviner.dds",
+      "source": "https://poe2db.tw/us/Runeseekers_Call"
+    },
+    {
+      "name": "Ryslatha's Coil Ornate Belt",
+      "icon": "Art/2DItems/Belts/Uniques/RyslathasCoil.dds",
+      "source": "https://poe2db.tw/us/Ryslathas_Coil"
+    },
+    {
+      "name": "Sacred Flame Shrine Sceptre",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/SacredFlame.dds",
+      "source": "https://poe2db.tw/us/Sacred_Flame"
+    },
+    {
+      "name": "Sacrosanctum Corvus Mantle",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Sacrosanctum.dds",
+      "source": "https://poe2db.tw/us/Sacrosanctum"
+    },
+    {
+      "name": "Sadist's Mercy Flanged Mace",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Murkmaw.dds",
+      "source": "https://poe2db.tw/us/Sadists_Mercy"
+    },
+    {
+      "name": "Saffell's Frame Emblem Crest Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/SaffelsFrame.dds",
+      "source": "https://poe2db.tw/us/Saffells_Frame"
+    },
+    {
+      "name": "Safrin's Resolve Ring",
+      "icon": "Art/2DItems/Rings/Uniques/EmberheartSeal.dds",
+      "source": "https://poe2db.tw/us/Safrins_Resolve"
+    },
+    {
+      "name": "Saitha's Spear Barbed Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/SaithasSpear.dds",
+      "source": "https://poe2db.tw/us/Saithas_Spear"
+    },
+    {
+      "name": "Sands of Silk Shrouded Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/SandsOfSilk.dds",
+      "source": "https://poe2db.tw/us/Sands_of_Silk"
+    },
+    {
+      "name": "Sandstorm Visage Chain Tiara",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/SandstormVisage.dds",
+      "source": "https://poe2db.tw/us/Sandstorm_Visage"
+    },
+    {
+      "name": "Sanguine Diviner Bone Wand",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/SanguineDiviner.dds",
+      "source": "https://poe2db.tw/us/Sanguine_Diviner"
+    },
+    {
+      "name": "Sanguis Heroum Staunching Charm",
+      "icon": "Art/2DItems/Charms/Uniques/StaunchingUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Sanguis_Heroum"
+    },
+    {
+      "name": "Scold's Bridle Jade Tiara",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/ScoldsBridle.dds",
+      "source": "https://poe2db.tw/us/Scolds_Bridle"
+    },
+    {
+      "name": "Sculpted Suffering Warpick",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/SculptedSuffering.dds",
+      "source": "https://poe2db.tw/us/Sculpted_Suffering"
+    },
+    {
+      "name": "Season of the Hunt Overseer Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletOverseerUnique1.dds",
+      "source": "https://poe2db.tw/us/Season_of_the_Hunt"
+    },
+    {
+      "name": "Seed of Cataclysm Lazuli Ring",
+      "icon": "Art/2DItems/Rings/Uniques/SeedOfCataclysm.dds",
+      "source": "https://poe2db.tw/us/Seed_of_Cataclysm"
+    },
+    {
+      "name": "Seraph's Heart",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/SeraphsHeart.dds",
+      "source": "https://poe2db.tw/us/Seraphs_Heart"
+    },
+    {
+      "name": "Serle's Grit Kalguuran Forgehammer",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/SerlesMasterwork.dds",
+      "source": "https://poe2db.tw/us/Serles_Grit"
+    },
+    {
+      "name": "Serpent's Egg Gold Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/TheSerpentsEgg.dds",
+      "source": "https://poe2db.tw/us/Serpents_Egg"
+    },
+    {
+      "name": "Serpent's Lesson Tonal Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/TonesOfFate.dds",
+      "source": "https://poe2db.tw/us/Serpents_Lesson"
+    },
+    {
+      "name": "Shackles of the Wretched Aged Cuffs",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/ShacklesOfTheWretched.dds",
+      "source": "https://poe2db.tw/us/Shackles_of_the_Wretched"
+    },
+    {
+      "name": "Shankgonne Covered Sabatons",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Shankgonne.dds",
+      "source": "https://poe2db.tw/us/Shankgonne"
+    },
+    {
+      "name": "Shavronne's Satchel Fine Belt",
+      "icon": "Art/2DItems/Belts/Uniques/ShavronnesSatchel.dds",
+      "source": "https://poe2db.tw/us/Shavronnes_Satchel"
+    },
+    {
+      "name": "Shyaba Temple Maul",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Shyaba.dds",
+      "source": "https://poe2db.tw/us/Shyaba"
+    },
+    {
+      "name": "Sierran Inheritance Marabout Garb",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/MutewindSail.dds",
+      "source": "https://poe2db.tw/us/Sierran_Inheritance"
+    },
+    {
+      "name": "Silks of Veneration Enlightened Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/SilksOfVeneration.dds",
+      "source": "https://poe2db.tw/us/Silks_of_Veneration"
+    },
+    {
+      "name": "Silverthorne Spiked Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Silverthorne.dds",
+      "source": "https://poe2db.tw/us/Silverthorne"
+    },
+    {
+      "name": "Sine Aequo Grand Manchettes",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/SineAequo.dds",
+      "source": "https://poe2db.tw/us/Sine_Aequo"
+    },
+    {
+      "name": "Sione's Temper",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Wildshards.dds",
+      "source": "https://poe2db.tw/us/Siones_Temper"
+    },
+    {
+      "name": "Sire of Shards Chiming Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/SireOfShards.dds",
+      "source": "https://poe2db.tw/us/Sire_of_Shards"
+    },
+    {
+      "name": "Skin of the Loyal Garment",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/SkinOfTheLoyal.dds",
+      "source": "https://poe2db.tw/us/Skin_of_the_Loyal"
+    },
+    {
+      "name": "Skysliver Winged Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Skysliver.dds",
+      "source": "https://poe2db.tw/us/Skysliver"
+    },
+    {
+      "name": "Slivertongue Zealot Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Slivertongue.dds",
+      "source": "https://poe2db.tw/us/Slivertongue"
+    },
+    {
+      "name": "Snakebite Spined Bracers",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Snakebite.dds",
+      "source": "https://poe2db.tw/us/Snakebite"
+    },
+    {
+      "name": "Snakepit Pearl Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Snakepit.dds",
+      "source": "https://poe2db.tw/us/Snakepit"
+    },
+    {
+      "name": "Solus Ipse Grand Visage",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/SolusIpse.dds",
+      "source": "https://poe2db.tw/us/Solus_Ipse"
+    },
+    {
+      "name": "Soul Mantle Sacrificial Mantle",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/SoulMantle.dds",
+      "source": "https://poe2db.tw/us/Soul_Mantle"
+    },
+    {
+      "name": "Soul Tether Long Belt",
+      "icon": "Art/2DItems/Belts/Uniques/SoulTether.dds",
+      "source": "https://poe2db.tw/us/Soul_Tether"
+    },
+    {
+      "name": "Spire of Ire Helix Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/SpireOfIre.dds",
+      "source": "https://poe2db.tw/us/Spire_of_Ire"
+    },
+    {
+      "name": "Spiteful Floret Nettle Talisman",
+      "icon": "Art/2DItems/Offhand/Talismans/Uniques/CrimsonChrysalis.dds",
+      "source": "https://poe2db.tw/us/Spiteful_Floret"
+    },
+    {
+      "name": "Splinter of Lorrata Hardwood Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/SplinterOfLorrata.dds",
+      "source": "https://poe2db.tw/us/Splinter_of_Lorrata"
+    },
+    {
+      "name": "Splinterheart Recurve Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Splinterheart.dds",
+      "source": "https://poe2db.tw/us/Splinterheart"
+    },
+    {
+      "name": "Split Personality",
+      "icon": "Art/2DItems/Jewels/Uniques/SplitPersonality.dds",
+      "source": "https://poe2db.tw/us/Split_Personality"
+    },
+    {
+      "name": "Starkonja's Head Leatherbound Hood",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/StarkonjasHead.dds",
+      "source": "https://poe2db.tw/us/Starkonjas_Head"
+    },
+    {
+      "name": "Stone of Lazhwar Lapis Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/StoneOfLazhwar.dds",
+      "source": "https://poe2db.tw/us/Stone_of_Lazhwar"
+    },
+    {
+      "name": "Strugglescream Stellar Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/DeliriumAmulet.dds",
+      "source": "https://poe2db.tw/us/Strugglescream"
+    },
+    {
+      "name": "Sunsplinter Array Buckler",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Sunsplinter.dds",
+      "source": "https://poe2db.tw/us/Sunsplinter"
+    },
+    {
+      "name": "Surefooted Sigil Jade Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/SurefootedSigil.dds",
+      "source": "https://poe2db.tw/us/Surefooted_Sigil"
+    },
+    {
+      "name": "Surge of the Tide Lumbering Talisman",
+      "icon": "Art/2DItems/Offhand/Talismans/Uniques/TawhoasDominion.dds",
+      "source": "https://poe2db.tw/us/Surge_of_the_Tide"
+    },
+    {
+      "name": "Svalinn Crucible Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Svalinn.dds",
+      "source": "https://poe2db.tw/us/Svalinn"
+    },
+    {
+      "name": "Sylvan's Effigy Stoic Sceptre",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/Packleader.dds",
+      "source": "https://poe2db.tw/us/Sylvans_Effigy"
+    },
+    {
+      "name": "Tabula Rasa Garment",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TabulaRasa.dds",
+      "source": "https://poe2db.tw/us/Tabula_Rasa"
+    },
+    {
+      "name": "Tacati's Ire",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageTacati.dds",
+      "source": "https://poe2db.tw/us/Tacatis_Ire"
+    },
+    {
+      "name": "Tangletongue Forked Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/Tangletongue.dds",
+      "source": "https://poe2db.tw/us/Tangletongue"
+    },
+    {
+      "name": "Tangmazu's Thurible",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/TangmazusThurible.dds",
+      "source": "https://poe2db.tw/us/Tangmazus_Thurible"
+    },
+    {
+      "name": "Taryn's Shiver Gelid Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/TarynsShiver.dds",
+      "source": "https://poe2db.tw/us/Taryns_Shiver"
+    },
+    {
+      "name": "Tasalio's Rhythm",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageTasalio.dds",
+      "source": "https://poe2db.tw/us/Tasalios_Rhythm"
+    },
+    {
+      "name": "Tawhoa's Tending",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Tukohama.dds",
+      "source": "https://poe2db.tw/us/Tawhoas_Tending"
+    },
+    {
+      "name": "Tecrod's Revenge",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageTecrod.dds",
+      "source": "https://poe2db.tw/us/Tecrods_Revenge"
+    },
+    {
+      "name": "Temporalis Silk Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/PilgrimsImage.dds",
+      "source": "https://poe2db.tw/us/Temporalis"
+    },
+    {
+      "name": "Tetzlapokal's Desire Votive Raiment",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TetzlapokalsDesire.dds",
+      "source": "https://poe2db.tw/us/Tetzlapokals_Desire"
+    },
+    {
+      "name": "The Adorned Diamond",
+      "icon": "Art/2DItems/Jewels/TrialmasterJewel.dds",
+      "source": "https://poe2db.tw/us/The_Adorned"
+    },
+    {
+      "name": "The Anvil Bloodstone Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/TheAnvil.dds",
+      "source": "https://poe2db.tw/us/The_Anvil"
+    },
+    {
+      "name": "The Auspex Exquisite Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/The%20Auspex.dds",
+      "source": "https://poe2db.tw/us/The_Auspex"
+    },
+    {
+      "name": "The Barrow Dweller Rogue Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheBarrowDweller.dds",
+      "source": "https://poe2db.tw/us/The_Barrow_Dweller"
+    },
+    {
+      "name": "The Black Cat Grounding Charm",
+      "icon": "Art/2DItems/Charms/Uniques/GroundingUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/The_Black_Cat"
+    },
+    {
+      "name": "The Black Doubt Hexer's Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheBlackDoubt.dds",
+      "source": "https://poe2db.tw/us/The_Black_Doubt"
+    },
+    {
+      "name": "The Black Insignia Corsair Cap",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/TheBlackCrest.dds",
+      "source": "https://poe2db.tw/us/The_Black_Insignia"
+    },
+    {
+      "name": "The Blood Thorn Wrapped Quarterstaff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/TheBloodThorn.dds",
+      "source": "https://poe2db.tw/us/The_Blood_Thorn"
+    },
+    {
+      "name": "The Brass Dome Champion Cuirass",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/BrassDome.dds",
+      "source": "https://poe2db.tw/us/The_Brass_Dome"
+    },
+    {
+      "name": "The Bringer of Rain Decorated Helm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/BringerOfRain.dds",
+      "source": "https://poe2db.tw/us/The_Bringer_of_Rain"
+    },
+    {
+      "name": "The Burden of Leadership Tapestry Relic",
+      "icon": "Art/2DItems/Relics/RelicUnique3x1.dds",
+      "source": "https://poe2db.tw/us/The_Burden_of_Leadership"
+    },
+    {
+      "name": "The Burden of Shadows Chiming Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/BurdenOfShadows.dds",
+      "source": "https://poe2db.tw/us/The_Burden_of_Shadows"
+    },
+    {
+      "name": "The Burrower Topaz Ring",
+      "icon": "Art/2DItems/Rings/Uniques/TheBurrower.dds",
+      "source": "https://poe2db.tw/us/The_Burrower"
+    },
+    {
+      "name": "The Changing Seasons Seal Relic",
+      "icon": "Art/2DItems/Relics/RelicUnique2x1.dds",
+      "source": "https://poe2db.tw/us/The_Changing_Seasons"
+    },
+    {
+      "name": "The Coming Calamity Heroic Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheComingCalamity.dds",
+      "source": "https://poe2db.tw/us/The_Coming_Calamity"
+    },
+    {
+      "name": "The Covenant Altar Robe",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheCovenant.dds",
+      "source": "https://poe2db.tw/us/The_Covenant"
+    },
+    {
+      "name": "The Dancing Mirage Wayfarer Jacket",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheDancingMirage.dds",
+      "source": "https://poe2db.tw/us/The_Dancing_Mirage"
+    },
+    {
+      "name": "The Dark Defiler Rattling Sceptre",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Scepters/Uniques/DarkDefiler.dds",
+      "source": "https://poe2db.tw/us/The_Dark_Defiler"
+    },
+    {
+      "name": "The Desperate Alliance Vase Relic",
+      "icon": "Art/2DItems/Relics/RelicUnique1x4.dds",
+      "source": "https://poe2db.tw/us/The_Desperate_Alliance"
+    },
+    {
+      "name": "The Devouring Diadem Wicker Tiara",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/DevouringDiadem.dds",
+      "source": "https://poe2db.tw/us/The_Devouring_Diadem"
+    },
+    {
+      "name": "The Empty Roar Cultist Greathammer",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/TheEmptyRoar.dds",
+      "source": "https://poe2db.tw/us/The_Empty_Roar"
+    },
+    {
+      "name": "The Eternal Spark Crystal Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/EternalSpark.dds",
+      "source": "https://poe2db.tw/us/The_Eternal_Spark"
+    },
+    {
+      "name": "The Everlasting Gaze Azure Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/TheEverlastingGaze.dds",
+      "source": "https://poe2db.tw/us/The_Everlasting_Gaze"
+    },
+    {
+      "name": "The Fall of the Axe Silver Charm",
+      "icon": "Art/2DItems/Charms/Uniques/SilverUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/The_Fall_of_the_Axe"
+    },
+    {
+      "name": "The Flesh Poppet Vicious Talisman",
+      "icon": "Art/2DItems/Offhand/Talismans/Uniques/TheSkinThief.dds",
+      "source": "https://poe2db.tw/us/The_Flesh_Poppet"
+    },
+    {
+      "name": "The Gnashing Sash Wide Belt",
+      "icon": "Art/2DItems/Belts/Uniques/GnashingSash.dds",
+      "source": "https://poe2db.tw/us/The_Gnashing_Sash"
+    },
+    {
+      "name": "The Grand Project Irradiated Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletGenericUnique1.dds",
+      "source": "https://poe2db.tw/us/The_Grand_Project"
+    },
+    {
+      "name": "The Hammer of Faith Giant Maul",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/HammerOfTheChurch.dds",
+      "source": "https://poe2db.tw/us/The_Hammer_of_Faith"
+    },
+    {
+      "name": "The Hollow Mask Hewn Mask",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/MaskOfTheHollow.dds",
+      "source": "https://poe2db.tw/us/The_Hollow_Mask"
+    },
+    {
+      "name": "The Infinite Pursuit Bronze Greaves",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/TheInfinitePursuit.dds",
+      "source": "https://poe2db.tw/us/The_Infinite_Pursuit"
+    },
+    {
+      "name": "The Knight-errant Mail Sabatons",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/KnightErrant.dds",
+      "source": "https://poe2db.tw/us/The_Knight-errant"
+    },
+    {
+      "name": "The Last Flame Incense Relic",
+      "icon": "Art/2DItems/Relics/RelicUnique4x1.dds",
+      "source": "https://poe2db.tw/us/The_Last_Flame"
+    },
+    {
+      "name": "The Last Lament Desolate Crossbow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Crossbows/Uniques/TheGrandDesign.dds",
+      "source": "https://poe2db.tw/us/The_Last_Lament"
+    },
+    {
+      "name": "The Lethal Draw Sacral Quiver",
+      "icon": "Art/2DItems/Quivers/Uniques/TheLethalDraw.dds",
+      "source": "https://poe2db.tw/us/The_Lethal_Draw"
+    },
+    {
+      "name": "The Master's Reach Tethering Bands",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Darkreach.dds",
+      "source": "https://poe2db.tw/us/The_Masters_Reach"
+    },
+    {
+      "name": "The Mutable Star Cleric Vestments",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/MutableStar.dds",
+      "source": "https://poe2db.tw/us/The_Mutable_Star"
+    },
+    {
+      "name": "The Ordained Grand Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/TheOrdained.dds",
+      "source": "https://poe2db.tw/us/The_Ordained"
+    },
+    {
+      "name": "The Pandemonius Lapis Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/ThePandemonius.dds",
+      "source": "https://poe2db.tw/us/The_Pandemonius"
+    },
+    {
+      "name": "The Peacemaker's Draught Amphora Relic",
+      "icon": "Art/2DItems/Relics/RelicUnique1x3.dds",
+      "source": "https://poe2db.tw/us/The_Peacemakers_Draught"
+    },
+    {
+      "name": "The Prisoner's Manacles Kalguuran Cuffs",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/PrisonersManacles.dds",
+      "source": "https://poe2db.tw/us/The_Prisoners_Manacles"
+    },
+    {
+      "name": "The Rat Cage Scout's Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheRatCage.dds",
+      "source": "https://poe2db.tw/us/The_Rat_Cage"
+    },
+    {
+      "name": "The Raven's Flock Perching Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/RoostOfTheRavenKing.dds",
+      "source": "https://poe2db.tw/us/The_Ravens_Flock"
+    },
+    {
+      "name": "The Searing Touch Pyrophyte Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/SearingTouch.dds",
+      "source": "https://poe2db.tw/us/The_Searing_Touch"
+    },
+    {
+      "name": "The Sentry Gothic Quarterstaff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/WarStaves/Uniques/TheSentry.dds",
+      "source": "https://poe2db.tw/us/The_Sentry"
+    },
+    {
+      "name": "The Smiling Knight Cowled Helm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/TheSmilingKnight.dds",
+      "source": "https://poe2db.tw/us/The_Smiling_Knight"
+    },
+    {
+      "name": "The Sunken Vessel Knight Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TheSunkenVessel.dds",
+      "source": "https://poe2db.tw/us/The_Sunken_Vessel"
+    },
+    {
+      "name": "The Surrender Vaal Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/TheSurrender.dds",
+      "source": "https://poe2db.tw/us/The_Surrender"
+    },
+    {
+      "name": "The Taming",
+      "icon": "Art/2DItems/Rings/Uniques/TheTaming.dds",
+      "source": "https://poe2db.tw/us/The_Taming"
+    },
+    {
+      "name": "The Three Dragons Solid Mask",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/TheThreeDragons.dds",
+      "source": "https://poe2db.tw/us/The_Three_Dragons"
+    },
+    {
+      "name": "The Unborn Lich",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/KulemaksBirth.dds",
+      "source": "https://poe2db.tw/us/The_Unborn_Lich"
+    },
+    {
+      "name": "The Unleashed Revered Vestments",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Endurfaedyr.dds",
+      "source": "https://poe2db.tw/us/The_Unleashed"
+    },
+    {
+      "name": "The Vertex",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/TheVertex.dds",
+      "source": "https://poe2db.tw/us/The_Vertex"
+    },
+    {
+      "name": "The Vile Knight Shielded Helm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/TheVileKnight.dds",
+      "source": "https://poe2db.tw/us/The_Vile_Knight"
+    },
+    {
+      "name": "The Whispering Ice Permafrost Staff",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Staves/Uniques/WhisperingIce.dds",
+      "source": "https://poe2db.tw/us/The_Whispering_Ice"
+    },
+    {
+      "name": "The Wicked Quill Withered Wand",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/Wands/Uniques/TheWickedQuill.dds",
+      "source": "https://poe2db.tw/us/The_Wicked_Quill"
+    },
+    {
+      "name": "Thief's Torment Emerald Ring",
+      "icon": "Art/2DItems/Rings/Uniques/ThiefsTorment.dds",
+      "source": "https://poe2db.tw/us/Thiefs_Torment"
+    },
+    {
+      "name": "Threaded Light Woven Focus",
+      "icon": "Art/2DItems/Offhand/Foci/Uniques/ThreadedLight.dds",
+      "source": "https://poe2db.tw/us/Threaded_Light"
+    },
+    {
+      "name": "Thrillsteel Spired Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/Thrillsteel.dds",
+      "source": "https://poe2db.tw/us/Thrillsteel"
+    },
+    {
+      "name": "Thunderfist Utility Wraps",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Thunderfist.dds",
+      "source": "https://poe2db.tw/us/Thunderfist"
+    },
+    {
+      "name": "Tidebreaker Pointed Maul",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Tidebreaker.dds",
+      "source": "https://poe2db.tw/us/Tidebreaker"
+    },
+    {
+      "name": "Titanrot Cataphract Maraketh Cuirass",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/TitanrotCataphract.dds",
+      "source": "https://poe2db.tw/us/Titanrot_Cataphract"
+    },
+    {
+      "name": "Trampletoe Trimmed Greaves",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Trampletoe.dds",
+      "source": "https://poe2db.tw/us/Trampletoe"
+    },
+    {
+      "name": "Treefingers Riveted Mitts",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/Treefingers.dds",
+      "source": "https://poe2db.tw/us/Treefingers"
+    },
+    {
+      "name": "Trenchtimbre Spiked Club",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandMaces/Uniques/Trenchtimbre.dds",
+      "source": "https://poe2db.tw/us/Trenchtimbre"
+    },
+    {
+      "name": "Trephina Forge Maul",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/Trephina.dds",
+      "source": "https://poe2db.tw/us/Trephina"
+    },
+    {
+      "name": "Trickster's Shard",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/TrickstersShard.dds",
+      "source": "https://poe2db.tw/us/Tricksters_Shard"
+    },
+    {
+      "name": "Tul's Avalanche",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/TulsProgeny.dds",
+      "source": "https://poe2db.tw/us/Tuls_Avalanche"
+    },
+    {
+      "name": "Tul's Stillness",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageTul.dds",
+      "source": "https://poe2db.tw/us/Tuls_Stillness"
+    },
+    {
+      "name": "Twisted Empyrean Aberrant Sledge",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/TwoHandMaces/Uniques/SpiderVerisiumMaul.dds",
+      "source": "https://poe2db.tw/us/Twisted_Empyrean"
+    },
+    {
+      "name": "Tyranny's Grip Ironhead Spear",
+      "icon": "Art/2DItems/Weapons/OneHandWeapons/OneHandSpears/Uniques/ArmsLength.dds",
+      "source": "https://poe2db.tw/us/Tyrannys_Grip"
+    },
+    {
+      "name": "Uhtred's Augury",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageUhtredGreater.dds",
+      "source": "https://poe2db.tw/us/Uhtreds_Augury"
+    },
+    {
+      "name": "Uhtred's Chalice Transcendent Mana Flask",
+      "icon": "Art/2DItems/Flasks/Uniques/UhtredsLegacy.dds",
+      "source": "https://poe2db.tw/us/Uhtreds_Chalice"
+    },
+    {
+      "name": "Uhtred's Constellation",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/UhtredsConstellation.dds",
+      "source": "https://poe2db.tw/us/Uhtreds_Constellation"
+    },
+    {
+      "name": "Uhtred's Exodus",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageUhtredLesser.dds",
+      "source": "https://poe2db.tw/us/Uhtreds_Exodus"
+    },
+    {
+      "name": "Uhtred's Omen",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageUhtredStandard.dds",
+      "source": "https://poe2db.tw/us/Uhtreds_Omen"
+    },
+    {
+      "name": "Uhtred's Rite",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/UthredsChalice.dds",
+      "source": "https://poe2db.tw/us/Uhtreds_Rite"
+    },
+    {
+      "name": "Umbilicus Immortalis Linen Belt",
+      "icon": "Art/2DItems/Belts/Uniques/UmbilicusImmortalis.dds",
+      "source": "https://poe2db.tw/us/Umbilicus_Immortalis"
+    },
+    {
+      "name": "Undying Hate Timeless Jewel",
+      "icon": "Art/2DItems/Jewels/Uniques/UndyingHatred.dds",
+      "source": "https://poe2db.tw/us/Undying_Hate"
+    },
+    {
+      "name": "Unforeseen Consequences Abyss Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletAbyssUnique1.dds",
+      "source": "https://poe2db.tw/us/Unforeseen_Consequences"
+    },
+    {
+      "name": "Ungil's Harmony Azure Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/UngilsHarmony.dds",
+      "source": "https://poe2db.tw/us/Ungils_Harmony"
+    },
+    {
+      "name": "Uruk's Smelting",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageArmourBreak.dds",
+      "source": "https://poe2db.tw/us/Uruks_Smelting"
+    },
+    {
+      "name": "Uul-Netol's Embrace",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageUulNetol.dds",
+      "source": "https://poe2db.tw/us/Uul-Netols_Embrace"
+    },
+    {
+      "name": "Valako's Roar Topaz Charm",
+      "icon": "Art/2DItems/Charms/Uniques/TopazUniqueCharm.dds",
+      "source": "https://poe2db.tw/us/Valakos_Roar"
+    },
+    {
+      "name": "Valako's Vice Plate Gauntlets",
+      "icon": "Art/2DItems/Armours/Gloves/Uniques/ValakosVice.dds",
+      "source": "https://poe2db.tw/us/Valakos_Vice"
+    },
+    {
+      "name": "Varashta's Blessing",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageDjinn.dds",
+      "source": "https://poe2db.tw/us/Varashtas_Blessing"
+    },
+    {
+      "name": "Veil of the Night Martyr Crown",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/VeilOfTheNight.dds",
+      "source": "https://poe2db.tw/us/Veil_of_the_Night"
+    },
+    {
+      "name": "Veilpiercer Amethyst Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Veilpiercer.dds",
+      "source": "https://poe2db.tw/us/Veilpiercer"
+    },
+    {
+      "name": "Venopuncture Iron Ring",
+      "icon": "Art/2DItems/Rings/Uniques/Venopuncture.dds",
+      "source": "https://poe2db.tw/us/Venopuncture"
+    },
+    {
+      "name": "Ventor's Gamble Gold Ring",
+      "icon": "Art/2DItems/Rings/Uniques/VentorsGamble.dds",
+      "source": "https://poe2db.tw/us/Ventors_Gamble"
+    },
+    {
+      "name": "Vestige of Darkness Tenebrous Crown",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/CrownOfTheWendigo.dds",
+      "source": "https://poe2db.tw/us/Vestige_of_Darkness"
+    },
+    {
+      "name": "Vigilant View Emerald Ring",
+      "icon": "Art/2DItems/Rings/Uniques/VigilantView.dds",
+      "source": "https://poe2db.tw/us/Vigilant_View"
+    },
+    {
+      "name": "Vilenta's Propulsion",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageVilenta.dds",
+      "source": "https://poe2db.tw/us/Vilentas_Propulsion"
+    },
+    {
+      "name": "Vis Mortis Plated Raiment",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/VisMortis.dds",
+      "source": "https://poe2db.tw/us/Vis_Mortis"
+    },
+    {
+      "name": "Visage of Ayah Beaded Circlet",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/VisageOfAyah.dds",
+      "source": "https://poe2db.tw/us/Visage_of_Ayah"
+    },
+    {
+      "name": "Visions of Paradise Irradiated Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletGenericUnique3.dds",
+      "source": "https://poe2db.tw/us/Visions_of_Paradise"
+    },
+    {
+      "name": "Voices",
+      "icon": "Art/2DItems/Jewels/Uniques/Voices.dds",
+      "source": "https://poe2db.tw/us/Voices"
+    },
+    {
+      "name": "Voll's Protector Plated Vestments",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/VollsProtector.dds",
+      "source": "https://poe2db.tw/us/Volls_Protector"
+    },
+    {
+      "name": "Voltaxic Rift Fanatic Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/VoltaxicRift.dds",
+      "source": "https://poe2db.tw/us/Voltaxic_Rift"
+    },
+    {
+      "name": "Vorana's Siege",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/VoranasSiege.dds",
+      "source": "https://poe2db.tw/us/Voranas_Siege"
+    },
+    {
+      "name": "Vruun's Aftermath",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/VruunsAftermath.dds",
+      "source": "https://poe2db.tw/us/Vruuns_Aftermath"
+    },
+    {
+      "name": "Vruun's Inevitability",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/VruunsSpike.dds",
+      "source": "https://poe2db.tw/us/Vruuns_Inevitability"
+    },
+    {
+      "name": "Waistgate Heavy Belt",
+      "icon": "Art/2DItems/Belts/Uniques/Waistgate.dds",
+      "source": "https://poe2db.tw/us/Waistgate"
+    },
+    {
+      "name": "Wake of Destruction Secured Leggings",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/WakeOfDestruction.dds",
+      "source": "https://poe2db.tw/us/Wake_of_Destruction"
+    },
+    {
+      "name": "Wandering Reliquary Steel Plate",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/WanderingReliquary.dds",
+      "source": "https://poe2db.tw/us/Wandering_Reliquary"
+    },
+    {
+      "name": "Wanderlust Wrapped Sandals",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Wanderlust.dds",
+      "source": "https://poe2db.tw/us/Wanderlust"
+    },
+    {
+      "name": "Waveshaper Tideseer Mantle",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/Waveshaper.dds",
+      "source": "https://poe2db.tw/us/Waveshaper"
+    },
+    {
+      "name": "Whisper of the Brotherhood Sapphire Ring",
+      "icon": "Art/2DItems/Rings/Uniques/WhisperOfTheBrotherhood.dds",
+      "source": "https://poe2db.tw/us/Whisper_of_the_Brotherhood"
+    },
+    {
+      "name": "Widowhail Crude Bow",
+      "icon": "Art/2DItems/Weapons/TwoHandWeapons/Bows/Uniques/Widowhail.dds",
+      "source": "https://poe2db.tw/us/Widowhail"
+    },
+    {
+      "name": "Widow's Reign Knight Armour",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/WidowsReign.dds",
+      "source": "https://poe2db.tw/us/Widows_Reign"
+    },
+    {
+      "name": "Window to Paradise Barricade Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/WindowToParadise.dds",
+      "source": "https://poe2db.tw/us/Window_to_Paradise"
+    },
+    {
+      "name": "Windscream Feathered Sandals",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Windscream.dds",
+      "source": "https://poe2db.tw/us/Windscream"
+    },
+    {
+      "name": "Wings of Caelyn Rusted Greathelm",
+      "icon": "Art/2DItems/Armours/Helmets/Uniques/WingsOfCaelyn.dds",
+      "source": "https://poe2db.tw/us/Wings_of_Caelyn"
+    },
+    {
+      "name": "Wondertrap Silk Slippers",
+      "icon": "Art/2DItems/Armours/Boots/Uniques/Wondertrap.dds",
+      "source": "https://poe2db.tw/us/Wondertrap"
+    },
+    {
+      "name": "Wraeclast Besieged Breach Tablet",
+      "icon": "Art/2DItems/Currency/PrecursorTablets/PrecursorTabletBreachUnique1.dds",
+      "source": "https://poe2db.tw/us/Wraeclast_Besieged"
+    },
+    {
+      "name": "Wulfsbane Painted Tower Shield",
+      "icon": "Art/2DItems/Offhand/Shields/Uniques/Wulfsbane.dds",
+      "source": "https://poe2db.tw/us/Wulfsbane"
+    },
+    {
+      "name": "Xibaqua's Rending",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageXibaqua.dds",
+      "source": "https://poe2db.tw/us/Xibaquas_Rending"
+    },
+    {
+      "name": "Xoph's Blood Amber Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/XophsBlood.dds",
+      "source": "https://poe2db.tw/us/Xophs_Blood"
+    },
+    {
+      "name": "Xoph's Pyre",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/LineageXoph.dds",
+      "source": "https://poe2db.tw/us/Xophs_Pyre"
+    },
+    {
+      "name": "Yoke of Suffering Bloodstone Amulet",
+      "icon": "Art/2DItems/Amulets/Uniques/YokeOfSuffering.dds",
+      "source": "https://poe2db.tw/us/Yoke_of_Suffering"
+    },
+    {
+      "name": "Yriel's Fostering Strider Vest",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/YrielsFostering.dds",
+      "source": "https://poe2db.tw/us/Yriels_Fostering"
+    },
+    {
+      "name": "Zaida's Longevity Ring",
+      "icon": "Art/2DItems/Rings/Uniques/StormforgedSeal.dds",
+      "source": "https://poe2db.tw/us/Zaidas_Longevity"
+    },
+    {
+      "name": "Zarokh's Refrain",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/Zarokh.dds",
+      "source": "https://poe2db.tw/us/Zarokhs_Refrain"
+    },
+    {
+      "name": "Zarokh's Revolt",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/ZarokhsRevolt.dds",
+      "source": "https://poe2db.tw/us/Zarokhs_Revolt"
+    },
+    {
+      "name": "Zerphi's Genesis Heavy Belt",
+      "icon": "Art/2DItems/Belts/Uniques/ZerphisGenesis.dds",
+      "source": "https://poe2db.tw/us/Zerphis_Genesis"
+    },
+    {
+      "name": "Zerphi's Infamy",
+      "icon": "Art/2DItems/Gems/New/NewSupport/Lineage/ZerphisLegacy.dds",
+      "source": "https://poe2db.tw/us/Zerphis_Infamy"
+    },
+    {
+      "name": "Zerphi's Serape Scalper's Jacket",
+      "icon": "Art/2DItems/Armours/BodyArmours/Uniques/ZerphisSerape.dds",
+      "source": "https://poe2db.tw/us/Zerphis_Serape"
+    }
+  ],
+  "noItemArtIdentified": [
+    {
+      "name": "Abyss_Brazier_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Abyss_Brazier_Guild_Stash"
+    },
+    {
+      "name": "Abyss_Brazier_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Abyss_Brazier_Stash"
+    },
+    {
+      "name": "Afflicted_Altar_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Afflicted_Altar_Guild_Stash"
+    },
+    {
+      "name": "Afflicted_Altar_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Afflicted_Altar_Stash"
+    },
+    {
+      "name": "Allflame_Crafting_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Allflame_Crafting_Bench"
+    },
+    {
+      "name": "Aloe_Vera",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Aloe_Vera"
+    },
+    {
+      "name": "Alva",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Alva"
+    },
+    {
+      "name": "Ancestral_Canoe_Crafting_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Ancestral_Canoe_Crafting_Bench"
+    },
+    {
+      "name": "Ange",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Ange"
+    },
+    {
+      "name": "Arbiter_of_Ash_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arbiter_of_Ash_Waypoint"
+    },
+    {
+      "name": "Arcane_Astronomy_Tool",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Astronomy_Tool"
+    },
+    {
+      "name": "Arcane_Broken_Plant_Pot",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Broken_Plant_Pot"
+    },
+    {
+      "name": "Arcane_Cabinet",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Cabinet"
+    },
+    {
+      "name": "Arcane_Chair",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Chair"
+    },
+    {
+      "name": "Arcane_Overgrown_Post",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Overgrown_Post"
+    },
+    {
+      "name": "Arcane_Plant_Pot",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Plant_Pot"
+    },
+    {
+      "name": "Arcane_Planter",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Planter"
+    },
+    {
+      "name": "Arcane_Research_Board",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Research_Board"
+    },
+    {
+      "name": "Arcane_Research_Material",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Research_Material"
+    },
+    {
+      "name": "Arcane_Research_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Research_Table"
+    },
+    {
+      "name": "Arcane_Ruin_Stairs",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Ruin_Stairs"
+    },
+    {
+      "name": "Arcane_Ruin_Structures",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Ruin_Structures"
+    },
+    {
+      "name": "Arcane_Ruin_Walls",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Ruin_Walls"
+    },
+    {
+      "name": "Arcane_Shelf",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Arcane_Shelf"
+    },
+    {
+      "name": "Assassin_Djinns_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Assassin_Djinns_Map_Device"
+    },
+    {
+      "name": "Astrolabe_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Astrolabe_Guild_Stash"
+    },
+    {
+      "name": "Astrolabe_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Astrolabe_Stash"
+    },
+    {
+      "name": "Atziri_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Atziri_Statue"
+    },
+    {
+      "name": "Atziris_Royal_Cache_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Atziris_Royal_Cache_Guild_Stash"
+    },
+    {
+      "name": "Atziris_Royal_Cache_Guild_Stash_%28Unique%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Atziris_Royal_Cache_Guild_Stash_%28Unique%29"
+    },
+    {
+      "name": "Atziris_Royal_Cache_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Atziris_Royal_Cache_Stash"
+    },
+    {
+      "name": "Atziris_Royal_Cache_Stash_%28Unique%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Atziris_Royal_Cache_Stash_%28Unique%29"
+    },
+    {
+      "name": "Atzoatl_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Atzoatl_Map_Device"
+    },
+    {
+      "name": "Backalley_Trader",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Backalley_Trader"
+    },
+    {
+      "name": "Beech_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Beech_Tree"
+    },
+    {
+      "name": "Blood_Pots",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Blood_Pots"
+    },
+    {
+      "name": "Bloodbark_Evertree_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Bloodbark_Evertree_Map_Device"
+    },
+    {
+      "name": "Bronze_Timekeepers_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Bronze_Timekeepers_Map_Device"
+    },
+    {
+      "name": "Burrowing_Bramble_Bash_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Burrowing_Bramble_Bash_Hideout_Decoration"
+    },
+    {
+      "name": "Cabbage_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Cabbage_Tree"
+    },
+    {
+      "name": "Caged_People",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Caged_People"
+    },
+    {
+      "name": "Canopy_Base",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Base"
+    },
+    {
+      "name": "Canopy_Container",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Container"
+    },
+    {
+      "name": "Canopy_Hut",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Hut"
+    },
+    {
+      "name": "Canopy_Messy_Base",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Messy_Base"
+    },
+    {
+      "name": "Canopy_Rack",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Rack"
+    },
+    {
+      "name": "Canopy_Scaffold",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Scaffold"
+    },
+    {
+      "name": "Canopy_Stool",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Stool"
+    },
+    {
+      "name": "Canopy_Wood_Bundle",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Canopy_Wood_Bundle"
+    },
+    {
+      "name": "Cauldron_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Cauldron_Map_Device"
+    },
+    {
+      "name": "Cave_Coral",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Cave_Coral"
+    },
+    {
+      "name": "Cave_Coral_Group",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Cave_Coral_Group"
+    },
+    {
+      "name": "Cave_Fossil",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Cave_Fossil"
+    },
+    {
+      "name": "Cave_Petrified_Figure",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Cave_Petrified_Figure"
+    },
+    {
+      "name": "Cave_Siren_Nest",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Cave_Siren_Nest"
+    },
+    {
+      "name": "Celestial_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Celestial_Tree"
+    },
+    {
+      "name": "Champions_Podium_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Champions_Podium_Map_Device"
+    },
+    {
+      "name": "Chaos_Crawling_Leaves",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Crawling_Leaves"
+    },
+    {
+      "name": "Chaos_Pots",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Pots"
+    },
+    {
+      "name": "Chaos_Rack",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Rack"
+    },
+    {
+      "name": "Chaos_Remains",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Remains"
+    },
+    {
+      "name": "Chaos_Ritual_Altar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Ritual_Altar"
+    },
+    {
+      "name": "Chaos_Small_Ritual_Altar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Small_Ritual_Altar"
+    },
+    {
+      "name": "Chaos_Sprout",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Sprout"
+    },
+    {
+      "name": "Chaos_Stone_Blocks",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaos_Stone_Blocks"
+    },
+    {
+      "name": "Chaotic_Peddlers_Rain_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Chaotic_Peddlers_Rain_Hideout_Decoration"
+    },
+    {
+      "name": "Clam_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Clam_Guild_Stash"
+    },
+    {
+      "name": "Clam_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Clam_Stash"
+    },
+    {
+      "name": "Clapsed_Hand_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Clapsed_Hand_Guild_Stash"
+    },
+    {
+      "name": "Clasped_Hand_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Clasped_Hand_Stash"
+    },
+    {
+      "name": "Clothesline",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Clothesline"
+    },
+    {
+      "name": "Comfortable_Cushions",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Comfortable_Cushions"
+    },
+    {
+      "name": "Commemorative_Dominus_Statue_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Commemorative_Dominus_Statue_Hideout_Decoration"
+    },
+    {
+      "name": "Commemorative_Hillock_Statue_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Commemorative_Hillock_Statue_Hideout_Decoration"
+    },
+    {
+      "name": "Commemorative_Kitava_Statue_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Commemorative_Kitava_Statue_Hideout_Decoration"
+    },
+    {
+      "name": "Commemorative_Malachai_Statue_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Commemorative_Malachai_Statue_Hideout_Decoration"
+    },
+    {
+      "name": "Commemorative_Vaal_Oversoul_Statue_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Commemorative_Vaal_Oversoul_Statue_Hideout_Decoration"
+    },
+    {
+      "name": "Corrupted_Crystal_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Corrupted_Crystal_Guild_Stash"
+    },
+    {
+      "name": "Corrupted_Crystal_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Corrupted_Crystal_Stash"
+    },
+    {
+      "name": "Crimson_Hourglass_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Crimson_Hourglass_Map_Device"
+    },
+    {
+      "name": "Curio_Display_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Curio_Display_Guild_Stash"
+    },
+    {
+      "name": "Curio_Display_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Curio_Display_Stash"
+    },
+    {
+      "name": "Currency_Coffer_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Currency_Coffer_Guild_Stash"
+    },
+    {
+      "name": "Currency_Coffer_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Currency_Coffer_Stash"
+    },
+    {
+      "name": "Dannig",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Dannig"
+    },
+    {
+      "name": "Darkshard_Tinkers_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Darkshard_Tinkers_Waypoint"
+    },
+    {
+      "name": "Decorative_Rhoa_Race_Controller",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Decorative_Rhoa_Race_Controller"
+    },
+    {
+      "name": "Decorative_Rhoa_Race_Flag",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Decorative_Rhoa_Race_Flag"
+    },
+    {
+      "name": "Decorative_Rhoa_Race_Spectate",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Decorative_Rhoa_Race_Spectate"
+    },
+    {
+      "name": "Demonic_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Demonic_Waypoint"
+    },
+    {
+      "name": "Desert_Altar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Altar"
+    },
+    {
+      "name": "Desert_Gate",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Gate"
+    },
+    {
+      "name": "Desert_Hourglass_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Hourglass_Map_Device"
+    },
+    {
+      "name": "Desert_Oasis",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Oasis"
+    },
+    {
+      "name": "Desert_Pavilion",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Pavilion"
+    },
+    {
+      "name": "Desert_Pillar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Pillar"
+    },
+    {
+      "name": "Desert_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Statue"
+    },
+    {
+      "name": "Desert_Tent",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Tent"
+    },
+    {
+      "name": "Desert_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Tree"
+    },
+    {
+      "name": "Desert_Wall",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Desert_Wall"
+    },
+    {
+      "name": "Dissection_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Dissection_Table"
+    },
+    {
+      "name": "Divergence_Building_Supplies",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Divergence_Building_Supplies"
+    },
+    {
+      "name": "Divergence_Curios",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Divergence_Curios"
+    },
+    {
+      "name": "Divergence_Environmental_Effect",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Divergence_Environmental_Effect"
+    },
+    {
+      "name": "Divine_Genesis_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Divine_Genesis_Map_Device"
+    },
+    {
+      "name": "Divine_Tinkers_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Divine_Tinkers_Waypoint"
+    },
+    {
+      "name": "Doryani",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Doryani"
+    },
+    {
+      "name": "Doryanis_Research_Shelf",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Doryanis_Research_Shelf"
+    },
+    {
+      "name": "Doryanis_Research_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Doryanis_Research_Table"
+    },
+    {
+      "name": "Doryanis_Test_Subject",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Doryanis_Test_Subject"
+    },
+    {
+      "name": "Encampment_Bed",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Encampment_Bed"
+    },
+    {
+      "name": "Encampment_Chest",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Encampment_Chest"
+    },
+    {
+      "name": "Encampment_Container_Cluster",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Encampment_Container_Cluster"
+    },
+    {
+      "name": "Encampment_Crate",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Encampment_Crate"
+    },
+    {
+      "name": "Encampment_Equipment",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Encampment_Equipment"
+    },
+    {
+      "name": "Encampment_Storage_Tent",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Encampment_Storage_Tent"
+    },
+    {
+      "name": "Encampment_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Encampment_Table"
+    },
+    {
+      "name": "Energy Blade",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Energy_Blade"
+    },
+    {
+      "name": "Eternal_Incarceration_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Eternal_Incarceration_Map_Device"
+    },
+    {
+      "name": "Exalted_Peddlers_Rain_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Exalted_Peddlers_Rain_Hideout_Decoration"
+    },
+    {
+      "name": "Exiles_Treasurer_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Exiles_Treasurer_Hideout_Decoration"
+    },
+    {
+      "name": "Experiment_Pot",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Experiment_Pot"
+    },
+    {
+      "name": "Experiment_Stool",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Experiment_Stool"
+    },
+    {
+      "name": "Extra_Rhoa_Race_Controller",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Extra_Rhoa_Race_Controller"
+    },
+    {
+      "name": "Extra_Rhoa_Race_Flag",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Extra_Rhoa_Race_Flag"
+    },
+    {
+      "name": "Extra_Rhoa_Race_Spectate",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Extra_Rhoa_Race_Spectate"
+    },
+    {
+      "name": "Falling_Sand",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Falling_Sand"
+    },
+    {
+      "name": "Faridun_Ballista",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Ballista"
+    },
+    {
+      "name": "Faridun_Barricade",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Barricade"
+    },
+    {
+      "name": "Faridun_Burner",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Burner"
+    },
+    {
+      "name": "Faridun_Cages",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Cages"
+    },
+    {
+      "name": "Faridun_Cargo",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Cargo"
+    },
+    {
+      "name": "Faridun_Chains",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Chains"
+    },
+    {
+      "name": "Faridun_Cloth",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Cloth"
+    },
+    {
+      "name": "Faridun_Gazebo",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Gazebo"
+    },
+    {
+      "name": "Faridun_Lights",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Lights"
+    },
+    {
+      "name": "Faridun_Ropes",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Ropes"
+    },
+    {
+      "name": "Faridun_Throne",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Throne"
+    },
+    {
+      "name": "Faridun_Tools",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Tools"
+    },
+    {
+      "name": "Faridun_Weapons",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Faridun_Weapons"
+    },
+    {
+      "name": "Farrow",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Farrow"
+    },
+    {
+      "name": "Fateweavers_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fateweavers_Map_Device"
+    },
+    {
+      "name": "Fire_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fire_Waypoint"
+    },
+    {
+      "name": "Fish_Storage",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fish_Storage"
+    },
+    {
+      "name": "Fishermans_Display",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fishermans_Display"
+    },
+    {
+      "name": "Fishing_Supplies",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fishing_Supplies"
+    },
+    {
+      "name": "Forbidden_Rites_Challenger_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Forbidden_Rites_Challenger_Statue"
+    },
+    {
+      "name": "Forbidden_Rites_Challenger_Trophy_Test_Pole",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Forbidden_Rites_Challenger_Trophy_Test_Pole"
+    },
+    {
+      "name": "Forest_Fern",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Forest_Fern"
+    },
+    {
+      "name": "Forgemasters_Salvage_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Forgemasters_Salvage_Bench"
+    },
+    {
+      "name": "Fountain_of_Saint_Cecilia_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fountain_of_Saint_Cecilia_Map_Device"
+    },
+    {
+      "name": "Fractured_Well_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fractured_Well_Decoration"
+    },
+    {
+      "name": "Fringe_Moss",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Fringe_Moss"
+    },
+    {
+      "name": "Gem_Mining_Cart_Large",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Gem_Mining_Cart_Large"
+    },
+    {
+      "name": "Gem_Mining_Cart_Small",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Gem_Mining_Cart_Small"
+    },
+    {
+      "name": "Gem_Mining_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Gem_Mining_Table"
+    },
+    {
+      "name": "Gem_Pile",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Gem_Pile"
+    },
+    {
+      "name": "Goblin_Gamblers_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Goblin_Gamblers_Hideout_Decoration"
+    },
+    {
+      "name": "Goddess_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Goddess_Statue"
+    },
+    {
+      "name": "Gold_Timekeepers_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Gold_Timekeepers_Map_Device"
+    },
+    {
+      "name": "Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Guild_Stash"
+    },
+    {
+      "name": "Gwennen",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Gwennen"
+    },
+    {
+      "name": "Hammock",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Hammock"
+    },
+    {
+      "name": "Harakeke",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Harakeke"
+    },
+    {
+      "name": "Harbinger_Zealot",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Harbinger_Zealot"
+    },
+    {
+      "name": "Heritage_Building_Supplies",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Heritage_Building_Supplies"
+    },
+    {
+      "name": "Heritage_Curios",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Heritage_Curios"
+    },
+    {
+      "name": "Heritage_Environmental_Effect",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Heritage_Environmental_Effect"
+    },
+    {
+      "name": "Hilda",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Hilda"
+    },
+    {
+      "name": "Ice_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Ice_Waypoint"
+    },
+    {
+      "name": "Imprisoned_Djinn_Merchant",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Imprisoned_Djinn_Merchant"
+    },
+    {
+      "name": "Ingenuity",
+      "icon": "Art/2DArt/SkillIcons/passives/plusintelligence.dds",
+      "source": "https://poe2db.tw/us/Ingenuity"
+    },
+    {
+      "name": "Item_Display_Case",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Item_Display_Case"
+    },
+    {
+      "name": "Jado",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Jado"
+    },
+    {
+      "name": "Jungle_Plant_Cluster",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Jungle_Plant_Cluster"
+    },
+    {
+      "name": "Kalguuran_Detonator_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Kalguuran_Detonator_Map_Device"
+    },
+    {
+      "name": "Karui_Well_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Karui_Well_Decoration"
+    },
+    {
+      "name": "Kraken_Guild_Stash_Skin",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Kraken_Guild_Stash_Skin"
+    },
+    {
+      "name": "Kraken_Guild_Stash_Skin_%28Currency%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Kraken_Guild_Stash_Skin_%28Currency%29"
+    },
+    {
+      "name": "Kraken_Stash_Skin",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Kraken_Stash_Skin"
+    },
+    {
+      "name": "Kraken_Stash_Skin_%28Currency%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Kraken_Stash_Skin_%28Currency%29"
+    },
+    {
+      "name": "Large_Cactus",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Large_Cactus"
+    },
+    {
+      "name": "Large_Forest_Trees",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Large_Forest_Trees"
+    },
+    {
+      "name": "Large_Shore_Rock",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Large_Shore_Rock"
+    },
+    {
+      "name": "Leaf_Pile",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Leaf_Pile"
+    },
+    {
+      "name": "Log_Pile",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Log_Pile"
+    },
+    {
+      "name": "Long_Grass",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Long_Grass"
+    },
+    {
+      "name": "Lounger",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Lounger"
+    },
+    {
+      "name": "Manor_Bed",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Bed"
+    },
+    {
+      "name": "Manor_Book_Stand",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Book_Stand"
+    },
+    {
+      "name": "Manor_Bookshelf",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Bookshelf"
+    },
+    {
+      "name": "Manor_Cabinet",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Cabinet"
+    },
+    {
+      "name": "Manor_Carpet",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Carpet"
+    },
+    {
+      "name": "Manor_Chair",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Chair"
+    },
+    {
+      "name": "Manor_Dining_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Dining_Table"
+    },
+    {
+      "name": "Manor_Fireplace",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Fireplace"
+    },
+    {
+      "name": "Manor_Garden",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Garden"
+    },
+    {
+      "name": "Manor_Garden_Corner",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Garden_Corner"
+    },
+    {
+      "name": "Manor_Instrument",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Instrument"
+    },
+    {
+      "name": "Manor_Lights",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Lights"
+    },
+    {
+      "name": "Manor_Locker",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Locker"
+    },
+    {
+      "name": "Manor_Poker_Stand",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Poker_Stand"
+    },
+    {
+      "name": "Manor_Side_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Side_Table"
+    },
+    {
+      "name": "Manor_Storage",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Storage"
+    },
+    {
+      "name": "Manor_Storage_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Storage_Bench"
+    },
+    {
+      "name": "Manor_Structure_Corner",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Structure_Corner"
+    },
+    {
+      "name": "Manor_Structure_Door",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Structure_Door"
+    },
+    {
+      "name": "Manor_Structure_Pillar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Structure_Pillar"
+    },
+    {
+      "name": "Manor_Structure_Wall",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Structure_Wall"
+    },
+    {
+      "name": "Manor_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Table"
+    },
+    {
+      "name": "Manor_Wall_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Wall_Decoration"
+    },
+    {
+      "name": "Manor_Wrecked_Wagon",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Wrecked_Wagon"
+    },
+    {
+      "name": "Manor_Wrecked_Wagon_Small",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manor_Wrecked_Wagon_Small"
+    },
+    {
+      "name": "Manuka_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Manuka_Tree"
+    },
+    {
+      "name": "Maraketh_Ballista",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Ballista"
+    },
+    {
+      "name": "Maraketh_Barricade",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Barricade"
+    },
+    {
+      "name": "Maraketh_Chest",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Chest"
+    },
+    {
+      "name": "Maraketh_Decor",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Decor"
+    },
+    {
+      "name": "Maraketh_Fire_Pot",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Fire_Pot"
+    },
+    {
+      "name": "Maraketh_Guard",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Guard"
+    },
+    {
+      "name": "Maraketh_Incense_Burner",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Incense_Burner"
+    },
+    {
+      "name": "Maraketh_Pavilion",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Pavilion"
+    },
+    {
+      "name": "Maraketh_Pillar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Pillar"
+    },
+    {
+      "name": "Maraketh_Rhoa",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Rhoa"
+    },
+    {
+      "name": "Maraketh_Rubble",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Rubble"
+    },
+    {
+      "name": "Maraketh_Spire",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Spire"
+    },
+    {
+      "name": "Maraketh_Treasure",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Maraketh_Treasure"
+    },
+    {
+      "name": "Marble_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Marble_Bench"
+    },
+    {
+      "name": "Marble_Fountain",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Marble_Fountain"
+    },
+    {
+      "name": "Marble_Pillar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Marble_Pillar"
+    },
+    {
+      "name": "Marble_Spire",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Marble_Spire"
+    },
+    {
+      "name": "Marble_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Marble_Table"
+    },
+    {
+      "name": "Marble_Walls",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Marble_Walls"
+    },
+    {
+      "name": "Marine_Frames",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Marine_Frames"
+    },
+    {
+      "name": "Medium_Shore_Rock",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Medium_Shore_Rock"
+    },
+    {
+      "name": "Monastery_Bush",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Bush"
+    },
+    {
+      "name": "Monastery_Dead_Bush",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Dead_Bush"
+    },
+    {
+      "name": "Monastery_Dead_Hedge",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Dead_Hedge"
+    },
+    {
+      "name": "Monastery_Dead_Oak",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Dead_Oak"
+    },
+    {
+      "name": "Monastery_Decaying_Bush",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Decaying_Bush"
+    },
+    {
+      "name": "Monastery_Decaying_Hedge",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Decaying_Hedge"
+    },
+    {
+      "name": "Monastery_Door",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Door"
+    },
+    {
+      "name": "Monastery_Grass",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Grass"
+    },
+    {
+      "name": "Monastery_Hedge",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Hedge"
+    },
+    {
+      "name": "Monastery_Path",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Path"
+    },
+    {
+      "name": "Monastery_Path_Connection",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Path_Connection"
+    },
+    {
+      "name": "Monastery_Pillar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Pillar"
+    },
+    {
+      "name": "Monastery_Rubble",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Rubble"
+    },
+    {
+      "name": "Monastery_Ruined_Wall",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Ruined_Wall"
+    },
+    {
+      "name": "Monastery_Wall",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Monastery_Wall"
+    },
+    {
+      "name": "Mutineers_Cages",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Mutineers_Cages"
+    },
+    {
+      "name": "Mutineers_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Mutineers_Tree"
+    },
+    {
+      "name": "Nameless_Shrine_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Nameless_Shrine_Map_Device"
+    },
+    {
+      "name": "Night_Lotus_Evertree_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Night_Lotus_Evertree_Map_Device"
+    },
+    {
+      "name": "Nikau_Palm",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Nikau_Palm"
+    },
+    {
+      "name": "Ornate_Gazebo",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Ornate_Gazebo"
+    },
+    {
+      "name": "Ornate_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Ornate_Statue"
+    },
+    {
+      "name": "Overgrown_Vaal_Artifact_Large",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Overgrown_Vaal_Artifact_Large"
+    },
+    {
+      "name": "Overgrown_Vaal_Artifact_Medium",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Overgrown_Vaal_Artifact_Medium"
+    },
+    {
+      "name": "Overgrown_Vaal_Artifact_Small",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Overgrown_Vaal_Artifact_Small"
+    },
+    {
+      "name": "Overgrown_Vaal_Artifact_Trim",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Overgrown_Vaal_Artifact_Trim"
+    },
+    {
+      "name": "Overgrown_Vaal_Artifact_Trim_Corner",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Overgrown_Vaal_Artifact_Trim_Corner"
+    },
+    {
+      "name": "Pitch_Burner",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Pitch_Burner"
+    },
+    {
+      "name": "Plaguewraith_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Plaguewraith_Map_Device"
+    },
+    {
+      "name": "Pohutukawa",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Pohutukawa"
+    },
+    {
+      "name": "Potted_Cactus",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Potted_Cactus"
+    },
+    {
+      "name": "Precursor_Receptacle_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Precursor_Receptacle_Guild_Stash"
+    },
+    {
+      "name": "Precursor_Receptacle_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Precursor_Receptacle_Stash"
+    },
+    {
+      "name": "Prison_Waygate_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Prison_Waygate_Map_Device"
+    },
+    {
+      "name": "Pulveriser_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Pulveriser_Map_Device"
+    },
+    {
+      "name": "Punga",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Punga"
+    },
+    {
+      "name": "Reforging_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Reforging_Bench"
+    },
+    {
+      "name": "Relic_Locker",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Relic_Locker"
+    },
+    {
+      "name": "Relic_of_the_Precursors_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Relic_of_the_Precursors_Map_Device"
+    },
+    {
+      "name": "Reservoir_of_Benediction_Guild_Stash_Skin_%28Flask%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Reservoir_of_Benediction_Guild_Stash_Skin_%28Flask%29"
+    },
+    {
+      "name": "Reservoir_of_Benediction_Stash_Skin_%28Flask%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Reservoir_of_Benediction_Stash_Skin_%28Flask%29"
+    },
+    {
+      "name": "Reservoir_of_Benediction_Well",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Reservoir_of_Benediction_Well"
+    },
+    {
+      "name": "Rhoa_Race_Controller",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Controller"
+    },
+    {
+      "name": "Rhoa_Race_Flag_%28Blue%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Flag_%28Blue%29"
+    },
+    {
+      "name": "Rhoa_Race_Flag_%28Cyan%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Flag_%28Cyan%29"
+    },
+    {
+      "name": "Rhoa_Race_Flag_%28Green%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Flag_%28Green%29"
+    },
+    {
+      "name": "Rhoa_Race_Flag_%28Purple%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Flag_%28Purple%29"
+    },
+    {
+      "name": "Rhoa_Race_Flag_%28Red%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Flag_%28Red%29"
+    },
+    {
+      "name": "Rhoa_Race_Flag_%28Yellow%29",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Flag_%28Yellow%29"
+    },
+    {
+      "name": "Rhoa_Race_Spectate",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rhoa_Race_Spectate"
+    },
+    {
+      "name": "Rog",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rog"
+    },
+    {
+      "name": "Root_Bound_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Root_Bound_Statue"
+    },
+    {
+      "name": "Root_Bound_Statue_Small",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Root_Bound_Statue_Small"
+    },
+    {
+      "name": "Rugged_Wood_Pile",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Rugged_Wood_Pile"
+    },
+    {
+      "name": "Runes_of_Aldur_Challenger_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Runes_of_Aldur_Challenger_Statue"
+    },
+    {
+      "name": "Runestone_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Runestone_Guild_Stash"
+    },
+    {
+      "name": "Runestone_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Runestone_Stash"
+    },
+    {
+      "name": "Sacred_Archives_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacred_Archives_Map_Device"
+    },
+    {
+      "name": "Sacrifice_Altar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Altar"
+    },
+    {
+      "name": "Sacrifice_Basin",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Basin"
+    },
+    {
+      "name": "Sacrifice_Bed",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Bed"
+    },
+    {
+      "name": "Sacrifice_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Bench"
+    },
+    {
+      "name": "Sacrifice_Pile_Large",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Pile_Large"
+    },
+    {
+      "name": "Sacrifice_Pile_Small",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Pile_Small"
+    },
+    {
+      "name": "Sacrifice_Pillar",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Pillar"
+    },
+    {
+      "name": "Sacrifice_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Table"
+    },
+    {
+      "name": "Sacrifice_Throne",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrifice_Throne"
+    },
+    {
+      "name": "Sacrificed_Body",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrificed_Body"
+    },
+    {
+      "name": "Sacrificial_Ange",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrificial_Ange"
+    },
+    {
+      "name": "Sacrificial_Zealot",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sacrificial_Zealot"
+    },
+    {
+      "name": "Salvage_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Salvage_Bench"
+    },
+    {
+      "name": "Sanctum_Medallion",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sanctum_Medallion"
+    },
+    {
+      "name": "Sanctum_Pillars",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sanctum_Pillars"
+    },
+    {
+      "name": "Sanctum_Suspension_Trap",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sanctum_Suspension_Trap"
+    },
+    {
+      "name": "Sanctum_Trap",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sanctum_Trap"
+    },
+    {
+      "name": "Sanctum_Treasure",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sanctum_Treasure"
+    },
+    {
+      "name": "Sanctum_Walls",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sanctum_Walls"
+    },
+    {
+      "name": "Sanctum_Wisp",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sanctum_Wisp"
+    },
+    {
+      "name": "Sand_Tussock",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sand_Tussock"
+    },
+    {
+      "name": "Scattered_Fruit",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Scattered_Fruit"
+    },
+    {
+      "name": "Scientist_Tinkers_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Scientist_Tinkers_Waypoint"
+    },
+    {
+      "name": "Scorched_Statue",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Scorched_Statue"
+    },
+    {
+      "name": "Seaweed",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Seaweed"
+    },
+    {
+      "name": "Seeing Stars",
+      "icon": "Art/2DArt/SkillIcons/passives/stun2h.dds",
+      "source": "https://poe2db.tw/us/Seeing_Stars"
+    },
+    {
+      "name": "Servant_of_the_Manor_Merchant",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Servant_of_the_Manor_Merchant"
+    },
+    {
+      "name": "Settlement_Buildings",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Settlement_Buildings"
+    },
+    {
+      "name": "Shady_Merchant",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shady_Merchant"
+    },
+    {
+      "name": "Shattered_Mirror_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shattered_Mirror_Guild_Stash"
+    },
+    {
+      "name": "Shattered_Mirror_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shattered_Mirror_Stash"
+    },
+    {
+      "name": "Shipwreck_Barrels",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shipwreck_Barrels"
+    },
+    {
+      "name": "Shipwreck_Crate_Cluster",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shipwreck_Crate_Cluster"
+    },
+    {
+      "name": "Shipwreck_Crates",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shipwreck_Crates"
+    },
+    {
+      "name": "Shipwreck_Lanterns",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shipwreck_Lanterns"
+    },
+    {
+      "name": "Shipwreck_Seat",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shipwreck_Seat"
+    },
+    {
+      "name": "Shipwreck_Storage_Cluster",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shipwreck_Storage_Cluster"
+    },
+    {
+      "name": "Shipwreck_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shipwreck_Table"
+    },
+    {
+      "name": "Shoreline_Fern",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shoreline_Fern"
+    },
+    {
+      "name": "Shoreline_Pebbles",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Shoreline_Pebbles"
+    },
+    {
+      "name": "Silver_Timekeepers_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Silver_Timekeepers_Map_Device"
+    },
+    {
+      "name": "Single_Log",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Single_Log"
+    },
+    {
+      "name": "Slicer_Wall",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Slicer_Wall"
+    },
+    {
+      "name": "Small_Cactus",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Small_Cactus"
+    },
+    {
+      "name": "Small_Shore_Rock",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Small_Shore_Rock"
+    },
+    {
+      "name": "Sphinx_Mystic_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Sphinx_Mystic_Hideout_Decoration"
+    },
+    {
+      "name": "Splintered_Reflection_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Splintered_Reflection_Map_Device"
+    },
+    {
+      "name": "Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Stash"
+    },
+    {
+      "name": "Stormcaller_Tinkers_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Stormcaller_Tinkers_Waypoint"
+    },
+    {
+      "name": "Summit_Brazier",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Summit_Brazier"
+    },
+    {
+      "name": "Summit_Planter",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Summit_Planter"
+    },
+    {
+      "name": "Surgical_Devices",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Surgical_Devices"
+    },
+    {
+      "name": "Surgical_Lights",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Surgical_Lights"
+    },
+    {
+      "name": "Synthesis_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Synthesis_Waypoint"
+    },
+    {
+      "name": "Thaumaturgy_Tinkers_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Thaumaturgy_Tinkers_Waypoint"
+    },
+    {
+      "name": "The_Defiler_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/The_Defiler_Map_Device"
+    },
+    {
+      "name": "The_Forgemasters_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/The_Forgemasters_Map_Device"
+    },
+    {
+      "name": "The_Red_Queens_Font",
+      "icon": "",
+      "source": "https://poe2db.tw/us/The_Red_Queens_Font"
+    },
+    {
+      "name": "Throne_of_the_Ruler_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Throne_of_the_Ruler_Map_Device"
+    },
+    {
+      "name": "Time_Djinns_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Time_Djinns_Map_Device"
+    },
+    {
+      "name": "Toad_Idol_of_Alchemy_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Toad_Idol_of_Alchemy_Hideout_Decoration"
+    },
+    {
+      "name": "Toad_Idol_of_Chaos_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Toad_Idol_of_Chaos_Hideout_Decoration"
+    },
+    {
+      "name": "Toad_Idol_of_Corruption_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Toad_Idol_of_Corruption_Hideout_Decoration"
+    },
+    {
+      "name": "Transmuted_Peddlers_Rain_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Transmuted_Peddlers_Rain_Hideout_Decoration"
+    },
+    {
+      "name": "Tree_Planter",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Tree_Planter"
+    },
+    {
+      "name": "Tree_Stump",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Tree_Stump"
+    },
+    {
+      "name": "Tree_of_Souls_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Tree_of_Souls_Map_Device"
+    },
+    {
+      "name": "Trialmaster_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Trialmaster_Hideout_Decoration"
+    },
+    {
+      "name": "Trials_of_Chaos_Hideout_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Trials_of_Chaos_Hideout_Decoration"
+    },
+    {
+      "name": "Tujen",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Tujen"
+    },
+    {
+      "name": "Twilight_Banquet_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Banquet_Table"
+    },
+    {
+      "name": "Twilight_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Bench"
+    },
+    {
+      "name": "Twilight_Carpet",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Carpet"
+    },
+    {
+      "name": "Twilight_Container",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Container"
+    },
+    {
+      "name": "Twilight_Indoor_Chair",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Indoor_Chair"
+    },
+    {
+      "name": "Twilight_Market_Stall",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Market_Stall"
+    },
+    {
+      "name": "Twilight_Outdoor_Chair",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Outdoor_Chair"
+    },
+    {
+      "name": "Twilight_Planter",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Planter"
+    },
+    {
+      "name": "Twilight_Potted_Plant",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Potted_Plant"
+    },
+    {
+      "name": "Twilight_Potted_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Potted_Tree"
+    },
+    {
+      "name": "Twilight_Stockpile",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Stockpile"
+    },
+    {
+      "name": "Twilight_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Table"
+    },
+    {
+      "name": "Twilight_Telescope",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Telescope"
+    },
+    {
+      "name": "Twilight_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Twilight_Tree"
+    },
+    {
+      "name": "Undying_Syndicate_Merchant",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Undying_Syndicate_Merchant"
+    },
+    {
+      "name": "Vaal_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Bench"
+    },
+    {
+      "name": "Vaal_Bone_Pile",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Bone_Pile"
+    },
+    {
+      "name": "Vaal_Brazier",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Brazier"
+    },
+    {
+      "name": "Vaal_Cache_Guild_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Cache_Guild_Stash"
+    },
+    {
+      "name": "Vaal_Cache_Stash",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Cache_Stash"
+    },
+    {
+      "name": "Vaal_Chair",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Chair"
+    },
+    {
+      "name": "Vaal_Crates_Large",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Crates_Large"
+    },
+    {
+      "name": "Vaal_Crates_Small",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Crates_Small"
+    },
+    {
+      "name": "Vaal_Forgemasters_Crafting_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Forgemasters_Crafting_Bench"
+    },
+    {
+      "name": "Vaal_Market_Clusters",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Market_Clusters"
+    },
+    {
+      "name": "Vaal_Market_Fish",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Market_Fish"
+    },
+    {
+      "name": "Vaal_Market_Stalls_Cover",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Market_Stalls_Cover"
+    },
+    {
+      "name": "Vaal_Market_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Market_Table"
+    },
+    {
+      "name": "Vaal_Potted_Plants",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Potted_Plants"
+    },
+    {
+      "name": "Vaal_Small_Market_Table",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Small_Market_Table"
+    },
+    {
+      "name": "Vaal_Thaumaturges_Crafting_Bench",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Vaal_Thaumaturges_Crafting_Bench"
+    },
+    {
+      "name": "Verdant_Evertree_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Verdant_Evertree_Map_Device"
+    },
+    {
+      "name": "Verdant_Tinkers_Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Verdant_Tinkers_Waypoint"
+    },
+    {
+      "name": "Verisium_Anvil",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Verisium_Anvil"
+    },
+    {
+      "name": "Wardrobe_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Wardrobe_Decoration"
+    },
+    {
+      "name": "Warp_Destination",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Warp_Destination"
+    },
+    {
+      "name": "Warp_Rune",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Warp_Rune"
+    },
+    {
+      "name": "Wasteland_Hourglass_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Wasteland_Hourglass_Map_Device"
+    },
+    {
+      "name": "Water_Djinns_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Water_Djinns_Map_Device"
+    },
+    {
+      "name": "Waypoint",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Waypoint"
+    },
+    {
+      "name": "Webbed_Vaal_Crates",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Webbed_Vaal_Crates"
+    },
+    {
+      "name": "Well",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Well"
+    },
+    {
+      "name": "Well_of_Souls_Decoration",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Well_of_Souls_Decoration"
+    },
+    {
+      "name": "Withered_Tree",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Withered_Tree"
+    },
+    {
+      "name": "Zelina",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Zelina"
+    },
+    {
+      "name": "Ziggurat_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Ziggurat_Map_Device"
+    },
+    {
+      "name": "Zodiac_Dragon_Map_Device",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Zodiac_Dragon_Map_Device"
+    },
+    {
+      "name": "Zolin",
+      "icon": "",
+      "source": "https://poe2db.tw/us/Zolin"
+    }
+  ]
+}

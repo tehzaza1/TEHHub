@@ -22,6 +22,11 @@ namespace TEHhub.Ui
     {
         private static readonly Vector4 VisibleUiElementColor = new(0, 255, 0, 255);
         private static readonly List<UiElement> Elements = new();
+        internal static Dictionary<string, string> GetToolStatus() => new()
+        {
+            ["trackedRoots"] = Elements.Count.ToString(),
+            ["addresses"] = string.Join(",", Elements.ConvertAll(e => e.Element.Address.ToString("X")))
+        };
         private static readonly UiElementParents Parents = new(null, GameStateTypes.InGameState, GameStateTypes.EscapeState, "GameExplorer");
 
         /// <summary>
