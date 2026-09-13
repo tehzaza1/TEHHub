@@ -16,15 +16,15 @@ using TEHhub.Offsets.Objects.UiElement;
 internal static class ExpeditionOffsetScanner
 {
     private const int MaxPlacedBombs = 16;
-    private const int MaxMilliseconds = 25;
-    private const int MaxTotalBytes = 64 * 1024;
-    private const int MaxRegions = 64;
-    private const int MaxUiNodes = 48;
-    private const int MaxUiDepth = 2;
-    private const int MaxUiChildren = 64;
-    private const int MaxCandidates = 2048;
-    private const int StateWindowBytes = 2048;
-    private const int UiWindowBytes = 512;
+    private const int MaxMilliseconds = 100;
+    private const int MaxTotalBytes = 1024 * 1024;
+    private const int MaxRegions = 512;
+    private const int MaxUiNodes = 512;
+    private const int MaxUiDepth = 6;
+    private const int MaxUiChildren = 256;
+    private const int MaxCandidates = 16384;
+    private const int StateWindowBytes = 4096;
+    private const int UiWindowBytes = 1024;
 
     private static readonly object StateGate = new();
     private static readonly Dictionary<CandidateKey, CandidateState> Candidates = new();
@@ -135,10 +135,32 @@ internal static class ExpeditionOffsetScanner
         truncated = false;
         Add("in-game-state", game.Address, StateWindowBytes);
         Add("game-ui-manager", game.GameUi.Address, StateWindowBytes);
-        Add("ui-root", game.UiRootAddress, UiWindowBytes);
+        if (game.UiRootAddress != IntPtr.Zero) Add("ui-root", game.UiRootAddress, UiWindowBytes);
+
+        if (game.CurrentAreaInstance != null)
+        {
+            Add("area-instance", game.CurrentAreaInstance.Address, StateWindowBytes);
+            foreach (var entity in game.CurrentAreaInstance.AwakeEntities.Values)
+            {
+                if (entity != null && entity.Path != null &&
+                    (entity.Path.Contains("Detonator", StringComparison.OrdinalIgnoreCase) ||
+                     entity.Path.Contains("Explosive", StringComparison.OrdinalIgnoreCase) ||
+                     entity.Path.Contains("Placement", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var segs = entity.Path.Split('/');
+                    var entityName = segs.Length > 0 ? segs[^1] : "expedition";
+                    Add("entity-" + entityName, entity.Address, StateWindowBytes);
+                    foreach (var pair in entity.GetComponentAddressPairs())
+                    {
+                        if (pair.Value != IntPtr.Zero) Add("comp-" + pair.Key, pair.Value, 512);
+                    }
+                }
+            }
+        }
 
         var queue = new Queue<(IntPtr Address, int Depth)>();
-        if (game.UiRootAddress != IntPtr.Zero) queue.Enqueue((game.UiRootAddress, 0));
+        var rootUi = game.GameUi.Address != IntPtr.Zero ? game.GameUi.Address : game.UiRootAddress;
+        if (rootUi != IntPtr.Zero) queue.Enqueue((rootUi, 0));
         var visited = new HashSet<IntPtr>();
         while (queue.Count > 0)
         {
@@ -152,9 +174,9 @@ internal static class ExpeditionOffsetScanner
             if (!Core.Process.Handle.TryReadMemory<UiElementBaseOffset>(current.Address, out var element) || element.Self != current.Address) continue;
             Add("ui-element", current.Address, UiWindowBytes);
             var count = element.ChildrensPtr.TotalElements(IntPtr.Size);
-            if (current.Depth >= MaxUiDepth || count <= 0) continue;
-            if (count > MaxUiChildren || element.ChildrensPtr.First == IntPtr.Zero) { truncated = true; continue; }
-            var children = new IntPtr[(int)count];
+            if (current.Depth >= MaxUiDepth || count <= 0 || element.ChildrensPtr.First == IntPtr.Zero) continue;
+            var takeCount = (int)Math.Min(count, MaxUiChildren);
+            var children = new IntPtr[takeCount];
             if (!Core.Process.Handle.TryReadMemoryArray(element.ChildrensPtr.First, children, out _)) continue;
             foreach (var child in children) queue.Enqueue((child, current.Depth + 1));
         }

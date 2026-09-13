@@ -38,7 +38,9 @@ namespace HealthBars
 
         private string SettingPathname => this.PluginConfigPath("settings.txt");
 
-        private string TexturesPath => Path.Join(this.DllDirectory, "Textures");
+        private string TexturesPath => Path.IsPathRooted(this.DllDirectory)
+            ? Path.Join(this.DllDirectory, "Textures")
+            : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, this.DllDirectory, "Textures"));
 
         private readonly TextureLoader textures = new();
 

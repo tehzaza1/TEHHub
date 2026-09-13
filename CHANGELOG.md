@@ -2,6 +2,20 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.4 — 2026-09-13
+
+- Added standalone `Plugins/ExpeditionPlanner`:
+  - `ExpeditionPlannerCore.cs` implementing `PCore<ExpeditionPlannerSettings>`.
+  - Reads awake Expedition entities directly: Detonators, Placed Explosives, Connector Poles, Fuses, Reward Markers, Remnants, and Verisium Sentinels.
+  - Implemented `LegalPlacement.IsPlaceable(point, previousBomb, currentArea)` evaluating distance bounds and terrain validity.
+  - Implemented stateful `ExpeditionSolver` modeling Grand Expedition route scoring across Safe, Balanced, and Greedy player profiles with rune proliferation and forbidden rune protection.
+  - ImGui visual route overlay: renders numbered placement badges (`1 → 2 → 3`), blast radius indicators, connector lines, and an advisory summary card. Completely read-only with zero automated input or clicking.
+  - Settings persisted cleanly to `configs/plugins/ExpeditionPlanner/settings.json`.
+- Fixed `HealthBars` texture path resolution: resolved `TexturesPath` against `AppContext.BaseDirectory` when relative to prevent texture load failures regardless of the launching working directory.
+- Upgraded `ExpeditionOffsetScanner`: expanded UI traversal depth, region scanning limits, and added entity and component memory windows.
+- Compatibility: Standalone plugin loads independently with no dependencies on Radar; diagnostic endpoints compile out of Release builds.
+- Validation: Debug and Release builds for all 15 projects in `TEHhub.sln` succeeded with 0 Warnings and 0 Errors; verified live memory entity classification on running PoE 2 client.
+
 ## 1.8.3 — 2026-09-13
 
 - Added `tools/Capture-ExpeditionScan.ps1`: interactive CLI wizard and command runner to execute the differential offset scan sequence `0 → 1 → 2 → 3 → 0` in live Expeditions and record surviving candidates.
