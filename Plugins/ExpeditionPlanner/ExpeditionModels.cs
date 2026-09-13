@@ -60,6 +60,7 @@ namespace ExpeditionPlanner
 
         // Golden Slot & Proliferation Mechanics
         public string GoldenRuneCandidate { get; set; } = string.Empty;
+        public List<string> CandidateRuneSequence { get; set; } = new();
         public string ProliferatedRuneName { get; set; } = string.Empty;
         public RuneTier ProliferatedRuneTier { get; set; } = RuneTier.Blue_C;
         public bool CanProliferate => this.ProliferatedRuneTier != RuneTier.Blue_C;

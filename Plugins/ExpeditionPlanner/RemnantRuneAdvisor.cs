@@ -133,6 +133,7 @@ namespace ExpeditionPlanner
             out int anchorSlotIndex,
             out string anchorName,
             out string goldenRuneCandidate,
+            out List<string> candidateRuneSequence,
             out string recommendedChoice,
             out string description,
             out float estimatedValue,
@@ -146,6 +147,7 @@ namespace ExpeditionPlanner
             anchorSlotIndex = -1;
             anchorName = string.Empty;
             goldenRuneCandidate = string.Empty;
+            candidateRuneSequence = new List<string>();
             recommendedChoice = string.Empty;
             description = string.Empty;
             estimatedValue = 30f;
@@ -360,12 +362,14 @@ namespace ExpeditionPlanner
                 recommendedChoice = bestOffer.Name;
                 description = bestOffer.Description;
                 estimatedValue = bestOffer.Score;
+                candidateRuneSequence = bestOffer.Recipe?.runes != null ? new List<string>(bestOffer.Recipe.runes) : new List<string>();
             }
             else
             {
                 recommendedChoice = $"[{holeCount}x {anchorName}] Craft";
                 description = "Excavate for Runic Monsters and proliferated modifier buffs";
                 estimatedValue = GetTierBaseScore(proliferatedTier, holeCount);
+                candidateRuneSequence = new List<string>();
             }
 
             return true;

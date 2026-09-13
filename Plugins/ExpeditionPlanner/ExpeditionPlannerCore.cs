@@ -348,24 +348,31 @@ namespace ExpeditionPlanner
                                 };
 
                                 var goldenSlotNum = remnant.GoldenSlotIndex >= 0 ? $"Golden Slot #{remnant.GoldenSlotIndex + 1}/{remnant.HoleCount}" : $"{remnant.HoleCount} Slots";
-                                var goldenRuneDisplay = remnant.IsAnchorInGoldenSlot ? remnant.AnchorRuneName : "Blue Rune";
+                                var goldenRuneDisplay = !string.IsNullOrEmpty(remnant.GoldenRuneCandidate) ? remnant.GoldenRuneCandidate : (remnant.IsAnchorInGoldenSlot ? remnant.AnchorRuneName : "Blue Rune");
                                 ImGui.TextColored(tierColor, $"Step [{p.Step}] Pillar ({goldenSlotNum} - Golden: {goldenRuneDisplay}):");
                                 ImGui.BulletText($"Recipe: {remnant.RecommendedRuneChoice}");
+                                if (remnant.CandidateRuneSequence.Count > 0)
+                                {
+                                    var seqParts = remnant.CandidateRuneSequence.Select((r, idx) =>
+                                        idx == remnant.GoldenSlotIndex ? $"[#{idx + 1}: {r} ★]" :
+                                        (idx == remnant.AnchorSlotIndex ? $"[#{idx + 1}: {r} (Anchor)]" : $"[#{idx + 1}: {r}]"));
+                                    ImGui.TextDisabled($"   Sockets: {string.Join(" -> ", seqParts)}");
+                                }
                                 if (remnant.GoldenSlotIndex >= 0)
                                 {
-                                    ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"   [★] Golden Crown: ช่องที่ {remnant.GoldenSlotIndex + 1} (จาก {remnant.HoleCount} ช่อง)");
+                                    ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"   [★] Golden Crown: ช่องที่ {remnant.GoldenSlotIndex + 1} ({goldenRuneDisplay})");
                                 }
                                 if (!remnant.IsAnchorInGoldenSlot && remnant.AnchorSlotIndex >= 0)
                                 {
-                                    ImGui.TextColored(new Vector4(1f, 0.65f, 0.2f, 1f), $"   [!] รูน [{remnant.AnchorRuneName}] อยู่ช่องที่ {remnant.AnchorSlotIndex + 1} (ไม่ใช่ช่องทอง -> ไม่สืบทอดบัฟ!)");
+                                    ImGui.TextColored(new Vector4(0.7f, 0.85f, 1f, 1f), $"   [•] รูนหลัก [{remnant.AnchorRuneName}] อยู่ช่องที่ {remnant.AnchorSlotIndex + 1} (บัฟเกิดเฉพาะที่เสานี้)");
                                 }
                                 if (remnant.NeedsReroll)
                                 {
                                     ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), $"   -> [REROLL]: {remnant.RerollReason}");
                                 }
-                                else if (remnant.ProliferationRemaining > 0 && remnant.IsAnchorInGoldenSlot)
+                                else if (remnant.ProliferationRemaining > 0 && remnant.CanProliferate)
                                 {
-                                    ImGui.TextDisabled($"   -> Golden Slot [{remnant.AnchorRuneName}] proliferates to {remnant.ProliferationRemaining} subsequent bombs! (Other slots apply only here)");
+                                    ImGui.TextColored(new Vector4(0.44f, 1f, 0.44f, 1f), $"   -> Golden Slot [{remnant.ProliferatedRuneName}] ส่งผลคูณไปยังระเบิดลูกถัดไป {remnant.ProliferationRemaining} ลูก!");
                                 }
                             }
                             else if (p.CoveredTargets.Count > 0)
@@ -544,6 +551,7 @@ namespace ExpeditionPlanner
                 int anchorSlot = -1;
                 string anchor = string.Empty;
                 string goldenRune = string.Empty;
+                var candidateRuneSeq = new List<string>();
                 string choice = string.Empty;
                 string desc = string.Empty;
                 float score = 40f;
@@ -552,7 +560,7 @@ namespace ExpeditionPlanner
                 bool needsReroll = false;
                 string rerollReason = string.Empty;
 
-                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out anchorSlot, out anchor, out goldenRune, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason))
+                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out anchorSlot, out anchor, out goldenRune, out candidateRuneSeq, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason))
                 {
                     var goldenText = goldenSlot >= 0 ? $"Golden Slot #{goldenSlot + 1}/{holes}" : $"{holes}x";
                     displayName = isAnchorInGoldenSlot
@@ -599,6 +607,7 @@ namespace ExpeditionPlanner
                     RecipeDescription = desc,
                     BaseWeight = score,
                     GoldenRuneCandidate = goldenRune,
+                    CandidateRuneSequence = candidateRuneSeq,
                     ProliferatedRuneName = isAnchorInGoldenSlot ? anchor : goldenRune,
                     ProliferatedRuneTier = tier,
                     NeedsReroll = needsReroll,
