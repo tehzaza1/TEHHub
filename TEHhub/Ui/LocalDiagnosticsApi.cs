@@ -102,6 +102,7 @@ namespace TEHhub.Ui
                         "GET /api/tools/logs", "POST /api/tools/windows/{ShowSetting}?visible=true|false",
                         "POST /api/diagnostics/skill-research", "GET /api/diagnostics/offset-status",
                         "POST /api/diagnostics/expedition-probe", "GET /api/diagnostics/expedition-probe",
+                        "POST /api/diagnostics/rune-station-probe?entityId=123", "GET /api/diagnostics/rune-station-probe",
                         "POST /api/diagnostics/expedition-ui-probe", "GET /api/diagnostics/expedition-ui-probe",
                         "POST /api/diagnostics/expedition-placement-probe", "GET /api/diagnostics/expedition-placement-probe",
                         "POST /api/diagnostics/expedition-offset-scan/reset", "POST /api/diagnostics/expedition-offset-scan?placedBombs=0", "GET /api/diagnostics/expedition-offset-scan",
@@ -181,6 +182,35 @@ namespace TEHhub.Ui
                         await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("No Expedition probe has completed."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
                     else
                         await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.ExpeditionProbeSnapshot).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path == "/api/diagnostics/rune-station-probe")
+                {
+                    if (!uint.TryParse(context.Request.QueryString["entityId"], out var entityId))
+                    {
+                        await WriteJsonAsync(context, 400, new DiagnosticsApiResponse("Use a live unsigned entityId."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                        return;
+                    }
+
+                    var capture = RuneStationProbe.Request(entityId);
+                    if (capture == null)
+                    {
+                        await WriteJsonAsync(context, 409, new DiagnosticsApiResponse("Rune Station probe is already pending."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var snapshot = await capture.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.RuneStationProbeSnapshot).ConfigureAwait(false);
+                    }
+                    return;
+                }
+                if (method == "GET" && path == "/api/diagnostics/rune-station-probe")
+                {
+                    var snapshot = RuneStationProbe.Snapshot;
+                    if (snapshot == null)
+                        await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("No Rune Station probe has completed."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                        await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.RuneStationProbeSnapshot).ConfigureAwait(false);
                     return;
                 }
                 if (method == "POST" && path == "/api/diagnostics/expedition-ui-probe")
@@ -398,6 +428,7 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(ToolApiCatalog))]
     [JsonSerializable(typeof(ExpeditionProbeSnapshot))]
     [JsonSerializable(typeof(ExpeditionProbeStat))]
+    [JsonSerializable(typeof(RuneStationProbeSnapshot))]
     [JsonSerializable(typeof(ExpeditionUiSnapshot))]
     [JsonSerializable(typeof(ExpeditionPlacementSnapshot))]
     [JsonSerializable(typeof(ExpeditionOffsetScanSnapshot))]

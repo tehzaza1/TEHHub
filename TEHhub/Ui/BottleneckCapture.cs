@@ -34,6 +34,7 @@ internal static class BottleneckCapture
         SkillResearchCapture.Collect();
 #if DEBUG
         ExpeditionProbe.Collect();
+        RuneStationProbe.Collect();
         ExpeditionUiProbe.Collect();
         ExpeditionPlacementProbe.Collect();
         ExpeditionOffsetScanner.Collect();

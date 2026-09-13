@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.15 — 2026-09-14
+
+- Added `POST /api/diagnostics/rune-station-probe?entityId={id}` and `GET /api/diagnostics/rune-station-probe` to the Debug loopback API.
+- The endpoint queues a bounded Rune Station diagnostic on the render thread for one awake entity, returning its path and full diagnostic JSON without requiring an inspector screenshot. It accepts no game input and retains one pending request at a time.
+- Compatibility: Endpoint, capture queue, and JSON schema are compiled out of public Release builds.
+- Validation: `dotnet build TEHhub/TEHhub.csproj -c Debug --no-restore` succeeded with 0 warnings and 0 errors.
 ## 1.8.14 — 2026-09-14
 
 - Extended the Debug Rune Station listener map to resolve non-station listener owners through the normal Entity reader and report their validated entity ID, metadata path, and component names.

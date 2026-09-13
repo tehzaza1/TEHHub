@@ -90,6 +90,17 @@ namespace TEHhub.RemoteObjects.Components
 #if DEBUG
         private string? stationVectorDiagnostic;
 
+        /// <summary>
+        /// Captures the bounded Rune Station diagnostic for the local Debug API. The capture is
+        /// explicitly on-demand and is called from the render-thread diagnostic queue.
+        /// </summary>
+        internal string CaptureRuneStationDiagnostic()
+        {
+            return this.TryGetRuneStationDetails(out var details) && details != null
+                ? this.CaptureStationVectorDiagnostic(details.SocketCount)
+                : "This StateMachine does not resolve to a live Rune Station.";
+        }
+
         private string CaptureStationVectorDiagnostic(int socketCount)
         {
             var lines = new List<string>();
