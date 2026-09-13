@@ -50,6 +50,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private static readonly int[] CurrencyExchangePanelChildPath = { 114, 20, 6, 1 };
         private static readonly int[] GemcuttingPanelChildPath = { 53, 3 };
         private static readonly int[] SupportGemcuttingPanelChildPath = { 54, 3 };
+        // Runeshape Combinations is a top-level game UI panel. The panel root was observed at
+        // child 39; its descendants hold recipe rows and the 68x68 rune slot controls.
+        private static readonly int[] RuneshapeCombinationsPanelChildPath = { 39 };
         private static readonly int[] LeftPanelCoopPath = { 22 };
         private static readonly int[] RightPanelCoopPath = { 23 };
         private static readonly int[] TempleConsoleChildPath = { 64, 0 };
@@ -190,6 +193,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.CurrencyExchangePanel = new(IntPtr.Zero, this.rootCache);
             this.GemcuttingPanel = new(IntPtr.Zero, this.rootCache);
             this.SupportGemcuttingPanel = new(IntPtr.Zero, this.rootCache);
+            this.RuneshapeCombinationsPanel = new(IntPtr.Zero, this.rootCache);
             this.LeftPanel = new(IntPtr.Zero, this.rootCache);
             this.RightPanel = new(IntPtr.Zero, this.rootCache);
             this.ChatParent = new(IntPtr.Zero, this.rootCache);
@@ -319,6 +323,13 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         ///     GameUi -> child 54 -> child 3. Child 54 itself remains visible while the panel is closed.
         /// </summary>
         public UiElementBase SupportGemcuttingPanel { get; }
+
+        /// <summary>
+        ///     Gets the Runeshape Combinations panel root. Its child tree contains recipe rows
+        ///     and square rune-slot controls, exposed by <see cref="UiElement.RuneshapeCombinationsUi"/>.
+        ///     GameUi -> child 39.
+        /// </summary>
+        public UiElementBase RuneshapeCombinationsPanel { get; }
 
         /// <summary>
         ///     Gets a value indicating whether any large blocking panel is currently open
@@ -580,6 +591,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.CurrencyExchangePanel.Address = ResolveChildAddress(this.Address, CurrencyExchangePanelChildPath);
             this.GemcuttingPanel.Address = ResolveChildAddress(this.Address, GemcuttingPanelChildPath);
             this.SupportGemcuttingPanel.Address = ResolveChildAddress(this.Address, SupportGemcuttingPanelChildPath);
+            this.RuneshapeCombinationsPanel.Address = ResolveChildAddress(this.Address, RuneshapeCombinationsPanelChildPath);
             this.UpdateAtlasMapData();
         }
 

@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.29 — 2026-09-14
+
+- Added ImportantUiElements.RuneshapeCombinationsPanel as a first-class core UI root. It resolves the observed GameUi child 39 and appears in Offset Helper static-address verification alongside map and panel roots.
+- Compatibility: Core UI API addition; consumers can use RuneshapeCombinationsUi to enumerate its recipe rows and rune slots.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors.
+
 ## 1.8.28 — 2026-09-14
 
 - Added shared RuneshapeCombinationsUi and its UI layout offset definition. The wrapper resolves a visible recipe panel through live child relationships and exposes recipe rows and square rune-slot controls without relying on a session-specific UI path.
