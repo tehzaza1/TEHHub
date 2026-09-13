@@ -38,6 +38,37 @@ namespace ExpeditionPlanner
         }
 
         /// <summary>
+        /// Checks whether a candidate bomb position has physical clearance from unwalkable terrain
+        /// (such as the campsite tent, wagon, cliff walls, or rocks) using AreaInstance.GridWalkableData.
+        /// An explosive has a physical collision footprint of ~4.5 - 6.0 grid units.
+        /// </summary>
+        public static bool HasWalkableClearance(AreaInstance? area, float gx, float gy, float clearanceRadius = 5.0f)
+        {
+            if (area == null) return true;
+            int r = (int)MathF.Ceiling(clearanceRadius);
+            int cx = (int)MathF.Round(gx);
+            int cy = (int)MathF.Round(gy);
+            float rSq = clearanceRadius * clearanceRadius;
+
+            for (int dy = -r; dy <= r; dy++)
+            {
+                int y = cy + dy;
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    if ((dx * dx) + (dy * dy) <= rSq)
+                    {
+                        int x = cx + dx;
+                        if (!IsCellWalkable(area, x, y))
+                        {
+                            return false; // Physical footprint clips into unwalkable terrain (tent, wagon, rock)!
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Bresenham raycast to check if straight line between two grid positions is clear of terrain walls.
         /// </summary>
         public static bool IsLineClearOfTerrain(AreaInstance? area, Vector2 start, Vector2 end, out int blockedCells)
@@ -229,23 +260,10 @@ namespace ExpeditionPlanner
             IEnumerable<ExpeditionTarget>? obstacles = null,
             Vector3? detonatorGrid = null)
         {
-            // 1. Grid boundary check
-            if (area != null && area.GridHeightData.Length > 0)
+            // 1. Grid boundary and physical clearance check (bomb footprint clearance from tent, wagon, wall)
+            if (!HasWalkableClearance(area, candidateGrid.X, candidateGrid.Y, settings.BombClearanceRadiusGrid))
             {
-                var gy = (int)candidateGrid.Y;
-                var gx = (int)candidateGrid.X;
-                if (gy >= 0 && gy < area.GridHeightData.Length)
-                {
-                    var row = area.GridHeightData[gy];
-                    if (row != null && gx >= 0 && gx < row.Length)
-                    {
-                        // Candidate point must not be placed inside void
-                        if (!IsCellWalkable(area, gx, gy))
-                        {
-                            return false;
-                        }
-                    }
-                }
+                return false;
             }
 
             var cand2D = new Vector2(candidateGrid.X, candidateGrid.Y);

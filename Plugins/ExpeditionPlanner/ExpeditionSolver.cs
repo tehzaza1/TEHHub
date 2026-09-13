@@ -319,7 +319,7 @@ namespace ExpeditionPlanner
 
             void AddCandidate(float gx, float gy, ExpeditionTarget refTarget)
             {
-                if (LegalPlacement.IsCellWalkable(area, (int)gx, (int)gy))
+                if (LegalPlacement.HasWalkableClearance(area, gx, gy, settings.BombClearanceRadiusGrid))
                 {
                     var offsetGrid = new Vector3(gx, gy, refTarget.GridPosition.Z);
                     var offsetWorld = new Vector3(

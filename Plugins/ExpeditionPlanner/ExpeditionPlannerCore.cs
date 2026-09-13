@@ -753,8 +753,18 @@ namespace ExpeditionPlanner
                 this.Settings.BlastRadiusGrid = radius;
             }
 
+            var clearance = this.Settings.BombClearanceRadiusGrid;
+            if (ImGui.SliderFloat("Bomb Clearance (from Walls/Tent)", ref clearance, 2.0f, 10.0f, "%.1f grid"))
+            {
+                this.Settings.BombClearanceRadiusGrid = clearance;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Uses GridWalkableData to guarantee bombs are placed with clearance from the tent, wagon, cliff walls, and rocks.");
+            }
+
             var campRadius = this.Settings.CampExclusionRadiusGrid;
-            if (ImGui.SliderFloat("Camp Exclusion Radius", ref campRadius, 10f, 35f, "%.1f grid"))
+            if (ImGui.SliderFloat("Camp Exclusion Radius", ref campRadius, 5f, 30f, "%.1f grid"))
             {
                 this.Settings.CampExclusionRadiusGrid = campRadius;
             }
