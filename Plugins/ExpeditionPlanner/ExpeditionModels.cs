@@ -19,6 +19,15 @@ namespace ExpeditionPlanner
         ExpeditionBoss
     }
 
+    public enum RuneTier
+    {
+        Golden = 0,     // Opulent (Increases monster rarity & loot, doubles drops)
+        Purple_S,       // Power, Death, Bond, Oath
+        Purple_A,       // Time, Rebirth
+        Purple_B,       // Other purple runes
+        Blue_C          // Blue runes (filler for quantity stack scaling)
+    }
+
     public enum PlannerProfile
     {
         Safe = 0,
@@ -45,6 +54,13 @@ namespace ExpeditionPlanner
         public string RecommendedRuneChoice { get; set; } = string.Empty;
         public string RecipeDescription { get; set; } = string.Empty;
         public int ProliferationRemaining { get; set; }
+
+        // Golden Slot & Proliferation Mechanics
+        public string ProliferatedRuneName { get; set; } = string.Empty;
+        public RuneTier ProliferatedRuneTier { get; set; } = RuneTier.Blue_C;
+        public bool NeedsReroll { get; set; }
+        public string RerollReason { get; set; } = string.Empty;
+        public bool IsDuplicateProliferation { get; set; }
     }
 
     public sealed class PlacedBombInfo
@@ -75,6 +91,8 @@ namespace ExpeditionPlanner
         public string Reason { get; set; } = string.Empty;
         public bool IsUnsafe { get; set; }
         public List<string> Warnings { get; set; } = new();
+        public List<string> ProliferatedStack { get; set; } = new();
+        public int RerollRemnantCount { get; set; }
         public DateTime GeneratedUtc { get; set; } = DateTime.UtcNow;
     }
 }

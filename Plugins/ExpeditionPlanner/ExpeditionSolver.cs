@@ -52,6 +52,7 @@ namespace ExpeditionPlanner
                 }
             }
 
+            var accumulatedProliferatedRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             Vector3 activeAnchor = startAnchor;
             float totalScore = 0f;
             var warnings = new List<string>();
@@ -118,15 +119,35 @@ namespace ExpeditionPlanner
 
                     // Remaining bombs in the sequence that will benefit from runes detonated at this step
                     int remainingBombs = Math.Max(0, budget - (currentStep + step));
-                    float proliferationMultiplier = 1.0f + (1.2f * remainingBombs);
 
                     foreach (var target in targetsInRadius)
                     {
                         float val = GetTargetValue(target, settings);
                         if (target.Kind == TargetKind.RemnantPillar || target.Kind == TargetKind.VerisiumSentinel)
                         {
-                            // Remnants spawn Runic monsters and proliferate their modifiers to all remaining bombs!
-                            val = (val + target.BaseWeight) * proliferationMultiplier;
+                            // "Runes do not stack. If a rune is already proliferated, another duplicate rune is useless."
+                            bool isDuplicate = !string.IsNullOrEmpty(target.AnchorRuneName) &&
+                                               accumulatedProliferatedRunes.Contains(target.AnchorRuneName);
+                            target.IsDuplicateProliferation = isDuplicate;
+
+                            float proliferationMultiplier = isDuplicate ? 1.0f : (1.0f + (1.5f * remainingBombs));
+                            float baseVal = target.BaseWeight > 0 ? target.BaseWeight : settings.WeightRemnant;
+
+                            // Opulent (Golden): SSS-Tier, doubles loot drops, must be prioritized first
+                            if (target.ProliferatedRuneTier == RuneTier.Golden)
+                            {
+                                baseVal += 800f;
+                            }
+                            else if (target.ProliferatedRuneTier == RuneTier.Purple_S)
+                            {
+                                baseVal += 350f; // Power, Death, Bond, Oath
+                            }
+                            else if (target.ProliferatedRuneTier == RuneTier.Purple_A)
+                            {
+                                baseVal += 180f; // Time, Rebirth
+                            }
+
+                            val = baseVal * proliferationMultiplier;
                         }
 
                         stepScore += val;
@@ -142,7 +163,7 @@ namespace ExpeditionPlanner
 
                             if (!accumulatedRunes.Contains(mod))
                             {
-                                stepScore += GetRuneWeight(mod, settings) * proliferationMultiplier;
+                                stepScore += GetRuneWeight(mod, settings) * (1.0f + (1.2f * remainingBombs));
                             }
                         }
                     }
@@ -189,6 +210,14 @@ namespace ExpeditionPlanner
                     {
                         t.ProliferationRemaining = remainingBombs;
                         coveredEntityIds.Add(t.EntityId);
+                        if (t.Kind == TargetKind.RemnantPillar && !string.IsNullOrEmpty(t.AnchorRuneName))
+                        {
+                            if (!accumulatedProliferatedRunes.Contains(t.AnchorRuneName))
+                            {
+                                accumulatedProliferatedRunes.Add(t.AnchorRuneName);
+                                evaluation.ProliferatedStack.Add(t.AnchorRuneName);
+                            }
+                        }
                     }
                     foreach (var r in bestPlacement.GainedRunes)
                     {
@@ -199,6 +228,12 @@ namespace ExpeditionPlanner
                 {
                     break;
                 }
+            }
+
+            evaluation.RerollRemnantCount = availableTargets.Count(t => t.Kind == TargetKind.RemnantPillar && t.NeedsReroll);
+            if (evaluation.RerollRemnantCount > 0)
+            {
+                warnings.Add($"{evaluation.RerollRemnantCount} Remnant(s) have no Purple/Gold runes. Consider rerolling before detonating!");
             }
 
             evaluation.Placements = chosenPlacements;

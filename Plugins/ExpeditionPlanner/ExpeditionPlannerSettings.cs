@@ -19,19 +19,24 @@ namespace ExpeditionPlanner
         public float WeightSentinel { get; set; } = 80.0f;
         public float WeightBoss { get; set; } = 150.0f;
 
-        // Known Rune Priority Weights
+        // Known Rune Priority Weights based on Grand Expedition Tier List
         public Dictionary<string, float> RuneWeights { get; set; } = new()
         {
-            { "Opulent", 100.0f },
-            { "Power", 60.0f },
-            { "Death", 60.0f },
-            { "Bond", 60.0f },
-            { "Oath", 60.0f },
-            { "Time", 40.0f },
-            { "Rebirth", 40.0f },
-            { "Wisdom", 35.0f },
-            { "Inspiration", 30.0f },
-            { "Resolve", 30.0f }
+            { "Opulent", 1000.0f }, // Golden: SSS-Tier, doubles loot drops, highest priority
+            { "Bond", 450.0f },     // S-Tier Purple
+            { "Oath", 420.0f },     // S-Tier Purple
+            { "Power", 400.0f },    // S-Tier Purple
+            { "Death", 400.0f },    // S-Tier Purple
+            { "Time", 250.0f },     // A-Tier Purple
+            { "Rebirth", 220.0f },  // A-Tier Blue
+            { "Arcane", 90.0f },    // B-Tier Purple
+            { "Soul", 80.0f },      // B-Tier Purple
+            { "Celestial", 80.0f }, // B-Tier Purple
+            { "Prismatic", 80.0f }, // B-Tier Purple
+            { "Vision", 80.0f },    // B-Tier Purple
+            { "Wisdom", 80.0f },    // B-Tier Purple
+            { "Rage", 70.0f },      // B-Tier Purple
+            { "Protective", 70.0f } // B-Tier Purple
         };
 
         public HashSet<string> NeverTakeRunes { get; set; } = new();

@@ -2,6 +2,28 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.7 — 2026-09-13
+
+- Implemented the Grand Expedition Rune System, Tier List, Golden Slot Proliferation, and Aggressive Reroll detection:
+  - **Rune Tier List Calibration**:
+    - **Golden**: `Opulent` (SSS-Tier, prioritizes monster rarity and double loot, massive weight 1000f, selected as earliest possible anchor).
+    - **S-Tier Purple**: `Power`, `Death`, `Bond`, `Oath` (weight 400–450f, prioritized early in the explosive chain).
+    - **A-Tier**: `Time` (purple) and `Rebirth` (blue rune treated as A-tier, weight 220–250f).
+    - **B-Tier Purple**: `Arcane`, `Protective`, `Celestial`, `Soul`, `Vision`, `Prismatic`, `Moon`, `Rage`, etc. (weight 100–120f).
+    - **C-Tier Blue**: Blue runes (weight 30–50f, valued for quantity stacking on subsequent remnants rather than individual impact).
+  - **Golden Slot Proliferation & No-Stacking Enforcement**:
+    - Identified that only the rune in the Remnant pillar's golden slot (`anchorPos` / `anchorIdx`) proliferates forward to all subsequent remnants.
+    - Implemented strict non-stacking rule in `ExpeditionSolver`: if a rune has already proliferated into `accumulatedProliferatedRunes`, duplicate runes yield zero proliferation multiplier.
+    - Proliferation multiplier actively tracks accumulated rune count, rewarding 7–8+ rune stacks at chain completion.
+  - **Aggressive Remnant Reroll Advice**:
+    - Detects Remnants whose golden slot holds only blue runes (no purple or gold).
+    - Flags these Remnants with clear alerts (`[! REROLL RECOMMENDED: No Purple/Gold]`) in the 3D world badge and highlights them in the Route Advisor summary card.
+  - **Visual & In-Game UI Styling**:
+    - Color-coded badges and labels: Golden Opulent (bright gold `0xFFFFD700`), S/A/B Purple (vibrant orchid/magenta `0xFFFF55FF`), and Blue (`0xFF00D2FF`).
+    - Route Advisor card displays the full active `Proliferated Rune Stack` chain (e.g. `[Opulent] -> [Bond] -> [Oath] -> [Power]`) and counts remnants needing reroll.
+- Compatibility: Standalone ExpeditionPlanner updates; synchronized core and launcher version metadata.
+- Validation: Debug and Release builds for all 15 projects in `TEHhub.sln` succeeded with 0 Warnings and 0 Errors.
+
 ## 1.8.6 — 2026-09-13
 
 - Added autonomous Remnant pillar rune recommendation and sequential proliferation weighting:

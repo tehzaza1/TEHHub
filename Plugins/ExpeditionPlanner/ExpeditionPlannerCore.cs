@@ -215,21 +215,44 @@ namespace ExpeditionPlanner
                     var remnantTarget = p.CoveredTargets.Find(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
                     if (remnantTarget != null && !string.IsNullOrEmpty(remnantTarget.RecommendedRuneChoice))
                     {
-                        var choiceText = $"* Choice: {remnantTarget.RecommendedRuneChoice}";
+                        var tierTag = remnantTarget.ProliferatedRuneTier switch
+                        {
+                            RuneTier.Golden => "[GOLDEN OPULENT]",
+                            RuneTier.Purple_S => "[S-TIER PURPLE]",
+                            RuneTier.Purple_A => "[A-TIER PURPLE]",
+                            RuneTier.Purple_B => "[B-TIER PURPLE]",
+                            _ => "[BLUE RUNE]"
+                        };
+                        uint tagColor = remnantTarget.ProliferatedRuneTier switch
+                        {
+                            RuneTier.Golden => 0xFFFFD700,
+                            RuneTier.Purple_S => 0xFFFF55FF,
+                            RuneTier.Purple_A => 0xFFDA70D6,
+                            RuneTier.Purple_B => 0xFFBA55D3,
+                            _ => 0xFF00D2FF
+                        };
+
+                        var choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice}";
                         var subText = remnantTarget.ProliferationRemaining > 0
                             ? $"Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
                             : "Final blast in chain";
 
+                        if (remnantTarget.NeedsReroll)
+                        {
+                            subText = "[!] REROLL RECOMMENDED (No Purple/Gold)";
+                        }
+
                         var cSize = ImGui.CalcTextSize(choiceText);
                         var sSize = ImGui.CalcTextSize(subText);
-                        var boxW = MathF.Max(cSize.X, sSize.X) + 12f;
-                        var boxH = 32f;
+                        var boxW = MathF.Max(cSize.X, sSize.X) + 16f;
+                        var boxH = 34f;
                         var boxPos = sPos + new Vector2(-boxW * 0.5f, this.Settings.BadgeRadius + 6f);
 
+                        uint boxBorder = remnantTarget.NeedsReroll ? 0xFF0033FF : (remnantTarget.ProliferatedRuneTier == RuneTier.Golden ? 0xFFFFD700 : 0xFF00E5FF);
                         drawList.AddRectFilled(boxPos, boxPos + new Vector2(boxW, boxH), 0xEE111111, 4f);
-                        drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), 0xFF00E5FF, 4f, 0, 1.2f);
-                        drawList.AddText(boxPos + new Vector2(6, 2), 0xFF00FFFF, choiceText);
-                        drawList.AddText(boxPos + new Vector2(6, 16), 0xFFFFAA00, subText);
+                        drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), boxBorder, 4f, 0, 1.5f);
+                        drawList.AddText(boxPos + new Vector2(8, 2), tagColor, choiceText);
+                        drawList.AddText(boxPos + new Vector2(8, 17), remnantTarget.NeedsReroll ? 0xFF3333FF : 0xFFFFAA00, subText);
                     }
                 }
             }
@@ -238,7 +261,7 @@ namespace ExpeditionPlanner
             if (this.Settings.ShowReasonCard && this.currentRoute.Placements.Count > 0)
             {
                 ImGui.SetNextWindowPos(new Vector2(20, 220), ImGuiCond.FirstUseEver);
-                ImGui.SetNextWindowSize(new Vector2(380, 0), ImGuiCond.Always);
+                ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
                 var flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize;
                 if (ImGui.Begin("Expedition Route Advisor###ExpeditionPlannerCard", flags))
                 {
@@ -248,6 +271,20 @@ namespace ExpeditionPlanner
 
                     ImGui.TextWrapped(this.currentRoute.Reason);
 
+                    if (this.currentRoute.ProliferatedStack.Count > 0)
+                    {
+                        ImGui.Separator();
+                        ImGui.TextColored(new Vector4(1f, 0.85f, 0.2f, 1f), $"Proliferated Rune Stack ({this.currentRoute.ProliferatedStack.Count}):");
+                        ImGui.TextWrapped(string.Join("  ->  ", this.currentRoute.ProliferatedStack.Select(r => $"[{r}]")));
+                    }
+
+                    if (this.currentRoute.RerollRemnantCount > 0)
+                    {
+                        ImGui.Separator();
+                        ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1f), $"[!] Remnants Needing Reroll: {this.currentRoute.RerollRemnantCount}");
+                        ImGui.TextDisabled("Golden slot has no purple/gold runes. Aggressive reroll recommended on 5-slot maps!");
+                    }
+
                     ImGui.Separator();
                     ImGui.TextColored(new Vector4(0.2f, 1f, 0.8f, 1f), "Pillar Rune & Monster Directives:");
                     foreach (var p in this.currentRoute.Placements)
@@ -255,11 +292,24 @@ namespace ExpeditionPlanner
                         var remnant = p.CoveredTargets.Find(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
                         if (remnant != null && !string.IsNullOrEmpty(remnant.RecommendedRuneChoice))
                         {
-                            ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), $"Step [{p.Step}] Pillar ({remnant.HoleCount}x {remnant.AnchorRuneName}):");
-                            ImGui.BulletText($"Select Rune: {remnant.RecommendedRuneChoice}");
-                            if (remnant.ProliferationRemaining > 0)
+                            var tierColor = remnant.ProliferatedRuneTier switch
                             {
-                                ImGui.TextDisabled($"   -> Proliferates to {remnant.ProliferationRemaining} subsequent bombs!");
+                                RuneTier.Golden => new Vector4(1f, 0.84f, 0f, 1f),
+                                RuneTier.Purple_S => new Vector4(1f, 0.35f, 1f, 1f),
+                                RuneTier.Purple_A => new Vector4(0.85f, 0.45f, 0.9f, 1f),
+                                RuneTier.Purple_B => new Vector4(0.7f, 0.4f, 0.85f, 1f),
+                                _ => new Vector4(0.3f, 0.7f, 1f, 1f)
+                            };
+
+                            ImGui.TextColored(tierColor, $"Step [{p.Step}] Pillar ({remnant.HoleCount}x {remnant.AnchorRuneName}):");
+                            ImGui.BulletText($"Choose: {remnant.RecommendedRuneChoice}");
+                            if (remnant.NeedsReroll)
+                            {
+                                ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), $"   -> [REROLL]: {remnant.RerollReason}");
+                            }
+                            else if (remnant.ProliferationRemaining > 0)
+                            {
+                                ImGui.TextDisabled($"   -> Proliferates forward to {remnant.ProliferationRemaining} subsequent bombs!");
                             }
                         }
                         else
@@ -374,8 +424,11 @@ namespace ExpeditionPlanner
                 string choice = string.Empty;
                 string desc = string.Empty;
                 float score = 40f;
+                RuneTier tier = RuneTier.Blue_C;
+                bool needsReroll = false;
+                string rerollReason = string.Empty;
 
-                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out anchor, out choice, out desc, out score))
+                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out anchor, out choice, out desc, out score, out tier, out needsReroll, out rerollReason))
                 {
                     displayName = $"Remnant [{holes}x {anchor}]";
                 }
@@ -404,7 +457,11 @@ namespace ExpeditionPlanner
                     AnchorRuneName = anchor,
                     RecommendedRuneChoice = choice,
                     RecipeDescription = desc,
-                    BaseWeight = score
+                    BaseWeight = score,
+                    ProliferatedRuneName = anchor,
+                    ProliferatedRuneTier = tier,
+                    NeedsReroll = needsReroll,
+                    RerollReason = rerollReason
                 };
             }
             else if (path.Contains(SentinelPath, StringComparison.OrdinalIgnoreCase))

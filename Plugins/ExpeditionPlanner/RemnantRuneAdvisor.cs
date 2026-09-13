@@ -78,6 +78,45 @@ namespace ExpeditionPlanner
             }
         }
 
+        public static RuneTier GetRuneTier(string runeName)
+        {
+            if (string.Equals(runeName, "Opulent", StringComparison.OrdinalIgnoreCase))
+            {
+                return RuneTier.Golden;
+            }
+
+            if (string.Equals(runeName, "Power", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Death", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Bond", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Oath", StringComparison.OrdinalIgnoreCase))
+            {
+                return RuneTier.Purple_S;
+            }
+
+            if (string.Equals(runeName, "Time", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Rebirth", StringComparison.OrdinalIgnoreCase))
+            {
+                return RuneTier.Purple_A;
+            }
+
+            // Other purple runes in PoE 2
+            if (string.Equals(runeName, "Arcane", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Protective", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Celestial", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Soul", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Vision", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Prismatic", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Moon", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Rage", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Wisdom", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(runeName, "Life", StringComparison.OrdinalIgnoreCase))
+            {
+                return RuneTier.Purple_B;
+            }
+
+            return RuneTier.Blue_C;
+        }
+
         public static bool TryReadMonolith(
             Entity entity,
             int areaLevel,
@@ -85,13 +124,19 @@ namespace ExpeditionPlanner
             out string anchorName,
             out string recommendedChoice,
             out string description,
-            out float estimatedValue)
+            out float estimatedValue,
+            out RuneTier proliferatedTier,
+            out bool needsReroll,
+            out string rerollReason)
         {
             holeCount = 0;
             anchorName = string.Empty;
             recommendedChoice = string.Empty;
             description = string.Empty;
             estimatedValue = 30f;
+            proliferatedTier = RuneTier.Blue_C;
+            needsReroll = false;
+            rerollReason = string.Empty;
 
             if (entity.Address == IntPtr.Zero) return false;
             if (!entity.TryGetComponent<StateMachine>(out var sm, false) || sm.Address == IntPtr.Zero) return false;
@@ -158,9 +203,17 @@ namespace ExpeditionPlanner
             }
 
             anchorName = isUnique ? "Unique Monolith" : (anchorIdx >= 0 && anchorIdx < RuneNames.Length ? RuneNames[anchorIdx] : "Rune Monolith");
+            proliferatedTier = GetRuneTier(anchorName);
+
+            // Reroll detection: "Remnants with no purple runes should always be rerolled"
+            if (!isUnique && proliferatedTier == RuneTier.Blue_C)
+            {
+                needsReroll = true;
+                rerollReason = $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!";
+            }
 
             EnsureRecipesLoaded();
-            var bestOffer = PickBestRecipe(anchorIdx, anchorPos, holeCount, isUnique, areaLevel);
+            var bestOffer = PickBestRecipe(anchorIdx, anchorPos, holeCount, isUnique, areaLevel, proliferatedTier);
             if (bestOffer != null)
             {
                 recommendedChoice = bestOffer.Name;
@@ -171,13 +224,25 @@ namespace ExpeditionPlanner
             {
                 recommendedChoice = $"[{holeCount}x {anchorName}] Craft";
                 description = "Excavate for Runic Monsters and proliferated modifier buffs";
-                estimatedValue = 50f;
+                estimatedValue = GetTierBaseScore(proliferatedTier, holeCount);
             }
 
             return true;
         }
 
-        private static OfferResult? PickBestRecipe(int anchorIdx, int anchorPos, int holeCount, bool isUnique, int areaLevel)
+        private static float GetTierBaseScore(RuneTier tier, int holeCount)
+        {
+            return tier switch
+            {
+                RuneTier.Golden => 1000f + (holeCount * 35f),
+                RuneTier.Purple_S => 450f + (holeCount * 25f),
+                RuneTier.Purple_A => 250f + (holeCount * 20f),
+                RuneTier.Purple_B => 100f + (holeCount * 15f),
+                _ => 30f + (holeCount * 10f)
+            };
+        }
+
+        private static OfferResult? PickBestRecipe(int anchorIdx, int anchorPos, int holeCount, bool isUnique, int areaLevel, RuneTier tier)
         {
             if (loadedRecipes.Count == 0) return null;
 
@@ -200,15 +265,15 @@ namespace ExpeditionPlanner
                 var name = rec.reward?.name ?? rec.description ?? rec.id ?? string.Empty;
                 var desc = rec.description ?? string.Empty;
 
-                float score = rec.size * 15.0f;
+                float score = GetTierBaseScore(tier, rec.size);
 
                 // Priority keywords
-                if (name.Contains("Divine", StringComparison.OrdinalIgnoreCase) || name.Contains("Mirror", StringComparison.OrdinalIgnoreCase)) score += 200f;
-                else if (name.Contains("Exalted", StringComparison.OrdinalIgnoreCase) || name.Contains("Chaos", StringComparison.OrdinalIgnoreCase)) score += 100f;
-                else if (name.Contains("Greater", StringComparison.OrdinalIgnoreCase) || name.Contains("Grand", StringComparison.OrdinalIgnoreCase)) score += 80f;
-                else if (name.Contains("Logbook", StringComparison.OrdinalIgnoreCase)) score += 120f;
-                else if (name.Contains("Foundations", StringComparison.OrdinalIgnoreCase)) score += 60f;
-                else if (name.Contains("Currency", StringComparison.OrdinalIgnoreCase)) score += 50f;
+                if (name.Contains("Divine", StringComparison.OrdinalIgnoreCase) || name.Contains("Mirror", StringComparison.OrdinalIgnoreCase)) score += 300f;
+                else if (name.Contains("Exalted", StringComparison.OrdinalIgnoreCase) || name.Contains("Chaos", StringComparison.OrdinalIgnoreCase)) score += 150f;
+                else if (name.Contains("Greater", StringComparison.OrdinalIgnoreCase) || name.Contains("Grand", StringComparison.OrdinalIgnoreCase)) score += 100f;
+                else if (name.Contains("Logbook", StringComparison.OrdinalIgnoreCase)) score += 140f;
+                else if (name.Contains("Foundations", StringComparison.OrdinalIgnoreCase)) score += 80f;
+                else if (name.Contains("Currency", StringComparison.OrdinalIgnoreCase)) score += 70f;
 
                 if (score > maxScore)
                 {
