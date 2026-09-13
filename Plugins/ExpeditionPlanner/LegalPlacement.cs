@@ -7,7 +7,9 @@ namespace ExpeditionPlanner
 
     public static class LegalPlacement
     {
-        private const int DetourPathNodeLimit = 20_000;
+        // The planner invokes this only for a small set of blocked high-value targets.
+        // Keep the search bounded so pressing Calculate never stalls the overlay.
+        private const int DetourPathNodeLimit = 3_000;
         /// <summary>
         /// Physical footprint radius around a Remnant pillar or Sentinel where a bomb cannot be placed.
         /// In PoE 2 grid coordinates, the base collision is ~4.5 units (~50 world units).

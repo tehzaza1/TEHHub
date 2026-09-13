@@ -10,6 +10,7 @@ namespace ExpeditionPlanner
     public static class ExpeditionSolver
     {
         private const float GridToWorldRatio = 10.87f;
+        private const int MaxDetourSearchesPerStep = 6;
 
         public static RouteEvaluation Solve(
             Vector3 startDetonatorGrid,
@@ -359,6 +360,7 @@ namespace ExpeditionPlanner
         {
             var points = new List<(Vector3 Grid, Vector3 World, float TerrainHeight)>();
             var anchor2D = new Vector2(anchorGrid.X, anchorGrid.Y);
+            int detourSearches = 0;
 
             void AddCandidate(float gx, float gy, ExpeditionTarget refTarget)
             {
@@ -416,14 +418,19 @@ namespace ExpeditionPlanner
                 // If a wall or height boundary blocks the direct approach, derive a legal
                 // bridging point from a walkable A* path. The next solver iteration can then
                 // continue around the obstacle instead of drawing a wire through it.
-                if (LegalPlacement.TryFindTerrainDetourWaypoint(
-                    area,
-                    anchor2D,
-                    target2D,
-                    settings.MaxPlacementRangeGrid - 2.0f,
-                    out var detourWaypoint))
+                if (detourSearches < MaxDetourSearchesPerStep &&
+                    !LegalPlacement.IsLineClearOfTerrain(area, anchor2D, target2D, out _))
                 {
-                    AddCandidate(detourWaypoint.X, detourWaypoint.Y, t);
+                    detourSearches++;
+                    if (LegalPlacement.TryFindTerrainDetourWaypoint(
+                        area,
+                        anchor2D,
+                        target2D,
+                        settings.MaxPlacementRangeGrid - 2.0f,
+                        out var detourWaypoint))
+                    {
+                        AddCandidate(detourWaypoint.X, detourWaypoint.Y, t);
+                    }
                 }
 
                 // 2. Circular perimeter sweep around the target (for multi-target clustering)
