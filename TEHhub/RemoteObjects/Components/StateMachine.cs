@@ -276,9 +276,7 @@ namespace TEHhub.RemoteObjects.Components
                     {
                         lines.Add("No direct Rune DAT rows in Station/Anchor Holder first 0x400 bytes.");
                     }
-
                     var nestedRows = 0;
-                    var inspectedPointers = 0;
                     foreach (var source in diagnosticRoots)
                     {
                         if (source.Address == IntPtr.Zero)
@@ -286,7 +284,8 @@ namespace TEHhub.RemoteObjects.Components
                             continue;
                         }
 
-                        for (var sourceOffset = 0; sourceOffset <= 0x400 && inspectedPointers < 96; sourceOffset += IntPtr.Size)
+                        var inspectedPointers = 0;
+                        for (var sourceOffset = 0; sourceOffset <= 0x400 && inspectedPointers < 24; sourceOffset += IntPtr.Size)
                         {
                             if (!reader.TryReadMemory<IntPtr>(source.Address + sourceOffset, out var target, recordFailure: false) || target == IntPtr.Zero)
                             {

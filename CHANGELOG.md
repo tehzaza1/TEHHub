@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.18 — 2026-09-14
+
+- Fixed the Debug Rune Station controller scan so its bounded one-hop pointer budget applies independently to each controller component root.
+- Compatibility: Diagnostic-only; public Release builds compile it out.
+- Validation: Debug and Release core builds plus Debug and Release launcher builds succeeded with 0 warnings and 0 errors.
+
 ## 1.8.17 — 2026-09-14
 
 - Extended the Debug Rune Station probe to locate the paired `RuneEncounterController` at the same grid position and include its live component roots in the bounded Rune DAT reference scan.
