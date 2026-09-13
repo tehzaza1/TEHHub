@@ -89,8 +89,8 @@ namespace ExpeditionPlanner
                         out var isObstructed);
 
                     var maxRange = isObstructed
-                        ? MathF.Min(65.0f, settings.MaxPlacementRangeGrid - 18.0f)
-                        : (settings.MaxPlacementRangeGrid - 4.0f);
+                        ? MathF.Max(70.0f, settings.MaxPlacementRangeGrid - 10.0f)
+                        : settings.MaxPlacementRangeGrid;
 
                     if (effectiveDist > maxRange)
                     {
@@ -107,11 +107,11 @@ namespace ExpeditionPlanner
                     var stepRunes = new List<string>();
                     bool stepHasForbidden = false;
 
-                    // Heavy penalty if path is obstructed by pillar or wall:
-                    // Strongly prioritize clean open-ground lines of sight!
+                    // Moderate penalty if path is obstructed by pillar or wall:
+                    // Prioritize clean open-ground lines of sight when available
                     if (isObstructed)
                     {
-                        stepScore -= 250f;
+                        stepScore -= 40f;
                     }
 
                     // Slight preference for shorter, tighter placements
@@ -291,40 +291,31 @@ namespace ExpeditionPlanner
                             var gx = t.GridPosition.X + (dir.X * dist);
                             var gy = t.GridPosition.Y + (dir.Y * dist);
 
-                            if (LegalPlacement.IsCellWalkable(area, (int)gx, (int)gy))
-                            {
-                                var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
-                                var offsetWorld = new Vector3(
-                                    t.WorldPosition.X + (dir.X * dist * GridToWorldRatio),
-                                    t.WorldPosition.Y + (dir.Y * dist * GridToWorldRatio),
-                                    t.WorldPosition.Z);
-                                points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
-                            }
+                            var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
+                            var offsetWorld = new Vector3(
+                                t.WorldPosition.X + (dir.X * dist * GridToWorldRatio),
+                                t.WorldPosition.Y + (dir.Y * dist * GridToWorldRatio),
+                                t.WorldPosition.Z);
+                            points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
                         }
                     }
                 }
                 else
                 {
                     // For chests and monsters: direct position or slight front offset
-                    if (LegalPlacement.IsCellWalkable(area, (int)t.GridPosition.X, (int)t.GridPosition.Y))
-                    {
-                        points.Add((t.GridPosition, t.WorldPosition, t.TerrainHeight));
-                    }
+                    points.Add((t.GridPosition, t.WorldPosition, t.TerrainHeight));
 
                     if (distToAnchor > 15.0f)
                     {
                         var dir = toAnchor / distToAnchor;
                         var gx = t.GridPosition.X + (dir.X * 12.0f);
                         var gy = t.GridPosition.Y + (dir.Y * 12.0f);
-                        if (LegalPlacement.IsCellWalkable(area, (int)gx, (int)gy))
-                        {
-                            var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
-                            var offsetWorld = new Vector3(
-                                t.WorldPosition.X + (dir.X * 12.0f * GridToWorldRatio),
-                                t.WorldPosition.Y + (dir.Y * 12.0f * GridToWorldRatio),
-                                t.WorldPosition.Z);
-                            points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
-                        }
+                        var offsetGrid = new Vector3(gx, gy, t.GridPosition.Z);
+                        var offsetWorld = new Vector3(
+                            t.WorldPosition.X + (dir.X * 12.0f * GridToWorldRatio),
+                            t.WorldPosition.Y + (dir.Y * 12.0f * GridToWorldRatio),
+                            t.WorldPosition.Z);
+                        points.Add((offsetGrid, offsetWorld, t.TerrainHeight));
                     }
                 }
             }

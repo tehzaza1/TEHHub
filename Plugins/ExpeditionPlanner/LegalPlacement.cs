@@ -207,13 +207,14 @@ namespace ExpeditionPlanner
             if (area != null && !IsLineClearOfTerrain(area, start, candidate, out var blocked))
             {
                 isLineObstructed = true;
-                if (blocked >= 4)
+                if (blocked >= 35)
                 {
-                    // Solid wall, cliff, or building blocking line completely
+                    // Impassable large mountain, cliff, or outer wall
                     return 9999.0f;
                 }
 
-                totalDistance += 18.0f + (blocked * 6.0f);
+                // Add minor wire slack for small doodads or tile fringes
+                totalDistance += MathF.Min(20.0f, blocked * 1.5f);
             }
 
             return totalDistance;
@@ -235,18 +236,21 @@ namespace ExpeditionPlanner
             {
                 var gy = (int)candidateGrid.Y;
                 var gx = (int)candidateGrid.X;
-                if (gy < 0 || gy >= area.GridHeightData.Length) return false;
-                var row = area.GridHeightData[gy];
-                if (row == null || gx < 0 || gx >= row.Length) return false;
-
-                // 2. Candidate point must not be placed inside a solid wall
-                if (!IsCellWalkable(area, gx, gy))
+                if (gy >= 0 && gy < area.GridHeightData.Length)
                 {
-                    return false;
+                    var row = area.GridHeightData[gy];
+                    if (row != null && gx >= 0 && gx < row.Length)
+                    {
+                        // Candidate point must not be placed inside void
+                        if (!IsCellWalkable(area, gx, gy))
+                        {
+                            return false;
+                        }
+                    }
                 }
             }
 
-            // 3. Check distance from obstacles (do not place bomb inside a pillar base)
+            // 2. Check distance from obstacles (do not place bomb inside a pillar base)
             var cand2D = new Vector2(candidateGrid.X, candidateGrid.Y);
             if (obstacles != null)
             {
@@ -263,7 +267,7 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // 4. Fuse reach check from anchor
+            // 3. Fuse reach check from anchor
             if (anchorGrid.HasValue)
             {
                 var start2D = new Vector2(anchorGrid.Value.X, anchorGrid.Value.Y);
@@ -272,15 +276,14 @@ namespace ExpeditionPlanner
                 if (directDist < 4.0f) return false; // Too close to existing bomb
 
                 // Direct Euclidean distance must have reasonable headroom
-                if (directDist > settings.MaxPlacementRangeGrid - 5.0f) return false;
+                if (directDist > settings.MaxPlacementRangeGrid - 2.0f) return false;
 
                 var effectiveDist = CalculateEffectiveDistance(start2D, cand2D, obstacles, area, out var obstructed);
 
-                // If line is obstructed by pillar or wall, max allowed reach is much lower (<= 65 grid)
-                // because the wire will fail to reach or get snagged in-game
+                // Allow placements up to MaxPlacementRangeGrid
                 var maxAllowed = obstructed
-                    ? MathF.Min(65.0f, settings.MaxPlacementRangeGrid - 18.0f)
-                    : (settings.MaxPlacementRangeGrid - 4.0f);
+                    ? MathF.Max(70.0f, settings.MaxPlacementRangeGrid - 10.0f)
+                    : settings.MaxPlacementRangeGrid;
 
                 if (effectiveDist > maxAllowed)
                 {

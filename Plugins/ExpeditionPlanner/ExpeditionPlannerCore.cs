@@ -153,7 +153,7 @@ namespace ExpeditionPlanner
             {
                 // Draw connector line from active anchor (detonator or last placed bomb) to first recommended placement
                 var firstP = this.currentRoute.Placements[0];
-                var firstScreen = world.WorldToScreen(ToStdTuple(firstP.WorldPosition), firstP.TerrainHeight);
+                var firstScreen = world.WorldToScreen(ToStdTuple(firstP.WorldPosition), firstP.WorldPosition.Z);
                 if (firstScreen.X > 0 && firstScreen.Y > 0)
                 {
                     Vector3? anchorPos = null;
@@ -180,7 +180,7 @@ namespace ExpeditionPlanner
                 for (int i = 0; i < this.currentRoute.Placements.Count; i++)
                 {
                     var p = this.currentRoute.Placements[i];
-                    var sPos = world.WorldToScreen(ToStdTuple(p.WorldPosition), p.TerrainHeight);
+                    var sPos = world.WorldToScreen(ToStdTuple(p.WorldPosition), p.WorldPosition.Z);
                     if (sPos.X <= 0 || sPos.Y <= 0) continue;
 
                     // Blast radius circle on ground (subtle gold ring)
@@ -203,7 +203,7 @@ namespace ExpeditionPlanner
                     if (i < this.currentRoute.Placements.Count - 1)
                     {
                         var nextP = this.currentRoute.Placements[i + 1];
-                        var nextScreen = world.WorldToScreen(ToStdTuple(nextP.WorldPosition), nextP.TerrainHeight);
+                        var nextScreen = world.WorldToScreen(ToStdTuple(nextP.WorldPosition), nextP.WorldPosition.Z);
                         if (nextScreen.X > 0 && nextScreen.Y > 0)
                         {
                             uint nextLineColor = nextP.IsObstructed ? 0xDD3333FF : 0xAAFFCC00;
@@ -258,75 +258,87 @@ namespace ExpeditionPlanner
             }
 
             // 3. Draw Recommendation Summary Card in top viewport
-            if (this.Settings.ShowReasonCard && this.currentRoute.Placements.Count > 0)
+            if (this.Settings.ShowReasonCard)
             {
                 ImGui.SetNextWindowPos(new Vector2(20, 220), ImGuiCond.FirstUseEver);
-                ImGui.SetNextWindowSize(new Vector2(400, 0), ImGuiCond.Always);
+                ImGui.SetNextWindowSize(new Vector2(420, 0), ImGuiCond.Always);
                 var flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize;
                 if (ImGui.Begin("Expedition Route Advisor###ExpeditionPlannerCard", flags))
                 {
-                    ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Recommended Route: {string.Join(" -> ", this.currentRoute.Placements.Select(p => $"[{p.Step}]"))}");
-                    ImGui.TextDisabled($"Profile: {this.currentRoute.Profile} | Net Score: {this.currentRoute.NetScore:F0}");
-                    ImGui.Separator();
-
-                    ImGui.TextWrapped(this.currentRoute.Reason);
-
-                    if (this.currentRoute.ProliferatedStack.Count > 0)
+                    if (this.currentRoute.Placements.Count > 0)
                     {
+                        ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Recommended Route: {string.Join(" -> ", this.currentRoute.Placements.Select(p => $"[{p.Step}]"))}");
+                        ImGui.TextDisabled($"Profile: {this.currentRoute.Profile} | Net Score: {this.currentRoute.NetScore:F0} | Targets: {this.activeTargets.Count}");
                         ImGui.Separator();
-                        ImGui.TextColored(new Vector4(1f, 0.85f, 0.2f, 1f), $"Proliferated Rune Stack ({this.currentRoute.ProliferatedStack.Count}):");
-                        ImGui.TextWrapped(string.Join("  ->  ", this.currentRoute.ProliferatedStack.Select(r => $"[{r}]")));
-                    }
 
-                    if (this.currentRoute.RerollRemnantCount > 0)
-                    {
-                        ImGui.Separator();
-                        ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1f), $"[!] Remnants Needing Reroll: {this.currentRoute.RerollRemnantCount}");
-                        ImGui.TextDisabled("Golden slot has no purple/gold runes. Aggressive reroll recommended on 5-slot maps!");
-                    }
+                        ImGui.TextWrapped(this.currentRoute.Reason);
 
-                    ImGui.Separator();
-                    ImGui.TextColored(new Vector4(0.2f, 1f, 0.8f, 1f), "Pillar Rune & Monster Directives:");
-                    foreach (var p in this.currentRoute.Placements)
-                    {
-                        var remnant = p.CoveredTargets.Find(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
-                        if (remnant != null && !string.IsNullOrEmpty(remnant.RecommendedRuneChoice))
+                        if (this.currentRoute.ProliferatedStack.Count > 0)
                         {
-                            var tierColor = remnant.ProliferatedRuneTier switch
-                            {
-                                RuneTier.Golden => new Vector4(1f, 0.84f, 0f, 1f),
-                                RuneTier.Purple_S => new Vector4(1f, 0.35f, 1f, 1f),
-                                RuneTier.Purple_A => new Vector4(0.85f, 0.45f, 0.9f, 1f),
-                                RuneTier.Purple_B => new Vector4(0.7f, 0.4f, 0.85f, 1f),
-                                _ => new Vector4(0.3f, 0.7f, 1f, 1f)
-                            };
+                            ImGui.Separator();
+                            ImGui.TextColored(new Vector4(1f, 0.85f, 0.2f, 1f), $"Proliferated Rune Stack ({this.currentRoute.ProliferatedStack.Count}):");
+                            ImGui.TextWrapped(string.Join("  ->  ", this.currentRoute.ProliferatedStack.Select(r => $"[{r}]")));
+                        }
 
-                            ImGui.TextColored(tierColor, $"Step [{p.Step}] Pillar ({remnant.HoleCount}x {remnant.AnchorRuneName}):");
-                            ImGui.BulletText($"Choose: {remnant.RecommendedRuneChoice}");
-                            if (remnant.NeedsReroll)
+                        if (this.currentRoute.RerollRemnantCount > 0)
+                        {
+                            ImGui.Separator();
+                            ImGui.TextColored(new Vector4(1f, 0.35f, 0.35f, 1f), $"[!] Remnants Needing Reroll: {this.currentRoute.RerollRemnantCount}");
+                            ImGui.TextDisabled("Golden slot has no purple/gold runes. Aggressive reroll recommended on 5-slot maps!");
+                        }
+
+                        ImGui.Separator();
+                        ImGui.TextColored(new Vector4(0.2f, 1f, 0.8f, 1f), "Pillar Rune & Monster Directives:");
+                        foreach (var p in this.currentRoute.Placements)
+                        {
+                            var remnant = p.CoveredTargets.Find(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
+                            if (remnant != null && !string.IsNullOrEmpty(remnant.RecommendedRuneChoice))
                             {
-                                ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), $"   -> [REROLL]: {remnant.RerollReason}");
+                                var tierColor = remnant.ProliferatedRuneTier switch
+                                {
+                                    RuneTier.Golden => new Vector4(1f, 0.84f, 0f, 1f),
+                                    RuneTier.Purple_S => new Vector4(1f, 0.35f, 1f, 1f),
+                                    RuneTier.Purple_A => new Vector4(0.85f, 0.45f, 0.9f, 1f),
+                                    RuneTier.Purple_B => new Vector4(0.7f, 0.4f, 0.85f, 1f),
+                                    _ => new Vector4(0.3f, 0.7f, 1f, 1f)
+                                };
+
+                                ImGui.TextColored(tierColor, $"Step [{p.Step}] Pillar ({remnant.HoleCount}x {remnant.AnchorRuneName}):");
+                                ImGui.BulletText($"Choose: {remnant.RecommendedRuneChoice}");
+                                if (remnant.NeedsReroll)
+                                {
+                                    ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), $"   -> [REROLL]: {remnant.RerollReason}");
+                                }
+                                else if (remnant.ProliferationRemaining > 0)
+                                {
+                                    ImGui.TextDisabled($"   -> Proliferates forward to {remnant.ProliferationRemaining} subsequent bombs!");
+                                }
                             }
-                            else if (remnant.ProliferationRemaining > 0)
+                            else
                             {
-                                ImGui.TextDisabled($"   -> Proliferates forward to {remnant.ProliferationRemaining} subsequent bombs!");
+                                ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.8f, 1f), $"Step [{p.Step}] Excavation:");
+                                ImGui.BulletText($"Excavates {p.CoveredTargets.Count} targets (inherits all active Remnant buffs)");
                             }
                         }
-                        else
+
+                        if (this.currentRoute.Warnings.Count > 0)
                         {
-                            ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.8f, 1f), $"Step [{p.Step}] Excavation:");
-                            ImGui.BulletText($"Excavates {p.CoveredTargets.Count} targets (inherits all active Remnant buffs)");
+                            ImGui.Separator();
+                            ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), "[!] Route Warnings:");
+                            foreach (var w in this.currentRoute.Warnings)
+                            {
+                                ImGui.BulletText(w);
+                            }
                         }
                     }
-
-                    if (this.currentRoute.Warnings.Count > 0)
+                    else
                     {
+                        ImGui.TextColored(new Vector4(1f, 0.6f, 0.2f, 1f), "Expedition Encounter Detected");
+                        ImGui.TextDisabled($"Active Targets: {this.activeTargets.Count} | Detonator: {(this.hasDetonator ? "Found" : "Player Anchor")}");
                         ImGui.Separator();
-                        ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), "[!] Route Warnings:");
-                        foreach (var w in this.currentRoute.Warnings)
-                        {
-                            ImGui.BulletText(w);
-                        }
+                        ImGui.TextWrapped(string.IsNullOrEmpty(this.currentRoute.Reason)
+                            ? "Analyzing placement route..."
+                            : this.currentRoute.Reason);
                     }
 
                     ImGui.End();
@@ -338,6 +350,7 @@ namespace ExpeditionPlanner
         {
             this.placedBombs.Clear();
             this.activeTargets.Clear();
+            this.hasDetonator = false;
 
             int bombOrder = 1;
             foreach (var entity in area.AwakeEntities.Values)
@@ -374,6 +387,22 @@ namespace ExpeditionPlanner
                     {
                         this.activeTargets.Add(classified);
                     }
+                }
+            }
+
+            // If detonator wasn't found in awake entities, fallback to player position as anchor
+            if (!this.hasDetonator && this.placedBombs.Count == 0)
+            {
+                var player = area.Player;
+                if (player != null && player.TryGetComponent<Render>(out var pRender, false))
+                {
+                    this.detonatorGrid = new Vector3(pRender.GridPosition.X, pRender.GridPosition.Y, pRender.GridPosition.Z);
+                    this.detonatorWorld = new Vector3(pRender.WorldPosition.X, pRender.WorldPosition.Y, pRender.WorldPosition.Z);
+                }
+                else if (this.activeTargets.Count > 0)
+                {
+                    this.detonatorGrid = this.activeTargets[0].GridPosition;
+                    this.detonatorWorld = this.activeTargets[0].WorldPosition;
                 }
             }
 
@@ -483,6 +512,16 @@ namespace ExpeditionPlanner
                 mods.AddRange(omp.ModNames);
             }
 
+            float baseWeight = kind switch
+            {
+                TargetKind.ChestReward => 50f,
+                TargetKind.EliteMonster => 35f,
+                TargetKind.NormalMonster => 10f,
+                TargetKind.VerisiumSentinel => 80f,
+                TargetKind.ExpeditionBoss => 150f,
+                _ => 20f
+            };
+
             return new ExpeditionTarget
             {
                 EntityId = entity.Id,
@@ -492,7 +531,8 @@ namespace ExpeditionPlanner
                 GridPosition = new Vector3(render.GridPosition.X, render.GridPosition.Y, render.GridPosition.Z),
                 WorldPosition = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.WorldPosition.Z),
                 TerrainHeight = render.TerrainHeight,
-                ModNames = mods
+                ModNames = mods,
+                BaseWeight = baseWeight
             };
         }
 

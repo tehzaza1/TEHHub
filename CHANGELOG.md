@@ -2,6 +2,20 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.8 — 2026-09-13
+
+- Fixed ExpeditionPlanner overlay visibility, 3D badge projection, and candidate reach failures:
+  - **Fixed 3D Badge Screen Projection**: Used native 3D world elevation (`p.WorldPosition.Z`) instead of `TerrainHeight` (which was 0), eliminating behind-camera projection clipping and restoring 3D badges on screen.
+  - **Always-Visible Route Advisor Window**: The ImGui summary card now renders whenever an Expedition encounter exists (`this.hasDetonator || this.activeTargets.Count > 0 || this.placedBombs.Count > 0`), displaying active target counts, detonator status, and route status even when analyzing placements.
+  - **Player Anchor Fallback**: When the Detonator entity is out of network bubble or unplaced, the solver cleanly falls back to the player's current position or nearest target as placement anchor.
+  - **Relaxed Wire Detour & Obstacle Constraints**:
+    - Replaced the over-restrictive `blocked >= 4` hard wall tripwire with a realistic threshold (`blocked >= 35`), preventing minor terrain doodads and tile fringes from aborting legal wire routes.
+    - Calibrated obstruction distance penalty to `-40f` (down from `-250f`), preventing valid paths from being discarded.
+    - Ensured candidate generation retains target base positions and front-facing vectors.
+  - **Explicit Target BaseWeights**: Populated default values for Chests (50), Elites (35), Monsters (10), Sentinels (80), and Bosses (150).
+- Compatibility: Standalone ExpeditionPlanner updates; synchronized core and launcher version metadata.
+- Validation: Debug and Release builds for all 15 projects in `TEHhub.sln` succeeded with 0 Warnings and 0 Errors; verified live memory entity classification on running PoE 2 client.
+
 ## 1.8.7 — 2026-09-13
 
 - Implemented the Grand Expedition Rune System, Tier List, Golden Slot Proliferation, and Aggressive Reroll detection:
