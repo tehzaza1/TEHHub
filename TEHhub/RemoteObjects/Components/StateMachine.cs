@@ -47,8 +47,36 @@ namespace TEHhub.RemoteObjects.Components
                         ImGui.TextColored(col, $"  Slot #{si + 1}: {rs.SlotRunes[si]}{marker}");
                     }
                 }
+#if DEBUG
+                else if (!rs.IsUnique)
+                {
+                    ImGui.TextColored(new System.Numerics.Vector4(1f, 0.6f, 0.2f, 1f), "Slot runes: (scan did not match)");
+                    if (ImGui.TreeNode("Diagnostic: Station Vector Scan"))
+                    {
+                        if (ImGui.Button("Refresh station memory"))
+                        {
+                            this.stationVectorDiagnostic = this.CaptureStationVectorDiagnostic(rs.SocketCount);
+                        }
 
+                        ImGui.SameLine();
+                        ImGui.TextDisabled("Reads once; it does not dereference candidate values.");
+                        if (string.IsNullOrEmpty(this.stationVectorDiagnostic))
+                        {
+                            ImGui.TextDisabled("Press Refresh station memory while this station is open.");
+                        }
+                        else
+                        {
+                            ImGui.BeginChild("station-vector-results", new System.Numerics.Vector2(0, 260), ImGuiChildFlags.Borders);
+                            ImGui.TextUnformatted(this.stationVectorDiagnostic);
+                            ImGui.EndChild();
+                        }
+
+                        ImGui.TreePop();
+                    }
+                }
+#endif
                 ImGui.Separator();
+
             }
 
             ImGui.Text($"State Count: {States.Count}");
@@ -59,6 +87,118 @@ namespace TEHhub.RemoteObjects.Components
             }
         }
 
+#if DEBUG
+        private string? stationVectorDiagnostic;
+
+        private string CaptureStationVectorDiagnostic(int socketCount)
+        {
+            var lines = new List<string>();
+            try
+            {
+                var reader = Core.Process.Handle;
+                if (!reader.TryReadMemory<StdVector>(this.Address + ListenerVectorOffset, out var listeners))
+                {
+                    return "Could not read the listener vector.";
+                }
+
+                var listenerBytes = listeners.Last.ToInt64() - listeners.First.ToInt64();
+                if (listeners.First == IntPtr.Zero || listenerBytes <= 0 || listenerBytes % IntPtr.Size != 0 || listenerBytes / IntPtr.Size > 256)
+                {
+                    return $"Listener vector is not usable: {listeners}.";
+                }
+
+                var nodes = new long[(int)(listenerBytes / IntPtr.Size)];
+                if (!reader.TryReadMemoryArray(listeners.First, nodes, out _))
+                {
+                    return "Could not read listener nodes.";
+                }
+
+                IntPtr station = IntPtr.Zero;
+                foreach (var nodeValue in nodes)
+                {
+                    if (nodeValue == 0 || !reader.TryReadMemory<IntPtr>(new IntPtr(nodeValue), out var listener) || listener == IntPtr.Zero)
+                    {
+                        continue;
+                    }
+
+                    var firstCandidate = listener - 0xA0;
+                    if (reader.TryReadMemory<IntPtr>(firstCandidate + StationDeviceBackPtr, out var firstOwner) && firstOwner == this.OwnerEntityAddress)
+                    {
+                        station = firstCandidate;
+                        break;
+                    }
+
+                    var secondCandidate = listener - StationFromListener;
+                    if (reader.TryReadMemory<IntPtr>(secondCandidate + StationDeviceBackPtr, out var secondOwner) && secondOwner == this.OwnerEntityAddress)
+                    {
+                        station = secondCandidate;
+                        break;
+                    }
+                }
+
+                if (station == IntPtr.Zero)
+                {
+                    return "Could not resolve the station address from its listeners.";
+                }
+
+                lines.Add($"Station: 0x{station.ToInt64():X}; sockets: {socketCount}");
+                lines.Add("Only valid, non-empty vector headers are listed. Raw data is capped at 128 bytes.");
+                var candidates = 0;
+                for (var offset = 0; offset <= 0x200; offset += IntPtr.Size)
+                {
+                    if (!reader.TryReadMemory<StdVector>(station + offset, out var vector))
+                    {
+                        continue;
+                    }
+
+                    var first = vector.First.ToInt64();
+                    var last = vector.Last.ToInt64();
+                    var end = vector.End.ToInt64();
+                    if (first == 0 || last < first || end < last)
+                    {
+                        continue;
+                    }
+
+                    var usedBytes = last - first;
+                    var capacityBytes = end - first;
+                    if (usedBytes <= 0 || usedBytes > 4096 || capacityBytes > 16384)
+                    {
+                        continue;
+                    }
+
+                    var strides = new List<string>();
+                    foreach (var stride in new[] { 4, 8, 16, 24, 32 })
+                    {
+                        if (usedBytes % stride == 0)
+                        {
+                            strides.Add($"{stride}B×{usedBytes / stride}");
+                        }
+                    }
+
+                    var previewLength = (int)Math.Min(128, usedBytes);
+                    var preview = new byte[previewLength];
+                    var readSucceeded = reader.TryReadMemoryArray(vector.First, preview, out var bytesRead);
+                    var raw = readSucceeded
+                        ? Convert.ToHexString(preview.AsSpan(0, Math.Min(previewLength, checked((int)bytesRead))))
+                        : $"<payload read failed; {bytesRead} bytes>";
+                    lines.Add($"0x{offset:X3}: First=0x{first:X} Last=0x{last:X} End=0x{end:X}; used={usedBytes}, capacity={capacityBytes}; {string.Join(", ", strides)}");
+                    lines.Add($"  raw: {raw}");
+                    candidates++;
+                }
+
+                if (candidates == 0)
+                {
+                    lines.Add("No valid non-empty vector headers in 0x000-0x200. This proves neither a missing station nor a missing rune; the slot layout is different.");
+                }
+            }
+            catch (Exception ex)
+            {
+                lines.Add($"Diagnostic exception: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            return string.Join(Environment.NewLine, lines);
+        }
+#endif
         private const int MaxStateMachineStates = 256;
 
         protected override void UpdateData(bool hasAddressChanged)
@@ -246,10 +386,24 @@ namespace TEHhub.RemoteObjects.Components
             // a std::vector<IntPtr> with exactly socketCount elements, each resolvable to a valid
             // rune index via the same dat table base used for the anchor rune.
             string[]? slotRunes = null;
-            if (!isUnique && socketCount > 0 && socketCount <= 16 && tableBase != 0 && rowStride > 0)
+            if (!isUnique && socketCount > 0 && socketCount <= 16 && tableBase != 0)
             {
-                foreach (var scanOffset in new[] { 0x58, 0x60, 0x68, 0x70, 0x78, 0x80 })
+                // Try multiple rowStride values if the anchor resolution used a specific one;
+                // also include common dat row sizes observed across game patches.
+                var strides = rowStride > 0
+                    ? new[] { rowStride, 0x60, 0x64, 0x68, 0x6C, 0x70, 0x78, 0x80 }
+                    : new[] { 0x60, 0x64, 0x68, 0x6C, 0x70, 0x78, 0x80 };
+
+                // Scan a wider range of offsets from the station struct (0x58 through 0x120).
+                foreach (var scanOffset in new[]
                 {
+                    0x58, 0x60, 0x68, 0x70, 0x78, 0x80,
+                    0x88, 0x90, 0x98, 0xA0, 0xA8, 0xB0,
+                    0xB8, 0xC0, 0xC8, 0xD0, 0xD8, 0xE0,
+                    0xE8, 0xF0, 0xF8, 0x100, 0x108, 0x110, 0x118, 0x120
+                })
+                {
+                    if (slotRunes != null) break;
                     try
                     {
                         var runeVec = reader.ReadMemory<StdVector>(station + scanOffset);
@@ -261,22 +415,26 @@ namespace TEHhub.RemoteObjects.Components
                         if (runePtrs == null || runePtrs.Length != socketCount)
                             continue;
 
-                        var names = new string[socketCount];
-                        bool allValid = true;
-                        for (int ri = 0; ri < socketCount; ri++)
+                        // Try each candidate row stride against the dat table base.
+                        foreach (var tryStride in strides)
                         {
-                            if (runePtrs[ri] == 0) { allValid = false; break; }
-                            var d = runePtrs[ri] - tableBase;
-                            if (d < 0 || d % rowStride != 0) { allValid = false; break; }
-                            int idx = (int)(d / rowStride);
-                            if (idx < 0 || idx >= RuneNames.Length) { allValid = false; break; }
-                            names[ri] = RuneNames[idx];
-                        }
+                            var names = new string[socketCount];
+                            bool allValid = true;
+                            for (int ri = 0; ri < socketCount; ri++)
+                            {
+                                if (runePtrs[ri] == 0) { allValid = false; break; }
+                                var d = runePtrs[ri] - tableBase;
+                                if (d < 0 || d % tryStride != 0) { allValid = false; break; }
+                                int idx = (int)(d / tryStride);
+                                if (idx < 0 || idx >= RuneNames.Length) { allValid = false; break; }
+                                names[ri] = RuneNames[idx];
+                            }
 
-                        if (allValid)
-                        {
-                            slotRunes = names;
-                            break;
+                            if (allValid)
+                            {
+                                slotRunes = names;
+                                break;
+                            }
                         }
                     }
                     catch

@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.10 — 2026-09-13
+
+- Reworked the Debug-only Expedition Rune Station vector inspector after its previous live scan returned no rows:
+  - Added a manual **Refresh station memory** action that captures one bounded snapshot instead of probing every ImGui frame.
+  - Reports all sane, non-empty `std::vector` headers in the station range, exact byte sizes, compatible candidate strides, and a capped raw-byte preview without dereferencing unknown values.
+  - Reports resolver/read failures in the panel rather than silently discarding them, so a verified slot-entry layout can be derived from live evidence.
+- Compatibility: No runtime decoder or gameplay recommendation changed. The diagnostic UI is compiled out of public Release builds.
+- Validation: `dotnet build TEHhub/TEHhub.csproj -c Debug --no-restore` succeeded with 0 warnings and 0 errors.
 ## 1.8.9 — 2026-09-13
 
 - Added Expedition Remnant and Monolith inspection across core TEHhub Entity views:
