@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.2 — 2026-09-13
+
+- Defined the ExpeditionPlanner pipeline explicitly: read current Rune/Remnant data, score it against the active player objective, filter candidate bomb points through `IsPlaceable`, then recommend only a legal ordered route.
+- Defined `IsPlaceable(point, previousBomb, currentArea)` precedence: verified native data first, verified current-area calibration second, otherwise unknown. Unknown points are excluded rather than proposed.
+- Clarified that the Runeshape recipe catalog describes craft relationships only; it does not identify the runes in the current encounter.
+- Compatibility: documentation and synchronized version metadata only; runtime behaviour is unchanged.
+- Validation: documentation reviewed; Debug and Release core and launcher builds passed without warnings or errors.
 ## 1.8.1 — 2026-09-13
 
 - Refined the ExpeditionPlanner product scope: player-facing UI shows only recommended bomb locations, their order, and concise reasoning. Raw fuse/pole networks, measured ranges, and diagnostic entity state remain internal evidence and Debug tooling.

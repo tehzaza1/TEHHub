@@ -4,7 +4,7 @@
 
 Create a standalone `ExpeditionPlanner` plugin for PoE 2. It must not add code, settings, or rendering to `Radar`.
 
-The product is a manual placement advisor. It recommends where and in which order the player should place explosives; it never clicks, places, or detonates for the player. Raw explosives, connector poles, fuses, ranges, and diagnostic state are implementation evidence, not part of the player-facing plugin UI.
+The product is a manual placement advisor. It reads the available Expedition Runeshape/remnant information, scores the player's chosen objectives, determines which placement points are legal, and recommends where and in which order the player should place explosives. It never clicks, places, or detonates for the player. Raw explosives, connector poles, fuses, ranges, and diagnostic state are implementation evidence, not part of the player-facing plugin UI.
 
 ## Final target
 
@@ -15,6 +15,22 @@ The completed plugin is a dependable manual decision aid for both small and larg
 3. When PoE2 placement limits and blast radius have been verified, it evaluates the available choices and highlights the best manual placement route for the user's configured priorities.
 4. It explains why a route is preferred and marks missing or uncertain evidence instead of inventing an answer.
 5. It remains stable across area changes, supports any valid number of explosives/chains, and adds negligible work outside an active Expedition.
+
+### Required planner pipeline
+
+```text
+Live remnant / Runeshape data
+        ↓
+Rune and reward classifier ──→ player profile weights
+        ↓
+Verified legal-placement model ──→ legal candidate points only
+        ↓
+Route solver: score reachable rewards/remnants for each legal route
+        ↓
+Player UI: recommended point order and concise reason
+```
+
+The solver must never propose a point merely because it is valuable. Every proposed point must pass `IsPlaceable(point, previousBomb, currentArea)` using verified native data or a documented calibrated fallback. If it cannot establish legal placement, it must withhold the route rather than ask the player to test it.
 
 The end product does **not** control the game. The player retains every placement and detonation action. A recommendation is hidden whenever the necessary PoE2 evidence cannot be read or validated.
 
@@ -85,7 +101,7 @@ Implement this first.
 1. Add the independent project, `ExpeditionPlannerCore : PCore<ExpeditionPlannerSettings>`, and its settings class.
 2. Internally inspect only awake entities with the exact paths above. Use existing `Render` positions, `Animated.ModelPath`, and `MinimapIcon` components. Never read arbitrary bytes or unverified offsets.
 3. Keep explosives, connector poles, fuses, markers and remnants in an internal snapshot for scoring. Do not render them or expose diagnostic rows in the player-facing UI.
-4. The first player-facing render appears only after verified constraints allow a recommendation: a numbered sequence of proposed bomb locations and a concise reason for the route.
+4. The first player-facing render appears only after verified constraints allow a recommendation: a numbered sequence of proposed bomb locations and a concise reason for the route. Every point shown must be legal according to the current `IsPlaceable` model.
 5. Reset all transient state on area hash/address change and when disabled. Do not retain entities across areas.
 6. Put a strict cap on per-frame work. Use reusable lists/dictionaries and update an entity snapshot at a modest interval (for example 100–200 ms); rendering reads the snapshot only.
 
@@ -111,7 +127,8 @@ Do not implement advice until each input is evidenced in PoE2.
 3. After count is proven, use the same native structure only as a search anchor for total count, placement-active state, placement position, range, and radius. Each field needs its own controlled state changes and independent validation; proximity to a confirmed count field is not proof.
 4. For range, capture player-controlled cursor positions at both accepted and rejected placements alongside actual bomb grid positions. For radius, preserve target identity/position before detonation and compare its game-observed state after several routes. Do not derive either value from a single accepted pair or a total target count.
 5. Investigate PoE2 equivalents of legal tiles. The current walkability vector has an unverified layout; decode it only after a repeated correlation with accepted/rejected cursor positions. If raw pathfinding or map-stat offsets are needed, add them only through the offset verification/recovery pipeline.
-6. Record confidence and source capture for every input. Missing or contradictory evidence must disable the corresponding recommendation.
+6. Expose one internal `IsPlaceable(point, previousBomb, currentArea)` contract to the route solver. Its implementation precedence is: verified native wrapper/offset; verified current-area calibration; otherwise `Unknown`. A false or unknown result excludes the point from solver output.
+7. Record confidence and source capture for every input. Missing or contradictory evidence must disable the corresponding recommendation.
 
 Acceptance: the plugin can state where its bomb count, legal placement zone, and blast radius come from, with a reproducible live capture for each.
 
@@ -146,12 +163,13 @@ The settings UI must let the user set individual reward weights, beneficial rune
 
 1. Build a classified target list from verified marker models/icons and remnant data. Unknown types remain explicitly `Unknown`; never assign them a guessed value.
 2. Add a remnant/rune classifier only after the actual PoE2 mod text or stable identifiers are captured. The first evidence capture showed empty `ObjectMagicProperties.ModNames` on active `Expedition2Encounter` entities, so the implementation must first investigate the UI/other confirmed component that exposes the displayed rune effect.
-3. Enumerate legal candidate placements and resulting blast chains only after range, radius, and walkable-tile inputs have been verified in Phase 3.
-4. Score each candidate with the model above, select the best safe option, and retain the next two alternatives for comparison.
-5. For Grand Expeditions, score the ordered route with the proliferated-rune state. Prefer an early high-value proliferating rune when its projected downstream gain exceeds an immediately larger isolated reward.
-6. Display the recommended point/route, affected rewards/remnants, total score, danger warnings, selected rune set, and the reason it won. Let the player choose and click manually.
-7. Explain uncertainty in the overlay when constraints or link endpoints cannot be verified.
-8. Keep all interaction manual. There must be no simulated input, click, placement, or detonation path.
+3. Score the discovered Rune/Remnant data against the active player profile: craft-profit, monster-farm, or a configured blend. The research recipe catalog informs craft relationships only; it is not proof of the rune currently present in the encounter.
+4. Enumerate legal candidate placements and resulting blast chains only after `IsPlaceable`, range, radius, and walkable-tile inputs have been verified in Phase 3. Filter candidates through `IsPlaceable` before scoring them.
+5. Score each candidate with the model above, select the best safe option, and retain the next two alternatives for comparison.
+6. For Grand Expeditions, score the ordered route with the proliferated-rune state. Prefer an early high-value proliferating rune when its projected downstream gain exceeds an immediately larger isolated reward.
+7. Display the recommended point/route, affected rewards/remnants, total score, danger warnings, selected rune set, and the reason it won. Let the player choose and click manually.
+8. Explain uncertainty in the overlay when constraints or link endpoints cannot be verified.
+9. Keep all interaction manual. There must be no simulated input, click, placement, or detonation path.
 
 Acceptance: recommendations disappear when their source evidence is stale, the area changes, or a required constraint cannot be verified.
 
