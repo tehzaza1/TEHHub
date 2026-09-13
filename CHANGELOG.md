@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.6.11 — 2026-09-13
+
+- Added a maintainer-only PoE2DB rune catalog importer and a generated 34-rune research catalog that links bounded effect evidence, conservative danger tags, and local Runeshape recipe references.
+- Parsed effects are available for 29 runes; Tidal, Moon, Sky, Earth, and Bait remain explicitly unknown/unavailable and must never be considered safe by a planner.
+- Added PoE2DB source and CC BY-NC-SA attribution guidance. The importer/catalog are research-only and excluded from runtime/plugin loading.
+- Validation: Python compilation and a Bloodletting parser assertion passed; Debug and Release core builds passed without warnings/errors after the version update.
+
 ## 1.6.10 — 2026-09-13
 
 - Added the Grand Expedition route model to the ExpeditionPlanner handoff: scoring is ordered and stateful for golden-slot proliferation, non-stacking duplicates, explosive budget, and projected downstream rune value.
