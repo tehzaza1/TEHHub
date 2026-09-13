@@ -4,14 +4,14 @@
 
 Create a standalone `ExpeditionPlanner` plugin for PoE 2. It must not add code, settings, or rendering to `Radar`.
 
-The first deliverable is a read-only visual aid: show Expedition explosives, connector poles, and fuse links that the game has already placed. The later planner recommends a route; it never clicks, places, or detonates for the player.
+The product is a manual placement advisor. It recommends where and in which order the player should place explosives; it never clicks, places, or detonates for the player. Raw explosives, connector poles, fuses, ranges, and diagnostic state are implementation evidence, not part of the player-facing plugin UI.
 
 ## Final target
 
 The completed plugin is a dependable manual decision aid for both small and large Expeditions:
 
-1. Before detonation, it identifies every placed explosive, fuse chain, connector, reward marker, and active remnant visible to the game.
-2. It draws the explosion network clearly enough for the player to understand which rewards and remnants each chain can reach.
+1. Before detonation, it internally identifies the entities and constraints required to evaluate reachable rewards and active remnants.
+2. It shows only the recommended placement point and an ordered manual route, such as `1 → 2 → 3`; it does not render raw fuse/pole networks, measured ranges, or diagnostic entity labels.
 3. When PoE2 placement limits and blast radius have been verified, it evaluates the available choices and highlights the best manual placement route for the user's configured priorities.
 4. It explains why a route is preferred and marks missing or uncertain evidence instead of inventing an answer.
 5. It remains stable across area changes, supports any valid number of explosives/chains, and adds negligible work outside an active Expedition.
@@ -78,32 +78,29 @@ PoE1's old `ExpeditionIcons` planner used a dedicated `ExpeditionDetonatorElemen
 - Plugin loader discovers a DLL in its own directory; no core registry or Radar change is needed.
 - Keep all mutable data in the configuration directory. Do not write beside the deployed DLL.
 
-## Phase 1 — confirmed-object overlay
+## Phase 1 — internal confirmed-object model
 
 Implement this first.
 
 1. Add the independent project, `ExpeditionPlannerCore : PCore<ExpeditionPlannerSettings>`, and its settings class.
-2. In `DrawUI`, inspect only awake entities with the exact paths above. Use existing `Render` positions, `Animated.ModelPath`, and `MinimapIcon` components. Never read arbitrary bytes or unverified offsets.
-3. Render three distinct, configurable visuals:
-   - explosive: high-contrast circle/label;
-   - connector pole: smaller marker;
-   - fuse: line or endpoint marker when the two endpoints can be determined confidently.
-4. Add a compact diagnostic row: `detonators`, `explosives`, `poles`, `fuses`, `markers`, `remnants`, plus the current area hash.
+2. Internally inspect only awake entities with the exact paths above. Use existing `Render` positions, `Animated.ModelPath`, and `MinimapIcon` components. Never read arbitrary bytes or unverified offsets.
+3. Keep explosives, connector poles, fuses, markers and remnants in an internal snapshot for scoring. Do not render them or expose diagnostic rows in the player-facing UI.
+4. The first player-facing render appears only after verified constraints allow a recommendation: a numbered sequence of proposed bomb locations and a concise reason for the route.
 5. Reset all transient state on area hash/address change and when disabled. Do not retain entities across areas.
 6. Put a strict cap on per-frame work. Use reusable lists/dictionaries and update an entity snapshot at a modest interval (for example 100–200 ms); rendering reads the snapshot only.
 
-Acceptance: after placing one bomb and returning to normal mode, the plugin reports at least `explosives=1`, identifies its grid position, and does not require Radar. It must not draw entities after leaving the area.
+Acceptance: the plugin can construct a clean internal area snapshot without Radar. It draws nothing when no verified route is available and retains no state after leaving the area.
 
 ## Phase 2 — connection graph and large encounters
 
 Large Expeditions must be dynamic; never hard-code bomb, fuse, pole, or marker counts.
 
-1. Build a graph from the live entities per encounter/area.
-2. Initially draw only verified relationships. A fuse's own position alone does not prove both endpoints, so use a conservative distance/collinearity rule and label uncertain links as uncertain rather than presenting them as facts.
-3. Group disconnected chains separately. The display should make separate detonation branches obvious.
+1. Build a graph from the live entities per encounter/area for internal route evaluation.
+2. A fuse's own position alone does not prove both endpoints, so use a conservative distance/collinearity rule and retain uncertain links as uncertain internal evidence rather than presenting them as facts.
+3. Group disconnected chains internally. The route scorer must account for separate branches.
 4. Test with one small and one large Expedition. Capture data both before and after a placement, then preserve only sanitized diagnostics required to reproduce grouping failures.
 
-Acceptance: all placed explosives and all detected fuse entities appear in the UI for both encounter sizes; no count limit or fixed map layout exists in code.
+Acceptance: route evaluation supports all placed explosives and detected fuse entities in both encounter sizes; no count limit or fixed map layout exists in code.
 
 ## Phase 3 — determine placement constraints
 

@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.1 — 2026-09-13
+
+- Refined the ExpeditionPlanner product scope: player-facing UI shows only recommended bomb locations, their order, and concise reasoning. Raw fuse/pole networks, measured ranges, and diagnostic entity state remain internal evidence and Debug tooling.
+- Updated the implementation handoff so Phase 1 builds an internal entity model and renders no speculative visual output before placement constraints are verified.
+- Compatibility: documentation and synchronized version metadata only; runtime behaviour is unchanged.
+- Validation: documentation reviewed; Debug and Release core and launcher builds passed without warnings or errors.
 ## 1.8.0 — 2026-09-13
 
 - Added a Debug-only, read-only Expedition differential scanner at `POST /api/diagnostics/expedition-offset-scan?placedBombs=N`. It narrows integer candidates by the observed placed-bomb sequence while scanning only bounded windows rooted at live InGameState and declared UI anchors.
