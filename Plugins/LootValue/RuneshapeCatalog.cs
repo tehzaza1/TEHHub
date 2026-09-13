@@ -134,6 +134,11 @@ namespace LootValue
 
             // Sort by chaos value descending so highest value is first
             offers.Sort((a, b) => b.ChaosValue.CompareTo(a.ChaosValue));
+            if (offers[0].ChaosValue <= 0)
+            {
+                return null;
+            }
+
             return offers[0];
         }
 
@@ -157,7 +162,29 @@ namespace LootValue
                 ChaosValue = 0,
             };
 
-            if (!string.IsNullOrWhiteSpace(rawName))
+            bool isVeryRareUnique = desc.Contains("Very Rare", StringComparison.OrdinalIgnoreCase) &&
+                                    (desc.Contains("Unique", StringComparison.OrdinalIgnoreCase) || desc.Contains("ยูนิค", StringComparison.OrdinalIgnoreCase) || desc.Contains("ส้ม", StringComparison.OrdinalIgnoreCase));
+
+            bool isRareUnique = !isVeryRareUnique && desc.Contains("Rare", StringComparison.OrdinalIgnoreCase) &&
+                                (desc.Contains("Unique", StringComparison.OrdinalIgnoreCase) || desc.Contains("ยูนิค", StringComparison.OrdinalIgnoreCase) || desc.Contains("ส้ม", StringComparison.OrdinalIgnoreCase));
+
+            if (isVeryRareUnique)
+            {
+                offer.Name = "Very Rare Unique Item";
+                offer.ChaosValue = 500;
+                var (dispVal, dispCur) = PoeNinjaPriceFetcher.GetDisplayPrice(500, displayCurrency);
+                offer.DisplayPrice = dispVal;
+                offer.CurrencySymbol = dispCur;
+            }
+            else if (isRareUnique)
+            {
+                offer.Name = "Rare Unique Item";
+                offer.ChaosValue = 100;
+                var (dispVal, dispCur) = PoeNinjaPriceFetcher.GetDisplayPrice(100, displayCurrency);
+                offer.DisplayPrice = dispVal;
+                offer.CurrencySymbol = dispCur;
+            }
+            else if (!string.IsNullOrWhiteSpace(rawName))
             {
                 var price = PoeNinjaPriceFetcher.GetPrice(rawName);
                 if (price != null && price.PriceChaos > 0)

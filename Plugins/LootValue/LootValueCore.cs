@@ -2538,7 +2538,7 @@ namespace LootValue
             string priceText = string.Empty;
             bool isHigh = false;
 
-            if (best != null && !string.IsNullOrEmpty(best.Name))
+            if (best != null && !string.IsNullOrEmpty(best.Name) && best.ChaosValue > 0)
             {
                 rewardText = best.Count > 1 ? $"{best.Count}x {best.Name}" : best.Name;
                 if (best.DisplayPrice > 0)
@@ -2550,7 +2550,7 @@ namespace LootValue
             }
             else
             {
-                rewardText = "Expedition Encounter";
+                rewardText = m.IsUnique ? "Unique Monolith" : "Expedition Encounter";
             }
 
             var headerSize = ImGui.CalcTextSize(headerText);
@@ -2716,11 +2716,42 @@ namespace LootValue
                 double score = 0;
                 string chipText;
                 bool isHigh = false;
-                bool isRandomUnique = itemName.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
-                                      rawText.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
-                                      rawText.Contains("ส้ม", StringComparison.OrdinalIgnoreCase);
+                bool isUnique = itemName.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
+                                rawText.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
+                                rawText.Contains("ยูนิค", StringComparison.OrdinalIgnoreCase) ||
+                                rawText.Contains("ส้ม", StringComparison.OrdinalIgnoreCase);
 
-                if (price != null && price.PriceChaos > 0)
+                bool isVeryRareUnique = isUnique &&
+                                        (itemName.Contains("Very Rare", StringComparison.OrdinalIgnoreCase) ||
+                                         rawText.Contains("Very Rare", StringComparison.OrdinalIgnoreCase) ||
+                                         rawText.Contains("หายากมาก", StringComparison.OrdinalIgnoreCase));
+
+                bool isRareUnique = isUnique && !isVeryRareUnique &&
+                                    (itemName.Contains("Rare", StringComparison.OrdinalIgnoreCase) ||
+                                     rawText.Contains("Rare", StringComparison.OrdinalIgnoreCase) ||
+                                     rawText.Contains("หายาก", StringComparison.OrdinalIgnoreCase));
+
+                if (isUnique)
+                {
+                    if (isVeryRareUnique)
+                    {
+                        chipText = "Very Rare Unique";
+                        score = 500;
+                        isHigh = true;
+                    }
+                    else if (isRareUnique)
+                    {
+                        chipText = "Rare Unique";
+                        score = 100;
+                        isHigh = false;
+                    }
+                    else
+                    {
+                        // Generic unique crafts (Body Armour, Boots, ขวาน ยูนิค, etc.) show NOTHING AT ALL!
+                        continue;
+                    }
+                }
+                else if (price != null && price.PriceChaos > 0)
                 {
                     var totalChaos = price.PriceChaos * count;
                     var (dispVal, dispCur) = PoeNinjaPriceFetcher.GetDisplayPrice(totalChaos, this.Settings.DisplayCurrency);
@@ -2728,15 +2759,9 @@ namespace LootValue
                     isHigh = (totalChaos / chaosDiv) >= 1.0;
                     score = totalChaos;
                 }
-                else if (isRandomUnique)
-                {
-                    chipText = "สุ่มของส้ม";
-                    score = 0;
-                    isHigh = false;
-                }
                 else
                 {
-                    // Items without market prices should not display any chip or label
+                    // Generic unpriced non-unique items show NOTHING AT ALL!
                     continue;
                 }
 
@@ -2748,7 +2773,7 @@ namespace LootValue
                 double bestScore = -1;
                 int bestIdx = -1;
 
-                // 1. Pick highest market value in Chaos
+                // Pick highest market value in Chaos (Very Rare Unique = 500, Rare Unique = 100)
                 for (int i = 0; i < rowCandidates.Count; i++)
                 {
                     if (rowCandidates[i].score > bestScore)
@@ -2758,25 +2783,11 @@ namespace LootValue
                     }
                 }
 
-                // 2. If no item had a positive price, fallback to "สุ่มของส้ม" (Random Unique) if present
-                if (bestScore <= 0)
-                {
-                    for (int i = 0; i < rowCandidates.Count; i++)
-                    {
-                        if (rowCandidates[i].chip.Contains("ส้ม", StringComparison.OrdinalIgnoreCase) ||
-                            rowCandidates[i].chip.Contains("Unique", StringComparison.OrdinalIgnoreCase))
-                        {
-                            bestIdx = i;
-                            break;
-                        }
-                    }
-                }
-
                 for (int i = 0; i < rowCandidates.Count; i++)
                 {
                     var cand = rowCandidates[i];
-                    // Only mark as recommended pick if it has meaningful value (>= 1.0 Chaos) or is a confirmed Random Unique
-                    bool isBest = (i == bestIdx && (bestScore >= 1.0 || cand.chip.Contains("ส้ม", StringComparison.OrdinalIgnoreCase)));
+                    // Only mark as recommended pick if it has meaningful value (>= 1.0 Chaos)
+                    bool isBest = (i == bestIdx && bestScore >= 1.0);
                     var text = isBest ? $"[PICK] {cand.chip}" : cand.chip;
                     var chipPos = new Vector2(
                         cand.pos.X + cand.size.X + 8f + this.Settings.RuneshapeUiOffsetX,
