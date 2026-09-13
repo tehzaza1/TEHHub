@@ -1,11 +1,17 @@
 namespace ExpeditionPlanner
 {
     using System.Collections.Generic;
+    using ClickableTransparentOverlay.Win32;
     using TEHhub.Plugin;
 
     public sealed class ExpeditionPlannerSettings : IPSettings
     {
         public PlannerProfile Profile { get; set; } = PlannerProfile.Balanced;
+
+        // Calculation and Caching options
+        public VK CalculateHotkey { get; set; } = VK.F6;
+        public bool ManualCalculationOnly { get; set; } = true;
+        public bool AutoCalculateOnBombPlaced { get; set; } = true;
 
         public float MaxPlacementRangeGrid { get; set; } = 90.0f;
         public float BlastRadiusGrid { get; set; } = 30.0f;

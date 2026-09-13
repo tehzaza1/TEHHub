@@ -3,8 +3,10 @@ namespace ExpeditionPlanner
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Numerics;
     using System.Text.Json;
+    using ClickableTransparentOverlay.Win32;
     using Coroutine;
     using ImGuiNET;
     using TEHhub;
@@ -13,6 +15,7 @@ namespace ExpeditionPlanner
     using TEHhub.Plugin;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
 
     public sealed class ExpeditionPlannerCore : PCore<ExpeditionPlannerSettings>
     {
@@ -37,9 +40,16 @@ namespace ExpeditionPlanner
         private Vector3 detonatorWorld = Vector3.Zero;
         private bool hasDetonator = false;
         private readonly List<PlacedBombInfo> placedBombs = new();
+        private readonly Dictionary<uint, ExpeditionTarget> rememberedTargets = new();
         private readonly List<ExpeditionTarget> activeTargets = new();
         private readonly Dictionary<uint, List<string>> verifiedMonolithRecipes = new();
         private RouteEvaluation currentRoute = new();
+
+        // Caching and calculation tracking
+        private int lastPlacedBombCount = 0;
+        private DateTime lastCalculationUtc = DateTime.MinValue;
+        private bool isRouteCalculated = false;
+        private string calculationStatusMessage = string.Empty;
 
         public override void OnEnable(bool isGameOpened)
         {
@@ -98,9 +108,13 @@ namespace ExpeditionPlanner
             this.detonatorGrid = Vector3.Zero;
             this.detonatorWorld = Vector3.Zero;
             this.placedBombs.Clear();
+            this.rememberedTargets.Clear();
             this.activeTargets.Clear();
             this.verifiedMonolithRecipes.Clear();
             this.currentRoute = new RouteEvaluation();
+            this.lastPlacedBombCount = 0;
+            this.isRouteCalculated = false;
+            this.calculationStatusMessage = string.Empty;
         }
 
         public override void DrawUI()
@@ -122,6 +136,12 @@ namespace ExpeditionPlanner
             {
                 this.nextScanUtc = DateTime.UtcNow.AddMilliseconds(150);
                 this.RefreshSnapshot(area);
+            }
+
+            // Hotkey trigger to calculate route on demand
+            if (Utils.IsKeyPressedAndNotTimeout(this.Settings.CalculateHotkey, 250))
+            {
+                this.CalculateRoute(area, $"Hotkey [{this.Settings.CalculateHotkey}]");
             }
 
             // Draw overlay only when an active Expedition encounter exists
@@ -301,6 +321,39 @@ namespace ExpeditionPlanner
                 }
             }
 
+            // 2.5 Draw preview badges for discovered Remnants before route is calculated
+            if (this.Settings.ShowBadges && this.currentRoute.Placements.Count == 0 && this.activeTargets.Count > 0)
+            {
+                foreach (var target in this.activeTargets)
+                {
+                    if (target.Kind != TargetKind.RemnantPillar && target.Kind != TargetKind.VerisiumSentinel) continue;
+                    var sPos = world.WorldToScreen(ToStdTuple(target.WorldPosition), target.WorldPosition.Z);
+                    if (sPos.X <= 0 || sPos.Y <= 0) continue;
+
+                    uint badgeColor = target.ProliferatedRuneTier switch
+                    {
+                        RuneTier.Golden => 0xFFFFD700,
+                        RuneTier.Purple_S => 0xFFFF55FF,
+                        RuneTier.Purple_A => 0xFFDA70D6,
+                        RuneTier.Purple_B => 0xFFBA55D3,
+                        _ => (target.IsAnchorInGoldenSlot ? 0xFF00D2FF : 0xFF9E9E9E)
+                    };
+
+                    drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.7f, 0xCC111111);
+                    drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.55f, badgeColor);
+                    drawList.AddCircle(sPos, this.Settings.BadgeRadius * 0.7f, 0xFFFFFFFF, 0, 1.5f);
+
+                    var goldenSlotText = target.GoldenSlotIndex >= 0 ? $"#{target.GoldenSlotIndex + 1}" : "";
+                    var gText = !string.IsNullOrEmpty(target.GoldenRuneCandidate) ? target.GoldenRuneCandidate : target.AnchorRuneName;
+                    var lbl = target.IsVerifiedFromUi ? $"[VERIFIED] {target.RecommendedRuneChoice}" : $"{goldenSlotText} {gText}";
+                    var lSize = ImGui.CalcTextSize(lbl);
+                    var bMin = sPos + new Vector2(-lSize.X * 0.5f - 4, this.Settings.BadgeRadius * 0.7f + 2);
+                    var bMax = sPos + new Vector2(lSize.X * 0.5f + 4, this.Settings.BadgeRadius * 0.7f + 4 + lSize.Y);
+                    drawList.AddRectFilled(bMin, bMax, 0xDD111111, 3f);
+                    drawList.AddText(sPos + new Vector2(-lSize.X * 0.5f, this.Settings.BadgeRadius * 0.7f + 3), badgeColor, lbl);
+                }
+            }
+
             // 3. Draw Recommendation Summary Card in top viewport
             if (this.Settings.ShowReasonCard)
             {
@@ -309,6 +362,35 @@ namespace ExpeditionPlanner
                 var flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize;
                 if (ImGui.Begin("Expedition Route Advisor###ExpeditionPlannerCard", flags))
                 {
+                    int remnantCount = 0, chestCount = 0, monsterCount = 0;
+                    foreach (var t in this.activeTargets)
+                    {
+                        if (t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel) remnantCount++;
+                        else if (t.Kind == TargetKind.ChestReward) chestCount++;
+                        else monsterCount++;
+                    }
+
+                    if (ImGui.Button($"★ Calculate Route ({this.Settings.CalculateHotkey})###CalcRouteBtn", new Vector2(230, 26)))
+                    {
+                        this.CalculateRoute(area, "UI Button");
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.Button("Reset Cache###ResetCacheBtn", new Vector2(100, 26)))
+                    {
+                        this.ResetState();
+                    }
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip("Clear remembered map targets and restart scanning.");
+                    }
+
+                    ImGui.TextDisabled($"Discovered: {this.activeTargets.Count} targets ({remnantCount} Remnants, {chestCount} Chests, {monsterCount} Monsters)");
+                    if (!string.IsNullOrEmpty(this.calculationStatusMessage))
+                    {
+                        ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f), this.calculationStatusMessage);
+                    }
+                    ImGui.Separator();
+
                     if (this.currentRoute.Placements.Count > 0)
                     {
                         ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Recommended Route: {string.Join(" -> ", this.currentRoute.Placements.Select(p => $"[{p.Step}]"))}");
@@ -399,12 +481,12 @@ namespace ExpeditionPlanner
                     }
                     else
                     {
-                        ImGui.TextColored(new Vector4(1f, 0.6f, 0.2f, 1f), "Expedition Encounter Detected");
-                        ImGui.TextDisabled($"Active Targets: {this.activeTargets.Count} | Detonator: {(this.hasDetonator ? "Found" : "Player Anchor")}");
+                        ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), "Expedition Encounter Discovered");
+                        ImGui.TextDisabled($"Detonator: {(this.hasDetonator ? "Found" : "Player Anchor (Run near detonator to lock)")}");
                         ImGui.Separator();
-                        ImGui.TextWrapped(string.IsNullOrEmpty(this.currentRoute.Reason)
-                            ? "Analyzing placement route..."
-                            : this.currentRoute.Reason);
+                        ImGui.TextWrapped(this.activeTargets.Count > 0
+                            ? $"Discovered {this.activeTargets.Count} targets across the map.\nRun around to harvest all pillars and chests, then press [{this.Settings.CalculateHotkey}] or click the Calculate button above to solve the optimal bomb route."
+                            : "Explore the map to locate Expedition Remnants and Chests...");
                     }
 
                     ImGui.End();
@@ -414,10 +496,10 @@ namespace ExpeditionPlanner
 
         private void RefreshSnapshot(AreaInstance area)
         {
-            this.placedBombs.Clear();
-            this.activeTargets.Clear();
-
+            var currentBombs = new List<PlacedBombInfo>();
             int bombOrder = 1;
+            bool newTargetsFound = false;
+
             foreach (var entity in area.AwakeEntities.Values)
             {
                 if (entity == null || entity.Address == IntPtr.Zero || string.IsNullOrEmpty(entity.Path)) continue;
@@ -436,7 +518,7 @@ namespace ExpeditionPlanner
                 {
                     if (entity.TryGetComponent<Render>(out var render, false))
                     {
-                        this.placedBombs.Add(new PlacedBombInfo
+                        currentBombs.Add(new PlacedBombInfo
                         {
                             EntityId = entity.Id,
                             GridPosition = new Vector3(render.GridPosition.X, render.GridPosition.Y, render.GridPosition.Z),
@@ -447,12 +529,29 @@ namespace ExpeditionPlanner
                 }
                 else
                 {
-                    var classified = ClassifyTarget(entity, area);
-                    if (classified != null)
+                    if (!this.rememberedTargets.ContainsKey(entity.Id))
                     {
-                        this.activeTargets.Add(classified);
+                        var classified = ClassifyTarget(entity, area);
+                        if (classified != null)
+                        {
+                            this.rememberedTargets[entity.Id] = classified;
+                            newTargetsFound = true;
+                        }
                     }
                 }
+            }
+
+            // Update placed bombs
+            bool bombsChanged = currentBombs.Count != this.lastPlacedBombCount;
+            this.lastPlacedBombCount = currentBombs.Count;
+            this.placedBombs.Clear();
+            this.placedBombs.AddRange(currentBombs);
+
+            // Synchronize activeTargets list with rememberedTargets values
+            if (newTargetsFound || this.activeTargets.Count != this.rememberedTargets.Count)
+            {
+                this.activeTargets.Clear();
+                this.activeTargets.AddRange(this.rememberedTargets.Values);
             }
 
             // Live UI Sync: If player opened a Monolith UI, sync verified recipes to the closest Remnant
@@ -485,8 +584,32 @@ namespace ExpeditionPlanner
                         closest.RecipeDescription = string.Join(" | ", openRecipes);
                         closest.NeedsReroll = false;
                         closest.BaseWeight += 250f;
+
+                        if (this.isRouteCalculated)
+                        {
+                            this.CalculateRoute(area, "Live Monolith Verified");
+                        }
                     }
                 }
+            }
+
+            // Automatic calculation triggers
+            if (this.Settings.AutoCalculateOnBombPlaced && bombsChanged && this.isRouteCalculated)
+            {
+                this.CalculateRoute(area, "Auto (Bomb Placed/Removed)");
+            }
+            else if (!this.Settings.ManualCalculationOnly && newTargetsFound)
+            {
+                this.CalculateRoute(area, "Auto (New Targets)");
+            }
+        }
+
+        private void CalculateRoute(AreaInstance area, string triggerSource = "Manual")
+        {
+            if (this.activeTargets.Count == 0 && this.rememberedTargets.Count == 0)
+            {
+                this.calculationStatusMessage = "No targets found to calculate";
+                return;
             }
 
             // If detonator has not been found yet, fallback to player position or first target as anchor
@@ -505,7 +628,6 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // Solve optimal route for available targets
             this.currentRoute = ExpeditionSolver.Solve(
                 this.detonatorGrid,
                 this.detonatorWorld,
@@ -513,6 +635,10 @@ namespace ExpeditionPlanner
                 this.activeTargets,
                 area,
                 this.Settings);
+
+            this.isRouteCalculated = true;
+            this.lastCalculationUtc = DateTime.UtcNow;
+            this.calculationStatusMessage = $"Calculated ({triggerSource}) @ {DateTime.Now:HH:mm:ss} | {this.activeTargets.Count} targets";
         }
 
         private ExpeditionTarget? ClassifyTarget(Entity entity, AreaInstance area)
@@ -717,15 +843,35 @@ namespace ExpeditionPlanner
             }
 
             ImGui.Separator();
-            ImGui.Text("Reward Weights:");
-            var wChest = this.Settings.WeightChest;
-            if (ImGui.DragFloat("Chest Weight", ref wChest, 1f, 0f, 200f)) this.Settings.WeightChest = wChest;
-            var wElite = this.Settings.WeightElite;
-            if (ImGui.DragFloat("Elite Weight", ref wElite, 1f, 0f, 200f)) this.Settings.WeightElite = wElite;
-            var wSentinel = this.Settings.WeightSentinel;
-            if (ImGui.DragFloat("Sentinel Weight", ref wSentinel, 1f, 0f, 300f)) this.Settings.WeightSentinel = wSentinel;
-            var wBoss = this.Settings.WeightBoss;
-            if (ImGui.DragFloat("Boss Weight", ref wBoss, 1f, 0f, 500f)) this.Settings.WeightBoss = wBoss;
+            ImGui.Text("Calculation & Discovery Options:");
+
+            ImGui.Text("Calculation Hotkey:");
+            ImGui.SameLine();
+            var hotkey = this.Settings.CalculateHotkey;
+            if (ImGuiHelper.NonContinuousEnumComboBox("##CalcHotkey", ref hotkey))
+            {
+                this.Settings.CalculateHotkey = hotkey;
+            }
+
+            var manualOnly = this.Settings.ManualCalculationOnly;
+            if (ImGui.Checkbox("Manual Calculation (Hotkey / Button only)", ref manualOnly))
+            {
+                this.Settings.ManualCalculationOnly = manualOnly;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("When enabled, the plugin quietly harvests all Expedition objects as you explore,\nand solves the route only when you press the hotkey or click Calculate.");
+            }
+
+            var autoBomb = this.Settings.AutoCalculateOnBombPlaced;
+            if (ImGui.Checkbox("Auto-Recalculate When Bombs Are Placed/Removed", ref autoBomb))
+            {
+                this.Settings.AutoCalculateOnBombPlaced = autoBomb;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Automatically adapts the remaining bomb route whenever you place or pick up an explosive in the game.");
+            }
         }
     }
 }
