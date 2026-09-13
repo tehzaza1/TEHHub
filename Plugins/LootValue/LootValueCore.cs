@@ -2716,6 +2716,9 @@ namespace LootValue
                 double score = 0;
                 string chipText;
                 bool isHigh = false;
+                bool isRandomUnique = itemName.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
+                                      rawText.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
+                                      rawText.Contains("ส้ม", StringComparison.OrdinalIgnoreCase);
 
                 if (price != null && price.PriceChaos > 0)
                 {
@@ -2725,11 +2728,17 @@ namespace LootValue
                     isHigh = (totalChaos / chaosDiv) >= 1.0;
                     score = totalChaos;
                 }
+                else if (isRandomUnique)
+                {
+                    chipText = "สุ่มของส้ม";
+                    score = 0;
+                    isHigh = false;
+                }
                 else
                 {
-                    score = EstimateCraftScore(rawText);
-                    chipText = GetCraftBadge(rawText, score);
-                    isHigh = score >= 50.0;
+                    chipText = "Unpriced";
+                    score = 0;
+                    isHigh = false;
                 }
 
                 rowCandidates.Add((rowPos, rowSize, chipText, isHigh, score));
@@ -2739,6 +2748,8 @@ namespace LootValue
             {
                 double bestScore = -1;
                 int bestIdx = -1;
+
+                // 1. Pick highest market value in Chaos
                 for (int i = 0; i < rowCandidates.Count; i++)
                 {
                     if (rowCandidates[i].score > bestScore)
@@ -2748,10 +2759,24 @@ namespace LootValue
                     }
                 }
 
+                // 2. If no item had a positive price, fallback to "สุ่มของส้ม" (Random Unique) if present
+                if (bestScore <= 0)
+                {
+                    for (int i = 0; i < rowCandidates.Count; i++)
+                    {
+                        if (rowCandidates[i].chip.Contains("ส้ม", StringComparison.OrdinalIgnoreCase) ||
+                            rowCandidates[i].chip.Contains("Unique", StringComparison.OrdinalIgnoreCase))
+                        {
+                            bestIdx = i;
+                            break;
+                        }
+                    }
+                }
+
                 for (int i = 0; i < rowCandidates.Count; i++)
                 {
                     var cand = rowCandidates[i];
-                    bool isBest = (i == bestIdx && bestScore > 0);
+                    bool isBest = (i == bestIdx && (bestScore > 0 || cand.chip.Contains("ส้ม", StringComparison.OrdinalIgnoreCase)));
                     var text = isBest ? $"★ PICK THIS: {cand.chip}" : cand.chip;
                     var chipPos = new Vector2(
                         cand.pos.X + cand.size.X + 8f + this.Settings.RuneshapeUiOffsetX,
@@ -2762,29 +2787,6 @@ namespace LootValue
             }
 
             this.cachedRuneshapeRows = newRows;
-        }
-
-        private static double EstimateCraftScore(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            double score = 10.0;
-            if (text.Contains("Mirror", StringComparison.OrdinalIgnoreCase)) score += 50000.0;
-            else if (text.Contains("Divine", StringComparison.OrdinalIgnoreCase)) score += 300.0;
-            else if (text.Contains("Greater Exalted", StringComparison.OrdinalIgnoreCase)) score += 150.0;
-            else if (text.Contains("Grand Exalted", StringComparison.OrdinalIgnoreCase)) score += 120.0;
-            else if (text.Contains("Exalted", StringComparison.OrdinalIgnoreCase)) score += 80.0;
-            else if (text.Contains("Logbook", StringComparison.OrdinalIgnoreCase) || text.Contains("Saga", StringComparison.OrdinalIgnoreCase)) score += 90.0;
-            else if (text.Contains("Chaos", StringComparison.OrdinalIgnoreCase)) score += 20.0;
-            else if (text.Contains("Unique", StringComparison.OrdinalIgnoreCase)) score += 35.0;
-            else if (text.Contains("Gem", StringComparison.OrdinalIgnoreCase)) score += 25.0;
-            return score;
-        }
-
-        private static string GetCraftBadge(string text, double score)
-        {
-            if (score >= 100.0) return "★ High Value";
-            if (score >= 50.0) return "Valuable Craft";
-            return "Craft Option";
         }
 
         private static void ParseRuneforgeRowText(string raw, out int count, out string name)

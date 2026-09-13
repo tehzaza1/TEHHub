@@ -3,6 +3,7 @@ namespace ExpeditionPlanner
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using TEHhub;
@@ -526,29 +527,78 @@ namespace ExpeditionPlanner
             if (recipes.Count == 1) return recipes[0];
 
             string best = recipes[0];
-            double maxScore = double.NegativeInfinity;
+            double maxPrice = double.NegativeInfinity;
+            int uniqueGambleIdx = -1;
 
-            foreach (var r in recipes)
+            for (int i = 0; i < recipes.Count; i++)
             {
-                double score = 10.0;
-                if (r.Contains("Mirror", StringComparison.OrdinalIgnoreCase)) score += 50000.0;
-                else if (r.Contains("Divine", StringComparison.OrdinalIgnoreCase)) score += 300.0;
-                else if (r.Contains("Greater Exalted", StringComparison.OrdinalIgnoreCase)) score += 150.0;
-                else if (r.Contains("Grand Exalted", StringComparison.OrdinalIgnoreCase)) score += 120.0;
-                else if (r.Contains("Exalted", StringComparison.OrdinalIgnoreCase)) score += 80.0;
-                else if (r.Contains("Logbook", StringComparison.OrdinalIgnoreCase) || r.Contains("Saga", StringComparison.OrdinalIgnoreCase)) score += 90.0;
-                else if (r.Contains("Chaos", StringComparison.OrdinalIgnoreCase)) score += 20.0;
-                else if (r.Contains("Unique", StringComparison.OrdinalIgnoreCase)) score += 35.0;
-                else if (r.Contains("Gem", StringComparison.OrdinalIgnoreCase)) score += 25.0;
-
-                if (score > maxScore)
+                var r = recipes[i];
+                double price = TryGetItemPriceChaos(r);
+                if (price > maxPrice)
                 {
-                    maxScore = score;
+                    maxPrice = price;
                     best = r;
+                }
+
+                if (uniqueGambleIdx == -1 && (r.Contains("Unique", StringComparison.OrdinalIgnoreCase) || r.Contains("ส้ม", StringComparison.OrdinalIgnoreCase)))
+                {
+                    uniqueGambleIdx = i;
                 }
             }
 
+            if (maxPrice <= 0 && uniqueGambleIdx >= 0)
+            {
+                return recipes[uniqueGambleIdx];
+            }
+
             return best;
+        }
+
+        private static double TryGetItemPriceChaos(string rawRecipeText)
+        {
+            try
+            {
+                var fetcherType = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a => a.GetName().Name == "LootValue")?
+                    .GetType("LootValue.PoeNinjaPriceFetcher");
+
+                if (fetcherType != null)
+                {
+                    var getPriceMethod = fetcherType.GetMethod("GetPrice", new[] { typeof(string), typeof(IReadOnlyList<string>), typeof(string), typeof(string), typeof(string) })
+                        ?? fetcherType.GetMethods().FirstOrDefault(m => m.Name == "GetPrice" && m.GetParameters().Length >= 1);
+
+                    if (getPriceMethod != null)
+                    {
+                        int count = 1;
+                        string name = rawRecipeText.Trim();
+                        var m = System.Text.RegularExpressions.Regex.Match(name, @"^(\d+)[xX]\s*(.+)$");
+                        if (m.Success)
+                        {
+                            if (int.TryParse(m.Groups[1].Value, out var c)) count = Math.Max(1, c);
+                            name = m.Groups[2].Value.Trim();
+                        }
+
+                        var priceObj = getPriceMethod.GetParameters().Length == 1
+                            ? getPriceMethod.Invoke(null, new object?[] { name })
+                            : getPriceMethod.Invoke(null, new object?[] { name, null, null, null, null });
+
+                        if (priceObj != null)
+                        {
+                            var prop = priceObj.GetType().GetProperty("PriceChaos");
+                            if (prop != null)
+                            {
+                                var val = prop.GetValue(priceObj);
+                                if (val is double d) return d * count;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback if LootValue is not loaded or reflection fails
+            }
+            return 0;
         }
 
         private static IntPtr WalkPanelUi(IntPtr parent, int step)
