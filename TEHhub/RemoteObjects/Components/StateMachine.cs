@@ -5,6 +5,8 @@ namespace TEHhub.RemoteObjects.Components
     using ImGuiNET;
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Runtime.InteropServices;
 
     public class StateMachine : ComponentBase
     {
@@ -529,6 +531,12 @@ namespace TEHhub.RemoteObjects.Components
                     {
                         lines.Add("No two-hop Rune DAT references from the bounded Inventory vectors.");
                     }
+
+                    var reverseScanRoot = diagnosticRoots.Find(static root => string.Equals(root.Name, "Controller.Inventories", StringComparison.Ordinal));
+                    if (reverseScanRoot.Address != IntPtr.Zero)
+                    {
+                        AppendLocalRunePointerReferences(lines, reverseScanRoot.Address, tableBase, rowStride);
+                    }
                 }
 
                 lines.Add("Only valid, non-empty vector headers are listed. Raw data is capped at 128 bytes.");
@@ -587,6 +595,95 @@ namespace TEHhub.RemoteObjects.Components
 
             return string.Join(Environment.NewLine, lines);
         }
+
+        // Searches only committed, readable memory within 1 GiB of the paired controller. This
+        // supplies reverse-reference evidence without a process-wide scan or game input. A hit is
+        // still diagnostic evidence, never an offset used by runtime code.
+        private static void AppendLocalRunePointerReferences(List<string> lines, IntPtr center, long tableBase, int rowStride)
+        {
+            const long Radius = 0x40000000;
+            const int MaxBytes = 32 * 1024 * 1024;
+            const int ChunkBytes = 256 * 1024;
+            const int MaxRegions = 256;
+            const int MaxHits = 48;
+            const uint MemCommit = 0x1000;
+            const uint PageGuard = 0x100;
+            var targets = new Dictionary<long, int>();
+            for (var index = 0; index < RuneNames.Length; index++) targets[tableBase + (long)index * rowStride] = index;
+
+            var start = Math.Max(0x10000L, center.ToInt64() - Radius);
+            var end = center.ToInt64() + Radius;
+            var query = start;
+            var bytesScanned = 0;
+            var regionsScanned = 0;
+            var hits = 0;
+            var timer = Stopwatch.StartNew();
+            try
+            {
+                var processHandle = Core.Process.Handle.DangerousGetHandle();
+                while (query < end && bytesScanned < MaxBytes && regionsScanned < MaxRegions && timer.ElapsedMilliseconds < 250)
+                {
+                    if (VirtualQueryEx(processHandle, new IntPtr(query), out var region, (UIntPtr)Marshal.SizeOf<MemoryBasicInformation>()) == UIntPtr.Zero)
+                    {
+                        break;
+                    }
+
+                    var regionStart = region.BaseAddress.ToInt64();
+                    var regionEnd = regionStart + checked((long)region.RegionSize.ToUInt64());
+                    query = regionEnd > query ? regionEnd : query + 0x1000;
+                    if (region.State != MemCommit || (region.Protect & PageGuard) != 0 || !IsReadable(region.Protect) || regionEnd <= start || regionStart >= end)
+                    {
+                        continue;
+                    }
+
+                    var scanStart = Math.Max(start, regionStart);
+                    var scanEnd = Math.Min(end, regionEnd);
+                    for (var address = scanStart; address < scanEnd && bytesScanned < MaxBytes && timer.ElapsedMilliseconds < 250; address += ChunkBytes)
+                    {
+                        var count = (int)Math.Min(Math.Min(ChunkBytes, scanEnd - address), MaxBytes - bytesScanned);
+                        if (count < IntPtr.Size) break;
+                        var buffer = new byte[count];
+                        if (!Core.Process.Handle.TryReadMemoryArray(new IntPtr(address), buffer, out _)) continue;
+                        bytesScanned += count;
+                        regionsScanned++;
+                        for (var offset = 0; offset <= buffer.Length - IntPtr.Size && hits < MaxHits; offset += IntPtr.Size)
+                        {
+                            var value = BitConverter.ToInt64(buffer, offset);
+                            if (!targets.TryGetValue(value, out var runeIndex)) continue;
+                            lines.Add($"Local reverse Rune ref: 0x{address + offset:X} -> {RuneNames[runeIndex]} (index {runeIndex})");
+                            hits++;
+                        }
+                    }
+                }
+
+                lines.Add($"Local reverse Rune scan: {regionsScanned} chunks, {bytesScanned:N0} bytes, {timer.ElapsedMilliseconds} ms, hits={hits}.");
+            }
+            catch (Exception ex)
+            {
+                lines.Add($"Local reverse Rune scan unavailable: {ex.GetType().Name}.");
+            }
+        }
+
+        private static bool IsReadable(uint protect)
+        {
+            return (protect & 0xFF) is 0x02 or 0x04 or 0x08 or 0x20 or 0x40 or 0x80;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MemoryBasicInformation
+        {
+            internal IntPtr BaseAddress;
+            internal IntPtr AllocationBase;
+            internal uint AllocationProtect;
+            internal ushort PartitionId;
+            internal UIntPtr RegionSize;
+            internal uint State;
+            internal uint Protect;
+            internal uint Type;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern UIntPtr VirtualQueryEx(IntPtr process, IntPtr address, out MemoryBasicInformation buffer, UIntPtr length);
 #endif
         private const int MaxStateMachineStates = 256;
 
