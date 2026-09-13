@@ -142,6 +142,68 @@ namespace TEHhub.RemoteObjects.Components
                 }
 
                 lines.Add($"Station: 0x{station.ToInt64():X}; sockets: {socketCount}");
+
+                var anchorRow = IntPtr.Zero;
+                var anchorHolder = IntPtr.Zero;
+                long tableBase = 0;
+                var rowStride = 0;
+                reader.TryReadMemory(station + StationAnchorRefOffset, out anchorRow, recordFailure: false);
+                reader.TryReadMemory(station + StationAnchorHolderOffset, out anchorHolder, recordFailure: false);
+                if (anchorHolder != IntPtr.Zero && reader.TryReadMemory<IntPtr>(anchorHolder + 0x28, out var tableHolder, recordFailure: false) &&
+                    tableHolder != IntPtr.Zero && reader.TryReadMemory<long>(tableHolder, out tableBase, recordFailure: false) && tableBase != 0)
+                {
+                    var delta = anchorRow.ToInt64() - tableBase;
+                    if (delta >= 0 && delta % 0x68 == 0 && delta / 0x68 < RuneNames.Length)
+                    {
+                        rowStride = 0x68;
+                    }
+                    else if (delta >= 0 && delta % 0x6C == 0 && delta / 0x6C < RuneNames.Length)
+                    {
+                        rowStride = 0x6C;
+                    }
+                }
+
+                lines.Add($"Anchor row: 0x{anchorRow.ToInt64():X}; holder: 0x{anchorHolder.ToInt64():X}; Rune DAT: 0x{tableBase:X}; stride: {(rowStride > 0 ? $"0x{rowStride:X}" : "unknown")}");
+                if (rowStride > 0)
+                {
+                    var directRows = 0;
+                    foreach (var target in new[] { (Name: "Station", Address: station), (Name: "Anchor holder", Address: anchorHolder) })
+                    {
+                        if (target.Address == IntPtr.Zero)
+                        {
+                            continue;
+                        }
+
+                        for (var offset = 0; offset <= 0x400; offset += IntPtr.Size)
+                        {
+                            if (!reader.TryReadMemory<IntPtr>(target.Address + offset, out var possibleRow, recordFailure: false))
+                            {
+                                continue;
+                            }
+
+                            var rowDelta = possibleRow.ToInt64() - tableBase;
+                            if (rowDelta < 0 || rowDelta % rowStride != 0)
+                            {
+                                continue;
+                            }
+
+                            var runeIndex = rowDelta / rowStride;
+                            if (runeIndex < 0 || runeIndex >= RuneNames.Length)
+                            {
+                                continue;
+                            }
+
+                            lines.Add($"Rune ref: {target.Name}+0x{offset:X3} -> {RuneNames[runeIndex]} (index {runeIndex})");
+                            directRows++;
+                        }
+                    }
+
+                    if (directRows == 0)
+                    {
+                        lines.Add("No direct Rune DAT rows in Station/Anchor Holder first 0x400 bytes.");
+                    }
+                }
+
                 lines.Add("Only valid, non-empty vector headers are listed. Raw data is capped at 128 bytes.");
                 var candidates = 0;
                 for (var offset = 0; offset <= 0x200; offset += IntPtr.Size)

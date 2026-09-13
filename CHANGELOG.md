@@ -2,6 +2,12 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.11 — 2026-09-14
+
+- Extended the Debug-only Expedition Rune Station inspector to scan bounded Station and Anchor Holder memory for direct pointers into the verified Rune DAT table.
+- The snapshot now reports the anchor row, holder, table base, resolved row stride, and every directly verifiable rune reference before reporting vector headers. This separates true rune references from arbitrary pointer-shaped memory.
+- Compatibility: Diagnostic-only; public Release builds continue to compile it out.
+- Validation: `dotnet build TEHhub/TEHhub.csproj -c Debug --no-restore` succeeded with 0 warnings and 0 errors.
 ## 1.8.10 — 2026-09-13
 
 - Reworked the Debug-only Expedition Rune Station vector inspector after its previous live scan returned no rows:
