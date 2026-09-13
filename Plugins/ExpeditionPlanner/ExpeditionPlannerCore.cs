@@ -736,9 +736,16 @@ namespace ExpeditionPlanner
             ImGui.Separator();
 
             int profile = (int)this.Settings.Profile;
-            if (ImGui.Combo("Planner Profile", ref profile, "Safe\0Balanced\0Greedy\0\0"))
+            if (ImGui.Combo("Planner Profile###PlannerProfileCombo", ref profile, "\u2605 PillarFirst (\u0e40\u0e19\u0e49\u0e19\u0e40\u0e2a\u0e32)\0\u2696 Optimal (\u0e04\u0e27\u0e32\u0e21\u0e04\u0e38\u0e49\u0e21)\0\0"))
             {
                 this.Settings.Profile = (PlannerProfile)profile;
+                this.currentRoute = new RouteEvaluation();
+                this.isRouteCalculated = false;
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("PillarFirst = \u0e40\u0e19\u0e49\u0e19\u0e40\u0e2a\u0e32 Remnant/SSS \u0e17\u0e38\u0e01\u0e25\u0e39\u0e01, \u0e44\u0e21\u0e48\u0e19\u0e31\u0e1a\u0e2a\u0e01\u0e2d\u0e23\u0e4c\u0e21\u0e2d\u0e19\u0e2a\u0e40\u0e15\u0e2d\u0e23\u0e4c/\u0e2b\u0e35\u0e1a\n" +
+                                 "Optimal = \u0e04\u0e27\u0e32\u0e21\u0e04\u0e38\u0e49\u0e21\u0e40\u0e15\u0e47\u0e21 (\u0e40\u0e2a\u0e32+\u0e2b\u0e35\u0e1a+\u0e21\u0e2d\u0e19\u0e2a\u0e40\u0e15\u0e2d\u0e23\u0e4c) \u0e41\u0e15\u0e48 SSS \u0e44\u0e14\u0e49 bonus \u0e01\u0e32\u0e23\u0e31\u0e19\u0e15\u0e35\u0e0a\u0e19\u0e30\u0e40\u0e2a\u0e21\u0e2d");
             }
 
             var range = this.Settings.MaxPlacementRangeGrid;

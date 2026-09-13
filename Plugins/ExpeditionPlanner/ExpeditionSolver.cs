@@ -120,17 +120,19 @@ namespace ExpeditionPlanner
 
                     float stepScore = 0f;
                     var stepRunes = new List<string>();
-                    bool stepHasForbidden = false;
 
                     if (targetsInRadius.Count == 0)
                     {
                         // Bridging candidate: allows connecting anchor to distant target clusters when out of 1-bomb reach
                         if (step >= neededSteps) continue; // Final bomb must hit targets
 
+                        // In PillarFirst mode, only bridge toward uncovered pillars
                         var bestUncovered = availableTargets
-                            .Where(t => !coveredEntityIds.Contains(t.EntityId))
-                            .OrderByDescending(t => (t.ProliferatedRuneTier == RuneTier.Golden ? 2000f : 0f) +
-                                                    (t.ProliferatedRuneTier == RuneTier.Purple_S ? 1000f : 0f) +
+                            .Where(t => !coveredEntityIds.Contains(t.EntityId) &&
+                                        (settings.Profile != PlannerProfile.PillarFirst ||
+                                         t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel))
+                            .OrderByDescending(t => (t.ProliferatedRuneTier == RuneTier.Golden ? 10000f : 0f) +
+                                                    (t.ProliferatedRuneTier == RuneTier.Purple_S ? 3000f : 0f) +
                                                     (t.BaseWeight > 0 ? t.BaseWeight : GetTargetValue(t, settings)))
                             .FirstOrDefault();
 
@@ -148,8 +150,7 @@ namespace ExpeditionPlanner
                     }
                     else
                     {
-                        // Moderate penalty if path is obstructed by pillar or wall:
-                        // Prioritize clean open-ground lines of sight when available
+                        // Moderate penalty if path is obstructed by pillar or wall
                         if (isObstructed)
                         {
                             stepScore -= 40f;
@@ -163,7 +164,8 @@ namespace ExpeditionPlanner
 
                         foreach (var target in targetsInRadius)
                         {
-                            float val = GetTargetValue(target, settings);
+                            float val;
+
                             if (target.Kind == TargetKind.RemnantPillar || target.Kind == TargetKind.VerisiumSentinel)
                             {
                                 // "Runes do not stack. If a rune is already proliferated, another duplicate rune is useless."
@@ -178,21 +180,41 @@ namespace ExpeditionPlanner
                                     : (1.0f + (1.5f * remainingBombs));
                                 float baseVal = target.BaseWeight > 0 ? target.BaseWeight : settings.WeightRemnant;
 
-                                // Opulent (Golden): SSS-Tier, doubles loot drops, must be prioritized first
+                                // SSS/S tier: guarantee-win bonuses that cannot be beaten by any cluster of non-pillar targets.
+                                // Using profile-scaled bonuses so PillarFirst is even more decisive.
+                                float profileMult = settings.Profile == PlannerProfile.PillarFirst ? 3.0f : 1.0f;
+
                                 if (target.ProliferatedRuneTier == RuneTier.Golden)
                                 {
-                                    baseVal += 800f;
+                                    // Opulent SSS: guaranteed win vs any non-pillar cluster in BOTH profiles
+                                    baseVal += 5000f * profileMult;
                                 }
                                 else if (target.ProliferatedRuneTier == RuneTier.Purple_S)
                                 {
-                                    baseVal += 350f; // Power, Death, Bond, Oath
+                                    baseVal += 1200f * profileMult; // Power, Death, Bond, Oath
                                 }
                                 else if (target.ProliferatedRuneTier == RuneTier.Purple_A)
                                 {
-                                    baseVal += 180f; // Time, Rebirth
+                                    baseVal += 500f * profileMult;  // Time, Rebirth
+                                }
+                                else if (settings.Profile == PlannerProfile.PillarFirst)
+                                {
+                                    // Blue rune pillars still get pillar bonus in PillarFirst
+                                    baseVal += 300f;
                                 }
 
                                 val = baseVal * proliferationMultiplier;
+                            }
+                            else if (settings.Profile == PlannerProfile.PillarFirst)
+                            {
+                                // In PillarFirst mode, non-pillar targets contribute nothing to score
+                                // (they may still be hit as collateral but don't drive placement decision)
+                                val = 0f;
+                            }
+                            else
+                            {
+                                // Optimal: non-pillar targets score normally
+                                val = GetTargetValue(target, settings);
                             }
 
                             stepScore += val;
@@ -202,8 +224,8 @@ namespace ExpeditionPlanner
                                 stepRunes.Add(mod);
                                 if (settings.NeverTakeRunes.Contains(mod))
                                 {
-                                    stepHasForbidden = true;
                                     warnings.Add($"Forbidden rune detected: {mod}");
+                                    stepScore -= 200f; // Large penalty in both profiles
                                 }
 
                                 // In PoE 2 Grand Expedition: ONLY the Golden Slot rune (target.AnchorRuneName) proliferates!
@@ -215,15 +237,17 @@ namespace ExpeditionPlanner
                                 }
                             }
                         }
-                    }
 
-                    if (stepHasForbidden)
-                    {
-                        if (settings.Profile == PlannerProfile.Safe)
+                        // PillarFirst: if no pillar was hit by this placement, penalize heavily
+                        // so the solver strongly prefers placements that include at least one pillar
+                        if (settings.Profile == PlannerProfile.PillarFirst)
                         {
-                            continue; // Exclude entirely
+                            bool hasPillar = targetsInRadius.Any(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
+                            if (!hasPillar)
+                            {
+                                stepScore -= 2000f; // Massive penalty: only place bomb here if absolutely no pillar is reachable
+                            }
                         }
-                        stepScore -= 200f; // Large penalty
                     }
 
                     if (stepScore > bestStepScore)
@@ -295,8 +319,15 @@ namespace ExpeditionPlanner
             int remnantsHit = chosenPlacements.Sum(p => p.CoveredTargets.Count(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel));
             bool anyObstructed = chosenPlacements.Any(p => p.IsObstructed);
 
+            string profileLabel = settings.Profile switch
+            {
+                PlannerProfile.PillarFirst => "Pillar-First",
+                PlannerProfile.Optimal => "Optimal",
+                _ => settings.Profile.ToString()
+            };
+
             evaluation.Reason = chosenPlacements.Count > 0
-                ? $"{settings.Profile} route ({chosenPlacements.Count} bombs) hitting {totalCovered} targets ({remnantsHit} remnants/sentinels). {(anyObstructed ? "Contains obstacle detour (check wire)." : "100% clean line of sight (no pillar blockage).")}"
+                ? $"{profileLabel} route ({chosenPlacements.Count} bombs) hitting {totalCovered} targets ({remnantsHit} remnants/sentinels). {(anyObstructed ? "Contains obstacle detour (check wire)." : "100% clean line of sight (no pillar blockage).")}"
                 : "No valid sequential route found within legal reach without obstacle collision.";
 
             return evaluation;

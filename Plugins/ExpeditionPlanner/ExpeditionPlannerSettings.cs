@@ -6,7 +6,7 @@ namespace ExpeditionPlanner
 
     public sealed class ExpeditionPlannerSettings : IPSettings
     {
-        public PlannerProfile Profile { get; set; } = PlannerProfile.Balanced;
+        public PlannerProfile Profile { get; set; } = PlannerProfile.PillarFirst;
 
         // Calculation and Caching options
         public VK CalculateHotkey { get; set; } = VK.F6;

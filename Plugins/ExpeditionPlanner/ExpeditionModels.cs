@@ -30,9 +30,11 @@ namespace ExpeditionPlanner
 
     public enum PlannerProfile
     {
-        Safe = 0,
-        Balanced,
-        Greedy
+        /// <summary>เน้นเสา Remnant ก่อน — ทุกลูกระเบิดต้องเล็งเสาเป็นหลัก SSS/S-Tier ถูก boost สูงสุด</summary>
+        PillarFirst = 0,
+
+        /// <summary>ความคุ้ม — สมดุลทุกเป้าหมาย (เสา, หีบ, มอนสเตอร์) แต่ SSS pillar ยังการันตีชนะเสมอ</summary>
+        Optimal
     }
 
     public sealed class ExpeditionTarget
