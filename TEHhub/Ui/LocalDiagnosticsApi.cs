@@ -102,6 +102,7 @@ namespace TEHhub.Ui
                         "GET /api/tools/logs", "POST /api/tools/windows/{ShowSetting}?visible=true|false",
                         "POST /api/diagnostics/skill-research", "GET /api/diagnostics/offset-status",
                         "POST /api/diagnostics/expedition-probe", "GET /api/diagnostics/expedition-probe",
+                        "POST /api/diagnostics/expedition-ui-probe", "GET /api/diagnostics/expedition-ui-probe",
                         "POST /api/diagnostics/offset-verify", "GET /api/diagnostics/memory-status",
                         "GET /api/diagnostics/memory-snapshot", "POST /api/diagnostics/memory-reset",
                         "POST /api/diagnostics/memory-dump", "POST /api/diagnostics/memory-stop",
@@ -178,6 +179,27 @@ namespace TEHhub.Ui
                         await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("No Expedition probe has completed."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
                     else
                         await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.ExpeditionProbeSnapshot).ConfigureAwait(false);
+                    return;
+                }
+                if (method == "POST" && path == "/api/diagnostics/expedition-ui-probe")
+                {
+                    var capture = ExpeditionUiProbe.Request();
+                    if (capture == null)
+                        await WriteJsonAsync(context, 409, new DiagnosticsApiResponse("Expedition UI probe is already pending."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                    {
+                        var snapshot = await capture.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.ExpeditionUiSnapshot).ConfigureAwait(false);
+                    }
+                    return;
+                }
+                if (method == "GET" && path == "/api/diagnostics/expedition-ui-probe")
+                {
+                    var snapshot = ExpeditionUiProbe.Snapshot;
+                    if (snapshot == null)
+                        await WriteJsonAsync(context, 202, new DiagnosticsApiResponse("No Expedition UI probe has completed."), DiagnosticsApiJsonContext.Default.DiagnosticsApiResponse).ConfigureAwait(false);
+                    else
+                        await WriteJsonAsync(context, 200, snapshot, DiagnosticsApiJsonContext.Default.ExpeditionUiSnapshot).ConfigureAwait(false);
                     return;
                 }
                 if (method == "POST" && path == "/api/diagnostics/capture-area-start")
@@ -320,6 +342,7 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(RuntimeLogEntry[]))]
     [JsonSerializable(typeof(ToolApiCatalog))]
     [JsonSerializable(typeof(ExpeditionProbeSnapshot))]
+    [JsonSerializable(typeof(ExpeditionUiSnapshot))]
 #endif
     internal sealed partial class DiagnosticsApiJsonContext : JsonSerializerContext
     {

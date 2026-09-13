@@ -22,7 +22,7 @@ namespace TEHhub.Ui
         private const int MaxModsPerCandidate = 32;
         private static readonly string[] PathTerms =
         {
-            "Expedition", "Explosive", "Detonator", "Fuse", "Blast", "Runeshape",
+            "Expedition", "Explosive", "Detonator", "Fuse", "Blast", "Runeshape", "Placement",
         };
 
         private static TaskCompletionSource<ExpeditionProbeSnapshot>? pending;
