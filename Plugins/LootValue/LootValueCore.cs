@@ -2736,9 +2736,8 @@ namespace LootValue
                 }
                 else
                 {
-                    chipText = "Unpriced";
-                    score = 0;
-                    isHigh = false;
+                    // Items without market prices should not display any chip or label
+                    continue;
                 }
 
                 rowCandidates.Add((rowPos, rowSize, chipText, isHigh, score));
@@ -2776,8 +2775,9 @@ namespace LootValue
                 for (int i = 0; i < rowCandidates.Count; i++)
                 {
                     var cand = rowCandidates[i];
-                    bool isBest = (i == bestIdx && (bestScore > 0 || cand.chip.Contains("ส้ม", StringComparison.OrdinalIgnoreCase)));
-                    var text = isBest ? $"★ PICK THIS: {cand.chip}" : cand.chip;
+                    // Only mark as recommended pick if it has meaningful value (>= 1.0 Chaos) or is a confirmed Random Unique
+                    bool isBest = (i == bestIdx && (bestScore >= 1.0 || cand.chip.Contains("ส้ม", StringComparison.OrdinalIgnoreCase)));
+                    var text = isBest ? $"[PICK] {cand.chip}" : cand.chip;
                     var chipPos = new Vector2(
                         cand.pos.X + cand.size.X + 8f + this.Settings.RuneshapeUiOffsetX,
                         cand.pos.Y + (cand.size.Y - 20f) / 2f + this.Settings.RuneshapeUiOffsetY);
