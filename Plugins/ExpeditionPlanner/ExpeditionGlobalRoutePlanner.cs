@@ -15,7 +15,11 @@ namespace ExpeditionPlanner
             var candidates = BuildCandidates(targets, settings);
             var best = new RouteEvaluation { Profile = settings.Profile.ToString() };
             var random = new Random(17);
-            int count = Math.Max(1, settings.MaxExplosiveBudget - placed.Count);
+            int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
+            // In pillar-only mode there is no reason to emit a 20-bomb Logbook route
+            // when only a handful of pillars exist. The final stack receiver must be
+            // reachable within this actual pillar plan, not artificial empty steps.
+            int count = Math.Max(1, Math.Min(settings.MaxExplosiveBudget - placed.Count, pillarCount));
             for (int attempt = 0; attempt < 96; attempt++)
             {
                 var route = BuildRoute(startGrid, startWorld, placed, targets, candidates, area, settings, count, random);
