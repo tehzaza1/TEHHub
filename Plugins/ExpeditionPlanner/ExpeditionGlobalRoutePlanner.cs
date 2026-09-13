@@ -47,7 +47,16 @@ namespace ExpeditionPlanner
             for (int step = 1; step <= count; step++)
             {
                 Vector3? best = null; float bestScore = float.NegativeInfinity; List<ExpeditionTarget>? hitBest = null;
-                foreach (var point in candidates.OrderBy(_ => random.Next()).Take(160))
+                // A pillar can be further than one fuse segment. ExpeditionIcons builds
+                // paths by stepping from the current endpoint, so add forward bridge
+                // points from the current anchor instead of requiring every placement
+                // to be in the ring around a pillar.
+                var routeCandidates = candidates
+                    .Concat(BuildBridgeCandidates(anchor, targets, covered, settings))
+                    .Distinct()
+                    .OrderBy(_ => random.Next())
+                    .Take(220);
+                foreach (var point in routeCandidates)
                 {
                     if (!LegalPlacement.IsPlaceable(point, anchor, terrain, settings, targets, startGrid, committed)) continue;
                     var hit = targets.Where(t => !covered.Contains(t.EntityId) &&
@@ -90,11 +99,31 @@ namespace ExpeditionPlanner
                 foreach (var t in selectedHits) covered.Add(t.EntityId);
                 result.NetScore += bestScore; committed.Add(p); anchor = p;
             }
-            if (finalStackPillar != null && !covered.Contains(finalStackPillar.EntityId))
-            {
-                result.NetScore = float.NegativeInfinity;
-            }
+            // A route that cannot yet reach the widest pillar is still useful: it
+            // shows the legal first bridge/stack steps. Rejecting it made Calculate
+            // appear to do nothing on maps where that pillar needs multiple fuses.
             return result;
+        }
+
+        private static IEnumerable<Vector3> BuildBridgeCandidates(
+            Vector3 anchor,
+            IEnumerable<ExpeditionTarget> targets,
+            HashSet<uint> covered,
+            ExpeditionPlannerSettings settings)
+        {
+            float stepLength = MathF.Max(12f, settings.MaxPlacementRangeGrid - 3f);
+            foreach (var target in targets.Where(t => !covered.Contains(t.EntityId) && t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel))
+            {
+                var direction = new Vector2(target.GridPosition.X - anchor.X, target.GridPosition.Y - anchor.Y);
+                if (direction.LengthSquared() < 1f) continue;
+                direction = Vector2.Normalize(direction);
+                var perpendicular = new Vector2(-direction.Y, direction.X);
+                foreach (var sideways in new[] { 0f, 10f, -10f })
+                {
+                    var point = new Vector2(anchor.X, anchor.Y) + (direction * stepLength) + (perpendicular * sideways);
+                    yield return new Vector3(point.X, point.Y, target.GridPosition.Z);
+                }
+            }
         }
 
         private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)

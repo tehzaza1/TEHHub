@@ -493,8 +493,10 @@ namespace ExpeditionPlanner
                             : "Explore the map to locate Expedition Remnants and Chests...");
                     }
 
-                    ImGui.End();
                 }
+                // ImGui requires End for every Begin, including the collapsed/closed case.
+                // Leaving it inside the true branch triggers "Missing EndChild" and aborts TEHhub.
+                ImGui.End();
             }
         }
 
@@ -647,7 +649,9 @@ namespace ExpeditionPlanner
             try
             {
                 this.currentRoute = calculation.GetAwaiter().GetResult();
-                this.calculationStatusMessage = $"Calculated @ {DateTime.Now:HH:mm:ss} | {this.activeTargets.Count} targets";
+                this.calculationStatusMessage = this.currentRoute.Placements.Count > 0
+                    ? $"Calculated @ {DateTime.Now:HH:mm:ss} | {this.currentRoute.Placements.Count} placement(s)"
+                    : "No legal pillar placement from the current anchor.";
             }
             catch (Exception ex)
             {
