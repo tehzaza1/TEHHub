@@ -230,6 +230,43 @@ namespace TEHhub.RemoteObjects.Components
                     }
                 }
 
+                // A complete socket layout may be a compact vector of rune-table indexes rather
+                // than six Rune DAT pointers. Search every verified local root for exactly that
+                // shape: socketCount 32-bit values, all inside the 34-rune catalog.
+                var indexVectorCandidates = 0;
+                foreach (var root in diagnosticRoots)
+                {
+                    if (root.Address == IntPtr.Zero || indexVectorCandidates >= 24)
+                    {
+                        continue;
+                    }
+
+                    for (var offset = 0; offset <= 0x400 && indexVectorCandidates < 24; offset += IntPtr.Size)
+                    {
+                        if (!reader.TryReadMemory<StdVector>(root.Address + offset, out var vector))
+                        {
+                            continue;
+                        }
+
+                        var count = vector.TotalElements(sizeof(int));
+                        if (count != socketCount || count <= 0 || vector.First == IntPtr.Zero || vector.Last.ToInt64() < vector.First.ToInt64())
+                        {
+                            continue;
+                        }
+
+                        var indexes = new int[socketCount];
+                        if (!reader.TryReadMemoryArray(vector.First, indexes, out _) || Array.Exists(indexes, value => value < 0 || value >= RuneNames.Length))
+                        {
+                            continue;
+                        }
+
+                        var names = new string[indexes.Length];
+                        for (var index = 0; index < indexes.Length; index++) names[index] = RuneNames[indexes[index]];
+                        lines.Add($"Rune-index vector candidate: {root.Name}+0x{offset:X3} -> [{string.Join(", ", indexes)}] [{string.Join(", ", names)}]");
+                        indexVectorCandidates++;
+                    }
+                }
+
                 // The paired RuneEncounterController exposes an Inventories component even though
                 // its rune rows are not referenced directly from the station. Inspect that one
                 // component as an inventory-shaped object before widening any raw pointer scan.
