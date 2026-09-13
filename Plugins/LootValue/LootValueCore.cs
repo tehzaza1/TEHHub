@@ -2020,11 +2020,14 @@ namespace LootValue
 
         private readonly struct RuneshapeRowPriceLabel
         {
-            public RuneshapeRowPriceLabel(Vector2 position, string text, bool isHigh)
+            public RuneshapeRowPriceLabel(Vector2 position, string text, bool isHigh, bool isBest = false, Vector2 rowPos = default, Vector2 rowSize = default)
             {
                 this.Position = position;
                 this.Text = text;
                 this.IsHigh = isHigh;
+                this.IsBest = isBest;
+                this.RowPos = rowPos;
+                this.RowSize = rowSize;
             }
 
             public Vector2 Position { get; }
@@ -2032,6 +2035,12 @@ namespace LootValue
             public string Text { get; }
 
             public bool IsHigh { get; }
+
+            public bool IsBest { get; }
+
+            public Vector2 RowPos { get; }
+
+            public Vector2 RowSize { get; }
         }
 
         private readonly struct SlotElementCandidate
@@ -2638,7 +2647,13 @@ namespace LootValue
             var fg = ImGui.GetForegroundDrawList();
             foreach (var row in this.cachedRuneshapeRows)
             {
-                DrawRuneforgePriceChip(fg, row.Position, row.Text, row.IsHigh);
+                if (row.IsBest && row.RowSize.X > 0 && row.RowSize.Y > 0)
+                {
+                    // Glowing highlight around the recommended recipe row to pick
+                    fg.AddRectFilled(row.RowPos, row.RowPos + row.RowSize, 0x2200FF7F, 4f);
+                    fg.AddRect(row.RowPos, row.RowPos + row.RowSize, 0xFFFFD700, 4f, ImDrawFlags.None, 2.5f);
+                }
+                DrawRuneforgePriceChip(fg, row.Position, row.Text, row.IsHigh, row.IsBest);
             }
         }
 
@@ -2677,6 +2692,7 @@ namespace LootValue
 
             var newRows = new List<RuneshapeRowPriceLabel>();
             var chaosDiv = PoeNinjaPriceFetcher.ChaosPerDivine > 0 ? PoeNinjaPriceFetcher.ChaosPerDivine : 200.0;
+            var rowCandidates = new List<(Vector2 pos, Vector2 size, string chip, bool isHigh, double score)>();
 
             foreach (var row in rows)
             {
@@ -2693,25 +2709,82 @@ namespace LootValue
                 ParseRuneforgeRowText(rawText, out var count, out var itemName);
                 if (string.IsNullOrWhiteSpace(itemName)) continue;
 
-                var price = PoeNinjaPriceFetcher.GetPrice(itemName);
-                if (price == null || price.PriceChaos <= 0) continue;
-
-                var totalChaos = price.PriceChaos * count;
-                var (dispVal, dispCur) = PoeNinjaPriceFetcher.GetDisplayPrice(totalChaos, this.Settings.DisplayCurrency);
-
                 if (!PluginUiElementReflection.TryGetAbsoluteRect(row, out var rowPos, out var rowSize)) continue;
                 if (rowSize.X <= 0f || rowSize.Y <= 0f) continue;
 
-                var chipText = dispVal >= 100 ? $"{dispVal:F0} {dispCur}" : $"{dispVal:F1} {dispCur}";
-                var chipPos = new Vector2(
-                    rowPos.X + rowSize.X + 8f + this.Settings.RuneshapeUiOffsetX,
-                    rowPos.Y + (rowSize.Y - 20f) / 2f + this.Settings.RuneshapeUiOffsetY);
+                var price = PoeNinjaPriceFetcher.GetPrice(itemName);
+                double score = 0;
+                string chipText;
+                bool isHigh = false;
 
-                var isHigh = (totalChaos / chaosDiv) >= 1.0;
-                newRows.Add(new RuneshapeRowPriceLabel(chipPos, chipText, isHigh));
+                if (price != null && price.PriceChaos > 0)
+                {
+                    var totalChaos = price.PriceChaos * count;
+                    var (dispVal, dispCur) = PoeNinjaPriceFetcher.GetDisplayPrice(totalChaos, this.Settings.DisplayCurrency);
+                    chipText = dispVal >= 100 ? $"{dispVal:F0} {dispCur}" : $"{dispVal:F1} {dispCur}";
+                    isHigh = (totalChaos / chaosDiv) >= 1.0;
+                    score = totalChaos;
+                }
+                else
+                {
+                    score = EstimateCraftScore(rawText);
+                    chipText = GetCraftBadge(rawText, score);
+                    isHigh = score >= 50.0;
+                }
+
+                rowCandidates.Add((rowPos, rowSize, chipText, isHigh, score));
+            }
+
+            if (rowCandidates.Count > 0)
+            {
+                double bestScore = -1;
+                int bestIdx = -1;
+                for (int i = 0; i < rowCandidates.Count; i++)
+                {
+                    if (rowCandidates[i].score > bestScore)
+                    {
+                        bestScore = rowCandidates[i].score;
+                        bestIdx = i;
+                    }
+                }
+
+                for (int i = 0; i < rowCandidates.Count; i++)
+                {
+                    var cand = rowCandidates[i];
+                    bool isBest = (i == bestIdx && bestScore > 0);
+                    var text = isBest ? $"★ PICK THIS: {cand.chip}" : cand.chip;
+                    var chipPos = new Vector2(
+                        cand.pos.X + cand.size.X + 8f + this.Settings.RuneshapeUiOffsetX,
+                        cand.pos.Y + (cand.size.Y - 20f) / 2f + this.Settings.RuneshapeUiOffsetY);
+
+                    newRows.Add(new RuneshapeRowPriceLabel(chipPos, text, cand.isHigh, isBest, cand.pos, cand.size));
+                }
             }
 
             this.cachedRuneshapeRows = newRows;
+        }
+
+        private static double EstimateCraftScore(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            double score = 10.0;
+            if (text.Contains("Mirror", StringComparison.OrdinalIgnoreCase)) score += 50000.0;
+            else if (text.Contains("Divine", StringComparison.OrdinalIgnoreCase)) score += 300.0;
+            else if (text.Contains("Greater Exalted", StringComparison.OrdinalIgnoreCase)) score += 150.0;
+            else if (text.Contains("Grand Exalted", StringComparison.OrdinalIgnoreCase)) score += 120.0;
+            else if (text.Contains("Exalted", StringComparison.OrdinalIgnoreCase)) score += 80.0;
+            else if (text.Contains("Logbook", StringComparison.OrdinalIgnoreCase) || text.Contains("Saga", StringComparison.OrdinalIgnoreCase)) score += 90.0;
+            else if (text.Contains("Chaos", StringComparison.OrdinalIgnoreCase)) score += 20.0;
+            else if (text.Contains("Unique", StringComparison.OrdinalIgnoreCase)) score += 35.0;
+            else if (text.Contains("Gem", StringComparison.OrdinalIgnoreCase)) score += 25.0;
+            return score;
+        }
+
+        private static string GetCraftBadge(string text, double score)
+        {
+            if (score >= 100.0) return "★ High Value";
+            if (score >= 50.0) return "Valuable Craft";
+            return "Craft Option";
         }
 
         private static void ParseRuneforgeRowText(string raw, out int count, out string name)
@@ -2727,19 +2800,19 @@ namespace LootValue
             }
         }
 
-        private static void DrawRuneforgePriceChip(ImDrawListPtr fg, Vector2 pos, string text, bool isHigh)
+        private static void DrawRuneforgePriceChip(ImDrawListPtr fg, Vector2 pos, string text, bool isHigh, bool isBest = false)
         {
             var textSize = ImGui.CalcTextSize(text);
-            var pad = new Vector2(6f, 3f);
+            var pad = new Vector2(8f, 4f);
             var min = pos;
             var max = new Vector2(pos.X + textSize.X + pad.X * 2, pos.Y + textSize.Y + pad.Y * 2);
 
-            var bg = isHigh ? 0xF0201505u : 0xF0101010u;
-            var border = isHigh ? 0xFF40E040u : 0xFF888899u;
-            var textColor = isHigh ? 0xFF50FF50u : 0xFFFFFFFFu;
+            var bg = isBest ? 0xF02A1E05u : (isHigh ? 0xF0201505u : 0xF0101010u);
+            var border = isBest ? 0xFFFFD700u : (isHigh ? 0xFF40E040u : 0xFF888899u);
+            var textColor = isBest ? 0xFF50FF50u : (isHigh ? 0xFF50FF50u : 0xFFFFFFFFu);
 
             fg.AddRectFilled(min, max, bg, 4f);
-            fg.AddRect(min, max, border, 4f, ImDrawFlags.None, 1.2f);
+            fg.AddRect(min, max, border, 4f, ImDrawFlags.None, isBest ? 2.0f : 1.2f);
             fg.AddText(new Vector2(min.X + pad.X, min.Y + pad.Y), textColor, text);
         }
     }

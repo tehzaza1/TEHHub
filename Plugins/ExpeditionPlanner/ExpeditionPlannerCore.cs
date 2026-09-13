@@ -480,7 +480,8 @@ namespace ExpeditionPlanner
                         this.verifiedMonolithRecipes[closest.EntityId] = openRecipes;
                         closest.IsVerifiedFromUi = true;
                         closest.VerifiedRecipes = openRecipes;
-                        closest.RecommendedRuneChoice = $"[VERIFIED] {openRecipes[0]}";
+                        var bestPick = RemnantRuneAdvisor.GetBestRecipeFromList(openRecipes);
+                        closest.RecommendedRuneChoice = $"[VERIFIED] Pick: {bestPick} ★";
                         closest.RecipeDescription = string.Join(" | ", openRecipes);
                         closest.NeedsReroll = false;
                         closest.BaseWeight += 250f;
@@ -571,7 +572,8 @@ namespace ExpeditionPlanner
                 bool isVerified = this.verifiedMonolithRecipes.TryGetValue(entity.Id, out var vRecipes) && vRecipes.Count > 0;
                 if (isVerified && vRecipes != null)
                 {
-                    choice = $"[VERIFIED] {vRecipes[0]}";
+                    var bestPick = RemnantRuneAdvisor.GetBestRecipeFromList(vRecipes);
+                    choice = $"[VERIFIED] Pick: {bestPick} ★";
                     desc = string.Join(" | ", vRecipes);
                     needsReroll = false;
                     score += 250f;

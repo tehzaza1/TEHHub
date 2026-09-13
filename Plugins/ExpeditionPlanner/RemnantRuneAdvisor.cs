@@ -517,6 +517,40 @@ namespace ExpeditionPlanner
             return recipes.Count > 0;
         }
 
+        /// <summary>
+        /// Selects the highest priority / highest value craft option from a list of recipes found in an open monolith UI.
+        /// </summary>
+        public static string GetBestRecipeFromList(List<string> recipes)
+        {
+            if (recipes == null || recipes.Count == 0) return string.Empty;
+            if (recipes.Count == 1) return recipes[0];
+
+            string best = recipes[0];
+            double maxScore = double.NegativeInfinity;
+
+            foreach (var r in recipes)
+            {
+                double score = 10.0;
+                if (r.Contains("Mirror", StringComparison.OrdinalIgnoreCase)) score += 50000.0;
+                else if (r.Contains("Divine", StringComparison.OrdinalIgnoreCase)) score += 300.0;
+                else if (r.Contains("Greater Exalted", StringComparison.OrdinalIgnoreCase)) score += 150.0;
+                else if (r.Contains("Grand Exalted", StringComparison.OrdinalIgnoreCase)) score += 120.0;
+                else if (r.Contains("Exalted", StringComparison.OrdinalIgnoreCase)) score += 80.0;
+                else if (r.Contains("Logbook", StringComparison.OrdinalIgnoreCase) || r.Contains("Saga", StringComparison.OrdinalIgnoreCase)) score += 90.0;
+                else if (r.Contains("Chaos", StringComparison.OrdinalIgnoreCase)) score += 20.0;
+                else if (r.Contains("Unique", StringComparison.OrdinalIgnoreCase)) score += 35.0;
+                else if (r.Contains("Gem", StringComparison.OrdinalIgnoreCase)) score += 25.0;
+
+                if (score > maxScore)
+                {
+                    maxScore = score;
+                    best = r;
+                }
+            }
+
+            return best;
+        }
+
         private static IntPtr WalkPanelUi(IntPtr parent, int step)
         {
             if (parent == IntPtr.Zero || step >= PanelFlagFingerprints.Length) return parent;
