@@ -132,6 +132,7 @@ namespace ExpeditionPlanner
             out int goldenSlotIndex,
             out int anchorSlotIndex,
             out string anchorName,
+            out string goldenRuneCandidate,
             out string recommendedChoice,
             out string description,
             out float estimatedValue,
@@ -144,6 +145,7 @@ namespace ExpeditionPlanner
             goldenSlotIndex = -1;
             anchorSlotIndex = -1;
             anchorName = string.Empty;
+            goldenRuneCandidate = string.Empty;
             recommendedChoice = string.Empty;
             description = string.Empty;
             estimatedValue = 30f;
@@ -246,53 +248,113 @@ namespace ExpeditionPlanner
 
             // Crucial: Only the rune IN the Golden Slot proliferates to subsequent remnants!
             isAnchorInGoldenSlot = isUnique || (goldenSlotIndex == anchorSlotIndex);
-            if (isAnchorInGoldenSlot)
+
+            var matchingRecipes = new List<RecipeDef>();
+            if (!isUnique && anchorIdx >= 0)
             {
-                proliferatedTier = anchorTier;
-            }
-            else if (!isUnique && goldenSlotIndex >= 0 && anchorIdx >= 0)
-            {
-                // Inspect matching candidate recipes to deduce whether the golden slot holds a high-tier rune
-                RuneTier bestGoldenCandidateTier = RuneTier.Blue_C;
                 foreach (var rec in loadedRecipes)
                 {
                     if (rec.size > holeCount) continue;
                     if (areaLevel > 0 && rec.maxLevel > 0 && (areaLevel < rec.minLevel || areaLevel > rec.maxLevel)) continue;
-                    if (rec.runeIdx != null && rec.runeIdx.Count > anchorPos && rec.runeIdx[anchorPos] == anchorIdx &&
-                        rec.runeIdx.Count > goldenSlotIndex)
+                    if (rec.runeIdx != null && rec.runeIdx.Count > anchorPos && rec.runeIdx[anchorPos] == anchorIdx)
                     {
-                        var gIdx = rec.runeIdx[goldenSlotIndex];
-                        if (gIdx >= 0 && gIdx < RuneNames.Length)
+                        matchingRecipes.Add(rec);
+                    }
+                }
+            }
+
+            var bestOffer = PickBestRecipe(anchorIdx, anchorPos, holeCount, isUnique, areaLevel, anchorTier);
+
+            if (isAnchorInGoldenSlot)
+            {
+                goldenRuneCandidate = anchorName;
+                proliferatedTier = anchorTier;
+                if (!isUnique && anchorTier == RuneTier.Blue_C)
+                {
+                    needsReroll = true;
+                    rerollReason = $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!";
+                }
+            }
+            else if (!isUnique && goldenSlotIndex >= 0 && anchorIdx >= 0)
+            {
+                int targetGoldenSlot = goldenSlotIndex;
+                // Prefer recipes matching exact holeCount, or highest available size that contains goldenSlotIndex
+                int maxMatchingSize = matchingRecipes.Count > 0 ? matchingRecipes.Max(r => r.size) : 0;
+                var primeCandidates = matchingRecipes.Where(r => r.size == maxMatchingSize && r.runeIdx != null && r.runeIdx.Count > targetGoldenSlot).ToList();
+                if (primeCandidates.Count == 0)
+                {
+                    primeCandidates = matchingRecipes.Where(r => r.runeIdx != null && r.runeIdx.Count > targetGoldenSlot).ToList();
+                }
+
+                var candidateRunes = new List<string>();
+                RuneTier bestCandidateTier = RuneTier.Blue_C;
+                string bestCandidateRune = string.Empty;
+
+                foreach (var rec in primeCandidates)
+                {
+                    var gIdx = rec.runeIdx![goldenSlotIndex];
+                    if (gIdx >= 0 && gIdx < RuneNames.Length)
+                    {
+                        var rName = RuneNames[gIdx];
+                        if (!candidateRunes.Contains(rName))
                         {
-                            var gTier = GetRuneTier(RuneNames[gIdx]);
-                            if (gTier < bestGoldenCandidateTier)
-                            {
-                                bestGoldenCandidateTier = gTier;
-                            }
+                            candidateRunes.Add(rName);
+                        }
+
+                        var tier = GetRuneTier(rName);
+                        if (tier < bestCandidateTier || string.IsNullOrEmpty(bestCandidateRune))
+                        {
+                            bestCandidateTier = tier;
+                            bestCandidateRune = rName;
                         }
                     }
                 }
 
-                proliferatedTier = bestGoldenCandidateTier;
-            }
-            else
-            {
-                proliferatedTier = RuneTier.Blue_C;
-            }
+                // If bestOffer's recipe has a golden slot rune, prioritize it
+                if (bestOffer?.Recipe?.runeIdx != null && bestOffer.Recipe.runeIdx.Count > goldenSlotIndex)
+                {
+                    var gIdx = bestOffer.Recipe.runeIdx[goldenSlotIndex];
+                    if (gIdx >= 0 && gIdx < RuneNames.Length)
+                    {
+                        var rName = RuneNames[gIdx];
+                        bestCandidateRune = rName;
+                        bestCandidateTier = GetRuneTier(rName);
+                    }
+                }
 
-            // Reroll detection: Remnants with no purple/golden runes in the golden slot should be rerolled
-            if (!isUnique)
-            {
+                proliferatedTier = bestCandidateTier;
+                if (candidateRunes.Count > 1)
+                {
+                    var otherCandidates = candidateRunes.Where(r => !string.Equals(r, bestCandidateRune, StringComparison.OrdinalIgnoreCase)).ToList();
+                    goldenRuneCandidate = otherCandidates.Count > 0 ? $"{bestCandidateRune} / {otherCandidates[0]}" : bestCandidateRune;
+                }
+                else if (!string.IsNullOrEmpty(bestCandidateRune))
+                {
+                    goldenRuneCandidate = bestCandidateRune;
+                }
+                else
+                {
+                    goldenRuneCandidate = "Blue Rune";
+                    proliferatedTier = RuneTier.Blue_C;
+                }
+
                 if (proliferatedTier == RuneTier.Blue_C)
                 {
                     needsReroll = true;
-                    rerollReason = isAnchorInGoldenSlot
-                        ? $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!"
-                        : $"Golden Slot #{goldenSlotIndex + 1} has a Blue rune ({anchorName} is in regular Slot #{anchorSlotIndex + 1} and will NOT proliferate). Reroll recommended!";
+                    rerollReason = $"Golden Slot #{goldenSlotIndex + 1} likely Blue ({goldenRuneCandidate}). Reroll recommended!";
+                }
+                else
+                {
+                    needsReroll = false;
+                    rerollReason = string.Empty;
                 }
             }
+            else
+            {
+                goldenRuneCandidate = isUnique ? "Unique" : "Unknown";
+                proliferatedTier = RuneTier.Blue_C;
+            }
 
-            var bestOffer = PickBestRecipe(anchorIdx, anchorPos, holeCount, isUnique, areaLevel, proliferatedTier);
             if (bestOffer != null)
             {
                 recommendedChoice = bestOffer.Name;
@@ -361,7 +423,8 @@ namespace ExpeditionPlanner
                     {
                         Name = name,
                         Description = desc,
-                        Score = score
+                        Score = score,
+                        Recipe = rec
                     };
                 }
             }
@@ -374,6 +437,7 @@ namespace ExpeditionPlanner
             public string Name { get; set; } = string.Empty;
             public string Description { get; set; } = string.Empty;
             public float Score { get; set; }
+            public RecipeDef? Recipe { get; set; }
         }
 
         private sealed class CatalogFile

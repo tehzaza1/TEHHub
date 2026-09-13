@@ -249,21 +249,37 @@ namespace ExpeditionPlanner
                         {
                             choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice}";
                             subText = remnantTarget.ProliferationRemaining > 0
-                                ? $"{goldenDisplay} [{remnantTarget.AnchorRuneName}] Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
-                                : $"{goldenDisplay} [{remnantTarget.AnchorRuneName}] (Local only)";
+                                ? $"{goldenDisplay}: [{remnantTarget.AnchorRuneName}] (Anchor) -> Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
+                                : $"{goldenDisplay}: [{remnantTarget.AnchorRuneName}] (Local only)";
                         }
                         else
                         {
                             var localSlot = remnantTarget.AnchorSlotIndex >= 0 ? $"Slot #{remnantTarget.AnchorSlotIndex + 1}" : "Local";
-                            choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice} ({remnantTarget.AnchorRuneName} @ {localSlot})";
-                            subText = $"{goldenDisplay} [Blue Rune - No Proliferation]";
+                            choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice} (Anchor: {remnantTarget.AnchorRuneName} @ {localSlot})";
+
+                            var gCandidate = !string.IsNullOrEmpty(remnantTarget.GoldenRuneCandidate) ? remnantTarget.GoldenRuneCandidate : "Blue Rune";
+                            if (remnantTarget.CanProliferate)
+                            {
+                                var gTierName = remnantTarget.ProliferatedRuneTier switch
+                                {
+                                    RuneTier.Golden => "Opulent",
+                                    RuneTier.Purple_S => "S-Tier",
+                                    RuneTier.Purple_A => "A-Tier",
+                                    _ => "Purple"
+                                };
+                                subText = remnantTarget.ProliferationRemaining > 0
+                                    ? $"{goldenDisplay}: Likely [{gCandidate}] [{gTierName}] -> Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
+                                    : $"{goldenDisplay}: Likely [{gCandidate}] [{gTierName}] (Local only)";
+                            }
+                            else
+                            {
+                                subText = $"{goldenDisplay}: Likely [{gCandidate}] [Blue Rune - No Proliferation]";
+                            }
                         }
 
                         if (remnantTarget.NeedsReroll)
                         {
-                            subText = remnantTarget.IsAnchorInGoldenSlot
-                                ? $"[!] REROLL: {goldenDisplay} is Blue"
-                                : $"[!] REROLL: {goldenDisplay} is Blue ({remnantTarget.AnchorRuneName} at Slot #{remnantTarget.AnchorSlotIndex + 1} does NOT proliferate)";
+                            subText = $"[!] REROLL: {goldenDisplay} is Blue ({remnantTarget.RerollReason})";
                         }
 
                         var cSize = ImGui.CalcTextSize(choiceText);
@@ -275,11 +291,12 @@ namespace ExpeditionPlanner
                         var boxH = (padY * 2f) + cSize.Y + sSize.Y + lineGap;
                         var boxPos = sPos + new Vector2(-boxW * 0.5f, this.Settings.BadgeRadius + 8f);
 
-                        uint boxBorder = remnantTarget.NeedsReroll ? 0xFF0033FF : (remnantTarget.ProliferatedRuneTier == RuneTier.Golden ? 0xFFFFD700 : 0xFF00E5FF);
+                        uint boxBorder = remnantTarget.NeedsReroll ? 0xFF0033FF : (remnantTarget.ProliferatedRuneTier == RuneTier.Golden ? 0xFFFFD700 : (remnantTarget.ProliferatedRuneTier == RuneTier.Purple_S ? 0xFFFF55FF : 0xFF00E5FF));
+                        uint subTextColor = remnantTarget.NeedsReroll ? 0xFF3333FF : (remnantTarget.CanProliferate ? 0xFF70FF70 : 0xFFFFAA00);
                         drawList.AddRectFilled(boxPos, boxPos + new Vector2(boxW, boxH), 0xF0141414, 6f);
                         drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), boxBorder, 6f, 0, 2.0f);
                         drawList.AddText(boxPos + new Vector2(padX, padY), tagColor, choiceText);
-                        drawList.AddText(boxPos + new Vector2(padX, padY + cSize.Y + lineGap), remnantTarget.NeedsReroll ? 0xFF3333FF : 0xFFFFAA00, subText);
+                        drawList.AddText(boxPos + new Vector2(padX, padY + cSize.Y + lineGap), subTextColor, subText);
                     }
                 }
             }
@@ -526,6 +543,7 @@ namespace ExpeditionPlanner
                 int goldenSlot = -1;
                 int anchorSlot = -1;
                 string anchor = string.Empty;
+                string goldenRune = string.Empty;
                 string choice = string.Empty;
                 string desc = string.Empty;
                 float score = 40f;
@@ -534,12 +552,12 @@ namespace ExpeditionPlanner
                 bool needsReroll = false;
                 string rerollReason = string.Empty;
 
-                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out anchorSlot, out anchor, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason))
+                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out anchorSlot, out anchor, out goldenRune, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason))
                 {
                     var goldenText = goldenSlot >= 0 ? $"Golden Slot #{goldenSlot + 1}/{holes}" : $"{holes}x";
                     displayName = isAnchorInGoldenSlot
                         ? $"Remnant [{goldenText} {anchor}]"
-                        : $"Remnant [{goldenText} Blue | {anchor} @ #{anchorSlot + 1}]";
+                        : $"Remnant [{goldenText} {goldenRune} | {anchor} @ #{anchorSlot + 1}]";
                 }
 
                 bool isVerified = this.verifiedMonolithRecipes.TryGetValue(entity.Id, out var vRecipes) && vRecipes.Count > 0;
@@ -580,7 +598,8 @@ namespace ExpeditionPlanner
                     RecommendedRuneChoice = choice,
                     RecipeDescription = desc,
                     BaseWeight = score,
-                    ProliferatedRuneName = isAnchorInGoldenSlot ? anchor : "Blue Rune",
+                    GoldenRuneCandidate = goldenRune,
+                    ProliferatedRuneName = isAnchorInGoldenSlot ? anchor : goldenRune,
                     ProliferatedRuneTier = tier,
                     NeedsReroll = needsReroll,
                     RerollReason = rerollReason,

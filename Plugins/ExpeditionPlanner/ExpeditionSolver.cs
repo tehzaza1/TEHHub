@@ -160,12 +160,13 @@ namespace ExpeditionPlanner
                             if (target.Kind == TargetKind.RemnantPillar || target.Kind == TargetKind.VerisiumSentinel)
                             {
                                 // "Runes do not stack. If a rune is already proliferated, another duplicate rune is useless."
-                                bool isDuplicate = !string.IsNullOrEmpty(target.AnchorRuneName) &&
-                                                   target.IsAnchorInGoldenSlot &&
-                                                   accumulatedProliferatedRunes.Contains(target.AnchorRuneName);
+                                var pRune = !string.IsNullOrEmpty(target.ProliferatedRuneName) ? target.ProliferatedRuneName : target.AnchorRuneName;
+                                bool isDuplicate = !string.IsNullOrEmpty(pRune) &&
+                                                   target.CanProliferate &&
+                                                   accumulatedProliferatedRunes.Contains(pRune);
                                 target.IsDuplicateProliferation = isDuplicate;
 
-                                float proliferationMultiplier = (!target.IsAnchorInGoldenSlot || isDuplicate)
+                                float proliferationMultiplier = (!target.CanProliferate || isDuplicate)
                                     ? 1.0f
                                     : (1.0f + (1.5f * remainingBombs));
                                 float baseVal = target.BaseWeight > 0 ? target.BaseWeight : settings.WeightRemnant;
@@ -249,14 +250,15 @@ namespace ExpeditionPlanner
                     int remainingBombs = Math.Max(0, budget - bestPlacement.Step);
                     foreach (var t in bestPlacement.CoveredTargets)
                     {
-                        t.ProliferationRemaining = t.IsAnchorInGoldenSlot ? remainingBombs : 0;
+                        t.ProliferationRemaining = t.CanProliferate ? remainingBombs : 0;
                         coveredEntityIds.Add(t.EntityId);
-                        if (t.Kind == TargetKind.RemnantPillar && !string.IsNullOrEmpty(t.AnchorRuneName) && t.IsAnchorInGoldenSlot)
+                        var pRune = !string.IsNullOrEmpty(t.ProliferatedRuneName) ? t.ProliferatedRuneName : t.AnchorRuneName;
+                        if (t.Kind == TargetKind.RemnantPillar && !string.IsNullOrEmpty(pRune) && t.CanProliferate)
                         {
-                            if (!accumulatedProliferatedRunes.Contains(t.AnchorRuneName))
+                            if (!accumulatedProliferatedRunes.Contains(pRune))
                             {
-                                accumulatedProliferatedRunes.Add(t.AnchorRuneName);
-                                evaluation.ProliferatedStack.Add(t.AnchorRuneName);
+                                accumulatedProliferatedRunes.Add(pRune);
+                                evaluation.ProliferatedStack.Add(pRune);
                             }
                         }
                     }
