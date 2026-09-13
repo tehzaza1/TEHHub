@@ -232,14 +232,17 @@ namespace ExpeditionPlanner
                             _ => 0xFF00D2FF
                         };
 
+                        var slotDisplay = remnantTarget.AnchorSlotIndex >= 0
+                            ? $"Slot #{remnantTarget.AnchorSlotIndex + 1}/{remnantTarget.HoleCount}"
+                            : "Golden Slot";
                         var choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice}";
                         var subText = remnantTarget.ProliferationRemaining > 0
-                            ? $"Golden Slot [{remnantTarget.AnchorRuneName}] Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
-                            : "Final blast in chain (Local only)";
+                            ? $"Golden {slotDisplay} [{remnantTarget.AnchorRuneName}] Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
+                            : $"Golden {slotDisplay} [{remnantTarget.AnchorRuneName}] (Local only)";
 
                         if (remnantTarget.NeedsReroll)
                         {
-                            subText = "[!] REROLL RECOMMENDED (No Purple/Gold)";
+                            subText = $"[!] REROLL RECOMMENDED ({slotDisplay} is Blue/Empty)";
                         }
 
                         var cSize = ImGui.CalcTextSize(choiceText);
@@ -303,8 +306,13 @@ namespace ExpeditionPlanner
                                     _ => new Vector4(0.3f, 0.7f, 1f, 1f)
                                 };
 
-                                ImGui.TextColored(tierColor, $"Step [{p.Step}] Pillar ({remnant.HoleCount}x {remnant.AnchorRuneName}):");
-                                ImGui.BulletText($"Choose: {remnant.RecommendedRuneChoice}");
+                                var slotNum = remnant.AnchorSlotIndex >= 0 ? $"Slot #{remnant.AnchorSlotIndex + 1}/{remnant.HoleCount}" : $"{remnant.HoleCount} Slots";
+                                ImGui.TextColored(tierColor, $"Step [{p.Step}] Pillar ({slotNum} - Golden: {remnant.AnchorRuneName}):");
+                                ImGui.BulletText($"Recipe: {remnant.RecommendedRuneChoice}");
+                                if (remnant.AnchorSlotIndex >= 0)
+                                {
+                                    ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"   [★] Golden Slot: ช่องที่ {remnant.AnchorSlotIndex + 1} (จาก {remnant.HoleCount} ช่อง)");
+                                }
                                 if (remnant.NeedsReroll)
                                 {
                                     ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), $"   -> [REROLL]: {remnant.RerollReason}");
@@ -453,6 +461,7 @@ namespace ExpeditionPlanner
                 displayName = "Remnant";
 
                 int holes = 0;
+                int anchorSlot = -1;
                 string anchor = string.Empty;
                 string choice = string.Empty;
                 string desc = string.Empty;
@@ -461,9 +470,10 @@ namespace ExpeditionPlanner
                 bool needsReroll = false;
                 string rerollReason = string.Empty;
 
-                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out anchor, out choice, out desc, out score, out tier, out needsReroll, out rerollReason))
+                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out anchorSlot, out anchor, out choice, out desc, out score, out tier, out needsReroll, out rerollReason))
                 {
-                    displayName = $"Remnant [{holes}x {anchor}]";
+                    var slotText = anchorSlot >= 0 ? $"Slot #{anchorSlot + 1}/{holes}" : $"{holes}x";
+                    displayName = $"Remnant [{slotText} {anchor}]";
                 }
 
                 var remnantMods = new List<string>();
@@ -487,6 +497,7 @@ namespace ExpeditionPlanner
                     TerrainHeight = render.TerrainHeight,
                     ModNames = remnantMods,
                     HoleCount = holes,
+                    AnchorSlotIndex = anchorSlot,
                     AnchorRuneName = anchor,
                     RecommendedRuneChoice = choice,
                     RecipeDescription = desc,

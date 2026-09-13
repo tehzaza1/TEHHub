@@ -50,6 +50,7 @@ namespace ExpeditionPlanner
 
         // Remnant Pillar / Monolith specific details
         public int HoleCount { get; set; }
+        public int AnchorSlotIndex { get; set; } = -1;
         public string AnchorRuneName { get; set; } = string.Empty;
         public string RecommendedRuneChoice { get; set; } = string.Empty;
         public string RecipeDescription { get; set; } = string.Empty;

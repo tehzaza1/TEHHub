@@ -121,6 +121,7 @@ namespace ExpeditionPlanner
             Entity entity,
             int areaLevel,
             out int holeCount,
+            out int anchorSlotIndex,
             out string anchorName,
             out string recommendedChoice,
             out string description,
@@ -130,6 +131,7 @@ namespace ExpeditionPlanner
             out string rerollReason)
         {
             holeCount = 0;
+            anchorSlotIndex = -1;
             anchorName = string.Empty;
             recommendedChoice = string.Empty;
             description = string.Empty;
@@ -174,6 +176,7 @@ namespace ExpeditionPlanner
             if (holeCount is <= 0 or > 16) return false;
 
             var anchorPos = reader.ReadMemory<int>(station + StationAnchorPosOffset);
+            anchorSlotIndex = anchorPos;
             var rowPtr = reader.ReadMemory<IntPtr>(station + StationAnchorRefOffset);
             bool isUnique = rowPtr == IntPtr.Zero;
             int anchorIdx = -1;
