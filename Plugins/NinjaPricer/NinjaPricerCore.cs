@@ -152,8 +152,9 @@ namespace NinjaPricer
             public float Chaos;
             public string IconPath;
         }
-        private readonly List<SlotTag> cachedInvSlots = new();
-        private readonly List<SlotTag> cachedStashSlots = new();
+        private List<SlotTag> cachedInvSlots = new();
+        private List<SlotTag> cachedStashSlots = new();
+        private volatile bool isInvScanRunning = false;
 
         // Performance diagnostics
         private double perfScanCallMs = 0.0;
@@ -1144,7 +1145,7 @@ namespace NinjaPricer
             DrawRow("LookupPrice/frame:", this.perfLookupMs, this.perfPeakLookupMs);
 
             ImGui.Spacing();
-            ImGui.Text($"  LookupPrice this frame: {this.perfLookupExact} found, {this.perfLookupMiss} miss");
+            ImGui.Text($"  LookupPrice (latest scan): {this.perfLookupExact} found, {this.perfLookupMiss} miss");
             ImGui.Text($"  Cached: ground={this.cachedGroundTags.Count} inv={this.cachedInvSlots.Count} stash={this.cachedStashSlots.Count}");
 
             if (ImGui.Button("Reset peaks"))
@@ -1214,11 +1215,6 @@ namespace NinjaPricer
             var st = this.priceService?.GetStatus();
             if (st == null || !st.Value.Loaded) return;
 
-            // Reset per-frame counters
-            this.perfLookupMs = 0.0;
-            this.perfLookupExact = 0;
-            this.perfLookupMiss = 0;
-
             // Runeshape In-Game Combinations Panel Pricing
             if (this.Settings.ShowRuneshapePrices && !inTownOrHideout)
             {
@@ -1245,15 +1241,40 @@ namespace NinjaPricer
                 if (this.perfGroundMs > this.perfPeakGroundMs) this.perfPeakGroundMs = this.perfGroundMs;
             }
 
-            // Inventory / Stash overlay
+            // Inventory / Stash overlay (decoupled background scan, non-blocking render)
             if (this.Settings.ShowInventoryPrices || this.Settings.ShowOtherInventoryPrices || this.Settings.ShowRitualPrices)
             {
-                var swI = Stopwatch.StartNew();
-                if ((DateTime.UtcNow - this.lastInvScanUtc).TotalMilliseconds >= this.Settings.ScanIntervalMs)
+                var gameUi = Core.States.InGameStateObject?.GameUi;
+                if (gameUi != null)
                 {
-                    this.lastInvScanUtc = DateTime.UtcNow;
-                    this.ScanItemSlots();
+                    var scanLeft = this.Settings.ShowOtherInventoryPrices && gameUi.LeftPanel.IsVisible;
+                    var leftAddr = scanLeft ? gameUi.LeftPanel.Address : IntPtr.Zero;
+                    var scanRight = this.Settings.ShowInventoryPrices && gameUi.RightPanel.IsVisible;
+                    var rightAddr = scanRight ? gameUi.RightPanel.Address : IntPtr.Zero;
+
+                    var now = DateTime.UtcNow;
+                    if ((now - this.lastInvScanUtc).TotalMilliseconds >= this.Settings.ScanIntervalMs && !this.isInvScanRunning)
+                    {
+                        this.lastInvScanUtc = now;
+                        this.isInvScanRunning = true;
+                        _ = Task.Run(() =>
+                        {
+                            try
+                            {
+                                this.ScanItemSlots(leftAddr, rightAddr);
+                            }
+                            catch
+                            {
+                            }
+                            finally
+                            {
+                                this.isInvScanRunning = false;
+                            }
+                        });
+                    }
                 }
+
+                var swI = Stopwatch.StartNew();
                 this.DrawSlotOverlays();
                 swI.Stop();
                 this.perfDrawInvMs = swI.Elapsed.TotalMilliseconds;
@@ -1361,33 +1382,69 @@ namespace NinjaPricer
             }
         }
 
-        private void ScanItemSlots()
+        private void ScanItemSlots(IntPtr leftAddress, IntPtr rightAddress)
         {
-            var gameUi = Core.States.InGameStateObject?.GameUi;
-            if (gameUi == null || this.priceService == null) return;
+            var service = this.priceService;
+            if (service == null) return;
 
             var newInv = new List<SlotTag>();
             var newStash = new List<SlotTag>();
+            double totalScanMs = 0;
+            double totalGetMs = 0;
+            int totalFound = 0;
+            int totalMiss = 0;
+            double totalLookupMs = 0;
 
-            if (this.Settings.ShowInventoryPrices && gameUi.RightPanel.IsVisible)
+            if (rightAddress != IntPtr.Zero)
             {
-                this.ScanPanelSlots(gameUi.RightPanel.Address, newInv);
+                this.ScanPanelSlots(rightAddress, newInv, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
+                totalScanMs += sMs;
+                totalGetMs += gMs;
+                totalFound += fCount;
+                totalMiss += mCount;
+                totalLookupMs += lMs;
             }
 
-            if (this.Settings.ShowOtherInventoryPrices && gameUi.LeftPanel.IsVisible)
+            if (leftAddress != IntPtr.Zero)
             {
-                this.ScanPanelSlots(gameUi.LeftPanel.Address, newStash);
+                this.ScanPanelSlots(leftAddress, newStash, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
+                totalScanMs += sMs;
+                totalGetMs += gMs;
+                totalFound += fCount;
+                totalMiss += mCount;
+                totalLookupMs += lMs;
             }
 
-            this.cachedInvSlots.Clear();
-            this.cachedInvSlots.AddRange(newInv);
+            this.perfScanCallMs = totalScanMs;
+            if (this.perfScanCallMs > this.perfPeakScanCallMs) this.perfPeakScanCallMs = this.perfScanCallMs;
 
-            this.cachedStashSlots.Clear();
-            this.cachedStashSlots.AddRange(newStash);
+            this.perfGetAllMs = totalGetMs;
+            if (this.perfGetAllMs > this.perfPeakGetAllMs) this.perfPeakGetAllMs = this.perfGetAllMs;
+
+            this.perfLookupExact = totalFound;
+            this.perfLookupMiss = totalMiss;
+            this.perfLookupMs = totalLookupMs;
+            if (this.perfLookupMs > this.perfPeakLookupMs) this.perfPeakLookupMs = this.perfLookupMs;
+
+            this.cachedInvSlots = newInv;
+            this.cachedStashSlots = newStash;
         }
 
-        private void ScanPanelSlots(IntPtr panelAddress, List<SlotTag> output)
+        private void ScanPanelSlots(
+            IntPtr panelAddress,
+            List<SlotTag> output,
+            out double scanUiMs,
+            out double getSlotsMs,
+            out int exactFound,
+            out int missFound,
+            out double lookupMs)
         {
+            scanUiMs = 0;
+            getSlotsMs = 0;
+            exactFound = 0;
+            missFound = 0;
+            lookupMs = 0;
+
             var handle = Core.Process?.Handle;
             var service = this.priceService;
             if (panelAddress == IntPtr.Zero || handle == null || service == null) return;
@@ -1395,6 +1452,7 @@ namespace NinjaPricer
             if (!PluginUiElementReflection.TryGetAbsoluteRect(panelAddress, out var panelPos, out var panelSize)) return;
             var panelMax = panelPos + panelSize;
 
+            var swScan = Stopwatch.StartNew();
             var queue = new Queue<(IntPtr Elem, IntPtr Parent, ScrollBinding Scroll)>();
             var visited = new HashSet<IntPtr>();
             queue.Enqueue((panelAddress, IntPtr.Zero, default));
@@ -1437,7 +1495,10 @@ namespace NinjaPricer
                 }
                 list.Add(new SlotCandidate(elem, parent, scroll));
             }
+            swScan.Stop();
+            scanUiMs = swScan.Elapsed.TotalMilliseconds;
 
+            var swGet = Stopwatch.StartNew();
             foreach (var (itemAddr, candidates) in candidatesByItem)
             {
                 var hasVisibleRect = false;
@@ -1471,8 +1532,14 @@ namespace NinjaPricer
                 if (string.IsNullOrWhiteSpace(itemName)) continue;
 
                 var clean = NinjaPriceService.CleanItemName(itemName);
-                if (service.TryLookupPrice(clean, out var price))
+                var swL = Stopwatch.StartNew();
+                bool found = service.TryLookupPrice(clean, out var price);
+                swL.Stop();
+                lookupMs += swL.Elapsed.TotalMilliseconds;
+
+                if (found)
                 {
+                    exactFound++;
                     float chaos = price.Chaos * stackCount;
                     if (chaos < this.Settings.MinPriceChaos) continue;
 
@@ -1492,7 +1559,13 @@ namespace NinjaPricer
                         IconPath = price.ItemIcon
                     });
                 }
+                else
+                {
+                    missFound++;
+                }
             }
+            swGet.Stop();
+            getSlotsMs = swGet.Elapsed.TotalMilliseconds;
         }
 
         private void DrawSlotOverlays()
