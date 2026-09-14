@@ -6,6 +6,7 @@ namespace NinjaPricer
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
+    using System.Linq;
     using System.Numerics;
     using System.Runtime.InteropServices;
     using System.Text.Json;
@@ -25,6 +26,23 @@ namespace NinjaPricer
     {
         private const int UiElementItemAddressOffset = 0x3A0;
         private const float IconHeightMul = 1.4f;
+
+        private class RsRecipe
+        {
+            public int Row { get; set; }
+            public string Id { get; set; } = string.Empty;
+            public int Size { get; set; }
+            public List<string> Runes { get; set; } = new();
+            public string? Reward { get; set; }
+            public int RewardCount { get; set; }
+            public string Description { get; set; } = string.Empty;
+            public int Category { get; set; }
+            public int MinLevel { get; set; }
+            public int MaxLevel { get; set; }
+        }
+
+        private readonly List<RsRecipe> runeshapeRecipes = new();
+        private string rsSearchFilter = string.Empty;
 
         private NinjaPriceService? priceService;
         private ActiveCoroutine? onAreaChangeCoroutine;
@@ -117,7 +135,67 @@ namespace NinjaPricer
             this.priceService.TriggerRefresh(this.Settings.League, this.Settings.PriceSource, this.Settings.EnabledCategories);
             this.lastAutoRefreshUtc = DateTime.UtcNow;
 
+            this.LoadRuneshapeRecipes();
+
             this.onAreaChangeCoroutine = CoroutineHandler.Start(this.OnAreaChange());
+        }
+
+        private void LoadRuneshapeRecipes()
+        {
+            this.runeshapeRecipes.Clear();
+            string[] paths =
+            {
+                Path.Combine(this.DllDirectory, "expedition2_recipes.json"),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "NinjaPricer", "expedition2_recipes.json"),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "ExpeditionPlanner", "expedition2_recipes.json"),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "LootValue", "expedition2_recipes.json"),
+                Path.Combine(AppContext.BaseDirectory, "resources", "runeshape", "expedition2_recipes.json"),
+            };
+
+            foreach (var p in paths)
+            {
+                if (File.Exists(p))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(p);
+                        using var doc = JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("recipes", out var recipesElem) && recipesElem.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in recipesElem.EnumerateArray())
+                            {
+                                var r = new RsRecipe();
+                                if (item.TryGetProperty("id", out var idProp)) r.Id = idProp.GetString() ?? string.Empty;
+                                if (item.TryGetProperty("size", out var sProp)) r.Size = sProp.GetInt32();
+                                if (item.TryGetProperty("description", out var dProp)) r.Description = dProp.GetString() ?? string.Empty;
+                                if (item.TryGetProperty("reward", out var rwProp) && rwProp.ValueKind == JsonValueKind.String) r.Reward = rwProp.GetString();
+                                if (item.TryGetProperty("rewardCount", out var rcProp)) r.RewardCount = rcProp.GetInt32();
+                                if (item.TryGetProperty("category", out var cProp)) r.Category = cProp.GetInt32();
+                                if (item.TryGetProperty("minLevel", out var mlProp)) r.MinLevel = mlProp.GetInt32();
+                                if (item.TryGetProperty("maxLevel", out var xlProp)) r.MaxLevel = xlProp.GetInt32();
+                                if (item.TryGetProperty("runes", out var runesElem) && runesElem.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var rune in runesElem.EnumerateArray())
+                                    {
+                                        var rName = rune.GetString();
+                                        if (!string.IsNullOrEmpty(rName)) r.Runes.Add(rName);
+                                    }
+                                }
+                                this.runeshapeRecipes.Add(r);
+                            }
+                        }
+                        if (this.runeshapeRecipes.Count > 0)
+                        {
+                            PluginLog.Info("NinjaPricer", $"[NinjaPricer] Loaded {this.runeshapeRecipes.Count} Runeshape recipes from '{p}'");
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error("NinjaPricer", $"[NinjaPricer] Failed reading recipes from '{p}': {ex.Message}");
+                    }
+                }
+            }
         }
 
         public override void OnDisable()
@@ -649,6 +727,20 @@ namespace NinjaPricer
             bool showRsWin = this.Settings.ShowRuneshapeWindow;
             if (ImGui.Checkbox("Runeshape window", ref showRsWin)) { this.Settings.ShowRuneshapeWindow = showRsWin; this.SaveSettings(); }
             ImGui.SameLine();
+            if (ImGui.Button(this.Settings.ShowRuneshapeWindow ? "Close Window" : "Open Window"))
+            {
+                this.Settings.ShowRuneshapeWindow = !this.Settings.ShowRuneshapeWindow;
+                this.SaveSettings();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Reset Pos"))
+            {
+                this.Settings.RuneshapeWinX = 100f;
+                this.Settings.RuneshapeWinY = 100f;
+                this.Settings.ShowRuneshapeWindow = true;
+                this.SaveSettings();
+            }
+            ImGui.SameLine();
             ImGui.TextDisabled("(movable overlay listing each Runeshape with prices)");
 
             // Advanced settings for Runeshape window
@@ -821,8 +913,6 @@ namespace NinjaPricer
 
         public override void DrawUI()
         {
-            if (this.Settings.HideWhenUnfocused && !IsGameWindowFocused()) return;
-            if (this.Settings.HideHotkey != 0 && (GetAsyncKeyState(this.Settings.HideHotkey) & 0x8000) != 0) return;
             if (Core.States.GameCurrentState != GameStateTypes.InGameState) return;
 
             var inGame = Core.States.InGameStateObject;
@@ -839,6 +929,16 @@ namespace NinjaPricer
                 }
                 this.runeshapeWinHotkeyWasDown = down;
             }
+
+            // Runeshape Window (always available in hideout, towns, and maps)
+            if (this.Settings.ShowRuneshapeWindow)
+            {
+                this.DrawRuneshapeWindow();
+            }
+
+            // In-world overlays gate (ground & inventory)
+            if (this.Settings.HideWhenUnfocused && !IsGameWindowFocused()) return;
+            if (this.Settings.HideHotkey != 0 && (GetAsyncKeyState(this.Settings.HideHotkey) & 0x8000) != 0) return;
 
             // Auto refresh trigger
             if ((DateTime.UtcNow - this.lastAutoRefreshUtc).TotalMinutes >= Math.Max(5, this.Settings.AutoRefreshMinutes))
@@ -883,15 +983,6 @@ namespace NinjaPricer
                 swI.Stop();
                 this.perfDrawInvMs = swI.Elapsed.TotalMilliseconds;
                 if (this.perfDrawInvMs > this.perfPeakDrawInvMs) this.perfPeakDrawInvMs = this.perfDrawInvMs;
-            }
-
-            // Runeshape Window
-            var areaDetails = inGame.CurrentWorldInstance?.AreaDetails;
-            bool inTownOrHideout = areaDetails?.IsTown == true || areaDetails?.IsHideout == true;
-
-            if (this.Settings.ShowRuneshapeWindow && !inTownOrHideout)
-            {
-                this.DrawRuneshapeWindow();
             }
         }
 
@@ -1165,12 +1256,26 @@ namespace NinjaPricer
                 }
             }
 
-            ImGui.SetNextWindowPos(new Vector2(this.Settings.RuneshapeWinX, this.Settings.RuneshapeWinY), ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowBgAlpha(this.Settings.RuneshapeWinAlpha);
+            if (this.Settings.RuneshapeWinX < 0f || this.Settings.RuneshapeWinX > 3800f) this.Settings.RuneshapeWinX = 100f;
+            if (this.Settings.RuneshapeWinY < 0f || this.Settings.RuneshapeWinY > 2100f) this.Settings.RuneshapeWinY = 100f;
+            var winAlpha = Math.Clamp(this.Settings.RuneshapeWinAlpha, 0.2f, 1.0f);
 
-            var flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoFocusOnAppearing;
-            if (ImGui.Begin("Runeshapes###NinjaRuneshapeWindow", flags))
+            ImGui.SetNextWindowPos(new Vector2(this.Settings.RuneshapeWinX, this.Settings.RuneshapeWinY), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSize(new Vector2(500, 550), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowBgAlpha(winAlpha);
+
+            bool keepOpen = this.Settings.ShowRuneshapeWindow;
+            var flags = ImGuiWindowFlags.NoFocusOnAppearing;
+            if (ImGui.Begin("Runeshapes###NinjaRuneshapeWindow", ref keepOpen, flags))
             {
+                if (!keepOpen)
+                {
+                    this.Settings.ShowRuneshapeWindow = false;
+                    this.SaveSettings();
+                    ImGui.End();
+                    return;
+                }
+
                 var curPos = ImGui.GetWindowPos();
                 if (curPos.X != this.Settings.RuneshapeWinX || curPos.Y != this.Settings.RuneshapeWinY)
                 {
@@ -1183,21 +1288,46 @@ namespace NinjaPricer
                 this.runeshapeWinRectValid = true;
 
                 ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), "Runeshape Combinations");
-                ImGui.Separator();
-
-                // Summary status
+                ImGui.SameLine();
                 var st = this.priceService?.GetStatus();
                 if (st?.Loaded == true)
                 {
-                    ImGui.TextDisabled($"Rates: 1D = {st.Value.DivineInChaos:F0}c | 1E = {st.Value.ExaltedInChaos:F0}c");
+                    ImGui.TextDisabled($"(Rates: 1D = {st.Value.DivineInChaos:F1}c | 1E = {st.Value.ExaltedInChaos:F2}c)");
+                }
+                else
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), $"({st?.Message ?? "Loading..."})");
+                }
+
+                ImGui.Separator();
+
+                // Search Filter
+                ImGui.SetNextItemWidth(320f);
+                ImGui.InputTextWithHint("##rsSearch", "Search reward or rune...", ref this.rsSearchFilter, 64);
+                if (!string.IsNullOrEmpty(this.rsSearchFilter))
+                {
+                    ImGui.SameLine();
+                    if (ImGui.Button("Clear"))
+                    {
+                        this.rsSearchFilter = string.Empty;
+                    }
                 }
 
                 ImGui.Spacing();
-                ImGui.TextUnformatted("Station Recipes:");
 
-                // Render categorized recipe list
-                string[] colors = { "Red", "Blue", "Green", "Yellow", "Purple" };
+                if (this.runeshapeRecipes.Count == 0)
+                {
+                    this.LoadRuneshapeRecipes();
+                    if (this.runeshapeRecipes.Count == 0)
+                    {
+                        ImGui.TextDisabled("No recipes loaded. Make sure expedition2_recipes.json exists.");
+                    }
+                }
+
+                string[] colors = { "Red (Physical)", "Blue (Arcane/Cold)", "Green (Chaos/Poison)", "Yellow (Fire/Currency)", "Purple (Celestial/Rare)" };
                 uint[] colorValues = { 0xFF3333E5, 0xFFE56633, 0xFF33E533, 0xFF33D5E5, 0xFFD533D5 };
+
+                var filter = this.rsSearchFilter.Trim();
 
                 for (int i = 0; i < colors.Length; i++)
                 {
@@ -1213,10 +1343,61 @@ namespace NinjaPricer
                         ImGui.SameLine();
                     }
 
-                    if (ImGui.TreeNode($"{colors[i]} Monolith##{colors[i]}"))
+                    var catRecipes = this.runeshapeRecipes.Where(r => r.Category == i);
+                    if (!string.IsNullOrEmpty(filter))
+                    {
+                        catRecipes = catRecipes.Where(r =>
+                            r.Description.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                            (r.Reward != null && r.Reward.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
+                            r.Runes.Any(rn => rn.Contains(filter, StringComparison.OrdinalIgnoreCase)));
+                    }
+
+                    var list = catRecipes.ToList();
+                    string headerTitle = $"{colors[i]} ({list.Count})##cat{i}";
+
+                    bool treeOpen = ImGui.TreeNode(headerTitle);
+                    if (treeOpen)
                     {
                         if (collapsed) this.Settings.RuneshapeCollapsed.Remove(colorKey);
-                        ImGui.TextDisabled("  (Recipes auto-resolve upon monolith interaction)");
+
+                        if (list.Count == 0)
+                        {
+                            ImGui.TextDisabled("  No matching recipes");
+                        }
+                        else
+                        {
+                            foreach (var rec in list)
+                            {
+                                string rewardName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+                                string priceStr = string.Empty;
+
+                                if (this.priceService != null && this.priceService.TryLookupPrice(rewardName, out var pr))
+                                {
+                                    float priceChaos = pr.Chaos * Math.Max(1, rec.RewardCount);
+                                    priceStr = this.Settings.DisplayCurrency switch
+                                    {
+                                        DisplayCurrency.Divine => $"{pr.Divine * Math.Max(1, rec.RewardCount):F2} D",
+                                        DisplayCurrency.Exalted => $"{pr.Exalt * Math.Max(1, rec.RewardCount):F1} E",
+                                        _ => $"{priceChaos:F0} c"
+                                    };
+                                }
+
+                                string runesList = string.Join(" + ", rec.Runes);
+
+                                ImGui.Bullet();
+                                ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.9f, 1.0f), $"{rec.Description}");
+                                if (!string.IsNullOrEmpty(priceStr))
+                                {
+                                    ImGui.SameLine();
+                                    ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), $"[{priceStr}]");
+                                }
+
+                                ImGui.Indent(18f);
+                                ImGui.TextDisabled($"Slots: {rec.Size} | Runes: {runesList}");
+                                ImGui.Unindent(18f);
+                            }
+                        }
+
                         ImGui.TreePop();
                     }
                     else

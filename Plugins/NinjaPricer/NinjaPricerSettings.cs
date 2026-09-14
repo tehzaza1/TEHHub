@@ -36,8 +36,8 @@ namespace NinjaPricer
     public class NinjaPricerSettings : IPSettings
     {
         // Data Source
-        public string League { get; set; } = "Standard";
-        public int PriceSource { get; set; } = 0; // 0 = poe2scout, 1 = poe.ninja
+        public string League { get; set; } = "Forbidden Rites";
+        public int PriceSource { get; set; } = 1; // 0 = poe2scout, 1 = poe.ninja
         public int AutoRefreshMinutes { get; set; } = 30;
 
         // Display
@@ -55,7 +55,7 @@ namespace NinjaPricer
         public bool ShowRuneshapePrices { get; set; } = true;
         public bool ShowRuneshapeWeights { get; set; } = true;
         public bool ShowItemIcons { get; set; } = true;
-        public bool HideWhenUnfocused { get; set; } = true;
+        public bool HideWhenUnfocused { get; set; } = false;
         public int HideHotkey { get; set; } = 0;
         public float MinPriceChaos { get; set; } = 0.0f;
         public int ScanIntervalMs { get; set; } = 100;
@@ -66,7 +66,7 @@ namespace NinjaPricer
         public float RuneshapeWinY { get; set; } = 100.0f;
         public float RuneshapeWinAlpha { get; set; } = 0.85f;
         public bool RuneshapeWinCollapsed { get; set; } = false;
-        public int RuneshapeWinHotkey { get; set; } = 0;
+        public int RuneshapeWinHotkey { get; set; } = 0x76; // F7
         public bool RuneshapeWinHideOnHover { get; set; } = false;
         public PriceDisplayStyle RuneshapeWinPriceStyle { get; set; } = PriceDisplayStyle.Image;
         public bool RsShowHdrColor { get; set; } = true;

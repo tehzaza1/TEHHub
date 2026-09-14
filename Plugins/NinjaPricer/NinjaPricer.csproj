@@ -22,6 +22,7 @@
     <ItemGroup>
       <_NinjaPricerDeployFiles Include="$(OutDir)$(TargetName)$(TargetExt)" />
       <_NinjaPricerDeployFiles Include="$(OutDir)$(TargetName).pdb" Condition="Exists('$(OutDir)$(TargetName).pdb')" />
+      <_NinjaPricerDeployFiles Include="$(MSBuildProjectDirectory)\expedition2_recipes.json" Condition="Exists('$(MSBuildProjectDirectory)\expedition2_recipes.json')" />
     </ItemGroup>
     <Copy SourceFiles="@(_NinjaPricerDeployFiles)"
           DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)"

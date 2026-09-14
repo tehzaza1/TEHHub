@@ -9,6 +9,7 @@ namespace NinjaPricer
     using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
+    using TEHhub.Plugin;
 
     public record struct PriceResult(float Chaos, float Divine, float Exalt, string ItemIcon = "");
 
@@ -33,9 +34,8 @@ namespace NinjaPricer
 
         private readonly string cacheFilePath;
         private readonly ConcurrentDictionary<string, PriceResult> priceDb = new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, string> iconDb = new(StringComparer.OrdinalIgnoreCase);
 
-        private float divineInChaos = 1.0f;
+        private float divineInChaos = 9.43f;
         private float exaltedInChaos = 1.0f;
         private int catsOk = 0;
         private int catsPending = 0;
@@ -82,7 +82,6 @@ namespace NinjaPricer
                 return true;
             }
 
-            // Fallback: check exact name without clean
             if (this.priceDb.TryGetValue(name.Trim(), out result))
             {
                 return true;
@@ -96,7 +95,6 @@ namespace NinjaPricer
         {
             if (string.IsNullOrEmpty(name)) return string.Empty;
 
-            // Remove stack prefix (e.g. "2x Divine Orb" -> "Divine Orb")
             var trimmed = name.Trim();
             int xIdx = trimmed.IndexOf('x');
             if (xIdx > 0 && xIdx < 4 && char.IsDigit(trimmed[0]))
@@ -117,22 +115,17 @@ namespace NinjaPricer
             {
                 try
                 {
-                    this.statusMessage = "Fetching prices...";
+                    this.statusMessage = "Fetching PoE2 prices...";
                     this.catsOk = 0;
                     this.catsPending = 0;
                     this.catsFailed = 0;
 
-                    if (source == 0) // poe2scout
-                    {
-                        await this.FetchPoe2ScoutAsync(league, enabledCategories, token);
-                    }
-                    else // poe.ninja
-                    {
-                        await this.FetchPoeNinjaAsync(league, enabledCategories, token);
-                    }
+                    // Always fetch from poe.ninja (reliable official PoE2 endpoints)
+                    await this.FetchPoeNinjaAsync(league, enabledCategories, token).ConfigureAwait(false);
 
                     this.isLoaded = this.priceDb.Count > 0;
-                    this.statusMessage = $"Loaded {this.priceDb.Count} items";
+                    this.statusMessage = $"Loaded {this.priceDb.Count} items (1D={this.divineInChaos:F1}c, 1E={this.exaltedInChaos:F2}c)";
+                    PluginLog.Info("NinjaPricer", $"[NinjaPricer] Successfully loaded {this.priceDb.Count} PoE2 prices for league '{league}'");
                     this.SaveCache(league, source);
                 }
                 catch (OperationCanceledException)
@@ -142,125 +135,9 @@ namespace NinjaPricer
                 catch (Exception ex)
                 {
                     this.statusMessage = $"Fetch error: {ex.Message}";
+                    PluginLog.Error("NinjaPricer", $"[NinjaPricer] Price fetch failed: {ex}");
                 }
             }, token);
-        }
-
-        private async Task FetchPoe2ScoutAsync(string league, Dictionary<string, bool>? enabledCategories, CancellationToken token)
-        {
-            string[] categories =
-            {
-                "currency", "ritual", "runes", "idol", "essences", "fragments", "abyss", "breach",
-                "delirium", "expedition", "incursion", "ultimatum", "vaal", "vaultkeys", "verisium",
-                "uncutgems", "lineagesupportgems", "weapon", "armour", "accessory", "flask", "jewel", "map", "sanctum"
-            };
-
-            foreach (var cat in categories)
-            {
-                if (token.IsCancellationRequested) return;
-                if (enabledCategories != null && enabledCategories.TryGetValue(cat, out var enabled) && !enabled)
-                {
-                    continue;
-                }
-
-                this.catsPending++;
-                try
-                {
-                    var url = $"https://poe2scout.com/api/items?league={Uri.EscapeDataString(league)}&category={cat}";
-                    using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                    req.Headers.TryAddWithoutValidation("User-Agent", "TEHhub-NinjaPricer/1.0");
-
-                    using var res = await Http.SendAsync(req, token);
-                    if (res.IsSuccessStatusCode)
-                    {
-                        var json = await res.Content.ReadAsStringAsync(token);
-                        using var doc = JsonDocument.Parse(json);
-                        var root = doc.RootElement;
-
-                        JsonElement itemsElem;
-                        if (root.ValueKind == JsonValueKind.Array)
-                        {
-                            itemsElem = root;
-                        }
-                        else if (root.TryGetProperty("items", out var prop))
-                        {
-                            itemsElem = prop;
-                        }
-                        else
-                        {
-                            itemsElem = root;
-                        }
-
-                        if (itemsElem.ValueKind == JsonValueKind.Array)
-                        {
-                            foreach (var item in itemsElem.EnumerateArray())
-                            {
-                                if (!item.TryGetProperty("name", out var nameProp)) continue;
-                                var name = nameProp.GetString();
-                                if (string.IsNullOrEmpty(name)) continue;
-
-                                float chaos = 0f;
-                                if (item.TryGetProperty("price", out var priceProp) && priceProp.TryGetSingle(out var p))
-                                {
-                                    chaos = p;
-                                }
-                                else if (item.TryGetProperty("currentPrice", out var cp) && cp.TryGetSingle(out var cVal))
-                                {
-                                    chaos = cVal;
-                                }
-
-                                string icon = string.Empty;
-                                if (item.TryGetProperty("icon", out var iconProp))
-                                {
-                                    icon = iconProp.GetString() ?? string.Empty;
-                                }
-
-                                if (chaos > 0f)
-                                {
-                                    if (name.Equals("Divine Orb", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        this.divineInChaos = chaos;
-                                    }
-                                    else if (name.Equals("Exalted Orb", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        this.exaltedInChaos = chaos;
-                                    }
-
-                                    float divine = (this.divineInChaos > 0) ? (chaos / this.divineInChaos) : 0;
-                                    float exalt = (this.exaltedInChaos > 0) ? (chaos / this.exaltedInChaos) : 0;
-                                    this.priceDb[name] = new PriceResult(chaos, divine, exalt, icon);
-                                }
-                            }
-                        }
-
-                        this.catsOk++;
-                    }
-                    else
-                    {
-                        this.catsFailed++;
-                    }
-                }
-                catch
-                {
-                    this.catsFailed++;
-                }
-                finally
-                {
-                    this.catsPending--;
-                }
-            }
-
-            // Update all divine & exalt equivalents after rates are established
-            if (this.divineInChaos > 0 || this.exaltedInChaos > 0)
-            {
-                foreach (var kvp in this.priceDb)
-                {
-                    var pr = kvp.Value;
-                    float divine = (this.divineInChaos > 0) ? (pr.Chaos / this.divineInChaos) : 0;
-                    float exalt = (this.exaltedInChaos > 0) ? (pr.Chaos / this.exaltedInChaos) : 0;
-                    this.priceDb[kvp.Key] = new PriceResult(pr.Chaos, divine, exalt, pr.ItemIcon);
-                }
-            }
         }
 
         private async Task FetchPoeNinjaAsync(string league, Dictionary<string, bool>? enabledCategories, CancellationToken token)
@@ -277,51 +154,103 @@ namespace NinjaPricer
                 "UniqueCharms", "UniqueJewels", "UniqueTablets", "PrecursorTablets"
             };
 
+            var leagueParam = Uri.EscapeDataString(league).Replace("%20", "+");
+
+            // 1. Process exchange types (rates + exchange items)
             foreach (var type in exchangeTypes)
             {
                 if (token.IsCancellationRequested) return;
                 this.catsPending++;
                 try
                 {
-                    var url = $"https://poe.ninja/api/data/currencyoverview?league={Uri.EscapeDataString(league)}&type={type}";
+                    var url = $"https://poe.ninja/poe2/api/economy/exchange/current/overview?league={leagueParam}&type={type}";
                     using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     req.Headers.TryAddWithoutValidation("User-Agent", "TEHhub-NinjaPricer/1.0");
 
-                    using var res = await Http.SendAsync(req, token);
+                    using var res = await Http.SendAsync(req, token).ConfigureAwait(false);
                     if (res.IsSuccessStatusCode)
                     {
-                        var json = await res.Content.ReadAsStringAsync(token);
+                        var json = await res.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                         using var doc = JsonDocument.Parse(json);
-                        if (doc.RootElement.TryGetProperty("lines", out var lines) && lines.ValueKind == JsonValueKind.Array)
+                        var root = doc.RootElement;
+
+                        // Parse rates
+                        if (root.TryGetProperty("core", out var core))
                         {
-                            foreach (var line in lines.EnumerateArray())
+                            if (core.TryGetProperty("rates", out var rates))
                             {
-                                string name = string.Empty;
-                                if (line.TryGetProperty("currencyTypeName", out var n1)) name = n1.GetString() ?? string.Empty;
-                                else if (line.TryGetProperty("detailsId", out var n2)) name = n2.GetString() ?? string.Empty;
-
-                                if (string.IsNullOrEmpty(name)) continue;
-
-                                float chaos = 0f;
-                                if (line.TryGetProperty("chaosEquivalent", out var ce) && ce.TryGetSingle(out var val))
+                                if (rates.TryGetProperty("chaos", out var cProp) && cProp.TryGetSingle(out var cRate) && cRate > 0)
                                 {
-                                    chaos = val;
+                                    this.divineInChaos = cRate;
+                                }
+                                if (rates.TryGetProperty("exalted", out var exProp) && exProp.TryGetSingle(out var exRate) && exRate > 0)
+                                {
+                                    this.exaltedInChaos = this.divineInChaos / exRate;
+                                }
+                            }
+                            if (core.TryGetProperty("items", out var coreItems) && coreItems.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var ci in coreItems.EnumerateArray())
+                                {
+                                    if (ci.TryGetProperty("name", out var n) && ci.TryGetProperty("image", out var img))
+                                    {
+                                        var cName = n.GetString() ?? string.Empty;
+                                        var cImg = img.GetString() ?? string.Empty;
+                                        if (!string.IsNullOrEmpty(cName))
+                                        {
+                                            if (cName.Equals("Divine Orb", StringComparison.OrdinalIgnoreCase))
+                                                this.priceDb[cName] = new PriceResult(this.divineInChaos, 1.0f, this.divineInChaos / (this.exaltedInChaos > 0 ? this.exaltedInChaos : 1.0f), cImg);
+                                            else if (cName.Equals("Exalted Orb", StringComparison.OrdinalIgnoreCase))
+                                                this.priceDb[cName] = new PriceResult(this.exaltedInChaos, this.exaltedInChaos / (this.divineInChaos > 0 ? this.divineInChaos : 1.0f), 1.0f, cImg);
+                                            else if (cName.Equals("Chaos Orb", StringComparison.OrdinalIgnoreCase))
+                                                this.priceDb[cName] = new PriceResult(1.0f, 1.0f / (this.divineInChaos > 0 ? this.divineInChaos : 1.0f), 1.0f / (this.exaltedInChaos > 0 ? this.exaltedInChaos : 1.0f), cImg);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Map item id -> (name, image)
+                        var itemMap = new Dictionary<string, (string Name, string Image)>(StringComparer.OrdinalIgnoreCase);
+                        if (root.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in itemsElem.EnumerateArray())
+                            {
+                                if (item.TryGetProperty("id", out var idProp) && item.TryGetProperty("name", out var nameProp))
+                                {
+                                    var id = idProp.GetString();
+                                    var name = nameProp.GetString();
+                                    string image = string.Empty;
+                                    if (item.TryGetProperty("image", out var imgProp)) image = imgProp.GetString() ?? string.Empty;
+                                    if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(name))
+                                    {
+                                        itemMap[id] = (name, image);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Map lines -> prices (primaryValue is in Divine)
+                        if (root.TryGetProperty("lines", out var linesElem) && linesElem.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var line in linesElem.EnumerateArray())
+                            {
+                                if (!line.TryGetProperty("id", out var idProp)) continue;
+                                var id = idProp.GetString();
+                                if (string.IsNullOrEmpty(id) || !itemMap.TryGetValue(id, out var info)) continue;
+
+                                float primaryVal = 0f;
+                                if (line.TryGetProperty("primaryValue", out var pvProp) && pvProp.TryGetSingle(out var pv))
+                                {
+                                    primaryVal = pv;
                                 }
 
-                                if (chaos > 0f)
+                                if (primaryVal > 0f)
                                 {
-                                    if (name.Equals("Divine Orb", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        this.divineInChaos = chaos;
-                                    }
-                                    else if (name.Equals("Exalted Orb", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        this.exaltedInChaos = chaos;
-                                    }
-
-                                    float divine = (this.divineInChaos > 0) ? (chaos / this.divineInChaos) : 0;
+                                    float divine = primaryVal;
+                                    float chaos = divine * this.divineInChaos;
                                     float exalt = (this.exaltedInChaos > 0) ? (chaos / this.exaltedInChaos) : 0;
-                                    this.priceDb[name] = new PriceResult(chaos, divine, exalt);
+                                    this.priceDb[info.Name] = new PriceResult(chaos, divine, exalt, info.Image);
                                 }
                             }
                         }
@@ -342,22 +271,24 @@ namespace NinjaPricer
                 }
             }
 
+            // 2. Process stash types (unique items)
             foreach (var type in stashTypes)
             {
                 if (token.IsCancellationRequested) return;
                 this.catsPending++;
                 try
                 {
-                    var url = $"https://poe.ninja/api/data/itemoverview?league={Uri.EscapeDataString(league)}&type={type}";
+                    var url = $"https://poe.ninja/poe2/api/economy/stash/current/item/overview?league={leagueParam}&type={type}";
                     using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     req.Headers.TryAddWithoutValidation("User-Agent", "TEHhub-NinjaPricer/1.0");
 
-                    using var res = await Http.SendAsync(req, token);
+                    using var res = await Http.SendAsync(req, token).ConfigureAwait(false);
                     if (res.IsSuccessStatusCode)
                     {
-                        var json = await res.Content.ReadAsStringAsync(token);
+                        var json = await res.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                         using var doc = JsonDocument.Parse(json);
-                        if (doc.RootElement.TryGetProperty("lines", out var lines) && lines.ValueKind == JsonValueKind.Array)
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("lines", out var lines) && lines.ValueKind == JsonValueKind.Array)
                         {
                             foreach (var line in lines.EnumerateArray())
                             {
@@ -365,18 +296,19 @@ namespace NinjaPricer
                                 var name = n.GetString();
                                 if (string.IsNullOrEmpty(name)) continue;
 
-                                float chaos = 0f;
-                                if (line.TryGetProperty("chaosValue", out var cv) && cv.TryGetSingle(out var val))
+                                float primaryVal = 0f;
+                                if (line.TryGetProperty("primaryValue", out var pv) && pv.TryGetSingle(out var val))
                                 {
-                                    chaos = val;
+                                    primaryVal = val;
                                 }
 
                                 string icon = string.Empty;
                                 if (line.TryGetProperty("icon", out var ic)) icon = ic.GetString() ?? string.Empty;
 
-                                if (chaos > 0f)
+                                if (primaryVal > 0f)
                                 {
-                                    float divine = (this.divineInChaos > 0) ? (chaos / this.divineInChaos) : 0;
+                                    float divine = primaryVal;
+                                    float chaos = divine * this.divineInChaos;
                                     float exalt = (this.exaltedInChaos > 0) ? (chaos / this.exaltedInChaos) : 0;
                                     this.priceDb[name] = new PriceResult(chaos, divine, exalt, icon);
                                 }
@@ -440,7 +372,7 @@ namespace NinjaPricer
                 var snapshot = JsonSerializer.Deserialize<PriceCacheFile>(json);
                 if (snapshot != null && snapshot.Prices != null && snapshot.Prices.Count > 0)
                 {
-                    this.divineInChaos = snapshot.DivineInChaos > 0 ? snapshot.DivineInChaos : 1.0f;
+                    this.divineInChaos = snapshot.DivineInChaos > 0 ? snapshot.DivineInChaos : 9.43f;
                     this.exaltedInChaos = snapshot.ExaltedInChaos > 0 ? snapshot.ExaltedInChaos : 1.0f;
                     foreach (var kvp in snapshot.Prices)
                     {
