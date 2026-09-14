@@ -9,11 +9,17 @@ namespace ExpeditionPlanner
     // then retain the highest-value route rather than committing a greedy next point.
     internal static class ExpeditionGlobalRoutePlanner
     {
-        public static RouteEvaluation Solve(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings)
+        public static RouteEvaluation Solve(
+            Vector3 startGrid,
+            Vector3 startWorld,
+            List<PlacedBombInfo> placed,
+            List<ExpeditionTarget> targets,
+            ExpeditionTerrainSnapshot? terrain,
+            ExpeditionPlannerSettings settings,
+            bool isRealDetonator = false)
         {
-            var candidates = BuildCandidates(targets, settings);
+            var candidates = BuildCandidates(targets, terrain, settings);
             int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
-            var finalStackPillar = FindFinalStackPillar(targets, settings);
             int remainingBudget = settings.MaxExplosiveBudget - placed.Count;
             if (remainingBudget <= 0)
             {
@@ -23,14 +29,48 @@ namespace ExpeditionPlanner
                     Reason = "All available explosives have been placed."
                 };
             }
+
             int maxCount = remainingBudget;
-            var best = SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, finalStackPillar)
+            var best = SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, isRealDetonator)
                 ?? new RouteEvaluation { Profile = settings.Profile.ToString() };
+
+            // Calculate ProliferationRemaining & ProliferatedStack
+            for (int i = 0; i < best.Placements.Count; i++)
+            {
+                var p = best.Placements[i];
+                int remainingBombs = Math.Max(0, remainingBudget - p.Step);
+                foreach (var target in p.CoveredTargets)
+                {
+                    target.ProliferationRemaining = target.CanProliferate ? remainingBombs : 0;
+                    var pRune = !string.IsNullOrEmpty(target.ProliferatedRuneName) ? target.ProliferatedRuneName : target.AnchorRuneName;
+                    if (target.Kind is TargetKind.RemnantPillar && !string.IsNullOrEmpty(pRune) && target.CanProliferate)
+                    {
+                        if (!best.ProliferatedStack.Contains(pRune))
+                        {
+                            best.ProliferatedStack.Add(pRune);
+                        }
+                    }
+                }
+            }
+
+            best.RerollRemnantCount = targets.Count(t => t.Kind == TargetKind.RemnantPillar && t.NeedsReroll);
+            if (best.RerollRemnantCount > 0)
+            {
+                best.Warnings.Add($"{best.RerollRemnantCount} Remnant(s) have low-tier runes in Golden Slot. Reroll recommended before detonating!");
+            }
+
             var coveredPillars = best.Placements.SelectMany(p => p.CoveredTargets)
                 .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
                 .Select(t => t.EntityId).Distinct().Count();
-            best.Reason = $"Bounded global route search: {coveredPillars}/{pillarCount} pillars via {best.Placements.Count} explosives ({maxCount * 32} beam paths).";
-            AppendUncoveredPillarDiagnostics(best, targets, startGrid, placed.Count, terrain, settings, finalStackPillar);
+            var coveredChests = best.Placements.SelectMany(p => p.CoveredTargets)
+                .Where(t => t.Kind == TargetKind.ChestReward)
+                .Select(t => t.EntityId).Distinct().Count();
+            var coveredMonsters = best.Placements.SelectMany(p => p.CoveredTargets)
+                .Where(t => t.Kind is TargetKind.EliteMonster or TargetKind.NormalMonster)
+                .Select(t => t.EntityId).Distinct().Count();
+
+            best.Reason = $"Global route search: {coveredPillars}/{pillarCount} Remnants, {coveredChests} Chests, {coveredMonsters} Monsters via {best.Placements.Count} explosives (Score: {best.NetScore:F0}).";
+            AppendUncoveredPillarDiagnostics(best, targets, startGrid, placed.Count, terrain, settings);
             return best;
         }
 
@@ -40,8 +80,10 @@ namespace ExpeditionPlanner
             HashSet<uint> covered,
             ExpeditionPlannerSettings settings)
         {
-            float maxStep = MathF.Max(12f, settings.MaxPlacementRangeGrid - 3f);
-            float[] stepFractions = [1.0f, 0.65f];
+            float maxStep = MathF.Max(12f, settings.MaxPlacementRangeGrid - 2f);
+            float[] stepFractions = [0.95f, 0.80f, 0.65f, 0.50f];
+            float[] sidewaysOffsets = [0f, 8f, -8f, 16f, -16f];
+
             foreach (var target in targets.Where(t => !covered.Contains(t.EntityId) &&
                          t.Kind is (TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)))
             {
@@ -50,10 +92,11 @@ namespace ExpeditionPlanner
                 if (dist < 1f) continue;
                 direction /= dist;
                 var perpendicular = new Vector2(-direction.Y, direction.X);
+
                 foreach (var frac in stepFractions)
                 {
                     float stepLength = MathF.Min(maxStep * frac, MathF.Max(12f, dist - 10f));
-                    foreach (var sideways in new[] { 0f, 10f, -10f })
+                    foreach (var sideways in sidewaysOffsets)
                     {
                         var point = new Vector2(anchor.X, anchor.Y) + (direction * stepLength) + (perpendicular * sideways);
                         yield return new Vector3(point.X, point.Y, target.GridPosition.Z);
@@ -68,21 +111,33 @@ namespace ExpeditionPlanner
             public List<Vector3> Committed { get; init; } = new();
             public List<ProposedPlacement> Placements { get; init; } = new();
             public HashSet<uint> Covered { get; init; } = new();
+            public int CoveredPillars { get; init; }
             public int Bridges { get; init; }
+            public float TotalScore { get; init; }
+            public float ProliferationMultiplier { get; init; } = 1.0f;
         }
 
         private static RouteEvaluation? SearchRouteBeam(
-            Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets,
-            List<Vector3> staticCandidates, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings,
-            int maxSteps, ExpeditionTarget? finalStackPillar)
+            Vector3 startGrid,
+            Vector3 startWorld,
+            List<PlacedBombInfo> placed,
+            List<ExpeditionTarget> targets,
+            List<Vector3> staticCandidates,
+            ExpeditionTerrainSnapshot? terrain,
+            ExpeditionPlannerSettings settings,
+            int maxSteps,
+            bool isRealDetonator)
         {
-            const int beamWidth = 32;
+            const int beamWidth = 64;
             var pillarTargets = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
+            var allTargets = targets;
+
             var initialAnchor = placed.Count > 0 ? placed[^1].GridPosition : startGrid;
             var initialCovered = new HashSet<uint>();
+
             foreach (var bomb in placed)
             {
-                foreach (var target in pillarTargets)
+                foreach (var target in allTargets)
                 {
                     if (Vector2.Distance(new Vector2(bomb.GridPosition.X, bomb.GridPosition.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y)) <= settings.BlastRadiusGrid)
                     {
@@ -90,20 +145,31 @@ namespace ExpeditionPlanner
                     }
                 }
             }
+
+            int initialCoveredPillars = initialCovered.Count(id => pillarTargets.Any(p => p.EntityId == id));
+
             var beam = new List<BeamState>
             {
                 new()
                 {
                     Anchor = initialAnchor,
                     Committed = placed.Select(p => p.GridPosition).ToList(),
-                    Covered = initialCovered
+                    Covered = initialCovered,
+                    CoveredPillars = initialCoveredPillars,
+                    TotalScore = 0f,
+                    ProliferationMultiplier = 1.0f
                 }
             };
-            var terminals = new List<BeamState>();
+
             BeamState? bestPrefix = beam[0];
+            float maxRangeSq = settings.MaxPlacementRangeGrid * settings.MaxPlacementRangeGrid;
+            float minRangeSq = 12f * 12f;
+
             for (int depth = 1; depth <= maxSteps && beam.Count > 0; depth++)
             {
                 var next = new List<BeamState>();
+                int remainingSteps = maxSteps - depth;
+
                 foreach (var state in beam)
                 {
                     bool hasSuccessor = false;
@@ -113,27 +179,58 @@ namespace ExpeditionPlanner
 
                     foreach (var point in candidatePoints)
                     {
-                        if (!LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, startGrid, state.Committed)) continue;
-                        var hit = pillarTargets.Where(t => !state.Covered.Contains(t.EntityId) &&
-                            Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
-                        bool hitsFinal = finalStackPillar != null && hit.Any(t => t.EntityId == finalStackPillar.EntityId);
-                        int otherUncovered = pillarTargets.Count(t => t.EntityId != finalStackPillar?.EntityId && !state.Covered.Contains(t.EntityId));
+                        float dX = point.X - state.Anchor.X;
+                        float dY = point.Y - state.Anchor.Y;
+                        float distSq = (dX * dX) + (dY * dY);
+                        if (distSq > maxRangeSq || distSq < minRangeSq) continue;
 
-                        // The final stack pillar should receive as many stacked remnant bonuses as possible.
-                        // Only allow hitting it early if all other pillars are already covered.
-                        // Otherwise, defer hitting it until the route's final explosive.
-                        if (hitsFinal && depth < maxSteps && otherUncovered > 0) continue;
+                        if (!LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, isRealDetonator ? startGrid : null, state.Committed)) continue;
+
+                        var hit = allTargets.Where(t => !state.Covered.Contains(t.EntityId) &&
+                            Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
+
+                        float stepScore = 0f;
+                        float newProlifMult = state.ProliferationMultiplier;
+                        int hitPillars = 0;
+
+                        foreach (var target in hit)
+                        {
+                            float val = GetTargetValue(target, settings);
+                            if (target.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
+                            {
+                                hitPillars++;
+                                float prolifBonus = target.ProliferatedRuneTier switch
+                                {
+                                    RuneTier.Golden => 1.5f,
+                                    RuneTier.Purple_S => 1.2f,
+                                    RuneTier.Purple_A => 0.8f,
+                                    RuneTier.Purple_B => 0.4f,
+                                    _ => 0.15f
+                                };
+                                stepScore += val * (1.0f + (prolifBonus * remainingSteps));
+                                newProlifMult += prolifBonus * 0.35f;
+                            }
+                            else
+                            {
+                                stepScore += val * state.ProliferationMultiplier;
+                            }
+                        }
+
+                        float directDist = MathF.Sqrt(distSq);
+                        stepScore -= directDist * 0.12f;
 
                         if (hit.Count == 0)
                         {
-                            if (depth == maxSteps) continue;
-                            // A bridge point must make forward progress toward at least one uncovered target.
+                            if (depth == maxSteps) continue; // Terminal explosive should not be an empty bridge
+                            stepScore -= 60f;
+
+                            // A bridge point must make forward progress toward at least one uncovered pillar
                             bool makesProgress = false;
                             foreach (var target in pillarTargets.Where(t => !state.Covered.Contains(t.EntityId)))
                             {
                                 var before = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y));
                                 var after = Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y));
-                                if (after < before - 1f)
+                                if (after < before - 1.5f)
                                 {
                                     makesProgress = true;
                                     break;
@@ -144,36 +241,41 @@ namespace ExpeditionPlanner
 
                         var covered = new HashSet<uint>(state.Covered);
                         foreach (var target in hit) covered.Add(target.EntityId);
+
                         var placements = new List<ProposedPlacement>(state.Placements)
                         {
                             new()
                             {
-                                Step = placed.Count + depth, GridPosition = point,
+                                Step = placed.Count + depth,
+                                GridPosition = point,
                                 WorldPosition = startWorld + ((point - startGrid) * 10.87f),
-                                WireDistance = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(point.X, point.Y)),
+                                WireDistance = directDist,
                                 CoveredTargets = hit
                             }
                         };
+
                         var successor = new BeamState
                         {
                             Anchor = point,
                             Committed = state.Committed.Append(point).ToList(),
                             Placements = placements,
                             Covered = covered,
-                            Bridges = state.Bridges + (hit.Count == 0 ? 1 : 0)
+                            CoveredPillars = state.CoveredPillars + hitPillars,
+                            Bridges = state.Bridges + (hit.Count == 0 ? 1 : 0),
+                            TotalScore = state.TotalScore + stepScore,
+                            ProliferationMultiplier = newProlifMult
                         };
-                        if (hitsFinal) terminals.Add(successor); else next.Add(successor);
+
+                        next.Add(successor);
                         hasSuccessor = true;
                     }
 
-                    // A* terrain detour fallback: when normal candidates cannot extend this state,
-                    // search for walkable detour waypoints toward uncovered pillars.
+                    // A* terrain detour fallback when normal candidates cannot extend this state
                     if (!hasSuccessor && depth < maxSteps)
                     {
                         var detourTargets = pillarTargets
                             .Where(t => !state.Covered.Contains(t.EntityId))
-                            .OrderBy(t => t.EntityId == finalStackPillar?.EntityId ? 1 : 0)
-                            .ThenBy(t => Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)))
+                            .OrderBy(t => Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)))
                             .Take(3);
 
                         foreach (var detourTarget in detourTargets)
@@ -186,20 +288,25 @@ namespace ExpeditionPlanner
                                     out var waypoint))
                             {
                                 var point = new Vector3(waypoint.X, waypoint.Y, detourTarget.GridPosition.Z);
-                                if (LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, startGrid, state.Committed))
+                                if (LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, isRealDetonator ? startGrid : null, state.Committed))
                                 {
+                                    float dDist = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(point.X, point.Y));
                                     next.Add(new BeamState
                                     {
                                         Anchor = point,
                                         Committed = state.Committed.Append(point).ToList(),
                                         Placements = state.Placements.Append(new ProposedPlacement
                                         {
-                                            Step = placed.Count + depth, GridPosition = point,
+                                            Step = placed.Count + depth,
+                                            GridPosition = point,
                                             WorldPosition = startWorld + ((point - startGrid) * 10.87f),
-                                            WireDistance = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(point.X, point.Y))
+                                            WireDistance = dDist
                                         }).ToList(),
                                         Covered = new HashSet<uint>(state.Covered),
-                                        Bridges = state.Bridges + 1
+                                        CoveredPillars = state.CoveredPillars,
+                                        Bridges = state.Bridges + 1,
+                                        TotalScore = state.TotalScore - 40f,
+                                        ProliferationMultiplier = state.ProliferationMultiplier
                                     });
                                     break;
                                 }
@@ -207,109 +314,76 @@ namespace ExpeditionPlanner
                         }
                     }
                 }
-                beam = PruneBeam(next, pillarTargets, finalStackPillar, beamWidth);
-                var prefix = beam.OrderByDescending(s => s.Covered.Count)
-                    .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
-                    .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
-                    .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
-                    .ThenBy(s => s.Bridges).FirstOrDefault();
-                if (prefix != null && (bestPrefix == null || prefix.Covered.Count > bestPrefix.Covered.Count ||
-                    (prefix.Covered.Count == bestPrefix.Covered.Count && prefix.Bridges < bestPrefix.Bridges)))
+
+                beam = PruneBeam(next, pillarTargets, beamWidth);
+                var prefix = beam
+                    .OrderByDescending(s => s.CoveredPillars)
+                    .ThenByDescending(s => s.TotalScore)
+                    .ThenByDescending(s => s.Covered.Count)
+                    .FirstOrDefault();
+
+                if (prefix != null && (bestPrefix == null || prefix.CoveredPillars > bestPrefix.CoveredPillars ||
+                    (prefix.CoveredPillars == bestPrefix.CoveredPillars && prefix.TotalScore > bestPrefix.TotalScore)))
                 {
                     bestPrefix = prefix;
                 }
             }
-            var winner = terminals.OrderByDescending(s => s.Covered.Count)
-                .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
-                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
-                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
-                .ThenBy(s => s.Bridges).FirstOrDefault();
-            // If the final pillar is blocked or unreachable, preserve the strongest non-final chain.
+
+            var winner = beam
+                .OrderByDescending(s => s.CoveredPillars)
+                .ThenByDescending(s => s.TotalScore)
+                .ThenByDescending(s => s.Covered.Count)
+                .FirstOrDefault();
+
             winner ??= bestPrefix;
             if (winner == null) return null;
-            return new RouteEvaluation { Profile = settings.Profile.ToString(), Placements = winner.Placements, NetScore = winner.Covered.Count };
+
+            return new RouteEvaluation
+            {
+                Profile = settings.Profile.ToString(),
+                Placements = winner.Placements,
+                NetScore = winner.TotalScore
+            };
         }
 
-        private static List<BeamState> PruneBeam(List<BeamState> states, List<ExpeditionTarget> targets, ExpeditionTarget? finalStackPillar, int width)
+        private static List<BeamState> PruneBeam(List<BeamState> states, List<ExpeditionTarget> pillarTargets, int width)
         {
             var unique = states
-                .GroupBy(s => $"{string.Join(',', s.Covered.Order())}|{MathF.Round(s.Anchor.X / 10f)}:{MathF.Round(s.Anchor.Y / 10f)}")
-                .Select(g => g.OrderBy(s => s.Bridges).First())
+                .GroupBy(s => $"{string.Join(',', s.Covered.Order())}|{MathF.Round(s.Anchor.X / 15f)}:{MathF.Round(s.Anchor.Y / 15f)}")
+                .Select(g => g.OrderByDescending(s => s.CoveredPillars).ThenByDescending(s => s.TotalScore).First())
                 .ToList();
+
             var chosen = unique
-                .OrderByDescending(s => s.Covered.Count)
-                .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
-                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
-                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
-                .ThenBy(s => s.Bridges)
+                .OrderByDescending(s => s.CoveredPillars)
+                .ThenByDescending(s => s.TotalScore)
+                .ThenByDescending(s => s.Covered.Count)
                 .Take(Math.Max(8, width / 2))
                 .ToList();
 
-            // Keep bridge frontiers alive for every uncovered pillar (including finalStackPillar).
-            // Without this, a state walking toward a remote pillar has zero new coverage for a few
-            // steps and is discarded in favour of nearby completed pillars.
-            foreach (var pillar in targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel))
+            // Keep bridge frontiers alive for every uncovered pillar.
+            // Without this, a state walking toward a remote pillar has zero new coverage for a step
+            // and gets discarded in favour of nearby completed pillars.
+            foreach (var pillar in pillarTargets)
             {
                 var candidate = unique
                     .Where(s => !s.Covered.Contains(pillar.EntityId))
                     .OrderBy(s => Vector2.Distance(new Vector2(s.Anchor.X, s.Anchor.Y), new Vector2(pillar.GridPosition.X, pillar.GridPosition.Y)))
-                    .ThenBy(s => s.Bridges)
+                    .ThenByDescending(s => s.CoveredPillars)
+                    .ThenByDescending(s => s.TotalScore)
                     .FirstOrDefault();
+
                 if (candidate != null && !chosen.Contains(candidate))
                 {
                     chosen.Add(candidate);
                 }
             }
+
             return chosen
-                .OrderByDescending(s => s.Covered.Count)
-                .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
-                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
-                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
-                .ThenBy(s => s.Bridges)
+                .OrderByDescending(s => s.CoveredPillars)
+                .ThenByDescending(s => s.TotalScore)
+                .ThenByDescending(s => s.Covered.Count)
                 .Take(width)
                 .ToList();
-        }
-
-        private static int FirstRuneStep(IEnumerable<ProposedPlacement> placements, string rune)
-        {
-            int index = 0;
-            foreach (var placement in placements)
-            {
-                if (placement.CoveredTargets.Any(t => RuneName(t).Equals(rune, StringComparison.OrdinalIgnoreCase))) return index;
-                index++;
-            }
-            return int.MaxValue;
-        }
-
-        private static int FirstTierStep(IEnumerable<ProposedPlacement> placements, RuneTier tier)
-        {
-            int index = 0;
-            foreach (var placement in placements)
-            {
-                if (placement.CoveredTargets.Any(t => t.ProliferatedRuneTier == tier)) return index;
-                index++;
-            }
-            return int.MaxValue;
-        }
-
-        private static ExpeditionTarget? FindFinalStackPillar(IEnumerable<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
-        {
-            var pillars = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
-            if (pillars.Count == 0) return null;
-
-            // Opulent multipliers and top-tier purple runes (Power, Death, Bond, Oath) must open early
-            // to proliferate into subsequent explosions.
-            // Therefore, the final stack receiver should ideally be a lower-tier pillar (Blue_C or Purple_B)
-            // with high hole count.
-            var nonTopTier = pillars.Where(t =>
-                !RuneName(t).Equals("Opulent", StringComparison.OrdinalIgnoreCase) &&
-                t.ProliferatedRuneTier is not (RuneTier.Golden or RuneTier.Purple_S)).ToList();
-            var pool = nonTopTier.Count > 0 ? nonTopTier : pillars;
-
-            return pool
-                .OrderByDescending(t => t.HoleCount)
-                .ThenByDescending(t => Value(t, settings))
-                .FirstOrDefault();
         }
 
         private static void AppendUncoveredPillarDiagnostics(
@@ -318,8 +392,7 @@ namespace ExpeditionPlanner
             Vector3 startGrid,
             int alreadyPlaced,
             ExpeditionTerrainSnapshot? terrain,
-            ExpeditionPlannerSettings settings,
-            ExpeditionTarget? finalStackPillar)
+            ExpeditionPlannerSettings settings)
         {
             var covered = route.Placements.SelectMany(p => p.CoveredTargets).Select(t => t.EntityId).ToHashSet();
             var uncovered = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
@@ -328,28 +401,26 @@ namespace ExpeditionPlanner
 
             route.Warnings.Add($"Why stopped: {uncovered.Count} pillar(s) remain outside the selected legal chain.");
             var anchors = new[] { startGrid }.Concat(route.Placements.Select(p => p.GridPosition)).ToList();
+
             foreach (var target in uncovered)
             {
                 var distance = Vector2.Distance(new Vector2(startGrid.X, startGrid.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y));
                 var reachDistance = MathF.Max(0f, distance - settings.BlastRadiusGrid);
                 int minimumSegments = (int)MathF.Ceiling(reachDistance / MathF.Max(1f, settings.MaxPlacementRangeGrid));
                 var label = !string.IsNullOrWhiteSpace(RuneName(target)) ? RuneName(target) : target.DisplayName;
+
                 if (minimumSegments > settings.MaxExplosiveBudget - alreadyPlaced)
                 {
                     route.Warnings.Add($"{label} ({target.HoleCount} slots): needs at least {minimumSegments} fuse segments from the detonator; only {settings.MaxExplosiveBudget - alreadyPlaced} remain.");
                 }
-                else if (target.EntityId == finalStackPillar?.EntityId)
-                {
-                    route.Warnings.Add($"{label} ({target.HoleCount} slots): mandatory final pillar has no complete legal chain (terrain, camp clearance, or fuse range blocked it).");
-                }
                 else
                 {
-                    route.Warnings.Add($"{label} ({target.HoleCount} slots): {DiagnosePillarExclusion(target, anchors, startGrid, terrain, settings, finalStackPillar)}");
+                    route.Warnings.Add($"{label} ({target.HoleCount} slots): {DiagnosePillarExclusion(target, anchors, startGrid, terrain, settings)}");
                 }
             }
         }
 
-        private static string DiagnosePillarExclusion(ExpeditionTarget target, IReadOnlyList<Vector3> anchors, Vector3 detonator, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings, ExpeditionTarget? finalStackPillar)
+        private static string DiagnosePillarExclusion(ExpeditionTarget target, IReadOnlyList<Vector3> anchors, Vector3 detonator, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings)
         {
             var candidatePoints = new List<Vector3>();
             float radius = MathF.Max(14f, settings.BlastRadiusGrid - 2f);
@@ -370,47 +441,167 @@ namespace ExpeditionPlanner
             var visible = ranged.Where(p => anchors.Any(a => LegalPlacement.IsLineClearOfTerrain(terrain, new Vector2(a.X, a.Y), new Vector2(p.X, p.Y), out _))).ToList();
             if (visible.Count == 0) return "terrain blocks every in-range fuse segment; an A* detour is required";
 
-            return $"it was excluded to preserve a legal finish at the {finalStackPillar?.HoleCount ?? 0}-slot pillar";
+            return "excluded because other pillars/chests yielded higher overall score within the available explosives budget";
         }
 
-        private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
+        private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings)
         {
             var result = new List<Vector3>();
-            foreach (var t in targets)
+            var pillars = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
+            var chests = targets.Where(t => t.Kind == TargetKind.ChestReward).ToList();
+
+            // 1. Concentric rings around every Remnant Pillar
+            float[] pillarRadii = [12f, 18f, 26f];
+            foreach (var p in pillars)
             {
-                if (t.Kind is not (TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)) continue;
-                // Inner points evaluate the shared blast. Outer points near the blast edge
-                // let the search evaluate hitting this pillar without its overlapping neighbour.
-                float[] radii = [14f, MathF.Max(14f, settings.BlastRadiusGrid - 2f)];
-                foreach (var radius in radii)
-                    for (int i = 0; i < 12; i++) { float a = i * MathF.PI / 6; result.Add(t.GridPosition + new Vector3(MathF.Cos(a) * radius, MathF.Sin(a) * radius, 0)); }
+                foreach (var radius in pillarRadii)
+                {
+                    for (int i = 0; i < 16; i++)
+                    {
+                        float a = i * MathF.PI / 8f;
+                        var pt = p.GridPosition + new Vector3(MathF.Cos(a) * radius, MathF.Sin(a) * radius, 0);
+                        if (LegalPlacement.HasWalkableClearance(terrain, pt.X, pt.Y, settings.BombClearanceRadiusGrid))
+                        {
+                            result.Add(pt);
+                        }
+                    }
+                }
             }
-            return result.Distinct().ToList();
+
+            // 2. Concentric rings around high-value chests
+            float[] chestRadii = [0f, 14f, 24f];
+            foreach (var c in chests)
+            {
+                foreach (var radius in chestRadii)
+                {
+                    if (radius == 0f)
+                    {
+                        if (LegalPlacement.HasWalkableClearance(terrain, c.GridPosition.X, c.GridPosition.Y, settings.BombClearanceRadiusGrid))
+                        {
+                            result.Add(c.GridPosition);
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < 8; i++)
+                        {
+                            float a = i * MathF.PI / 4f;
+                            var pt = c.GridPosition + new Vector3(MathF.Cos(a) * radius, MathF.Sin(a) * radius, 0);
+                            if (LegalPlacement.HasWalkableClearance(terrain, pt.X, pt.Y, settings.BombClearanceRadiusGrid))
+                            {
+                                result.Add(pt);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Inter-pillar bridge waypoints (dense walkable bridge network between all pillars)
+            float[] lateralOffsets = [0f, 6f, -6f, 12f, -12f];
+            for (int i = 0; i < pillars.Count; i++)
+            {
+                for (int j = i + 1; j < pillars.Count; j++)
+                {
+                    var p1 = pillars[i].GridPosition;
+                    var p2 = pillars[j].GridPosition;
+                    float dist = Vector2.Distance(new Vector2(p1.X, p1.Y), new Vector2(p2.X, p2.Y));
+                    if (dist > 220f) continue;
+
+                    int steps = (int)MathF.Ceiling(dist / 40f);
+                    var dir = Vector2.Normalize(new Vector2(p2.X - p1.X, p2.Y - p1.Y));
+                    var perp = new Vector2(-dir.Y, dir.X);
+
+                    for (int s = 1; s < steps; s++)
+                    {
+                        float frac = (float)s / steps;
+                        var basePoint = Vector3.Lerp(p1, p2, frac);
+
+                        foreach (var lat in lateralOffsets)
+                        {
+                            var pt = new Vector3(basePoint.X + (perp.X * lat), basePoint.Y + (perp.Y * lat), basePoint.Z);
+                            if (LegalPlacement.HasWalkableClearance(terrain, pt.X, pt.Y, settings.BombClearanceRadiusGrid))
+                            {
+                                result.Add(pt);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. Sweet-spot intersections between (Pillar, Chest) and (Chest, Chest)
+            float maxOverlap = (2f * settings.BlastRadiusGrid) - 2f;
+            foreach (var p in pillars)
+            {
+                foreach (var c in chests)
+                {
+                    float dist = Vector2.Distance(new Vector2(p.GridPosition.X, p.GridPosition.Y), new Vector2(c.GridPosition.X, c.GridPosition.Y));
+                    if (dist < maxOverlap)
+                    {
+                        var mid = Vector3.Lerp(p.GridPosition, c.GridPosition, 0.5f);
+                        if (LegalPlacement.HasWalkableClearance(terrain, mid.X, mid.Y, settings.BombClearanceRadiusGrid))
+                        {
+                            result.Add(mid);
+                        }
+                    }
+                }
+            }
+
+            // Ensure no candidate directly clips into a pillar's physical base
+            return result
+                .Where(pt => pillars.All(p => Vector2.Distance(new Vector2(pt.X, pt.Y), new Vector2(p.GridPosition.X, p.GridPosition.Y)) >= LegalPlacement.PillarPhysicalRadius))
+                .Distinct()
+                .ToList();
         }
 
-        private static float Value(ExpeditionTarget t, ExpeditionPlannerSettings s)
+        private static float GetTargetValue(ExpeditionTarget target, ExpeditionPlannerSettings settings)
         {
-            var rune = RuneName(t);
-
-            // Farming order: establish the largest loot multiplier first, then the
-            // strongest proliferated modifiers. Lower-value runes naturally drop out
-            // of a short explosive budget because their score cannot beat these picks.
-            if (rune.Equals("Opulent", StringComparison.OrdinalIgnoreCase)) return 15_000f;
-            return t.ProliferatedRuneTier switch
+            if (target.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
             {
-                RuneTier.Purple_S => 500f,
-                RuneTier.Purple_A => 400f,
-                RuneTier.Purple_B => 300f,
-                _ => t.BaseWeight > 0 ? t.BaseWeight : 20f,
-            };
+                var rune = RuneName(target);
+                if (rune.Equals("Opulent", StringComparison.OrdinalIgnoreCase) || target.ProliferatedRuneTier == RuneTier.Golden)
+                {
+                    return 3500f;
+                }
+
+                return target.ProliferatedRuneTier switch
+                {
+                    RuneTier.Purple_S => 2000f,
+                    RuneTier.Purple_A => 1200f,
+                    RuneTier.Purple_B => 600f,
+                    _ => 300f + (target.HoleCount * 40f)
+                };
+            }
+
+            if (target.Kind == TargetKind.ChestReward)
+            {
+                var name = target.DisplayName ?? string.Empty;
+                var mods = target.ModNames != null ? string.Join(' ', target.ModNames) : string.Empty;
+
+                if (name.Contains("Currency", StringComparison.OrdinalIgnoreCase) || mods.Contains("Currency", StringComparison.OrdinalIgnoreCase))
+                {
+                    return 250f;
+                }
+                if (name.Contains("Map", StringComparison.OrdinalIgnoreCase) || mods.Contains("Map", StringComparison.OrdinalIgnoreCase))
+                {
+                    return 160f;
+                }
+                if (name.Contains("Unique", StringComparison.OrdinalIgnoreCase) || mods.Contains("Unique", StringComparison.OrdinalIgnoreCase))
+                {
+                    return 100f;
+                }
+                return MathF.Max(60f, settings.WeightChest);
+            }
+
+            if (target.Kind == TargetKind.ExpeditionBoss) return MathF.Max(2000f, settings.WeightBoss);
+            if (target.Kind == TargetKind.VerisiumSentinel) return MathF.Max(500f, settings.WeightSentinel);
+            if (target.Kind == TargetKind.EliteMonster) return MathF.Max(50f, settings.WeightElite);
+            if (target.Kind == TargetKind.NormalMonster) return MathF.Max(15f, settings.WeightMonster);
+
+            return target.BaseWeight > 0 ? target.BaseWeight : 20f;
         }
 
         private static string RuneName(ExpeditionTarget target) => !string.IsNullOrWhiteSpace(target.ProliferatedRuneName)
             ? target.ProliferatedRuneName : target.AnchorRuneName;
-
-        private static bool HasCoveredRune(IEnumerable<ExpeditionTarget> targets, HashSet<uint> covered, string rune) =>
-            targets.Any(t => covered.Contains(t.EntityId) && RuneName(t).Equals(rune, StringComparison.OrdinalIgnoreCase));
     }
 }
-
-

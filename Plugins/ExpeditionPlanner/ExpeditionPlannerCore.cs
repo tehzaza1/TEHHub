@@ -41,6 +41,7 @@ namespace ExpeditionPlanner
         private Vector3 detonatorGrid = Vector3.Zero;
         private Vector3 detonatorWorld = Vector3.Zero;
         private bool hasDetonator = false;
+        private bool isRealDetonator = false;
         private readonly List<PlacedBombInfo> placedBombs = new();
         private readonly HashSet<uint> placedTargetIds = new();
         private readonly Dictionary<uint, ExpeditionTarget> rememberedTargets = new();
@@ -224,6 +225,7 @@ namespace ExpeditionPlanner
         {
             this.currentAreaHash = string.Empty;
             this.hasDetonator = false;
+            this.isRealDetonator = false;
             this.detonatorGrid = Vector3.Zero;
             this.detonatorWorld = Vector3.Zero;
             this.placedBombs.Clear();
@@ -491,6 +493,12 @@ namespace ExpeditionPlanner
                         else monsterCount++;
                     }
 
+                    // Auto-adjust budget if entering a Logbook (many remnants) with small map budget
+                    if (remnantCount >= 6 && this.Settings.MaxExplosiveBudget <= 5)
+                    {
+                        this.Settings.MaxExplosiveBudget = 20;
+                    }
+
                     if (ImGui.Button($"★ Calculate Route ({this.Settings.CalculateHotkey})###CalcRouteBtn", new Vector2(230, 26)))
                     {
                         this.CalculateRoute(area, "UI Button");
@@ -506,6 +514,22 @@ namespace ExpeditionPlanner
                     }
 
                     ImGui.TextDisabled($"Discovered: {this.activeTargets.Count} targets ({remnantCount} Remnants, {chestCount} Chests, {monsterCount} Monsters)");
+
+                    ImGui.Text("Explosives Budget:");
+                    ImGui.SameLine();
+                    var bgt = this.Settings.MaxExplosiveBudget;
+                    ImGui.SetNextItemWidth(65);
+                    if (ImGui.InputInt("##BudgetInput", ref bgt))
+                    {
+                        this.Settings.MaxExplosiveBudget = Math.Clamp(bgt, 1, 35);
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton("5 (Map)")) this.Settings.MaxExplosiveBudget = 5;
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton("15 (Logbook)")) this.Settings.MaxExplosiveBudget = 15;
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton("20 (Logbook)")) this.Settings.MaxExplosiveBudget = 20;
+
                     ImGui.TextDisabled($"Placed: {this.placedBombs.Count} / Budget: {this.Settings.MaxExplosiveBudget} (Remaining: {Math.Max(0, this.Settings.MaxExplosiveBudget - this.placedBombs.Count)})");
                     ImGui.TextDisabled($"Covered by placed explosives: {this.placedTargetIds.Count} targets");
                     if (!string.IsNullOrEmpty(this.calculationStatusMessage))
@@ -636,6 +660,7 @@ namespace ExpeditionPlanner
                     if (TryGetEntityPositions(entity, out var grid, out var world))
                     {
                         this.hasDetonator = true;
+                        this.isRealDetonator = true;
                         this.detonatorGrid = grid;
                         this.detonatorWorld = world;
                     }
@@ -677,10 +702,33 @@ namespace ExpeditionPlanner
                         if (TryGetEntityPositions(entity, out var grid, out var worldPos))
                         {
                             this.hasDetonator = true;
+                            this.isRealDetonator = true;
                             this.detonatorGrid = grid;
                             this.detonatorWorld = worldPos;
                         }
                     });
+            }
+
+            // In Logbooks or areas without a standalone ExpeditionDetonator entity,
+            // fall back to the entrance transition portal or campsite as the detonator anchor.
+            if (!this.hasDetonator)
+            {
+                foreach (var entity in area.AwakeEntities.Values)
+                {
+                    if (entity == null || entity.Address == IntPtr.Zero || string.IsNullOrEmpty(entity.Path)) continue;
+                    if (entity.Path is "Metadata/MiscellaneousObjects/AreaTransitionToggleableReverse" or
+                        "Metadata/MiscellaneousObjects/Expedition/ExpeditionCampsite" or
+                        "Metadata/Terrain/Gallows/Leagues/Expedition/Logbook_Prairie/Objects/Monolith")
+                    {
+                        if (TryGetEntityPositions(entity, out var grid, out var world))
+                        {
+                            this.hasDetonator = true;
+                            this.detonatorGrid = grid;
+                            this.detonatorWorld = world;
+                            break;
+                        }
+                    }
+                }
             }
 
             // Update placed bombs. A snapshot never solves a route: calculation is manual
@@ -722,8 +770,9 @@ namespace ExpeditionPlanner
             }
         }
 
-        private void CalculateRoute(AreaInstance area, string triggerSource = "Manual")
+        private void CalculateRoute(AreaInstance? area, string triggerSource = "Manual")
         {
+            if (area == null) return;
             if (this.pendingRouteCalculation is { IsCompleted: false })
             {
                 this.calculationStatusMessage = "Calculating route...";
@@ -736,12 +785,21 @@ namespace ExpeditionPlanner
                 return;
             }
 
-            // Every route starts at the actual ExpeditionDetonator entity. Never
-            // substitute the player or a target, because that produces invalid fuse ranges.
-            if (!this.hasDetonator)
+            // Every route starts at the actual ExpeditionDetonator entity, entrance portal, or player.
+            if (!this.hasDetonator && this.placedBombs.Count == 0)
             {
-                this.calculationStatusMessage = "Detonator not found; route calculation is locked.";
-                return;
+                var player = area?.Player;
+                if (player != null && TryGetEntityPositions(player, out var pGrid, out var pWorld))
+                {
+                    this.hasDetonator = true;
+                    this.detonatorGrid = pGrid;
+                    this.detonatorWorld = pWorld;
+                }
+                else
+                {
+                    this.calculationStatusMessage = "Detonator / Entrance not found; route calculation is locked.";
+                    return;
+                }
             }
 
             var targetSnapshot = this.activeTargets.Select(CloneTarget).ToList();
@@ -749,15 +807,16 @@ namespace ExpeditionPlanner
             {
                 EntityId = b.EntityId, GridPosition = b.GridPosition, WorldPosition = b.WorldPosition, Order = b.Order
             }).ToList();
-            var anchorGrid = this.detonatorGrid;
-            var anchorWorld = this.detonatorWorld;
+            var anchorGrid = this.placedBombs.Count > 0 ? this.placedBombs[^1].GridPosition : this.detonatorGrid;
+            var anchorWorld = this.placedBombs.Count > 0 ? this.placedBombs[^1].WorldPosition : this.detonatorWorld;
             // Capture every native-backed value and mutable setting before starting the
             // route worker. This mirrors ExpeditionIcons' immutable environment model.
-            var terrain = ExpeditionTerrainSnapshot.Capture(area);
+            var terrain = ExpeditionTerrainSnapshot.Capture(area!);
             var settings = CloneSettings(this.Settings);
-            this.pendingRouteAreaHash = area.AreaHash ?? string.Empty;
+            this.pendingRouteAreaHash = area!.AreaHash ?? string.Empty;
+            var isReal = this.isRealDetonator;
             this.pendingRouteCalculation = Task.Run(() => ExpeditionGlobalRoutePlanner.Solve(
-                anchorGrid, anchorWorld, bombSnapshot, targetSnapshot, terrain, settings));
+                anchorGrid, anchorWorld, bombSnapshot, targetSnapshot, terrain, settings, isReal));
             this.calculationStatusMessage = $"Calculating ({triggerSource})...";
         }
 
