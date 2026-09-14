@@ -12,6 +12,11 @@ namespace TEHhub.Offsets.Objects.Components
         [FieldOffset(0x000)] public ComponentHeader Header;
 
         /// <summary>
+        ///     State/flags indicating whether the icon is hidden or completed (0 = active/visible, != 0 = hidden/dismissed).
+        /// </summary>
+        [FieldOffset(0x010)] public int State;
+
+        /// <summary>
         ///     Pointer to the MinimapIcons.dat row. Its first pointer references the UTF-16 name.
         /// </summary>
         [FieldOffset(0x020)] public IntPtr MinimapIconDatRowPtr;

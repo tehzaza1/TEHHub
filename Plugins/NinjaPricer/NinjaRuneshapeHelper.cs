@@ -159,8 +159,7 @@ namespace NinjaPricer
             // 2. Secondary check: MinimapIcon component state / flags
             if (!isCompleted && entity.TryGetComponent<MinimapIcon>(out var mmIcon) && mmIcon.Address != IntPtr.Zero)
             {
-                var state = reader.ReadMemory<int>(mmIcon.Address + MinimapCompletedOffset);
-                if (state != 0)
+                if (mmIcon.IsHide || mmIcon.State != 0)
                 {
                     isCompleted = true;
                 }

@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.38 — 2026-09-14
+
+- Added State (offset 0x010) and IsHide property to MinimapIcon entity component and MinimapIconOffsets: enables plugins to detect hidden/completed/dismissed minimap icon states directly from core memory.
+- Enabled per-frame refresh for MinimapIcon to track dynamic State changes in real time while preserving once-only cached decoding of the dat-row icon name.
+- Updated NinjaRuneshapeHelper and Runeshape completion detection to leverage MinimapIcon.IsHide alongside Targetable.IsTargetable.
+- Compatibility: Core entity component model enhancement.
+- Validation: Debug and Release builds of TEHhub, TEHhub.Offsets, TEHhub.Launcher, and NinjaPricer succeeded with 0 warnings and 0 errors.
+
 ## 1.8.37 — 2026-09-14
 
 - Implemented dynamic 321-recipe container discovery with persistent index caching for RuneshapeCombinationsPanel in ImportantUiElements: fast-paths against cached index (default 40), performs O(1) direct subpath [3, 2, 1, 0] check for 321 children, and scans GameUi children to auto-recover when game patches shift indices.

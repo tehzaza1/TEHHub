@@ -26,15 +26,25 @@ namespace TEHhub.RemoteObjects.Components
         /// </summary>
         public string? IconName { get; private set; }
 
-        // Retry transient first-read failures, then stop once the immutable dat-row name has been
-        // resolved. A component-address change creates/rebinds the wrapper and reads it again.
-        internal override bool RequiresPerFrameRefresh => this.IconName == null;
+        /// <summary>
+        ///     Gets the state/flag of the minimap icon (0 = active/visible, != 0 = hidden/completed).
+        /// </summary>
+        public int State { get; private set; }
+
+        /// <summary>
+        ///     Gets a value indicating whether the minimap icon is hidden or completed.
+        /// </summary>
+        public bool IsHide => this.State != 0;
+
+        // MinimapIcon requires per-frame refresh to track dynamic changes to State (e.g. icon hidden upon completion).
+        internal override bool RequiresPerFrameRefresh => true;
 
         /// <inheritdoc/>
         internal override void ToImGui()
         {
             base.ToImGui();
             ImGui.Text($"Icon Name: {this.IconName ?? "(none)"}");
+            ImGui.Text($"State: {this.State} (IsHide: {this.IsHide})");
         }
 
         private string? TryReadUtf16String(IntPtr address)
@@ -76,23 +86,27 @@ namespace TEHhub.RemoteObjects.Components
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<MinimapIconOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
+            this.State = data.State;
 
-            // Read icon name: offset 0x20 -> dat row pointer -> +0x00 -> UTF-16 string
-            try
+            // Read icon name once or on component address change: offset 0x20 -> dat row pointer -> +0x00 -> UTF-16 string
+            if (this.IconName == null || hasAddressChanged)
             {
-                var datRowPtr = data.MinimapIconDatRowPtr;
-                if (datRowPtr != IntPtr.Zero && (long)datRowPtr > 0x10000)
+                try
                 {
-                    var namePtr = reader.ReadMemory<IntPtr>(datRowPtr);
-                    if (namePtr != IntPtr.Zero && (long)namePtr > 0x10000)
+                    var datRowPtr = data.MinimapIconDatRowPtr;
+                    if (datRowPtr != IntPtr.Zero && (long)datRowPtr > 0x10000)
                     {
-                        this.IconName = this.TryReadUtf16String(namePtr);
+                        var namePtr = reader.ReadMemory<IntPtr>(datRowPtr);
+                        if (namePtr != IntPtr.Zero && (long)namePtr > 0x10000)
+                        {
+                            this.IconName = this.TryReadUtf16String(namePtr);
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MinimapIcon.UpdateData] {this.Address.ToInt64():X}: {ex.Message}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MinimapIcon.UpdateData] {this.Address.ToInt64():X}: {ex.Message}");
+                }
             }
         }
     }
