@@ -241,17 +241,17 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             ImGui.Text($"Entities in network bubble: {this.NetworkBubbleEntityCount}");
             this.EntitiesWidget("Awake", this.AwakeEntities);
 
-            if (ImGui.Button("Scan Sleeping Entities for 'Abyss'"))
+            if (ImGui.Button("Scan Sleeping Entities"))
             {
-                this.ScanSleepingEntitiesForAbyss();
+                this.ScanAllSleepingEntities();
             }
 
             ImGuiHelper.ToolTip(
                 "One-shot scan of the game's SleepingEntities memory map (decorations/effects/etc). " +
-                "Keeps only entities whose path contains 'Abyss'. May briefly hitch on large maps.");
+                "Scans all sleeping entities. May briefly hitch on large maps.");
             ImGui.SameLine();
             ImGui.Text($"(last scan saw {this.lastSleepingScanCount} sleeping entities)");
-            this.EntitiesWidget("Sleeping Abyss", this.SleepingEntities);
+            this.EntitiesWidget("Sleeping", this.SleepingEntities);
         }
 
         /// <inheritdoc />
@@ -836,13 +836,16 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 pathFilter);
         }
 
-        private void ScanSleepingEntitiesForAbyss()
+        public void ScanAllSleepingEntities()
         {
-            this.SleepingEntities.Clear();
+            if (this.Address == IntPtr.Zero)
+            {
+                return;
+            }
 
-            // Investigative one-shot scan: keep any entity with "Abyss" in its path.
+            this.SleepingEntities.Clear();
             this.lastSleepingScanCount = this.ScanSleepingEntities(
-                p => p.Contains("Abyss", StringComparison.OrdinalIgnoreCase),
+                static _ => true,
                 (key, entity) => this.SleepingEntities[key] = entity);
         }
 
@@ -927,6 +930,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     DumpExpeditionMarkerModels(data);
                 }
 
+                var renderedCount = 0;
+                const int maxDisplayCount = 1000;
+
                 foreach (var entity in data)
                 {
                     switch (this.filterBy)
@@ -941,7 +947,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                             break;
                         case 1:
                             if (!(string.IsNullOrEmpty(this.entityPathFilter) ||
-                                entity.Value.Path.ToLower().Contains(this.entityPathFilter.ToLower())))
+                                entity.Value.Path.Contains(this.entityPathFilter, StringComparison.OrdinalIgnoreCase)))
                             {
                                 continue;
                             }
@@ -957,6 +963,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                             break;
                         default:
                             break;
+                    }
+
+                    if (++renderedCount > maxDisplayCount)
+                    {
+                        ImGui.TextDisabled($"... (showing first {maxDisplayCount} entities, use Filter to narrow down)");
+                        break;
                     }
 
                     string nodeLabel;

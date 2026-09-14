@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.35 — 2026-09-14
+
+- Replaced hardcoded "Scan Sleeping Entities for 'Abyss'" with general "Scan Sleeping Entities" button in AreaInstance debug UI: scans all sleeping entities without filtering to Abyss, populating the full sleeping entity inventory for live filtering by Id, Path, and Rarity.
+- Optimized entity path filtering in EntitiesWidget to use ordinal case-insensitive matching without per-entity string allocations.
+- Added 1,000-element viewport rendering cap for massive entity lists in EntitiesWidget to maintain frame performance.
+- Compatibility: Core debug UI improvement.
+- Validation: Debug and Release builds succeeded with 0 warnings and 0 errors.
+
 ## 1.8.34 — 2026-09-14
 
 - Fixed Offset Helper UI root truncation: updated VerifyProbe and FindOffsetRecoveries to use MaxUiRoots (16) when evaluating UiElementBaseOffset, allowing RuneshapeCombinationsPanel and subsequent UI panels to be verified and displayed under probe roots.
