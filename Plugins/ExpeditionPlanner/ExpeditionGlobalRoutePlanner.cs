@@ -266,7 +266,10 @@ namespace ExpeditionPlanner
                             {
                                 Step = placed.Count + depth,
                                 GridPosition = point,
-                                WorldPosition = startWorld + ((point - startGrid) * 10.87f),
+                                WorldPosition = new Vector3(
+                                    startWorld.X + (point.X - startGrid.X) * 10.87f,
+                                    startWorld.Y + (point.Y - startGrid.Y) * 10.87f,
+                                    startWorld.Z),  // Z stays at ground level (grid Z ≠ world Z scale)
                                 WireDistance = directDist,
                                 CoveredTargets = hit
                             }
@@ -317,7 +320,10 @@ namespace ExpeditionPlanner
                                         {
                                             Step = placed.Count + depth,
                                             GridPosition = point,
-                                            WorldPosition = startWorld + ((point - startGrid) * 10.87f),
+                                            WorldPosition = new Vector3(
+                                                startWorld.X + (point.X - startGrid.X) * 10.87f,
+                                                startWorld.Y + (point.Y - startGrid.Y) * 10.87f,
+                                                startWorld.Z),  // Z stays at ground level
                                             WireDistance = dDist
                                         }).ToList(),
                                         Covered = new HashSet<uint>(state.Covered),
