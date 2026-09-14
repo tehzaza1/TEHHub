@@ -147,17 +147,10 @@ namespace NinjaPricer
 
             var isCompleted = false;
 
-            // 1. Primary check: Targetable component (standard in PoE 2 for completed/inactive monoliths)
-            if (entity.TryGetComponent<Targetable>(out var targetable))
-            {
-                if (!targetable.IsTargetable)
-                {
-                    isCompleted = true;
-                }
-            }
-
-            // 2. Secondary check: MinimapIcon component state / flags
-            if (!isCompleted && entity.TryGetComponent<MinimapIcon>(out var mmIcon) && mmIcon.Address != IntPtr.Zero)
+            // MinimapIcon component state / flags (matching POEFixer behavior)
+            // Note: We deliberately do NOT use Targetable here because pressing the Detonator
+            // causes PoE 2 to set IsTargetable=false on ALL monoliths simultaneously.
+            if (entity.TryGetComponent<MinimapIcon>(out var mmIcon) && mmIcon.Address != IntPtr.Zero)
             {
                 if (mmIcon.IsHide || mmIcon.State != 0)
                 {
