@@ -318,7 +318,8 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // 2. Draw Placed Bombs badges (solid cyan)
+            // 2. Draw Placed Bombs badges (solid cyan) + blast radius ring
+            const float GridToWorld = 10.87f;
             for (int i = 0; i < this.placedBombs.Count; i++)
             {
                 var bomb = this.placedBombs[i];
@@ -326,6 +327,19 @@ namespace ExpeditionPlanner
                 var sPos = ClipToScreen(clip, winW, winH);
                 if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
                     sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
+
+                // Blast radius: project a world-space offset point to get true screen-space pixel radius
+                if (this.Settings.ShowBlastRadius)
+                {
+                    float worldRadius = this.Settings.BlastRadiusGrid * GridToWorld;
+                    var edgeWorld = new Vector3(bomb.WorldPosition.X + worldRadius, bomb.WorldPosition.Y, bomb.WorldPosition.Z);
+                    if (ProjectToClipSpace(matrix, edgeWorld, out var edgeClip) && edgeClip.W > 0.05f)
+                    {
+                        var edgeScreen = ClipToScreen(edgeClip, winW, winH);
+                        float screenRadius = Vector2.Distance(sPos, edgeScreen);
+                        drawList.AddCircle(sPos, screenRadius, 0x5500CCCC, 64, 1.5f);
+                    }
+                }
 
                 drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.8f, 0xDD00CCCC);
                 drawList.AddCircle(sPos, this.Settings.BadgeRadius * 0.8f, 0xFFFFFFFF, 0, 2f);
@@ -345,10 +359,17 @@ namespace ExpeditionPlanner
                     if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
                         sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
 
-                    // Blast radius circle on ground (subtle gold ring)
+                    // Blast radius: project world-space offset → correct screen-space pixel radius
                     if (this.Settings.ShowBlastRadius)
                     {
-                        drawList.AddCircle(sPos, this.Settings.BlastRadiusGrid * 2.2f, 0x77FFCC00, 32, 1.5f);
+                        float worldRadius = this.Settings.BlastRadiusGrid * GridToWorld;
+                        var edgeWorld = new Vector3(p.WorldPosition.X + worldRadius, p.WorldPosition.Y, p.WorldPosition.Z);
+                        if (ProjectToClipSpace(matrix, edgeWorld, out var edgeClip) && edgeClip.W > 0.05f)
+                        {
+                            var edgeScreen = ClipToScreen(edgeClip, winW, winH);
+                            float screenRadius = Vector2.Distance(sPos, edgeScreen);
+                            drawList.AddCircle(sPos, screenRadius, 0x77FFCC00, 64, 1.5f);
+                        }
                     }
 
                     // Badge circle (vibrant gold with dark core, or red if obstructed/unsafe)
