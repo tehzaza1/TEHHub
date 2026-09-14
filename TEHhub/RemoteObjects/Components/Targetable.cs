@@ -34,14 +34,9 @@ namespace TEHhub.RemoteObjects.Components
         internal override void ToImGui()
         {
             base.ToImGui();
+            ImGui.Text($"IsTargetable: {this.cache.IsTargetable}");
             ImGui.Text($"IsHighlightable: {this.cache.IsHighlightable}");
             ImGui.Text($"IsTargettedByPlayer: {this.cache.IsTargettedByPlayer}");
-
-            ImGui.Text($"IsTargetable: {this.cache.IsTargetable}");
-            ImGui.Text($"HiddenfromPlayer: {this.cache.HiddenfromPlayer}");
-            ImGui.Text($"NeedsTrue: {this.cache.NeedsTrue}");
-            ImGui.Text($"MeetsQuestState: {this.cache.MeetsQuestState}");
-            ImGui.Text($"NeedsFalse: {this.cache.NeedsFalse}");
         }
 
         /// <inheritdoc />
@@ -51,8 +46,7 @@ namespace TEHhub.RemoteObjects.Components
             var data = reader.ReadMemory<TargetableOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
             this.cache = data;
-            this.IsTargetable = data.IsTargetable && !data.HiddenfromPlayer &&
-                data.NeedsTrue && data.MeetsQuestState && !data.NeedsFalse;
+            this.IsTargetable = data.IsTargetable;
         }
     }
 }

@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.39 — 2026-09-14
+
+- Fixed TargetableOffsets memory layout for PoE 2: corrected IsTargetable from legacy 0x51 to 0x69 (+0x18 offset displacement), IsHighlightable to 0x6A, and IsTargettedByPlayer to 0x6B based on live process memory probing.
+- Simplified Targetable component UpdateData to directly read the validated IsTargetable flag, removing obsolete PoE 1 legacy quest/dialogue conditions that previously caused Targetable.IsTargetable to evaluate to false across all entities.
+- Compatibility: Core entity component model bugfix for PoE 2.
+- Validation: Verified live memory across 400+ entities in PoE 2 process (PID 30932), confirming active chests/monoliths evaluate to IsTargetable = true while opened chests, dead monsters, and background controllers evaluate to false. Compiled Release with 0 errors and 0 warnings.
+
 ## 1.8.38 — 2026-09-14
 
 - Added State (offset 0x010) and IsHide property to MinimapIcon entity component and MinimapIconOffsets: enables plugins to detect hidden/completed/dismissed minimap icon states directly from core memory.
