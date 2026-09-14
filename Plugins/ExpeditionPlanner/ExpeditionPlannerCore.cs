@@ -913,10 +913,36 @@ namespace ExpeditionPlanner
                 points.Add(ToMap(step.GridPosition, step.TerrainHeight));
             }
 
-            // Draw thin line connecting pillar order only (Requirement 4)
-            for (int i = 0; i < points.Count - 1; i++)
+            // Draw wire line connecting player's placed bombs on Large Map (Detonator -> Bomb 1 -> Bomb 2 -> ...)
+            // User requirement: "เอาเส้นในmap ออกแล้ว ให้เอาเส้น ระเบิดของเราวางแทน เอาไว้ดูว่าวางไปไหนแล้วบ้าง"
+            if (this.placedBombs.Count > 0)
             {
-                drawList.AddLine(points[i], points[i + 1], 0xCCFFD700, 1.8f);
+                Vector2? prevMapPos = null;
+
+                if (this.hasDetonator && this.detonatorWorld.LengthSquared() > 1f)
+                {
+                    prevMapPos = ToMap(this.detonatorGrid, this.detonatorWorld.Z);
+                    drawList.AddCircleFilled(prevMapPos.Value, 5f, 0xFF00AAFF);
+                    drawList.AddCircle(prevMapPos.Value, 5f, 0xFFFFFFFF, 0, 1.2f);
+                }
+
+                for (int b = 0; b < this.placedBombs.Count; b++)
+                {
+                    var bomb = this.placedBombs[b];
+                    var curMapPos = ToMap(bomb.GridPosition, bomb.WorldPosition.Z);
+
+                    if (prevMapPos.HasValue)
+                    {
+                        drawList.AddLine(prevMapPos.Value, curMapPos, 0xEE00E5FF, 2.2f);
+                    }
+
+                    // Draw marker dot for each placed bomb with its order
+                    float bombRadius = 5f;
+                    drawList.AddCircleFilled(curMapPos, bombRadius, 0xFF00FFFF);
+                    drawList.AddCircle(curMapPos, bombRadius, 0xFF141414, 0, 1.5f);
+
+                    prevMapPos = curMapPos;
+                }
             }
 
             // Draw badges 1, 2, 3... on pillar positions (Requirement 4)
@@ -1032,7 +1058,6 @@ namespace ExpeditionPlanner
         private void RefreshSnapshot(AreaInstance area)
         {
             var currentBombs = new List<PlacedBombInfo>();
-            int bombOrder = 1;
             bool newTargetsFound = false;
 
             foreach (var entity in area.AwakeEntities.Values)
@@ -1058,29 +1083,59 @@ namespace ExpeditionPlanner
                             EntityId = entity.Id,
                             GridPosition = grid,
                             WorldPosition = world,
-                            Order = bombOrder++
+                            Order = 0 // Will be set after sorting
                         });
                     }
                 }
                 else
                 {
-                    if (!this.rememberedTargets.ContainsKey(entity.Id))
+                    if (!this.rememberedTargets.TryGetValue(entity.Id, out var existing))
                     {
                         var classified = ClassifyTarget(entity, area);
                         if (classified != null)
                         {
+                            // If a remnant was replaced at this exact position, clean up the stale entity
+                            if (classified.Kind == TargetKind.RemnantPillar)
+                            {
+                                var stale = this.rememberedTargets
+                                    .FirstOrDefault(kv => kv.Value.Kind == TargetKind.RemnantPillar &&
+                                                          kv.Key != entity.Id &&
+                                                          Vector2.Distance(new Vector2(kv.Value.GridPosition.X, kv.Value.GridPosition.Y),
+                                                                           new Vector2(classified.GridPosition.X, classified.GridPosition.Y)) < 8f)
+                                    .Key;
+                                if (stale != 0)
+                                {
+                                    this.rememberedTargets.Remove(stale);
+                                }
+                            }
+
                             this.rememberedTargets[entity.Id] = classified;
                             newTargetsFound = true;
                         }
                     }
-                    else if (this.rememberedTargets[entity.Id].Kind == TargetKind.RemnantPillar &&
-                             string.IsNullOrEmpty(this.rememberedTargets[entity.Id].AnchorRuneName))
+                    else if (existing.Kind == TargetKind.RemnantPillar)
                     {
-                        var classified = ClassifyTarget(entity, area);
-                        if (classified != null && !string.IsNullOrEmpty(classified.AnchorRuneName))
+                        // Always re-check awake Remnant pillars on each scan to detect in-game rerolls!
+                        var updated = ClassifyTarget(entity, area);
+                        if (updated != null)
                         {
-                            this.rememberedTargets[entity.Id] = classified;
-                            newTargetsFound = true;
+                            bool changed = existing.HoleCount != updated.HoleCount ||
+                                           existing.AnchorRuneName != updated.AnchorRuneName ||
+                                           existing.AnchorSlotIndex != updated.AnchorSlotIndex ||
+                                           existing.GoldenSlotIndex != updated.GoldenSlotIndex ||
+                                           existing.GoldenRuneCandidate != updated.GoldenRuneCandidate ||
+                                           existing.ProliferatedRuneTier != updated.ProliferatedRuneTier ||
+                                           existing.NeedsReroll != updated.NeedsReroll ||
+                                           existing.RerollReason != updated.RerollReason ||
+                                           !existing.GoldenSlotIndices.SequenceEqual(updated.GoldenSlotIndices) ||
+                                           !existing.ModNames.SequenceEqual(updated.ModNames);
+
+                            if (changed)
+                            {
+                                this.rememberedTargets[entity.Id] = updated;
+                                newTargetsFound = true;
+                                this.needsPillarResequence = true;
+                            }
                         }
                     }
                 }
@@ -1124,8 +1179,13 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // Update placed bombs. A snapshot never solves a route: calculation is manual
-            // so the route stays fixed while the player is placing explosives.
+            // Sort placed bombs by EntityId to maintain true placement order (Bomb 1, 2, 3...)
+            currentBombs.Sort((a, b) => a.EntityId.CompareTo(b.EntityId));
+            for (int i = 0; i < currentBombs.Count; i++)
+            {
+                currentBombs[i].Order = i + 1;
+            }
+
             this.placedBombs.Clear();
             this.placedBombs.AddRange(currentBombs);
 
@@ -1135,6 +1195,13 @@ namespace ExpeditionPlanner
                 this.activeTargets.Clear();
                 this.activeTargets.AddRange(this.rememberedTargets.Values);
                 this.needsPillarResequence = true;
+
+                // If AutoOrderPillars is enabled, re-calculate sequence immediately on reroll/target change
+                if (this.Settings.AutoOrderPillars)
+                {
+                    this.needsPillarResequence = false;
+                    this.CalculateRoute(area, "Auto (Remnant Updated)");
+                }
             }
 
             this.MarkTargetsCoveredByPlacedBombs();
@@ -1167,11 +1234,6 @@ namespace ExpeditionPlanner
         private void CalculateRoute(AreaInstance? area, string triggerSource = "Manual")
         {
             if (area == null) return;
-            if (this.pendingRouteCalculation is { IsCompleted: false })
-            {
-                this.calculationStatusMessage = "Sequencing pillar order...";
-                return;
-            }
 
             var targetSnapshot = this.activeTargets.Select(CloneTarget).ToList();
             var remnantPillars = targetSnapshot.Where(t => t.Kind == TargetKind.RemnantPillar).ToList();
@@ -1182,35 +1244,15 @@ namespace ExpeditionPlanner
             }
 
             var settings = CloneSettings(this.Settings);
-            this.pendingRouteAreaHash = area.AreaHash ?? string.Empty;
-            this.pendingRouteCalculation = Task.Run(() => ExpeditionPillarOrderPlanner.Build(targetSnapshot, settings));
-            this.calculationStatusMessage = $"Sequencing pillars ({triggerSource})...";
+            this.currentRoute = ExpeditionPillarOrderPlanner.Build(targetSnapshot, settings);
+            this.calculationStatusMessage = this.currentRoute.Placements.Count > 0
+                ? $"Sequenced @ {DateTime.Now:HH:mm:ss} | {this.currentRoute.Placements.Count} pillar(s)"
+                : "No Remnant pillars available to sequence.";
         }
 
         private void ApplyCompletedRouteCalculation(AreaInstance area)
         {
-            if (this.pendingRouteCalculation is not { IsCompleted: true } calculation)
-            {
-                return;
-            }
-
-            this.pendingRouteCalculation = null;
-            if (!string.Equals(this.pendingRouteAreaHash, area.AreaHash ?? string.Empty, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            try
-            {
-                this.currentRoute = calculation.GetAwaiter().GetResult();
-                this.calculationStatusMessage = this.currentRoute.Placements.Count > 0
-                    ? $"Sequenced @ {DateTime.Now:HH:mm:ss} | {this.currentRoute.Placements.Count} pillar(s)"
-                    : "No Remnant pillars available to sequence.";
-            }
-            catch (Exception ex)
-            {
-                this.calculationStatusMessage = $"Pillar sequencing failed: {ex.GetType().Name}";
-            }
+            // Calculation is synchronous and instantaneous
         }
 
         private static ExpeditionTarget CloneTarget(ExpeditionTarget source) => new()
