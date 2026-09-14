@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.37 — 2026-09-14
+
+- Implemented dynamic 321-recipe container discovery with persistent index caching for RuneshapeCombinationsPanel in ImportantUiElements: fast-paths against cached index (default 40), performs O(1) direct subpath [3, 2, 1, 0] check for 321 children, and scans GameUi children to auto-recover when game patches shift indices.
+- Raised RuneshapeCombinationsUi MaxChildren to 512 and MaxRows to 400 to support inspecting all 321 recipes.
+- Compatibility: Core UI resolver improvement.
+- Validation: Debug and Release builds succeeded with 0 warnings and 0 errors.
+
 ## 1.8.36 — 2026-09-14
 
 - Updated RuneshapeCombinationsPanel child path in ImportantUiElements from index 39 to index 40, matching the updated PoE 2 GameUi vector layout ([40][3][2][1][0]).

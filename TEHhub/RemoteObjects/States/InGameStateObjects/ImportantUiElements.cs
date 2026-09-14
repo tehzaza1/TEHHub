@@ -50,9 +50,13 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private static readonly int[] CurrencyExchangePanelChildPath = { 114, 20, 6, 1 };
         private static readonly int[] GemcuttingPanelChildPath = { 53, 3 };
         private static readonly int[] SupportGemcuttingPanelChildPath = { 54, 3 };
-        // Runeshape Combinations is a top-level game UI panel. The panel root was observed at
-        // child 40; its descendants hold recipe rows and the 68x68 rune slot controls.
+        // Runeshape Combinations is a top-level game UI panel. It defaults to child 40
+        // and dynamically discovers and caches its index by locating the 321-recipe container.
         private static readonly int[] RuneshapeCombinationsPanelChildPath = { 40 };
+        private static int cachedRuneshapePanelIndex = 40;
+        private static readonly int[] RuneshapeRecipesSubPath = { 3, 2, 1, 0 };
+        private const uint RuneshapePanelFlagFingerprint = 0x00462EF1;
+        private const int RuneshapeRecipeCountSignature = 321;
         private static readonly int[] LeftPanelCoopPath = { 22 };
         private static readonly int[] RightPanelCoopPath = { 23 };
         private static readonly int[] TempleConsoleChildPath = { 64, 0 };
@@ -1296,17 +1300,130 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             return results;
         }
 
+        private static bool Has321RecipeContainer(SafeMemoryHandle reader, IntPtr panelAddress)
+        {
+            if (panelAddress == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            // Direct check via verified subpath [3, 2, 1, 0]
+            var directContainer = ResolveChildAddress(panelAddress, RuneshapeRecipesSubPath);
+            if (directContainer != IntPtr.Zero && reader.TryReadMemory<UiElementBaseOffset>(directContainer, out var directData))
+            {
+                if (directData.ChildrensPtr.TotalElements(IntPtr.Size) == RuneshapeRecipeCountSignature)
+                {
+                    return true;
+                }
+            }
+
+            // Fallback: bounded shallow search (depth <= 5) in case intermediate layout containers shift
+            return Find321ContainerRecursive(reader, panelAddress, 0, 5);
+        }
+
+        private static bool Find321ContainerRecursive(SafeMemoryHandle reader, IntPtr current, int depth, int maxDepth)
+        {
+            if (current == IntPtr.Zero || depth > maxDepth)
+            {
+                return false;
+            }
+
+            if (!reader.TryReadMemory<UiElementBaseOffset>(current, out var data) || data.Self != current)
+            {
+                return false;
+            }
+
+            var count = data.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (count == RuneshapeRecipeCountSignature)
+            {
+                return true;
+            }
+
+            // Only descend into small branch containers (<= 16 children)
+            if (count > 0 && count <= 16 && data.ChildrensPtr.First != IntPtr.Zero)
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    if (reader.TryReadMemory<IntPtr>(data.ChildrensPtr.First + (i * IntPtr.Size), out var child) && child != IntPtr.Zero)
+                    {
+                        if (Find321ContainerRecursive(reader, child, depth + 1, maxDepth))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private IntPtr ResolveRuneshapeCombinationsPanel()
         {
             var reader = Core.Process.Handle;
             if (!reader.TryReadMemory<UiElementBaseOffset>(this.Address, out var root)) return IntPtr.Zero;
-            var count = root.ChildrensPtr.TotalElements(IntPtr.Size);
-            if (root.ChildrensPtr.First == IntPtr.Zero || count <= 40) return IntPtr.Zero;
-            if (!reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (40 * IntPtr.Size), out var panel) || panel == IntPtr.Zero) return IntPtr.Zero;
-            // The panel is a child in GameUi's vector but its UiElement parent can be an
-            // intermediate layout container, so require a live parent rather than the manager.
-            return reader.TryReadMemory<UiElementBaseOffset>(panel, out var data) && data.Self == panel && data.ParentPtr != IntPtr.Zero
-                ? panel : IntPtr.Zero;
+            var count = (int)root.ChildrensPtr.TotalElements(IntPtr.Size);
+            if (root.ChildrensPtr.First == IntPtr.Zero || count <= 0) return IntPtr.Zero;
+
+            // 1. Fast path: check cached index (defaults to 40)
+            if (cachedRuneshapePanelIndex >= 0 && cachedRuneshapePanelIndex < count)
+            {
+                if (reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (cachedRuneshapePanelIndex * IntPtr.Size), out var cachedPanel) &&
+                    cachedPanel != IntPtr.Zero)
+                {
+                    if (reader.TryReadMemory<UiElementBaseOffset>(cachedPanel, out var cachedData) &&
+                        cachedData.Self == cachedPanel && cachedData.ParentPtr != IntPtr.Zero)
+                    {
+                        // When open: verified if it contains the 321-recipe container
+                        // When closed: verified if it retains the Runeshape fingerprint 0x00462EF1
+                        if (Has321RecipeContainer(reader, cachedPanel) || (cachedData.Flags & ~IsVisibleMask) == RuneshapePanelFlagFingerprint)
+                        {
+                            return cachedPanel;
+                        }
+                    }
+                }
+            }
+
+            // 2. Dynamic Discovery: Scan GameUi children to locate the panel containing the 321-recipe container
+            for (var i = 0; i < count; i++)
+            {
+                if (!reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (i * IntPtr.Size), out var candPanel) || candPanel == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                if (!reader.TryReadMemory<UiElementBaseOffset>(candPanel, out var candData) ||
+                    candData.Self != candPanel || candData.ParentPtr == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                if (Has321RecipeContainer(reader, candPanel))
+                {
+                    cachedRuneshapePanelIndex = i;
+                    RuneshapeCombinationsPanelChildPath[0] = i;
+                    return candPanel;
+                }
+            }
+
+            // 3. Fallback: if monolith is not currently open, check if any GameUi child matches the fingerprint
+            for (var i = 0; i < count; i++)
+            {
+                if (!reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (i * IntPtr.Size), out var candPanel) || candPanel == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                if (reader.TryReadMemory<UiElementBaseOffset>(candPanel, out var candData) &&
+                    candData.Self == candPanel && candData.ParentPtr != IntPtr.Zero &&
+                    (candData.Flags & ~IsVisibleMask) == RuneshapePanelFlagFingerprint)
+                {
+                    cachedRuneshapePanelIndex = i;
+                    RuneshapeCombinationsPanelChildPath[0] = i;
+                    return candPanel;
+                }
+            }
+
+            return IntPtr.Zero;
         }
 
         private static IntPtr ResolveChildAddress(IntPtr rootAddress, int[] childPath)

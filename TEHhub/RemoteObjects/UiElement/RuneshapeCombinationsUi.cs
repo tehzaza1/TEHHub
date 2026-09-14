@@ -13,8 +13,8 @@ namespace TEHhub.RemoteObjects.UiElement
     public sealed class RuneshapeCombinationsUi
     {
         private const int MaxDepth = 20;
-        private const int MaxChildren = 128;
-        private const int MaxRows = 32;
+        private const int MaxChildren = 512;
+        private const int MaxRows = 400;
         private const int MaxSlotsPerRow = 32;
 
         private RuneshapeCombinationsUi(UiElementBase panel, IReadOnlyList<UiElementBase> rows)
