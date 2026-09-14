@@ -137,6 +137,50 @@ namespace ExpeditionPlanner
                 (1.0f - ndcY) * (winH * 0.5f));
         }
 
+        /// <summary>
+        /// Draws a circle that lies flat on the ground by projecting world-space perimeter
+        /// points through the view matrix. This produces the correct perspective ellipse
+        /// instead of a flat screen-space disc that appears to float in the air.
+        /// </summary>
+        private static void DrawGroundCircle(
+            ImDrawListPtr drawList,
+            Matrix4x4 matrix,
+            float winW,
+            float winH,
+            Vector3 centerWorld,
+            float worldRadius,
+            uint color,
+            int segments = 48,
+            float thickness = 1.5f)
+        {
+            Vector2 prev = default;
+            bool hasPrev = false;
+            float step = 2f * MathF.PI / segments;
+
+            for (int i = 0; i <= segments; i++)
+            {
+                float a = i * step;
+                var pt = new Vector3(
+                    centerWorld.X + MathF.Cos(a) * worldRadius,
+                    centerWorld.Y + MathF.Sin(a) * worldRadius,
+                    centerWorld.Z);  // same Z = stays on ground
+
+                if (!ProjectToClipSpace(matrix, pt, out var clip) || clip.W < 0.05f)
+                {
+                    hasPrev = false;
+                    continue;
+                }
+
+                var cur = ClipToScreen(clip, winW, winH);
+                if (hasPrev)
+                {
+                    drawList.AddLine(prev, cur, color, thickness);
+                }
+                prev = cur;
+                hasPrev = true;
+            }
+        }
+
         private static bool ClipLine2D(ref Vector2 p0, ref Vector2 p1, float xMin, float yMin, float xMax, float yMax)
         {
             float dx = p1.X - p0.X;
@@ -340,18 +384,12 @@ namespace ExpeditionPlanner
                 if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
                     sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
 
-                // Blast radius: project world-space edge to get true screen-space pixel radius.
+                // Blast radius: draw a world-space ground circle (correct perspective ellipse)
                 // Edge = bomb center + BlastRadiusGrid grid units, converted via derived scale.
                 if (this.Settings.ShowBlastRadius)
                 {
                     float worldRadius = this.Settings.BlastRadiusGrid * gridToWorldScale;
-                    var edgeWorld = new Vector3(bomb.WorldPosition.X + worldRadius, bomb.WorldPosition.Y, bomb.WorldPosition.Z);
-                    if (ProjectToClipSpace(matrix, edgeWorld, out var edgeClip) && edgeClip.W > 0.05f)
-                    {
-                        var edgeScreen = ClipToScreen(edgeClip, winW, winH);
-                        float screenRadius = Vector2.Distance(sPos, edgeScreen);
-                        drawList.AddCircle(sPos, screenRadius, 0x5500CCCC, 64, 1.5f);
-                    }
+                    DrawGroundCircle(drawList, matrix, winW, winH, bomb.WorldPosition, worldRadius, 0x5500CCCC);
                 }
 
                 drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.8f, 0xDD00CCCC);
@@ -372,17 +410,11 @@ namespace ExpeditionPlanner
                     if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
                         sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
 
-                    // Blast radius: project world-space edge to get true screen-space pixel radius.
+                    // Blast radius: draw a world-space ground circle (correct perspective ellipse)
                     if (this.Settings.ShowBlastRadius)
                     {
                         float worldRadius = this.Settings.BlastRadiusGrid * gridToWorldScale;
-                        var edgeWorld = new Vector3(p.WorldPosition.X + worldRadius, p.WorldPosition.Y, p.WorldPosition.Z);
-                        if (ProjectToClipSpace(matrix, edgeWorld, out var edgeClip) && edgeClip.W > 0.05f)
-                        {
-                            var edgeScreen = ClipToScreen(edgeClip, winW, winH);
-                            float screenRadius = Vector2.Distance(sPos, edgeScreen);
-                            drawList.AddCircle(sPos, screenRadius, 0x77FFCC00, 64, 1.5f);
-                        }
+                        DrawGroundCircle(drawList, matrix, winW, winH, p.WorldPosition, worldRadius, 0x77FFCC00);
                     }
 
                     // Badge circle (vibrant gold with dark core, or red if obstructed/unsafe)
