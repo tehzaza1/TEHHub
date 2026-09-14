@@ -184,7 +184,7 @@ namespace ExpeditionPlanner
             List<Vector3> staticCandidates, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings,
             int maxSteps, ExpeditionTarget? finalStackPillar, bool requireAllBeforeFinal)
         {
-            const int beamWidth = 24;
+            const int beamWidth = 32;
             var pillarTargets = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
             var initialAnchor = placed.Count > 0 ? placed[^1].GridPosition : startGrid;
             var beam = new List<BeamState>
@@ -282,15 +282,39 @@ namespace ExpeditionPlanner
             return new RouteEvaluation { Profile = settings.Profile.ToString(), Placements = winner.Placements, NetScore = winner.Covered.Count };
         }
 
-        private static List<BeamState> PruneBeam(List<BeamState> states, List<ExpeditionTarget> targets, ExpeditionTarget? finalStackPillar, int width) => states
-            .GroupBy(s => $"{string.Join(',', s.Covered.Order())}|{MathF.Round(s.Anchor.X / 10f)}:{MathF.Round(s.Anchor.Y / 10f)}")
-            .Select(g => g.OrderBy(s => s.Bridges).First())
-            .OrderByDescending(s => s.Covered.Count)
-            .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
-            .ThenBy(s => s.Bridges)
-            .ThenBy(s => DistanceToNearestUncovered(s, targets, finalStackPillar))
-            .Take(width)
-            .ToList();
+        private static List<BeamState> PruneBeam(List<BeamState> states, List<ExpeditionTarget> targets, ExpeditionTarget? finalStackPillar, int width)
+        {
+            var unique = states
+                .GroupBy(s => $"{string.Join(',', s.Covered.Order())}|{MathF.Round(s.Anchor.X / 10f)}:{MathF.Round(s.Anchor.Y / 10f)}")
+                .Select(g => g.OrderBy(s => s.Bridges).First())
+                .ToList();
+            var chosen = unique
+                .OrderByDescending(s => s.Covered.Count)
+                .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
+                .ThenBy(s => s.Bridges)
+                .Take(Math.Max(8, width / 2))
+                .ToList();
+
+            // Keep bridge frontiers alive for every uncovered pillar. Without this,
+            // a state walking toward a remote pillar has zero new coverage for a few
+            // steps and is discarded in favour of nearby completed pillars.
+            foreach (var target in targets.Where(t => t.EntityId != finalStackPillar?.EntityId))
+            {
+                foreach (var frontier in unique
+                    .Where(s => !s.Covered.Contains(target.EntityId))
+                    .OrderBy(s => Vector2.Distance(new Vector2(s.Anchor.X, s.Anchor.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y)))
+                    .ThenBy(s => s.Bridges)
+                    .Take(2))
+                {
+                    if (!chosen.Contains(frontier)) chosen.Add(frontier);
+                }
+            }
+            return chosen
+                .OrderByDescending(s => s.Covered.Count)
+                .ThenBy(s => s.Bridges)
+                .Take(width)
+                .ToList();
+        }
 
         private static float DistanceToNearestUncovered(BeamState state, IEnumerable<ExpeditionTarget> targets, ExpeditionTarget? finalStackPillar) => targets
             .Where(t => !state.Covered.Contains(t.EntityId) && t.EntityId != finalStackPillar?.EntityId)
