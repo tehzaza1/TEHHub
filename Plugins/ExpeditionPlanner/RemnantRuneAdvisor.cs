@@ -212,6 +212,47 @@ namespace ExpeditionPlanner
             out string rerollReason,
             out bool isRerolled)
         {
+            return TryReadMonolith(
+                entity,
+                areaLevel,
+                out holeCount,
+                out goldenSlotIndex,
+                out goldenSlotIndices,
+                out anchorSlotIndex,
+                out anchorName,
+                out goldenRuneCandidate,
+                out candidateRuneSequence,
+                out recommendedChoice,
+                out description,
+                out estimatedValue,
+                out proliferatedTier,
+                out isAnchorInGoldenSlot,
+                out needsReroll,
+                out rerollReason,
+                out isRerolled,
+                out _);
+        }
+
+        public static bool TryReadMonolith(
+            Entity entity,
+            int areaLevel,
+            out int holeCount,
+            out int goldenSlotIndex,
+            out List<int> goldenSlotIndices,
+            out int anchorSlotIndex,
+            out string anchorName,
+            out string goldenRuneCandidate,
+            out List<string> candidateRuneSequence,
+            out string recommendedChoice,
+            out string description,
+            out float estimatedValue,
+            out RuneTier proliferatedTier,
+            out bool isAnchorInGoldenSlot,
+            out bool needsReroll,
+            out string rerollReason,
+            out bool isRerolled,
+            out bool isGoldenConfirmed)
+        {
             holeCount = 0;
             goldenSlotIndex = -1;
             goldenSlotIndices = new List<int>();
@@ -227,6 +268,7 @@ namespace ExpeditionPlanner
             needsReroll = false;
             rerollReason = string.Empty;
             isRerolled = false;
+            isGoldenConfirmed = true;
 
             if (entity.Address == IntPtr.Zero) return false;
             if (!entity.TryGetComponent<StateMachine>(out var sm, false) || sm.Address == IntPtr.Zero) return false;
@@ -426,6 +468,46 @@ namespace ExpeditionPlanner
                 candidateRuneSequence = new List<string>();
             }
 
+            // Determine if the Golden Slot rune is authoritatively confirmed:
+            // 1. If unique monolith -> confirmed.
+            // 2. If all golden slots match the anchor slot -> confirmed from memory (station + 0x28).
+            // 3. If matchingRecipes.Count <= 1 -> confirmed by catalog deduction (0 or 1 valid recipe exists).
+            // 4. If all matchingRecipes agree on the runes placed in every golden slot -> confirmed consensus.
+            // 5. Otherwise, if golden slot != anchor slot and matching recipes differ -> unconfirmed candidate roll.
+            isGoldenConfirmed = isUnique;
+            if (!isUnique)
+            {
+                bool allGoldenConfirmed = true;
+                foreach (var g in goldenSlotsList)
+                {
+                    if (g == anchorSlotIndex)
+                    {
+                        // Direct read from memory station + 0x28 (anchor rune). 100% authoritative!
+                        continue;
+                    }
+
+                    if (matchingRecipes.Count <= 1)
+                    {
+                        continue;
+                    }
+
+                    var firstRune = matchingRecipes[0].runeIdx != null && matchingRecipes[0].runeIdx!.Count > g
+                        ? matchingRecipes[0].runeIdx![g]
+                        : -1;
+
+                    bool consensus = matchingRecipes.All(r =>
+                        r.runeIdx != null && r.runeIdx.Count > g && r.runeIdx[g] == firstRune);
+
+                    if (!consensus)
+                    {
+                        allGoldenConfirmed = false;
+                        break;
+                    }
+                }
+
+                isGoldenConfirmed = allGoldenConfirmed;
+            }
+
             // Build goldenRuneCandidate and determine proliferatedTier across all golden slots
             if (isUnique)
             {
@@ -467,6 +549,21 @@ namespace ExpeditionPlanner
                     if (rTier < bestGoldenTier)
                     {
                         bestGoldenTier = rTier;
+                    }
+
+                    // If unconfirmed reroll, show candidates so player is not misled
+                    if (isRerolled && !isGoldenConfirmed && g != anchorSlotIndex)
+                    {
+                        var distinctRunes = matchingRecipes
+                            .Where(r => r.runeIdx != null && r.runeIdx.Count > g)
+                            .Select(r => (r.runeIdx![g] >= 0 && r.runeIdx[g] < RuneNames.Length) ? RuneNames[r.runeIdx[g]] : "Blue")
+                            .Distinct()
+                            .ToList();
+
+                        if (distinctRunes.Count > 1)
+                        {
+                            rName = $"{rName}? ({string.Join("/", distinctRunes)})";
+                        }
                     }
 
                     if (goldenSlotsList.Count > 1)
@@ -581,11 +678,15 @@ namespace ExpeditionPlanner
 
             if (!string.IsNullOrEmpty(rewardLabel) && !string.IsNullOrEmpty(runeRow))
             {
-                recommendedChoice = $"Pick: {rewardLabel}  [{runeRow}]";
+                recommendedChoice = isRerolled && !isGoldenConfirmed
+                    ? $"Rolled Cand: {rewardLabel}  [{runeRow}]"
+                    : $"Pick: {rewardLabel}  [{runeRow}]";
             }
             else if (!string.IsNullOrEmpty(rewardLabel))
             {
-                recommendedChoice = $"Pick: {rewardLabel}";
+                recommendedChoice = isRerolled && !isGoldenConfirmed
+                    ? $"Rolled Cand: {rewardLabel}"
+                    : $"Pick: {rewardLabel}";
             }
             else if (isAnchorInGoldenSlot)
             {

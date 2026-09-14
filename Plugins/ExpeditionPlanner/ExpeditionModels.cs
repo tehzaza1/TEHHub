@@ -74,6 +74,8 @@ namespace ExpeditionPlanner
         public bool IsDuplicateProliferation { get; set; }
         /// <summary>True if StateMachine state 'is_rerolled' == 1 (already rerolled once; cannot reroll again).</summary>
         public bool IsRerolled { get; set; }
+        /// <summary>True if the Golden Slot rune is authoritatively confirmed (anchor in golden slot or single matching recipe).</summary>
+        public bool IsGoldenConfirmed { get; set; } = true;
     }
 
     public sealed class PlacedBombInfo

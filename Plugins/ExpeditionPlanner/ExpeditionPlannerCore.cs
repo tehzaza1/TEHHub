@@ -764,7 +764,8 @@ namespace ExpeditionPlanner
 
                 string line1;
                 uint headerColor;
-                string rerollSuffix = pillar.IsRerolled ? " [R]" : "";
+                string rerollSuffix = pillar.IsRerolled ? (pillar.IsGoldenConfirmed ? " [R]" : " [R?]") : "";
+                string candMarker = (pillar.IsRerolled && !pillar.IsGoldenConfirmed) ? "?" : "";
                 if (isFinal)
                 {
                     line1 = $"[#{step.Step}] FINAL STACK ({pillar.HoleCount}h){rerollSuffix}";
@@ -772,29 +773,29 @@ namespace ExpeditionPlanner
                 }
                 else if (isOp || tier == RuneTier.Golden)
                 {
-                    line1 = $"[#{step.Step}] SSS Opulent ({pillar.HoleCount}h){rerollSuffix}";
+                    line1 = $"[#{step.Step}] SSS Opulent{candMarker} ({pillar.HoleCount}h){rerollSuffix}";
                     headerColor = 0xFFFFD700;
                 }
                 else if (tier == RuneTier.Purple_S)
                 {
-                    line1 = $"[#{step.Step}] S-Tier {prolifRune} ({pillar.HoleCount}h){rerollSuffix}";
+                    line1 = $"[#{step.Step}] S-Tier {prolifRune}{candMarker} ({pillar.HoleCount}h){rerollSuffix}";
                     headerColor = 0xFFFF55FF;
                 }
                 else if (tier == RuneTier.Purple_A)
                 {
-                    line1 = $"[#{step.Step}] A-Tier {prolifRune} ({pillar.HoleCount}h){rerollSuffix}";
+                    line1 = $"[#{step.Step}] A-Tier {prolifRune}{candMarker} ({pillar.HoleCount}h){rerollSuffix}";
                     headerColor = 0xFFDA70D6;
                 }
                 else if (isBlue)
                 {
                     var rName = !string.IsNullOrEmpty(prolifRune) ? prolifRune : pillar.AnchorRuneName;
-                    line1 = $"[#{step.Step}] Blue {rName} ({pillar.HoleCount}h){rerollSuffix}";
+                    line1 = $"[#{step.Step}] Blue {rName}{candMarker} ({pillar.HoleCount}h){rerollSuffix}";
                     headerColor = 0xFF00E5FF;
                 }
                 else
                 {
                     var rName = !string.IsNullOrEmpty(prolifRune) ? prolifRune : pillar.AnchorRuneName;
-                    line1 = $"[#{step.Step}] {rName} ({pillar.HoleCount}h){rerollSuffix}";
+                    line1 = $"[#{step.Step}] {rName}{candMarker} ({pillar.HoleCount}h){rerollSuffix}";
                     headerColor = ringColor;
                 }
 
@@ -822,8 +823,16 @@ namespace ExpeditionPlanner
                 }
                 else if (pillar.CanProliferate)
                 {
-                    line2 = pillar.IsRerolled ? $"[OK] Proliferate: [{prolifRune}] (Rerolled)" : $"[OK] Proliferate: [{prolifRune}]";
-                    statusColor = 0xFF55FF55; // Bright Green
+                    if (pillar.IsRerolled && !pillar.IsGoldenConfirmed)
+                    {
+                        line2 = $"[?] Proliferate: [{prolifRune}?] (Rerolled Cand)";
+                        statusColor = 0xFFFFAA00; // Amber / Yellow
+                    }
+                    else
+                    {
+                        line2 = pillar.IsRerolled ? $"[OK] Proliferate: [{prolifRune}] (Rerolled)" : $"[OK] Proliferate: [{prolifRune}]";
+                        statusColor = 0xFF55FF55; // Bright Green
+                    }
                 }
                 else
                 {
@@ -1326,16 +1335,18 @@ namespace ExpeditionPlanner
                 bool needsReroll = false;
                 string rerollReason = string.Empty;
                 bool isRerolled = false;
+                bool isGoldenConfirmed = true;
 
-                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out goldenSlots, out anchorSlot, out anchor, out goldenRune, out candidateRuneSeq, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason, out isRerolled))
+                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out goldenSlots, out anchorSlot, out anchor, out goldenRune, out candidateRuneSeq, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason, out isRerolled, out isGoldenConfirmed))
                 {
                     var goldenText = goldenSlots.Count > 1
                         ? $"Golden Slots {string.Join(",", goldenSlots.Select(i => $"#{i + 1}"))}/{holes}"
                         : (goldenSlot >= 0 ? $"Golden Slot #{goldenSlot + 1}/{holes}" : $"{holes}x");
 
+                    var candTag = (!isGoldenConfirmed && isRerolled) ? " [Cand?]" : "";
                     displayName = isAnchorInGoldenSlot && goldenSlots.Count <= 1
-                        ? $"Remnant [{goldenText} {anchor}]"
-                        : $"Remnant [{goldenText} {goldenRune} | {anchor} @ #{anchorSlot + 1}]";
+                        ? $"Remnant [{goldenText} {anchor}{candTag}]"
+                        : $"Remnant [{goldenText} {goldenRune}{candTag} | {anchor} @ #{anchorSlot + 1}]";
                 }
 
                 var remnantMods = new List<string>();
@@ -1374,6 +1385,7 @@ namespace ExpeditionPlanner
                     NeedsReroll = needsReroll,
                     RerollReason = rerollReason,
                     IsRerolled = isRerolled,
+                    IsGoldenConfirmed = isGoldenConfirmed,
                 };
             }
             else if (path.Contains(SentinelPath, StringComparison.OrdinalIgnoreCase))
