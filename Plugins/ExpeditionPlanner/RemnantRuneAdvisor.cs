@@ -173,6 +173,45 @@ namespace ExpeditionPlanner
             out bool needsReroll,
             out string rerollReason)
         {
+            return TryReadMonolith(
+                entity,
+                areaLevel,
+                out holeCount,
+                out goldenSlotIndex,
+                out goldenSlotIndices,
+                out anchorSlotIndex,
+                out anchorName,
+                out goldenRuneCandidate,
+                out candidateRuneSequence,
+                out recommendedChoice,
+                out description,
+                out estimatedValue,
+                out proliferatedTier,
+                out isAnchorInGoldenSlot,
+                out needsReroll,
+                out rerollReason,
+                out _);
+        }
+
+        public static bool TryReadMonolith(
+            Entity entity,
+            int areaLevel,
+            out int holeCount,
+            out int goldenSlotIndex,
+            out List<int> goldenSlotIndices,
+            out int anchorSlotIndex,
+            out string anchorName,
+            out string goldenRuneCandidate,
+            out List<string> candidateRuneSequence,
+            out string recommendedChoice,
+            out string description,
+            out float estimatedValue,
+            out RuneTier proliferatedTier,
+            out bool isAnchorInGoldenSlot,
+            out bool needsReroll,
+            out string rerollReason,
+            out bool isRerolled)
+        {
             holeCount = 0;
             goldenSlotIndex = -1;
             goldenSlotIndices = new List<int>();
@@ -187,9 +226,22 @@ namespace ExpeditionPlanner
             isAnchorInGoldenSlot = true;
             needsReroll = false;
             rerollReason = string.Empty;
+            isRerolled = false;
 
             if (entity.Address == IntPtr.Zero) return false;
             if (!entity.TryGetComponent<StateMachine>(out var sm, false) || sm.Address == IntPtr.Zero) return false;
+
+            if (sm.States != null)
+            {
+                for (int i = 0; i < sm.States.Count; i++)
+                {
+                    if (string.Equals(sm.States[i].Name, "is_rerolled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        isRerolled = sm.States[i].Value != 0;
+                        break;
+                    }
+                }
+            }
 
             var reader = Core.Process.Handle;
             var listeners = reader.ReadMemory<StdVector>(sm.Address + ListenerVectorOffset);
@@ -419,7 +471,7 @@ namespace ExpeditionPlanner
 
                     if (goldenSlotsList.Count > 1)
                     {
-                        goldenParts.Add($"#{g + 1}: {rName} ★");
+                        goldenParts.Add($"#{g + 1}: {rName}");
                     }
                     else
                     {
@@ -437,7 +489,13 @@ namespace ExpeditionPlanner
             }
 
             // --- Smart Reroll Advisor Evaluation ---
-            if (isUnique || string.IsNullOrEmpty(goldenRuneCandidate) || goldenRuneCandidate == "Unknown")
+            if (isRerolled)
+            {
+                // Monolith has already been rerolled in game (StateMachine state 'is_rerolled' == 1). Cannot reroll again!
+                needsReroll = false;
+                rerollReason = "Already rerolled";
+            }
+            else if (isUnique || string.IsNullOrEmpty(goldenRuneCandidate) || goldenRuneCandidate == "Unknown")
             {
                 needsReroll = false;
                 rerollReason = string.Empty;

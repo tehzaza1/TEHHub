@@ -30,10 +30,10 @@ namespace ExpeditionPlanner
 
     public enum PlannerProfile
     {
-        /// <summary>เน้นเสา Remnant ก่อน — ทุกลูกระเบิดต้องเล็งเสาเป็นหลัก SSS/S-Tier ถูก boost สูงสุด</summary>
+        /// <summary>Pillar first: prioritize Remnant pillars.</summary>
         PillarFirst = 0,
 
-        /// <summary>ความคุ้ม — สมดุลทุกเป้าหมาย (เสา, หีบ, มอนสเตอร์) แต่ SSS pillar ยังการันตีชนะเสมอ</summary>
+        /// <summary>Optimal: balance all targets while guaranteeing SSS.</summary>
         Optimal
     }
 
@@ -72,6 +72,8 @@ namespace ExpeditionPlanner
         public bool NeedsReroll { get; set; }
         public string RerollReason { get; set; } = string.Empty;
         public bool IsDuplicateProliferation { get; set; }
+        /// <summary>True if StateMachine state 'is_rerolled' == 1 (already rerolled once; cannot reroll again).</summary>
+        public bool IsRerolled { get; set; }
     }
 
     public sealed class PlacedBombInfo

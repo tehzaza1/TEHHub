@@ -32,10 +32,10 @@ namespace ExpeditionPlanner
 
             // 2. Identify proliferation capabilities for each pillar:
             // Rules from game mechanics & user instructions:
-            // 1) "รูนฟ้าไม่ว่าจะซ้ำไม่ซ้ำก็จะสืบทอดไม่ได้": Blue runes NEVER proliferate (whether duplicate or unique).
-            // 2) "รูนที่สืบทอดมันจะซ้ำไม่ได้": Runes already in the proliferated chain cannot be inherited again (no duplicate stacks).
-            // 3) "การเลียงควรรูเลียงจากน้อยไปมาก ยกเว้นจะเจอ รูน SSS S A": HoleCount ascending except SSS/S/A.
-            // 4) "เสาที่มีจำนวนรูมากที่สุดเป็นเสาสุดท้ายเสมอ": Max hole count pillar is final stack.
+            // 1) Blue runes NEVER proliferate (whether duplicate or unique).
+            // 2) Runes already in the proliferated chain cannot be inherited again (no duplicate stacks).
+            // 3) HoleCount ascending except SSS/S/A.
+            // 4) Max hole count pillar is final stack.
             int maxHoles = pillars.Max(p => p.HoleCount);
 
             // Count frequency of each non-blue rune across all pillars on this map
@@ -97,7 +97,7 @@ namespace ExpeditionPlanner
             // - Proliferation Wave: Unique non-blue runes (SSS -> S -> A -> Purple B)
             //   If a high-tier rune appears on multiple pillars, only the one with FEWEST holes enters Proliferation Wave.
             // - Stacking Wave: Non-proliferating pillars (Blue runes, and duplicate high-tier pillars)
-            //   Ordered strictly by HoleCount ascending (น้อยไปมาก: 2 -> 3 -> 4...)
+            //   Ordered strictly by HoleCount ascending (e.g. 2 -> 3 -> 4...)
             var prolifWave = new List<ExpeditionTarget>();
             var stackWave = new List<ExpeditionTarget>();
             var registeredRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -128,7 +128,7 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // Stacking wave is ordered strictly by HoleCount ascending (น้อยไปมาก)
+            // Stacking wave is ordered strictly by HoleCount ascending
             stackWave = stackWave
                 .OrderBy(p => p.HoleCount)
                 .ThenBy(p => p.EntityId)
