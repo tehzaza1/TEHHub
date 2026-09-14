@@ -12,27 +12,16 @@ namespace ExpeditionPlanner
         public static RouteEvaluation Solve(Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings)
         {
             var candidates = BuildCandidates(targets, settings);
-            RouteEvaluation? best = null;
-            var random = new Random(17);
             int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
             var finalStackPillar = FindFinalStackPillar(targets, settings);
             // Bridge bombs consume slots too. Do not cap the route by pillar count:
             // a remote pillar may need several legal fuse segments before it can be hit.
             int maxCount = Math.Max(1, settings.MaxExplosiveBudget - placed.Count);
-            // The stack receiver must be the last placement actually chosen. Try every
-            // usable route length and retain the route that covers the most pillars.
-            for (int count = 1; count <= maxCount; count++)
-            {
-                // ExpeditionIcons evolves a bounded pool of complete paths. Keep this
-                // similarly bounded; 12 seeds per length is enough for pillar-only mode
-                // and cannot monopolize a CPU core for seconds.
-                for (int attempt = 0; attempt < 12; attempt++)
-                {
-                    var route = BuildRoute(startGrid, startWorld, placed, targets, candidates, terrain, settings, count, random);
-                    if (IsBetterRoute(route, best, finalStackPillar)) best = route;
-                }
-            }
-            best ??= new RouteEvaluation { Profile = settings.Profile.ToString() };
+            // Preserve alternative prefixes instead of committing the locally-best
+            // bridge. This is the core difference from the old greedy rollout.
+            var best = SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, finalStackPillar, true)
+                ?? SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, finalStackPillar, false)
+                ?? new RouteEvaluation { Profile = settings.Profile.ToString() };
             var coveredPillars = best.Placements.SelectMany(p => p.CoveredTargets)
                 .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
                 .Select(t => t.EntityId).Distinct().Count();
@@ -179,6 +168,144 @@ namespace ExpeditionPlanner
                     yield return new Vector3(point.X, point.Y, target.GridPosition.Z);
                 }
             }
+        }
+
+        private sealed class BeamState
+        {
+            public Vector3 Anchor { get; init; }
+            public List<Vector3> Committed { get; init; } = new();
+            public List<ProposedPlacement> Placements { get; init; } = new();
+            public HashSet<uint> Covered { get; init; } = new();
+            public int Bridges { get; init; }
+        }
+
+        private static RouteEvaluation? SearchRouteBeam(
+            Vector3 startGrid, Vector3 startWorld, List<PlacedBombInfo> placed, List<ExpeditionTarget> targets,
+            List<Vector3> staticCandidates, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings,
+            int maxSteps, ExpeditionTarget? finalStackPillar, bool requireAllBeforeFinal)
+        {
+            const int beamWidth = 24;
+            var pillarTargets = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
+            var initialAnchor = placed.Count > 0 ? placed[^1].GridPosition : startGrid;
+            var beam = new List<BeamState>
+            {
+                new() { Anchor = initialAnchor, Committed = placed.Select(p => p.GridPosition).ToList() }
+            };
+            var terminals = new List<BeamState>();
+            for (int depth = 1; depth <= maxSteps && beam.Count > 0; depth++)
+            {
+                var next = new List<BeamState>();
+                foreach (var state in beam)
+                {
+                    bool hasSuccessor = false;
+                    var desired = pillarTargets.Where(t => !state.Covered.Contains(t.EntityId) && t.EntityId != finalStackPillar?.EntityId)
+                        .OrderBy(t => Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y))).FirstOrDefault()
+                        ?? finalStackPillar;
+                    foreach (var point in staticCandidates.Concat(BuildBridgeCandidates(state.Anchor, pillarTargets, state.Covered, settings)).Distinct())
+                    {
+                        if (!LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, startGrid, state.Committed)) continue;
+                        var hit = pillarTargets.Where(t => !state.Covered.Contains(t.EntityId) &&
+                            Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
+                        bool hitsFinal = finalStackPillar != null && hit.Any(t => t.EntityId == finalStackPillar.EntityId);
+                        int otherUncovered = pillarTargets.Count(t => t.EntityId != finalStackPillar?.EntityId && !state.Covered.Contains(t.EntityId));
+                        if (hitsFinal && requireAllBeforeFinal && otherUncovered > 0) continue;
+                        if (hit.Count == 0)
+                        {
+                            if (depth == maxSteps || desired == null) continue;
+                            var before = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(desired.GridPosition.X, desired.GridPosition.Y));
+                            var after = Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(desired.GridPosition.X, desired.GridPosition.Y));
+                            if (after >= before - 1f) continue;
+                        }
+                        if (finalStackPillar != null && !hitsFinal && !state.Covered.Contains(finalStackPillar.EntityId) &&
+                            !CanStillReachFinalPillar(point, finalStackPillar, maxSteps - depth, settings)) continue;
+
+                        var covered = new HashSet<uint>(state.Covered);
+                        foreach (var target in hit) covered.Add(target.EntityId);
+                        var placements = new List<ProposedPlacement>(state.Placements)
+                        {
+                            new()
+                            {
+                                Step = placed.Count + depth, GridPosition = point,
+                                WorldPosition = startWorld + ((point - startGrid) * 10.87f),
+                                WireDistance = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(point.X, point.Y)),
+                                CoveredTargets = hit
+                            }
+                        };
+                        var successor = new BeamState
+                        {
+                            Anchor = point,
+                            Committed = state.Committed.Append(point).ToList(),
+                            Placements = placements,
+                            Covered = covered,
+                            Bridges = state.Bridges + (hit.Count == 0 ? 1 : 0)
+                        };
+                        if (hitsFinal) terminals.Add(successor); else next.Add(successor);
+                        hasSuccessor = true;
+                    }
+
+                    // Only invoke A* when the normal grid candidates cannot extend
+                    // this state. It turns the radar/walkability map into the actual
+                    // source of an obstacle-avoiding bridge without flooding search.
+                    if (!hasSuccessor && desired != null && depth < maxSteps &&
+                        LegalPlacement.TryFindTerrainDetourWaypoint(
+                            terrain,
+                            new Vector2(state.Anchor.X, state.Anchor.Y),
+                            new Vector2(desired.GridPosition.X, desired.GridPosition.Y),
+                            settings.MaxPlacementRangeGrid,
+                            out var waypoint))
+                    {
+                        var point = new Vector3(waypoint.X, waypoint.Y, desired.GridPosition.Z);
+                        if (LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, startGrid, state.Committed) &&
+                            (finalStackPillar == null || !state.Covered.Contains(finalStackPillar.EntityId) ||
+                             CanStillReachFinalPillar(point, finalStackPillar, maxSteps - depth, settings)))
+                        {
+                            next.Add(new BeamState
+                            {
+                                Anchor = point,
+                                Committed = state.Committed.Append(point).ToList(),
+                                Placements = state.Placements.Append(new ProposedPlacement
+                                {
+                                    Step = placed.Count + depth, GridPosition = point,
+                                    WorldPosition = startWorld + ((point - startGrid) * 10.87f),
+                                    WireDistance = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(point.X, point.Y))
+                                }).ToList(),
+                                Covered = new HashSet<uint>(state.Covered),
+                                Bridges = state.Bridges + 1
+                            });
+                        }
+                    }
+                }
+                beam = PruneBeam(next, pillarTargets, finalStackPillar, beamWidth);
+            }
+            var winner = terminals.OrderByDescending(s => s.Covered.Count).ThenBy(s => FirstRuneStep(s.Placements, "Opulent")).ThenBy(s => s.Bridges).FirstOrDefault();
+            if (winner == null) return null;
+            return new RouteEvaluation { Profile = settings.Profile.ToString(), Placements = winner.Placements, NetScore = winner.Covered.Count };
+        }
+
+        private static List<BeamState> PruneBeam(List<BeamState> states, List<ExpeditionTarget> targets, ExpeditionTarget? finalStackPillar, int width) => states
+            .GroupBy(s => $"{string.Join(',', s.Covered.Order())}|{MathF.Round(s.Anchor.X / 10f)}:{MathF.Round(s.Anchor.Y / 10f)}")
+            .Select(g => g.OrderBy(s => s.Bridges).First())
+            .OrderByDescending(s => s.Covered.Count)
+            .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
+            .ThenBy(s => s.Bridges)
+            .ThenBy(s => DistanceToNearestUncovered(s, targets, finalStackPillar))
+            .Take(width)
+            .ToList();
+
+        private static float DistanceToNearestUncovered(BeamState state, IEnumerable<ExpeditionTarget> targets, ExpeditionTarget? finalStackPillar) => targets
+            .Where(t => !state.Covered.Contains(t.EntityId) && t.EntityId != finalStackPillar?.EntityId)
+            .Select(t => Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)))
+            .DefaultIfEmpty(0f).Min();
+
+        private static int FirstRuneStep(IEnumerable<ProposedPlacement> placements, string rune)
+        {
+            int index = 0;
+            foreach (var placement in placements)
+            {
+                if (placement.CoveredTargets.Any(t => RuneName(t).Equals(rune, StringComparison.OrdinalIgnoreCase))) return index;
+                index++;
+            }
+            return int.MaxValue;
         }
 
         private static bool CanStillReachFinalPillar(Vector3 from, ExpeditionTarget finalStackPillar, int remainingExplosions, ExpeditionPlannerSettings settings)
