@@ -2852,10 +2852,6 @@ namespace Radar
                     }
                 }
             });
-#if DEBUG
-            image.Save(this.DllDirectory +
-                       @$"/current_map_{Core.States.InGameStateObject.CurrentAreaInstance.AreaHash}.jpeg");
-#endif
             this.walkableMapDimension = new Vector2(image.Width, image.Height);
             if (Math.Max(image.Width, image.Height) > 8192)
             {
