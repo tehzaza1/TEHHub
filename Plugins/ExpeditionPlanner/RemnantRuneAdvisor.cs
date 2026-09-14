@@ -21,7 +21,7 @@ namespace ExpeditionPlanner
         private const int StationAnchorPosOffset = 0x3C;
         private const int StationGoldenSlotsOffset = 0x40;
 
-        private static readonly string[] RuneNames =
+        public static readonly string[] RuneNames =
         [
             "Fire", "Cold", "Lightning", "Tempest", "Momentum", "Bloodletting", "Stone", "Adaptive",
             "Arcane", "Toxic", "Electrocuting", "Protective", "Cyclonic", "Vision", "Tidal",

@@ -804,9 +804,41 @@ namespace ExpeditionPlanner
                 string actionLine = $"👉 กดเลือก: {pickText}";
                 string runeLine = $"รูนหลัก: {pillar.AnchorRuneName} | Golden: {goldenRuneDisplay}";
 
-                string rerollLine = pillar.NeedsReroll
-                    ? $"[!] ต้อง REROLL: {pillar.RerollReason}"
-                    : (pillar.CanProliferate && !isFinal ? $"[✓] ไม่ต้อง Reroll -> ส่งผลคูณ [{pillar.ProliferatedRuneName}]" : "[✓] ไม่ต้อง Reroll");
+                var prolifRune = ExpeditionPillarOrderPlanner.GetProliferatingRuneName(pillar);
+                bool isBlue = ExpeditionPillarOrderPlanner.IsBlueRune(prolifRune) || pillar.ProliferatedRuneTier == RuneTier.Blue_C;
+
+                string rerollLine;
+                uint rerollColor;
+                if (pillar.NeedsReroll)
+                {
+                    rerollLine = $"[!] ต้อง REROLL: {pillar.RerollReason}";
+                    rerollColor = 0xFF3333FF; // Red
+                }
+                else if (isFinal)
+                {
+                    rerollLine = $"★ เสาสุดท้าย ({pillar.HoleCount} รู) - รับผลคูณสะสมทั้งหมด ★";
+                    rerollColor = 0xFFFF8800; // Orange
+                }
+                else if (pillar.IsDuplicateProliferation)
+                {
+                    rerollLine = $"[✓] ไม่สืบทอด (รูน [{prolifRune}] ซ้ำกับเสาก่อนหน้า)";
+                    rerollColor = 0xFFFFAA00; // Amber / Gold
+                }
+                else if (isBlue)
+                {
+                    rerollLine = "[✓] ไม่ต้อง Reroll (รูนฟ้า - ไม่สืบทอดผลคูณ)";
+                    rerollColor = 0xFF88CC88; // Soft Green
+                }
+                else if (pillar.CanProliferate)
+                {
+                    rerollLine = $"[✓] ไม่ต้อง Reroll -> ส่งผลคูณสืบทอด [{prolifRune}]";
+                    rerollColor = 0xFF55FF55; // Bright Green
+                }
+                else
+                {
+                    rerollLine = "[✓] ไม่ต้อง Reroll";
+                    rerollColor = 0xFF55FF55;
+                }
 
                 var hSize = ImGui.CalcTextSize(headerLine);
                 var aSize = ImGui.CalcTextSize(actionLine);
@@ -820,10 +852,9 @@ namespace ExpeditionPlanner
                 float boxH = (padY * 2f) + hSize.Y + aSize.Y + rSize.Y + sSize.Y + (lineGap * 3f);
                 var boxPos = sPos + new Vector2(-boxW * 0.5f, badgeRadius + 6f);
 
-                uint boxBorder = isFinal ? 0xFFFF8800 : (pillar.NeedsReroll ? 0xFF0033FF : ringColor);
+                uint boxBorder = isFinal ? 0xFFFF8800 : (pillar.NeedsReroll ? 0xFF0033FF : (pillar.IsDuplicateProliferation ? 0xFFFFAA00 : ringColor));
                 uint headerColor = isFinal ? 0xFFFF8800 : ringColor;
                 uint actionColor = 0xFF00FFFF; // Bright Cyan
-                uint rerollColor = pillar.NeedsReroll ? 0xFF3333FF : 0xFF55FF55;
 
                 drawList.AddRectFilled(boxPos, boxPos + new Vector2(boxW, boxH), 0xF0101010, 6f);
                 drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), boxBorder, 6f, 0, 2.0f);
@@ -916,6 +947,10 @@ namespace ExpeditionPlanner
                 drawList.AddText(point - (size * 0.5f), 0xFFFFFFFF, label);
 
                 // Tag label below badge on Large Map
+                var prolifRune = pillar != null ? ExpeditionPillarOrderPlanner.GetProliferatingRuneName(pillar) : "";
+                bool isBlue = pillar != null && (ExpeditionPillarOrderPlanner.IsBlueRune(prolifRune) || pillar.ProliferatedRuneTier == RuneTier.Blue_C);
+
+                // Tag label below badge on Large Map
                 string tag;
                 uint tagTextColor;
                 if (isFinal)
@@ -928,6 +963,11 @@ namespace ExpeditionPlanner
                     tag = "REROLL";
                     tagTextColor = 0xFF4444FF;
                 }
+                else if (pillar?.IsDuplicateProliferation == true)
+                {
+                    tag = $"[ซ้ำ] {prolifRune}";
+                    tagTextColor = 0xFFFFAA00;
+                }
                 else if (isOp || pTier == RuneTier.Golden)
                 {
                     tag = "SSS Opulent ★";
@@ -935,25 +975,17 @@ namespace ExpeditionPlanner
                 }
                 else if (pTier == RuneTier.Purple_S)
                 {
-                    var gRune = !string.IsNullOrEmpty(pillar?.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown"
-                        ? pillar.GoldenRuneCandidate
-                        : (pillar?.AnchorRuneName ?? "");
-                    tag = $"[S] {gRune}";
+                    tag = $"[S] {prolifRune}";
                     tagTextColor = 0xFFFF55FF;
                 }
                 else if (pTier == RuneTier.Purple_A)
                 {
-                    var gRune = !string.IsNullOrEmpty(pillar?.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown"
-                        ? pillar.GoldenRuneCandidate
-                        : (pillar?.AnchorRuneName ?? "");
-                    tag = $"[A] {gRune}";
+                    tag = $"[A] {prolifRune}";
                     tagTextColor = 0xFFDA70D6;
                 }
                 else
                 {
-                    var gRune = !string.IsNullOrEmpty(pillar?.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown"
-                        ? pillar.GoldenRuneCandidate
-                        : (pillar?.AnchorRuneName ?? "");
+                    var gRune = !string.IsNullOrEmpty(prolifRune) ? prolifRune : (pillar?.AnchorRuneName ?? "");
                     tag = $"{pillar?.HoleCount}r {gRune}";
                     tagTextColor = ringColor;
                 }
@@ -984,10 +1016,14 @@ namespace ExpeditionPlanner
                     ImGui.TextColored(new Vector4(0.3f, 0.9f, 1f, 1f), $"👉 กดเลือก: {pickPrompt}");
                     if (pillar.NeedsReroll)
                         ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), $"[!] ต้อง REROLL: {pillar.RerollReason}");
-                    else
-                        ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f), "[✓] ไม่ต้อง Reroll");
-                    if (isFinal)
+                    else if (isFinal)
                         ImGui.TextColored(new Vector4(1f, 0.55f, 0f, 1f), "★ FINAL STACK PILLAR - รับผลคูณจากเสาก่อนหน้าทั้งหมด ★");
+                    else if (pillar.IsDuplicateProliferation)
+                        ImGui.TextColored(new Vector4(1f, 0.7f, 0.2f, 1f), $"[!] รูน [{prolifRune}] ซ้ำกับเสาก่อนหน้า (ไม่สืบทอดผลคูณซ้ำ)");
+                    else if (isBlue)
+                        ImGui.TextColored(new Vector4(0.6f, 0.8f, 0.6f, 1f), "[i] รูนฟ้า: ไม่สืบทอดผลคูณ");
+                    else
+                        ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f), $"[✓] ส่งผลคูณสืบทอด [{prolifRune}] ไปยังเสาถัดไป");
                     ImGui.EndTooltip();
                 }
             }

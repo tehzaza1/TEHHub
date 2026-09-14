@@ -30,50 +30,118 @@ namespace ExpeditionPlanner
                 return result;
             }
 
-            // 2. Separate regular pillars from top-tier (SSS / S / A) runes:
-            // Requirement: "การเลียงควรรูเลียงจากน้อยไปมาก ยกเว้นจะเจอ รูน SSS S A"
-            // - SSS, S, and A pillars MUST detonate early to proliferate their powerful multipliers to all subsequent pillars.
-            // - The final stack pillar should be selected from the regular pillars with the maximum hole count.
-            var regularPillars = pillars.Where(p => GetRuneTierRank(p) >= 999).ToList();
-            ExpeditionTarget final;
+            // 2. Identify proliferation capabilities for each pillar:
+            // Rules from game mechanics & user instructions:
+            // 1) "รูนฟ้าไม่ว่าจะซ้ำไม่ซ้ำก็จะสืบทอดไม่ได้": Blue runes NEVER proliferate (whether duplicate or unique).
+            // 2) "รูนที่สืบทอดมันจะซ้ำไม่ได้": Runes already in the proliferated chain cannot be inherited again (no duplicate stacks).
+            // 3) "การเลียงควรรูเลียงจากน้อยไปมาก ยกเว้นจะเจอ รูน SSS S A": HoleCount ascending except SSS/S/A.
+            // 4) "เสาที่มีจำนวนรูมากที่สุดเป็นเสาสุดท้ายเสมอ": Max hole count pillar is final stack.
             int maxHoles = pillars.Max(p => p.HoleCount);
 
-            if (regularPillars.Count > 0)
+            // Count frequency of each non-blue rune across all pillars on this map
+            var runeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in pillars)
             {
-                int maxRegularHoles = regularPillars.Max(p => p.HoleCount);
-                var finalCandidates = regularPillars.Where(p => p.HoleCount == maxRegularHoles).ToList();
+                var r = GetProliferatingRuneName(p);
+                if (!string.IsNullOrEmpty(r) && !IsBlueRune(r))
+                {
+                    runeCounts[r] = runeCounts.GetValueOrDefault(r, 0) + 1;
+                }
+            }
+
+            // Determine which pillars hold UNIQUE high-tier runes (count == 1).
+            // If a rune appears on multiple pillars (count > 1), only ONE pillar needs to proliferate it early (the one with fewer holes),
+            // while the duplicate instance cannot proliferate and can serve as a later stacking pillar or even the final stack!
+            bool IsUniqueHighTierPillar(ExpeditionTarget target)
+            {
+                var r = GetProliferatingRuneName(target);
+                if (string.IsNullOrEmpty(r) || IsBlueRune(r)) return false;
+                var tier = GetBestRuneTier(target);
+                if (tier is RuneTier.Golden or RuneTier.Purple_S or RuneTier.Purple_A)
+                {
+                    return runeCounts.GetValueOrDefault(r, 0) == 1;
+                }
+                return false;
+            }
+
+            // 3. Select the FINAL STACK pillar:
+            // Must have max holes on the map, but should NOT waste a unique SSS/S/A proliferation by putting it last.
+            // Eligible candidates: Blue rune pillars, duplicate high-tier pillars, or Purple B pillars.
+            var nonUniqueHighPillars = pillars.Where(p => !IsUniqueHighTierPillar(p)).ToList();
+            ExpeditionTarget final;
+
+            if (nonUniqueHighPillars.Count > 0)
+            {
+                int maxEligibleHoles = nonUniqueHighPillars.Max(p => p.HoleCount);
+                var finalCandidates = nonUniqueHighPillars.Where(p => p.HoleCount == maxEligibleHoles).ToList();
                 final = finalCandidates
-                    .OrderBy(p => p.CanProliferate)     // Prefer non-proliferating for final
-                    .ThenBy(p => p.NeedsReroll)          // Prefer not needing reroll for final
-                    .ThenBy(p => RunePriority(p))        // Prefer lower priority for final
+                    .OrderBy(p => IsBlueRune(GetProliferatingRuneName(p)) ? 0 : 1) // Prefer Blue runes (zero proliferation lost)
+                    .ThenBy(p => p.NeedsReroll)
+                    .ThenBy(p => RunePriority(p))
                     .ThenBy(p => p.EntityId)
                     .First();
             }
             else
             {
-                // If all pillars on the map are top-tier (SSS / S / A), pick the one with max holes and lowest tier
+                // If every pillar on the map holds a unique SSS/S/A, pick max holes and lowest tier (A over S, S over SSS)
                 var finalCandidates = pillars.Where(p => p.HoleCount == maxHoles).ToList();
                 final = finalCandidates
-                    .OrderByDescending(p => GetRuneTierRank(p)) // Lower tier (A over S, S over SSS)
-                    .ThenBy(p => p.CanProliferate)
+                    .OrderByDescending(p => GetRuneTierRank(p))
                     .ThenBy(p => p.EntityId)
                     .First();
             }
 
             pillars.Remove(final);
 
-            // 3. Order preceding pillars (1 to N-1):
-            // - SSS (Rank 1: Opulent) -> S (Rank 2: Power, Death, Bond, Oath) -> A (Rank 3: Time, Rebirth)
-            // - Regular pillars ordered by HoleCount ascending (น้อยไปมาก: 2 -> 3 -> 4...)
-            // - Final stack pillar appended at the end
-            var ordered = pillars
+            // 4. Partition remaining pillars into Proliferation Wave vs Stacking Wave:
+            // - Proliferation Wave: Unique non-blue runes (SSS -> S -> A -> Purple B)
+            //   If a high-tier rune appears on multiple pillars, only the one with FEWEST holes enters Proliferation Wave.
+            // - Stacking Wave: Non-proliferating pillars (Blue runes, and duplicate high-tier pillars)
+            //   Ordered strictly by HoleCount ascending (น้อยไปมาก: 2 -> 3 -> 4...)
+            var prolifWave = new List<ExpeditionTarget>();
+            var stackWave = new List<ExpeditionTarget>();
+            var registeredRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Sort candidate pillars by tier rank first, then by HoleCount ascending
+            var sortedCandidates = pillars
                 .OrderBy(p => GetRuneTierRank(p))
                 .ThenBy(p => p.HoleCount)
-                .ThenBy(p => p.CanProliferate ? 0 : 1)
                 .ThenBy(p => p.EntityId)
+                .ToList();
+
+            foreach (var p in sortedCandidates)
+            {
+                var r = GetProliferatingRuneName(p);
+                bool isBlue = IsBlueRune(r) || p.ProliferatedRuneTier == RuneTier.Blue_C;
+
+                if (!isBlue && !string.IsNullOrEmpty(r) && !registeredRunes.Contains(r))
+                {
+                    // First time encountering this non-blue rune: it will proliferate!
+                    prolifWave.Add(p);
+                    registeredRunes.Add(r);
+                }
+                else
+                {
+                    // Blue rune (cannot proliferate) or duplicate rune (already proliferated earlier):
+                    // Joins the Stacking Wave!
+                    stackWave.Add(p);
+                }
+            }
+
+            // Stacking wave is ordered strictly by HoleCount ascending (น้อยไปมาก)
+            stackWave = stackWave
+                .OrderBy(p => p.HoleCount)
+                .ThenBy(p => p.EntityId)
+                .ToList();
+
+            // Combined ordered list: Proliferation Wave -> Stacking Wave -> Final Stack
+            var ordered = prolifWave
+                .Concat(stackWave)
                 .Append(final)
                 .ToList();
 
+            // 5. Track active proliferation chain and mark duplicate statuses
+            var activeChain = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var runningStack = new List<string>();
             int rerollCount = 0;
 
@@ -81,13 +149,33 @@ namespace ExpeditionPlanner
             {
                 var pillar = ordered[i];
                 bool isFinal = (i == ordered.Count - 1);
-                var effectiveRune = EffectiveRuneName(pillar);
+                var r = GetProliferatingRuneName(pillar);
+                bool isBlue = IsBlueRune(r) || pillar.ProliferatedRuneTier == RuneTier.Blue_C;
 
                 var gained = new List<string>();
-                if (!string.IsNullOrWhiteSpace(effectiveRune) && pillar.CanProliferate && !isFinal)
+
+                if (isFinal)
                 {
-                    gained.Add(effectiveRune);
-                    runningStack.Add(effectiveRune);
+                    // Final stack absorbs all bonuses, does not proliferate
+                    pillar.IsDuplicateProliferation = !isBlue && !string.IsNullOrEmpty(r) && activeChain.Contains(r);
+                }
+                else if (isBlue || string.IsNullOrEmpty(r))
+                {
+                    // Blue runes NEVER proliferate (neither unique nor duplicate)
+                    pillar.IsDuplicateProliferation = false;
+                }
+                else if (activeChain.Contains(r))
+                {
+                    // Duplicate rune: cannot be inherited again!
+                    pillar.IsDuplicateProliferation = true;
+                }
+                else
+                {
+                    // Unique non-blue rune: proliferates!
+                    pillar.IsDuplicateProliferation = false;
+                    activeChain.Add(r);
+                    runningStack.Add(r);
+                    gained.Add(r);
                 }
 
                 if (pillar.NeedsReroll)
@@ -121,6 +209,48 @@ namespace ExpeditionPlanner
             return result;
         }
 
+        public static bool IsBlueRune(string? runeName)
+        {
+            if (string.IsNullOrWhiteSpace(runeName)) return true;
+            return RemnantRuneAdvisor.GetRuneTier(runeName) == RuneTier.Blue_C;
+        }
+
+        public static string GetProliferatingRuneName(ExpeditionTarget target)
+        {
+            if (IsOpulent(target)) return "Opulent";
+
+            if (!string.IsNullOrWhiteSpace(target.ProliferatedRuneName))
+            {
+                var name = target.ProliferatedRuneName;
+                foreach (var r in RemnantRuneAdvisor.RuneNames)
+                {
+                    if (string.Equals(name, r, StringComparison.OrdinalIgnoreCase)) return r;
+                }
+                foreach (var r in RemnantRuneAdvisor.RuneNames)
+                {
+                    if (name.Contains(r, StringComparison.OrdinalIgnoreCase)) return r;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(target.GoldenRuneCandidate) && target.GoldenRuneCandidate != "Unknown")
+            {
+                foreach (var r in RemnantRuneAdvisor.RuneNames)
+                {
+                    if (target.GoldenRuneCandidate.Contains(r, StringComparison.OrdinalIgnoreCase)) return r;
+                }
+            }
+
+            if (target.IsAnchorInGoldenSlot && !string.IsNullOrWhiteSpace(target.AnchorRuneName))
+            {
+                foreach (var r in RemnantRuneAdvisor.RuneNames)
+                {
+                    if (string.Equals(target.AnchorRuneName, r, StringComparison.OrdinalIgnoreCase)) return r;
+                }
+            }
+
+            return string.Empty;
+        }
+
         private static bool IsOpulent(ExpeditionTarget target)
         {
             return target.AnchorRuneName.Equals("Opulent", StringComparison.OrdinalIgnoreCase) ||
@@ -130,6 +260,8 @@ namespace ExpeditionPlanner
 
         private static string EffectiveRuneName(ExpeditionTarget target)
         {
+            var prolif = GetProliferatingRuneName(target);
+            if (!string.IsNullOrWhiteSpace(prolif)) return prolif;
             if (!string.IsNullOrWhiteSpace(target.ProliferatedRuneName)) return target.ProliferatedRuneName;
             if (!string.IsNullOrWhiteSpace(target.GoldenRuneCandidate)) return target.GoldenRuneCandidate;
             return target.AnchorRuneName;
@@ -138,33 +270,12 @@ namespace ExpeditionPlanner
         private static RuneTier GetBestRuneTier(ExpeditionTarget target)
         {
             if (IsOpulent(target)) return RuneTier.Golden;
-            var tier = target.ProliferatedRuneTier;
-
-            var aTier = RemnantRuneAdvisor.GetRuneTier(target.AnchorRuneName);
-            if (aTier < tier) tier = aTier;
-
-            var pTier = RemnantRuneAdvisor.GetRuneTier(target.ProliferatedRuneName);
-            if (pTier < tier) tier = pTier;
-
-            string combined = $"{target.GoldenRuneCandidate} {target.RecommendedRuneChoice}";
-            if (combined.Contains("Opulent", StringComparison.OrdinalIgnoreCase))
+            var rune = GetProliferatingRuneName(target);
+            if (!string.IsNullOrEmpty(rune))
             {
-                return RuneTier.Golden;
+                return RemnantRuneAdvisor.GetRuneTier(rune);
             }
-            if (combined.Contains("Power", StringComparison.OrdinalIgnoreCase) ||
-                combined.Contains("Death", StringComparison.OrdinalIgnoreCase) ||
-                combined.Contains("Bond", StringComparison.OrdinalIgnoreCase) ||
-                combined.Contains("Oath", StringComparison.OrdinalIgnoreCase))
-            {
-                if (RuneTier.Purple_S < tier) tier = RuneTier.Purple_S;
-            }
-            if (combined.Contains("Time", StringComparison.OrdinalIgnoreCase) ||
-                combined.Contains("Rebirth", StringComparison.OrdinalIgnoreCase))
-            {
-                if (RuneTier.Purple_A < tier) tier = RuneTier.Purple_A;
-            }
-
-            return tier;
+            return target.ProliferatedRuneTier;
         }
 
         private static int GetRuneTierRank(ExpeditionTarget target)
@@ -173,14 +284,16 @@ namespace ExpeditionPlanner
             // SSS (Opulent / Golden): Rank 1
             // S-tier (Power, Death, Bond, Oath): Rank 2
             // A-tier (Time, Rebirth): Rank 3
-            // Regular pillars (B-tier, Blue C, etc.): Rank 999 (sorted by hole count ascending)
+            // Purple B: Rank 4
+            // Regular pillars (Blue C, etc.): Rank 999 (sorted by hole count ascending)
             var bestTier = GetBestRuneTier(target);
             return bestTier switch
             {
                 RuneTier.Golden => 1,   // SSS
                 RuneTier.Purple_S => 2, // S
                 RuneTier.Purple_A => 3, // A
-                _ => 999                // Regular (sorted by hole count ascending)
+                RuneTier.Purple_B => 4, // B
+                _ => 999                // Regular / Blue (sorted by hole count ascending)
             };
         }
 
