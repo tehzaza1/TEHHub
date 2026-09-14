@@ -50,6 +50,7 @@ namespace ExpeditionPlanner
         private RouteEvaluation currentRoute = new();
         private Task<RouteEvaluation>? pendingRouteCalculation;
         private string pendingRouteAreaHash = string.Empty;
+        private bool needsPillarResequence = false;
 
         private string calculationStatusMessage = string.Empty;
 
@@ -279,6 +280,7 @@ namespace ExpeditionPlanner
             this.currentRoute = new RouteEvaluation();
             this.pendingRouteCalculation = null;
             this.pendingRouteAreaHash = string.Empty;
+            this.needsPillarResequence = false;
             this.calculationStatusMessage = string.Empty;
         }
 
@@ -304,6 +306,17 @@ namespace ExpeditionPlanner
             }
 
             this.ApplyCompletedRouteCalculation(area);
+
+            // Auto-calculate pillar sequence on discovery or when targets change
+            if (this.Settings.AutoOrderPillars && this.pendingRouteCalculation == null)
+            {
+                int remnantCount = this.activeTargets.Count(t => t.Kind == TargetKind.RemnantPillar);
+                if (remnantCount > 0 && (this.needsPillarResequence || this.currentRoute.Placements.Count == 0))
+                {
+                    this.needsPillarResequence = false;
+                    this.CalculateRoute(area, "Auto");
+                }
+            }
 
             // Hotkey trigger to calculate route on demand
             if (Utils.IsKeyPressedAndNotTimeout(this.Settings.CalculateHotkey, 250))
@@ -557,6 +570,11 @@ namespace ExpeditionPlanner
                     if (ImGui.Button($"★ Order Pillars ({this.Settings.CalculateHotkey})###CalcRouteBtn", new Vector2(230, 26)))
                     {
                         this.CalculateRoute(area, "UI Button");
+                    }
+                    if (this.Settings.AutoOrderPillars)
+                    {
+                        ImGui.SameLine();
+                        ImGui.TextColored(new Vector4(0.2f, 1f, 0.5f, 1f), "[AUTO]");
                     }
                     ImGui.SameLine();
                     if (ImGui.Button("Reset Cache###ResetCacheBtn", new Vector2(100, 26)))
@@ -822,6 +840,16 @@ namespace ExpeditionPlanner
                             newTargetsFound = true;
                         }
                     }
+                    else if (this.rememberedTargets[entity.Id].Kind == TargetKind.RemnantPillar &&
+                             string.IsNullOrEmpty(this.rememberedTargets[entity.Id].AnchorRuneName))
+                    {
+                        var classified = ClassifyTarget(entity, area);
+                        if (classified != null && !string.IsNullOrEmpty(classified.AnchorRuneName))
+                        {
+                            this.rememberedTargets[entity.Id] = classified;
+                            newTargetsFound = true;
+                        }
+                    }
                 }
             }
 
@@ -873,6 +901,7 @@ namespace ExpeditionPlanner
             {
                 this.activeTargets.Clear();
                 this.activeTargets.AddRange(this.rememberedTargets.Values);
+                this.needsPillarResequence = true;
             }
 
             this.MarkTargetsCoveredByPlacedBombs();
@@ -984,6 +1013,8 @@ namespace ExpeditionPlanner
             NeverTakeRunes = new HashSet<string>(source.NeverTakeRunes),
             ShowBadges = source.ShowBadges, ShowReasonCard = source.ShowReasonCard,
             ShowBlastRadius = source.ShowBlastRadius, ShowTargetScores = source.ShowTargetScores,
+            ShowPillarOrderOnLargeMap = source.ShowPillarOrderOnLargeMap,
+            AutoOrderPillars = source.AutoOrderPillars,
             BadgeRadius = source.BadgeRadius
         };
 
@@ -1202,6 +1233,12 @@ namespace ExpeditionPlanner
             if (ImGui.Checkbox("Show Pillar Order on Large Map (1, 2, 3...)", ref showLargeMap))
             {
                 this.Settings.ShowPillarOrderOnLargeMap = showLargeMap;
+            }
+
+            var autoOrder = this.Settings.AutoOrderPillars;
+            if (ImGui.Checkbox("Auto-order Pillars on Discovery (No Hotkey Needed)", ref autoOrder))
+            {
+                this.Settings.AutoOrderPillars = autoOrder;
             }
 
             var showCard = this.Settings.ShowReasonCard;
