@@ -61,9 +61,9 @@ namespace NinjaPricer
             "Fire", "Cold", "Lightning", "Tempest", "Momentum", "Bloodletting",
             "Stone", "Adaptive", "Arcane", "Toxic", "Electrocuting", "Protective",
             "Cyclonic", "Vision", "Tidal", "Rebirth", "Prismatic", "Gasp",
-            "War", "Power", "Mind", "Glacier", "Desert", "Mountain",
-            "Wood", "Water", "Sun", "Bloom", "Sky", "Body",
-            "Doom", "Time", "Star", "Soul"
+            "Moon", "Celestial", "Opulent", "Rage", "Wisdom", "Sky",
+            "Earth", "Life", "Bond", "Ward", "Soul", "Death",
+            "Oath", "Time", "Power", "Bait"
         };
 
         private static readonly uint[] PanelFlagFingerprints =
