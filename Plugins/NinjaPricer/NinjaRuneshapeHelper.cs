@@ -153,12 +153,23 @@ namespace NinjaPricer
             }
 
             var goldenSlots = new List<int>();
-            var goldenBits = reader.ReadMemory<uint>(station + StationGoldenSlotsOffset);
-            for (int i = 0; i < holeCount; i++)
+            var goldenVec = reader.ReadMemory<StdVector>(station + StationGoldenSlotsOffset);
+            var goldenCount = goldenVec.TotalElements(sizeof(int));
+            if (goldenCount > 0 && goldenCount <= 16)
             {
-                if ((goldenBits & (1u << i)) != 0)
-                    goldenSlots.Add(i);
+                var slots = reader.ReadMemoryArray<int>(goldenVec.First, (int)goldenCount);
+                if (slots != null)
+                {
+                    foreach (var s in slots)
+                    {
+                        if (s >= 0 && s < holeCount && !goldenSlots.Contains(s))
+                        {
+                            goldenSlots.Add(s);
+                        }
+                    }
+                }
             }
+            goldenSlots.Sort();
 
             if (entity.TryGetComponent<Render>(out var render))
             {
