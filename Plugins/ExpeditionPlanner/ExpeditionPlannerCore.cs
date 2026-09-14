@@ -319,7 +319,19 @@ namespace ExpeditionPlanner
             }
 
             // 2. Draw Placed Bombs badges (solid cyan) + blast radius ring
-            const float GridToWorld = 10.87f;
+            // Grid-to-world scale: derived dynamically from any target that has both positions.
+            // World = Grid * scale + originOffset  →  delta is origin-independent.
+            // Use the first available target with non-zero grid coords.
+            float gridToWorldScale = 10.87f; // safe fallback
+            var refTarget = this.activeTargets.FirstOrDefault(t => t.GridPosition.X > 1f && t.WorldPosition.X > 1f);
+            if (refTarget != null && refTarget.GridPosition.X > 0.5f)
+            {
+                // Two known points on the same entity give us a clean scale ratio
+                // via the world-space difference that cancels origin offset:
+                // scale = (World.X - World_origin) / Grid.X  — but without two entities
+                // we use the entity's own coords. Safe because PoE grid always has positive coords.
+                gridToWorldScale = refTarget.WorldPosition.X / refTarget.GridPosition.X;
+            }
             for (int i = 0; i < this.placedBombs.Count; i++)
             {
                 var bomb = this.placedBombs[i];
@@ -328,10 +340,11 @@ namespace ExpeditionPlanner
                 if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
                     sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
 
-                // Blast radius: project a world-space offset point to get true screen-space pixel radius
+                // Blast radius: project world-space edge to get true screen-space pixel radius.
+                // Edge = bomb center + BlastRadiusGrid grid units, converted via derived scale.
                 if (this.Settings.ShowBlastRadius)
                 {
-                    float worldRadius = this.Settings.BlastRadiusGrid * GridToWorld;
+                    float worldRadius = this.Settings.BlastRadiusGrid * gridToWorldScale;
                     var edgeWorld = new Vector3(bomb.WorldPosition.X + worldRadius, bomb.WorldPosition.Y, bomb.WorldPosition.Z);
                     if (ProjectToClipSpace(matrix, edgeWorld, out var edgeClip) && edgeClip.W > 0.05f)
                     {
@@ -359,10 +372,10 @@ namespace ExpeditionPlanner
                     if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
                         sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
 
-                    // Blast radius: project world-space offset → correct screen-space pixel radius
+                    // Blast radius: project world-space edge to get true screen-space pixel radius.
                     if (this.Settings.ShowBlastRadius)
                     {
-                        float worldRadius = this.Settings.BlastRadiusGrid * GridToWorld;
+                        float worldRadius = this.Settings.BlastRadiusGrid * gridToWorldScale;
                         var edgeWorld = new Vector3(p.WorldPosition.X + worldRadius, p.WorldPosition.Y, p.WorldPosition.Z);
                         if (ProjectToClipSpace(matrix, edgeWorld, out var edgeClip) && edgeClip.W > 0.05f)
                         {
