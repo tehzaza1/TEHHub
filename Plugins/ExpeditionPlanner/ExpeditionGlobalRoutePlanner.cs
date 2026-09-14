@@ -19,8 +19,10 @@ namespace ExpeditionPlanner
             int maxCount = Math.Max(1, settings.MaxExplosiveBudget - placed.Count);
             // Preserve alternative prefixes instead of committing the locally-best
             // bridge. This is the core difference from the old greedy rollout.
+            // The highest-slot pillar is a terminal constraint. Never run a relaxed
+            // fallback that accepts it early: doing so makes the beam end after the
+            // nearby pillars and abandons every remote bridge frontier.
             var best = SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, finalStackPillar, true)
-                ?? SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, finalStackPillar, false)
                 ?? new RouteEvaluation { Profile = settings.Profile.ToString() };
             var coveredPillars = best.Placements.SelectMany(p => p.CoveredTargets)
                 .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
@@ -192,6 +194,7 @@ namespace ExpeditionPlanner
                 new() { Anchor = initialAnchor, Committed = placed.Select(p => p.GridPosition).ToList() }
             };
             var terminals = new List<BeamState>();
+            BeamState? bestPrefix = beam[0];
             for (int depth = 1; depth <= maxSteps && beam.Count > 0; depth++)
             {
                 var next = new List<BeamState>();
@@ -216,8 +219,9 @@ namespace ExpeditionPlanner
                             var after = Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(desired.GridPosition.X, desired.GridPosition.Y));
                             if (after >= before - 1f) continue;
                         }
-                        if (finalStackPillar != null && !hitsFinal && !state.Covered.Contains(finalStackPillar.EntityId) &&
-                            !CanStillReachFinalPillar(point, finalStackPillar, maxSteps - depth, settings)) continue;
+                        // Do not prune this prefix using a straight-line estimate to the
+                        // final pillar. The real route may need a GridWalkableData detour,
+                        // and this estimate previously killed valid remote bridge chains.
 
                         var covered = new HashSet<uint>(state.Covered);
                         foreach (var target in hit) covered.Add(target.EntityId);
@@ -255,9 +259,7 @@ namespace ExpeditionPlanner
                             out var waypoint))
                     {
                         var point = new Vector3(waypoint.X, waypoint.Y, desired.GridPosition.Z);
-                        if (LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, startGrid, state.Committed) &&
-                            (finalStackPillar == null || !state.Covered.Contains(finalStackPillar.EntityId) ||
-                             CanStillReachFinalPillar(point, finalStackPillar, maxSteps - depth, settings)))
+                        if (LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, startGrid, state.Committed))
                         {
                             next.Add(new BeamState
                             {
@@ -276,8 +278,17 @@ namespace ExpeditionPlanner
                     }
                 }
                 beam = PruneBeam(next, pillarTargets, finalStackPillar, beamWidth);
+                var prefix = beam.OrderByDescending(s => s.Covered.Count).ThenBy(s => FirstRuneStep(s.Placements, "Opulent")).ThenBy(s => s.Bridges).FirstOrDefault();
+                if (prefix != null && (bestPrefix == null || prefix.Covered.Count > bestPrefix.Covered.Count ||
+                    (prefix.Covered.Count == bestPrefix.Covered.Count && prefix.Bridges < bestPrefix.Bridges)))
+                {
+                    bestPrefix = prefix;
+                }
             }
             var winner = terminals.OrderByDescending(s => s.Covered.Count).ThenBy(s => FirstRuneStep(s.Placements, "Opulent")).ThenBy(s => s.Bridges).FirstOrDefault();
+            // If the final pillar is blocked, preserve the strongest non-final chain
+            // instead of returning no route or illegally ending at the final pillar.
+            winner ??= bestPrefix;
             if (winner == null) return null;
             return new RouteEvaluation { Profile = settings.Profile.ToString(), Placements = winner.Placements, NetScore = winner.Covered.Count };
         }

@@ -487,7 +487,7 @@ namespace ExpeditionPlanner
                     else
                     {
                         ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), "Expedition Encounter Discovered");
-                        ImGui.TextDisabled($"Detonator: {(this.hasDetonator ? "Found" : "Player Anchor (Run near detonator to lock)")}");
+                        ImGui.TextDisabled($"Detonator: {(this.hasDetonator ? "Found" : "Not found — route calculation is locked")}");
                         ImGui.Separator();
                         ImGui.TextWrapped(this.activeTargets.Count > 0
                             ? $"Discovered {this.activeTargets.Count} targets across the map.\nRun around to harvest all pillars and chests, then press [{this.Settings.CalculateHotkey}] or click the Calculate button above to solve the optimal bomb route."
@@ -602,20 +602,12 @@ namespace ExpeditionPlanner
                 return;
             }
 
-            // If detonator has not been found yet, fallback to player position or first target as anchor
-            if (!this.hasDetonator && this.placedBombs.Count == 0)
+            // Every route starts at the actual ExpeditionDetonator entity. Never
+            // substitute the player or a target, because that produces invalid fuse ranges.
+            if (!this.hasDetonator)
             {
-                var player = area.Player;
-                if (player != null && player.TryGetComponent<Render>(out var pRender, false))
-                {
-                    this.detonatorGrid = new Vector3(pRender.GridPosition.X, pRender.GridPosition.Y, pRender.GridPosition.Z);
-                    this.detonatorWorld = new Vector3(pRender.WorldPosition.X, pRender.WorldPosition.Y, pRender.WorldPosition.Z);
-                }
-                else if (this.activeTargets.Count > 0)
-                {
-                    this.detonatorGrid = this.activeTargets[0].GridPosition;
-                    this.detonatorWorld = this.activeTargets[0].WorldPosition;
-                }
+                this.calculationStatusMessage = "Detonator not found; route calculation is locked.";
+                return;
             }
 
             var targetSnapshot = this.activeTargets.Select(CloneTarget).ToList();
