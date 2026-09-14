@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>1701;1702;1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\TEHhub\TEHhub.csproj">
+      <Private>false</Private>
+      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="CopyFiles" AfterTargets="Build">
+    <ItemGroup>
+      <_NinjaPricerDeployFiles Include="$(OutDir)$(TargetName)$(TargetExt)" />
+      <_NinjaPricerDeployFiles Include="$(OutDir)$(TargetName).pdb" Condition="Exists('$(OutDir)$(TargetName).pdb')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_NinjaPricerDeployFiles)"
+          DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

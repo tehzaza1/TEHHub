@@ -1,0 +1,102 @@
+{
+    "*": [
+        {
+            "Name": "Armoury",
+            "Path": "Metadata/Chests/LeagueIncursion/ArmouryTier*",
+            "Icon": false,
+            "IconName": "",
+            "IconSize": 30.0,
+            "Enabled": true,
+            "NameColor": "255, 255, 255",
+            "BGColor": "200, 200, 0",
+            "ExpectedCount": 0,
+            "DrawPath": false,
+            "DrawPathColor": "255, 255, 255",
+            "AlwaysDrawPath": false
+        },
+        {
+            "Name": "General High",
+            "Path": "Metadata/Chests/LeagueIncursion/GeneralHigh*",
+            "Icon": false,
+            "IconName": "",
+            "IconSize": 30.0,
+            "Enabled": true,
+            "NameColor": "255, 255, 255",
+            "BGColor": "200, 200, 0",
+            "ExpectedCount": 0,
+            "DrawPath": false,
+            "DrawPathColor": "255, 255, 255",
+            "AlwaysDrawPath": false
+        },
+        {
+            "Name": "General Mid",
+            "Path": "Metadata/Chests/LeagueIncursion/GeneralMid*",
+            "Icon": false,
+            "IconName": "",
+            "IconSize": 30.0,
+            "Enabled": true,
+            "NameColor": "255, 255, 255",
+            "BGColor": "200, 200, 0",
+            "ExpectedCount": 0,
+            "DrawPath": false,
+            "DrawPathColor": "255, 255, 255",
+            "AlwaysDrawPath": false
+        },
+        {
+            "Name": "Training Dummy",
+            "Path": "Metadata/Monsters/LeagueIncursionNew/Garrison/VaalTrainingDummy*",
+            "Icon": false,
+            "IconName": "",
+            "IconSize": 30.0,
+            "Enabled": true,
+            "NameColor": "255, 255, 255",
+            "BGColor": "200, 200, 0",
+            "ExpectedCount": 0,
+            "DrawPath": false,
+            "DrawPathColor": "255, 255, 255",
+            "AlwaysDrawPath": false
+        },
+        {
+            "Name": "Doodad",
+            "Path": "*Doodad*",
+            "Icon": false,
+            "IconName": "",
+            "IconSize": 30.0,
+            "Enabled": true,
+            "NameColor": "255, 255, 255",
+            "BGColor": "200, 200, 0",
+            "ExpectedCount": 0,
+            "DrawPath": false,
+            "DrawPathColor": "255, 255, 255",
+            "AlwaysDrawPath": false
+        },
+        {
+            "Name": "Items",
+            "Path": "Metadata/MiscellaneousObjects/WorldItem",
+            "Icon": false,
+            "IconName": "",
+            "IconSize": 30.0,
+            "Enabled": true,
+            "NameColor": "255, 255, 255",
+            "BGColor": "200, 200, 0",
+            "ExpectedCount": 0,
+            "DrawPath": false,
+            "DrawPathColor": "255, 255, 255",
+            "AlwaysDrawPath": false
+        },
+        {
+            "Name": "Beetle",
+            "Path": "Metadata/Critters/Beetle/Beetle",
+            "Icon": false,
+            "IconName": "",
+            "IconSize": 30.0,
+            "Enabled": true,
+            "NameColor": "255, 255, 255",
+            "BGColor": "200, 200, 0",
+            "ExpectedCount": 0,
+            "DrawPath": false,
+            "DrawPathColor": "255, 255, 255",
+            "AlwaysDrawPath": false
+        }
+    ]
+}

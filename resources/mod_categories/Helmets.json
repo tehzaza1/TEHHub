@@ -1,0 +1,7376 @@
+{
+  "category": "Helmets",
+  "itemClass": "Helmets",
+  "reconstructedTags": [
+    "armour",
+    "helmet"
+  ],
+  "baseCount": 262,
+  "modDomain": 1,
+  "runes": [
+    {
+      "rune": "Vorana's Carnage",
+      "tag": "berserking",
+      "prefix": 6,
+      "suffix": 8
+    }
+  ],
+  "unresolvedText": 0,
+  "counts": {
+    "prefix": 41,
+    "suffix": 16,
+    "prefixEssence": 0,
+    "suffixEssence": 0,
+    "runePrefix": 6,
+    "runeSuffix": 8
+  },
+  "prefixes": [
+    {
+      "text": "# to Accuracy Rating",
+      "raw": "{0:+d} to Accuracy Rating",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "IncreasedAccuracy"
+      ],
+      "statKeys": [
+        "accuracy_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "IncreasedAccuracy9",
+          "hash32": 4017994255,
+          "ilvl": 76,
+          "name": "Amazon's",
+          "values": [
+            [
+              451,
+              550
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "IncreasedAccuracy8",
+          "hash32": 3851656426,
+          "ilvl": 67,
+          "name": "Ranger's",
+          "values": [
+            [
+              347,
+              450
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "IncreasedAccuracy7",
+          "hash32": 2849807823,
+          "ilvl": 58,
+          "name": "Hunter's",
+          "values": [
+            [
+              237,
+              346
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "IncreasedAccuracy6",
+          "hash32": 26556233,
+          "ilvl": 48,
+          "name": "Steady",
+          "values": [
+            [
+              168,
+              236
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "IncreasedAccuracy5",
+          "hash32": 241206974,
+          "ilvl": 36,
+          "name": "Consistent",
+          "values": [
+            [
+              124,
+              167
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "IncreasedAccuracy4",
+          "hash32": 4009903761,
+          "ilvl": 26,
+          "name": "Deliberate",
+          "values": [
+            [
+              85,
+              123
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "IncreasedAccuracy3",
+          "hash32": 2127347579,
+          "ilvl": 18,
+          "name": "Focused",
+          "values": [
+            [
+              61,
+              84
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "IncreasedAccuracy2",
+          "hash32": 1802768771,
+          "ilvl": 11,
+          "name": "Reliable",
+          "values": [
+            [
+              33,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "IncreasedAccuracy1",
+          "hash32": 3524448167,
+          "ilvl": 1,
+          "name": "Precise",
+          "values": [
+            [
+              11,
+              32
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Armour",
+      "raw": "{0:+d} to Armour",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefences"
+      ],
+      "statKeys": [
+        "local_base_physical_damage_reduction_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedPhysicalDamageReductionRating11",
+          "hash32": 1790365948,
+          "ilvl": 79,
+          "name": "Impervious",
+          "values": [
+            [
+              278,
+              310
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedPhysicalDamageReductionRating10",
+          "hash32": 2520483107,
+          "ilvl": 75,
+          "name": "Unmoving",
+          "values": [
+            [
+              249,
+              277
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedPhysicalDamageReductionRating9_",
+          "hash32": 3760216214,
+          "ilvl": 65,
+          "name": "Abating",
+          "values": [
+            [
+              222,
+              248
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedPhysicalDamageReductionRating8",
+          "hash32": 1981233669,
+          "ilvl": 60,
+          "name": "Enveloped",
+          "values": [
+            [
+              191,
+              221
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedPhysicalDamageReductionRating7__",
+          "hash32": 2360679875,
+          "ilvl": 54,
+          "name": "Encased",
+          "values": [
+            [
+              160,
+              190
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedPhysicalDamageReductionRating6",
+          "hash32": 3581418621,
+          "ilvl": 46,
+          "name": "Carapaced",
+          "values": [
+            [
+              128,
+              159
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedPhysicalDamageReductionRating5",
+          "hash32": 1947715585,
+          "ilvl": 33,
+          "name": "Plated",
+          "values": [
+            [
+              99,
+              127
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LocalIncreasedPhysicalDamageReductionRating4",
+          "hash32": 919625978,
+          "ilvl": 25,
+          "name": "Fortified",
+          "values": [
+            [
+              78,
+              98
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "LocalIncreasedPhysicalDamageReductionRating3",
+          "hash32": 300269712,
+          "ilvl": 16,
+          "name": "Ribbed",
+          "values": [
+            [
+              57,
+              77
+            ]
+          ]
+        },
+        {
+          "tier": 10,
+          "id": "LocalIncreasedPhysicalDamageReductionRating2",
+          "hash32": 1024947425,
+          "ilvl": 8,
+          "name": "Studded",
+          "values": [
+            [
+              28,
+              56
+            ]
+          ]
+        },
+        {
+          "tier": 11,
+          "id": "LocalIncreasedPhysicalDamageReductionRating1",
+          "hash32": 2345540129,
+          "ilvl": 1,
+          "name": "Lacquered",
+          "values": [
+            [
+              16,
+              27
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Armour / # to Evasion Rating",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefences"
+      ],
+      "statKeys": [
+        "local_base_physical_damage_reduction_rating",
+        "local_base_evasion_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalBaseArmourAndEvasionRating8",
+          "hash32": 42532677,
+          "ilvl": 75,
+          "name": "Versatile",
+          "values": [
+            [
+              150,
+              170
+            ],
+            [
+              142,
+              161
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalBaseArmourAndEvasionRating7",
+          "hash32": 3528127330,
+          "ilvl": 65,
+          "name": "Adaptable",
+          "values": [
+            [
+              128,
+              149
+            ],
+            [
+              120,
+              141
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalBaseArmourAndEvasionRating6_",
+          "hash32": 2121913006,
+          "ilvl": 60,
+          "name": "Resilient",
+          "values": [
+            [
+              103,
+              127
+            ],
+            [
+              95,
+              119
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalBaseArmourAndEvasionRating5",
+          "hash32": 2268780078,
+          "ilvl": 54,
+          "name": "Sturdy",
+          "values": [
+            [
+              86,
+              102
+            ],
+            [
+              79,
+              94
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalBaseArmourAndEvasionRating4",
+          "hash32": 2199069600,
+          "ilvl": 46,
+          "name": "Durable",
+          "values": [
+            [
+              72,
+              85
+            ],
+            [
+              65,
+              78
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalBaseArmourAndEvasionRating3",
+          "hash32": 2724678161,
+          "ilvl": 33,
+          "name": "Flexible",
+          "values": [
+            [
+              47,
+              71
+            ],
+            [
+              42,
+              64
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalBaseArmourAndEvasionRating2",
+          "hash32": 319357163,
+          "ilvl": 16,
+          "name": "Pliant",
+          "values": [
+            [
+              17,
+              46
+            ],
+            [
+              11,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LocalBaseArmourAndEvasionRating1",
+          "hash32": 908986805,
+          "ilvl": 1,
+          "name": "Supple",
+          "values": [
+            [
+              9,
+              16
+            ],
+            [
+              6,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Armour / # to maximum Energy Shield",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefences"
+      ],
+      "statKeys": [
+        "local_base_physical_damage_reduction_rating",
+        "local_energy_shield"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalBaseArmourAndEnergyShield8",
+          "hash32": 2871691032,
+          "ilvl": 75,
+          "name": "Godly",
+          "values": [
+            [
+              150,
+              170
+            ],
+            [
+              43,
+              48
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalBaseArmourAndEnergyShield7",
+          "hash32": 822986940,
+          "ilvl": 65,
+          "name": "Saintly",
+          "values": [
+            [
+              128,
+              149
+            ],
+            [
+              37,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalBaseArmourAndEnergyShield6",
+          "hash32": 400896917,
+          "ilvl": 60,
+          "name": "Consecrated",
+          "values": [
+            [
+              103,
+              127
+            ],
+            [
+              30,
+              36
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalBaseArmourAndEnergyShield5",
+          "hash32": 3206144262,
+          "ilvl": 54,
+          "name": "Beatified",
+          "values": [
+            [
+              86,
+              102
+            ],
+            [
+              26,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalBaseArmourAndEnergyShield4",
+          "hash32": 512669426,
+          "ilvl": 46,
+          "name": "Hallowed",
+          "values": [
+            [
+              72,
+              85
+            ],
+            [
+              22,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalBaseArmourAndEnergyShield3",
+          "hash32": 2659925203,
+          "ilvl": 33,
+          "name": "Sanctified",
+          "values": [
+            [
+              47,
+              71
+            ],
+            [
+              16,
+              21
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalBaseArmourAndEnergyShield2_",
+          "hash32": 1867200057,
+          "ilvl": 16,
+          "name": "Anointed",
+          "values": [
+            [
+              17,
+              46
+            ],
+            [
+              9,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LocalBaseArmourAndEnergyShield1",
+          "hash32": 1056699808,
+          "ilvl": 1,
+          "name": "Blessed",
+          "values": [
+            [
+              9,
+              16
+            ],
+            [
+              5,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Evasion Rating",
+      "raw": "{0:+d} to Evasion Rating",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefences"
+      ],
+      "statKeys": [
+        "local_base_evasion_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionRating11",
+          "hash32": 1998901322,
+          "ilvl": 79,
+          "name": "Fugitive",
+          "values": [
+            [
+              262,
+              300
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionRating10",
+          "hash32": 2254197046,
+          "ilvl": 75,
+          "name": "Lissome",
+          "values": [
+            [
+              235,
+              261
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionRating9___",
+          "hash32": 3047594539,
+          "ilvl": 65,
+          "name": "Adroit",
+          "values": [
+            [
+              208,
+              234
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionRating8",
+          "hash32": 3737686352,
+          "ilvl": 60,
+          "name": "Elusory",
+          "values": [
+            [
+              177,
+              207
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionRating7_",
+          "hash32": 3713549946,
+          "ilvl": 54,
+          "name": "Vaporous",
+          "values": [
+            [
+              147,
+              176
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionRating6",
+          "hash32": 179256280,
+          "ilvl": 46,
+          "name": "Phased",
+          "values": [
+            [
+              117,
+              146
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedEvasionRating5",
+          "hash32": 2284614333,
+          "ilvl": 33,
+          "name": "Blurred",
+          "values": [
+            [
+              88,
+              116
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LocalIncreasedEvasionRating4",
+          "hash32": 601581476,
+          "ilvl": 25,
+          "name": "Fleet",
+          "values": [
+            [
+              67,
+              87
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "LocalIncreasedEvasionRating3",
+          "hash32": 3635908111,
+          "ilvl": 16,
+          "name": "Acrobat's",
+          "values": [
+            [
+              47,
+              66
+            ]
+          ]
+        },
+        {
+          "tier": 10,
+          "id": "LocalIncreasedEvasionRating2",
+          "hash32": 1059190916,
+          "ilvl": 8,
+          "name": "Dancer's",
+          "values": [
+            [
+              19,
+              46
+            ]
+          ]
+        },
+        {
+          "tier": 11,
+          "id": "LocalIncreasedEvasionRating1",
+          "hash32": 3776719468,
+          "ilvl": 1,
+          "name": "Agile",
+          "values": [
+            [
+              11,
+              18
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Evasion Rating / # to maximum Energy Shield",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefences"
+      ],
+      "statKeys": [
+        "local_base_evasion_rating",
+        "local_energy_shield"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalBaseEvasionRatingAndEnergyShield8___",
+          "hash32": 1884932018,
+          "ilvl": 75,
+          "name": "Banshee's",
+          "values": [
+            [
+              142,
+              161
+            ],
+            [
+              43,
+              48
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalBaseEvasionRatingAndEnergyShield7___",
+          "hash32": 420346928,
+          "ilvl": 65,
+          "name": "Apparition's",
+          "values": [
+            [
+              120,
+              141
+            ],
+            [
+              37,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalBaseEvasionRatingAndEnergyShield6",
+          "hash32": 806508901,
+          "ilvl": 60,
+          "name": "Eidolon's",
+          "values": [
+            [
+              95,
+              119
+            ],
+            [
+              30,
+              36
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalBaseEvasionRatingAndEnergyShield5_",
+          "hash32": 4255590729,
+          "ilvl": 54,
+          "name": "Spirit's",
+          "values": [
+            [
+              79,
+              94
+            ],
+            [
+              26,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalBaseEvasionRatingAndEnergyShield4",
+          "hash32": 3973913002,
+          "ilvl": 46,
+          "name": "Cherub's",
+          "values": [
+            [
+              65,
+              78
+            ],
+            [
+              22,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalBaseEvasionRatingAndEnergyShield3",
+          "hash32": 1861429286,
+          "ilvl": 33,
+          "name": "Sylph's",
+          "values": [
+            [
+              42,
+              64
+            ],
+            [
+              16,
+              21
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalBaseEvasionRatingAndEnergyShield2",
+          "hash32": 233551903,
+          "ilvl": 16,
+          "name": "Nymph's",
+          "values": [
+            [
+              11,
+              41
+            ],
+            [
+              9,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LocalBaseEvasionRatingAndEnergyShield1",
+          "hash32": 1859441494,
+          "ilvl": 1,
+          "name": "Will-o-wisp's",
+          "values": [
+            [
+              6,
+              10
+            ],
+            [
+              5,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to maximum Energy Shield",
+      "raw": "{0:+d} to maximum Energy Shield",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefences"
+      ],
+      "statKeys": [
+        "local_energy_shield"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEnergyShield11",
+          "hash32": 1451236668,
+          "ilvl": 79,
+          "name": "Resplendent",
+          "values": [
+            [
+              91,
+              96
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEnergyShield10",
+          "hash32": 2041174371,
+          "ilvl": 70,
+          "name": "Incandescent",
+          "values": [
+            [
+              81,
+              90
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEnergyShield9",
+          "hash32": 1385453356,
+          "ilvl": 65,
+          "name": "Scintillating",
+          "values": [
+            [
+              74,
+              80
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEnergyShield8",
+          "hash32": 3510348265,
+          "ilvl": 60,
+          "name": "Dazzling",
+          "values": [
+            [
+              61,
+              73
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEnergyShield7",
+          "hash32": 1457343470,
+          "ilvl": 54,
+          "name": "Blazing",
+          "values": [
+            [
+              48,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEnergyShield6",
+          "hash32": 3409725014,
+          "ilvl": 46,
+          "name": "Pulsing",
+          "values": [
+            [
+              42,
+              47
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedEnergyShield5",
+          "hash32": 2798025451,
+          "ilvl": 33,
+          "name": "Radiating",
+          "values": [
+            [
+              36,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LocalIncreasedEnergyShield4",
+          "hash32": 627841573,
+          "ilvl": 25,
+          "name": "Glowing",
+          "values": [
+            [
+              31,
+              35
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "LocalIncreasedEnergyShield3",
+          "hash32": 3777133170,
+          "ilvl": 16,
+          "name": "Glittering",
+          "values": [
+            [
+              25,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 10,
+          "id": "LocalIncreasedEnergyShield2",
+          "hash32": 3711953009,
+          "ilvl": 8,
+          "name": "Glimmering",
+          "values": [
+            [
+              18,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 11,
+          "id": "LocalIncreasedEnergyShield1",
+          "hash32": 1554130688,
+          "ilvl": 1,
+          "name": "Shining",
+          "values": [
+            [
+              10,
+              17
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to maximum Life",
+      "raw": "{0:+d} to maximum Life",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "IncreasedLife"
+      ],
+      "statKeys": [
+        "base_maximum_life"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "IncreasedLife10",
+          "hash32": 1923258842,
+          "ilvl": 65,
+          "name": "Fecund",
+          "values": [
+            [
+              150,
+              174
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "IncreasedLife9",
+          "hash32": 1993628392,
+          "ilvl": 60,
+          "name": "Athlete's",
+          "values": [
+            [
+              120,
+              149
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "IncreasedLife8",
+          "hash32": 1584621615,
+          "ilvl": 54,
+          "name": "Virile",
+          "values": [
+            [
+              100,
+              119
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "IncreasedLife7",
+          "hash32": 102130297,
+          "ilvl": 46,
+          "name": "Rotund",
+          "values": [
+            [
+              85,
+              99
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "IncreasedLife6",
+          "hash32": 1214621926,
+          "ilvl": 38,
+          "name": "Robust",
+          "values": [
+            [
+              70,
+              84
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "IncreasedLife5",
+          "hash32": 3203886244,
+          "ilvl": 33,
+          "name": "Stout",
+          "values": [
+            [
+              60,
+              69
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "IncreasedLife4",
+          "hash32": 1845292683,
+          "ilvl": 24,
+          "name": "Stalwart",
+          "values": [
+            [
+              40,
+              59
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "IncreasedLife3",
+          "hash32": 1312729808,
+          "ilvl": 16,
+          "name": "Sanguine",
+          "values": [
+            [
+              30,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "IncreasedLife2",
+          "hash32": 2212783949,
+          "ilvl": 6,
+          "name": "Healthy",
+          "values": [
+            [
+              20,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 10,
+          "id": "IncreasedLife1",
+          "hash32": 1704083835,
+          "ilvl": 1,
+          "name": "Hale",
+          "values": [
+            [
+              10,
+              19
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to maximum Mana",
+      "raw": "{0:+d} to maximum Mana",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "IncreasedMana"
+      ],
+      "statKeys": [
+        "base_maximum_mana"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "IncreasedMana10",
+          "hash32": 190822214,
+          "ilvl": 65,
+          "name": "Mazarine",
+          "values": [
+            [
+              125,
+              149
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "IncreasedMana9",
+          "hash32": 1085217493,
+          "ilvl": 60,
+          "name": "Chalybeous",
+          "values": [
+            [
+              105,
+              124
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "IncreasedMana8",
+          "hash32": 4090656674,
+          "ilvl": 54,
+          "name": "Gentian",
+          "values": [
+            [
+              90,
+              104
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "IncreasedMana7",
+          "hash32": 2266310863,
+          "ilvl": 46,
+          "name": "Opalescent",
+          "values": [
+            [
+              80,
+              89
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "IncreasedMana6",
+          "hash32": 165809354,
+          "ilvl": 38,
+          "name": "Aqua",
+          "values": [
+            [
+              65,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "IncreasedMana5",
+          "hash32": 1374581805,
+          "ilvl": 33,
+          "name": "Cerulean",
+          "values": [
+            [
+              55,
+              64
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "IncreasedMana4",
+          "hash32": 3445088000,
+          "ilvl": 25,
+          "name": "Teal",
+          "values": [
+            [
+              35,
+              54
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "IncreasedMana3",
+          "hash32": 1703035275,
+          "ilvl": 16,
+          "name": "Azure",
+          "values": [
+            [
+              25,
+              34
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "IncreasedMana2",
+          "hash32": 175052055,
+          "ilvl": 6,
+          "name": "Cobalt",
+          "values": [
+            [
+              15,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 10,
+          "id": "IncreasedMana1",
+          "hash32": 4030378397,
+          "ilvl": 1,
+          "name": "Beryl",
+          "values": [
+            [
+              10,
+              14
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour",
+      "raw": "{0}% increased Armour",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercent"
+      ],
+      "statKeys": [
+        "local_physical_damage_reduction_rating_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedPhysicalDamageReductionRatingPercent7",
+          "hash32": 370803384,
+          "ilvl": 65,
+          "name": "Impregnable",
+          "values": [
+            [
+              92,
+              100
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedPhysicalDamageReductionRatingPercent6",
+          "hash32": 858921888,
+          "ilvl": 60,
+          "name": "Girded",
+          "values": [
+            [
+              80,
+              91
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedPhysicalDamageReductionRatingPercent5",
+          "hash32": 3296573572,
+          "ilvl": 54,
+          "name": "Thickened",
+          "values": [
+            [
+              68,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedPhysicalDamageReductionRatingPercent4",
+          "hash32": 2299788945,
+          "ilvl": 46,
+          "name": "Buttressed",
+          "values": [
+            [
+              56,
+              67
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedPhysicalDamageReductionRatingPercent3",
+          "hash32": 2302284314,
+          "ilvl": 35,
+          "name": "Lobstered",
+          "values": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedPhysicalDamageReductionRatingPercent2",
+          "hash32": 2470134224,
+          "ilvl": 16,
+          "name": "Layered",
+          "values": [
+            [
+              27,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedPhysicalDamageReductionRatingPercent1",
+          "hash32": 1140615333,
+          "ilvl": 2,
+          "name": "Reinforced",
+          "values": [
+            [
+              15,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour / # to Armour",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndDefencePercent"
+      ],
+      "statKeys": [
+        "local_physical_damage_reduction_rating_+%",
+        "local_base_physical_damage_reduction_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndBase6",
+          "hash32": 3658136800,
+          "ilvl": 78,
+          "name": "Hardened",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              76,
+              95
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndBase5",
+          "hash32": 2089138790,
+          "ilvl": 60,
+          "name": "Shelled",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              58,
+              75
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndBase4",
+          "hash32": 1733717260,
+          "ilvl": 46,
+          "name": "Pangolin's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              42,
+              57
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndBase3",
+          "hash32": 3089342108,
+          "ilvl": 33,
+          "name": "Tortoise's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              30,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndBase2",
+          "hash32": 2704118331,
+          "ilvl": 16,
+          "name": "Snail's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              10,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndBase1",
+          "hash32": 2444102695,
+          "ilvl": 8,
+          "name": "Abalone's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              5,
+              9
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour / # to maximum Life",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndLife"
+      ],
+      "statKeys": [
+        "local_physical_damage_reduction_rating_+%",
+        "base_maximum_life"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndLife6",
+          "hash32": 2716717889,
+          "ilvl": 78,
+          "name": "Crocodile's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              49
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndLife5",
+          "hash32": 2230984731,
+          "ilvl": 60,
+          "name": "Octopus'",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndLife4",
+          "hash32": 1998842701,
+          "ilvl": 46,
+          "name": "Nautilus'",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              26,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndLife3",
+          "hash32": 927341331,
+          "ilvl": 33,
+          "name": "Urchin's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              20,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndLife2",
+          "hash32": 2033939980,
+          "ilvl": 16,
+          "name": "Lobster's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              11,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndLife1",
+          "hash32": 1584511715,
+          "ilvl": 8,
+          "name": "Oyster's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              7,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour / # to maximum Mana",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndMana"
+      ],
+      "statKeys": [
+        "local_physical_damage_reduction_rating_+%",
+        "base_maximum_mana"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndMana6",
+          "hash32": 3902348203,
+          "ilvl": 78,
+          "name": "Ancestral",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              33,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndMana5",
+          "hash32": 3942738961,
+          "ilvl": 60,
+          "name": "Chieftain's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              27,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndMana4",
+          "hash32": 127860472,
+          "ilvl": 46,
+          "name": "Colossal",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              21,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndMana3",
+          "hash32": 4279684726,
+          "ilvl": 33,
+          "name": "Regal",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndMana2",
+          "hash32": 3344977342,
+          "ilvl": 16,
+          "name": "Venerable",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              9,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndMana1",
+          "hash32": 1887870625,
+          "ilvl": 8,
+          "name": "Imposing",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              6,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour / # to Stun Threshold",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercentAndStunThreshold"
+      ],
+      "statKeys": [
+        "local_physical_damage_reduction_rating_+%",
+        "stun_threshold_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalArmourAndStunThreshold6",
+          "hash32": 3974462647,
+          "ilvl": 74,
+          "name": "Mammoth's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              95,
+              136
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalArmourAndStunThreshold5",
+          "hash32": 2553009201,
+          "ilvl": 63,
+          "name": "Elephant's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              64,
+              94
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalArmourAndStunThreshold4",
+          "hash32": 2308045992,
+          "ilvl": 48,
+          "name": "Rhino's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              41,
+              63
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalArmourAndStunThreshold3",
+          "hash32": 3114732535,
+          "ilvl": 38,
+          "name": "Armadillo's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              25,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalArmourAndStunThreshold2",
+          "hash32": 781291007,
+          "ilvl": 19,
+          "name": "Crab's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              14,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalArmourAndStunThreshold1",
+          "hash32": 2480073275,
+          "ilvl": 10,
+          "name": "Beetle's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              8,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Energy Shield",
+      "raw": "{0}% increased Armour and Energy Shield",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercent"
+      ],
+      "statKeys": [
+        "local_armour_and_energy_shield_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEnergyShield7",
+          "hash32": 2857829639,
+          "ilvl": 65,
+          "name": "Inspired",
+          "values": [
+            [
+              92,
+              100
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEnergyShield6",
+          "hash32": 489002011,
+          "ilvl": 60,
+          "name": "Interpolated",
+          "values": [
+            [
+              80,
+              91
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEnergyShield5",
+          "hash32": 1033573902,
+          "ilvl": 54,
+          "name": "Inculcated",
+          "values": [
+            [
+              68,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEnergyShield4",
+          "hash32": 3249617000,
+          "ilvl": 46,
+          "name": "Infused",
+          "values": [
+            [
+              56,
+              67
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEnergyShield3",
+          "hash32": 3329028517,
+          "ilvl": 33,
+          "name": "Instilled",
+          "values": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEnergyShield2",
+          "hash32": 2681611317,
+          "ilvl": 16,
+          "name": "Ingrained",
+          "values": [
+            [
+              27,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedArmourAndEnergyShield1",
+          "hash32": 2052760149,
+          "ilvl": 2,
+          "name": "Infixed",
+          "values": [
+            [
+              15,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Energy Shield / # to Armour / # to maximum Energy Shield",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndDefencePercent"
+      ],
+      "statKeys": [
+        "local_armour_and_energy_shield_+%",
+        "local_base_physical_damage_reduction_rating",
+        "local_energy_shield"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndBase6",
+          "hash32": 1606854586,
+          "ilvl": 78,
+          "name": "Grand",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              52
+            ],
+            [
+              13,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndBase5",
+          "hash32": 1726154297,
+          "ilvl": 60,
+          "name": "Paladin's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ],
+            [
+              11,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndBase4",
+          "hash32": 2678584651,
+          "ilvl": 46,
+          "name": "Crusader's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              24,
+              32
+            ],
+            [
+              9,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndBase3",
+          "hash32": 2949751343,
+          "ilvl": 33,
+          "name": "Inquisitor's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              23
+            ],
+            [
+              7,
+              8
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndBase2",
+          "hash32": 3409608928,
+          "ilvl": 16,
+          "name": "Noble's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              6,
+              16
+            ],
+            [
+              5,
+              6
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndBase1",
+          "hash32": 2516878165,
+          "ilvl": 8,
+          "name": "Faithful",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              3,
+              5
+            ],
+            [
+              2,
+              4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Energy Shield / # to maximum Life",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndLife"
+      ],
+      "statKeys": [
+        "local_armour_and_energy_shield_+%",
+        "base_maximum_life"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndLife6",
+          "hash32": 2483057529,
+          "ilvl": 78,
+          "name": "Prophet's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              49
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndLife5",
+          "hash32": 1842027220,
+          "ilvl": 60,
+          "name": "Visionary's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndLife4",
+          "hash32": 3823856478,
+          "ilvl": 46,
+          "name": "Haruspex's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              26,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndLife3",
+          "hash32": 1165852392,
+          "ilvl": 33,
+          "name": "Druid's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              20,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndLife2",
+          "hash32": 3533831323,
+          "ilvl": 16,
+          "name": "Auspex's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              11,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndLife1",
+          "hash32": 3990028678,
+          "ilvl": 8,
+          "name": "Augur's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              7,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Energy Shield / # to maximum Mana",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndMana"
+      ],
+      "statKeys": [
+        "local_armour_and_energy_shield_+%",
+        "base_maximum_mana"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndMana6",
+          "hash32": 3889812418,
+          "ilvl": 78,
+          "name": "Whale's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              33,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndMana5",
+          "hash32": 3827181045,
+          "ilvl": 60,
+          "name": "Orca's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              27,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndMana4",
+          "hash32": 765254843,
+          "ilvl": 46,
+          "name": "Dolphin's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              21,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndMana3",
+          "hash32": 2192055688,
+          "ilvl": 33,
+          "name": "Shark's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndMana2",
+          "hash32": 117583190,
+          "ilvl": 16,
+          "name": "Swordfish's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              9,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEnergyShieldAndMana1",
+          "hash32": 807376021,
+          "ilvl": 8,
+          "name": "Coelacanth's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              6,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Energy Shield / # to Stun Threshold",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercentAndStunThreshold"
+      ],
+      "statKeys": [
+        "local_armour_and_energy_shield_+%",
+        "stun_threshold_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalArmourAndEnergyShieldAndStunThreshold6",
+          "hash32": 3637463241,
+          "ilvl": 74,
+          "name": "Sentinel's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              95,
+              136
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalArmourAndEnergyShieldAndStunThreshold5",
+          "hash32": 769603650,
+          "ilvl": 63,
+          "name": "Warden's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              64,
+              94
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalArmourAndEnergyShieldAndStunThreshold4",
+          "hash32": 1273947672,
+          "ilvl": 48,
+          "name": "Guardian's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              41,
+              63
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalArmourAndEnergyShieldAndStunThreshold3",
+          "hash32": 1604159382,
+          "ilvl": 38,
+          "name": "Keeper's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              25,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalArmourAndEnergyShieldAndStunThreshold2",
+          "hash32": 2048804937,
+          "ilvl": 19,
+          "name": "Protector's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              14,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalArmourAndEnergyShieldAndStunThreshold1",
+          "hash32": 2911894529,
+          "ilvl": 10,
+          "name": "Defender's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              8,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Evasion",
+      "raw": "{0}% increased Armour and Evasion",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercent"
+      ],
+      "statKeys": [
+        "local_armour_and_evasion_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEvasion7",
+          "hash32": 3304947307,
+          "ilvl": 65,
+          "name": "Legend's",
+          "values": [
+            [
+              92,
+              100
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEvasion6",
+          "hash32": 1158881117,
+          "ilvl": 60,
+          "name": "Hero's",
+          "values": [
+            [
+              80,
+              91
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEvasion5",
+          "hash32": 3724600352,
+          "ilvl": 54,
+          "name": "Duelist's",
+          "values": [
+            [
+              68,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEvasion4",
+          "hash32": 2904867073,
+          "ilvl": 46,
+          "name": "Gladiator's",
+          "values": [
+            [
+              56,
+              67
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEvasion3",
+          "hash32": 1604500982,
+          "ilvl": 33,
+          "name": "Fencer's",
+          "values": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEvasion2",
+          "hash32": 2487777288,
+          "ilvl": 16,
+          "name": "Brawler's",
+          "values": [
+            [
+              27,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedArmourAndEvasion1",
+          "hash32": 3914885617,
+          "ilvl": 2,
+          "name": "Scrapper's",
+          "values": [
+            [
+              15,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Evasion / # to Armour / # to Evasion Rating",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndDefencePercent"
+      ],
+      "statKeys": [
+        "local_armour_and_evasion_+%",
+        "local_base_physical_damage_reduction_rating",
+        "local_base_evasion_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEvasionAndBase6",
+          "hash32": 1654592158,
+          "ilvl": 78,
+          "name": "Centurion's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              52
+            ],
+            [
+              40,
+              50
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEvasionAndBase5",
+          "hash32": 197630162,
+          "ilvl": 60,
+          "name": "Knight's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ],
+            [
+              30,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEvasionAndBase4",
+          "hash32": 2634148867,
+          "ilvl": 46,
+          "name": "Warrior's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              24,
+              32
+            ],
+            [
+              22,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEvasionAndBase3",
+          "hash32": 3592598421,
+          "ilvl": 33,
+          "name": "Veteran's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              23
+            ],
+            [
+              15,
+              21
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEvasionAndBase2",
+          "hash32": 502717026,
+          "ilvl": 16,
+          "name": "Fighter's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              6,
+              16
+            ],
+            [
+              4,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEvasionAndBase1",
+          "hash32": 4049336632,
+          "ilvl": 8,
+          "name": "Swordsman's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              3,
+              5
+            ],
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Evasion / # to maximum Life",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndLife"
+      ],
+      "statKeys": [
+        "local_armour_and_evasion_+%",
+        "base_maximum_life"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEvasionAndLife6",
+          "hash32": 716190486,
+          "ilvl": 78,
+          "name": "Predator's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              49
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEvasionAndLife5",
+          "hash32": 3313050193,
+          "ilvl": 60,
+          "name": "Aggressor's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEvasionAndLife4",
+          "hash32": 1984572630,
+          "ilvl": 46,
+          "name": "Assailant's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              26,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEvasionAndLife3",
+          "hash32": 2941805750,
+          "ilvl": 33,
+          "name": "Brute's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              20,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEvasionAndLife2",
+          "hash32": 2378941234,
+          "ilvl": 16,
+          "name": "Thug's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              11,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEvasionAndLife1",
+          "hash32": 3812903418,
+          "ilvl": 8,
+          "name": "Bully's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              7,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Evasion / # to maximum Mana",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndMana"
+      ],
+      "statKeys": [
+        "local_armour_and_evasion_+%",
+        "base_maximum_mana"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEvasionAndMana6",
+          "hash32": 4184863309,
+          "ilvl": 78,
+          "name": "Cerberus'",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              33,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEvasionAndMana5",
+          "hash32": 1135102609,
+          "ilvl": 60,
+          "name": "Minotaur's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              27,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEvasionAndMana4",
+          "hash32": 1912522015,
+          "ilvl": 46,
+          "name": "Bull's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              21,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEvasionAndMana3",
+          "hash32": 2798641114,
+          "ilvl": 33,
+          "name": "Chimeral's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEvasionAndMana2",
+          "hash32": 3956686009,
+          "ilvl": 16,
+          "name": "Rhex's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              9,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEvasionAndMana1",
+          "hash32": 2147300330,
+          "ilvl": 8,
+          "name": "Rhoa's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              6,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour and Evasion / # to Stun Threshold",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercentAndStunThreshold"
+      ],
+      "statKeys": [
+        "local_armour_and_evasion_+%",
+        "stun_threshold_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalArmourAndEvasionAndStunThreshold6",
+          "hash32": 1658549351,
+          "ilvl": 74,
+          "name": "Warlord's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              95,
+              136
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalArmourAndEvasionAndStunThreshold5",
+          "hash32": 2815060266,
+          "ilvl": 63,
+          "name": "General's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              64,
+              94
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalArmourAndEvasionAndStunThreshold4",
+          "hash32": 3445903772,
+          "ilvl": 48,
+          "name": "Marshal's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              41,
+              63
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalArmourAndEvasionAndStunThreshold3",
+          "hash32": 3081281539,
+          "ilvl": 38,
+          "name": "Magnate's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              25,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalArmourAndEvasionAndStunThreshold2",
+          "hash32": 2798215531,
+          "ilvl": 19,
+          "name": "Commander's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              14,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalArmourAndEvasionAndStunThreshold1",
+          "hash32": 2388091886,
+          "ilvl": 10,
+          "name": "Captain's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              8,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Armour, Evasion and Energy Shield",
+      "raw": "{0}% increased Armour, Evasion and Energy Shield",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercent"
+      ],
+      "statKeys": [
+        "local_armour_and_evasion_and_energy_shield_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield8",
+          "hash32": 3298207758,
+          "ilvl": 75,
+          "name": "Ascendant",
+          "values": [
+            [
+              101,
+              110
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield7",
+          "hash32": 1636339778,
+          "ilvl": 65,
+          "name": "Incorporeal",
+          "values": [
+            [
+              92,
+              100
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield6",
+          "hash32": 638120764,
+          "ilvl": 60,
+          "name": "Unreal",
+          "values": [
+            [
+              80,
+              91
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield5",
+          "hash32": 3805979369,
+          "ilvl": 54,
+          "name": "Evanescent",
+          "values": [
+            [
+              68,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield4",
+          "hash32": 778085623,
+          "ilvl": 46,
+          "name": "Ephemeral",
+          "values": [
+            [
+              56,
+              67
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield3",
+          "hash32": 3721510072,
+          "ilvl": 33,
+          "name": "Unworldly",
+          "values": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield2",
+          "hash32": 246459621,
+          "ilvl": 16,
+          "name": "Ethereal",
+          "values": [
+            [
+              27,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LocalIncreasedArmourAndEvasionAndEnergyShield1",
+          "hash32": 1626644062,
+          "ilvl": 2,
+          "name": "Shadowy",
+          "values": [
+            [
+              15,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Energy Shield",
+      "raw": "{0}% increased Energy Shield",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercent"
+      ],
+      "statKeys": [
+        "local_energy_shield_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEnergyShieldPercent7_",
+          "hash32": 1467015604,
+          "ilvl": 65,
+          "name": "Unassailable",
+          "values": [
+            [
+              92,
+              100
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEnergyShieldPercent6",
+          "hash32": 465338060,
+          "ilvl": 60,
+          "name": "Indomitable",
+          "values": [
+            [
+              80,
+              91
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEnergyShieldPercent5",
+          "hash32": 3451900570,
+          "ilvl": 54,
+          "name": "Dauntless",
+          "values": [
+            [
+              68,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEnergyShieldPercent4",
+          "hash32": 435689807,
+          "ilvl": 46,
+          "name": "Fearless",
+          "values": [
+            [
+              56,
+              67
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEnergyShieldPercent3",
+          "hash32": 278573052,
+          "ilvl": 33,
+          "name": "Resolute",
+          "values": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEnergyShieldPercent2",
+          "hash32": 1759187386,
+          "ilvl": 16,
+          "name": "Strong-Willed",
+          "values": [
+            [
+              27,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedEnergyShieldPercent1",
+          "hash32": 3979226208,
+          "ilvl": 2,
+          "name": "Protective",
+          "values": [
+            [
+              15,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Energy Shield / # to maximum Energy Shield",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndDefencePercent"
+      ],
+      "statKeys": [
+        "local_energy_shield_+%",
+        "local_energy_shield"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEnergyShieldAndBase6",
+          "hash32": 2971703953,
+          "ilvl": 78,
+          "name": "Divine",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              26,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEnergyShieldAndBase5",
+          "hash32": 496393025,
+          "ilvl": 60,
+          "name": "Archon's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              21,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEnergyShieldAndBase4",
+          "hash32": 2635857028,
+          "ilvl": 46,
+          "name": "High Priest's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEnergyShieldAndBase3",
+          "hash32": 1533097363,
+          "ilvl": 33,
+          "name": "Priest's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              14,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEnergyShieldAndBase2",
+          "hash32": 2826243259,
+          "ilvl": 16,
+          "name": "Cardinal's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              8,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEnergyShieldAndBase1",
+          "hash32": 894209918,
+          "ilvl": 8,
+          "name": "Deacon's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              4,
+              7
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Energy Shield / # to maximum Life",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndLife"
+      ],
+      "statKeys": [
+        "local_energy_shield_+%",
+        "base_maximum_life"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEnergyShieldAndLife6",
+          "hash32": 1788082190,
+          "ilvl": 78,
+          "name": "Pope's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              49
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEnergyShieldAndLife5",
+          "hash32": 2131575893,
+          "ilvl": 60,
+          "name": "Exarch's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEnergyShieldAndLife4",
+          "hash32": 3815903096,
+          "ilvl": 46,
+          "name": "Bishop's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              26,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEnergyShieldAndLife3",
+          "hash32": 4082661945,
+          "ilvl": 33,
+          "name": "Abbot's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              20,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEnergyShieldAndLife2",
+          "hash32": 2436834135,
+          "ilvl": 16,
+          "name": "Prior's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              11,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEnergyShieldAndLife1",
+          "hash32": 2392479775,
+          "ilvl": 8,
+          "name": "Monk's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              7,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Energy Shield / # to maximum Mana",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndMana"
+      ],
+      "statKeys": [
+        "local_energy_shield_+%",
+        "base_maximum_mana"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEnergyShieldAndMana6",
+          "hash32": 1502000370,
+          "ilvl": 78,
+          "name": "Angel's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              33,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEnergyShieldAndMana5",
+          "hash32": 1449972791,
+          "ilvl": 60,
+          "name": "Heavenly",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              27,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEnergyShieldAndMana4",
+          "hash32": 1005851508,
+          "ilvl": 46,
+          "name": "Celestial",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              21,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEnergyShieldAndMana3",
+          "hash32": 4179931442,
+          "ilvl": 33,
+          "name": "Sacred",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEnergyShieldAndMana2",
+          "hash32": 317310378,
+          "ilvl": 16,
+          "name": "Serene",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              9,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEnergyShieldAndMana1",
+          "hash32": 3182744085,
+          "ilvl": 8,
+          "name": "Imbued",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              6,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Energy Shield / # to Stun Threshold",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercentAndStunThreshold"
+      ],
+      "statKeys": [
+        "local_energy_shield_+%",
+        "stun_threshold_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalEnergyShieldAndStunThreshold6",
+          "hash32": 3299397022,
+          "ilvl": 74,
+          "name": "Seraphim's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              95,
+              136
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalEnergyShieldAndStunThreshold5",
+          "hash32": 526892369,
+          "ilvl": 63,
+          "name": "Djinn's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              64,
+              94
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalEnergyShieldAndStunThreshold4",
+          "hash32": 489300750,
+          "ilvl": 48,
+          "name": "Naga's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              41,
+              63
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalEnergyShieldAndStunThreshold3",
+          "hash32": 3456732764,
+          "ilvl": 38,
+          "name": "Boggart's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              25,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalEnergyShieldAndStunThreshold2",
+          "hash32": 4223153076,
+          "ilvl": 19,
+          "name": "Gremlin's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              14,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalEnergyShieldAndStunThreshold1",
+          "hash32": 1630006231,
+          "ilvl": 10,
+          "name": "Pixie's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              8,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion and Energy Shield",
+      "raw": "{0}% increased Evasion and Energy Shield",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercent"
+      ],
+      "statKeys": [
+        "local_evasion_and_energy_shield_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionAndEnergyShield7",
+          "hash32": 805998656,
+          "ilvl": 65,
+          "name": "Illusory",
+          "values": [
+            [
+              92,
+              100
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionAndEnergyShield6",
+          "hash32": 2827727636,
+          "ilvl": 60,
+          "name": "Unreal",
+          "values": [
+            [
+              80,
+              91
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionAndEnergyShield5_",
+          "hash32": 3451140479,
+          "ilvl": 54,
+          "name": "Evanescent",
+          "values": [
+            [
+              68,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionAndEnergyShield4",
+          "hash32": 3094853632,
+          "ilvl": 46,
+          "name": "Ephemeral",
+          "values": [
+            [
+              56,
+              67
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionAndEnergyShield3",
+          "hash32": 3856111850,
+          "ilvl": 33,
+          "name": "Unworldly",
+          "values": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionAndEnergyShield2",
+          "hash32": 4254030234,
+          "ilvl": 16,
+          "name": "Ethereal",
+          "values": [
+            [
+              27,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedEvasionAndEnergyShield1",
+          "hash32": 576736974,
+          "ilvl": 2,
+          "name": "Shadowy",
+          "values": [
+            [
+              15,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion and Energy Shield / # to Evasion Rating / # to maximum Energy Shield",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndDefencePercent"
+      ],
+      "statKeys": [
+        "local_evasion_and_energy_shield_+%",
+        "local_base_evasion_rating",
+        "local_energy_shield"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndBase6",
+          "hash32": 3695212448,
+          "ilvl": 78,
+          "name": "Stalker's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              40,
+              50
+            ],
+            [
+              13,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndBase5",
+          "hash32": 558721795,
+          "ilvl": 60,
+          "name": "Rogue's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              30,
+              39
+            ],
+            [
+              11,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndBase4",
+          "hash32": 2717917222,
+          "ilvl": 46,
+          "name": "Phantom's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              22,
+              29
+            ],
+            [
+              9,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndBase3",
+          "hash32": 642342846,
+          "ilvl": 33,
+          "name": "Chaser's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              15,
+              21
+            ],
+            [
+              7,
+              8
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndBase2",
+          "hash32": 3211539157,
+          "ilvl": 16,
+          "name": "Tracker's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              4,
+              14
+            ],
+            [
+              5,
+              6
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndBase1",
+          "hash32": 1001332242,
+          "ilvl": 8,
+          "name": "Pursuer's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              2,
+              4
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion and Energy Shield / # to maximum Life",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndLife"
+      ],
+      "statKeys": [
+        "local_evasion_and_energy_shield_+%",
+        "base_maximum_life"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndLife6",
+          "hash32": 3533505174,
+          "ilvl": 78,
+          "name": "Maestro's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              49
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndLife5",
+          "hash32": 2651214292,
+          "ilvl": 60,
+          "name": "Minstrel's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndLife4",
+          "hash32": 2303643707,
+          "ilvl": 46,
+          "name": "Bard's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              26,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndLife3",
+          "hash32": 3837250532,
+          "ilvl": 33,
+          "name": "Troubadour's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              20,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndLife2",
+          "hash32": 3260697763,
+          "ilvl": 16,
+          "name": "Musician's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              11,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndLife1",
+          "hash32": 565835933,
+          "ilvl": 8,
+          "name": "Poet's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              7,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion and Energy Shield / # to maximum Mana",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndMana"
+      ],
+      "statKeys": [
+        "local_evasion_and_energy_shield_+%",
+        "base_maximum_mana"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndMana6",
+          "hash32": 2783744238,
+          "ilvl": 78,
+          "name": "Falcon's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              33,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndMana5",
+          "hash32": 2580620127,
+          "ilvl": 60,
+          "name": "Eagle's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              27,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndMana4",
+          "hash32": 2192227293,
+          "ilvl": 46,
+          "name": "Hawk's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              21,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndMana3",
+          "hash32": 1503960079,
+          "ilvl": 33,
+          "name": "Owl's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndMana2",
+          "hash32": 2203430987,
+          "ilvl": 16,
+          "name": "Kingfisher's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              9,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionAndEnergyShieldAndMana1",
+          "hash32": 739092329,
+          "ilvl": 8,
+          "name": "Vulture's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              6,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion and Energy Shield / # to Stun Threshold",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercentAndStunThreshold"
+      ],
+      "statKeys": [
+        "local_evasion_and_energy_shield_+%",
+        "stun_threshold_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalEvasionAndEnergyShieldAndStunThreshold6",
+          "hash32": 3451106667,
+          "ilvl": 74,
+          "name": "Trickster's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              95,
+              136
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalEvasionAndEnergyShieldAndStunThreshold5",
+          "hash32": 3216022838,
+          "ilvl": 63,
+          "name": "Mentalist's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              64,
+              94
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalEvasionAndEnergyShieldAndStunThreshold4",
+          "hash32": 2838503058,
+          "ilvl": 48,
+          "name": "Illusionist's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              41,
+              63
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalEvasionAndEnergyShieldAndStunThreshold3",
+          "hash32": 3669728086,
+          "ilvl": 38,
+          "name": "Telepath's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              25,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalEvasionAndEnergyShieldAndStunThreshold2",
+          "hash32": 914961535,
+          "ilvl": 19,
+          "name": "Psychic",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              14,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalEvasionAndEnergyShieldAndStunThreshold1",
+          "hash32": 346937206,
+          "ilvl": 10,
+          "name": "Intuitive",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              8,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion Rating",
+      "raw": "{0}% increased Evasion Rating",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercent"
+      ],
+      "statKeys": [
+        "local_evasion_rating_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionRatingPercent7",
+          "hash32": 1538928957,
+          "ilvl": 65,
+          "name": "Mirage's",
+          "values": [
+            [
+              92,
+              100
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionRatingPercent6",
+          "hash32": 1095729694,
+          "ilvl": 60,
+          "name": "Nightmare's",
+          "values": [
+            [
+              80,
+              91
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionRatingPercent5",
+          "hash32": 496717038,
+          "ilvl": 54,
+          "name": "Phantasm's",
+          "values": [
+            [
+              68,
+              79
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionRatingPercent4",
+          "hash32": 805671451,
+          "ilvl": 46,
+          "name": "Wraith's",
+          "values": [
+            [
+              56,
+              67
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionRatingPercent3",
+          "hash32": 2804033966,
+          "ilvl": 33,
+          "name": "Spectre's",
+          "values": [
+            [
+              43,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionRatingPercent2",
+          "hash32": 2213548098,
+          "ilvl": 16,
+          "name": "Ghost's",
+          "values": [
+            [
+              27,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LocalIncreasedEvasionRatingPercent1",
+          "hash32": 2535189069,
+          "ilvl": 2,
+          "name": "Shade's",
+          "values": [
+            [
+              15,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion Rating / # to Evasion Rating",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndDefencePercent"
+      ],
+      "statKeys": [
+        "local_evasion_rating_+%",
+        "local_base_evasion_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionAndBase6",
+          "hash32": 1618787140,
+          "ilvl": 78,
+          "name": "Antelope's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              71,
+              90
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionAndBase5",
+          "hash32": 2566765792,
+          "ilvl": 60,
+          "name": "Caribou's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              54,
+              70
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionAndBase4",
+          "hash32": 1263023028,
+          "ilvl": 46,
+          "name": "Deer's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              39,
+              53
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionAndBase3",
+          "hash32": 931661659,
+          "ilvl": 33,
+          "name": "Moose's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              27,
+              38
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionAndBase2",
+          "hash32": 4157429110,
+          "ilvl": 16,
+          "name": "Buck's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              7,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionAndBase1",
+          "hash32": 2020304617,
+          "ilvl": 8,
+          "name": "Impala's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              4,
+              6
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion Rating / # to maximum Life",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndLife"
+      ],
+      "statKeys": [
+        "local_evasion_rating_+%",
+        "base_maximum_life"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionAndLife6",
+          "hash32": 281619459,
+          "ilvl": 78,
+          "name": "Stag's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              42,
+              49
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionAndLife5",
+          "hash32": 272948525,
+          "ilvl": 60,
+          "name": "Ibex's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              33,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionAndLife4",
+          "hash32": 2690799336,
+          "ilvl": 46,
+          "name": "Ram's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              26,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionAndLife3",
+          "hash32": 3817082772,
+          "ilvl": 33,
+          "name": "Mouflon's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              20,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionAndLife2",
+          "hash32": 3479316945,
+          "ilvl": 16,
+          "name": "Fawn's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              11,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionAndLife1",
+          "hash32": 804877813,
+          "ilvl": 8,
+          "name": "Flea's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              7,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion Rating / # to maximum Mana",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "BaseLocalDefencesAndMana"
+      ],
+      "statKeys": [
+        "local_evasion_rating_+%",
+        "base_maximum_mana"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalIncreasedEvasionAndMana6",
+          "hash32": 253914511,
+          "ilvl": 78,
+          "name": "Wanderer's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              33,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalIncreasedEvasionAndMana5",
+          "hash32": 983760426,
+          "ilvl": 60,
+          "name": "Wayfarer's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              27,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalIncreasedEvasionAndMana4",
+          "hash32": 3148077771,
+          "ilvl": 46,
+          "name": "Explorer's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              21,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalIncreasedEvasionAndMana3",
+          "hash32": 3700836629,
+          "ilvl": 33,
+          "name": "Traveller's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalIncreasedEvasionAndMana2",
+          "hash32": 2950635904,
+          "ilvl": 16,
+          "name": "Drifter's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              9,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalIncreasedEvasionAndMana1",
+          "hash32": 3823714243,
+          "ilvl": 8,
+          "name": "Nomad's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              6,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Evasion Rating / # to Stun Threshold",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DefencesPercentAndStunThreshold"
+      ],
+      "statKeys": [
+        "local_evasion_rating_+%",
+        "stun_threshold_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LocalEvasionAndStunThreshold6",
+          "hash32": 1290584571,
+          "ilvl": 74,
+          "name": "Hummingbird's",
+          "values": [
+            [
+              39,
+              42
+            ],
+            [
+              95,
+              136
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LocalEvasionAndStunThreshold5",
+          "hash32": 648803559,
+          "ilvl": 63,
+          "name": "Dragonfly's",
+          "values": [
+            [
+              33,
+              38
+            ],
+            [
+              64,
+              94
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LocalEvasionAndStunThreshold4",
+          "hash32": 98139780,
+          "ilvl": 48,
+          "name": "Wasp's",
+          "values": [
+            [
+              27,
+              32
+            ],
+            [
+              41,
+              63
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LocalEvasionAndStunThreshold3",
+          "hash32": 1632824368,
+          "ilvl": 38,
+          "name": "Butterfly's",
+          "values": [
+            [
+              21,
+              26
+            ],
+            [
+              25,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LocalEvasionAndStunThreshold2",
+          "hash32": 2934432627,
+          "ilvl": 19,
+          "name": "Moth's",
+          "values": [
+            [
+              14,
+              20
+            ],
+            [
+              14,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LocalEvasionAndStunThreshold1",
+          "hash32": 461064331,
+          "ilvl": 10,
+          "name": "Mosquito's",
+          "values": [
+            [
+              6,
+              13
+            ],
+            [
+              8,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Rarity of Items found",
+      "raw": "{0}% increased Rarity of Items found",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "ItemFoundRarityIncreasePrefix"
+      ],
+      "statKeys": [
+        "base_item_found_rarity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ItemFoundRarityIncreasePrefix3",
+          "hash32": 2648610777,
+          "ilvl": 47,
+          "name": "Hoarder's",
+          "values": [
+            [
+              16,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ItemFoundRarityIncreasePrefix2",
+          "hash32": 1515834253,
+          "ilvl": 29,
+          "name": "Collector's",
+          "values": [
+            [
+              12,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ItemFoundRarityIncreasePrefix1",
+          "hash32": 309654708,
+          "ilvl": 10,
+          "name": "Magpie's",
+          "values": [
+            [
+              8,
+              11
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "suffixes": [
+    {
+      "text": "# Life Regeneration per second",
+      "raw": "{0} Life Regeneration per second",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "LifeRegeneration"
+      ],
+      "statKeys": [
+        "base_life_regeneration_rate_per_minute"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LifeRegeneration8_",
+          "hash32": 3803165038,
+          "ilvl": 58,
+          "name": "of Recuperation",
+          "values": [
+            [
+              1086,
+              1380
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LifeRegeneration7",
+          "hash32": 1303455646,
+          "ilvl": 47,
+          "name": "of Convalescence",
+          "values": [
+            [
+              786,
+              1080
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LifeRegeneration6",
+          "hash32": 1625514646,
+          "ilvl": 35,
+          "name": "of the Troll",
+          "values": [
+            [
+              546,
+              780
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LifeRegeneration5",
+          "hash32": 2048043952,
+          "ilvl": 26,
+          "name": "of the Hydra",
+          "values": [
+            [
+              366,
+              540
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LifeRegeneration4",
+          "hash32": 797434586,
+          "ilvl": 17,
+          "name": "of the Starfish",
+          "values": [
+            [
+              246,
+              360
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LifeRegeneration3",
+          "hash32": 1583197386,
+          "ilvl": 11,
+          "name": "of the Flatworm",
+          "values": [
+            [
+              186,
+              240
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LifeRegeneration2",
+          "hash32": 2145092608,
+          "ilvl": 5,
+          "name": "of the Lizard",
+          "values": [
+            [
+              126,
+              180
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LifeRegeneration1",
+          "hash32": 819663473,
+          "ilvl": 1,
+          "name": "of the Newt",
+          "values": [
+            [
+              60,
+              120
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Dexterity",
+      "raw": "{0:+d} to Dexterity",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "Dexterity"
+      ],
+      "statKeys": [
+        "additional_dexterity"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "Dexterity8",
+          "hash32": 2085132949,
+          "ilvl": 74,
+          "name": "of the Phantom",
+          "values": [
+            [
+              31,
+              33
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "Dexterity7",
+          "hash32": 116669306,
+          "ilvl": 66,
+          "name": "of the Jaguar",
+          "values": [
+            [
+              28,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "Dexterity6",
+          "hash32": 3989961355,
+          "ilvl": 55,
+          "name": "of the Leopard",
+          "values": [
+            [
+              25,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "Dexterity5",
+          "hash32": 1283495801,
+          "ilvl": 44,
+          "name": "of the Panther",
+          "values": [
+            [
+              21,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "Dexterity4",
+          "hash32": 114212880,
+          "ilvl": 33,
+          "name": "of the Falcon",
+          "values": [
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "Dexterity3",
+          "hash32": 186526788,
+          "ilvl": 22,
+          "name": "of the Fox",
+          "values": [
+            [
+              13,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "Dexterity2",
+          "hash32": 139741561,
+          "ilvl": 11,
+          "name": "of the Lynx",
+          "values": [
+            [
+              9,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "Dexterity1",
+          "hash32": 664245424,
+          "ilvl": 1,
+          "name": "of the Mongoose",
+          "values": [
+            [
+              5,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Intelligence",
+      "raw": "{0:+d} to Intelligence",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "Intelligence"
+      ],
+      "statKeys": [
+        "additional_intelligence"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "Intelligence9",
+          "hash32": 4079009411,
+          "ilvl": 81,
+          "name": "of the Genius",
+          "values": [
+            [
+              34,
+              36
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "Intelligence8",
+          "hash32": 2494791773,
+          "ilvl": 74,
+          "name": "of the Virtuoso",
+          "values": [
+            [
+              31,
+              33
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "Intelligence7",
+          "hash32": 1677845857,
+          "ilvl": 66,
+          "name": "of the Savant",
+          "values": [
+            [
+              28,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "Intelligence6",
+          "hash32": 1430728728,
+          "ilvl": 55,
+          "name": "of the Sage",
+          "values": [
+            [
+              25,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "Intelligence5",
+          "hash32": 2020724324,
+          "ilvl": 44,
+          "name": "of the Philosopher",
+          "values": [
+            [
+              21,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "Intelligence4",
+          "hash32": 2058994653,
+          "ilvl": 33,
+          "name": "of the Augur",
+          "values": [
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "Intelligence3",
+          "hash32": 1776535394,
+          "ilvl": 22,
+          "name": "of the Prodigy",
+          "values": [
+            [
+              13,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "Intelligence2",
+          "hash32": 2079902133,
+          "ilvl": 11,
+          "name": "of the Student",
+          "values": [
+            [
+              9,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "Intelligence1",
+          "hash32": 2441708049,
+          "ilvl": 1,
+          "name": "of the Pupil",
+          "values": [
+            [
+              5,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Level of all Minion Skills",
+      "raw": "{0:+d} to Level of all Minion Skills",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncreaseSocketedGemLevel"
+      ],
+      "statKeys": [
+        "minion_skill_gem_level_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "GlobalMinionSpellSkillGemLevel2",
+          "hash32": 4098276440,
+          "ilvl": 41,
+          "name": "of the Despot",
+          "values": [
+            [
+              2,
+              2
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "GlobalMinionSpellSkillGemLevel1",
+          "hash32": 639498757,
+          "ilvl": 5,
+          "name": "of the Taskmaster",
+          "values": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Strength",
+      "raw": "{0:+d} to Strength",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "Strength"
+      ],
+      "statKeys": [
+        "additional_strength"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "Strength8",
+          "hash32": 2080074601,
+          "ilvl": 74,
+          "name": "of the Titan",
+          "values": [
+            [
+              31,
+              33
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "Strength7",
+          "hash32": 1034750960,
+          "ilvl": 66,
+          "name": "of the Leviathan",
+          "values": [
+            [
+              28,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "Strength6",
+          "hash32": 4083281596,
+          "ilvl": 55,
+          "name": "of the Goliath",
+          "values": [
+            [
+              25,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "Strength5",
+          "hash32": 712944815,
+          "ilvl": 44,
+          "name": "of the Gorilla",
+          "values": [
+            [
+              21,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "Strength4",
+          "hash32": 730523798,
+          "ilvl": 33,
+          "name": "of the Lion",
+          "values": [
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "Strength3",
+          "hash32": 472807409,
+          "ilvl": 22,
+          "name": "of the Bear",
+          "values": [
+            [
+              13,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "Strength2",
+          "hash32": 1447528431,
+          "ilvl": 11,
+          "name": "of the Wrestler",
+          "values": [
+            [
+              9,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "Strength1",
+          "hash32": 3406667097,
+          "ilvl": 1,
+          "name": "of the Brute",
+          "values": [
+            [
+              5,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Critical Hit Chance",
+      "raw": "{0}% increased Critical Hit Chance",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "CriticalStrikeChanceIncrease"
+      ],
+      "statKeys": [
+        "critical_strike_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "CriticalStrikeChance5",
+          "hash32": 1111610306,
+          "ilvl": 58,
+          "name": "of Ruin",
+          "values": [
+            [
+              30,
+              34
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "CriticalStrikeChance4",
+          "hash32": 435885128,
+          "ilvl": 44,
+          "name": "of Calamity",
+          "values": [
+            [
+              25,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "CriticalStrikeChance3",
+          "hash32": 3984247591,
+          "ilvl": 30,
+          "name": "of Disaster",
+          "values": [
+            [
+              20,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "CriticalStrikeChance2",
+          "hash32": 2653775965,
+          "ilvl": 20,
+          "name": "of Havoc",
+          "values": [
+            [
+              15,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "CriticalStrikeChance1",
+          "hash32": 3302165752,
+          "ilvl": 5,
+          "name": "of Menace",
+          "values": [
+            [
+              10,
+              14
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Energy Shield Recharge Rate",
+      "raw": "{0}% increased Energy Shield Recharge Rate",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "EnergyShieldRegeneration"
+      ],
+      "statKeys": [
+        "energy_shield_recharge_rate_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "EnergyShieldRechargeRate6",
+          "hash32": 647119792,
+          "ilvl": 81,
+          "name": "of Suffusion",
+          "values": [
+            [
+              24,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "EnergyShieldRechargeRate5______",
+          "hash32": 988189289,
+          "ilvl": 66,
+          "name": "of Ardour",
+          "values": [
+            [
+              20,
+              23
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "EnergyShieldRechargeRate4",
+          "hash32": 1121266646,
+          "ilvl": 48,
+          "name": "of Buffering",
+          "values": [
+            [
+              16,
+              19
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Light Radius / # to Accuracy Rating",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "LightRadiusAndAccuracy"
+      ],
+      "statKeys": [
+        "light_radius_+%",
+        "accuracy_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LightRadiusAndAccuracy3",
+          "hash32": 2530203152,
+          "ilvl": 30,
+          "name": "of Radiance",
+          "values": [
+            [
+              15,
+              15
+            ],
+            [
+              41,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LightRadiusAndAccuracy2",
+          "hash32": 933262869,
+          "ilvl": 15,
+          "name": "of Light",
+          "values": [
+            [
+              10,
+              10
+            ],
+            [
+              21,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LightRadiusAndAccuracy1",
+          "hash32": 2619741203,
+          "ilvl": 8,
+          "name": "of Shining",
+          "values": [
+            [
+              5,
+              5
+            ],
+            [
+              10,
+              20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Rarity of Items found",
+      "raw": "{0}% increased Rarity of Items found",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ItemFoundRarityIncrease"
+      ],
+      "statKeys": [
+        "base_item_found_rarity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ItemFoundRarityIncrease3",
+          "hash32": 127202719,
+          "ilvl": 40,
+          "name": "of Archaeology",
+          "values": [
+            [
+              15,
+              18
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ItemFoundRarityIncrease2",
+          "hash32": 2211472167,
+          "ilvl": 24,
+          "name": "of Raiding",
+          "values": [
+            [
+              11,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ItemFoundRarityIncrease1",
+          "hash32": 3073181774,
+          "ilvl": 3,
+          "name": "of Plunder",
+          "values": [
+            [
+              6,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% of Armour also applies to Elemental Damage",
+      "raw": "{0:+d}% of Armour also applies to Elemental Damage",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ArmourAppliesToElementalDamage"
+      ],
+      "statKeys": [
+        "armour_%_applies_to_fire_cold_lightning_damage"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ArmourAppliesToElementalDamage6",
+          "hash32": 1291744309,
+          "ilvl": 81,
+          "name": "of Thermokryptance",
+          "values": [
+            [
+              44,
+              50
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ArmourAppliesToElementalDamage5",
+          "hash32": 1480487037,
+          "ilvl": 66,
+          "name": "of Furring",
+          "values": [
+            [
+              38,
+              43
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ArmourAppliesToElementalDamage4",
+          "hash32": 3573841075,
+          "ilvl": 48,
+          "name": "of Padding",
+          "values": [
+            [
+              32,
+              37
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "ArmourAppliesToElementalDamage3",
+          "hash32": 346169652,
+          "ilvl": 36,
+          "name": "of Lining",
+          "values": [
+            [
+              26,
+              31
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "ArmourAppliesToElementalDamage2",
+          "hash32": 3838763830,
+          "ilvl": 16,
+          "name": "of Sheathing",
+          "values": [
+            [
+              20,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "ArmourAppliesToElementalDamage1",
+          "hash32": 3380568989,
+          "ilvl": 1,
+          "name": "of Covering",
+          "values": [
+            [
+              14,
+              19
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% reduced Attribute Requirements",
+      "raw": "{0}% reduced Attribute Requirements",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "LocalAttributeRequirements"
+      ],
+      "statKeys": [
+        "local_attribute_requirements_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ReducedLocalAttributeRequirements5",
+          "hash32": 2209760388,
+          "ilvl": 60,
+          "name": "of the Proficient",
+          "values": [
+            [
+              -35,
+              -35
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ReducedLocalAttributeRequirements4",
+          "hash32": 3862791126,
+          "ilvl": 52,
+          "name": "of the Skilled",
+          "values": [
+            [
+              -30,
+              -30
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ReducedLocalAttributeRequirements3",
+          "hash32": 4206506154,
+          "ilvl": 40,
+          "name": "of the Talented",
+          "values": [
+            [
+              -25,
+              -25
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "ReducedLocalAttributeRequirements2",
+          "hash32": 3211257537,
+          "ilvl": 32,
+          "name": "of the Apt",
+          "values": [
+            [
+              -20,
+              -20
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "ReducedLocalAttributeRequirements1",
+          "hash32": 959324044,
+          "ilvl": 24,
+          "name": "of the Worthy",
+          "values": [
+            [
+              -15,
+              -15
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% to Chaos Resistance",
+      "raw": "{0:+d}% to Chaos Resistance",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ChaosResistance"
+      ],
+      "statKeys": [
+        "base_chaos_damage_resistance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ChaosResist6",
+          "hash32": 717342621,
+          "ilvl": 81,
+          "name": "of Bameth",
+          "values": [
+            [
+              24,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ChaosResist5",
+          "hash32": 1368186646,
+          "ilvl": 68,
+          "name": "of Exile",
+          "values": [
+            [
+              20,
+              23
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ChaosResist4",
+          "hash32": 2570470944,
+          "ilvl": 56,
+          "name": "of Expulsion",
+          "values": [
+            [
+              16,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "ChaosResist3",
+          "hash32": 4055450418,
+          "ilvl": 44,
+          "name": "of Eviction",
+          "values": [
+            [
+              12,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "ChaosResist2",
+          "hash32": 561954675,
+          "ilvl": 30,
+          "name": "of Banishment",
+          "values": [
+            [
+              8,
+              11
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "ChaosResist1",
+          "hash32": 3098439725,
+          "ilvl": 16,
+          "name": "of the Lost",
+          "values": [
+            [
+              4,
+              7
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% to Cold Resistance",
+      "raw": "{0:+d}% to Cold Resistance",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ColdResistance"
+      ],
+      "statKeys": [
+        "base_cold_damage_resistance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ColdResist8",
+          "hash32": 2910560442,
+          "ilvl": 82,
+          "name": "of Haast",
+          "values": [
+            [
+              41,
+              45
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ColdResist7",
+          "hash32": 2801089999,
+          "ilvl": 71,
+          "name": "of the Ice",
+          "values": [
+            [
+              36,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ColdResist6",
+          "hash32": 4061926308,
+          "ilvl": 60,
+          "name": "of the Polar Bear",
+          "values": [
+            [
+              31,
+              35
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "ColdResist5",
+          "hash32": 1229325754,
+          "ilvl": 50,
+          "name": "of the Walrus",
+          "values": [
+            [
+              26,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "ColdResist4",
+          "hash32": 2490447439,
+          "ilvl": 38,
+          "name": "of the Yeti",
+          "values": [
+            [
+              21,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "ColdResist3",
+          "hash32": 3133071864,
+          "ilvl": 26,
+          "name": "of the Narwhal",
+          "values": [
+            [
+              16,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "ColdResist2",
+          "hash32": 2010771149,
+          "ilvl": 14,
+          "name": "of the Penguin",
+          "values": [
+            [
+              11,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "ColdResist1",
+          "hash32": 1561395636,
+          "ilvl": 1,
+          "name": "of the Seal",
+          "values": [
+            [
+              6,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% to Fire Resistance",
+      "raw": "{0:+d}% to Fire Resistance",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "FireResistance"
+      ],
+      "statKeys": [
+        "base_fire_damage_resistance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "FireResist8",
+          "hash32": 3189568015,
+          "ilvl": 82,
+          "name": "of Tzteosh",
+          "values": [
+            [
+              41,
+              45
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "FireResist7",
+          "hash32": 1434226308,
+          "ilvl": 71,
+          "name": "of Magma",
+          "values": [
+            [
+              36,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "FireResist6",
+          "hash32": 2106759328,
+          "ilvl": 60,
+          "name": "of the Volcano",
+          "values": [
+            [
+              31,
+              35
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "FireResist5",
+          "hash32": 3341156931,
+          "ilvl": 48,
+          "name": "of the Furnace",
+          "values": [
+            [
+              26,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "FireResist4",
+          "hash32": 1114193159,
+          "ilvl": 36,
+          "name": "of the Kiln",
+          "values": [
+            [
+              21,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "FireResist3",
+          "hash32": 3787916561,
+          "ilvl": 24,
+          "name": "of the Drake",
+          "values": [
+            [
+              16,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "FireResist2",
+          "hash32": 2013470499,
+          "ilvl": 12,
+          "name": "of the Salamander",
+          "values": [
+            [
+              11,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "FireResist1",
+          "hash32": 647783188,
+          "ilvl": 1,
+          "name": "of the Whelpling",
+          "values": [
+            [
+              6,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% to Lightning Resistance",
+      "raw": "{0:+d}% to Lightning Resistance",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "LightningResistance"
+      ],
+      "statKeys": [
+        "base_lightning_damage_resistance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LightningResist8",
+          "hash32": 4090311949,
+          "ilvl": 82,
+          "name": "of Ephij",
+          "values": [
+            [
+              41,
+              45
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LightningResist7",
+          "hash32": 3355847067,
+          "ilvl": 71,
+          "name": "of the Lightning",
+          "values": [
+            [
+              36,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LightningResist6",
+          "hash32": 3661611285,
+          "ilvl": 60,
+          "name": "of the Maelstrom",
+          "values": [
+            [
+              31,
+              35
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LightningResist5",
+          "hash32": 2263451976,
+          "ilvl": 49,
+          "name": "of the Tempest",
+          "values": [
+            [
+              26,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LightningResist4",
+          "hash32": 2539098996,
+          "ilvl": 37,
+          "name": "of the Thunderhead",
+          "values": [
+            [
+              21,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LightningResist3",
+          "hash32": 1521550599,
+          "ilvl": 25,
+          "name": "of the Storm",
+          "values": [
+            [
+              16,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "LightningResist2",
+          "hash32": 27493470,
+          "ilvl": 13,
+          "name": "of the Squall",
+          "values": [
+            [
+              11,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "LightningResist1",
+          "hash32": 1063125544,
+          "ilvl": 1,
+          "name": "of the Cloud",
+          "values": [
+            [
+              6,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Gain Deflection Rating equal to #% of Evasion Rating",
+      "raw": "Gain Deflection Rating equal to {0}% of Evasion Rating",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "EvasionAppliesToDeflection"
+      ],
+      "statKeys": [
+        "base_deflection_rating_%_of_evasion_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "EvasionGrantsDeflection6",
+          "hash32": 1374775003,
+          "ilvl": 81,
+          "name": "of Warping",
+          "values": [
+            [
+              24,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "EvasionGrantsDeflection5",
+          "hash32": 3624686486,
+          "ilvl": 66,
+          "name": "of Flexure",
+          "values": [
+            [
+              21,
+              23
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "EvasionGrantsDeflection4",
+          "hash32": 2155084482,
+          "ilvl": 48,
+          "name": "of Diversion",
+          "values": [
+            [
+              18,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "EvasionGrantsDeflection3",
+          "hash32": 3495723148,
+          "ilvl": 36,
+          "name": "of Curvation",
+          "values": [
+            [
+              15,
+              17
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "EvasionGrantsDeflection2",
+          "hash32": 4293763771,
+          "ilvl": 16,
+          "name": "of Bending",
+          "values": [
+            [
+              12,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "EvasionGrantsDeflection1",
+          "hash32": 3901548807,
+          "ilvl": 1,
+          "name": "of Deflecting",
+          "values": [
+            [
+              8,
+              11
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "essenceOnlyPrefixes": [],
+  "essenceOnlySuffixes": [],
+  "runePrefixes": [
+    {
+      "text": "# to Maximum Rage",
+      "raw": "{0:+d} to Maximum Rage",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MaximumRage"
+      ],
+      "statKeys": [
+        "maximum_rage"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceMaximumRage2",
+          "hash32": 1040415029,
+          "ilvl": 75,
+          "name": "Vorana's",
+          "values": [
+            [
+              8,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceMaximumRage1",
+          "hash32": 3525012414,
+          "ilvl": 45,
+          "name": "Vorana's",
+          "values": [
+            [
+              4,
+              7
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased Damage with Warcries",
+      "raw": "{0}% increased Damage with Warcries",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "WarcryDamage"
+      ],
+      "statKeys": [
+        "warcry_damage_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceDamageWithWarcries3",
+          "hash32": 3948134596,
+          "ilvl": 75,
+          "name": "Vorana's",
+          "values": [
+            [
+              50,
+              75
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceDamageWithWarcries2",
+          "hash32": 946106656,
+          "ilvl": 65,
+          "name": "Vorana's",
+          "values": [
+            [
+              35,
+              49
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "BerserkInfluenceDamageWithWarcries1",
+          "hash32": 3149381021,
+          "ilvl": 45,
+          "name": "Vorana's",
+          "values": [
+            [
+              20,
+              34
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased effect of Fully Broken Armour",
+      "raw": "{0}% increased effect of Fully Broken Armour",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "ArmourBreakEffect"
+      ],
+      "statKeys": [
+        "broken_armour_and_sundered_armour_debuff_effect_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceArmourBreakMagnitude3",
+          "hash32": 964443890,
+          "ilvl": 75,
+          "name": "Vorana's",
+          "values": [
+            [
+              40,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceArmourBreakMagnitude2",
+          "hash32": 2891383047,
+          "ilvl": 65,
+          "name": "Vorana's",
+          "values": [
+            [
+              25,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "BerserkInfluenceArmourBreakMagnitude1",
+          "hash32": 3199245841,
+          "ilvl": 45,
+          "name": "Vorana's",
+          "values": [
+            [
+              15,
+              24
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased Glory generation",
+      "raw": "{0}% increased Glory generation",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "GloryGeneration"
+      ],
+      "statKeys": [
+        "glory_generation_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceGloryGeneration2",
+          "hash32": 3817042090,
+          "ilvl": 75,
+          "name": "Vorana's",
+          "values": [
+            [
+              50,
+              85
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceGloryGeneration1",
+          "hash32": 2062608433,
+          "ilvl": 45,
+          "name": "Vorana's",
+          "values": [
+            [
+              20,
+              49
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased Rage Cost Efficiency",
+      "raw": "{0}% increased Rage Cost Efficiency",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "RageCost"
+      ],
+      "statKeys": [
+        "base_rage_cost_efficiency_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceRageCostEfficiency2",
+          "hash32": 3936018518,
+          "ilvl": 75,
+          "name": "Vorana's",
+          "values": [
+            [
+              35,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceRageCostEfficiency1",
+          "hash32": 3434315117,
+          "ilvl": 45,
+          "name": "Vorana's",
+          "values": [
+            [
+              20,
+              34
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased total Power counted by Warcries",
+      "raw": "{0}% increased total Power counted by Warcries",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "WarcryPower"
+      ],
+      "statKeys": [
+        "warcry_monster_power_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluencePowerWithWarcries2",
+          "hash32": 3562026966,
+          "ilvl": 75,
+          "name": "Vorana's",
+          "values": [
+            [
+              35,
+              55
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluencePowerWithWarcries1",
+          "hash32": 1641767291,
+          "ilvl": 45,
+          "name": "Vorana's",
+          "values": [
+            [
+              20,
+              34
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    }
+  ],
+  "runeSuffixes": [
+    {
+      "text": "#% chance to build an additional Combo on Hit",
+      "raw": "{0}% chance to build an additional Combo on Hit",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AdditionalComboChance"
+      ],
+      "statKeys": [
+        "additional_combo_gain_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceAdditionalCombo2",
+          "hash32": 342456695,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              40,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceAdditionalCombo1",
+          "hash32": 3151959111,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              20,
+              39
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased Armour Break Duration",
+      "raw": "{0}% increased Armour Break Duration",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ArmourBreakDuration"
+      ],
+      "statKeys": [
+        "armour_break_and_sundered_armour_duration_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceArmourBreakDuration2",
+          "hash32": 391088131,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              100,
+              150
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceArmourBreakDuration1",
+          "hash32": 1567220072,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              50,
+              99
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased Warcry Cooldown Recovery Rate",
+      "raw": "{0}% increased Warcry Cooldown Recovery Rate",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "WarcryCooldownSpeed"
+      ],
+      "statKeys": [
+        "warcry_cooldown_speed_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceWarcryCooldown2",
+          "hash32": 1541570974,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              37,
+              50
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceWarcryCooldown1",
+          "hash32": 4211227397,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              23,
+              36
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "#% increased Warcry Speed",
+      "raw": "{0}% increased Warcry Speed",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "WarcrySpeed"
+      ],
+      "statKeys": [
+        "warcry_speed_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceWarcrySpeed2",
+          "hash32": 994080560,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              37,
+              50
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceWarcrySpeed1",
+          "hash32": 881390426,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              23,
+              36
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "Gain # Rage when Hit by an Enemy",
+      "raw": "Gain {0} Rage when Hit by an Enemy",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "GainRage"
+      ],
+      "statKeys": [
+        "gain_x_rage_when_hit"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceRageWhenHit2",
+          "hash32": 500200794,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              6,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceRageWhenHit1",
+          "hash32": 299335176,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              4,
+              5
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "Inherent Rage loss starts # seconds later",
+      "raw": "Inherent Rage loss starts {0} seconds later",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RageLossDelay"
+      ],
+      "statKeys": [
+        "rage_loss_delay_ms_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceRageLossDelay2",
+          "hash32": 222200214,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              3000,
+              5000
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceRageLossDelay1",
+          "hash32": 3998622856,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              1000,
+              2000
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "Recover #% of maximum Life when you use a Warcry",
+      "raw": "Recover {0}% of maximum Life when you use a Warcry",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "WarcryLifeRecovery"
+      ],
+      "statKeys": [
+        "restore_life_on_warcry_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceWarcryLifeRecovery2",
+          "hash32": 3365893156,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceWarcryLifeRecovery1",
+          "hash32": 2454647630,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    },
+    {
+      "text": "Warcry Skills have #% increased Area of Effect",
+      "raw": "Warcry Skills have {0}% increased Area of Effect",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AreaOfEffect"
+      ],
+      "statKeys": [
+        "warcry_skill_area_of_effect_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "BerserkInfluenceWarcryArea2",
+          "hash32": 4192320942,
+          "ilvl": 75,
+          "name": "of the Berserker",
+          "values": [
+            [
+              30,
+              50
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "BerserkInfluenceWarcryArea1",
+          "hash32": 3967535586,
+          "ilvl": 45,
+          "name": "of the Berserker",
+          "values": [
+            [
+              15,
+              29
+            ]
+          ]
+        }
+      ],
+      "rune": "Vorana's Carnage",
+      "runeTag": "berserking"
+    }
+  ]
+}

@@ -1,0 +1,3140 @@
+{
+  "category": "Waystones",
+  "itemClass": "Waystones",
+  "reconstructedTags": [],
+  "baseCount": 16,
+  "modDomain": 6,
+  "runes": [],
+  "unresolvedText": 5,
+  "counts": {
+    "prefix": 14,
+    "suffix": 18,
+    "prefixEssence": 0,
+    "suffixEssence": 0,
+    "runePrefix": 0,
+    "runeSuffix": 0
+  },
+  "prefixes": [
+    {
+      "text": "#% increased Monster Damage / #% more Waystones found in Area / #% more Magic and Rare Monsters Rare Monsters have #% more chance of Monster Modifiers",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterDamage"
+      ],
+      "statKeys": [
+        "map_monsters_damage_+%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_number_of_magic_and_rare_packs_+%_final_and_rare_monster_modifiers_chance_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterDamageIncrease4",
+          "hash32": 1676836277,
+          "ilvl": 1,
+          "name": "Painful",
+          "values": [
+            [
+              20,
+              24
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              25,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterDamageIncrease3",
+          "hash32": 181732838,
+          "ilvl": 1,
+          "name": "Painful",
+          "values": [
+            [
+              15,
+              19
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              25,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterDamageIncrease2",
+          "hash32": 2652383976,
+          "ilvl": 1,
+          "name": "Painful",
+          "values": [
+            [
+              10,
+              14
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              25,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterDamageIncrease1",
+          "hash32": 1547591022,
+          "ilvl": 1,
+          "name": "Painful",
+          "values": [
+            [
+              5,
+              9
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              25,
+              25
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% more Monster Life / #% more Waystones found in Area / #% more Magic and Rare Monsters Rare Monsters have #% more chance of Monster Modifiers",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterLife"
+      ],
+      "statKeys": [
+        "map_monsters_life_+%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_number_of_magic_and_rare_packs_+%_final_and_rare_monster_modifiers_chance_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterLifeIncrease4",
+          "hash32": 2998446250,
+          "ilvl": 1,
+          "name": "Tough",
+          "values": [
+            [
+              26,
+              30
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              23,
+              23
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterLifeIncrease3",
+          "hash32": 3160117300,
+          "ilvl": 1,
+          "name": "Tough",
+          "values": [
+            [
+              20,
+              25
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              23,
+              23
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterLifeIncrease2",
+          "hash32": 2006043403,
+          "ilvl": 1,
+          "name": "Tough",
+          "values": [
+            [
+              15,
+              19
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              23,
+              23
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterLifeIncrease1",
+          "hash32": 2645206406,
+          "ilvl": 1,
+          "name": "Tough",
+          "values": [
+            [
+              10,
+              14
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              23,
+              23
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "(map_monster_attack_cast_and_movement_speed_+%+dummy_stat_display_nothing+dummy_stat_display_nothing+map_map_item_drop_chance_+%_final_from_map+map_pack_size_+%_final_from_map)",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterFast"
+      ],
+      "statKeys": [
+        "map_monster_attack_cast_and_movement_speed_+%",
+        "dummy_stat_display_nothing",
+        "dummy_stat_display_nothing",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterSpeedIncrease4",
+          "hash32": 3651886917,
+          "ilvl": 1,
+          "name": "Fleeting",
+          "values": [
+            [
+              10,
+              15
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              25,
+              25
+            ],
+            [
+              9,
+              9
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterSpeedIncrease3",
+          "hash32": 1422003997,
+          "ilvl": 1,
+          "name": "Fleeting",
+          "values": [
+            [
+              10,
+              15
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              25,
+              25
+            ],
+            [
+              9,
+              9
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monster Damage Penetrates #% Elemental Resistances / #% more Waystones found in Area / #% more Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonstersElementalPenetration"
+      ],
+      "statKeys": [
+        "map_monsters_penetrate_elemental_resistances_%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonstersElementalPenetration4",
+          "hash32": 3055085632,
+          "ilvl": 1,
+          "name": "Penetrating",
+          "values": [
+            [
+              14,
+              16
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonstersElementalPenetration3",
+          "hash32": 3822549623,
+          "ilvl": 1,
+          "name": "Penetrating",
+          "values": [
+            [
+              12,
+              14
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonstersElementalPenetration2",
+          "hash32": 480365844,
+          "ilvl": 1,
+          "name": "Penetrating",
+          "values": [
+            [
+              9,
+              11
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonstersElementalPenetration1",
+          "hash32": 3700512776,
+          "ilvl": 1,
+          "name": "Penetrating",
+          "values": [
+            [
+              6,
+              8
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters Break Armour equal to #% of Physical Damage dealt / #% more Waystones found in Area / #% more Magic and Rare Monsters Rare Monsters have #% more chance of Monster Modifiers",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonstersArmourBreak"
+      ],
+      "statKeys": [
+        "map_monsters_armour_break_physical_damage_%_dealt_as_armour_break",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_number_of_magic_and_rare_packs_+%_final_and_rare_monster_modifiers_chance_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterArmourBreak4",
+          "hash32": 2005498855,
+          "ilvl": 1,
+          "name": "Shattering",
+          "values": [
+            [
+              30,
+              45
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              19,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterArmourBreak3",
+          "hash32": 1977012459,
+          "ilvl": 1,
+          "name": "Shattering",
+          "values": [
+            [
+              25,
+              30
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              19,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterArmourBreak2",
+          "hash32": 3051513325,
+          "ilvl": 1,
+          "name": "Shattering",
+          "values": [
+            [
+              20,
+              25
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              19,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterArmourBreak1",
+          "hash32": 3827022366,
+          "ilvl": 1,
+          "name": "Shattering",
+          "values": [
+            [
+              15,
+              20
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              19,
+              19
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters deal #% of Damage as Extra Chaos / #% more Waystones found in Area / #% more Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterChaosDamage"
+      ],
+      "statKeys": [
+        "map_monsters_%_all_damage_to_gain_as_chaos",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterDamageAsChaos4",
+          "hash32": 1962036050,
+          "ilvl": 1,
+          "name": "Profane",
+          "values": [
+            [
+              20,
+              24
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterDamageAsChaos3",
+          "hash32": 434409316,
+          "ilvl": 1,
+          "name": "Profane",
+          "values": [
+            [
+              15,
+              19
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterDamageAsChaos2",
+          "hash32": 1062510792,
+          "ilvl": 1,
+          "name": "Profane",
+          "values": [
+            [
+              10,
+              14
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterDamageAsChaos1",
+          "hash32": 2064301411,
+          "ilvl": 1,
+          "name": "Profane",
+          "values": [
+            [
+              5,
+              9
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters deal #% of Damage as Extra Cold / #% more Waystones found in Area / #% more Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterColdDamage"
+      ],
+      "statKeys": [
+        "map_monsters_%_all_damage_to_gain_as_cold",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterDamageAsCold4",
+          "hash32": 1324133565,
+          "ilvl": 1,
+          "name": "Frostbitten",
+          "values": [
+            [
+              20,
+              24
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterDamageAsCold3",
+          "hash32": 207113741,
+          "ilvl": 1,
+          "name": "Frostbitten",
+          "values": [
+            [
+              15,
+              19
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterDamageAsCold2",
+          "hash32": 739464723,
+          "ilvl": 1,
+          "name": "Frostbitten",
+          "values": [
+            [
+              10,
+              14
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterDamageAsCold1",
+          "hash32": 3190219906,
+          "ilvl": 1,
+          "name": "Frostbitten",
+          "values": [
+            [
+              5,
+              9
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters deal #% of Damage as Extra Fire / #% more Waystones found in Area / Monsters have #% more Effectiveness",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterFireDamage"
+      ],
+      "statKeys": [
+        "map_monsters_%_all_damage_to_gain_as_fire",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_monster_potency_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterDamageAsFire4",
+          "hash32": 3563276527,
+          "ilvl": 1,
+          "name": "Infernal",
+          "values": [
+            [
+              20,
+              24
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterDamageAsFire3",
+          "hash32": 3819905887,
+          "ilvl": 1,
+          "name": "Infernal",
+          "values": [
+            [
+              15,
+              19
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterDamageAsFire2",
+          "hash32": 74612446,
+          "ilvl": 1,
+          "name": "Infernal",
+          "values": [
+            [
+              10,
+              14
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterDamageAsFire1",
+          "hash32": 1495528916,
+          "ilvl": 1,
+          "name": "Infernal",
+          "values": [
+            [
+              5,
+              9
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters deal #% of Damage as Extra Lightning / #% more Waystones found in Area / #% more Pack size",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterLightningDamage"
+      ],
+      "statKeys": [
+        "map_monsters_%_all_damage_to_gain_as_lightning",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterDamageAsLightning4",
+          "hash32": 3970911382,
+          "ilvl": 1,
+          "name": "Thunderous",
+          "values": [
+            [
+              20,
+              24
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              8,
+              8
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterDamageAsLightning3",
+          "hash32": 903416088,
+          "ilvl": 1,
+          "name": "Thunderous",
+          "values": [
+            [
+              15,
+              19
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              8,
+              8
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterDamageAsLightning2",
+          "hash32": 237471769,
+          "ilvl": 1,
+          "name": "Thunderous",
+          "values": [
+            [
+              10,
+              14
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              8,
+              8
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterDamageAsLightning1",
+          "hash32": 4057054182,
+          "ilvl": 1,
+          "name": "Thunderous",
+          "values": [
+            [
+              5,
+              9
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              8,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters have #% chance to inflict Bleeding on Hit / #% more Waystones found in Area / Monsters have #% more Effectiveness",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapBleeding"
+      ],
+      "statKeys": [
+        "map_monsters_chance_to_inflict_bleeding_%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_monster_potency_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterBleeding4",
+          "hash32": 1431562600,
+          "ilvl": 1,
+          "name": "Puncturing",
+          "values": [
+            [
+              20,
+              25
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterBleeding3",
+          "hash32": 3961477483,
+          "ilvl": 1,
+          "name": "Puncturing",
+          "values": [
+            [
+              15,
+              20
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterBleeding2",
+          "hash32": 3061188720,
+          "ilvl": 1,
+          "name": "Puncturing",
+          "values": [
+            [
+              10,
+              15
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterBleeding1",
+          "hash32": 2313567976,
+          "ilvl": 1,
+          "name": "Puncturing",
+          "values": [
+            [
+              5,
+              10
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters have #% chance to Poison on Hit / #% more Waystones found in Area / #% more Pack size",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapPoisoning"
+      ],
+      "statKeys": [
+        "map_monsters_chance_to_poison_on_hit_%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterPoisoning4",
+          "hash32": 3185663645,
+          "ilvl": 1,
+          "name": "Venomous",
+          "values": [
+            [
+              34,
+              40
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterPoisoning3",
+          "hash32": 1758260636,
+          "ilvl": 1,
+          "name": "Venomous",
+          "values": [
+            [
+              27,
+              33
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterPoisoning2",
+          "hash32": 983157659,
+          "ilvl": 1,
+          "name": "Venomous",
+          "values": [
+            [
+              20,
+              26
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterPoisoning1",
+          "hash32": 3118107663,
+          "ilvl": 1,
+          "name": "Venomous",
+          "values": [
+            [
+              13,
+              19
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters have #% increased Accuracy Rating / #% more Waystones found in Area / #% more Pack size",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonstersAccuracy"
+      ],
+      "statKeys": [
+        "map_monsters_accuracy_rating_+%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterAccuracy4",
+          "hash32": 1777162432,
+          "ilvl": 1,
+          "name": "Precise",
+          "values": [
+            [
+              40,
+              50
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterAccuracy3",
+          "hash32": 2741247081,
+          "ilvl": 1,
+          "name": "Precise",
+          "values": [
+            [
+              30,
+              40
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterAccuracy2",
+          "hash32": 2506648249,
+          "ilvl": 1,
+          "name": "Precise",
+          "values": [
+            [
+              20,
+              30
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterAccuracy1",
+          "hash32": 234620811,
+          "ilvl": 1,
+          "name": "Precise",
+          "values": [
+            [
+              10,
+              20
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters have #% increased Critical Hit Chance / Monsters have #% Critical Damage Bonus / #% more Waystones found in Area / #% more Pack size",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterCriticalStrikesAndDamage"
+      ],
+      "statKeys": [
+        "map_monsters_critical_strike_chance_+%",
+        "map_monsters_critical_strike_multiplier_+",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterCritIncrease4",
+          "hash32": 3552862868,
+          "ilvl": 1,
+          "name": "Destructive",
+          "values": [
+            [
+              260,
+              300
+            ],
+            [
+              26,
+              30
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              9,
+              9
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterCritIncrease3",
+          "hash32": 512217800,
+          "ilvl": 1,
+          "name": "Destructive",
+          "values": [
+            [
+              200,
+              240
+            ],
+            [
+              21,
+              25
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              9,
+              9
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterCritIncrease2",
+          "hash32": 3256505496,
+          "ilvl": 1,
+          "name": "Destructive",
+          "values": [
+            [
+              140,
+              180
+            ],
+            [
+              16,
+              20
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              9,
+              9
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterCritIncrease1",
+          "hash32": 1344166762,
+          "ilvl": 1,
+          "name": "Destructive",
+          "values": [
+            [
+              80,
+              120
+            ],
+            [
+              11,
+              15
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              9,
+              9
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters have #% increased Stun Buildup / #% more Waystones found in Area / Monsters have #% more Effectiveness",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonstersStunBuildup"
+      ],
+      "statKeys": [
+        "map_monsters_hit_damage_stun_multiplier_+%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_monster_potency_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterStunBuildup4",
+          "hash32": 728531065,
+          "ilvl": 1,
+          "name": "Impacting",
+          "values": [
+            [
+              100,
+              110
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterStunBuildup3",
+          "hash32": 2805336095,
+          "ilvl": 1,
+          "name": "Impacting",
+          "values": [
+            [
+              90,
+              100
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterStunBuildup2",
+          "hash32": 879809196,
+          "ilvl": 1,
+          "name": "Impacting",
+          "values": [
+            [
+              70,
+              80
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterStunBuildup1",
+          "hash32": 2086869177,
+          "ilvl": 1,
+          "name": "Impacting",
+          "values": [
+            [
+              50,
+              60
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "suffixes": [
+    {
+      "text": "#% less effect of Curses on Monsters / #% more Waystones found in Area / #% less Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "MapMonstersCurseEffectOnSelfFinal"
+      ],
+      "statKeys": [
+        "map_monsters_curse_effect_on_self_+%_final",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonstersCurseEffectOnSelf4",
+          "hash32": 3505332742,
+          "ilvl": 1,
+          "name": "of Hexwarding",
+          "values": [
+            [
+              -50,
+              -40
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonstersCurseEffectOnSelf3",
+          "hash32": 2187975364,
+          "ilvl": 1,
+          "name": "of Hexwarding",
+          "values": [
+            [
+              -50,
+              -40
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonstersCurseEffectOnSelf2",
+          "hash32": 1509536155,
+          "ilvl": 1,
+          "name": "of Hexwarding",
+          "values": [
+            [
+              -40,
+              -30
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonstersCurseEffectOnSelf1",
+          "hash32": 1040444350,
+          "ilvl": 1,
+          "name": "of Hexwarding",
+          "values": [
+            [
+              -30,
+              -20
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% maximum Player Resistances / #% more Waystones found in Area / #% less Pack size",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "MapPlayerMaxResists"
+      ],
+      "statKeys": [
+        "map_additional_player_maximum_resistances_%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapPlayerMaximumResists4",
+          "hash32": 2113450691,
+          "ilvl": 1,
+          "name": "of Exposure",
+          "values": [
+            [
+              -10,
+              -8
+            ],
+            [
+              25,
+              25
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapPlayerMaximumResists3",
+          "hash32": 2101253099,
+          "ilvl": 1,
+          "name": "of Exposure",
+          "values": [
+            [
+              -8,
+              -6
+            ],
+            [
+              25,
+              25
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapPlayerMaximumResists2",
+          "hash32": 3863799648,
+          "ilvl": 1,
+          "name": "of Exposure",
+          "values": [
+            [
+              -6,
+              -4
+            ],
+            [
+              25,
+              25
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapPlayerMaximumResists1",
+          "hash32": 164002744,
+          "ilvl": 1,
+          "name": "of Exposure",
+          "values": [
+            [
+              -4,
+              -3
+            ],
+            [
+              25,
+              25
+            ],
+            [
+              10,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "(map_base_ground_fire_damage_to_deal_per_10_seconds+map_ground_effect_patches_per_100_tiles+map_ground_effect_radius+map_map_item_drop_chance_+%_final_from_map+map_monster_potency_+%_final_from_map+ground_fire_art_variation)",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapSpreadGroundEffect"
+      ],
+      "statKeys": [
+        "map_base_ground_fire_damage_to_deal_per_10_seconds",
+        "map_ground_effect_patches_per_100_tiles",
+        "map_ground_effect_radius",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_monster_potency_+%_final_from_map",
+        "ground_fire_art_variation"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapSpreadBurningGround4",
+          "hash32": 962611723,
+          "ilvl": 1,
+          "name": "Flaming",
+          "values": [
+            [
+              6000,
+              6000
+            ],
+            [
+              7,
+              7
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              1033,
+              1033
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapSpreadBurningGround3",
+          "hash32": 1869808244,
+          "ilvl": 1,
+          "name": "Flaming",
+          "values": [
+            [
+              6000,
+              6000
+            ],
+            [
+              6,
+              6
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              1033,
+              1033
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapSpreadBurningGround2",
+          "hash32": 2594037090,
+          "ilvl": 1,
+          "name": "Flaming",
+          "values": [
+            [
+              4000,
+              4000
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              1033,
+              1033
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapSpreadBurningGround1",
+          "hash32": 3093331681,
+          "ilvl": 1,
+          "name": "of Flames",
+          "values": [
+            [
+              2000,
+              2000
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              1033,
+              1033
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "(map_ground_ice_base_magnitude+map_ground_effect_patches_per_100_tiles+map_ground_effect_radius+map_map_item_drop_chance_+%_final_from_map+map_item_drop_rarity_+%_final_from_map+ground_ice_art_variation)",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapSpreadGroundEffect"
+      ],
+      "statKeys": [
+        "map_ground_ice_base_magnitude",
+        "map_ground_effect_patches_per_100_tiles",
+        "map_ground_effect_radius",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map",
+        "ground_ice_art_variation"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapSpreadChilledGround4",
+          "hash32": 2607196016,
+          "ilvl": 1,
+          "name": "Sleet",
+          "values": [
+            [
+              30,
+              30
+            ],
+            [
+              6,
+              6
+            ],
+            [
+              26,
+              26
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ],
+            [
+              1014,
+              1014
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapSpreadChilledGround3",
+          "hash32": 3259532821,
+          "ilvl": 1,
+          "name": "Sleet",
+          "values": [
+            [
+              30,
+              30
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              26,
+              26
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ],
+            [
+              1014,
+              1014
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapSpreadChilledGround2",
+          "hash32": 3967994441,
+          "ilvl": 1,
+          "name": "Sleet",
+          "values": [
+            [
+              30,
+              30
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              26,
+              26
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ],
+            [
+              1014,
+              1014
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapSpreadChilledGround1",
+          "hash32": 950598982,
+          "ilvl": 1,
+          "name": "of Sleet",
+          "values": [
+            [
+              30,
+              30
+            ],
+            [
+              3,
+              3
+            ],
+            [
+              26,
+              26
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ],
+            [
+              1014,
+              1014
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "(map_ground_lightning+map_ground_effect_patches_per_100_tiles+map_ground_effect_radius+map_map_item_drop_chance_+%_final_from_map+map_pack_size_+%_final_from_map+ground_lightning_art_variation)",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapSpreadGroundEffect"
+      ],
+      "statKeys": [
+        "map_ground_lightning",
+        "map_ground_effect_patches_per_100_tiles",
+        "map_ground_effect_radius",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map",
+        "ground_lightning_art_variation"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapSpreadShockedGround4",
+          "hash32": 2788317022,
+          "ilvl": 1,
+          "name": "Shocking",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              8,
+              8
+            ],
+            [
+              17,
+              17
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ],
+            [
+              1011,
+              1011
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapSpreadShockedGround3",
+          "hash32": 1714659846,
+          "ilvl": 1,
+          "name": "Shocking",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              7,
+              7
+            ],
+            [
+              17,
+              17
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ],
+            [
+              1011,
+              1011
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapSpreadShockedGround2",
+          "hash32": 2041161594,
+          "ilvl": 1,
+          "name": "Shocking",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              6,
+              6
+            ],
+            [
+              17,
+              17
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ],
+            [
+              1011,
+              1011
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapSpreadShockedGround1",
+          "hash32": 385314174,
+          "ilvl": 1,
+          "name": "of Shocking",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              17,
+              17
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ],
+            [
+              1011,
+              1011
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "(map_monsters_elemental_ailment_chance_+%+dummy_stat_display_nothing+dummy_stat_display_nothing+map_map_item_drop_chance_+%_final_from_map+map_item_drop_rarity_+%_final_from_map)",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapMonstersAilmentChance"
+      ],
+      "statKeys": [
+        "map_monsters_elemental_ailment_chance_+%",
+        "dummy_stat_display_nothing",
+        "dummy_stat_display_nothing",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterElementAilmentChance4",
+          "hash32": 4178729444,
+          "ilvl": 1,
+          "name": "of Overpowering",
+          "values": [
+            [
+              120,
+              130
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              11,
+              11
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterElementAilmentChance3",
+          "hash32": 1974310257,
+          "ilvl": 1,
+          "name": "of Overpowering",
+          "values": [
+            [
+              100,
+              119
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              11,
+              11
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterElementAilmentChance2",
+          "hash32": 1053133816,
+          "ilvl": 1,
+          "name": "of Overpowering",
+          "values": [
+            [
+              80,
+              99
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              11,
+              11
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterElementAilmentChance1",
+          "hash32": 3586899599,
+          "ilvl": 1,
+          "name": "of Overpowering",
+          "values": [
+            [
+              60,
+              79
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              11,
+              11
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "+#% Monster Elemental Resistances / #% more Waystones found in Area / #% more Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapMonstersAllResistances"
+      ],
+      "statKeys": [
+        "map_monsters_additional_elemental_resistance",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterElementalResistances4",
+          "hash32": 2421904677,
+          "ilvl": 1,
+          "name": "of the Prism",
+          "values": [
+            [
+              35,
+              40
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterElementalResistances3",
+          "hash32": 661592103,
+          "ilvl": 1,
+          "name": "of the Prism",
+          "values": [
+            [
+              30,
+              34
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterElementalResistances2",
+          "hash32": 910535498,
+          "ilvl": 1,
+          "name": "of the Prism",
+          "values": [
+            [
+              25,
+              29
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterElementalResistances1",
+          "hash32": 2594807736,
+          "ilvl": 1,
+          "name": "of the Prism",
+          "values": [
+            [
+              20,
+              24
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              14,
+              14
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters are Armoured / #% more Waystones found in Area / #% more Magic and Rare Monsters Rare Monsters have #% more chance of Monster Modifiers",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapMonstersArmoured"
+      ],
+      "statKeys": [
+        "map_monsters_additional_strength_ratio_%_for_armour",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_number_of_magic_and_rare_packs_+%_final_and_rare_monster_modifiers_chance_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterArmoured1",
+          "hash32": 4030403968,
+          "ilvl": 1,
+          "name": "of Enduring",
+          "values": [
+            [
+              35,
+              55
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              18,
+              18
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters are Evasive / #% more Waystones found in Area / #% more Pack size",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapMonstersEvasive"
+      ],
+      "statKeys": [
+        "map_monsters_additional_dexterity_ratio_%_for_evasion",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterEvasive1",
+          "hash32": 1638634478,
+          "ilvl": 1,
+          "name": "of Evasion",
+          "values": [
+            [
+              35,
+              55
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              6,
+              6
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters gain #% of maximum Life as Extra maximum Energy Shield / #% more Waystones found in Area / #% more Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapMonstersEnergyShield"
+      ],
+      "statKeys": [
+        "map_monsters_maximum_life_%_to_add_to_maximum_energy_shield",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterEnergyShield1",
+          "hash32": 978302763,
+          "ilvl": 1,
+          "name": "of Buffering",
+          "values": [
+            [
+              12,
+              25
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters have #% increased Stun Threshold / Monsters have #% increased Ailment Threshold / #% more Waystones found in Area / Monsters have #% more Effectiveness",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapMonstersStunAndAilmentThreshold"
+      ],
+      "statKeys": [
+        "map_monsters_stun_threshold_+%",
+        "map_monsters_ailment_threshold_+%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_monster_potency_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonsterStunAilmentThreshold4",
+          "hash32": 2147703560,
+          "ilvl": 1,
+          "name": "of the Unwavering",
+          "values": [
+            [
+              70,
+              79
+            ],
+            [
+              70,
+              79
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonsterStunAilmentThreshold3",
+          "hash32": 3025454287,
+          "ilvl": 1,
+          "name": "of the Unwavering",
+          "values": [
+            [
+              60,
+              69
+            ],
+            [
+              70,
+              79
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonsterStunAilmentThreshold2",
+          "hash32": 373947887,
+          "ilvl": 1,
+          "name": "of the Unwavering",
+          "values": [
+            [
+              40,
+              49
+            ],
+            [
+              50,
+              59
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonsterStunAilmentThreshold1",
+          "hash32": 697870821,
+          "ilvl": 1,
+          "name": "of the Unwavering",
+          "values": [
+            [
+              30,
+              39
+            ],
+            [
+              30,
+              39
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters take #% reduced Extra Damage from Critical Hits / #% more Waystones found in Area / #% more Magic and Rare Monsters Rare Monsters have #% more chance of Monster Modifiers",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapMonstersBaseSelfCriticalMultiplier"
+      ],
+      "statKeys": [
+        "map_monsters_base_self_critical_strike_multiplier_-%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_number_of_magic_and_rare_packs_+%_final_and_rare_monster_modifiers_chance_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapMonstersBaseSelfCriticalMultiplier4",
+          "hash32": 4070725603,
+          "ilvl": 1,
+          "name": "of Obstruction",
+          "values": [
+            [
+              26,
+              30
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              18,
+              18
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapMonstersBaseSelfCriticalMultiplier3",
+          "hash32": 2696466244,
+          "ilvl": 1,
+          "name": "of Obstruction",
+          "values": [
+            [
+              26,
+              30
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              18,
+              18
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapMonstersBaseSelfCriticalMultiplier2",
+          "hash32": 3941663145,
+          "ilvl": 1,
+          "name": "of Obstruction",
+          "values": [
+            [
+              20,
+              25
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              18,
+              18
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapMonstersBaseSelfCriticalMultiplier1",
+          "hash32": 758543734,
+          "ilvl": 1,
+          "name": "of Obstruction",
+          "values": [
+            [
+              15,
+              19
+            ],
+            [
+              10,
+              10
+            ],
+            [
+              18,
+              18
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Players are periodically Cursed with Elemental Weakness / #% more Waystones found in Area / #% more Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapPlayerElementalWeakness"
+      ],
+      "statKeys": [
+        "map_elemental_weakness_curse_zones",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapPlayerElementalWeakness1",
+          "hash32": 1814803150,
+          "ilvl": 1,
+          "name": "of Erosion",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              13,
+              13
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Players are periodically Cursed with Enfeeble / #% more Waystones found in Area / Monsters have #% more Effectiveness",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapPlayerEnfeeblement"
+      ],
+      "statKeys": [
+        "map_enfeeble_curse_zones",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_monster_potency_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapPlayerEnfeeble1",
+          "hash32": 1386775875,
+          "ilvl": 1,
+          "name": "of Enfeebling",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              16,
+              16
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Players are periodically Cursed with Temporal Chains / #% more Waystones found in Area / #% more Pack size",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapPlayerTemporalChains"
+      ],
+      "statKeys": [
+        "map_temporal_chains_curse_zones",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapPlayerTemporalChains1",
+          "hash32": 2349349466,
+          "ilvl": 1,
+          "name": "of Slowing",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              8,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Players gain #% reduced Flask Charges / #% more Waystones found in Area / #% less Pack size",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "MapPlayersGainReducedFlaskCharges"
+      ],
+      "statKeys": [
+        "map_player_charges_gained_+%",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_pack_size_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapPlayerFlaskChargeGain4",
+          "hash32": 1137033376,
+          "ilvl": 1,
+          "name": "of Drought",
+          "values": [
+            [
+              -35,
+              -30
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapPlayerFlaskChargeGain3",
+          "hash32": 3651499170,
+          "ilvl": 1,
+          "name": "of Drought",
+          "values": [
+            [
+              -35,
+              -30
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapPlayerFlaskChargeGain2",
+          "hash32": 4213987361,
+          "ilvl": 1,
+          "name": "of Drought",
+          "values": [
+            [
+              -29,
+              -25
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapPlayerFlaskChargeGain1",
+          "hash32": 1639124948,
+          "ilvl": 1,
+          "name": "of Drought",
+          "values": [
+            [
+              -24,
+              -20
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              7,
+              7
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Players have #% less Cooldown Recovery Rate / #% more Waystones found in Area / #% less Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "MapPlayerCooldownRecovery"
+      ],
+      "statKeys": [
+        "map_player_cooldown_speed_+%_final",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapPlayerCooldownRecovery4",
+          "hash32": 1819823208,
+          "ilvl": 1,
+          "name": "of Fatigue",
+          "values": [
+            [
+              -30,
+              -25
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapPlayerCooldownRecovery3",
+          "hash32": 2325349042,
+          "ilvl": 1,
+          "name": "of Fatigue",
+          "values": [
+            [
+              -30,
+              -25
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapPlayerCooldownRecovery2",
+          "hash32": 2812578022,
+          "ilvl": 1,
+          "name": "of Fatigue",
+          "values": [
+            [
+              -25,
+              -20
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapPlayerCooldownRecovery1",
+          "hash32": 2626136258,
+          "ilvl": 1,
+          "name": "of Fatigue",
+          "values": [
+            [
+              -20,
+              -15
+            ],
+            [
+              15,
+              15
+            ],
+            [
+              12,
+              12
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Players have #% less Recovery Rate of Life and Energy Shield / #% more Waystones found in Area / #% less Rarity of Items found in this Area",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "MapPlayerReducedRegen"
+      ],
+      "statKeys": [
+        "map_player_life_and_es_recovery_speed_+%_final",
+        "map_map_item_drop_chance_+%_final_from_map",
+        "map_item_drop_rarity_+%_final_from_map"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "MapPlayerRecoveryRate4",
+          "hash32": 1221311750,
+          "ilvl": 1,
+          "name": "of Smothering",
+          "values": [
+            [
+              -40,
+              -36
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "MapPlayerRecoveryRate3",
+          "hash32": 3260549752,
+          "ilvl": 1,
+          "name": "of Smothering",
+          "values": [
+            [
+              -40,
+              -36
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "MapPlayerRecoveryRate2",
+          "hash32": 553749375,
+          "ilvl": 1,
+          "name": "of Smothering",
+          "values": [
+            [
+              -35,
+              -30
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "MapPlayerRecoveryRate1",
+          "hash32": 3152479330,
+          "ilvl": 1,
+          "name": "of Smothering",
+          "values": [
+            [
+              -29,
+              -20
+            ],
+            [
+              20,
+              20
+            ],
+            [
+              15,
+              15
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "essenceOnlyPrefixes": [],
+  "essenceOnlySuffixes": [],
+  "runePrefixes": [],
+  "runeSuffixes": []
+}

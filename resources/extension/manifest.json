@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "POEFixer Trade Bridge",
+  "version": "1.4.3",
+  "description": "Feeds trade-site live-search buys to POEFixer (POE1Fixer or POE2Fixer) over the local Trade Bridge. Free.",
+  "permissions": ["storage", "scripting", "tabs", "alarms"],
+  "host_permissions": [
+    "https://www.pathofexile.com/*",
+    "https://poe.game.daum.net/*",
+    "https://poe.kakaogames.com/*"
+  ],
+  "background": { "service_worker": "src/background.js", "type": "module" },
+  "action": { "default_popup": "src/popup.html", "default_title": "POEFixer Trade Bridge" },
+  "content_scripts": [
+    { "matches": [
+        "https://www.pathofexile.com/trade/*", "https://poe.game.daum.net/trade/*", "https://poe.kakaogames.com/trade/*",
+        "https://www.pathofexile.com/trade2/*", "https://poe.game.daum.net/trade2/*", "https://poe.kakaogames.com/trade2/*"
+      ], "js": ["src/content.js"], "run_at": "document_start" }
+  ],
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+}

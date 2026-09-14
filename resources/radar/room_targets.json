@@ -1,0 +1,1171 @@
+{
+    "Version": 1,
+    "Acts": {
+        "*": [
+            {
+                "Name": "Ritual",
+                "RoomPattern": "*Ritual*",
+                "Icon": true,
+                "IconName": "RitualRune",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": false,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Abyss",
+                "RoomPattern": "*AbyssTrail*",
+                "Icon": true,
+                "IconName": "AbyssPitActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": false,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "G1_11": [
+            {
+                "Name": "Ogham Farmlands",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_11/Rooms/Entrance_VillageRoad_2.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "2, 255, 0",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Ritual",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_11/Rooms/Ritual_02.arm",
+                "Icon": true,
+                "IconName": "RitualRune",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G1_12": [
+            {
+                "Name": "The King in the Mists (30 Spirit + Spirit Gem Level 4)",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_12/Rooms/Unique/arena_bloodsparrow.arm",
+                "Icon": true,
+                "IconName": "RitualRuneFinished",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Ritual",
+                "RoomPattern": "*ritual*",
+                "Icon": true,
+                "IconName": "RitualRune",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G1_13_2": [
+            {
+                "Name": "Renly's Tools (Salvaging Bench)",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_13/Rooms/Unique/blacksmith.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 0, 0",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G1_15": [
+            {
+                "Name": "Stairs Down 1",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_15/Rooms/Unique/stairs_down_1.arm",
+                "Icon": true,
+                "IconName": "Entrance",
+                "IconSize": 35.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "0, 255, 0",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Stairs Down 2",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_15/Rooms/Unique/stairs_down_2.arm",
+                "Icon": true,
+                "IconName": "Entrance",
+                "IconSize": 35.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "0, 255, 0",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "G1_2": [
+            {
+                "Name": "Campsite",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_2/Rooms/Unique/campsite_01.arm",
+                "Icon": true,
+                "IconName": "ClearfellCampsiteActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 255, 255",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G1_3": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_3/Rooms/Unique/boss.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 40.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 255, 255",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G1_4": [
+            {
+                "Name": "Tree",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_4/Rooms/tree_of_souls.arm",
+                "Icon": true,
+                "IconName": "TreeOfSouls",
+                "IconSize": 50.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 0, 0",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G1_5": [
+            {
+                "Name": "Obelisk of Rust",
+                "RoomPattern": "*Encounter*",
+                "Icon": true,
+                "IconName": "RustObeliskActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "17, 255, 0",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "G1_7": [
+            {
+                "Name": "Ring",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_7/Rooms/Unique/landmark_01.arm",
+                "Icon": true,
+                "IconName": "GraveyardSecretActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G1_8": [
+            {
+                "Name": "Forgotten Riches",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act1/1_8/Rooms/Unique/gallery_end_secret_1.arm",
+                "Icon": true,
+                "IconName": "MausoleumSecretActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_1": [
+            {
+                "Name": "Chest",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_1/Rooms/landmark.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_12": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_12_2/Rooms/Unique/Boss_Cart.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "2, 255, 0",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Mini Boss",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_12_2/Rooms/Unique/mini_boss.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_3": [
+            {
+                "Name": "Mini Boss",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_3/Rooms/Unique/dune_pocket_miniboss.arm",
+                "Icon": true,
+                "IconName": "IncursionArmouryActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_4_1": [
+            {
+                "Name": "Abandoned Prayer",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_4/Rooms/Unique/buriedketh_01.arm",
+                "Icon": true,
+                "IconName": "LostCityOfKethShrineLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_4_2": [
+            {
+                "Name": "Beetle Boss",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_4_1/Rooms/Unique/superunique_01.arm",
+                "Icon": true,
+                "IconName": "BeetleBossActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Tomb",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_4_1/Rooms/Unique/landmark.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_4_3": [
+            {
+                "Name": "Sarcophagus",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_4_2/Rooms/Unique/basement_ambush.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Elemental Offering (Res Ring)",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_4_2/Rooms/Unique/mini_boss.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_5_2": [
+            {
+                "Name": "Chest",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_5_2/Rooms/Unique/landmark_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_6": [
+            {
+                "Name": "The Titan Grotto",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_6/Rooms/Unique/centre_01.arm",
+                "Icon": true,
+                "IconName": "TitanHandActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "0, 255, 0",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_8": [
+            {
+                "Name": "The forgotten Hollow",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_8/Rooms/Unique/unique_01.arm",
+                "Icon": true,
+                "IconName": "G2_8ForgottenHollowActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Forgotten Corpses",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_8/Rooms/Unique/boss_01.arm",
+                "Icon": true,
+                "IconName": "BurialSpiresCorpsesLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G2_9_1": [
+            {
+                "Name": "Chests",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act2/2_9/Rooms/Unique/landmark_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_1": [
+            {
+                "Name": "Orok Campfire (Lesser Jeweller's Orb)",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_1/Rooms/landmark_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_1/Rooms/Sand/boss_01.arm",
+                "Icon": true,
+                "IconName": "RootdredgeBossActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Corpse",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_1/Rooms/Sand/landmark_01.arm",
+                "Icon": true,
+                "IconName": "SandsweptMarshCorpseSecretActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_12": [
+            {
+                "Name": "Stairs",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_12/Rooms/Outer/corner_stairs_up_02.arm",
+                "Icon": true,
+                "IconName": "Entrance",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "2, 255, 0",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Stairs",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_12/Rooms/Outer/corner_stairs_up_03.arm",
+                "Icon": true,
+                "IconName": "Entrance",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "2, 255, 0",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_14": [
+            {
+                "Name": "Ultimatum Key",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_14/Rooms/Unique/Landmark_01_v2.arm",
+                "Icon": true,
+                "IconName": "UtzaalUltimatumKeyLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Door",
+                "RoomPattern": "*door*",
+                "Icon": true,
+                "IconName": "UtzaalGoldenIdolLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "G3_16": [
+            {
+                "Name": "Idol",
+                "RoomPattern": "*idol*",
+                "Icon": true,
+                "IconName": "UtzaalGoldenIdolLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Idol",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_16/Rooms/Unique/filth_pools_01.arm",
+                "Icon": true,
+                "IconName": "UtzaalGoldenIdolLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "G3_2_1": [
+            {
+                "Name": "Camp",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_2_1/Rooms/landmark_01.arm",
+                "Icon": true,
+                "IconName": "JungleDepthsAndOutskirtsExplorerLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_2_2": [
+            {
+                "Name": "Azak Bog (+30 Spirit)",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_2_2/Rooms/exit_CarverBog_02.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 0, 0",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_3": [
+            {
+                "Name": "Belts",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_3/Rooms/landmark_02.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Camp",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_3/Rooms/landmark_01.arm",
+                "Icon": true,
+                "IconName": "JungleDepthsAndOutskirtsExplorerLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Monkey (+2 Passive)",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_3/Rooms/ClearingFeatures/BossClearing_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 0, 0",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_4": [
+            {
+                "Name": "Story Room",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_4/Rooms/Unique/story_room.arm",
+                "Icon": true,
+                "IconName": "SnakePitLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Corpse",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_4/Rooms/Unique/boss_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 0, 0",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_5": [
+            {
+                "Name": "Camp",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_5/Rooms/Unique/landmark_01.arm",
+                "Icon": true,
+                "IconName": "ChimeralWetlandsExplorerLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Toxic Bloom",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_5/Rooms/Unique/landmark_02_v2.arm",
+                "Icon": true,
+                "IconName": "ChimeralWetlandsFlowerGauntletLandmarkActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_6_1": [
+            {
+                "Name": "Chests",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_6_1/Rooms/Unique/landmark_01.arm",
+                "Icon": true,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_7": [
+            {
+                "Name": "Burning Man",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_7/Rooms/Feature/burningman_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            }
+        ],
+        "G3_8": [
+            {
+                "Name": "Door",
+                "RoomPattern": "*door*",
+                "Icon": true,
+                "IconName": "Entrance",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Chest + Mobs",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act3/3_8/Rooms/Unique/Boss_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 1,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "G4_10": [
+            {
+                "Name": "Chest",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4/4_10/Rooms/Unique/dig_1_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "P2_1": [
+            {
+                "Name": "Torbik",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4_Interlude/Part2/P2_1/Rooms/Unique/landmark_04.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "P2_5": [
+            {
+                "Name": "Shrine",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4_Interlude/Part2/P2_5/Rooms/Unique/landmark_01.arm",
+                "Icon": true,
+                "IconName": "Shrine",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "P2_7": [
+            {
+                "Name": "Well",
+                "RoomPattern": "*well*",
+                "Icon": true,
+                "IconName": "P2_7_WellActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Bloodbilge",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4_Interlude/Part2/P2_7/Rooms/Unique/landmark_vase_MM_01.arm",
+                "Icon": true,
+                "IconName": "RareMonsterDead",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "P3_1": [
+            {
+                "Name": "Skill Gem",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4_Interlude/Part3/P3_1/Rooms/landmark_artefact_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Rare + Jeweller`s Orb",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4_Interlude/Part3/P3_1/Rooms/landmark_anthill_02.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Spiders - shit reward",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4_Interlude/Part3/P3_1/Rooms/landmark_spiders_01.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "P3_7": [
+            {
+                "Name": "Vault",
+                "RoomPattern": "Metadata/Terrain/Gallows/Act4_Interlude/Part3/P3_7/Rooms/Unique/Landmark_Vault_02.arm",
+                "Icon": false,
+                "IconName": "",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ]
+    },
+    "Endgame": {
+        "*": [
+            {
+                "Name": "Breach",
+                "RoomPattern": "*brequelportal.arm",
+                "Icon": true,
+                "IconName": "Breach",
+                "IconSize": 40.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "255, 0, 0",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Checkpoint",
+                "RoomPattern": "*checkpoint*",
+                "Icon": true,
+                "IconName": "Checkpoint",
+                "IconSize": 30.0,
+                "Enabled": false,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "87, 169, 225",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Monolith",
+                "RoomPattern": "*StoneCircle_01.arm",
+                "Icon": true,
+                "IconName": "CroneActive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "85, 85, 85",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Boss",
+                "RoomPattern": "*boss_01*",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "255, 255, 255",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            },
+            {
+                "Name": "Boss",
+                "RoomPattern": "*boss_1*",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": true
+            },
+            {
+                "Name": "Waygate",
+                "RoomPattern": "Metadata/Terrain/Gallows/Leagues/Incursion/ExtraTerrainFeatures/IncursionWaygate_Generic.arm",
+                "Icon": true,
+                "IconName": "IncursionArchitectUpgrade",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": false,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapAridPlains": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "*bossroom_01*",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapBackwash": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/Backwash/Rooms/boss.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapCaldera": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/Caldera/Rooms/arena_01.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapIceCave": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/IceCave/Rooms/Unique/bossman.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapMothersoul_Female": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/Mothersoul/Rooms/Female/Unique/forge_01.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapMothersoul_Male": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/Mothersoul/Rooms/Male/Unique/forge_01.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapRazedFields": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/RazedFields/Rooms/Road/feature_hamlet_01.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapSpiderWoods": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/SpiderWoods/Rooms/bossman_01.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapSteppe": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/Steppe/Rooms/Unique/Steppe2.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ],
+        "MapSulphuricCaverns": [
+            {
+                "Name": "Boss",
+                "RoomPattern": "Metadata/Terrain/Maps/SulphuricCaverns/Rooms/Unique/boss.arm",
+                "Icon": true,
+                "IconName": "UniqueMonsterAlive",
+                "IconSize": 30.0,
+                "Enabled": true,
+                "NameColor": "253, 224, 71",
+                "BGColor": "0, 0, 0",
+                "ExpectedCount": 0,
+                "DrawPath": true,
+                "DrawPathColor": "253, 224, 71",
+                "AlwaysDrawPath": false
+            }
+        ]
+    }
+}

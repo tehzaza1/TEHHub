@@ -1,0 +1,2660 @@
+{
+  "category": "Tablet",
+  "itemClass": "Tablet",
+  "reconstructedTags": [],
+  "baseCount": 8,
+  "modDomain": 34,
+  "runes": [],
+  "unresolvedText": 1,
+  "counts": {
+    "prefix": 13,
+    "suffix": 73,
+    "prefixEssence": 0,
+    "suffixEssence": 0,
+    "runePrefix": 0,
+    "runeSuffix": 0
+  },
+  "prefixes": [
+    {
+      "text": "#% increased Experience gain",
+      "raw": "{0}% increased Experience gain",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapExperienceGainIncrease"
+      ],
+      "statKeys": [
+        "map_experience_gain_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExperienceGainIncrease1",
+          "hash32": 3823805388,
+          "ilvl": 1,
+          "name": "Elevated",
+          "values": [
+            [
+              12,
+              18
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Gold found in this Area",
+      "raw": "{0}% increased Gold found in this Area",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapDroppedGoldIncrease"
+      ],
+      "statKeys": [
+        "map_extra_gold_piles_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDroppedGoldIncrease1",
+          "hash32": 3951128310,
+          "ilvl": 1,
+          "name": "Bountiful",
+          "values": [
+            [
+              25,
+              35
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Pack Size in Map",
+      "raw": "{0}% increased Pack Size in Map",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapPackSizeIncrease"
+      ],
+      "statKeys": [
+        "map_pack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerPackSizeIncrease1",
+          "hash32": 2213596711,
+          "ilvl": 1,
+          "name": "Breeding",
+          "values": [
+            [
+              5,
+              7
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Rarity of Items found in Map",
+      "raw": "{0}% increased Rarity of Items found in Map",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapDroppedItemRarityIncrease"
+      ],
+      "statKeys": [
+        "map_item_drop_rarity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDroppedItemRarityIncrease1",
+          "hash32": 3279855517,
+          "ilvl": 1,
+          "name": "Collector's",
+          "values": [
+            [
+              8,
+              12
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains # additional Azmeri Spirit / #% increased Quantity of Waystones found in Map / #% increased Rarity of Items found in Map",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapAdditionalAzmeriWisp"
+      ],
+      "statKeys": [
+        "map_spawn_extra_torment_spirits",
+        "map_map_item_drop_chance_+%",
+        "map_item_drop_rarity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalAzmeriWisp1",
+          "hash32": 1834182009,
+          "ilvl": 1,
+          "name": "Azmeri's",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains # additional Rare Chests",
+      "raw": "Area contains {0} additional Rare Chests",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapAdditionalChests"
+      ],
+      "statKeys": [
+        "map_addtional_rare_chest_amount"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRareChestCount1",
+          "hash32": 316460027,
+          "ilvl": 1,
+          "name": "Treasurer's",
+          "values": [
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains a Summoning Circle",
+      "raw": "Area contains a Summoning Circle",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapAdditionalStoneCircle"
+      ],
+      "statKeys": [
+        "map_num_extra_stone_circles"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalStoneCircle",
+          "hash32": 904578695,
+          "ilvl": 1,
+          "name": "Summoner's",
+          "values": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains an additional Essence / #% increased Quantity of Waystones found in Map / #% increased Rarity of Items found in Map",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapAdditionalEssence"
+      ],
+      "statKeys": [
+        "map_extra_monoliths",
+        "map_map_item_drop_chance_+%",
+        "map_item_drop_rarity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalEssence1",
+          "hash32": 1117748247,
+          "ilvl": 1,
+          "name": "Crystallised",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area is inhabited by # additional Rogue Exile / #% increased Quantity of Waystones found in Map / #% increased Rarity of Items found in Map",
+      "raw": "",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapAdditionalExile"
+      ],
+      "statKeys": [
+        "map_spawn_extra_exiles",
+        "map_map_item_drop_chance_+%",
+        "map_item_drop_rarity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalExile1",
+          "hash32": 2487771796,
+          "ilvl": 1,
+          "name": "Exiled",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Map has #% increased Magic Monsters",
+      "raw": "Map has {0}% increased Magic Monsters",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMagicPackIncrease"
+      ],
+      "statKeys": [
+        "map_number_of_magic_packs_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMagicPackIncrease1",
+          "hash32": 2146887999,
+          "ilvl": 1,
+          "name": "Teeming",
+          "values": [
+            [
+              30,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Map has #% increased Monster Rarity",
+      "raw": "Map has {0}% increased Monster Rarity",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterRarityIncrease"
+      ],
+      "statKeys": [
+        "map_number_of_magic_and_rare_packs_+%_and_rare_monster_modifiers_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMonsterRarityIncrease1",
+          "hash32": 3635156990,
+          "ilvl": 1,
+          "name": "Abounding",
+          "values": [
+            [
+              15,
+              20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Map has #% increased number of Rare Monsters",
+      "raw": "Map has {0}% increased number of Rare Monsters",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapRarePackIncrease"
+      ],
+      "statKeys": [
+        "map_number_of_rare_packs_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRarePackIncrease1",
+          "hash32": 847722993,
+          "ilvl": 1,
+          "name": "Brimming",
+          "values": [
+            [
+              25,
+              35
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters have #% increased Effectiveness",
+      "raw": "Monsters have {0}% increased Effectiveness",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "MapMonsterEffectiveness"
+      ],
+      "statKeys": [
+        "map_monster_potency_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMonsterEffectiveness1",
+          "hash32": 3406098922,
+          "ilvl": 1,
+          "name": "Challenger's",
+          "values": [
+            [
+              10,
+              15
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "suffixes": [
+    {
+      "text": "# additional Rare Monsters are spawned from Abysses",
+      "raw": "{0} additional Rare Monsters are spawned from Abysses",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AbyssRareMonsterIncrease"
+      ],
+      "statKeys": [
+        "map_abyss_num_additional_rare_monsters"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssRareMonsterIncrease",
+          "hash32": 2231036908,
+          "ilvl": 1,
+          "name": "of Champions",
+          "values": [
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# extra pack of Monsters around Vaal Beacons in Map",
+      "raw": "{0} extra pack of Monsters around Vaal Beacons in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncursionExtraPacks"
+      ],
+      "statKeys": [
+        "map_incursion_vaal_beacon_extra_packs_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerIncursionExtraPacks",
+          "hash32": 3670341528,
+          "ilvl": 1,
+          "name": "",
+          "values": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% chance for an extra packs of Monsters around Vaal Beacons in Map",
+      "raw": "{0}% chance for an extra packs of Monsters around Vaal Beacons in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncursionExtraPacks"
+      ],
+      "statKeys": [
+        "map_incursion_vaal_beacon_extra_packs_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerIncursionExtraPacksChance",
+          "hash32": 2564790720,
+          "ilvl": 1,
+          "name": "",
+          "values": [
+            [
+              30,
+              60
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% chance to add a Vaal Beacon Unique Monster to the Map",
+      "raw": "{0}% chance to add a Vaal Beacon Unique Monster to the Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncursionBossChance"
+      ],
+      "statKeys": [
+        "map_incursion_vaal_beacon_boss_added_to_area_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerIncursionBossChance",
+          "hash32": 3976145057,
+          "ilvl": 1,
+          "name": "",
+          "values": [
+            [
+              10,
+              25
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% chance to gain an additional Crystal from Vaal Beacons in Map",
+      "raw": "{0}% chance to gain an additional Crystal from Vaal Beacons in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncursionTokenChance"
+      ],
+      "statKeys": [
+        "map_incursion_token_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerIncursionTokenChance",
+          "hash32": 2983196878,
+          "ilvl": 1,
+          "name": "",
+          "values": [
+            [
+              5,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased chance for Abyssal monsters in Map to have Abyssal Modifiers",
+      "raw": "{0}% increased chance for Abyssal monsters in Map to have Abyssal Modifiers",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AbyssExtraModifiers"
+      ],
+      "statKeys": [
+        "map_abyss_monster_abyssal_modifier_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssExtraModifiers",
+          "hash32": 1253710231,
+          "ilvl": 1,
+          "name": "of Dark Power",
+          "values": [
+            [
+              20,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased chance for Desecrated Currency from Abysses in Map",
+      "raw": "{0}% increased chance for Desecrated Currency from Abysses in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AbyssExtraTickets"
+      ],
+      "statKeys": [
+        "map_abyss_ticket_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssExtraTickets",
+          "hash32": 288751731,
+          "ilvl": 1,
+          "name": "of Ossification",
+          "values": [
+            [
+              20,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased chance Vaal Beacon Chests are Rare in Map",
+      "raw": "{0}% increased chance Vaal Beacon Chests are Rare in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncursionRareChestChance"
+      ],
+      "statKeys": [
+        "map_incursion_vaal_beacon_chest_rare_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerIncursionRareChestChance",
+          "hash32": 2452044136,
+          "ilvl": 1,
+          "name": "",
+          "values": [
+            [
+              30,
+              60
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased chance Vaal Beacons summon additional Monsters in Map",
+      "raw": "{0}% increased chance Vaal Beacons summon additional Monsters in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncursionSecondaryEncounters"
+      ],
+      "statKeys": [
+        "map_incursion_vaal_beacon_secondary_encounter_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerIncursionSecondaryEncounters",
+          "hash32": 2811355285,
+          "ilvl": 1,
+          "name": "",
+          "values": [
+            [
+              25,
+              50
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Effectiveness of Rare Breach Monsters in Map",
+      "raw": "{0}% increased Effectiveness of Rare Breach Monsters in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "BreachRareMonsterPotency"
+      ],
+      "statKeys": [
+        "map_breach_rare_monster_potency_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerBreachRareMonsterPotency",
+          "hash32": 140903595,
+          "ilvl": 1,
+          "name": "of the Hand",
+          "values": [
+            [
+              5,
+              20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Expedition Explosive Area of Effect in Map",
+      "raw": "{0}% increased Expedition Explosive Area of Effect in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionExplosionRadius"
+      ],
+      "statKeys": [
+        "map_expedition_explosion_area_of_effect_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionExplosionRadius",
+          "hash32": 2983585735,
+          "ilvl": 1,
+          "name": "of the Demolition",
+          "values": [
+            [
+              5,
+              10
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Pack Size for Monsters around Vaal Beacons in Map",
+      "raw": "{0}% increased Pack Size for Monsters around Vaal Beacons in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncursionPackSize"
+      ],
+      "statKeys": [
+        "map_incursion_vaal_beacon_pack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerIncursionPackSize",
+          "hash32": 3429830061,
+          "ilvl": 1,
+          "name": "",
+          "values": [
+            [
+              10,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Quantity of Expedition Logbooks dropped by Runic Monsters",
+      "raw": "{0}% increased Quantity of Expedition Logbooks dropped by Runic Monsters",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionLogbookIncrease"
+      ],
+      "statKeys": [
+        "expedition_monsters_logbook_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionLogbookIncrease",
+          "hash32": 461537080,
+          "ilvl": 1,
+          "name": "of Knowledge",
+          "values": [
+            [
+              15,
+              25
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Quantity of Hiveblood found in Map",
+      "raw": "{0}% increased Quantity of Hiveblood found in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "BreachHivebloodQuantity"
+      ],
+      "statKeys": [
+        "map_breach_hiveblood_quantity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerBreachHivebloodQuantity",
+          "hash32": 1040169420,
+          "ilvl": 1,
+          "name": "of the Flow",
+          "values": [
+            [
+              30,
+              60
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Quantity of Items dropped by Map Bosses",
+      "raw": "{0}% increased Quantity of Items dropped by Map Bosses",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossQuantity"
+      ],
+      "statKeys": [
+        "map_boss_dropped_item_quantity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossQuantity",
+          "hash32": 1444945363,
+          "ilvl": 1,
+          "name": "of Hoards",
+          "values": [
+            [
+              13,
+              20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Quantity of Waystones dropped by Map Bosses",
+      "raw": "{0}% increased Quantity of Waystones dropped by Map Bosses",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossWaystoneChance"
+      ],
+      "statKeys": [
+        "map_map_boss_bonus_map_drop_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossWaystoneChance",
+          "hash32": 1606005837,
+          "ilvl": 1,
+          "name": "of Pathways",
+          "values": [
+            [
+              18,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Quantity of Waystones found in Map",
+      "raw": "{0}% increased Quantity of Waystones found in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapDroppedMapsIncrease"
+      ],
+      "statKeys": [
+        "map_map_item_drop_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapDroppedMapsIncrease",
+          "hash32": 3388638494,
+          "ilvl": 1,
+          "name": "of the Cartographer",
+          "values": [
+            [
+              30,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Quantity of Wombgifts found in Map",
+      "raw": "{0}% increased Quantity of Wombgifts found in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "BreachWombgiftQuantity"
+      ],
+      "statKeys": [
+        "map_breach_wombgift_quantity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerBreachWombgiftQuantity",
+          "hash32": 17370239,
+          "ilvl": 1,
+          "name": "of the Form",
+          "values": [
+            [
+              30,
+              60
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Rarity of Items dropped by Map Bosses",
+      "raw": "{0}% increased Rarity of Items dropped by Map Bosses",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossRarity"
+      ],
+      "statKeys": [
+        "map_boss_item_rarity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossRarity",
+          "hash32": 2025178074,
+          "ilvl": 1,
+          "name": "of Treasure",
+          "values": [
+            [
+              35,
+              60
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Stack size of Simulacrum Splinters found in Area",
+      "raw": "{0}% increased Stack size of Simulacrum Splinters found in Area",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumMonsterSplinterIncrease"
+      ],
+      "statKeys": [
+        "map_delirium_splinter_stack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumMonsterSplinterIncrease",
+          "hash32": 2653409612,
+          "ilvl": 1,
+          "name": "of the Simulacrum",
+          "values": [
+            [
+              15,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "(map_expedition_number_of_magic_and_rare_packs_+%_and_rare_monster_modifiers_chance_%+expedition_elite_pack_size_+%)",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionIncreasedMonsterRarity"
+      ],
+      "statKeys": [
+        "map_expedition_number_of_magic_and_rare_packs_+%_and_rare_monster_modifiers_chance_%",
+        "expedition_elite_pack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionIncreasedMonsterRarity",
+          "hash32": 3871811234,
+          "ilvl": 1,
+          "name": "of Power",
+          "values": [
+            [
+              15,
+              25
+            ],
+            [
+              20,
+              20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Abyss Pits in Area are twice as likely to have Rewards",
+      "raw": "Abyss Pits in Area are twice as likely to have Rewards",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "AbyssIncreasedRewards"
+      ],
+      "statKeys": [
+        "map_abyss_no_reward_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssIncreasedRewards",
+          "hash32": 3524230126,
+          "ilvl": 1,
+          "name": "of Treasures",
+          "values": [
+            [
+              -50,
+              -50
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Abyssal Monsters have #% increased Effectiveness for each closed Pit, up to 100%",
+      "raw": "Abyssal Monsters have {0}% increased Effectiveness for each closed Pit, up to 100%",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AbyssEnhancedMonstersPerChasm"
+      ],
+      "statKeys": [
+        "map_abyss_monster_potency_+%_per_chasm_closed"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssEffectivenessPerChasm",
+          "hash32": 814235189,
+          "ilvl": 1,
+          "name": "of Escalation",
+          "values": [
+            [
+              8,
+              12
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Abysses in Area have #% increased chance to lead to an Abyssal Depths",
+      "raw": "Abysses in Area have {0}% increased chance to lead to an Abyssal Depths",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AbyssDepthsChance"
+      ],
+      "statKeys": [
+        "map_abyss_depths_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssDepthsChance",
+          "hash32": 2118570804,
+          "ilvl": 1,
+          "name": "of the Depths",
+          "values": [
+            [
+              10,
+              20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Abysses spawn #% increased Monsters",
+      "raw": "Abysses spawn {0}% increased Monsters",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AbyssMonsterIncrease"
+      ],
+      "statKeys": [
+        "map_abyss_monster_spawn_amount_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssMonsterIncrease",
+          "hash32": 2111004809,
+          "ilvl": 1,
+          "name": "of the Horde",
+          "values": [
+            [
+              20,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains #% increased number of Runic Monster Markers",
+      "raw": "Area contains {0}% increased number of Runic Monster Markers",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionRunicMonsters"
+      ],
+      "statKeys": [
+        "map_expedition_elite_marker_count_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionRunicMonsters",
+          "hash32": 3171450721,
+          "ilvl": 1,
+          "name": "of Runes",
+          "values": [
+            [
+              15,
+              25
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains an additional Abyss",
+      "raw": "Area contains an additional Abyss",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AbyssAdditionalChance"
+      ],
+      "statKeys": [
+        "map_num_extra_abysses"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyssAdditionalChance",
+          "hash32": 2422214703,
+          "ilvl": 1,
+          "name": "of Hollows",
+          "values": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains an additional Shrine / #% increased Quantity of Waystones found in Map / #% increased Pack Size in Map",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalShrine"
+      ],
+      "statKeys": [
+        "map_num_extra_shrines",
+        "map_map_item_drop_chance_+%",
+        "map_pack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalShrine1",
+          "hash32": 596810187,
+          "ilvl": 1,
+          "name": "of the Devoted",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area contains an additional Strongbox / #% increased Quantity of Waystones found in Map / #% increased Pack Size in Map",
+      "raw": "",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalStrongbox"
+      ],
+      "statKeys": [
+        "map_num_extra_strongboxes",
+        "map_map_item_drop_chance_+%",
+        "map_pack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalStrongbox1",
+          "hash32": 3433574925,
+          "ilvl": 1,
+          "name": "of the Antiquarian",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area has #% chance to contain four additional Abysses",
+      "raw": "Area has {0}% chance to contain four additional Abysses",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "Abyss4AdditionalChance"
+      ],
+      "statKeys": [
+        "map_chance_for_4_additional_abysses_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAbyss4AdditionalChance",
+          "hash32": 3595306106,
+          "ilvl": 1,
+          "name": "of Schisms",
+          "values": [
+            [
+              20,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area has #% increased chance to contain a Summoning Circle",
+      "raw": "Area has {0}% increased chance to contain a Summoning Circle",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalStoneCircle"
+      ],
+      "statKeys": [
+        "map_stone_circle_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerStoneCircleChance",
+          "hash32": 3537067563,
+          "ilvl": 1,
+          "name": "of the Summoning",
+          "values": [
+            [
+              70,
+              100
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area has #% increased chance to contain Azmeri Spirits",
+      "raw": "Area has {0}% increased chance to contain Azmeri Spirits",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalSpirit"
+      ],
+      "statKeys": [
+        "map_tormented_spirit_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalSpiritChance",
+          "hash32": 176358064,
+          "ilvl": 1,
+          "name": "of Spirits",
+          "values": [
+            [
+              70,
+              100
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area has #% increased chance to contain Essences",
+      "raw": "Area has {0}% increased chance to contain Essences",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalEssence"
+      ],
+      "statKeys": [
+        "map_monolith_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalEssenceChance",
+          "hash32": 2214742325,
+          "ilvl": 1,
+          "name": "of the Essence",
+          "values": [
+            [
+              70,
+              100
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area has #% increased chance to contain Rogue Exiles",
+      "raw": "Area has {0}% increased chance to contain Rogue Exiles",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalExile"
+      ],
+      "statKeys": [
+        "map_rogue_exile_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalExileChance",
+          "hash32": 1468976576,
+          "ilvl": 1,
+          "name": "of the Exile",
+          "values": [
+            [
+              70,
+              100
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area has #% increased chance to contain Shrines",
+      "raw": "Area has {0}% increased chance to contain Shrines",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalShrine"
+      ],
+      "statKeys": [
+        "map_shrine_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalShrineChance",
+          "hash32": 589161203,
+          "ilvl": 1,
+          "name": "of Shrines",
+          "values": [
+            [
+              70,
+              100
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Area has #% increased chance to contain Strongboxes",
+      "raw": "Area has {0}% increased chance to contain Strongboxes",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalStrongbox"
+      ],
+      "statKeys": [
+        "map_strongbox_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerAdditionalStrongboxChance",
+          "hash32": 105161160,
+          "ilvl": 1,
+          "name": "of Strongboxes",
+          "values": [
+            [
+              70,
+              100
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Areas with Map Powerful Map Bosses contain an additional Shrine",
+      "raw": "Areas with Map Powerful Map Bosses contain an additional Shrine",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossAdditionalShrine"
+      ],
+      "statKeys": [
+        "maps_with_powerful_bosses_additional_shrine_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossAdditionalShrine",
+          "hash32": 1843328985,
+          "ilvl": 1,
+          "name": "of Worship",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Areas with Powerful Map Bosses contain an additional Azmeri Spirit",
+      "raw": "Areas with Powerful Map Bosses contain an additional Azmeri Spirit",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossAdditionalSpirit"
+      ],
+      "statKeys": [
+        "maps_with_powerful_bosses_additional_spirit_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossAdditionalSpirit",
+          "hash32": 2051621649,
+          "ilvl": 1,
+          "name": "of Wisps",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Areas with Powerful Map Bosses contain an additional Essence",
+      "raw": "Areas with Powerful Map Bosses contain an additional Essence",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossAdditionalEssence"
+      ],
+      "statKeys": [
+        "maps_with_powerful_bosses_additional_essence_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossAdditionalEssence",
+          "hash32": 307588136,
+          "ilvl": 1,
+          "name": "of Crystals",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Areas with Powerful Map Bosses contain an additional Strongbox",
+      "raw": "Areas with Powerful Map Bosses contain an additional Strongbox",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossAdditionalStrongbox"
+      ],
+      "statKeys": [
+        "maps_with_powerful_bosses_additional_strongbox_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossAdditionalStrongbox",
+          "hash32": 1855165544,
+          "ilvl": 1,
+          "name": "of Compartments",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Breaches have #% increased Monster density",
+      "raw": "Breaches have {0}% increased Monster density",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "BreachMonsterQuantity"
+      ],
+      "statKeys": [
+        "map_breach_monster_quantity_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerBreachMonsterQuantity",
+          "hash32": 649515482,
+          "ilvl": 1,
+          "name": "of the Horde",
+          "values": [
+            [
+              5,
+              15
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Deferring Favours at Ritual Altars in Area costs #% reduced Tribute",
+      "raw": "Deferring Favours at Ritual Altars in Area costs {0}% reduced Tribute",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "RitualDeferCostIncrease"
+      ],
+      "statKeys": [
+        "map_ritual_defer_reward_tribute_cost_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualDeferCostIncrease",
+          "hash32": 3153441295,
+          "ilvl": 1,
+          "name": "of Devotion",
+          "values": [
+            [
+              -30,
+              -20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Delirium Encounters in Area are #% more likely to spawn Unique Bosses",
+      "raw": "Delirium Encounters in Area are {0}% more likely to spawn Unique Bosses",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumBossChance"
+      ],
+      "statKeys": [
+        "map_affliction_encounter_boss_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumBossChance",
+          "hash32": 504910644,
+          "ilvl": 1,
+          "name": "of Phobia",
+          "values": [
+            [
+              15,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Delirium Fog in Area applies #% increased Deliriousness to Players",
+      "raw": "Delirium Fog in Area applies {0}% increased Deliriousness to Players",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumDifficultyIncrease"
+      ],
+      "statKeys": [
+        "map_affliction_encounter_monster_depth_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumDifficultyIncrease",
+          "hash32": 1964982838,
+          "ilvl": 1,
+          "name": "of Madness",
+          "values": [
+            [
+              15,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Delirium Fog in Area dissipates #% slower",
+      "raw": "Delirium Fog in Area dissipates {0}% slower",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "DeliriumFogPersistence"
+      ],
+      "statKeys": [
+        "map_affliction_secondary_wave_acceleration_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumFogPersistence",
+          "hash32": 504242782,
+          "ilvl": 1,
+          "name": "of the Unending",
+          "values": [
+            [
+              -30,
+              -20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Delirium Fog in Area lasts # additional seconds before dissipating",
+      "raw": "Delirium Fog in Area lasts {0} additional seconds before dissipating",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumFogDissipationDelay"
+      ],
+      "statKeys": [
+        "map_affliction_secondary_wave_delay_seconds_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumFogDissipationDelayNew",
+          "hash32": 1832408103,
+          "ilvl": 1,
+          "name": "of Eternity",
+          "values": [
+            [
+              6,
+              12
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Delirium Fog in Area spawns #% increased Fracturing Mirrors",
+      "raw": "Delirium Fog in Area spawns {0}% increased Fracturing Mirrors",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumDoodadsIncrease"
+      ],
+      "statKeys": [
+        "map_delirium_doodads_+%_final"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumDoodadsIncrease",
+          "hash32": 77575606,
+          "ilvl": 1,
+          "name": "of Mirrors",
+          "values": [
+            [
+              15,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Delirium Fog in Map spawns #% increased MirrorShards",
+      "raw": "Delirium Fog in Map spawns {0}% increased MirrorShards",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumAdditionalShardsChance"
+      ],
+      "statKeys": [
+        "map_delirium_special_event_all_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumAdditionalShardsChance",
+          "hash32": 3934352885,
+          "ilvl": 1,
+          "name": "of Shattering",
+          "values": [
+            [
+              12,
+              26
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Delirium Monsters in Area have #% increased Pack Size",
+      "raw": "Delirium Monsters in Area have {0}% increased Pack Size",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumPackSizeIncrease"
+      ],
+      "statKeys": [
+        "map_affliction_pack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumPackSizeIncrease",
+          "hash32": 1030220346,
+          "ilvl": 1,
+          "name": "of Persecution",
+          "values": [
+            [
+              15,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Expeditions contain 1 Additional Boss encased in ice in Map",
+      "raw": "Expeditions contain 1 Additional Boss encased in ice in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionFrozenBosses"
+      ],
+      "statKeys": [
+        "map_expedition_num_frozen_bosses_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionFrozenBosses",
+          "hash32": 3034557977,
+          "ilvl": 1,
+          "name": "of Preservation",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Expeditions contain 1 Additional Verisium Sentry in Map",
+      "raw": "Expeditions contain 1 Additional Verisium Sentry in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionAdditionalSentinels"
+      ],
+      "statKeys": [
+        "map_expedition_num_sentinels_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionAdditionalSentinels",
+          "hash32": 3040652838,
+          "ilvl": 1,
+          "name": "of Sentinels",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Expeditions contain 1 buried Strongbox in Map",
+      "raw": "Expeditions contain 1 buried Strongbox in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionBuriedStrongboxes"
+      ],
+      "statKeys": [
+        "map_expedition_num_buried_strongboxes_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionBuriedStrongboxes",
+          "hash32": 3244363097,
+          "ilvl": 1,
+          "name": "of Treasure",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Expeditions contain 1 Vaal Relic in Map",
+      "raw": "Expeditions contain 1 Vaal Relic in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionVaalRemnants"
+      ],
+      "statKeys": [
+        "map_expedition_num_vaal_relics_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionVaalRemnants",
+          "hash32": 2553921874,
+          "ilvl": 1,
+          "name": "of the Past",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Expeditions have +#% Surpassing chance to contain an additional Verisium Remnant",
+      "raw": "Expeditions have +{0}% Surpassing chance to contain an additional Verisium Remnant",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionChanceForVerisiumRemnant"
+      ],
+      "statKeys": [
+        "map_expedition_remnants_surpassing_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionChanceForVerisiumRemnant",
+          "hash32": 3184817132,
+          "ilvl": 1,
+          "name": "of Remnants",
+          "values": [
+            [
+              30,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Expeditions have +#% Surpassing chance to Duplicate Runic Monsters in Map",
+      "raw": "Expeditions have +{0}% Surpassing chance to Duplicate Runic Monsters in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionChanceForTwinnedElites"
+      ],
+      "statKeys": [
+        "map_expedition_twinned_elites_surpassing_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionChanceForTwinnedElites",
+          "hash32": 1699138845,
+          "ilvl": 1,
+          "name": "of Twins",
+          "values": [
+            [
+              30,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Favours Deferred at Ritual Altars in Area reappear #% sooner",
+      "raw": "Favours Deferred at Ritual Altars in Area reappear {0}% sooner",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RitualDeferSpeed"
+      ],
+      "statKeys": [
+        "map_ritual_deferred_rewards_are_offered_again_+%_sooner"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualDeferSpeed",
+          "hash32": 781606398,
+          "ilvl": 1,
+          "name": "of the Appeal",
+          "values": [
+            [
+              25,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Favours Rerolled at Ritual Altars in Area have #% chance to cost no Tribute",
+      "raw": "Favours Rerolled at Ritual Altars in Area have {0}% chance to cost no Tribute",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RitualChanceForNoCost"
+      ],
+      "statKeys": [
+        "map_ritual_offered_rewards_from_rerolls_have_permyriad_chance_to_cost_no_tribute"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualChanceForNoCost",
+          "hash32": 3274039594,
+          "ilvl": 1,
+          "name": "of the Occult",
+          "values": [
+            [
+              300,
+              600
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Map Bosses grant #% increased Experience",
+      "raw": "Map Bosses grant {0}% increased Experience",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapBossExperience"
+      ],
+      "statKeys": [
+        "map_boss_experience_+%_final"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapBossExperience",
+          "hash32": 2687830845,
+          "ilvl": 1,
+          "name": "of Conquering",
+          "values": [
+            [
+              40,
+              80
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Map has # additional random Modifier",
+      "raw": "Map has {0} additional random Modifier",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalModifier"
+      ],
+      "statKeys": [
+        "map_number_of_additional_mods"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapAdditionalModifier",
+          "hash32": 2426915599,
+          "ilvl": 1,
+          "name": "of Undertaking",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters from Verisium Remnants drop #% increased Verisium",
+      "raw": "Monsters from Verisium Remnants drop {0}% increased Verisium",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionIncreasedVerisium"
+      ],
+      "statKeys": [
+        "map_verisium_stack_size_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionIncreasedVerisium",
+          "hash32": 3660265335,
+          "ilvl": 1,
+          "name": "of Verisium",
+          "values": [
+            [
+              15,
+              25
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Monsters Sacrificed at Ritual Altars in Area grant #% increased Tribute",
+      "raw": "Monsters Sacrificed at Ritual Altars in Area grant {0}% increased Tribute",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RitualTributeIncrease"
+      ],
+      "statKeys": [
+        "map_ritual_tribute_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualTributeIncrease",
+          "hash32": 1597059666,
+          "ilvl": 1,
+          "name": "of Sacrifice",
+          "values": [
+            [
+              18,
+              30
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Rerolling Favours at Ritual Altars in Area costs #% reduced Tribute",
+      "raw": "Rerolling Favours at Ritual Altars in Area costs {0}% reduced Tribute",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": -1,
+      "family": [
+        "RitualRerollCostIncrease"
+      ],
+      "statKeys": [
+        "map_ritual_rewards_reroll_cost_+%_final"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualRerollCostIncrease",
+          "hash32": 412848629,
+          "ilvl": 1,
+          "name": "of the Dogma",
+          "values": [
+            [
+              -30,
+              -20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Revived Monsters from Ritual Altars in Area have #% increased chance to be Magic",
+      "raw": "Revived Monsters from Ritual Altars in Area have {0}% increased chance to be Magic",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RitualRareMonsters"
+      ],
+      "statKeys": [
+        "map_ritual_magic_monsters_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualRareMonsters",
+          "hash32": 2377466447,
+          "ilvl": 1,
+          "name": "of the Foundling",
+          "values": [
+            [
+              35,
+              70
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Revived Monsters from Ritual Altars in Area have #% increased chance to be Rare",
+      "raw": "Revived Monsters from Ritual Altars in Area have {0}% increased chance to be Rare",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RitualMagicMonsters"
+      ],
+      "statKeys": [
+        "map_ritual_rare_monsters_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualMagicMonsters",
+          "hash32": 1270905173,
+          "ilvl": 1,
+          "name": "of the Cult",
+          "values": [
+            [
+              25,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Ritual Altars in Area allow rerolling Favours an additional time",
+      "raw": "Ritual Altars in Area allow rerolling Favours an additional time",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RitualAdditionalReroll"
+      ],
+      "statKeys": [
+        "map_ritual_additional_reward_rerolls"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualAdditionalReroll",
+          "hash32": 2357027701,
+          "ilvl": 1,
+          "name": "of Prayers",
+          "values": [
+            [
+              1,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Ritual Favours in Area have #% increased chance to be Omens",
+      "raw": "Ritual Favours in Area have {0}% increased chance to be Omens",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "RitualOmenChance"
+      ],
+      "statKeys": [
+        "map_ritual_omen_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerRitualOmenChance",
+          "hash32": 175538458,
+          "ilvl": 1,
+          "name": "of Omens",
+          "values": [
+            [
+              35,
+              70
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Slaying Rare Monsters in Area pauses the Delirium Mirror Timer for # seconds",
+      "raw": "Slaying Rare Monsters in Area pauses the Delirium Mirror Timer for {0} seconds",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "DeliriumRareMonsterPause"
+      ],
+      "statKeys": [
+        "map_killing_rare_monsters_pauses_delirium_mirror_timer_for_x_seconds"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerDeliriumRareMonsterPause",
+          "hash32": 383130818,
+          "ilvl": 1,
+          "name": "of Freeze Time",
+          "values": [
+            [
+              3,
+              5
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "The first unearthed Runic Monster will be a Rare Monster in Map",
+      "raw": "The first unearthed Runic Monster will be a Rare Monster in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ExpeditionUnearthedRares"
+      ],
+      "statKeys": [
+        "map_expedition_first_X_unearthed_runic_monsters_are_rare"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpeditionUnearthedRares",
+          "hash32": 189147255,
+          "ilvl": 1,
+          "name": "of Ancient Evil",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Unique Monsters have # additional Rare Modifier",
+      "raw": "Unique Monsters have {0} additional Rare Modifier",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "MapAdditionalUniqueMonsterModifier"
+      ],
+      "statKeys": [
+        "map_unique_monster_num_additional_modifiers"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerMapAdditionalUniqueMonsterModifier",
+          "hash32": 2544292262,
+          "ilvl": 1,
+          "name": "of Contest",
+          "values": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Unstable Breaches in Map have #% increased chance to contain Vruun, Marshal of Xesht",
+      "raw": "Unstable Breaches in Map have {0}% increased chance to contain Vruun, Marshal of Xesht",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "BreachBossChance"
+      ],
+      "statKeys": [
+        "map_chance_for_breaches_to_contain_boss_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerBreachBossChance",
+          "hash32": 3678937181,
+          "ilvl": 1,
+          "name": "of the Commander",
+          "values": [
+            [
+              20,
+              50
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Unstable Breaches in Map spawn an additional Rare Monster when Stabilised",
+      "raw": "Unstable Breaches in Map spawn an additional Rare Monster when Stabilised",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "BreachAdditionalRares"
+      ],
+      "statKeys": [
+        "map_unstable_breach_enrage_x_additional_rare_monsters"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerBreachAdditionalRares",
+          "hash32": 3193342965,
+          "ilvl": 1,
+          "name": "of the Invasion",
+          "values": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Verisium Remnants have +#% chance to add an additional Runic Modifier in Map",
+      "raw": "Verisium Remnants have +{0}% chance to add an additional Runic Modifier in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "Expedition2RunicModPassoverChance"
+      ],
+      "statKeys": [
+        "map_expedition_remnants_pass_2_runic_modifiers_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerExpedition2RunicModPassoverChance",
+          "hash32": 4184207074,
+          "ilvl": 1,
+          "name": "of Ancient Fiends",
+          "values": [
+            [
+              25,
+              35
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Wombgifts have #% chance to drop one Level higher in Map",
+      "raw": "Wombgifts have {0}% chance to drop one Level higher in Map",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "BreachWombgiftLevelChance"
+      ],
+      "statKeys": [
+        "map_breach_wombgift_additional_item_level_chance_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "TowerBreachWombgiftLevelChance",
+          "hash32": 1534067381,
+          "ilvl": 1,
+          "name": "of the Flesh",
+          "values": [
+            [
+              10,
+              30
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "essenceOnlyPrefixes": [],
+  "essenceOnlySuffixes": [],
+  "runePrefixes": [],
+  "runeSuffixes": []
+}

@@ -1,0 +1,1747 @@
+{
+  "category": "Quivers",
+  "itemClass": "Quivers",
+  "reconstructedTags": [
+    "quiver"
+  ],
+  "baseCount": 11,
+  "modDomain": 1,
+  "runes": [],
+  "unresolvedText": 0,
+  "counts": {
+    "prefix": 7,
+    "suffix": 9,
+    "prefixEssence": 0,
+    "suffixEssence": 0,
+    "runePrefix": 0,
+    "runeSuffix": 0
+  },
+  "prefixes": [
+    {
+      "text": "# to Accuracy Rating",
+      "raw": "{0:+d} to Accuracy Rating",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "IncreasedAccuracy"
+      ],
+      "statKeys": [
+        "accuracy_rating"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "IncreasedAccuracy9",
+          "hash32": 4017994255,
+          "ilvl": 76,
+          "name": "Amazon's",
+          "values": [
+            [
+              451,
+              550
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "IncreasedAccuracy8",
+          "hash32": 3851656426,
+          "ilvl": 67,
+          "name": "Ranger's",
+          "values": [
+            [
+              347,
+              450
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "IncreasedAccuracy7",
+          "hash32": 2849807823,
+          "ilvl": 58,
+          "name": "Hunter's",
+          "values": [
+            [
+              237,
+              346
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "IncreasedAccuracy6",
+          "hash32": 26556233,
+          "ilvl": 48,
+          "name": "Steady",
+          "values": [
+            [
+              168,
+              236
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "IncreasedAccuracy5",
+          "hash32": 241206974,
+          "ilvl": 36,
+          "name": "Consistent",
+          "values": [
+            [
+              124,
+              167
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "IncreasedAccuracy4",
+          "hash32": 4009903761,
+          "ilvl": 26,
+          "name": "Deliberate",
+          "values": [
+            [
+              85,
+              123
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "IncreasedAccuracy3",
+          "hash32": 2127347579,
+          "ilvl": 18,
+          "name": "Focused",
+          "values": [
+            [
+              61,
+              84
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "IncreasedAccuracy2",
+          "hash32": 1802768771,
+          "ilvl": 11,
+          "name": "Reliable",
+          "values": [
+            [
+              33,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "IncreasedAccuracy1",
+          "hash32": 3524448167,
+          "ilvl": 1,
+          "name": "Precise",
+          "values": [
+            [
+              11,
+              32
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Damage with Bow Skills",
+      "raw": "{}% increased Damage with Bow Skills",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "DamageWithWeaponTypeSkill"
+      ],
+      "statKeys": [
+        "damage_+%_with_bow_skills"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "DamageWithBows6",
+          "hash32": 1810677756,
+          "ilvl": 81,
+          "name": "Impaling",
+          "values": [
+            [
+              51,
+              59
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "DamageWithBows5",
+          "hash32": 206291067,
+          "ilvl": 60,
+          "name": "Lacerating",
+          "values": [
+            [
+              43,
+              50
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "DamageWithBows4",
+          "hash32": 911048078,
+          "ilvl": 46,
+          "name": "Incisive",
+          "values": [
+            [
+              37,
+              42
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "DamageWithBows3",
+          "hash32": 1187187803,
+          "ilvl": 33,
+          "name": "Perforating",
+          "values": [
+            [
+              31,
+              36
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "DamageWithBows2",
+          "hash32": 1183357780,
+          "ilvl": 16,
+          "name": "Trenchant",
+          "values": [
+            [
+              21,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "DamageWithBows1",
+          "hash32": 2485164367,
+          "ilvl": 1,
+          "name": "Acute",
+          "values": [
+            [
+              11,
+              20
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Projectile Speed",
+      "raw": "{0}% increased Projectile Speed",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "ProjectileSpeed"
+      ],
+      "statKeys": [
+        "base_projectile_speed_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ProjectileSpeed5",
+          "hash32": 3112670968,
+          "ilvl": 82,
+          "name": "Nimble",
+          "values": [
+            [
+              42,
+              46
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ProjectileSpeed4",
+          "hash32": 1157815047,
+          "ilvl": 55,
+          "name": "Rapid",
+          "values": [
+            [
+              34,
+              41
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ProjectileSpeed3",
+          "hash32": 3755581552,
+          "ilvl": 41,
+          "name": "Quick",
+          "values": [
+            [
+              26,
+              33
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "ProjectileSpeed2",
+          "hash32": 1195630468,
+          "ilvl": 27,
+          "name": "Brisk",
+          "values": [
+            [
+              18,
+              25
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "ProjectileSpeed1",
+          "hash32": 339360397,
+          "ilvl": 14,
+          "name": "Darting",
+          "values": [
+            [
+              10,
+              17
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Adds # to # Cold damage to Attacks",
+      "raw": "Adds {0} to {1} Cold damage to Attacks",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "ColdDamage"
+      ],
+      "statKeys": [
+        "attack_minimum_added_cold_damage",
+        "attack_maximum_added_cold_damage"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "AddedColdDamage9",
+          "hash32": 1899650979,
+          "ilvl": 75,
+          "name": "Entombing",
+          "values": [
+            [
+              21,
+              24
+            ],
+            [
+              32,
+              37
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "AddedColdDamage8",
+          "hash32": 1021103845,
+          "ilvl": 65,
+          "name": "Polar",
+          "values": [
+            [
+              16,
+              20
+            ],
+            [
+              25,
+              31
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "AddedColdDamage7",
+          "hash32": 871050014,
+          "ilvl": 60,
+          "name": "Glaciated",
+          "values": [
+            [
+              14,
+              15
+            ],
+            [
+              22,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "AddedColdDamage6",
+          "hash32": 3074261124,
+          "ilvl": 54,
+          "name": "Frozen",
+          "values": [
+            [
+              11,
+              13
+            ],
+            [
+              18,
+              21
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "AddedColdDamage5",
+          "hash32": 327311318,
+          "ilvl": 46,
+          "name": "Freezing",
+          "values": [
+            [
+              9,
+              10
+            ],
+            [
+              15,
+              17
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "AddedColdDamage4",
+          "hash32": 1164220919,
+          "ilvl": 33,
+          "name": "Frigid",
+          "values": [
+            [
+              7,
+              8
+            ],
+            [
+              12,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "AddedColdDamage3",
+          "hash32": 1621311419,
+          "ilvl": 16,
+          "name": "Icy",
+          "values": [
+            [
+              5,
+              6
+            ],
+            [
+              9,
+              11
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "AddedColdDamage2",
+          "hash32": 1144776470,
+          "ilvl": 8,
+          "name": "Chilled",
+          "values": [
+            [
+              3,
+              4
+            ],
+            [
+              5,
+              8
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "AddedColdDamage1",
+          "hash32": 3105922043,
+          "ilvl": 1,
+          "name": "Frosted",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Adds # to # Fire damage to Attacks",
+      "raw": "Adds {0} to {1} Fire damage to Attacks",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "FireDamage"
+      ],
+      "statKeys": [
+        "attack_minimum_added_fire_damage",
+        "attack_maximum_added_fire_damage"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "AddedFireDamage9",
+          "hash32": 973634865,
+          "ilvl": 75,
+          "name": "Cremating",
+          "values": [
+            [
+              25,
+              29
+            ],
+            [
+              37,
+              45
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "AddedFireDamage8",
+          "hash32": 3663560771,
+          "ilvl": 65,
+          "name": "Blasting",
+          "values": [
+            [
+              20,
+              24
+            ],
+            [
+              33,
+              36
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "AddedFireDamage7",
+          "hash32": 3647531189,
+          "ilvl": 60,
+          "name": "Incinerating",
+          "values": [
+            [
+              13,
+              19
+            ],
+            [
+              27,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "AddedFireDamage6",
+          "hash32": 3678221515,
+          "ilvl": 54,
+          "name": "Scorching",
+          "values": [
+            [
+              11,
+              16
+            ],
+            [
+              21,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "AddedFireDamage5",
+          "hash32": 1619193689,
+          "ilvl": 46,
+          "name": "Flaming",
+          "values": [
+            [
+              12,
+              13
+            ],
+            [
+              18,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "AddedFireDamage4",
+          "hash32": 654220637,
+          "ilvl": 33,
+          "name": "Burning",
+          "values": [
+            [
+              9,
+              11
+            ],
+            [
+              14,
+              17
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "AddedFireDamage3",
+          "hash32": 485290754,
+          "ilvl": 16,
+          "name": "Smoking",
+          "values": [
+            [
+              6,
+              8
+            ],
+            [
+              10,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "AddedFireDamage2",
+          "hash32": 1280464986,
+          "ilvl": 8,
+          "name": "Smouldering",
+          "values": [
+            [
+              3,
+              5
+            ],
+            [
+              6,
+              9
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "AddedFireDamage1",
+          "hash32": 977396756,
+          "ilvl": 1,
+          "name": "Heated",
+          "values": [
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              3
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Adds # to # Lightning damage to Attacks",
+      "raw": "Adds {0} to {1} Lightning damage to Attacks",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "LightningDamage"
+      ],
+      "statKeys": [
+        "attack_minimum_added_lightning_damage",
+        "attack_maximum_added_lightning_damage"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "AddedLightningDamage9",
+          "hash32": 2415169984,
+          "ilvl": 75,
+          "name": "Electrocuting",
+          "values": [
+            [
+              1,
+              4
+            ],
+            [
+              60,
+              71
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "AddedLightningDamage8",
+          "hash32": 4279297813,
+          "ilvl": 65,
+          "name": "Discharging",
+          "values": [
+            [
+              1,
+              3
+            ],
+            [
+              48,
+              59
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "AddedLightningDamage7",
+          "hash32": 3670526683,
+          "ilvl": 60,
+          "name": "Shocking",
+          "values": [
+            [
+              1,
+              2
+            ],
+            [
+              41,
+              47
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "AddedLightningDamage6",
+          "hash32": 3925121865,
+          "ilvl": 54,
+          "name": "Arcing",
+          "values": [
+            [
+              1,
+              2
+            ],
+            [
+              33,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "AddedLightningDamage5",
+          "hash32": 3020906995,
+          "ilvl": 46,
+          "name": "Sparking",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              28,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "AddedLightningDamage4",
+          "hash32": 3576699288,
+          "ilvl": 33,
+          "name": "Crackling",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              23,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "AddedLightningDamage3",
+          "hash32": 1183268891,
+          "ilvl": 16,
+          "name": "Snapping",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              16,
+              22
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "AddedLightningDamage2",
+          "hash32": 716670289,
+          "ilvl": 8,
+          "name": "Buzzing",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              10,
+              15
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "AddedLightningDamage1",
+          "hash32": 215780609,
+          "ilvl": 1,
+          "name": "Humming",
+          "values": [
+            [
+              1,
+              1
+            ],
+            [
+              4,
+              6
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Adds # to # Physical Damage to Attacks",
+      "raw": "Adds {0} to {1} Physical Damage to Attacks",
+      "affix": "prefix",
+      "genType": 1,
+      "sign": 0,
+      "family": [
+        "PhysicalDamage"
+      ],
+      "statKeys": [
+        "attack_minimum_added_physical_damage",
+        "attack_maximum_added_physical_damage"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "AddedPhysicalDamage9",
+          "hash32": 1493880455,
+          "ilvl": 75,
+          "name": "Flaring",
+          "values": [
+            [
+              12,
+              19
+            ],
+            [
+              22,
+              32
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "AddedPhysicalDamage8",
+          "hash32": 654873256,
+          "ilvl": 65,
+          "name": "Tempered",
+          "values": [
+            [
+              10,
+              15
+            ],
+            [
+              18,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "AddedPhysicalDamage7",
+          "hash32": 1448121861,
+          "ilvl": 60,
+          "name": "Razor-sharp",
+          "values": [
+            [
+              7,
+              11
+            ],
+            [
+              14,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "AddedPhysicalDamage6",
+          "hash32": 1988523389,
+          "ilvl": 54,
+          "name": "Annealed",
+          "values": [
+            [
+              6,
+              10
+            ],
+            [
+              12,
+              17
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "AddedPhysicalDamage5",
+          "hash32": 3093131095,
+          "ilvl": 46,
+          "name": "Gleaming",
+          "values": [
+            [
+              5,
+              7
+            ],
+            [
+              9,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "AddedPhysicalDamage4",
+          "hash32": 1716590113,
+          "ilvl": 33,
+          "name": "Honed",
+          "values": [
+            [
+              4,
+              6
+            ],
+            [
+              8,
+              11
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "AddedPhysicalDamage3",
+          "hash32": 787307971,
+          "ilvl": 16,
+          "name": "Polished",
+          "values": [
+            [
+              2,
+              4
+            ],
+            [
+              5,
+              8
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "AddedPhysicalDamage2",
+          "hash32": 3027677410,
+          "ilvl": 8,
+          "name": "Burnished",
+          "values": [
+            [
+              2,
+              3
+            ],
+            [
+              4,
+              6
+            ]
+          ]
+        },
+        {
+          "tier": 9,
+          "id": "AddedPhysicalDamage1",
+          "hash32": 1727631431,
+          "ilvl": 1,
+          "name": "Glinting",
+          "values": [
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              3
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "suffixes": [
+    {
+      "text": "# to Dexterity",
+      "raw": "{0:+d} to Dexterity",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "Dexterity"
+      ],
+      "statKeys": [
+        "additional_dexterity"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "Dexterity8",
+          "hash32": 2085132949,
+          "ilvl": 74,
+          "name": "of the Phantom",
+          "values": [
+            [
+              31,
+              33
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "Dexterity7",
+          "hash32": 116669306,
+          "ilvl": 66,
+          "name": "of the Jaguar",
+          "values": [
+            [
+              28,
+              30
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "Dexterity6",
+          "hash32": 3989961355,
+          "ilvl": 55,
+          "name": "of the Leopard",
+          "values": [
+            [
+              25,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "Dexterity5",
+          "hash32": 1283495801,
+          "ilvl": 44,
+          "name": "of the Panther",
+          "values": [
+            [
+              21,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "Dexterity4",
+          "hash32": 114212880,
+          "ilvl": 33,
+          "name": "of the Falcon",
+          "values": [
+            [
+              17,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "Dexterity3",
+          "hash32": 186526788,
+          "ilvl": 22,
+          "name": "of the Fox",
+          "values": [
+            [
+              13,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 7,
+          "id": "Dexterity2",
+          "hash32": 139741561,
+          "ilvl": 11,
+          "name": "of the Lynx",
+          "values": [
+            [
+              9,
+              12
+            ]
+          ]
+        },
+        {
+          "tier": 8,
+          "id": "Dexterity1",
+          "hash32": 664245424,
+          "ilvl": 1,
+          "name": "of the Mongoose",
+          "values": [
+            [
+              5,
+              8
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "# to Level of all Projectile Skills",
+      "raw": "{0:+d} to Level of all Projectile Skills",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncreaseSocketedGemLevel"
+      ],
+      "statKeys": [
+        "projectile_skill_gem_level_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "GlobalProjectileSkillGemLevel1",
+          "hash32": 3665711499,
+          "ilvl": 5,
+          "name": "of the Archer",
+          "values": [
+            [
+              1,
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% chance to Pierce an Enemy",
+      "raw": "{0}% chance to Pierce an Enemy",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ChanceToPierce"
+      ],
+      "statKeys": [
+        "base_chance_to_pierce_%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ArrowPierceChance5",
+          "hash32": 1325653057,
+          "ilvl": 77,
+          "name": "of Penetrating",
+          "values": [
+            [
+              24,
+              26
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ArrowPierceChance4",
+          "hash32": 2429533189,
+          "ilvl": 61,
+          "name": "of Skewering",
+          "values": [
+            [
+              21,
+              23
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ArrowPierceChance3",
+          "hash32": 3884294156,
+          "ilvl": 44,
+          "name": "of Puncturing",
+          "values": [
+            [
+              18,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "ArrowPierceChance2",
+          "hash32": 3890459345,
+          "ilvl": 26,
+          "name": "of Drilling",
+          "values": [
+            [
+              15,
+              17
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "ArrowPierceChance1",
+          "hash32": 809102021,
+          "ilvl": 11,
+          "name": "of Piercing",
+          "values": [
+            [
+              12,
+              14
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Attack Speed",
+      "raw": "{0}% increased Attack Speed",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "IncreasedAttackSpeed"
+      ],
+      "statKeys": [
+        "attack_speed_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "IncreasedAttackSpeed4",
+          "hash32": 1194133835,
+          "ilvl": 60,
+          "name": "of Renown",
+          "values": [
+            [
+              14,
+              16
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "IncreasedAttackSpeed3",
+          "hash32": 2257823191,
+          "ilvl": 37,
+          "name": "of Mastery",
+          "values": [
+            [
+              11,
+              13
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "IncreasedAttackSpeed2",
+          "hash32": 1801158981,
+          "ilvl": 22,
+          "name": "of Ease",
+          "values": [
+            [
+              8,
+              10
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "IncreasedAttackSpeed1",
+          "hash32": 3224263360,
+          "ilvl": 1,
+          "name": "of Skill",
+          "values": [
+            [
+              5,
+              7
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Critical Damage Bonus for Attack Damage",
+      "raw": "{0}% increased Critical Damage Bonus for Attack Damage",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "CriticalStrikeMultiplier"
+      ],
+      "statKeys": [
+        "attack_critical_strike_multiplier_+"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "AttackCriticalStrikeMultiplier6",
+          "hash32": 1705929767,
+          "ilvl": 74,
+          "name": "of Destruction",
+          "values": [
+            [
+              35,
+              39
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "AttackCriticalStrikeMultiplier5",
+          "hash32": 2214297526,
+          "ilvl": 59,
+          "name": "of Ferocity",
+          "values": [
+            [
+              30,
+              34
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "AttackCriticalStrikeMultiplier4",
+          "hash32": 3095828325,
+          "ilvl": 45,
+          "name": "of Fury",
+          "values": [
+            [
+              25,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "AttackCriticalStrikeMultiplier3",
+          "hash32": 1891148674,
+          "ilvl": 31,
+          "name": "of Rage",
+          "values": [
+            [
+              20,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "AttackCriticalStrikeMultiplier2",
+          "hash32": 373648080,
+          "ilvl": 21,
+          "name": "of Anger",
+          "values": [
+            [
+              15,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "AttackCriticalStrikeMultiplier1",
+          "hash32": 1759217556,
+          "ilvl": 8,
+          "name": "of Ire",
+          "values": [
+            [
+              10,
+              14
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% increased Critical Hit Chance for Attacks",
+      "raw": "{0}% increased Critical Hit Chance for Attacks",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "CriticalStrikeChanceIncrease"
+      ],
+      "statKeys": [
+        "attack_critical_strike_chance_+%"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "AttackCriticalStrikeChance6",
+          "hash32": 3738814618,
+          "ilvl": 72,
+          "name": "of Unmaking",
+          "values": [
+            [
+              35,
+              38
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "AttackCriticalStrikeChance5",
+          "hash32": 357541197,
+          "ilvl": 58,
+          "name": "of Ruin",
+          "values": [
+            [
+              30,
+              34
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "AttackCriticalStrikeChance4",
+          "hash32": 1538683959,
+          "ilvl": 44,
+          "name": "of Calamity",
+          "values": [
+            [
+              25,
+              29
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "AttackCriticalStrikeChance3",
+          "hash32": 2631566965,
+          "ilvl": 30,
+          "name": "of Disaster",
+          "values": [
+            [
+              20,
+              24
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "AttackCriticalStrikeChance2",
+          "hash32": 809201276,
+          "ilvl": 20,
+          "name": "of Havoc",
+          "values": [
+            [
+              15,
+              19
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "AttackCriticalStrikeChance1",
+          "hash32": 3979735770,
+          "ilvl": 5,
+          "name": "of Menace",
+          "values": [
+            [
+              10,
+              14
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "#% Surpassing chance to fire an additional Arrow",
+      "raw": "{0:+d}% Surpassing chance to fire an additional Arrow",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "AdditionalArrows"
+      ],
+      "statKeys": [
+        "chance_to_fire_1_additional_projectile_%_with_rollover_with_bow_attacks"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "AdditionalArrowChanceQuiver2",
+          "hash32": 1297962297,
+          "ilvl": 80,
+          "name": "of Splintering",
+          "values": [
+            [
+              41,
+              60
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "AdditionalArrowChanceQuiver1",
+          "hash32": 2019856238,
+          "ilvl": 46,
+          "name": "of Surplus",
+          "values": [
+            [
+              25,
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Gain # Life per enemy killed",
+      "raw": "Gain {0} Life per enemy killed",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "LifeGainedFromEnemyDeath"
+      ],
+      "statKeys": [
+        "base_life_gained_on_enemy_death"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "LifeGainedFromEnemyDeath6",
+          "hash32": 1792987562,
+          "ilvl": 55,
+          "name": "of Valour",
+          "values": [
+            [
+              41,
+              53
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "LifeGainedFromEnemyDeath5",
+          "hash32": 2738127078,
+          "ilvl": 44,
+          "name": "of Vanquishing",
+          "values": [
+            [
+              29,
+              40
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "LifeGainedFromEnemyDeath4",
+          "hash32": 3250494615,
+          "ilvl": 33,
+          "name": "of Conquest",
+          "values": [
+            [
+              19,
+              28
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "LifeGainedFromEnemyDeath3",
+          "hash32": 4032176360,
+          "ilvl": 22,
+          "name": "of Triumph",
+          "values": [
+            [
+              10,
+              18
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "LifeGainedFromEnemyDeath2",
+          "hash32": 3312613052,
+          "ilvl": 11,
+          "name": "of Victory",
+          "values": [
+            [
+              7,
+              9
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "LifeGainedFromEnemyDeath1",
+          "hash32": 2204008672,
+          "ilvl": 1,
+          "name": "of Success",
+          "values": [
+            [
+              4,
+              6
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "text": "Gain # Mana per enemy killed",
+      "raw": "Gain {0} Mana per enemy killed",
+      "affix": "suffix",
+      "genType": 2,
+      "sign": 0,
+      "family": [
+        "ManaGainedFromEnemyDeath"
+      ],
+      "statKeys": [
+        "base_mana_gained_on_enemy_death"
+      ],
+      "radiusJewelType": 0,
+      "essenceOnly": false,
+      "tiers": [
+        {
+          "tier": 1,
+          "id": "ManaGainedFromEnemyDeath6",
+          "hash32": 977961330,
+          "ilvl": 56,
+          "name": "of Siphoning",
+          "values": [
+            [
+              21,
+              27
+            ]
+          ]
+        },
+        {
+          "tier": 2,
+          "id": "ManaGainedFromEnemyDeath5",
+          "hash32": 903426660,
+          "ilvl": 45,
+          "name": "of Consumption",
+          "values": [
+            [
+              15,
+              20
+            ]
+          ]
+        },
+        {
+          "tier": 3,
+          "id": "ManaGainedFromEnemyDeath4",
+          "hash32": 4045405875,
+          "ilvl": 34,
+          "name": "of Enveloping",
+          "values": [
+            [
+              10,
+              14
+            ]
+          ]
+        },
+        {
+          "tier": 4,
+          "id": "ManaGainedFromEnemyDeath3",
+          "hash32": 440771605,
+          "ilvl": 23,
+          "name": "of Infusion",
+          "values": [
+            [
+              6,
+              9
+            ]
+          ]
+        },
+        {
+          "tier": 5,
+          "id": "ManaGainedFromEnemyDeath2",
+          "hash32": 2310159890,
+          "ilvl": 12,
+          "name": "of Osmosis",
+          "values": [
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        {
+          "tier": 6,
+          "id": "ManaGainedFromEnemyDeath1",
+          "hash32": 397092647,
+          "ilvl": 1,
+          "name": "of Absorption",
+          "values": [
+            [
+              2,
+              3
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "essenceOnlyPrefixes": [],
+  "essenceOnlySuffixes": [],
+  "runePrefixes": [],
+  "runeSuffixes": []
+}
