@@ -772,6 +772,11 @@ namespace NinjaPricer
                 this.DrawTabDataSource();
                 ImGui.EndTabItem();
             }
+            if (ImGui.BeginTabItem("Categories"))
+            {
+                this.DrawTabCategories();
+                ImGui.EndTabItem();
+            }
             if (ImGui.BeginTabItem("Display Settings"))
             {
                 this.DrawTabDisplaySettings();
@@ -854,6 +859,103 @@ namespace NinjaPricer
                 this.Settings.AutoRefreshMinutes = arm;
                 this.SaveSettings();
             }
+        }
+
+        private void DrawTabCategories()
+        {
+            ImGui.Spacing();
+            ImGui.Text("Select which item categories to fetch and display prices for:");
+            ImGui.Spacing();
+
+            if (ImGui.Button("Enable All"))
+            {
+                foreach (var k in this.Settings.EnabledCategories.Keys.ToList())
+                {
+                    this.Settings.EnabledCategories[k] = true;
+                }
+                this.SaveSettings();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Disable All"))
+            {
+                foreach (var k in this.Settings.EnabledCategories.Keys.ToList())
+                {
+                    this.Settings.EnabledCategories[k] = false;
+                }
+                this.SaveSettings();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Apply & Refresh Now"))
+            {
+                this.priceService?.TriggerRefresh(this.Settings.League, this.Settings.PriceSource, this.Settings.EnabledCategories);
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            (string Key, string Label)[] currencyCats =
+            {
+                ("currency", "Currency"),
+                ("fragments", "Fragments"),
+                ("uncutgems", "Uncut Gems"),
+                ("essences", "Essences"),
+                ("soulcores", "Soul Cores"),
+                ("idols", "Idols"),
+                ("runes", "Runes"),
+                ("expedition", "Expedition"),
+                ("verisium", "Verisium"),
+                ("ritual", "Ritual"),
+                ("delirium", "Delirium"),
+                ("breach", "Breach"),
+                ("abyss", "Abyss"),
+                ("lineagesupportgems", "Lineage Support Gems"),
+                ("vaultkeys", "Vault Keys"),
+                ("incursion", "Incursion"),
+                ("ultimatum", "Ultimatum"),
+                ("vaal", "Vaal"),
+            };
+
+            (string Key, string Label)[] uniqueCats =
+            {
+                ("weapon", "Unique Weapons"),
+                ("armour", "Unique Armour"),
+                ("accessory", "Unique Accessories & Charms"),
+                ("flask", "Unique Flasks"),
+                ("jewel", "Unique Jewels"),
+                ("map", "Waystones & Tablets"),
+                ("sanctum", "Sanctum Research"),
+            };
+
+            ImGui.Columns(2, "##CategoryCols", true);
+
+            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), "Currency & Bulk Categories");
+            ImGui.Separator();
+            foreach (var (key, label) in currencyCats)
+            {
+                bool isEnabled = !this.Settings.EnabledCategories.TryGetValue(key, out var val) || val;
+                if (ImGui.Checkbox($"{label}##cat_{key}", ref isEnabled))
+                {
+                    this.Settings.EnabledCategories[key] = isEnabled;
+                    this.SaveSettings();
+                }
+            }
+
+            ImGui.NextColumn();
+
+            ImGui.TextColored(new Vector4(1.0f, 0.65f, 0.2f, 1.0f), "Unique Items & Maps");
+            ImGui.Separator();
+            foreach (var (key, label) in uniqueCats)
+            {
+                bool isEnabled = !this.Settings.EnabledCategories.TryGetValue(key, out var val) || val;
+                if (ImGui.Checkbox($"{label}##cat_{key}", ref isEnabled))
+                {
+                    this.Settings.EnabledCategories[key] = isEnabled;
+                    this.SaveSettings();
+                }
+            }
+
+            ImGui.Columns(1);
         }
 
         private void DrawTabDisplaySettings()
