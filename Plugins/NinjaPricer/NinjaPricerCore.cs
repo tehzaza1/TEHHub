@@ -1796,6 +1796,98 @@ namespace NinjaPricer
             }
         }
 
+        private void DrawRuneshapeRecipeRow(RsRecipe rec, MonolithData? monolith = null)
+        {
+            string rewardName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+            PriceResult pr = default;
+            bool isPriced = this.priceService != null && this.priceService.TryLookupPrice(rewardName, out pr);
+            float rowPriceChaos = isPriced ? pr.Chaos * Math.Max(1, rec.RewardCount) : 0f;
+            float rowDisplayPrice = isPriced ? (this.Settings.DisplayCurrency switch
+            {
+                DisplayCurrency.Divine => pr.Divine * Math.Max(1, rec.RewardCount),
+                DisplayCurrency.Exalted => pr.Exalt * Math.Max(1, rec.RewardCount),
+                _ => rowPriceChaos
+            }) : 0f;
+
+            ImGui.Bullet();
+            bool lineStarted = false;
+
+            // 1) Reward Icon
+            if (this.Settings.RsShowRowIcon && isPriced && !string.IsNullOrEmpty(pr.ItemIcon))
+            {
+                var iconTex = this.GetItemTexture(pr.ItemIcon);
+                if (iconTex != null && iconTex.Value.Valid)
+                {
+                    float lh = ImGui.GetTextLineHeight();
+                    ImGui.Image(iconTex.Value.Ptr, new Vector2(lh, lh));
+                    lineStarted = true;
+                }
+            }
+
+            // 2) Reward Name
+            if (this.Settings.RsShowRowName)
+            {
+                if (lineStarted) ImGui.SameLine(0f, 4f);
+                if (isPriced)
+                    ImGui.TextColored(new Vector4(0.95f, 0.95f, 0.95f, 1.0f), rewardName);
+                else
+                    ImGui.TextDisabled(rewardName);
+                lineStarted = true;
+            }
+
+            // 3) Reward Quantity
+            if (this.Settings.RsShowRowQty && rec.RewardCount > 1)
+            {
+                if (lineStarted) ImGui.SameLine(0f, 3f);
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), $"x{rec.RewardCount}");
+                lineStarted = true;
+            }
+
+            // 4) Price (Currency Icon vs Text based on RuneshapeWinPriceStyle)
+            if (this.Settings.RsShowRowPrice && isPriced)
+            {
+                if (lineStarted) ImGui.SameLine(0f, 6f);
+                if (this.Settings.RuneshapeWinPriceStyle == PriceDisplayStyle.Image)
+                {
+                    var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
+                    if (curTex != null && curTex.Value.Valid)
+                    {
+                        float lh = ImGui.GetTextLineHeight();
+                        float iw = lh * (curTex.Value.H > 0 ? (float)curTex.Value.W / curTex.Value.H : 1.0f);
+                        ImGui.Image(curTex.Value.Ptr, new Vector2(iw, lh));
+                        ImGui.SameLine(0f, 2f);
+                        ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), FormatPriceNumberLocal(rowDisplayPrice));
+                    }
+                    else
+                    {
+                        ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), $"[{FormatPriceLocal(rowDisplayPrice, this.Settings.DisplayCurrency)}]");
+                    }
+                }
+                else
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), $"[{FormatPriceLocal(rowDisplayPrice, this.Settings.DisplayCurrency)}]");
+                }
+                lineStarted = true;
+            }
+
+            // 5) Propagating Runes (highlight if monolith has golden slots)
+            if (this.Settings.RsShowRowPropRunes && monolith != null && monolith.GoldenSlots.Count > 0)
+            {
+                if (lineStarted) ImGui.SameLine(0f, 8f);
+                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Propagating ({monolith.GoldenSlots.Count} golden)");
+                lineStarted = true;
+            }
+
+            if (!lineStarted)
+            {
+                ImGui.TextDisabled(rewardName);
+            }
+
+            ImGui.Indent(18f);
+            ImGui.TextDisabled($"Runes: {string.Join(" + ", rec.Runes)}");
+            ImGui.Unindent(18f);
+        }
+
         private void DrawRuneshapeWindow()
         {
             if (this.Settings.RuneshapeWinHideOnHover && this.runeshapeWinRectValid)
@@ -1886,8 +1978,36 @@ namespace NinjaPricer
                     for (int mIdx = 0; mIdx < monoliths.Count; mIdx++)
                     {
                         var m = monoliths[mIdx];
-                        string mTitle = m.IsUnique ? $"Unique Monolith##m_{mIdx}" : $"Monolith ({m.HoleCount} Sockets)##m_{mIdx}";
+                        var matching = this.runeshapeRecipes.Where(r => r.Size == m.HoleCount).ToList();
 
+                        // Find best-priced recipe for header
+                        RsRecipe? bestRecipe = null;
+                        float bestPriceChaos = 0f;
+                        float bestDisplayPrice = 0f;
+                        if (this.priceService != null)
+                        {
+                            foreach (var rec in matching)
+                            {
+                                string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+                                if (this.priceService.TryLookupPrice(rName, out var pr))
+                                {
+                                    float c = pr.Chaos * Math.Max(1, rec.RewardCount);
+                                    if (c > bestPriceChaos)
+                                    {
+                                        bestPriceChaos = c;
+                                        bestRecipe = rec;
+                                        bestDisplayPrice = this.Settings.DisplayCurrency switch
+                                        {
+                                            DisplayCurrency.Divine => pr.Divine * Math.Max(1, rec.RewardCount),
+                                            DisplayCurrency.Exalted => pr.Exalt * Math.Max(1, rec.RewardCount),
+                                            _ => c
+                                        };
+                                    }
+                                }
+                            }
+                        }
+
+                        // 1) Colored square (RsShowHdrColor)
                         if (this.Settings.RsShowHdrColor)
                         {
                             var dl = ImGui.GetWindowDrawList();
@@ -1897,7 +2017,62 @@ namespace NinjaPricer
                             ImGui.SameLine();
                         }
 
+                        // 2) Tree Node
+                        string mTitle = m.IsUnique ? $"Unique Monolith ({m.HoleCount} Sockets)##m_{mIdx}" : $"Monolith ({m.HoleCount} Sockets)##m_{mIdx}";
                         bool open = ImGui.TreeNode(mTitle);
+
+                        // 3) Rune sockets strip (RsShowHdrRunes)
+                        if (this.Settings.RsShowHdrRunes && m.HoleCount > 0)
+                        {
+                            ImGui.SameLine();
+                            var dl = ImGui.GetWindowDrawList();
+                            float lineH = ImGui.GetTextLineHeight();
+                            float slotSz = lineH * 0.75f;
+                            float slotGap = 2.5f;
+                            var cp = ImGui.GetCursorScreenPos();
+                            float midY = cp.Y + (lineH * 0.5f);
+                            float xl = cp.X;
+
+                            for (int slot = 0; slot < m.HoleCount; slot++)
+                            {
+                                bool isGolden = m.GoldenSlots.Contains(slot);
+                                uint bgCol = isGolden ? 0xFFFFD700u : 0xFF555555u;
+                                dl.AddCircleFilled(new Vector2(xl + slotSz * 0.5f, midY), slotSz * 0.5f, bgCol);
+                                if (isGolden)
+                                {
+                                    dl.AddCircle(new Vector2(xl + slotSz * 0.5f, midY), slotSz * 0.55f, 0xFFFFAA00u, 0, 1.5f);
+                                }
+                                xl += slotSz + slotGap;
+                            }
+                            ImGui.Dummy(new Vector2(xl - cp.X, lineH));
+                        }
+
+                        // 4) Best reward price (RsShowHdrBest)
+                        if (this.Settings.RsShowHdrBest && bestPriceChaos > 0f)
+                        {
+                            ImGui.SameLine();
+                            if (this.Settings.RuneshapeWinPriceStyle == PriceDisplayStyle.Image)
+                            {
+                                var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
+                                if (curTex != null && curTex.Value.Valid)
+                                {
+                                    float lineH = ImGui.GetTextLineHeight();
+                                    float iw = lineH * (curTex.Value.H > 0 ? (float)curTex.Value.W / curTex.Value.H : 1.0f);
+                                    ImGui.Image(curTex.Value.Ptr, new Vector2(iw, lineH));
+                                    ImGui.SameLine(0f, 2f);
+                                    ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.4f, 1.0f), FormatPriceNumberLocal(bestDisplayPrice));
+                                }
+                                else
+                                {
+                                    ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.4f, 1.0f), $"[{FormatPriceLocal(bestDisplayPrice, this.Settings.DisplayCurrency)}]");
+                                }
+                            }
+                            else
+                            {
+                                ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.4f, 1.0f), $"[{FormatPriceLocal(bestDisplayPrice, this.Settings.DisplayCurrency)}]");
+                            }
+                        }
+
                         if (m.IsCompleted)
                         {
                             ImGui.SameLine();
@@ -1908,35 +2083,11 @@ namespace NinjaPricer
                         {
                             ImGui.TextDisabled($"Holes: {m.HoleCount} | Golden Slots: {m.GoldenSlots.Count}");
 
-                            var matching = this.runeshapeRecipes.Where(r => r.Size == m.HoleCount).ToList();
                             if (matching.Count > 0)
                             {
                                 foreach (var rec in matching)
                                 {
-                                    string rewardName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
-                                    string priceStr = string.Empty;
-
-                                    if (this.priceService != null && this.priceService.TryLookupPrice(rewardName, out var pr))
-                                    {
-                                        float priceChaos = pr.Chaos * Math.Max(1, rec.RewardCount);
-                                        priceStr = this.Settings.DisplayCurrency switch
-                                        {
-                                            DisplayCurrency.Divine => $"{pr.Divine * Math.Max(1, rec.RewardCount):F2} D",
-                                            DisplayCurrency.Exalted => $"{pr.Exalt * Math.Max(1, rec.RewardCount):F1} E",
-                                            _ => $"{priceChaos:F0} c"
-                                        };
-                                    }
-
-                                    ImGui.Bullet();
-                                    ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.9f, 1.0f), $"{rec.Description}");
-                                    if (!string.IsNullOrEmpty(priceStr))
-                                    {
-                                        ImGui.SameLine();
-                                        ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), $"[{priceStr}]");
-                                    }
-                                    ImGui.Indent(18f);
-                                    ImGui.TextDisabled($"Runes: {string.Join(" + ", rec.Runes)}");
-                                    ImGui.Unindent(18f);
+                                    this.DrawRuneshapeRecipeRow(rec, m);
                                 }
                             }
                             else
@@ -1989,30 +2140,7 @@ namespace NinjaPricer
                             if (collapsed) this.Settings.RuneshapeCollapsed.Remove(colorKey);
                             foreach (var rec in list)
                             {
-                                string rewardName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
-                                string priceStr = string.Empty;
-
-                                if (this.priceService != null && this.priceService.TryLookupPrice(rewardName, out var pr))
-                                {
-                                    float priceChaos = pr.Chaos * Math.Max(1, rec.RewardCount);
-                                    priceStr = this.Settings.DisplayCurrency switch
-                                    {
-                                        DisplayCurrency.Divine => $"{pr.Divine * Math.Max(1, rec.RewardCount):F2} D",
-                                        DisplayCurrency.Exalted => $"{pr.Exalt * Math.Max(1, rec.RewardCount):F1} E",
-                                        _ => $"{priceChaos:F0} c"
-                                    };
-                                }
-
-                                ImGui.Bullet();
-                                ImGui.Text($"{rec.Description}");
-                                if (!string.IsNullOrEmpty(priceStr))
-                                {
-                                    ImGui.SameLine();
-                                    ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), $"[{priceStr}]");
-                                }
-                                ImGui.Indent(18f);
-                                ImGui.TextDisabled($"Slots: {rec.Size} | Runes: {string.Join(" + ", rec.Runes)}");
-                                ImGui.Unindent(18f);
+                                this.DrawRuneshapeRecipeRow(rec);
                             }
                             ImGui.TreePop();
                         }
