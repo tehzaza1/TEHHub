@@ -173,5 +173,68 @@ var detonatorWorld = new Vector3(1000f, 1000f, 0f);
     else Console.WriteLine("PASSED: Successfully covered reachable pillars despite unreachable final pillar!");
 }
 
+// Test 6: In-game continuation with 1 bomb already placed.
+{
+    Console.WriteLine("\nTest 6: In-game continuation with 1 bomb already placed hitting Pillar 1");
+    var targets = new List<ExpeditionTarget>
+    {
+        new() { EntityId = 1, Kind = TargetKind.RemnantPillar, DisplayName = "Pillar 1", HoleCount = 1, GridPosition = new Vector3(140f, 100f, 0f) },
+        new() { EntityId = 2, Kind = TargetKind.RemnantPillar, DisplayName = "Pillar 2", HoleCount = 1, GridPosition = new Vector3(180f, 100f, 0f) },
+        new() { EntityId = 3, Kind = TargetKind.RemnantPillar, DisplayName = "Final Pillar", HoleCount = 3, GridPosition = new Vector3(220f, 100f, 0f) }
+    };
+    var alreadyPlaced = new List<PlacedBombInfo>
+    {
+        new() { EntityId = 101, GridPosition = new Vector3(140f, 100f, 0f), WorldPosition = new Vector3(1400f, 1000f, 0f), Order = 1 }
+    };
+    var budget3Settings = new ExpeditionPlannerSettings
+    {
+        MaxExplosiveBudget = 3,
+        MaxPlacementRangeGrid = 55f,
+        BlastRadiusGrid = 28f,
+        BombClearanceRadiusGrid = 4.5f,
+        CampExclusionRadiusGrid = 30f
+    };
+    var route = ExpeditionGlobalRoutePlanner.Solve(detonatorGrid, detonatorWorld, alreadyPlaced, targets, null, budget3Settings);
+    Console.WriteLine($"Placements count: {route.Placements.Count}");
+    foreach (var p in route.Placements)
+    {
+        Console.WriteLine($"  Step {p.Step} at ({p.GridPosition.X:F0}, {p.GridPosition.Y:F0}): Hits {string.Join(", ", p.CoveredTargets.Select(t => t.DisplayName))}");
+    }
+    bool step2HitsPillar2 = route.Placements.Count > 0 && route.Placements[0].Step == 2 && route.Placements[0].CoveredTargets.Any(t => t.EntityId == 2);
+    bool step3HitsFinal = route.Placements.Count > 1 && route.Placements[1].Step == 3 && route.Placements[1].CoveredTargets.Any(t => t.EntityId == 3);
+    Console.WriteLine($"Continuation planned Step 2 -> Pillar 2: {step2HitsPillar2}, Step 3 -> Final: {step3HitsFinal}");
+    if (!step2HitsPillar2 || !step3HitsFinal) { Console.WriteLine("FAILED: Continuation did not plan correctly!"); failed++; }
+    else Console.WriteLine("PASSED: In-game continuation successfully planned remaining bombs!");
+}
+
+// Test 7: Widest pillar is Opulent (4 holes), ensure Opulent is opened on Step 1.
+{
+    Console.WriteLine("\nTest 7: Widest pillar has Opulent (should be opened early to proliferate)");
+    var targets = new List<ExpeditionTarget>
+    {
+        new() { EntityId = 1, Kind = TargetKind.RemnantPillar, DisplayName = "Opulent Pillar (4 holes)", AnchorRuneName = "Opulent", HoleCount = 4, GridPosition = new Vector3(140f, 100f, 0f) },
+        new() { EntityId = 2, Kind = TargetKind.RemnantPillar, DisplayName = "Regular Pillar A (2 holes)", HoleCount = 2, GridPosition = new Vector3(180f, 100f, 0f) },
+        new() { EntityId = 3, Kind = TargetKind.RemnantPillar, DisplayName = "Regular Pillar B (1 hole)", HoleCount = 1, GridPosition = new Vector3(220f, 100f, 0f) }
+    };
+    var budget3Settings = new ExpeditionPlannerSettings
+    {
+        MaxExplosiveBudget = 3,
+        MaxPlacementRangeGrid = 55f,
+        BlastRadiusGrid = 28f,
+        BombClearanceRadiusGrid = 4.5f,
+        CampExclusionRadiusGrid = 30f
+    };
+    var route = ExpeditionGlobalRoutePlanner.Solve(detonatorGrid, detonatorWorld, new List<PlacedBombInfo>(), targets, null, budget3Settings);
+    Console.WriteLine($"Placements count: {route.Placements.Count}");
+    foreach (var p in route.Placements)
+    {
+        Console.WriteLine($"  Step {p.Step} at ({p.GridPosition.X:F0}, {p.GridPosition.Y:F0}): Hits {string.Join(", ", p.CoveredTargets.Select(t => t.DisplayName))}");
+    }
+    bool step1HasOpulent = route.Placements.Count > 0 && route.Placements[0].CoveredTargets.Any(t => t.EntityId == 1);
+    Console.WriteLine($"Step 1 opens Opulent (even though it had 4 holes): {step1HasOpulent}");
+    if (!step1HasOpulent) { Console.WriteLine("FAILED: Opulent was deferred instead of proliferating early!"); failed++; }
+    else Console.WriteLine("PASSED: Opulent prioritized in Step 1!");
+}
+
 Console.WriteLine($"\n=== Tests Completed (Failures: {failed}) ===");
 if (failed > 0) Environment.Exit(1);

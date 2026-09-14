@@ -14,9 +14,16 @@ namespace ExpeditionPlanner
             var candidates = BuildCandidates(targets, settings);
             int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
             var finalStackPillar = FindFinalStackPillar(targets, settings);
-            // Bridge bombs consume slots too. Do not cap the route by pillar count:
-            // a remote pillar may need several legal fuse segments before it can be hit.
-            int maxCount = Math.Max(1, settings.MaxExplosiveBudget - placed.Count);
+            int remainingBudget = settings.MaxExplosiveBudget - placed.Count;
+            if (remainingBudget <= 0)
+            {
+                return new RouteEvaluation
+                {
+                    Profile = settings.Profile.ToString(),
+                    Reason = "All available explosives have been placed."
+                };
+            }
+            int maxCount = remainingBudget;
             var best = SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, finalStackPillar)
                 ?? new RouteEvaluation { Profile = settings.Profile.ToString() };
             var coveredPillars = best.Placements.SelectMany(p => p.CoveredTargets)
@@ -72,9 +79,25 @@ namespace ExpeditionPlanner
             const int beamWidth = 32;
             var pillarTargets = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
             var initialAnchor = placed.Count > 0 ? placed[^1].GridPosition : startGrid;
+            var initialCovered = new HashSet<uint>();
+            foreach (var bomb in placed)
+            {
+                foreach (var target in pillarTargets)
+                {
+                    if (Vector2.Distance(new Vector2(bomb.GridPosition.X, bomb.GridPosition.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y)) <= settings.BlastRadiusGrid)
+                    {
+                        initialCovered.Add(target.EntityId);
+                    }
+                }
+            }
             var beam = new List<BeamState>
             {
-                new() { Anchor = initialAnchor, Committed = placed.Select(p => p.GridPosition).ToList() }
+                new()
+                {
+                    Anchor = initialAnchor,
+                    Committed = placed.Select(p => p.GridPosition).ToList(),
+                    Covered = initialCovered
+                }
             };
             var terminals = new List<BeamState>();
             BeamState? bestPrefix = beam[0];
@@ -245,26 +268,20 @@ namespace ExpeditionPlanner
             return int.MaxValue;
         }
 
-        private static ExpeditionTarget? FindFinalStackPillar(IEnumerable<ExpeditionTarget> targets, ExpeditionPlannerSettings settings) => targets
-            .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
-            .OrderByDescending(t => t.HoleCount)
-            .ThenByDescending(t => Value(t, settings))
-            .FirstOrDefault();
-
-        private static int CountCoveredPillars(RouteEvaluation route) => route.Placements.SelectMany(p => p.CoveredTargets)
-            .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
-            .Select(t => t.EntityId).Distinct().Count();
-
-        private static bool EndsAt(RouteEvaluation route, ExpeditionTarget? target) => target != null && route.Placements.Count > 0 &&
-            route.Placements[^1].CoveredTargets.Any(t => t.EntityId == target.EntityId);
-
-        private static int FirstRuneStep(RouteEvaluation route, string rune)
+        private static ExpeditionTarget? FindFinalStackPillar(IEnumerable<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
         {
-            for (int index = 0; index < route.Placements.Count; index++)
-            {
-                if (route.Placements[index].CoveredTargets.Any(t => RuneName(t).Equals(rune, StringComparison.OrdinalIgnoreCase))) return index;
-            }
-            return int.MaxValue;
+            var pillars = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
+            if (pillars.Count == 0) return null;
+
+            // Opulent multipliers must open early to proliferate into subsequent explosions.
+            // Therefore, the final stack receiver should be the widest non-Opulent pillar.
+            var nonOpulent = pillars.Where(t => !RuneName(t).Equals("Opulent", StringComparison.OrdinalIgnoreCase)).ToList();
+            var pool = nonOpulent.Count > 0 ? nonOpulent : pillars;
+
+            return pool
+                .OrderByDescending(t => t.HoleCount)
+                .ThenByDescending(t => Value(t, settings))
+                .FirstOrDefault();
         }
 
         private static void AppendUncoveredPillarDiagnostics(
