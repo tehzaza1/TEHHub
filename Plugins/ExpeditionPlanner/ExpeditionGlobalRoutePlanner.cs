@@ -105,7 +105,14 @@ namespace ExpeditionPlanner
                     // A whole route may use bridge points, but they must head toward an uncovered target.
                     if (hit.Count == 0)
                     {
-                        var next = targets.Where(t => !covered.Contains(t.EntityId)).OrderBy(t => Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y))).FirstOrDefault();
+                        // Do not spend bridge segments walking back to the mandatory
+                        // final pillar while other pillars still need coverage.
+                        var next = targets
+                            .Where(t => !covered.Contains(t.EntityId) &&
+                                (finalStackPillar == null || t.EntityId != finalStackPillar.EntityId))
+                            .OrderBy(t => Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)))
+                            .FirstOrDefault()
+                            ?? finalStackPillar;
                         if (next == null) continue;
                         score = Vector2.Distance(new Vector2(anchor.X, anchor.Y), new Vector2(next.GridPosition.X, next.GridPosition.Y)) - Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(next.GridPosition.X, next.GridPosition.Y));
                     }
