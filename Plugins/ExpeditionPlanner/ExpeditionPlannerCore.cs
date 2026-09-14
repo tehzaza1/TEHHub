@@ -13,6 +13,7 @@ namespace ExpeditionPlanner
     using TEHhub;
     using TEHhub.CoroutineEvents;
     using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.States.InGameState;
     using TEHhub.Plugin;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
@@ -100,6 +101,125 @@ namespace ExpeditionPlanner
 
         private static StdTuple3D<float> ToStdTuple(Vector3 v) => new() { X = v.X, Y = v.Y, Z = v.Z };
 
+        private static bool TryGetEntityPositions(Entity entity, out Vector3 gridPos, out Vector3 worldPos)
+        {
+            gridPos = Vector3.Zero;
+            worldPos = Vector3.Zero;
+            if (entity == null || entity.Address == IntPtr.Zero) return false;
+
+            if (entity.TryGetComponent<Render>(out var render, false))
+            {
+                gridPos = new Vector3(render.GridPosition.X, render.GridPosition.Y, render.GridPosition.Z);
+                worldPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.WorldPosition.Z);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool ProjectToClipSpace(Matrix4x4 m, Vector3 p, out Vector4 clip)
+        {
+            clip = new Vector4(
+                (m.M11 * p.X) + (m.M21 * p.Y) + (m.M31 * p.Z) + m.M41,
+                (m.M12 * p.X) + (m.M22 * p.Y) + (m.M32 * p.Z) + m.M42,
+                (m.M13 * p.X) + (m.M23 * p.Y) + (m.M33 * p.Z) + m.M43,
+                (m.M14 * p.X) + (m.M24 * p.Y) + (m.M34 * p.Z) + m.M44);
+            return clip.W > 0.001f;
+        }
+
+        private static Vector2 ClipToScreen(Vector4 clip, float winW, float winH)
+        {
+            float ndcX = clip.X / clip.W;
+            float ndcY = clip.Y / clip.W;
+            return new Vector2(
+                (ndcX + 1.0f) * (winW * 0.5f),
+                (1.0f - ndcY) * (winH * 0.5f));
+        }
+
+        private static bool ClipLine2D(ref Vector2 p0, ref Vector2 p1, float xMin, float yMin, float xMax, float yMax)
+        {
+            float dx = p1.X - p0.X;
+            float dy = p1.Y - p0.Y;
+            float t0 = 0.0f;
+            float t1 = 1.0f;
+
+            if (!ClipTest(-dx, -(xMin - p0.X), ref t0, ref t1)) return false;
+            if (!ClipTest(dx, xMax - p0.X, ref t0, ref t1)) return false;
+            if (!ClipTest(-dy, -(yMin - p0.Y), ref t0, ref t1)) return false;
+            if (!ClipTest(dy, yMax - p0.Y, ref t0, ref t1)) return false;
+
+            if (t1 < 1.0f)
+            {
+                p1 = new Vector2(p0.X + (t1 * dx), p0.Y + (t1 * dy));
+            }
+            if (t0 > 0.0f)
+            {
+                p0 = new Vector2(p0.X + (t0 * dx), p0.Y + (t0 * dy));
+            }
+            return true;
+        }
+
+        private static bool ClipTest(float p, float q, ref float t0, ref float t1)
+        {
+            if (p < 0.0f)
+            {
+                float r = q / p;
+                if (r > t1) return false;
+                if (r > t0) t0 = r;
+            }
+            else if (p > 0.0f)
+            {
+                float r = q / p;
+                if (r < t0) return false;
+                if (r < t1) t1 = r;
+            }
+            else if (q < 0.0f)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private static void DrawSafe3DLine(
+            ImDrawListPtr drawList,
+            Matrix4x4 matrix,
+            float winW,
+            float winH,
+            Vector3 worldA,
+            Vector3 worldB,
+            uint color,
+            float thickness)
+        {
+            ProjectToClipSpace(matrix, worldA, out var clipA);
+            ProjectToClipSpace(matrix, worldB, out var clipB);
+
+            const float nearW = 0.05f;
+            bool aFront = clipA.W >= nearW;
+            bool bFront = clipB.W >= nearW;
+
+            if (!aFront && !bFront) return;
+
+            if (!aFront)
+            {
+                float t = (nearW - clipA.W) / (clipB.W - clipA.W);
+                clipA = Vector4.Lerp(clipA, clipB, Math.Clamp(t, 0f, 1f));
+            }
+            else if (!bFront)
+            {
+                float t = (nearW - clipB.W) / (clipA.W - clipB.W);
+                clipB = Vector4.Lerp(clipB, clipA, Math.Clamp(t, 0f, 1f));
+            }
+
+            var screenA = ClipToScreen(clipA, winW, winH);
+            var screenB = ClipToScreen(clipB, winW, winH);
+
+            const float margin = 60f;
+            if (ClipLine2D(ref screenA, ref screenB, -margin, -margin, winW + margin, winH + margin))
+            {
+                drawList.AddLine(screenA, screenB, color, thickness);
+            }
+        }
+
         private void ResetState()
         {
             this.currentAreaHash = string.Empty;
@@ -156,55 +276,72 @@ namespace ExpeditionPlanner
 
             var drawList = ImGui.GetBackgroundDrawList();
 
-            // 1. Draw Placed Bombs badges (solid cyan)
-            for (int i = 0; i < this.placedBombs.Count; i++)
+            var reader = Core.Process.Handle;
+            var worldData = reader.ReadMemory<WorldDataOffset>(world.Address);
+            var matrix = worldData.CameraStructurePtr.WorldToScreenMatrix;
+            float winW = Core.Process.WindowArea.Width;
+            float winH = Core.Process.WindowArea.Height;
+
+            // 1. Draw Route Connector Lines (Detonator -> Placed Bombs -> Recommended 1 -> 2 -> 3)
+            // Connector lines between placed bombs
+            if (this.hasDetonator && this.detonatorWorld.LengthSquared() > 1f && this.placedBombs.Count > 0)
             {
-                var bomb = this.placedBombs[i];
-                var sPos = world.WorldToScreen(ToStdTuple(bomb.WorldPosition), bomb.WorldPosition.Z);
-                if (sPos.X > 0 && sPos.Y > 0)
+                DrawSafe3DLine(drawList, matrix, winW, winH, this.detonatorWorld, this.placedBombs[0].WorldPosition, 0xDD00CCCC, 2.5f);
+            }
+            for (int i = 0; i < this.placedBombs.Count - 1; i++)
+            {
+                DrawSafe3DLine(drawList, matrix, winW, winH, this.placedBombs[i].WorldPosition, this.placedBombs[i + 1].WorldPosition, 0xDD00CCCC, 2.5f);
+            }
+
+            // Connector lines from anchor to recommended route
+            if (this.Settings.ShowBadges && this.currentRoute.Placements.Count > 0)
+            {
+                Vector3? anchorPos = this.placedBombs.Count > 0
+                    ? this.placedBombs[^1].WorldPosition
+                    : (this.hasDetonator && this.detonatorWorld.LengthSquared() > 1f ? this.detonatorWorld : null);
+
+                if (anchorPos.HasValue)
                 {
-                    drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.8f, 0xDD00CCCC);
-                    drawList.AddCircle(sPos, this.Settings.BadgeRadius * 0.8f, 0xFFFFFFFF, 0, 2f);
-                    var text = $"P{i + 1}";
-                    var textSize = ImGui.CalcTextSize(text);
-                    drawList.AddText(sPos - (textSize * 0.5f), 0xFFFFFFFF, text);
+                    var firstP = this.currentRoute.Placements[0];
+                    uint lineColor = firstP.IsObstructed ? 0xDD3333FF : 0xDD00E5FF;
+                    DrawSafe3DLine(drawList, matrix, winW, winH, anchorPos.Value, firstP.WorldPosition, lineColor, firstP.IsObstructed ? 3.0f : 2.5f);
+                }
+
+                for (int i = 0; i < this.currentRoute.Placements.Count - 1; i++)
+                {
+                    var p = this.currentRoute.Placements[i];
+                    var nextP = this.currentRoute.Placements[i + 1];
+                    uint lineColor = nextP.IsObstructed ? 0xDD3333FF : 0xAAFFCC00;
+                    DrawSafe3DLine(drawList, matrix, winW, winH, p.WorldPosition, nextP.WorldPosition, lineColor, nextP.IsObstructed ? 3.0f : 2.5f);
                 }
             }
 
-            // 2. Draw Recommended Placement Badges (1 -> 2 -> 3)
+            // 2. Draw Placed Bombs badges (solid cyan)
+            for (int i = 0; i < this.placedBombs.Count; i++)
+            {
+                var bomb = this.placedBombs[i];
+                if (!ProjectToClipSpace(matrix, bomb.WorldPosition, out var clip) || clip.W < 0.05f) continue;
+                var sPos = ClipToScreen(clip, winW, winH);
+                if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
+                    sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
+
+                drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.8f, 0xDD00CCCC);
+                drawList.AddCircle(sPos, this.Settings.BadgeRadius * 0.8f, 0xFFFFFFFF, 0, 2f);
+                var text = $"P{i + 1}";
+                var textSize = ImGui.CalcTextSize(text);
+                drawList.AddText(sPos - (textSize * 0.5f), 0xFFFFFFFF, text);
+            }
+
+            // 3. Draw Recommended Placement Badges (1 -> 2 -> 3)
             if (this.Settings.ShowBadges && this.currentRoute.Placements.Count > 0)
             {
-                // Draw connector line from active anchor (detonator or last placed bomb) to first recommended placement
-                var firstP = this.currentRoute.Placements[0];
-                var firstScreen = world.WorldToScreen(ToStdTuple(firstP.WorldPosition), firstP.WorldPosition.Z);
-                if (firstScreen.X > 0 && firstScreen.Y > 0)
-                {
-                    Vector3? anchorPos = null;
-                    if (this.placedBombs.Count > 0)
-                    {
-                        anchorPos = this.placedBombs[^1].WorldPosition;
-                    }
-                    else if (this.detonatorWorld.LengthSquared() > 1f)
-                    {
-                        anchorPos = this.detonatorWorld;
-                    }
-
-                    if (anchorPos.HasValue)
-                    {
-                        var aScreen = world.WorldToScreen(ToStdTuple(anchorPos.Value), anchorPos.Value.Z);
-                        if (aScreen.X > 0 && aScreen.Y > 0)
-                        {
-                            uint lineColor = firstP.IsObstructed ? 0xDD3333FF : 0xDD00E5FF;
-                            drawList.AddLine(aScreen, firstScreen, lineColor, firstP.IsObstructed ? 3.0f : 2.5f);
-                        }
-                    }
-                }
-
                 for (int i = 0; i < this.currentRoute.Placements.Count; i++)
                 {
                     var p = this.currentRoute.Placements[i];
-                    var sPos = world.WorldToScreen(ToStdTuple(p.WorldPosition), p.WorldPosition.Z);
-                    if (sPos.X <= 0 || sPos.Y <= 0) continue;
+                    if (!ProjectToClipSpace(matrix, p.WorldPosition, out var clip) || clip.W < 0.05f) continue;
+                    var sPos = ClipToScreen(clip, winW, winH);
+                    if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
+                        sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
 
                     // Blast radius circle on ground (subtle gold ring)
                     if (this.Settings.ShowBlastRadius)
@@ -221,18 +358,6 @@ namespace ExpeditionPlanner
                     var badgeText = $"{p.Step}";
                     var bSize = ImGui.CalcTextSize(badgeText);
                     drawList.AddText(sPos - (bSize * 0.5f), 0xFF000000, badgeText);
-
-                    // Connector line to next recommended bomb
-                    if (i < this.currentRoute.Placements.Count - 1)
-                    {
-                        var nextP = this.currentRoute.Placements[i + 1];
-                        var nextScreen = world.WorldToScreen(ToStdTuple(nextP.WorldPosition), nextP.WorldPosition.Z);
-                        if (nextScreen.X > 0 && nextScreen.Y > 0)
-                        {
-                            uint nextLineColor = nextP.IsObstructed ? 0xDD3333FF : 0xAAFFCC00;
-                            drawList.AddLine(sPos, nextScreen, nextLineColor, nextP.IsObstructed ? 3.0f : 2.5f);
-                        }
-                    }
 
                     // Floating recommendation card for Remnant pillars
                     var remnantTarget = p.CoveredTargets.Find(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
@@ -271,26 +396,17 @@ namespace ExpeditionPlanner
                         }
                         else
                         {
-                            var localSlot = remnantTarget.AnchorSlotIndex >= 0 ? $"Slot #{remnantTarget.AnchorSlotIndex + 1}" : "Local";
-                            choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice} (Anchor: {remnantTarget.AnchorRuneName} @ {localSlot})";
-
+                            choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice} (Anchor: {remnantTarget.AnchorRuneName})";
                             var gCandidate = !string.IsNullOrEmpty(remnantTarget.GoldenRuneCandidate) ? remnantTarget.GoldenRuneCandidate : "Blue Rune";
                             if (remnantTarget.CanProliferate)
                             {
-                                var gTierName = remnantTarget.ProliferatedRuneTier switch
-                                {
-                                    RuneTier.Golden => "Opulent",
-                                    RuneTier.Purple_S => "S-Tier",
-                                    RuneTier.Purple_A => "A-Tier",
-                                    _ => "Purple"
-                                };
                                 subText = remnantTarget.ProliferationRemaining > 0
-                                    ? $"{goldenDisplay}: Likely [{gCandidate}] [{gTierName}] -> Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
-                                    : $"{goldenDisplay}: Likely [{gCandidate}] [{gTierName}] (Local only)";
+                                    ? $"{goldenDisplay}: [{gCandidate}] -> Proliferates: x{remnantTarget.ProliferationRemaining} bombs"
+                                    : $"{goldenDisplay}: [{gCandidate}] (Local only)";
                             }
                             else
                             {
-                                subText = $"{goldenDisplay}: Likely [{gCandidate}] [Blue Rune - No Proliferation]";
+                                subText = $"{goldenDisplay}: [{gCandidate}] (No Proliferation)";
                             }
                         }
 
@@ -323,14 +439,16 @@ namespace ExpeditionPlanner
                 }
             }
 
-            // 2.5 Draw preview badges for discovered Remnants before route is calculated
+            // 4. Draw preview badges for discovered Remnants before route is calculated
             if (this.Settings.ShowBadges && this.currentRoute.Placements.Count == 0 && this.activeTargets.Count > 0)
             {
                 foreach (var target in this.activeTargets)
                 {
                     if (target.Kind != TargetKind.RemnantPillar && target.Kind != TargetKind.VerisiumSentinel) continue;
-                    var sPos = world.WorldToScreen(ToStdTuple(target.WorldPosition), target.WorldPosition.Z);
-                    if (sPos.X <= 0 || sPos.Y <= 0) continue;
+                    if (!ProjectToClipSpace(matrix, target.WorldPosition, out var clip) || clip.W < 0.05f) continue;
+                    var sPos = ClipToScreen(clip, winW, winH);
+                    if (sPos.X < -this.Settings.BadgeRadius || sPos.X > winW + this.Settings.BadgeRadius ||
+                        sPos.Y < -this.Settings.BadgeRadius || sPos.Y > winH + this.Settings.BadgeRadius) continue;
 
                     uint badgeColor = target.ProliferatedRuneTier switch
                     {
@@ -515,22 +633,22 @@ namespace ExpeditionPlanner
                 var path = entity.Path;
                 if (path == DetonatorPath)
                 {
-                    if (entity.TryGetComponent<Render>(out var render, false))
+                    if (TryGetEntityPositions(entity, out var grid, out var world))
                     {
                         this.hasDetonator = true;
-                        this.detonatorGrid = new Vector3(render.GridPosition.X, render.GridPosition.Y, render.GridPosition.Z);
-                        this.detonatorWorld = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.WorldPosition.Z);
+                        this.detonatorGrid = grid;
+                        this.detonatorWorld = world;
                     }
                 }
                 else if (path == ExplosivePath)
                 {
-                    if (entity.TryGetComponent<Render>(out var render, false))
+                    if (TryGetEntityPositions(entity, out var grid, out var world))
                     {
                         currentBombs.Add(new PlacedBombInfo
                         {
                             EntityId = entity.Id,
-                            GridPosition = new Vector3(render.GridPosition.X, render.GridPosition.Y, render.GridPosition.Z),
-                            WorldPosition = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.WorldPosition.Z),
+                            GridPosition = grid,
+                            WorldPosition = world,
                             Order = bombOrder++
                         });
                     }
@@ -547,6 +665,22 @@ namespace ExpeditionPlanner
                         }
                     }
                 }
+            }
+
+            // If detonator not yet discovered from awake entities, search sleeping entities across the area immediately!
+            if (!this.hasDetonator)
+            {
+                area.ScanSleepingEntities(
+                    path => path == DetonatorPath,
+                    (key, entity) =>
+                    {
+                        if (TryGetEntityPositions(entity, out var grid, out var worldPos))
+                        {
+                            this.hasDetonator = true;
+                            this.detonatorGrid = grid;
+                            this.detonatorWorld = worldPos;
+                        }
+                    });
             }
 
             // Update placed bombs. A snapshot never solves a route: calculation is manual
