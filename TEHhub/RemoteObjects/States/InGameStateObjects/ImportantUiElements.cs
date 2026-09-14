@@ -51,8 +51,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private static readonly int[] GemcuttingPanelChildPath = { 53, 3 };
         private static readonly int[] SupportGemcuttingPanelChildPath = { 54, 3 };
         // Runeshape Combinations is a top-level game UI panel. The panel root was observed at
-        // child 39; its descendants hold recipe rows and the 68x68 rune slot controls.
-        private static readonly int[] RuneshapeCombinationsPanelChildPath = { 39 };
+        // child 40; its descendants hold recipe rows and the 68x68 rune slot controls.
+        private static readonly int[] RuneshapeCombinationsPanelChildPath = { 40 };
         private static readonly int[] LeftPanelCoopPath = { 22 };
         private static readonly int[] RightPanelCoopPath = { 23 };
         private static readonly int[] TempleConsoleChildPath = { 64, 0 };
@@ -1301,8 +1301,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             var reader = Core.Process.Handle;
             if (!reader.TryReadMemory<UiElementBaseOffset>(this.Address, out var root)) return IntPtr.Zero;
             var count = root.ChildrensPtr.TotalElements(IntPtr.Size);
-            if (root.ChildrensPtr.First == IntPtr.Zero || count <= 39) return IntPtr.Zero;
-            if (!reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (39 * IntPtr.Size), out var panel) || panel == IntPtr.Zero) return IntPtr.Zero;
+            if (root.ChildrensPtr.First == IntPtr.Zero || count <= 40) return IntPtr.Zero;
+            if (!reader.TryReadMemory<IntPtr>(root.ChildrensPtr.First + (40 * IntPtr.Size), out var panel) || panel == IntPtr.Zero) return IntPtr.Zero;
             // The panel is a child in GameUi's vector but its UiElement parent can be an
             // intermediate layout container, so require a live parent rather than the manager.
             return reader.TryReadMemory<UiElementBaseOffset>(panel, out var data) && data.Self == panel && data.ParentPtr != IntPtr.Zero
