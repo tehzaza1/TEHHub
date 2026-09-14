@@ -345,8 +345,12 @@ namespace ExpeditionPlanner
             float winW = Core.Process.WindowArea.Width;
             float winH = Core.Process.WindowArea.Height;
 
-            // 1. Draw 3D wire, blast circles, and bomb dots ONLY when NOT in Pillar Order Advisor mode (Requirement 6)
-            if (!this.currentRoute.IsPillarOrder)
+            // In Pillar Order Advisor mode: render floating badges and directive cards directly on Remnant pillars in 3D world
+            if (this.currentRoute.IsPillarOrder)
+            {
+                this.DrawPillarOrderInWorld(drawList, matrix, winW, winH);
+            }
+            else
             {
                 // Connector lines between placed bombs
                 if (this.hasDetonator && this.detonatorWorld.LengthSquared() > 1f && this.placedBombs.Count > 0)
@@ -543,10 +547,12 @@ namespace ExpeditionPlanner
                     drawList.AddCircle(sPos, this.Settings.BadgeRadius * 0.7f, 0xFFFFFFFF, 0, 1.5f);
 
                     var goldenSlotText = target.GoldenSlotIndices.Count > 1
-                        ? $"#{string.Join(",#", target.GoldenSlotIndices.Select(i => (i + 1).ToString()))}"
-                        : (target.GoldenSlotIndex >= 0 ? $"#{target.GoldenSlotIndex + 1}" : "");
-                    var gText = !string.IsNullOrEmpty(target.GoldenRuneCandidate) ? target.GoldenRuneCandidate : target.AnchorRuneName;
-                    var lbl = $"{goldenSlotText} {gText}";
+                        ? $"Golden #{string.Join(",#", target.GoldenSlotIndices.Select(i => (i + 1).ToString()))}"
+                        : (target.GoldenSlotIndex >= 0 ? $"Golden #{target.GoldenSlotIndex + 1}" : "");
+                    var gText = !string.IsNullOrEmpty(target.RecommendedRuneChoice)
+                        ? target.RecommendedRuneChoice
+                        : (!string.IsNullOrEmpty(target.GoldenRuneCandidate) ? target.GoldenRuneCandidate : target.AnchorRuneName);
+                    var lbl = $"{goldenSlotText} ({target.HoleCount}r) | 👉 {gText}";
                     var lSize = ImGui.CalcTextSize(lbl);
                     var bMin = sPos + new Vector2(-lSize.X * 0.5f - 4, this.Settings.BadgeRadius * 0.7f + 2);
                     var bMax = sPos + new Vector2(lSize.X * 0.5f + 4, this.Settings.BadgeRadius * 0.7f + 4 + lSize.Y);
@@ -707,6 +713,132 @@ namespace ExpeditionPlanner
             }
         }
 
+        private static bool IsOpulent(ExpeditionTarget? target)
+        {
+            if (target == null) return false;
+            return target.AnchorRuneName.Equals("Opulent", StringComparison.OrdinalIgnoreCase) ||
+                   target.GoldenRuneCandidate.Contains("Opulent", StringComparison.OrdinalIgnoreCase) ||
+                   target.ProliferatedRuneName.Equals("Opulent", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void DrawPillarOrderInWorld(ImDrawListPtr drawList, Matrix4x4 matrix, float winW, float winH)
+        {
+            if (!this.Settings.ShowBadges || this.currentRoute.Placements.Count == 0) return;
+
+            for (int i = 0; i < this.currentRoute.Placements.Count; i++)
+            {
+                var step = this.currentRoute.Placements[i];
+                var pillar = step.CoveredTargets.FirstOrDefault(t => t.Kind == TargetKind.RemnantPillar || t.Kind == TargetKind.VerisiumSentinel);
+                if (pillar == null) continue;
+
+                if (!ProjectToClipSpace(matrix, pillar.WorldPosition, out var clip) || clip.W < 0.05f) continue;
+                var sPos = ClipToScreen(clip, winW, winH);
+                if (sPos.X < -250f || sPos.X > winW + 250f || sPos.Y < -250f || sPos.Y > winH + 250f) continue;
+
+                bool isFinal = (step.Step == this.currentRoute.Placements.Count);
+                bool isOp = IsOpulent(pillar);
+                var tier = pillar.ProliferatedRuneTier;
+
+                string tierPrefix = "";
+                if (isOp || tier == RuneTier.Golden)
+                {
+                    tierPrefix = "[SSS Opulent] ";
+                }
+                else if (tier == RuneTier.Purple_S)
+                {
+                    tierPrefix = "[S-Tier] ";
+                }
+                else if (tier == RuneTier.Purple_A)
+                {
+                    tierPrefix = "[A-Tier] ";
+                }
+
+                uint ringColor = isFinal ? 0xFFFF8800 : (isOp || tier == RuneTier.Golden ? 0xFFFFD700 : (tier switch
+                {
+                    RuneTier.Purple_S => 0xFFFF55FF,
+                    RuneTier.Purple_A => 0xFFDA70D6,
+                    RuneTier.Purple_B => 0xFFBA55D3,
+                    _ => 0xFF00E5FF
+                }));
+
+                // 1. Circular badge on the pillar
+                float badgeRadius = isFinal ? 22f : 18f;
+                drawList.AddCircleFilled(sPos, badgeRadius, 0xEE141414);
+                drawList.AddCircle(sPos, badgeRadius, ringColor, 0, isFinal ? 3.0f : 2.0f);
+
+                string badgeText = step.Step.ToString();
+                var bSize = ImGui.CalcTextSize(badgeText);
+                drawList.AddText(sPos - (bSize * 0.5f), 0xFFFFFFFF, badgeText);
+
+                // 2. Clear instructions card directly above/on the pillar
+                var goldenSlotDisplay = pillar.GoldenSlotIndices.Count > 1
+                    ? $"Golden #{string.Join(", #", pillar.GoldenSlotIndices.Select(x => x + 1))}"
+                    : (pillar.GoldenSlotIndex >= 0 ? $"Golden #{pillar.GoldenSlotIndex + 1}" : "ไม่มี Golden");
+
+                var goldenRuneDisplay = !string.IsNullOrEmpty(pillar.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown"
+                    ? pillar.GoldenRuneCandidate
+                    : (pillar.IsAnchorInGoldenSlot ? pillar.AnchorRuneName : "-");
+
+                string pickText;
+                if (isFinal)
+                {
+                    pickText = $"เสาสุดท้าย ({pillar.HoleCount} รู) - {pillar.AnchorRuneName}";
+                }
+                else if (!string.IsNullOrEmpty(pillar.RecommendedRuneChoice))
+                {
+                    pickText = pillar.RecommendedRuneChoice;
+                }
+                else if (!string.IsNullOrEmpty(pillar.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown")
+                {
+                    pickText = $"เลือก {pillar.GoldenRuneCandidate}";
+                }
+                else
+                {
+                    pickText = $"เลือก {pillar.AnchorRuneName}";
+                }
+
+                string headerLine = isFinal
+                    ? $"★ เสาลำดับ [{step.Step}] FINAL STACK ({pillar.HoleCount} รู) ★"
+                    : $"{tierPrefix}เสาลำดับ [{step.Step}] | {goldenSlotDisplay} ({pillar.HoleCount} รู)";
+
+                string actionLine = $"👉 กดเลือก: {pickText}";
+                string runeLine = $"รูนหลัก: {pillar.AnchorRuneName} | Golden: {goldenRuneDisplay}";
+
+                string rerollLine = pillar.NeedsReroll
+                    ? $"[!] ต้อง REROLL: {pillar.RerollReason}"
+                    : (pillar.CanProliferate && !isFinal ? $"[✓] ไม่ต้อง Reroll -> ส่งผลคูณ [{pillar.ProliferatedRuneName}]" : "[✓] ไม่ต้อง Reroll");
+
+                var hSize = ImGui.CalcTextSize(headerLine);
+                var aSize = ImGui.CalcTextSize(actionLine);
+                var rSize = ImGui.CalcTextSize(runeLine);
+                var sSize = ImGui.CalcTextSize(rerollLine);
+
+                float padX = 12f;
+                float padY = 6f;
+                float lineGap = 3f;
+                float boxW = MathF.Max(hSize.X, MathF.Max(aSize.X, MathF.Max(rSize.X, sSize.X))) + (padX * 2f);
+                float boxH = (padY * 2f) + hSize.Y + aSize.Y + rSize.Y + sSize.Y + (lineGap * 3f);
+                var boxPos = sPos + new Vector2(-boxW * 0.5f, badgeRadius + 6f);
+
+                uint boxBorder = isFinal ? 0xFFFF8800 : (pillar.NeedsReroll ? 0xFF0033FF : ringColor);
+                uint headerColor = isFinal ? 0xFFFF8800 : ringColor;
+                uint actionColor = 0xFF00FFFF; // Bright Cyan
+                uint rerollColor = pillar.NeedsReroll ? 0xFF3333FF : 0xFF55FF55;
+
+                drawList.AddRectFilled(boxPos, boxPos + new Vector2(boxW, boxH), 0xF0101010, 6f);
+                drawList.AddRect(boxPos, boxPos + new Vector2(boxW, boxH), boxBorder, 6f, 0, 2.0f);
+
+                float curY = boxPos.Y + padY;
+                drawList.AddText(new Vector2(boxPos.X + padX, curY), headerColor, headerLine);
+                curY += hSize.Y + lineGap;
+                drawList.AddText(new Vector2(boxPos.X + padX, curY), actionColor, actionLine);
+                curY += aSize.Y + lineGap;
+                drawList.AddText(new Vector2(boxPos.X + padX, curY), 0xFFDDDDDD, runeLine);
+                curY += rSize.Y + lineGap;
+                drawList.AddText(new Vector2(boxPos.X + padX, curY), rerollColor, rerollLine);
+            }
+        }
+
         private void DrawPillarOrderOnLargeMap(InGameState game, AreaInstance area, ImDrawListPtr drawList)
         {
             var map = game.GameUi.LargeMap;
@@ -764,12 +896,10 @@ namespace ExpeditionPlanner
                 bool isFinal = (i == this.currentRoute.Placements.Count - 1);
                 var pillar = step.CoveredTargets.FirstOrDefault();
 
-                bool isOpulent = pillar != null && (
-                    pillar.AnchorRuneName.Equals("Opulent", StringComparison.OrdinalIgnoreCase) ||
-                    pillar.GoldenRuneCandidate.Equals("Opulent", StringComparison.OrdinalIgnoreCase) ||
-                    pillar.ProliferatedRuneName.Equals("Opulent", StringComparison.OrdinalIgnoreCase));
+                bool isOp = IsOpulent(pillar);
+                var pTier = pillar?.ProliferatedRuneTier ?? RuneTier.Blue_C;
 
-                uint ringColor = isFinal ? 0xFFFF8800 : (isOpulent ? 0xFFFFD700 : (pillar?.ProliferatedRuneTier switch
+                uint ringColor = isFinal ? 0xFFFF8800 : (isOp || pTier == RuneTier.Golden ? 0xFFFFD700 : (pTier switch
                 {
                     RuneTier.Purple_S => 0xFFFF55FF,
                     RuneTier.Purple_A => 0xFFDA70D6,
@@ -785,13 +915,80 @@ namespace ExpeditionPlanner
                 var size = ImGui.CalcTextSize(label);
                 drawList.AddText(point - (size * 0.5f), 0xFFFFFFFF, label);
 
+                // Tag label below badge on Large Map
+                string tag;
+                uint tagTextColor;
                 if (isFinal)
                 {
-                    var tag = "FINAL";
+                    tag = $"FINAL ({pillar?.HoleCount ?? 0}r)";
+                    tagTextColor = 0xFFFF8800;
+                }
+                else if (pillar?.NeedsReroll == true)
+                {
+                    tag = "REROLL";
+                    tagTextColor = 0xFF4444FF;
+                }
+                else if (isOp || pTier == RuneTier.Golden)
+                {
+                    tag = "SSS Opulent ★";
+                    tagTextColor = 0xFFFFD700;
+                }
+                else if (pTier == RuneTier.Purple_S)
+                {
+                    var gRune = !string.IsNullOrEmpty(pillar?.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown"
+                        ? pillar.GoldenRuneCandidate
+                        : (pillar?.AnchorRuneName ?? "");
+                    tag = $"[S] {gRune}";
+                    tagTextColor = 0xFFFF55FF;
+                }
+                else if (pTier == RuneTier.Purple_A)
+                {
+                    var gRune = !string.IsNullOrEmpty(pillar?.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown"
+                        ? pillar.GoldenRuneCandidate
+                        : (pillar?.AnchorRuneName ?? "");
+                    tag = $"[A] {gRune}";
+                    tagTextColor = 0xFFDA70D6;
+                }
+                else
+                {
+                    var gRune = !string.IsNullOrEmpty(pillar?.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown"
+                        ? pillar.GoldenRuneCandidate
+                        : (pillar?.AnchorRuneName ?? "");
+                    tag = $"{pillar?.HoleCount}r {gRune}";
+                    tagTextColor = ringColor;
+                }
+
+                if (!string.IsNullOrEmpty(tag))
+                {
                     var tagSize = ImGui.CalcTextSize(tag);
                     var tagPos = new Vector2(point.X - (tagSize.X * 0.5f), point.Y + radius + 1f);
                     drawList.AddRectFilled(tagPos - new Vector2(2, 0), tagPos + tagSize + new Vector2(2, 0), 0xCC000000, 2f);
-                    drawList.AddText(tagPos, 0xFFFF8800, tag);
+                    drawList.AddText(tagPos, tagTextColor, tag);
+                }
+
+                // Interactive Hover Tooltip on Large Map
+                var mousePos = ImGui.GetMousePos();
+                if (Vector2.Distance(mousePos, point) <= radius + 8f && pillar != null)
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.TextColored(new Vector4(1f, 0.8f, 0.2f, 1f), $"Step [{step.Step}] Remnant Pillar ({pillar.HoleCount} รู)");
+                    ImGui.Separator();
+                    var gSlotDisp = pillar.GoldenSlotIndices.Count > 1
+                        ? $"Golden Slots #{string.Join(", #", pillar.GoldenSlotIndices.Select(x => x + 1))}"
+                        : (pillar.GoldenSlotIndex >= 0 ? $"Golden Slot #{pillar.GoldenSlotIndex + 1}" : "ไม่มี Golden Slot");
+                    ImGui.Text($"ตำแหน่ง: {gSlotDisp}");
+                    ImGui.Text($"รูนหลัก: {pillar.AnchorRuneName} | Golden: {pillar.GoldenRuneCandidate}");
+                    var pickPrompt = !string.IsNullOrEmpty(pillar.RecommendedRuneChoice)
+                        ? pillar.RecommendedRuneChoice
+                        : (!string.IsNullOrEmpty(pillar.GoldenRuneCandidate) && pillar.GoldenRuneCandidate != "Unknown" ? pillar.GoldenRuneCandidate : pillar.AnchorRuneName);
+                    ImGui.TextColored(new Vector4(0.3f, 0.9f, 1f, 1f), $"👉 กดเลือก: {pickPrompt}");
+                    if (pillar.NeedsReroll)
+                        ImGui.TextColored(new Vector4(1f, 0.3f, 0.3f, 1f), $"[!] ต้อง REROLL: {pillar.RerollReason}");
+                    else
+                        ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1f), "[✓] ไม่ต้อง Reroll");
+                    if (isFinal)
+                        ImGui.TextColored(new Vector4(1f, 0.55f, 0f, 1f), "★ FINAL STACK PILLAR - รับผลคูณจากเสาก่อนหน้าทั้งหมด ★");
+                    ImGui.EndTooltip();
                 }
             }
         }

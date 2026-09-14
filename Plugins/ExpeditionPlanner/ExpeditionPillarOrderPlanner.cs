@@ -30,35 +30,46 @@ namespace ExpeditionPlanner
                 return result;
             }
 
-            // 3. Dynamically discover the maximum hole count across all pillars on this map (never hardcode 7)
+            // 2. Separate regular pillars from top-tier (SSS / S / A) runes:
+            // Requirement: "การเลียงควรรูเลียงจากน้อยไปมาก ยกเว้นจะเจอ รูน SSS S A"
+            // - SSS, S, and A pillars MUST detonate early to proliferate their powerful multipliers to all subsequent pillars.
+            // - The final stack pillar should be selected from the regular pillars with the maximum hole count.
+            var regularPillars = pillars.Where(p => GetRuneTierRank(p) >= 999).ToList();
+            ExpeditionTarget final;
             int maxHoles = pillars.Max(p => p.HoleCount);
 
-            // The pillar with the highest hole count is ALWAYS the final pillar ("Final stack pillar").
-            // It absorbs all accumulated multipliers and bonuses from all previous pillars in the chain.
-            // If multiple pillars have maxHoles, pick the one that does not proliferate (or has lower tier proliferation),
-            // so pillars with powerful proliferating buffs (like Opulent or Purple S-tier) detonate earlier.
-            var maxHoleCandidates = pillars.Where(p => p.HoleCount == maxHoles).ToList();
-            var final = maxHoleCandidates
-                .OrderBy(p => IsOpulent(p))       // Opulent should NOT be final if another candidate exists
-                .ThenBy(p => p.CanProliferate)     // Prefer non-proliferating for final
-                .ThenBy(p => RunePriority(p))      // Prefer lower tier for final
-                .ThenBy(p => p.EntityId)
-                .First();
+            if (regularPillars.Count > 0)
+            {
+                int maxRegularHoles = regularPillars.Max(p => p.HoleCount);
+                var finalCandidates = regularPillars.Where(p => p.HoleCount == maxRegularHoles).ToList();
+                final = finalCandidates
+                    .OrderBy(p => p.CanProliferate)     // Prefer non-proliferating for final
+                    .ThenBy(p => p.NeedsReroll)          // Prefer not needing reroll for final
+                    .ThenBy(p => RunePriority(p))        // Prefer lower priority for final
+                    .ThenBy(p => p.EntityId)
+                    .First();
+            }
+            else
+            {
+                // If all pillars on the map are top-tier (SSS / S / A), pick the one with max holes and lowest tier
+                var finalCandidates = pillars.Where(p => p.HoleCount == maxHoles).ToList();
+                final = finalCandidates
+                    .OrderByDescending(p => GetRuneTierRank(p)) // Lower tier (A over S, S over SSS)
+                    .ThenBy(p => p.CanProliferate)
+                    .ThenBy(p => p.EntityId)
+                    .First();
+            }
 
             pillars.Remove(final);
 
-            // Order the preceding pillars (1 to N-1):
-            // - Opulent / proliferating runes first (Opulent always #1)
-            // - Pillars that contribute beneficial stacks to subsequent pillars
-            // - Higher proliferation tiers earlier (Golden > Purple S > A > B)
-            // - More golden slots earlier
-            // - Smaller hole count earlier among buff pillars (saving bigger hole pillars for higher stacks)
+            // 3. Order preceding pillars (1 to N-1):
+            // - SSS (Rank 1: Opulent) -> S (Rank 2: Power, Death, Bond, Oath) -> A (Rank 3: Time, Rebirth)
+            // - Regular pillars ordered by HoleCount ascending (น้อยไปมาก: 2 -> 3 -> 4...)
+            // - Final stack pillar appended at the end
             var ordered = pillars
-                .OrderByDescending(p => IsOpulent(p))
-                .ThenByDescending(p => p.CanProliferate)
-                .ThenByDescending(p => RunePriority(p))
-                .ThenByDescending(p => p.GoldenSlotIndices.Count)
+                .OrderBy(p => GetRuneTierRank(p))
                 .ThenBy(p => p.HoleCount)
+                .ThenBy(p => p.CanProliferate ? 0 : 1)
                 .ThenBy(p => p.EntityId)
                 .Append(final)
                 .ToList();
@@ -99,7 +110,7 @@ namespace ExpeditionPlanner
             result.RerollRemnantCount = rerollCount;
 
             string finalRune = EffectiveRuneName(final);
-            result.Reason = $"Pillar Order Advisor: {ordered.Count} Remnant pillars sequenced. Max holes on map = {maxHoles}. Final #{ordered.Count} is {finalRune} ({final.HoleCount} holes).";
+            result.Reason = $"Pillar Order Advisor: {ordered.Count} Remnant pillars sequenced. Max holes = {maxHoles}. Final #{ordered.Count} is {finalRune} ({final.HoleCount} holes).";
             result.Warnings.Add($"Final stack pillar: #{ordered.Count} ({final.HoleCount} holes, {finalRune}). Keep this pillar for the end to reap the full accumulated rune multiplier!");
 
             if (rerollCount > 0)
@@ -113,7 +124,7 @@ namespace ExpeditionPlanner
         private static bool IsOpulent(ExpeditionTarget target)
         {
             return target.AnchorRuneName.Equals("Opulent", StringComparison.OrdinalIgnoreCase) ||
-                   target.GoldenRuneCandidate.Equals("Opulent", StringComparison.OrdinalIgnoreCase) ||
+                   target.GoldenRuneCandidate.Contains("Opulent", StringComparison.OrdinalIgnoreCase) ||
                    target.ProliferatedRuneName.Equals("Opulent", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -124,10 +135,60 @@ namespace ExpeditionPlanner
             return target.AnchorRuneName;
         }
 
+        private static RuneTier GetBestRuneTier(ExpeditionTarget target)
+        {
+            if (IsOpulent(target)) return RuneTier.Golden;
+            var tier = target.ProliferatedRuneTier;
+
+            var aTier = RemnantRuneAdvisor.GetRuneTier(target.AnchorRuneName);
+            if (aTier < tier) tier = aTier;
+
+            var pTier = RemnantRuneAdvisor.GetRuneTier(target.ProliferatedRuneName);
+            if (pTier < tier) tier = pTier;
+
+            string combined = $"{target.GoldenRuneCandidate} {target.RecommendedRuneChoice}";
+            if (combined.Contains("Opulent", StringComparison.OrdinalIgnoreCase))
+            {
+                return RuneTier.Golden;
+            }
+            if (combined.Contains("Power", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("Death", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("Bond", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("Oath", StringComparison.OrdinalIgnoreCase))
+            {
+                if (RuneTier.Purple_S < tier) tier = RuneTier.Purple_S;
+            }
+            if (combined.Contains("Time", StringComparison.OrdinalIgnoreCase) ||
+                combined.Contains("Rebirth", StringComparison.OrdinalIgnoreCase))
+            {
+                if (RuneTier.Purple_A < tier) tier = RuneTier.Purple_A;
+            }
+
+            return tier;
+        }
+
+        private static int GetRuneTierRank(ExpeditionTarget target)
+        {
+            // SSS / S / A take top priority before hole count ordering:
+            // SSS (Opulent / Golden): Rank 1
+            // S-tier (Power, Death, Bond, Oath): Rank 2
+            // A-tier (Time, Rebirth): Rank 3
+            // Regular pillars (B-tier, Blue C, etc.): Rank 999 (sorted by hole count ascending)
+            var bestTier = GetBestRuneTier(target);
+            return bestTier switch
+            {
+                RuneTier.Golden => 1,   // SSS
+                RuneTier.Purple_S => 2, // S
+                RuneTier.Purple_A => 3, // A
+                _ => 999                // Regular (sorted by hole count ascending)
+            };
+        }
+
         private static float RunePriority(ExpeditionTarget target)
         {
             if (IsOpulent(target)) return 10_000f;
-            return target.ProliferatedRuneTier switch
+            var bestTier = GetBestRuneTier(target);
+            return bestTier switch
             {
                 RuneTier.Golden => 9_000f,
                 RuneTier.Purple_S => 2_000f,
