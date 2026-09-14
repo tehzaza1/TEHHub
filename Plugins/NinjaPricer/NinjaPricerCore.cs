@@ -228,6 +228,16 @@ namespace NinjaPricer
         private List<SlotTag> cachedStashSlots = new();
         private volatile bool isInvScanRunning = false;
 
+        private sealed class CachedSlotItem
+        {
+            public string ItemName = string.Empty;
+            public int StackCount = 1;
+            public bool IsPriced;
+            public PriceResult Price;
+            public long ExpireUtcMs;
+        }
+        private readonly Dictionary<IntPtr, CachedSlotItem> itemSlotCache = new();
+
         // Performance diagnostics
         private double perfScanCallMs = 0.0;
         private double perfGetAllMs = 0.0;
@@ -454,6 +464,7 @@ namespace NinjaPricer
                 this.cachedGroundTags.Clear();
                 this.cachedInvSlots.Clear();
                 this.cachedStashSlots.Clear();
+                this.itemSlotCache.Clear();
                 this.lastGroundScanUtc = DateTime.MinValue;
                 this.lastInvScanUtc = DateTime.MinValue;
             }
@@ -600,11 +611,37 @@ namespace NinjaPricer
         // Item & UI Slot Helpers
         // ========================================================================
 
+        private static readonly Func<IntPtr, Item>? CreateItemFast = InitItemFactory();
+
+        private static Func<IntPtr, Item>? InitItemFactory()
+        {
+            try
+            {
+                var ctor = typeof(Item).GetConstructor(
+                    BindingFlags.Instance | BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(IntPtr) },
+                    null);
+                if (ctor == null) return null;
+                var param = System.Linq.Expressions.Expression.Parameter(typeof(IntPtr), "addr");
+                var newExp = System.Linq.Expressions.Expression.New(ctor, param);
+                return System.Linq.Expressions.Expression.Lambda<Func<IntPtr, Item>>(newExp, param).Compile();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static Item? ReadFreshItem(IntPtr itemAddress)
         {
             if (itemAddress == IntPtr.Zero) return null;
             try
             {
+                if (CreateItemFast != null)
+                {
+                    return CreateItemFast(itemAddress);
+                }
                 return Activator.CreateInstance(
                     typeof(Item),
                     BindingFlags.Instance | BindingFlags.NonPublic,
@@ -1761,6 +1798,14 @@ namespace NinjaPricer
             scanUiMs = swScan.Elapsed.TotalMilliseconds;
 
             var swGet = Stopwatch.StartNew();
+            long nowMs = Environment.TickCount64;
+
+            if (this.itemSlotCache.Count > 600)
+            {
+                var expiredKeys = this.itemSlotCache.Where(kv => nowMs >= kv.Value.ExpireUtcMs).Select(kv => kv.Key).ToList();
+                foreach (var k in expiredKeys) this.itemSlotCache.Remove(k);
+            }
+
             foreach (var (itemAddr, candidates) in candidatesByItem)
             {
                 var hasVisibleRect = false;
@@ -1781,25 +1826,48 @@ namespace NinjaPricer
                 }
 
                 if (!hasVisibleRect) continue;
-                if (!PluginUiElementReflection.TryValidateItemAddress(itemAddr, out _, out _)) continue;
 
-                var item = ReadFreshItem(itemAddr);
-                if (item == null || string.IsNullOrEmpty(item.Path) ||
-                    !item.Path.StartsWith("Metadata/Items/", StringComparison.OrdinalIgnoreCase))
+                bool isPriced = false;
+                int stackCount = 1;
+                PriceResult price = default;
+
+                if (this.itemSlotCache.TryGetValue(itemAddr, out var cached) && nowMs < cached.ExpireUtcMs)
                 {
-                    continue;
+                    isPriced = cached.IsPriced;
+                    stackCount = cached.StackCount;
+                    price = cached.Price;
+                }
+                else
+                {
+                    if (!PluginUiElementReflection.TryValidateItemAddress(itemAddr, out _, out _)) continue;
+
+                    var item = ReadFreshItem(itemAddr);
+                    if (item == null || string.IsNullOrEmpty(item.Path) ||
+                        !item.Path.StartsWith("Metadata/Items/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var itemName = this.ResolveItemName(item, out stackCount);
+                    if (string.IsNullOrWhiteSpace(itemName)) continue;
+
+                    var clean = NinjaPriceService.CleanItemName(itemName);
+                    var swL = Stopwatch.StartNew();
+                    isPriced = service.TryLookupPrice(clean, out price);
+                    swL.Stop();
+                    lookupMs += swL.Elapsed.TotalMilliseconds;
+
+                    this.itemSlotCache[itemAddr] = new CachedSlotItem
+                    {
+                        ItemName = itemName,
+                        StackCount = stackCount,
+                        IsPriced = isPriced,
+                        Price = price,
+                        ExpireUtcMs = nowMs + 3000
+                    };
                 }
 
-                var itemName = this.ResolveItemName(item, out var stackCount);
-                if (string.IsNullOrWhiteSpace(itemName)) continue;
-
-                var clean = NinjaPriceService.CleanItemName(itemName);
-                var swL = Stopwatch.StartNew();
-                bool found = service.TryLookupPrice(clean, out var price);
-                swL.Stop();
-                lookupMs += swL.Elapsed.TotalMilliseconds;
-
-                if (found)
+                if (isPriced)
                 {
                     exactFound++;
                     float chaos = price.Chaos * stackCount;
