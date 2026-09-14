@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -54,8 +55,15 @@ namespace LootValue
         public const int SourcePoe2Scout = 1;
 
         // Bump whenever the cache shape or how the art->name index is built changes, so caches written
-        // by an older plugin version are discarded instead of trusted. (v4: separate pathBasenameToItemName.json file)
-        private const int CacheSchemaVersion = 7;
+        // by an older plugin version are discarded instead of trusted. (v8: unescaped apostrophes & unique deduplication)
+        private const int CacheSchemaVersion = 8;
+
+        private static readonly JsonSerializerOptions CacheSerializerOptions = new()
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            WriteIndented = true,
+            TypeInfoResolver = LootValueJsonContext.Default,
+        };
 
         private static readonly string[] ScoutCurrencyCategories =
         {
@@ -1218,22 +1226,55 @@ namespace LootValue
         {
             if (string.IsNullOrWhiteSpace(listing.Name)) return;
 
-            void add(string key)
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            void addKey(string? raw)
             {
-                if (string.IsNullOrWhiteSpace(key)) return;
-                var norm = NormalizeKey(key);
+                if (string.IsNullOrWhiteSpace(raw)) return;
+                var norm = NormalizeKey(raw);
+                if (!string.IsNullOrEmpty(norm))
+                    keys.Add(norm);
+            }
+
+            addKey(listing.Name);
+            addKey(listing.Text);
+            if (!string.IsNullOrWhiteSpace(listing.BaseType))
+                addKey($"{listing.Name} {listing.BaseType}");
+
+            foreach (var norm in keys)
+            {
                 if (!uniques.TryGetValue(norm, out var list))
                 {
                     list = new List<UniquePriceListing>();
                     uniques[norm] = list;
                 }
-                list.Add(listing);
-            }
 
-            add(listing.Name);
-            add(listing.Text);
-            if (!string.IsNullOrWhiteSpace(listing.BaseType))
-                add($"{listing.Name} {listing.BaseType}");
+                var existingIdx = list.FindIndex(x =>
+                    string.Equals(x.Name, listing.Name, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(x.BaseType, listing.BaseType, StringComparison.OrdinalIgnoreCase) &&
+                    AreModListsEquivalent(x.ExplicitMods, listing.ExplicitMods));
+
+                if (existingIdx >= 0)
+                {
+                    list[existingIdx] = listing;
+                }
+                else
+                {
+                    list.Add(listing);
+                }
+            }
+        }
+
+        private static bool AreModListsEquivalent(List<string>? a, List<string>? b)
+        {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            if (a.Count != b.Count) return false;
+            for (var i = 0; i < a.Count; i++)
+            {
+                if (!string.Equals(a[i], b[i], StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            return true;
         }
 
         private static async Task<RatePair> FetchFromNinjaAsync(
@@ -1540,7 +1581,7 @@ namespace LootValue
                     };
                 }
 
-                File.WriteAllText(cacheFilePath, JsonSerializer.Serialize(snapshot, LootValueJsonContext.Default.PriceCacheSnapshot));
+                File.WriteAllText(cacheFilePath, JsonSerializer.Serialize(snapshot, CacheSerializerOptions));
             }
             catch { }
         }
