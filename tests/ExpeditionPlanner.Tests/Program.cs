@@ -236,5 +236,35 @@ var detonatorWorld = new Vector3(1000f, 1000f, 0f);
     else Console.WriteLine("PASSED: Opulent prioritized in Step 1!");
 }
 
+// Test 8: Map has Power rune (Purple_S, 4 holes) and Regular pillars. Ensure Power is opened in Step 1.
+{
+    Console.WriteLine("\nTest 8: Power rune (Purple_S) priority (should be opened early to proliferate)");
+    var targets = new List<ExpeditionTarget>
+    {
+        new() { EntityId = 1, Kind = TargetKind.RemnantPillar, DisplayName = "Power Pillar (4 holes)", AnchorRuneName = "Power", ProliferatedRuneName = "Power", ProliferatedRuneTier = RuneTier.Purple_S, HoleCount = 4, GridPosition = new Vector3(140f, 100f, 0f) },
+        new() { EntityId = 2, Kind = TargetKind.RemnantPillar, DisplayName = "Regular Pillar A (2 holes)", HoleCount = 2, GridPosition = new Vector3(180f, 100f, 0f) },
+        new() { EntityId = 3, Kind = TargetKind.RemnantPillar, DisplayName = "Regular Pillar B (1 hole)", HoleCount = 1, GridPosition = new Vector3(220f, 100f, 0f) }
+    };
+    var budget3Settings = new ExpeditionPlannerSettings
+    {
+        MaxExplosiveBudget = 3,
+        MaxPlacementRangeGrid = 55f,
+        BlastRadiusGrid = 28f,
+        BombClearanceRadiusGrid = 4.5f,
+        CampExclusionRadiusGrid = 30f
+    };
+    var route = ExpeditionGlobalRoutePlanner.Solve(detonatorGrid, detonatorWorld, new List<PlacedBombInfo>(), targets, null, budget3Settings);
+    Console.WriteLine($"Placements count: {route.Placements.Count}");
+    foreach (var p in route.Placements)
+    {
+        Console.WriteLine($"  Step {p.Step} at ({p.GridPosition.X:F0}, {p.GridPosition.Y:F0}): Hits {string.Join(", ", p.CoveredTargets.Select(t => t.DisplayName))}");
+    }
+    bool step1HasPower = route.Placements.Count > 0 && route.Placements[0].CoveredTargets.Any(t => t.EntityId == 1);
+    Console.WriteLine($"Step 1 opens Power (Purple_S): {step1HasPower}");
+    if (!step1HasPower) { Console.WriteLine("FAILED: Power was deferred instead of proliferating early!"); failed++; }
+    else Console.WriteLine("PASSED: Power prioritized in Step 1!");
+}
+
 Console.WriteLine($"\n=== Tests Completed (Failures: {failed}) ===");
 if (failed > 0) Environment.Exit(1);
+

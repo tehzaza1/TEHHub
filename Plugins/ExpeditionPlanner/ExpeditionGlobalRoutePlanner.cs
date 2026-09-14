@@ -208,14 +208,22 @@ namespace ExpeditionPlanner
                     }
                 }
                 beam = PruneBeam(next, pillarTargets, finalStackPillar, beamWidth);
-                var prefix = beam.OrderByDescending(s => s.Covered.Count).ThenBy(s => FirstRuneStep(s.Placements, "Opulent")).ThenBy(s => s.Bridges).FirstOrDefault();
+                var prefix = beam.OrderByDescending(s => s.Covered.Count)
+                    .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
+                    .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
+                    .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
+                    .ThenBy(s => s.Bridges).FirstOrDefault();
                 if (prefix != null && (bestPrefix == null || prefix.Covered.Count > bestPrefix.Covered.Count ||
                     (prefix.Covered.Count == bestPrefix.Covered.Count && prefix.Bridges < bestPrefix.Bridges)))
                 {
                     bestPrefix = prefix;
                 }
             }
-            var winner = terminals.OrderByDescending(s => s.Covered.Count).ThenBy(s => FirstRuneStep(s.Placements, "Opulent")).ThenBy(s => s.Bridges).FirstOrDefault();
+            var winner = terminals.OrderByDescending(s => s.Covered.Count)
+                .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
+                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
+                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
+                .ThenBy(s => s.Bridges).FirstOrDefault();
             // If the final pillar is blocked or unreachable, preserve the strongest non-final chain.
             winner ??= bestPrefix;
             if (winner == null) return null;
@@ -231,6 +239,8 @@ namespace ExpeditionPlanner
             var chosen = unique
                 .OrderByDescending(s => s.Covered.Count)
                 .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
+                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
+                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
                 .ThenBy(s => s.Bridges)
                 .Take(Math.Max(8, width / 2))
                 .ToList();
@@ -238,20 +248,23 @@ namespace ExpeditionPlanner
             // Keep bridge frontiers alive for every uncovered pillar (including finalStackPillar).
             // Without this, a state walking toward a remote pillar has zero new coverage for a few
             // steps and is discarded in favour of nearby completed pillars.
-            foreach (var target in targets)
+            foreach (var pillar in targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel))
             {
-                foreach (var frontier in unique
-                    .Where(s => !s.Covered.Contains(target.EntityId))
-                    .OrderBy(s => Vector2.Distance(new Vector2(s.Anchor.X, s.Anchor.Y), new Vector2(target.GridPosition.X, target.GridPosition.Y)))
+                var candidate = unique
+                    .Where(s => !s.Covered.Contains(pillar.EntityId))
+                    .OrderBy(s => Vector2.Distance(new Vector2(s.Anchor.X, s.Anchor.Y), new Vector2(pillar.GridPosition.X, pillar.GridPosition.Y)))
                     .ThenBy(s => s.Bridges)
-                    .Take(2))
+                    .FirstOrDefault();
+                if (candidate != null && !chosen.Contains(candidate))
                 {
-                    if (!chosen.Contains(frontier)) chosen.Add(frontier);
+                    chosen.Add(candidate);
                 }
             }
             return chosen
                 .OrderByDescending(s => s.Covered.Count)
                 .ThenBy(s => FirstRuneStep(s.Placements, "Opulent"))
+                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_S))
+                .ThenBy(s => FirstTierStep(s.Placements, RuneTier.Purple_A))
                 .ThenBy(s => s.Bridges)
                 .Take(width)
                 .ToList();
@@ -268,15 +281,30 @@ namespace ExpeditionPlanner
             return int.MaxValue;
         }
 
+        private static int FirstTierStep(IEnumerable<ProposedPlacement> placements, RuneTier tier)
+        {
+            int index = 0;
+            foreach (var placement in placements)
+            {
+                if (placement.CoveredTargets.Any(t => t.ProliferatedRuneTier == tier)) return index;
+                index++;
+            }
+            return int.MaxValue;
+        }
+
         private static ExpeditionTarget? FindFinalStackPillar(IEnumerable<ExpeditionTarget> targets, ExpeditionPlannerSettings settings)
         {
             var pillars = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
             if (pillars.Count == 0) return null;
 
-            // Opulent multipliers must open early to proliferate into subsequent explosions.
-            // Therefore, the final stack receiver should be the widest non-Opulent pillar.
-            var nonOpulent = pillars.Where(t => !RuneName(t).Equals("Opulent", StringComparison.OrdinalIgnoreCase)).ToList();
-            var pool = nonOpulent.Count > 0 ? nonOpulent : pillars;
+            // Opulent multipliers and top-tier purple runes (Power, Death, Bond, Oath) must open early
+            // to proliferate into subsequent explosions.
+            // Therefore, the final stack receiver should ideally be a lower-tier pillar (Blue_C or Purple_B)
+            // with high hole count.
+            var nonTopTier = pillars.Where(t =>
+                !RuneName(t).Equals("Opulent", StringComparison.OrdinalIgnoreCase) &&
+                t.ProliferatedRuneTier is not (RuneTier.Golden or RuneTier.Purple_S)).ToList();
+            var pool = nonTopTier.Count > 0 ? nonTopTier : pillars;
 
             return pool
                 .OrderByDescending(t => t.HoleCount)
