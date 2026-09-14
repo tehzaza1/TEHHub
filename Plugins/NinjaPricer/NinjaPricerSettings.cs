@@ -62,6 +62,7 @@ namespace NinjaPricer
 
         // Runeshape Movable Window
         public bool ShowRuneshapeWindow { get; set; } = false;
+        public bool ShowRuneshapeWorldMarkers { get; set; } = true;
         public float RuneshapeWinX { get; set; } = 100.0f;
         public float RuneshapeWinY { get; set; } = 100.0f;
         public float RuneshapeWinAlpha { get; set; } = 0.85f;

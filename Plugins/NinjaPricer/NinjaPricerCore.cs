@@ -1323,6 +1323,11 @@ namespace NinjaPricer
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("The overlay disappears while the mouse cursor is over it and reappears when cursor leaves.");
 
+                bool rsmk = this.Settings.ShowRuneshapeWorldMarkers;
+                if (ImGui.Checkbox("Show monolith markers in 3D world", ref rsmk)) { this.Settings.ShowRuneshapeWorldMarkers = rsmk; this.SaveSettings(); }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world.");
+
                 float rwa = this.Settings.RuneshapeWinAlpha;
                 ImGui.SetNextItemWidth(200f);
                 if (ImGui.SliderFloat("Opacity##rswin", ref rwa, 0.1f, 1.0f, "%.2f"))
@@ -2195,6 +2200,60 @@ namespace NinjaPricer
             }
         }
 
+        private void DrawMonolithWorldMarkers(List<MonolithData> monoliths)
+        {
+            var world = Core.States.InGameStateObject?.CurrentWorldInstance;
+            if (world == null) return;
+
+            var dl = ImGui.GetBackgroundDrawList();
+
+            for (int i = 0; i < monoliths.Count; i++)
+            {
+                var m = monoliths[i];
+                if (m.WorldPos == Vector3.Zero) continue;
+
+                // Project 3D world position to 2D screen coords (lifted by +40f to hover cleanly above the monolith)
+                var screenPos = world.WorldToScreen(new Vector2(m.WorldPos.X, m.WorldPos.Y), m.WorldPos.Z + 40f);
+                if (screenPos == Vector2.Zero) continue;
+
+                // Colors & labels
+                uint badgeColor = m.IsCompleted ? 0xFF787878u : m.Color;
+                string numText = $"#{i + 1}";
+                string infoText = m.IsCompleted
+                    ? "DONE"
+                    : (m.BestOffer != null && m.BestOffer.DisplayValue > 0 ? $"{m.BestOffer.DisplayValue:0.#}c" : string.Empty);
+
+                var numSz = ImGui.CalcTextSize(numText);
+                var infoSz = !string.IsNullOrEmpty(infoText) ? ImGui.CalcTextSize(infoText) : Vector2.Zero;
+
+                float padX = 6f;
+                float padY = 3f;
+                float totalW = numSz.X + (infoSz.X > 0 ? infoSz.X + 8f : 0f) + padX * 2f;
+                float totalH = Math.Max(numSz.Y, infoSz.Y) + padY * 2f;
+
+                float x0 = screenPos.X - totalW * 0.5f;
+                float y0 = screenPos.Y - totalH * 0.5f;
+                float x1 = x0 + totalW;
+                float y1 = y0 + totalH;
+
+                // Background box
+                dl.AddRectFilled(new Vector2(x0, y0), new Vector2(x1, y1), m.IsCompleted ? 0xB0202020u : 0xDD141414u, 4f);
+                dl.AddRect(new Vector2(x0, y0), new Vector2(x1, y1), badgeColor, 4f, ImDrawFlags.None, 1.5f);
+
+                // Left number pill
+                float pillW = numSz.X + padX * 2f;
+                dl.AddRectFilled(new Vector2(x0, y0), new Vector2(x0 + pillW, y1), badgeColor, 4f, ImDrawFlags.RoundCornersLeft);
+                dl.AddText(new Vector2(x0 + padX, y0 + padY), 0xFFFFFFFFu, numText);
+
+                // Right info (price or DONE)
+                if (!string.IsNullOrEmpty(infoText))
+                {
+                    uint infoColor = m.IsCompleted ? 0xFF888888u : 0xFFE5D570u;
+                    dl.AddText(new Vector2(x0 + pillW + 4f, y0 + padY), infoColor, infoText);
+                }
+            }
+        }
+
         private void DrawRuneshapeWindow()
         {
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
@@ -2216,6 +2275,71 @@ namespace NinjaPricer
             if (monoliths.Count == 0)
             {
                 return;
+            }
+
+            int areaLevel = area?.CurrentAreaLevel ?? 0;
+
+            // Pre-calculate monolith colors and best offers so world markers and window match identically
+            for (int mIdx = 0; mIdx < monoliths.Count; mIdx++)
+            {
+                var m = monoliths[mIdx];
+                m.Color = RsMonolithColors[mIdx % RsMonolithColors.Length];
+
+                if (m.BestOffer == null)
+                {
+                    float maxChaos = -1f;
+                    MonolithOffer? top = null;
+                    foreach (var rec in this.runeshapeRecipes)
+                    {
+                        if (rec.Size > m.HoleCount) continue;
+                        if (areaLevel > 0 && rec.MaxLevel > 0 && (areaLevel < rec.MinLevel || areaLevel > rec.MaxLevel)) continue;
+
+                        if (!m.IsUnique && m.AnchorIdx >= 0)
+                        {
+                            if (rec.RuneIdx == null || rec.RuneIdx.Count <= m.AnchorPos) continue;
+                            if (rec.RuneIdx[m.AnchorPos] != m.AnchorIdx) continue;
+                            if (rec.Size != m.HoleCount && !this.IsPartialAllowed(m.AnchorIdx, m.AnchorPos, rec.Size, areaLevel)) continue;
+                        }
+
+                        string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+                        int count = Math.Max(1, rec.RewardCount);
+                        float chaos = 0f;
+                        float displayVal = 0f;
+
+                        if (this.priceService != null && this.priceService.TryLookupPrice(rName, out var pr))
+                        {
+                            chaos = pr.Chaos * count;
+                            displayVal = this.Settings.DisplayCurrency switch
+                            {
+                                DisplayCurrency.Divine => pr.Divine * count,
+                                DisplayCurrency.Exalted => pr.Exalt * count,
+                                _ => chaos
+                            };
+                        }
+
+                        if (chaos > maxChaos)
+                        {
+                            maxChaos = chaos;
+                            top = new MonolithOffer
+                            {
+                                RecipeId = rec.Id,
+                                Description = rec.Description,
+                                Reward = rName,
+                                RewardCount = count,
+                                PriceChaos = chaos,
+                                DisplayValue = displayVal,
+                                ComboWeight = rec.ComboWeight
+                            };
+                        }
+                    }
+                    m.BestOffer = top;
+                }
+            }
+
+            // Draw Fixer-style in-world indicators on the physical monoliths
+            if (this.Settings.ShowRuneshapeWorldMarkers)
+            {
+                this.DrawMonolithWorldMarkers(monoliths);
             }
 
             if (this.Settings.RuneshapeWinHideOnHover && this.runeshapeWinRectValid)
@@ -2279,9 +2403,9 @@ namespace NinjaPricer
             }
             else
             {
-                int areaLevel = area?.CurrentAreaLevel ?? 0;
+                areaLevel = area?.CurrentAreaLevel ?? 0;
                 float baseFontSize = ImGui.GetFontSize() * this.Settings.TextScale;
-                float kSquareSz = baseFontSize * 1.1f;
+                float kSquareSz = Math.Max(baseFontSize * 1.35f, 22f);
                 float lineH = ImGui.GetTextLineHeight();
                 float slotSz = lineH;
                 float slotGap = 3.0f;
@@ -2370,14 +2494,22 @@ namespace NinjaPricer
                     float spaceW = ImGui.CalcTextSize(" ").X;
                     int padCnt = spaceW > 0f ? (int)MathF.Ceiling(reserve / spaceW) : 0;
 
-                    // Colored square
+                    // Colored square / badge with monolith index #1, #2...
                     var dl = ImGui.GetWindowDrawList();
                     if (this.Settings.RsShowHdrColor)
                     {
                         float frameH = ImGui.GetFrameHeight();
                         float sqYOff = (frameH > kSquareSz) ? (frameH - kSquareSz) * 0.5f : 0f;
                         var cp = ImGui.GetCursorScreenPos();
-                        dl.AddRectFilled(new Vector2(cp.X, cp.Y + sqYOff), new Vector2(cp.X + kSquareSz, cp.Y + sqYOff + kSquareSz), m.IsCompleted ? 0xFF787878u : mColor, 2f);
+                        dl.AddRectFilled(new Vector2(cp.X, cp.Y + sqYOff), new Vector2(cp.X + kSquareSz, cp.Y + sqYOff + kSquareSz), m.IsCompleted ? 0xFF787878u : mColor, 3f);
+
+                        // Draw #1, #2... text centered in the badge
+                        string numStr = $"#{mIdx + 1}";
+                        var numSz = ImGui.CalcTextSize(numStr);
+                        float numX = cp.X + (kSquareSz - numSz.X) * 0.5f;
+                        float numY = cp.Y + sqYOff + (kSquareSz - numSz.Y) * 0.5f;
+                        dl.AddText(new Vector2(numX, numY), 0xFFFFFFFFu, numStr);
+
                         ImGui.Dummy(new Vector2(kSquareSz, frameH));
                         ImGui.SameLine();
                     }

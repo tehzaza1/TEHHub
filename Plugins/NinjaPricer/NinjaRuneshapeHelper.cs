@@ -146,10 +146,24 @@ namespace NinjaPricer
             }
 
             var isCompleted = false;
-            if (entity.TryGetComponent<MinimapIcon>(out var mmIcon) && mmIcon.Address != IntPtr.Zero)
+
+            // 1. Primary check: Targetable component (standard in PoE 2 for completed/inactive monoliths)
+            if (entity.TryGetComponent<Targetable>(out var targetable))
+            {
+                if (!targetable.IsTargetable)
+                {
+                    isCompleted = true;
+                }
+            }
+
+            // 2. Secondary check: MinimapIcon component state / flags
+            if (!isCompleted && entity.TryGetComponent<MinimapIcon>(out var mmIcon) && mmIcon.Address != IntPtr.Zero)
             {
                 var state = reader.ReadMemory<int>(mmIcon.Address + MinimapCompletedOffset);
-                isCompleted = state != 0;
+                if (state != 0)
+                {
+                    isCompleted = true;
+                }
             }
 
             var goldenSlots = new List<int>();
