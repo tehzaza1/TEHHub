@@ -111,21 +111,33 @@ namespace ExpeditionPlanner
                     }
                     if (score > bestScore) { bestScore = score; best = point; hitBest = hit; }
                 }
-                if (best == null && finalStackPillar != null && !covered.Contains(finalStackPillar.EntityId) &&
-                    LegalPlacement.TryFindTerrainDetourWaypoint(
-                        terrain,
-                        new Vector2(anchor.X, anchor.Y),
-                        new Vector2(finalStackPillar.GridPosition.X, finalStackPillar.GridPosition.Y),
-                        settings.MaxPlacementRangeGrid,
-                        out var detourWaypoint))
+                if (best == null)
                 {
-                    var detourPoint = new Vector3(detourWaypoint.X, detourWaypoint.Y, finalStackPillar.GridPosition.Z);
-                    if (LegalPlacement.IsPlaceable(detourPoint, anchor, terrain, settings, targets, startGrid, committed))
+                    // Connectivity pass: if ordinary bridge points are blocked, ask A*
+                    // for a real waypoint toward an uncovered pillar. The final pillar
+                    // stays last, but the other remote pillars are no longer abandoned.
+                    var detourTargets = targets
+                        .Where(t => !covered.Contains(t.EntityId) && t.Kind is (TargetKind.RemnantPillar or TargetKind.VerisiumSentinel))
+                        .OrderBy(t => t.EntityId == finalStackPillar?.EntityId ? 1 : 0)
+                        .ThenBy(t => Vector2.Distance(new Vector2(anchor.X, anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)))
+                        .Take(4);
+                    foreach (var detourTarget in detourTargets)
                     {
+                        if (!LegalPlacement.TryFindTerrainDetourWaypoint(
+                                terrain,
+                                new Vector2(anchor.X, anchor.Y),
+                                new Vector2(detourTarget.GridPosition.X, detourTarget.GridPosition.Y),
+                                settings.MaxPlacementRangeGrid,
+                                out var detourWaypoint)) continue;
+                        var detourPoint = new Vector3(detourWaypoint.X, detourWaypoint.Y, detourTarget.GridPosition.Z);
+                        if (finalStackPillar != null && detourTarget.EntityId != finalStackPillar.EntityId &&
+                            !CanStillReachFinalPillar(detourPoint, finalStackPillar, count - step, settings)) continue;
+                        if (!LegalPlacement.IsPlaceable(detourPoint, anchor, terrain, settings, targets, startGrid, committed)) continue;
                         best = detourPoint;
                         bestScore = 0f;
                         hitBest = new List<ExpeditionTarget>();
-                        result.Warnings.Add($"Step {placed.Count + step}: A* terrain detour added to reach the {finalStackPillar.HoleCount}-slot final pillar.");
+                        result.Warnings.Add($"Step {placed.Count + step}: A* terrain detour added toward {RuneName(detourTarget)} ({detourTarget.HoleCount} slots).");
+                        break;
                     }
                 }
                 if (best == null) break;
