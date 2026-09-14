@@ -8,6 +8,7 @@ namespace NinjaPricer
     using System.IO;
     using System.Linq;
     using System.Numerics;
+    using System.Reflection;
     using System.Runtime.InteropServices;
     using System.Text.Json;
     using Coroutine;
@@ -20,12 +21,73 @@ namespace NinjaPricer
     using TEHhub.Offsets.Objects.UiElement;
     using TEHhub.Plugin;
     using TEHhub.RemoteEnums;
+    using TEHhub.RemoteEnums.Entity;
     using TEHhub.RemoteObjects.Components;
+    using TEHhub.RemoteObjects.States.InGameStateObjects;
 
     public sealed partial class NinjaPricerCore : PCore<NinjaPricerSettings>
     {
-        private const int UiElementItemAddressOffset = 0x3A0;
+        private const int UiElementItemAddressOffset = 0x4E0;
+        private const int UiElementTextOffset = 0x360;
         private const float IconHeightMul = 1.4f;
+
+        private readonly Dictionary<string, string> uniqueArtMapping = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<RuneshapeRowTag> cachedRuneshapeRows = new();
+        private DateTime lastRuneshapeScanUtc = DateTime.MinValue;
+
+        private readonly struct ScrollBinding
+        {
+            public readonly IntPtr HolderAddress;
+            public readonly IntPtr ThumbAddress;
+            public readonly float ContentHeight;
+            public readonly float ScanOffsetY;
+            public readonly float ClipTop;
+            public readonly float ClipBottom;
+            public readonly bool IsActive;
+
+            public ScrollBinding(
+                IntPtr holderAddress,
+                IntPtr thumbAddress,
+                float contentHeight,
+                float scanOffsetY,
+                float clipTop,
+                float clipBottom)
+            {
+                this.HolderAddress = holderAddress;
+                this.ThumbAddress = thumbAddress;
+                this.ContentHeight = contentHeight;
+                this.ScanOffsetY = scanOffsetY;
+                this.ClipTop = clipTop;
+                this.ClipBottom = clipBottom;
+                this.IsActive = holderAddress != IntPtr.Zero && thumbAddress != IntPtr.Zero && contentHeight > 0f;
+            }
+        }
+
+        private readonly struct SlotCandidate
+        {
+            public readonly IntPtr ElementAddress;
+            public readonly IntPtr ParentAddress;
+            public readonly ScrollBinding Scroll;
+
+            public SlotCandidate(IntPtr elem, IntPtr parent, ScrollBinding scroll)
+            {
+                this.ElementAddress = elem;
+                this.ParentAddress = parent;
+                this.Scroll = scroll;
+            }
+        }
+
+        private sealed class RuneshapeRowTag
+        {
+            public Vector2 RowPos;
+            public Vector2 RowSize;
+            public Vector2 ChipPos;
+            public string ChipText = string.Empty;
+            public float Chaos;
+            public float DisplayValue;
+            public string IconPath = string.Empty;
+            public bool IsBest;
+        }
 
         private class RsRecipe
         {
@@ -135,9 +197,54 @@ namespace NinjaPricer
             this.priceService.TriggerRefresh(this.Settings.League, this.Settings.PriceSource, this.Settings.EnabledCategories);
             this.lastAutoRefreshUtc = DateTime.UtcNow;
 
+            this.LoadUniqueArtMapping();
             this.LoadRuneshapeRecipes();
 
             this.onAreaChangeCoroutine = CoroutineHandler.Start(this.OnAreaChange());
+        }
+
+        private void LoadUniqueArtMapping()
+        {
+            this.uniqueArtMapping.Clear();
+            string[] paths =
+            {
+                Path.Combine(this.DllDirectory, "uniqueArtMapping.json"),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "NinjaPricer", "uniqueArtMapping.json"),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "LootValue", "uniqueArtMapping.json"),
+            };
+
+            foreach (var p in paths)
+            {
+                if (File.Exists(p))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(p);
+                        var raw = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json);
+                        if (raw != null)
+                        {
+                            foreach (var (artPath, names) in raw)
+                            {
+                                if (names == null || names.Count == 0 || string.IsNullOrWhiteSpace(names[0])) continue;
+                                var name = names[0].Trim();
+                                this.uniqueArtMapping[artPath.Trim()] = name;
+
+                                var fn = Path.GetFileNameWithoutExtension(artPath);
+                                if (!string.IsNullOrWhiteSpace(fn))
+                                {
+                                    this.uniqueArtMapping[fn.Trim()] = name;
+                                }
+                            }
+                            PluginLog.Info("NinjaPricer", $"[NinjaPricer] Loaded {this.uniqueArtMapping.Count} unique art mappings from '{p}'");
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error("NinjaPricer", $"[NinjaPricer] Failed reading uniqueArtMapping from '{p}': {ex.Message}");
+                    }
+                }
+            }
         }
 
         private void LoadRuneshapeRecipes()
@@ -326,6 +433,160 @@ namespace NinjaPricer
 
             this.itemTextures[path] = default;
             return null;
+        }
+
+        // ========================================================================
+        // Item & UI Slot Helpers
+        // ========================================================================
+
+        private static Item? ReadFreshItem(IntPtr itemAddress)
+        {
+            if (itemAddress == IntPtr.Zero) return null;
+            try
+            {
+                return Activator.CreateInstance(
+                    typeof(Item),
+                    BindingFlags.Instance | BindingFlags.NonPublic,
+                    null,
+                    new object[] { itemAddress },
+                    null) as Item;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string ExtractArtBasename(string? artPath)
+        {
+            if (string.IsNullOrWhiteSpace(artPath)) return string.Empty;
+            var slash = artPath.LastIndexOfAny(new[] { '/', '\\' });
+            var file = slash >= 0 && slash < artPath.Length - 1 ? artPath[(slash + 1)..] : artPath;
+            var dot = file.LastIndexOf('.');
+            return dot > 0 ? file[..dot] : file;
+        }
+
+        private string ResolveItemName(Item item, out int stackCount)
+        {
+            stackCount = item.TryGetComponent<TEHhub.RemoteObjects.Components.Stack>(out var s) && s.Count > 1 ? s.Count : 1;
+            var baseName = item.TryGetComponent<Base>(out var b) ? b.BaseItemName?.Trim() ?? string.Empty : string.Empty;
+            var rarity = item.TryGetComponent<Mods>(out var m) ? m.Rarity : Rarity.Normal;
+
+            if (rarity == Rarity.Unique)
+            {
+                var artPath = item.TryGetComponent<RenderItem>(out var ri) ? ri.ResourcePath : string.Empty;
+                if (!string.IsNullOrEmpty(artPath) && this.uniqueArtMapping.TryGetValue(artPath, out var uPath))
+                {
+                    return uPath;
+                }
+
+                var artBasename = ExtractArtBasename(artPath);
+                if (!string.IsNullOrEmpty(artBasename))
+                {
+                    if (this.uniqueArtMapping.TryGetValue(artBasename, out var u1)) return u1;
+                    if (this.priceService != null && this.priceService.TryLookupPrice(artBasename, out _)) return artBasename;
+
+                    if (artBasename.StartsWith("The", StringComparison.OrdinalIgnoreCase) && artBasename.Length > 3)
+                    {
+                        var trim = artBasename[3..];
+                        if (this.uniqueArtMapping.TryGetValue(trim, out var u2)) return u2;
+                        if (this.priceService != null && this.priceService.TryLookupPrice(trim, out _)) return trim;
+                    }
+                    else
+                    {
+                        var addThe = "The" + artBasename;
+                        if (this.uniqueArtMapping.TryGetValue(addThe, out var u3)) return u3;
+                        if (this.priceService != null && this.priceService.TryLookupPrice(addThe, out _)) return addThe;
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(baseName)) return baseName;
+
+            var fullPath = item.Path ?? string.Empty;
+            if (fullPath.Contains('/')) return fullPath[(fullPath.LastIndexOf('/') + 1)..];
+            return fullPath;
+        }
+
+        private bool TryGetScrollContainer(
+            IntPtr[] children,
+            out IntPtr itemsAddress,
+            out ScrollBinding scroll)
+        {
+            itemsAddress = IntPtr.Zero;
+            scroll = default;
+            var handle = Core.Process?.Handle;
+            if (children.Length <= 2 || children[1] == IntPtr.Zero || children[2] == IntPtr.Zero || handle == null) return false;
+
+            var contentAddress = children[1];
+            var holderAddress = children[2];
+            if (!handle.TryReadMemory<UiElementBaseOffset>(holderAddress, out var holderOffset) ||
+                !UiElementBaseFuncs.IsVisibleChecker(holderOffset.Flags)) return false;
+
+            var holderChildren = handle.ReadStdVector<IntPtr>(holderOffset.ChildrensPtr);
+            if (holderChildren.Length == 0 || holderChildren[0] == IntPtr.Zero) return false;
+
+            var thumbAddress = holderChildren[0];
+            if (!PluginUiElementReflection.TryGetAbsoluteRect(contentAddress, out var contentPosition, out var contentSize) ||
+                !PluginUiElementReflection.TryGetAbsoluteRect(holderAddress, out var holderPosition, out var holderSize) ||
+                !PluginUiElementReflection.TryGetAbsoluteRect(thumbAddress, out var thumbPosition, out var thumbSize)) return false;
+
+            if (holderSize.X < 4f || holderSize.X > 64f || holderSize.Y < 40f ||
+                thumbSize.X < 2f || thumbSize.X > holderSize.X * 1.5f ||
+                thumbSize.Y < 8f || thumbSize.Y >= holderSize.Y ||
+                contentSize.Y <= holderSize.Y + 1f || holderPosition.X < contentPosition.X ||
+                thumbPosition.Y < holderPosition.Y - 2f ||
+                thumbPosition.Y + thumbSize.Y > holderPosition.Y + holderSize.Y + 2f) return false;
+
+            var thumbTravel = holderSize.Y - thumbSize.Y;
+            var contentOverflow = contentSize.Y - holderSize.Y;
+            if (thumbTravel <= 0f || contentOverflow <= 0f) return false;
+
+            var progress = Math.Clamp((thumbPosition.Y - holderPosition.Y) / thumbTravel, 0f, 1f);
+            itemsAddress = contentAddress;
+            scroll = new ScrollBinding(
+                holderAddress,
+                thumbAddress,
+                contentSize.Y,
+                progress * contentOverflow,
+                holderPosition.Y,
+                holderPosition.Y + holderSize.Y);
+            return float.IsFinite(scroll.ScanOffsetY) && scroll.ClipBottom > scroll.ClipTop;
+        }
+
+        private static bool TryGetSlotRect(SlotCandidate candidate, out Vector2 position, out Vector2 size)
+        {
+            if (!PluginUiElementReflection.TryGetAbsoluteRect(candidate.ElementAddress, out position, out size)) return false;
+
+            if (candidate.ParentAddress != IntPtr.Zero &&
+                PluginUiElementReflection.TryGetAbsoluteRect(candidate.ParentAddress, out var parentPosition, out var parentSize) &&
+                parentSize.X >= 20f && parentSize.Y >= 20f &&
+                ((parentSize.X <= 160f && parentSize.Y <= 256f) ||
+                 (parentSize.X <= 256f && parentSize.Y <= 160f)))
+            {
+                position = parentPosition;
+                size = parentSize;
+            }
+
+            position.Y -= candidate.Scroll.ScanOffsetY;
+            return true;
+        }
+
+        private string ReadUiElementText(IntPtr elem)
+        {
+            if (elem == IntPtr.Zero) return string.Empty;
+            var handle = Core.Process?.Handle;
+            if (handle == null) return string.Empty;
+
+            try
+            {
+                var ws = handle.ReadMemory<StdWString>(elem + UiElementTextOffset);
+                return handle.ReadStdWString(ws);
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
 
         // ========================================================================
@@ -918,6 +1179,9 @@ namespace NinjaPricer
             var inGame = Core.States.InGameStateObject;
             if (inGame == null) return;
 
+            var areaDetails = inGame.CurrentWorldInstance?.AreaDetails;
+            bool inTownOrHideout = areaDetails?.IsTown == true || areaDetails?.IsHideout == true;
+
             // Runeshape show/hide hotkey
             if (this.Settings.RuneshapeWinHotkey != 0 && this.captureTarget == null)
             {
@@ -930,8 +1194,8 @@ namespace NinjaPricer
                 this.runeshapeWinHotkeyWasDown = down;
             }
 
-            // Runeshape Window (always available in hideout, towns, and maps)
-            if (this.Settings.ShowRuneshapeWindow)
+            // Runeshape Window (suppressed in town/hideout, matching original POEFixer)
+            if (this.Settings.ShowRuneshapeWindow && !inTownOrHideout)
             {
                 this.DrawRuneshapeWindow();
             }
@@ -954,6 +1218,17 @@ namespace NinjaPricer
             this.perfLookupMs = 0.0;
             this.perfLookupExact = 0;
             this.perfLookupMiss = 0;
+
+            // Runeshape In-Game Combinations Panel Pricing
+            if (this.Settings.ShowRuneshapePrices && !inTownOrHideout)
+            {
+                if ((DateTime.UtcNow - this.lastRuneshapeScanUtc).TotalMilliseconds >= 200)
+                {
+                    this.lastRuneshapeScanUtc = DateTime.UtcNow;
+                    this.ScanRuneshapeRows();
+                }
+                this.DrawRuneshapeOverlay();
+            }
 
             // Ground overlay
             if (this.Settings.ShowGroundPrices)
@@ -999,28 +1274,10 @@ namespace NinjaPricer
                 if (!entity.TryGetComponent<Render>(out var render))
                     continue;
 
-                // Read item name
-                string itemName = string.Empty;
-                int stackMultiplier = 1;
-                var reader = Core.Process.Handle;
+                var item = ReadFreshItem(worldItem.ItemEntityAddress);
+                if (item == null) continue;
 
-                if (PluginUiElementReflection.TryValidateItemAddress(worldItem.ItemEntityAddress, out var path, out _))
-                {
-                    // Item details
-                    if (reader.TryReadMemory<ItemStruct>(worldItem.ItemEntityAddress, out var itemStruct) &&
-                        reader.TryReadMemory<EntityDetails>(itemStruct.EntityDetailsPtr, out var details))
-                    {
-                        itemName = reader.ReadStdWString(details.name);
-                    }
-                }
-
-                if (string.IsNullOrEmpty(itemName))
-                {
-                    // Fallback to path basename
-                    int slash = path.LastIndexOf('/');
-                    if (slash >= 0) itemName = path.Substring(slash + 1);
-                }
-
+                var itemName = this.ResolveItemName(item, out var stackMultiplier);
                 if (string.IsNullOrEmpty(itemName)) continue;
 
                 var clean = NinjaPriceService.CleanItemName(itemName);
@@ -1135,63 +1392,101 @@ namespace NinjaPricer
             var service = this.priceService;
             if (panelAddress == IntPtr.Zero || handle == null || service == null) return;
 
-            var queue = new Queue<IntPtr>();
-            var visited = new HashSet<IntPtr>();
-            queue.Enqueue(panelAddress);
+            if (!PluginUiElementReflection.TryGetAbsoluteRect(panelAddress, out var panelPos, out var panelSize)) return;
+            var panelMax = panelPos + panelSize;
 
-            while (queue.Count > 0 && visited.Count < 2000)
+            var queue = new Queue<(IntPtr Elem, IntPtr Parent, ScrollBinding Scroll)>();
+            var visited = new HashSet<IntPtr>();
+            queue.Enqueue((panelAddress, IntPtr.Zero, default));
+
+            var candidatesByItem = new Dictionary<IntPtr, List<SlotCandidate>>();
+
+            while (queue.Count > 0 && visited.Count < 2500)
             {
-                var elem = queue.Dequeue();
+                var (elem, parent, scroll) = queue.Dequeue();
                 if (elem == IntPtr.Zero || !visited.Add(elem)) continue;
 
                 if (!handle.TryReadMemory<UiElementBaseOffset>(elem, out var offset)) continue;
                 if (!UiElementBaseFuncs.IsVisibleChecker(offset.Flags)) continue;
 
                 var children = handle.ReadStdVector<IntPtr>(offset.ChildrensPtr);
-                foreach (var c in children)
+                if (children.Length > 0)
                 {
-                    if (c != IntPtr.Zero && !visited.Contains(c)) queue.Enqueue(c);
+                    var hasScrollContainer = this.TryGetScrollContainer(children, out var scrollItemsAddress, out var localScroll);
+                    foreach (var child in children)
+                    {
+                        if (child == IntPtr.Zero || visited.Contains(child)) continue;
+                        if (hasScrollContainer && child == scrollItemsAddress)
+                        {
+                            queue.Enqueue((child, elem, localScroll));
+                        }
+                        else
+                        {
+                            queue.Enqueue((child, elem, scroll));
+                        }
+                    }
                 }
 
                 var itemAddr = handle.ReadMemory<IntPtr>(elem + UiElementItemAddressOffset);
                 if (itemAddr == IntPtr.Zero) continue;
 
-                if (!PluginUiElementReflection.TryValidateItemAddress(itemAddr, out var path, out _)) continue;
-                if (!PluginUiElementReflection.TryGetAbsoluteRect(elem, out var pos, out var size)) continue;
-                if (size.X <= 5 || size.Y <= 5) continue;
-
-                string itemName = string.Empty;
-                if (handle.TryReadMemory<ItemStruct>(itemAddr, out var itemStruct) &&
-                    handle.TryReadMemory<EntityDetails>(itemStruct.EntityDetailsPtr, out var details))
+                if (!candidatesByItem.TryGetValue(itemAddr, out var list))
                 {
-                    itemName = handle.ReadStdWString(details.name);
+                    list = new List<SlotCandidate>();
+                    candidatesByItem[itemAddr] = list;
+                }
+                list.Add(new SlotCandidate(elem, parent, scroll));
+            }
+
+            foreach (var (itemAddr, candidates) in candidatesByItem)
+            {
+                var hasVisibleRect = false;
+                var slotPos = Vector2.Zero;
+                var slotSize = Vector2.Zero;
+
+                foreach (var candidate in candidates)
+                {
+                    if (!TryGetSlotRect(candidate, out var cPos, out var cSize)) continue;
+                    var center = cPos + (cSize * 0.5f);
+                    if (center.X < panelPos.X || center.X > panelMax.X) continue;
+                    if (!candidate.Scroll.IsActive && (center.Y < panelPos.Y || center.Y > panelMax.Y)) continue;
+
+                    slotPos = cPos;
+                    slotSize = cSize;
+                    hasVisibleRect = true;
+                    break;
                 }
 
-                if (string.IsNullOrEmpty(itemName))
+                if (!hasVisibleRect) continue;
+                if (!PluginUiElementReflection.TryValidateItemAddress(itemAddr, out _, out _)) continue;
+
+                var item = ReadFreshItem(itemAddr);
+                if (item == null || string.IsNullOrEmpty(item.Path) ||
+                    !item.Path.StartsWith("Metadata/Items/", StringComparison.OrdinalIgnoreCase))
                 {
-                    int slash = path.LastIndexOf('/');
-                    if (slash >= 0) itemName = path.Substring(slash + 1);
+                    continue;
                 }
 
-                if (string.IsNullOrEmpty(itemName)) continue;
+                var itemName = this.ResolveItemName(item, out var stackCount);
+                if (string.IsNullOrWhiteSpace(itemName)) continue;
 
                 var clean = NinjaPriceService.CleanItemName(itemName);
                 if (service.TryLookupPrice(clean, out var price))
                 {
-                    float chaos = price.Chaos;
+                    float chaos = price.Chaos * stackCount;
                     if (chaos < this.Settings.MinPriceChaos) continue;
 
                     float displayVal = this.Settings.DisplayCurrency switch
                     {
-                        DisplayCurrency.Divine => price.Divine,
-                        DisplayCurrency.Exalted => price.Exalt,
+                        DisplayCurrency.Divine => price.Divine * stackCount,
+                        DisplayCurrency.Exalted => price.Exalt * stackCount,
                         _ => chaos,
                     };
 
                     output.Add(new SlotTag
                     {
-                        Pos = pos,
-                        Size = size,
+                        Pos = slotPos,
+                        Size = slotSize,
                         DisplayValue = displayVal,
                         Chaos = chaos,
                         IconPath = price.ItemIcon
@@ -1243,6 +1538,191 @@ namespace NinjaPricer
             if (this.Settings.ShowOtherInventoryPrices) DrawSlots(this.cachedStashSlots);
         }
 
+        private void ScanRuneshapeRows()
+        {
+            var handle = Core.Process?.Handle;
+            var service = this.priceService;
+            if (handle == null || service == null)
+            {
+                this.cachedRuneshapeRows.Clear();
+                return;
+            }
+
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi == null || gameUi.Address == IntPtr.Zero)
+            {
+                this.cachedRuneshapeRows.Clear();
+                return;
+            }
+
+            var container = NinjaRuneshapeHelper.ResolveRuneforgeContainer(gameUi.Address);
+            if (container == IntPtr.Zero || !handle.TryReadMemory<UiElementBaseOffset>(container, out var off))
+            {
+                this.cachedRuneshapeRows.Clear();
+                return;
+            }
+
+            var rows = handle.ReadStdVector<IntPtr>(off.ChildrensPtr);
+            if (rows == null || rows.Length == 0)
+            {
+                this.cachedRuneshapeRows.Clear();
+                return;
+            }
+
+            var newRows = new List<RuneshapeRowTag>();
+            var chaosDiv = service.DivineInChaos > 0 ? service.DivineInChaos : 200.0f;
+            var candidates = new List<(Vector2 rowPos, Vector2 rowSize, string chipText, float chaos, float displayVal, string icon, double score)>();
+
+            foreach (var row in rows)
+            {
+                if (row == IntPtr.Zero) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(row, out var rowOff) || !UiElementBaseFuncs.IsVisibleChecker(rowOff.Flags)) continue;
+
+                var rowKids = handle.ReadStdVector<IntPtr>(rowOff.ChildrensPtr);
+                if (rowKids == null || rowKids.Length == 0) continue;
+
+                var labelElem = rowKids[0];
+                var rawText = this.ReadUiElementText(labelElem);
+                if (string.IsNullOrWhiteSpace(rawText)) continue;
+
+                NinjaRuneshapeHelper.ParseRuneforgeRowText(rawText, out var count, out var itemName);
+                if (string.IsNullOrWhiteSpace(itemName)) continue;
+
+                if (!PluginUiElementReflection.TryGetAbsoluteRect(row, out var rowPos, out var rowSize)) continue;
+                if (rowSize.X <= 0f || rowSize.Y <= 0f) continue;
+
+                var clean = NinjaPriceService.CleanItemName(itemName);
+                double score = 0;
+                string chipText;
+                float chaosVal = 0f;
+                float dispVal = 0f;
+                string itemIcon = string.Empty;
+
+                bool isUnique = itemName.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
+                                rawText.Contains("Unique", StringComparison.OrdinalIgnoreCase) ||
+                                rawText.Contains("ยูนิค", StringComparison.OrdinalIgnoreCase);
+
+                bool isVeryRare = isUnique && (itemName.Contains("Very Rare", StringComparison.OrdinalIgnoreCase) ||
+                                               rawText.Contains("Very Rare", StringComparison.OrdinalIgnoreCase));
+
+                bool isRare = isUnique && !isVeryRare && (itemName.Contains("Rare", StringComparison.OrdinalIgnoreCase) ||
+                                                         rawText.Contains("Rare", StringComparison.OrdinalIgnoreCase));
+
+                if (isUnique)
+                {
+                    if (isVeryRare)
+                    {
+                        chipText = "Very Rare Unique";
+                        score = 500;
+                        chaosVal = 500;
+                    }
+                    else if (isRare)
+                    {
+                        chipText = "Rare Unique";
+                        score = 100;
+                        chaosVal = 100;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                    dispVal = this.Settings.DisplayCurrency switch
+                    {
+                        DisplayCurrency.Divine => chaosVal / chaosDiv,
+                        DisplayCurrency.Exalted => chaosVal / (service.ExaltedInChaos > 0 ? service.ExaltedInChaos : 10f),
+                        _ => chaosVal
+                    };
+                }
+                else if (service.TryLookupPrice(clean, out var pr) && pr.Chaos > 0)
+                {
+                    chaosVal = pr.Chaos * count;
+                    dispVal = this.Settings.DisplayCurrency switch
+                    {
+                        DisplayCurrency.Divine => pr.Divine * count,
+                        DisplayCurrency.Exalted => pr.Exalt * count,
+                        _ => chaosVal
+                    };
+                    chipText = FormatPriceLocal(dispVal, this.Settings.DisplayCurrency);
+                    score = chaosVal;
+                    itemIcon = pr.ItemIcon;
+                }
+                else
+                {
+                    continue;
+                }
+
+                candidates.Add((rowPos, rowSize, chipText, chaosVal, dispVal, itemIcon, score));
+            }
+
+            if (candidates.Count > 0)
+            {
+                double bestScore = -1;
+                int bestIdx = -1;
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    if (candidates[i].score > bestScore)
+                    {
+                        bestScore = candidates[i].score;
+                        bestIdx = i;
+                    }
+                }
+
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    var c = candidates[i];
+                    bool isBest = (i == bestIdx && bestScore >= 1.0);
+                    var text = isBest ? $"[PICK] {c.chipText}" : c.chipText;
+                    var chipPos = new Vector2(
+                        c.rowPos.X + c.rowSize.X + 8f,
+                        c.rowPos.Y + (c.rowSize.Y - 20f) / 2f);
+
+                    newRows.Add(new RuneshapeRowTag
+                    {
+                        RowPos = c.rowPos,
+                        RowSize = c.rowSize,
+                        ChipPos = chipPos,
+                        ChipText = text,
+                        Chaos = c.chaos,
+                        DisplayValue = c.displayVal,
+                        IconPath = c.icon,
+                        IsBest = isBest
+                    });
+                }
+            }
+
+            this.cachedRuneshapeRows.Clear();
+            this.cachedRuneshapeRows.AddRange(newRows);
+        }
+
+        private void DrawRuneshapeOverlay()
+        {
+            if (this.cachedRuneshapeRows.Count == 0) return;
+            var fg = ImGui.GetForegroundDrawList();
+
+            foreach (var row in this.cachedRuneshapeRows)
+            {
+                if (row.IsBest && row.RowSize.X > 0 && row.RowSize.Y > 0)
+                {
+                    // Glowing highlight around the recommended recipe row to pick
+                    fg.AddRectFilled(row.RowPos, row.RowPos + row.RowSize, 0x2200FF7F, 4f);
+                    fg.AddRect(row.RowPos, row.RowPos + row.RowSize, 0xFFFFD700, 4f, ImDrawFlags.None, 2.5f);
+                }
+
+                var textSize = ImGui.CalcTextSize(row.ChipText);
+                var pad = new Vector2(8f, 4f);
+                var min = row.ChipPos;
+                var max = new Vector2(row.ChipPos.X + textSize.X + pad.X * 2, row.ChipPos.Y + textSize.Y + pad.Y * 2);
+
+                var bg = row.IsBest ? 0xF02A1E05u : 0xF0101010u;
+                var border = row.IsBest ? 0xFFFFD700u : 0xFF888899u;
+                var textCol = row.IsBest ? 0xFF50FF50u : 0xFFFFFFFFu;
+
+                fg.AddRectFilled(min, max, bg, 4f);
+                fg.AddRect(min, max, border, 4f, ImDrawFlags.None, row.IsBest ? 2.0f : 1.2f);
+                fg.AddText(new Vector2(min.X + pad.X, min.Y + pad.Y), textCol, row.ChipText);
+            }
+        }
+
         private void DrawRuneshapeWindow()
         {
             if (this.Settings.RuneshapeWinHideOnHover && this.runeshapeWinRectValid)
@@ -1261,7 +1741,7 @@ namespace NinjaPricer
             var winAlpha = Math.Clamp(this.Settings.RuneshapeWinAlpha, 0.2f, 1.0f);
 
             ImGui.SetNextWindowPos(new Vector2(this.Settings.RuneshapeWinX, this.Settings.RuneshapeWinY), ImGuiCond.FirstUseEver);
-            ImGui.SetNextWindowSize(new Vector2(500, 550), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSize(new Vector2(480, 520), ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowBgAlpha(winAlpha);
 
             bool keepOpen = this.Settings.ShowRuneshapeWindow;
@@ -1292,7 +1772,7 @@ namespace NinjaPricer
                 var st = this.priceService?.GetStatus();
                 if (st?.Loaded == true)
                 {
-                    ImGui.TextDisabled($"(Rates: 1D = {st.Value.DivineInChaos:F1}c | 1E = {st.Value.ExaltedInChaos:F2}c)");
+                    ImGui.TextDisabled($"(Rates: 1D = {st.Value.DivineInChaos:F1}c | 1E = {st.Value.ExaltedInChaos:F1}c)");
                 }
                 else
                 {
@@ -1301,71 +1781,139 @@ namespace NinjaPricer
 
                 ImGui.Separator();
 
-                // Search Filter
-                ImGui.SetNextItemWidth(320f);
-                ImGui.InputTextWithHint("##rsSearch", "Search reward or rune...", ref this.rsSearchFilter, 64);
-                if (!string.IsNullOrEmpty(this.rsSearchFilter))
+                // Scan active monoliths in map
+                var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                var monoliths = new List<MonolithData>();
+                if (area?.AwakeEntities != null)
                 {
-                    ImGui.SameLine();
-                    if (ImGui.Button("Clear"))
+                    foreach (var e in area.AwakeEntities.Values)
                     {
-                        this.rsSearchFilter = string.Empty;
-                    }
-                }
-
-                ImGui.Spacing();
-
-                if (this.runeshapeRecipes.Count == 0)
-                {
-                    this.LoadRuneshapeRecipes();
-                    if (this.runeshapeRecipes.Count == 0)
-                    {
-                        ImGui.TextDisabled("No recipes loaded. Make sure expedition2_recipes.json exists.");
-                    }
-                }
-
-                string[] colors = { "Red (Physical)", "Blue (Arcane/Cold)", "Green (Chaos/Poison)", "Yellow (Fire/Currency)", "Purple (Celestial/Rare)" };
-                uint[] colorValues = { 0xFF3333E5, 0xFFE56633, 0xFF33E533, 0xFF33D5E5, 0xFFD533D5 };
-
-                var filter = this.rsSearchFilter.Trim();
-
-                for (int i = 0; i < colors.Length; i++)
-                {
-                    uint colorKey = (uint)i;
-                    bool collapsed = this.Settings.RuneshapeCollapsed.Contains(colorKey);
-
-                    if (this.Settings.RsShowHdrColor)
-                    {
-                        var dl = ImGui.GetWindowDrawList();
-                        var cp = ImGui.GetCursorScreenPos();
-                        dl.AddRectFilled(cp, cp + new Vector2(12f, 12f), colorValues[i], 2f);
-                        ImGui.Dummy(new Vector2(14f, 12f));
-                        ImGui.SameLine();
-                    }
-
-                    var catRecipes = this.runeshapeRecipes.Where(r => r.Category == i);
-                    if (!string.IsNullOrEmpty(filter))
-                    {
-                        catRecipes = catRecipes.Where(r =>
-                            r.Description.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                            (r.Reward != null && r.Reward.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
-                            r.Runes.Any(rn => rn.Contains(filter, StringComparison.OrdinalIgnoreCase)));
-                    }
-
-                    var list = catRecipes.ToList();
-                    string headerTitle = $"{colors[i]} ({list.Count})##cat{i}";
-
-                    bool treeOpen = ImGui.TreeNode(headerTitle);
-                    if (treeOpen)
-                    {
-                        if (collapsed) this.Settings.RuneshapeCollapsed.Remove(colorKey);
-
-                        if (list.Count == 0)
+                        if (e.Path != null && e.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase))
                         {
-                            ImGui.TextDisabled("  No matching recipes");
+                            if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
+                            {
+                                monoliths.Add(mData);
+                            }
                         }
-                        else
+                    }
+                }
+
+                if (monoliths.Count == 0)
+                {
+                    ImGui.Spacing();
+                    ImGui.TextDisabled("No Runeshapes in current area");
+                    ImGui.Spacing();
+                }
+                else
+                {
+                    ImGui.Spacing();
+                    ImGui.TextColored(new Vector4(0.5f, 1.0f, 0.5f, 1.0f), $"Active Runeshapes in Area: {monoliths.Count}");
+                    ImGui.Spacing();
+
+                    for (int mIdx = 0; mIdx < monoliths.Count; mIdx++)
+                    {
+                        var m = monoliths[mIdx];
+                        string mTitle = m.IsUnique ? $"Unique Monolith##m_{mIdx}" : $"Monolith ({m.HoleCount} Sockets)##m_{mIdx}";
+
+                        if (this.Settings.RsShowHdrColor)
                         {
+                            var dl = ImGui.GetWindowDrawList();
+                            var cp = ImGui.GetCursorScreenPos();
+                            dl.AddRectFilled(cp, cp + new Vector2(12f, 12f), m.Color, 2f);
+                            ImGui.Dummy(new Vector2(14f, 12f));
+                            ImGui.SameLine();
+                        }
+
+                        bool open = ImGui.TreeNode(mTitle);
+                        if (m.IsCompleted)
+                        {
+                            ImGui.SameLine();
+                            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1.0f), "[COMPLETED]");
+                        }
+
+                        if (open)
+                        {
+                            ImGui.TextDisabled($"Holes: {m.HoleCount} | Golden Slots: {m.GoldenSlots.Count}");
+
+                            var matching = this.runeshapeRecipes.Where(r => r.Size == m.HoleCount).ToList();
+                            if (matching.Count > 0)
+                            {
+                                foreach (var rec in matching)
+                                {
+                                    string rewardName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+                                    string priceStr = string.Empty;
+
+                                    if (this.priceService != null && this.priceService.TryLookupPrice(rewardName, out var pr))
+                                    {
+                                        float priceChaos = pr.Chaos * Math.Max(1, rec.RewardCount);
+                                        priceStr = this.Settings.DisplayCurrency switch
+                                        {
+                                            DisplayCurrency.Divine => $"{pr.Divine * Math.Max(1, rec.RewardCount):F2} D",
+                                            DisplayCurrency.Exalted => $"{pr.Exalt * Math.Max(1, rec.RewardCount):F1} E",
+                                            _ => $"{priceChaos:F0} c"
+                                        };
+                                    }
+
+                                    ImGui.Bullet();
+                                    ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.9f, 1.0f), $"{rec.Description}");
+                                    if (!string.IsNullOrEmpty(priceStr))
+                                    {
+                                        ImGui.SameLine();
+                                        ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), $"[{priceStr}]");
+                                    }
+                                    ImGui.Indent(18f);
+                                    ImGui.TextDisabled($"Runes: {string.Join(" + ", rec.Runes)}");
+                                    ImGui.Unindent(18f);
+                                }
+                            }
+                            else
+                            {
+                                ImGui.TextDisabled("  No recipe entries for this slot count");
+                            }
+
+                            ImGui.TreePop();
+                        }
+                    }
+                    ImGui.Spacing();
+                    ImGui.Separator();
+                }
+
+                // Collapsible full catalog section
+                if (ImGui.TreeNode("All Recipes Catalog"))
+                {
+                    // Search Filter
+                    ImGui.SetNextItemWidth(260f);
+                    ImGui.InputTextWithHint("##rsSearch", "Search recipe...", ref this.rsSearchFilter, 64);
+                    if (!string.IsNullOrEmpty(this.rsSearchFilter))
+                    {
+                        ImGui.SameLine();
+                        if (ImGui.Button("Clear")) this.rsSearchFilter = string.Empty;
+                    }
+
+                    string[] colors = { "Red (Physical)", "Blue (Arcane/Cold)", "Green (Chaos/Poison)", "Yellow (Fire/Currency)", "Purple (Celestial/Rare)" };
+                    uint[] colorValues = { 0xFF3333E5, 0xFFE56633, 0xFF33E533, 0xFF33D5E5, 0xFFD533D5 };
+                    var filter = this.rsSearchFilter.Trim();
+
+                    for (int i = 0; i < colors.Length; i++)
+                    {
+                        uint colorKey = (uint)i;
+                        bool collapsed = this.Settings.RuneshapeCollapsed.Contains(colorKey);
+
+                        var catRecipes = this.runeshapeRecipes.Where(r => r.Category == i);
+                        if (!string.IsNullOrEmpty(filter))
+                        {
+                            catRecipes = catRecipes.Where(r =>
+                                r.Description.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                                (r.Reward != null && r.Reward.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
+                                r.Runes.Any(rn => rn.Contains(filter, StringComparison.OrdinalIgnoreCase)));
+                        }
+
+                        var list = catRecipes.ToList();
+                        string headerTitle = $"{colors[i]} ({list.Count})##cat{i}";
+
+                        if (ImGui.TreeNode(headerTitle))
+                        {
+                            if (collapsed) this.Settings.RuneshapeCollapsed.Remove(colorKey);
                             foreach (var rec in list)
                             {
                                 string rewardName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
@@ -1382,28 +1930,25 @@ namespace NinjaPricer
                                     };
                                 }
 
-                                string runesList = string.Join(" + ", rec.Runes);
-
                                 ImGui.Bullet();
-                                ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.9f, 1.0f), $"{rec.Description}");
+                                ImGui.Text($"{rec.Description}");
                                 if (!string.IsNullOrEmpty(priceStr))
                                 {
                                     ImGui.SameLine();
                                     ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.2f, 1.0f), $"[{priceStr}]");
                                 }
-
                                 ImGui.Indent(18f);
-                                ImGui.TextDisabled($"Slots: {rec.Size} | Runes: {runesList}");
+                                ImGui.TextDisabled($"Slots: {rec.Size} | Runes: {string.Join(" + ", rec.Runes)}");
                                 ImGui.Unindent(18f);
                             }
+                            ImGui.TreePop();
                         }
-
-                        ImGui.TreePop();
+                        else
+                        {
+                            if (!collapsed) this.Settings.RuneshapeCollapsed.Add(colorKey);
+                        }
                     }
-                    else
-                    {
-                        if (!collapsed) this.Settings.RuneshapeCollapsed.Add(colorKey);
-                    }
+                    ImGui.TreePop();
                 }
             }
             ImGui.End();

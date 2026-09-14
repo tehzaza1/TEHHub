@@ -49,8 +49,8 @@ namespace NinjaPricer
 
         // Overlay Toggles
         public bool ShowGroundPrices { get; set; } = true;
-        public bool ShowInventoryPrices { get; set; } = false;
-        public bool ShowOtherInventoryPrices { get; set; } = false; // Stash
+        public bool ShowInventoryPrices { get; set; } = true;
+        public bool ShowOtherInventoryPrices { get; set; } = true; // Stash
         public bool ShowRitualPrices { get; set; } = true;
         public bool ShowRuneshapePrices { get; set; } = true;
         public bool ShowRuneshapeWeights { get; set; } = true;
@@ -61,7 +61,7 @@ namespace NinjaPricer
         public int ScanIntervalMs { get; set; } = 100;
 
         // Runeshape Movable Window
-        public bool ShowRuneshapeWindow { get; set; } = true;
+        public bool ShowRuneshapeWindow { get; set; } = false;
         public float RuneshapeWinX { get; set; } = 100.0f;
         public float RuneshapeWinY { get; set; } = 100.0f;
         public float RuneshapeWinAlpha { get; set; } = 0.85f;
