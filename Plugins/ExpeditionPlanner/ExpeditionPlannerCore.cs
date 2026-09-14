@@ -412,7 +412,7 @@ namespace ExpeditionPlanner
 
                         if (remnantTarget.NeedsReroll)
                         {
-                            subText = $"[!] REROLL: {goldenDisplay} is Blue ({remnantTarget.RerollReason})";
+                            subText = $"[!] REROLL: {remnantTarget.RerollReason}";
                         }
 
                         if (remnantTarget.WasCoveredByPlacedBomb)

@@ -263,11 +263,6 @@ namespace ExpeditionPlanner
             {
                 goldenRuneCandidate = anchorName;
                 proliferatedTier = anchorTier;
-                if (!isUnique && anchorTier == RuneTier.Blue_C)
-                {
-                    needsReroll = true;
-                    rerollReason = $"Blue rune in golden slot ({anchorName}). Reroll recommended for Purple or Opulent!";
-                }
             }
             else if (!isUnique && goldenSlotIndex >= 0 && anchorIdx >= 0)
             {
@@ -319,22 +314,59 @@ namespace ExpeditionPlanner
                     goldenRuneCandidate = "Blue Rune";
                     proliferatedTier = RuneTier.Blue_C;
                 }
-
-                if (proliferatedTier == RuneTier.Blue_C)
-                {
-                    needsReroll = true;
-                    rerollReason = $"Golden Slot #{goldenSlotIndex + 1} likely Blue ({goldenRuneCandidate}). Reroll recommended!";
-                }
-                else
-                {
-                    needsReroll = false;
-                    rerollReason = string.Empty;
-                }
             }
             else
             {
                 goldenRuneCandidate = isUnique ? "Unique" : "Unknown";
                 proliferatedTier = RuneTier.Blue_C;
+            }
+
+            // --- Smart Reroll Advisor Evaluation ---
+            if (isUnique || string.IsNullOrEmpty(goldenRuneCandidate) || goldenRuneCandidate == "Unknown")
+            {
+                needsReroll = false;
+                rerollReason = string.Empty;
+            }
+            // 1. SSS (Opulent) and S-Tier (Power, Death, Bond, Oath):
+            // NEVER REROLL! Even with only 2-3 holes, proliferating SSS/S tier multiplier into subsequent remnants is priceless.
+            else if (proliferatedTier == RuneTier.Golden || proliferatedTier == RuneTier.Purple_S)
+            {
+                needsReroll = false;
+                rerollReason = string.Empty;
+            }
+            // 2. Blue rune in Golden Slot (Blue_C):
+            else if (proliferatedTier == RuneTier.Blue_C)
+            {
+                if (holeCount >= 8)
+                {
+                    // High sockets (8+ holes): Do not reroll! Risk of losing many sockets.
+                    needsReroll = false;
+                    rerollReason = $"Blue in Golden slot, but has {holeCount} sockets (reroll risks losing sockets).";
+                }
+                else if (holeCount <= 4)
+                {
+                    // Low sockets (<= 4 holes) + Blue: Highly recommend reroll for both more sockets and better runes!
+                    needsReroll = true;
+                    rerollReason = $"Blue rune ({goldenRuneCandidate}) & low sockets ({holeCount} holes). Highly recommend Reroll!";
+                }
+                else
+                {
+                    // Medium sockets (5-7 holes) + Blue:
+                    needsReroll = true;
+                    rerollReason = $"Blue rune in Golden slot ({goldenRuneCandidate}). Reroll recommended for Purple or Opulent!";
+                }
+            }
+            // 3. Purple_B (low-tier purple like Arcane, Protective, etc.) with very few sockets (<= 3 holes):
+            else if (proliferatedTier == RuneTier.Purple_B && holeCount <= 3)
+            {
+                needsReroll = true;
+                rerollReason = $"Low-tier Purple ({goldenRuneCandidate}) with only {holeCount} sockets. Reroll recommended for more sockets or S-tier!";
+            }
+            // 4. High-tier Purple (Purple_A like Time, Rebirth) or Purple_B with >= 4 sockets:
+            else
+            {
+                needsReroll = false;
+                rerollReason = string.Empty;
             }
 
             // Build the best recipe reference so the player knows WHICH ROW to click in the Runeshape Combinations dialog
