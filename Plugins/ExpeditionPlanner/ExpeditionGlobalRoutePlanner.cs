@@ -18,7 +18,25 @@ namespace ExpeditionPlanner
             ExpeditionPlannerSettings settings,
             bool isRealDetonator = false)
         {
-            var candidates = BuildCandidates(targets, terrain, settings);
+            // Pre-compute which targets are already covered by placed bombs so that
+            // BuildCandidates can exclude them — preventing the solver from wasting
+            // additional explosives to "re-cover" a target that is already claimed.
+            var initialCovered = new HashSet<uint>();
+            foreach (var bomb in placed)
+            {
+                float r = settings.BlastRadiusGrid;
+                foreach (var target in targets)
+                {
+                    float dx = target.GridPosition.X - bomb.GridPosition.X;
+                    float dy = target.GridPosition.Y - bomb.GridPosition.Y;
+                    if ((dx * dx) + (dy * dy) <= r * r)
+                    {
+                        initialCovered.Add(target.EntityId);
+                    }
+                }
+            }
+
+            var candidates = BuildCandidates(targets, terrain, settings, initialCovered);
             int pillarCount = targets.Count(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel);
             int remainingBudget = settings.MaxExplosiveBudget - placed.Count;
             if (remainingBudget <= 0)
@@ -444,11 +462,16 @@ namespace ExpeditionPlanner
             return "excluded because other pillars/chests yielded higher overall score within the available explosives budget";
         }
 
-        private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings)
+        private static List<Vector3> BuildCandidates(List<ExpeditionTarget> targets, ExpeditionTerrainSnapshot? terrain, ExpeditionPlannerSettings settings, HashSet<uint>? alreadyCovered = null)
         {
+            alreadyCovered ??= new HashSet<uint>();
             var result = new List<Vector3>();
-            var pillars = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
-            var chests = targets.Where(t => t.Kind == TargetKind.ChestReward).ToList();
+            // Exclude targets already claimed by a placed bomb — no need to generate
+            // candidates around them; the beam search already knows they are covered.
+            var pillars = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel
+                                            && !alreadyCovered.Contains(t.EntityId)).ToList();
+            var chests = targets.Where(t => t.Kind == TargetKind.ChestReward
+                                           && !alreadyCovered.Contains(t.EntityId)).ToList();
 
             // 1. Concentric rings around every Remnant Pillar
             float[] pillarRadii = [12f, 18f, 26f];
