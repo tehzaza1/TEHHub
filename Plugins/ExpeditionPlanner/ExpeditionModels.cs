@@ -101,9 +101,11 @@ namespace ExpeditionPlanner
         public string Profile { get; set; } = "Balanced";
         public string Reason { get; set; } = string.Empty;
         public bool IsUnsafe { get; set; }
+        public bool IsPillarOrder { get; set; }
         public List<string> Warnings { get; set; } = new();
         public List<string> ProliferatedStack { get; set; } = new();
         public int RerollRemnantCount { get; set; }
         public DateTime GeneratedUtc { get; set; } = DateTime.UtcNow;
     }
 }
+

@@ -52,6 +52,8 @@ namespace ExpeditionPlanner
         public bool ShowReasonCard { get; set; } = true;
         public bool ShowBlastRadius { get; set; } = true;
         public bool ShowTargetScores { get; set; } = true;
+        public bool ShowPillarOrderOnLargeMap { get; set; } = true;
         public float BadgeRadius { get; set; } = 22.0f;
     }
 }
+

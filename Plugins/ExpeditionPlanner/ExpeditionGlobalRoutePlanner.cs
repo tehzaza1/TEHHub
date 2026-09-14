@@ -49,8 +49,19 @@ namespace ExpeditionPlanner
             }
 
             int maxCount = remainingBudget;
-            var best = SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, isRealDetonator)
+            // The final explosion carries the finished rune stack. Pick its receiver
+            // from live data: most sockets first, then value as a deterministic tie-break.
+            var finalStackPillar = targets
+                .Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel)
+                .OrderByDescending(t => t.HoleCount)
+                .ThenByDescending(t => GetTargetValue(t, settings))
+                .FirstOrDefault();
+            var best = SearchRouteBeam(startGrid, startWorld, placed, targets, candidates, terrain, settings, maxCount, isRealDetonator, finalStackPillar)
                 ?? new RouteEvaluation { Profile = settings.Profile.ToString() };
+            if (finalStackPillar != null)
+            {
+                best.Warnings.Add($"Terminal target: {RuneName(finalStackPillar)} ({finalStackPillar.HoleCount} slots) must be hit by explosive #{placed.Count + maxCount}.");
+            }
 
             // Calculate ProliferationRemaining & ProliferatedStack
             for (int i = 0; i < best.Placements.Count; i++)
@@ -144,7 +155,8 @@ namespace ExpeditionPlanner
             ExpeditionTerrainSnapshot? terrain,
             ExpeditionPlannerSettings settings,
             int maxSteps,
-            bool isRealDetonator)
+            bool isRealDetonator,
+            ExpeditionTarget? finalStackPillar)
         {
             const int beamWidth = 64;
             var pillarTargets = targets.Where(t => t.Kind is TargetKind.RemnantPillar or TargetKind.VerisiumSentinel).ToList();
@@ -206,6 +218,16 @@ namespace ExpeditionPlanner
 
                         var hit = allTargets.Where(t => !state.Covered.Contains(t.EntityId) &&
                             Vector2.Distance(new Vector2(point.X, point.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)) <= settings.BlastRadiusGrid).ToList();
+
+                        // This is a route constraint, not a score bonus: while building
+                        // a 15-explosive plan, the widest pillar must receive the final
+                        // explosion. It is discovered from the current map, never hard-coded.
+                        bool hitsFinalStack = finalStackPillar != null && hit.Any(t => t.EntityId == finalStackPillar.EntityId);
+                        if (finalStackPillar != null)
+                        {
+                            if (depth < maxSteps && hitsFinalStack) continue;
+                            if (depth == maxSteps && !hitsFinalStack) continue;
+                        }
 
                         float stepScore = 0f;
                         float newProlifMult = state.ProliferationMultiplier;
@@ -291,27 +313,39 @@ namespace ExpeditionPlanner
                         hasSuccessor = true;
                     }
 
-                    // A* terrain detour fallback when normal candidates cannot extend this state
-                    if (!hasSuccessor && depth < maxSteps)
+                    // Always inject bridge steps toward high-value uncovered far pillars.
+                    // Previously this was gated on !hasSuccessor, which caused solver to stop
+                    // bridging the moment it found any nearby low-value target (e.g. a chest),
+                    // leaving high-slot pillars permanently unreachable.
+                    if (depth < maxSteps)
                     {
-                        var detourTargets = pillarTargets
+                        // Prioritise pillars by slot count (more slots = more value), then by distance
+                        var bridgeTargets = pillarTargets
                             .Where(t => !state.Covered.Contains(t.EntityId))
-                            .OrderBy(t => Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)))
-                            .Take(3);
+                            .Where(t =>
+                            {
+                                float d = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y));
+                                return d > settings.BlastRadiusGrid + settings.MaxPlacementRangeGrid; // only pillars unreachable in ONE hop
+                            })
+                            .OrderByDescending(t => t.HoleCount)
+                            .ThenBy(t => Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(t.GridPosition.X, t.GridPosition.Y)))
+                            .Take(hasSuccessor ? 2 : 4); // be more aggressive when stuck
 
-                        foreach (var detourTarget in detourTargets)
+                        foreach (var bridgeTarget in bridgeTargets)
                         {
                             if (LegalPlacement.TryFindTerrainDetourWaypoint(
                                     terrain,
                                     new Vector2(state.Anchor.X, state.Anchor.Y),
-                                    new Vector2(detourTarget.GridPosition.X, detourTarget.GridPosition.Y),
+                                    new Vector2(bridgeTarget.GridPosition.X, bridgeTarget.GridPosition.Y),
                                     settings.MaxPlacementRangeGrid,
                                     out var waypoint))
                             {
-                                var point = new Vector3(waypoint.X, waypoint.Y, detourTarget.GridPosition.Z);
+                                var point = new Vector3(waypoint.X, waypoint.Y, bridgeTarget.GridPosition.Z);
                                 if (LegalPlacement.IsPlaceable(point, state.Anchor, terrain, settings, pillarTargets, isRealDetonator ? startGrid : null, state.Committed))
                                 {
                                     float dDist = Vector2.Distance(new Vector2(state.Anchor.X, state.Anchor.Y), new Vector2(point.X, point.Y));
+                                    // Penalty scales inversely with pillar value so high-slot pillars are pursued harder
+                                    float bridgePenalty = hasSuccessor ? (80f - bridgeTarget.HoleCount * 8f) : 40f;
                                     next.Add(new BeamState
                                     {
                                         Anchor = point,
@@ -323,13 +357,13 @@ namespace ExpeditionPlanner
                                             WorldPosition = new Vector3(
                                                 startWorld.X + (point.X - startGrid.X) * 10.87f,
                                                 startWorld.Y + (point.Y - startGrid.Y) * 10.87f,
-                                                startWorld.Z),  // Z stays at ground level
+                                                startWorld.Z),
                                             WireDistance = dDist
                                         }).ToList(),
                                         Covered = new HashSet<uint>(state.Covered),
                                         CoveredPillars = state.CoveredPillars,
                                         Bridges = state.Bridges + 1,
-                                        TotalScore = state.TotalScore - 40f,
+                                        TotalScore = state.TotalScore - bridgePenalty,
                                         ProliferationMultiplier = state.ProliferationMultiplier
                                     });
                                     break;
