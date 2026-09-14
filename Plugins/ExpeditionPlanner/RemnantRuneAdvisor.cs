@@ -136,8 +136,46 @@ namespace ExpeditionPlanner
             out bool needsReroll,
             out string rerollReason)
         {
+            return TryReadMonolith(
+                entity,
+                areaLevel,
+                out holeCount,
+                out goldenSlotIndex,
+                out _,
+                out anchorSlotIndex,
+                out anchorName,
+                out goldenRuneCandidate,
+                out candidateRuneSequence,
+                out recommendedChoice,
+                out description,
+                out estimatedValue,
+                out proliferatedTier,
+                out isAnchorInGoldenSlot,
+                out needsReroll,
+                out rerollReason);
+        }
+
+        public static bool TryReadMonolith(
+            Entity entity,
+            int areaLevel,
+            out int holeCount,
+            out int goldenSlotIndex,
+            out List<int> goldenSlotIndices,
+            out int anchorSlotIndex,
+            out string anchorName,
+            out string goldenRuneCandidate,
+            out List<string> candidateRuneSequence,
+            out string recommendedChoice,
+            out string description,
+            out float estimatedValue,
+            out RuneTier proliferatedTier,
+            out bool isAnchorInGoldenSlot,
+            out bool needsReroll,
+            out string rerollReason)
+        {
             holeCount = 0;
             goldenSlotIndex = -1;
+            goldenSlotIndices = new List<int>();
             anchorSlotIndex = -1;
             anchorName = string.Empty;
             goldenRuneCandidate = string.Empty;
@@ -188,26 +226,34 @@ namespace ExpeditionPlanner
             var anchorPos = reader.ReadMemory<int>(station + StationAnchorPosOffset);
             anchorSlotIndex = anchorPos;
 
-            // Authoritative Golden Crown socket index (stored in std::vector<int> at station + 0x40)
+            // Authoritative Golden Crown socket indices (stored in std::vector<int> at station + 0x40)
             var goldenVec = reader.ReadMemory<StdVector>(station + StationGoldenSlotsOffset);
-            int goldenSlot = -1;
+            var goldenSlotsList = new List<int>();
             var goldenCount = goldenVec.TotalElements(sizeof(int));
             if (goldenCount > 0 && goldenCount <= 16)
             {
                 var goldenSlots = reader.ReadMemoryArray<int>(goldenVec.First, (int)goldenCount);
                 if (goldenSlots != null && goldenSlots.Length > 0)
                 {
-                    goldenSlot = goldenSlots[0];
+                    foreach (var s in goldenSlots)
+                    {
+                        if (s >= 0 && s < holeCount && !goldenSlotsList.Contains(s))
+                        {
+                            goldenSlotsList.Add(s);
+                        }
+                    }
                 }
             }
 
             // Fallback to anchorPos if no golden slot vector was found
-            if (goldenSlot < 0)
+            if (goldenSlotsList.Count == 0 && anchorPos >= 0 && anchorPos < holeCount)
             {
-                goldenSlot = anchorPos;
+                goldenSlotsList.Add(anchorPos);
             }
 
-            goldenSlotIndex = goldenSlot;
+            goldenSlotsList.Sort();
+            goldenSlotIndices = goldenSlotsList;
+            goldenSlotIndex = goldenSlotsList.Count > 0 ? goldenSlotsList[0] : -1;
 
             var rowPtr = reader.ReadMemory<IntPtr>(station + StationAnchorRefOffset);
             bool isUnique = rowPtr == IntPtr.Zero;
@@ -242,8 +288,8 @@ namespace ExpeditionPlanner
 
             EnsureRecipesLoaded();
 
-            // Crucial: Only the rune IN the Golden Slot proliferates to subsequent remnants!
-            isAnchorInGoldenSlot = isUnique || (goldenSlotIndex == anchorSlotIndex);
+            // Crucial: A remnant proliferates if ANY golden slot contains a high-tier rune or the anchor
+            isAnchorInGoldenSlot = isUnique || goldenSlotsList.Contains(anchorSlotIndex);
 
             var matchingRecipes = new List<RecipeDef>();
             if (!isUnique && anchorIdx >= 0)
@@ -259,65 +305,134 @@ namespace ExpeditionPlanner
                 }
             }
 
-            if (isAnchorInGoldenSlot)
+            // Find best recipe by evaluating runes placed in Golden Slots
+            RecipeDef? bestRecipe = null;
+            if (!isUnique && matchingRecipes.Count > 0)
             {
-                goldenRuneCandidate = anchorName;
-                proliferatedTier = anchorTier;
-            }
-            else if (!isUnique && goldenSlotIndex >= 0 && anchorIdx >= 0)
-            {
-                int targetGoldenSlot = goldenSlotIndex;
-                // Prefer recipes matching exact holeCount, or highest available size that contains goldenSlotIndex
-                int maxMatchingSize = matchingRecipes.Count > 0 ? matchingRecipes.Max(r => r.size) : 0;
-                var primeCandidates = matchingRecipes.Where(r => r.size == maxMatchingSize && r.runeIdx != null && r.runeIdx.Count > targetGoldenSlot).ToList();
-                if (primeCandidates.Count == 0)
-                {
-                    primeCandidates = matchingRecipes.Where(r => r.runeIdx != null && r.runeIdx.Count > targetGoldenSlot).ToList();
-                }
-
-                var candidateRunes = new List<string>();
-                RuneTier bestCandidateTier = RuneTier.Blue_C;
-                string bestCandidateRune = string.Empty;
-
-                foreach (var rec in primeCandidates)
-                {
-                    var gIdx = rec.runeIdx![goldenSlotIndex];
-                    if (gIdx >= 0 && gIdx < RuneNames.Length)
+                int capturedAnchorSlot = anchorSlotIndex;
+                bestRecipe = matchingRecipes
+                    .OrderBy(r =>
                     {
-                        var rName = RuneNames[gIdx];
-                        if (!candidateRunes.Contains(rName))
+                        if (r.runeIdx == null) return 999;
+                        int bestTier = 999;
+                        foreach (var g in goldenSlotsList)
                         {
-                            candidateRunes.Add(rName);
+                            if (g == capturedAnchorSlot)
+                            {
+                                bestTier = Math.Min(bestTier, (int)anchorTier);
+                            }
+                            else if (r.runeIdx.Count > g)
+                            {
+                                var gIdx = r.runeIdx[g];
+                                var rName = (gIdx >= 0 && gIdx < RuneNames.Length) ? RuneNames[gIdx] : string.Empty;
+                                bestTier = Math.Min(bestTier, (int)GetRuneTier(rName));
+                            }
                         }
-
-                        var tier = GetRuneTier(rName);
-                        if (tier < bestCandidateTier || string.IsNullOrEmpty(bestCandidateRune))
+                        return bestTier;
+                    })
+                    .ThenBy(r =>
+                    {
+                        if (r.runeIdx == null) return 999;
+                        int sumTier = 0;
+                        foreach (var g in goldenSlotsList)
                         {
-                            bestCandidateTier = tier;
-                            bestCandidateRune = rName;
+                            if (g == capturedAnchorSlot)
+                            {
+                                sumTier += (int)anchorTier;
+                            }
+                            else if (r.runeIdx.Count > g)
+                            {
+                                var gIdx = r.runeIdx[g];
+                                var rName = (gIdx >= 0 && gIdx < RuneNames.Length) ? RuneNames[gIdx] : string.Empty;
+                                sumTier += (int)GetRuneTier(rName);
+                            }
+                            else
+                            {
+                                sumTier += (int)RuneTier.Blue_C;
+                            }
                         }
-                    }
-                }
+                        return sumTier;
+                    })
+                    .ThenByDescending(r => r.rewardCount)
+                    .ThenByDescending(r => r.size)
+                    .FirstOrDefault();
+            }
 
-                proliferatedTier = bestCandidateTier;
-                if (candidateRunes.Count > 1)
-                {
-                    var otherCandidates = candidateRunes.Where(r => !string.Equals(r, bestCandidateRune, StringComparison.OrdinalIgnoreCase)).ToList();
-                    goldenRuneCandidate = otherCandidates.Count > 0 ? $"{bestCandidateRune} / {otherCandidates[0]}" : bestCandidateRune;
-                }
-                else if (!string.IsNullOrEmpty(bestCandidateRune))
-                {
-                    goldenRuneCandidate = bestCandidateRune;
-                }
-                else
-                {
-                    goldenRuneCandidate = "Blue Rune";
-                    proliferatedTier = RuneTier.Blue_C;
-                }
+            // Build candidateRuneSequence from best recipe
+            if (bestRecipe?.runes != null && bestRecipe.runes.Count > 0)
+            {
+                candidateRuneSequence = bestRecipe.runes;
+            }
+            else if (bestRecipe?.runeIdx != null)
+            {
+                candidateRuneSequence = bestRecipe.runeIdx
+                    .Select(idx => (idx >= 0 && idx < RuneNames.Length) ? RuneNames[idx] : "?")
+                    .ToList();
             }
             else
             {
-                goldenRuneCandidate = isUnique ? "Unique" : "Unknown";
+                candidateRuneSequence = new List<string>();
+            }
+
+            // Build goldenRuneCandidate and determine proliferatedTier across all golden slots
+            if (isUnique)
+            {
+                goldenRuneCandidate = "Unique";
+                proliferatedTier = RuneTier.Blue_C;
+            }
+            else if (goldenSlotsList.Count > 0)
+            {
+                var goldenParts = new List<string>();
+                RuneTier bestGoldenTier = RuneTier.Blue_C;
+
+                foreach (var g in goldenSlotsList)
+                {
+                    string rName;
+                    RuneTier rTier;
+
+                    if (g == anchorSlotIndex)
+                    {
+                        rName = anchorName;
+                        rTier = anchorTier;
+                    }
+                    else if (candidateRuneSequence.Count > g)
+                    {
+                        rName = candidateRuneSequence[g];
+                        rTier = GetRuneTier(rName);
+                    }
+                    else if (bestRecipe?.runeIdx != null && bestRecipe.runeIdx.Count > g)
+                    {
+                        var gIdx = bestRecipe.runeIdx[g];
+                        rName = (gIdx >= 0 && gIdx < RuneNames.Length) ? RuneNames[gIdx] : "Blue Rune";
+                        rTier = GetRuneTier(rName);
+                    }
+                    else
+                    {
+                        rName = "Blue Rune";
+                        rTier = RuneTier.Blue_C;
+                    }
+
+                    if (rTier < bestGoldenTier)
+                    {
+                        bestGoldenTier = rTier;
+                    }
+
+                    if (goldenSlotsList.Count > 1)
+                    {
+                        goldenParts.Add($"#{g + 1}: {rName} ★");
+                    }
+                    else
+                    {
+                        goldenParts.Add(rName);
+                    }
+                }
+
+                goldenRuneCandidate = string.Join(", ", goldenParts);
+                proliferatedTier = bestGoldenTier;
+            }
+            else
+            {
+                goldenRuneCandidate = "Unknown";
                 proliferatedTier = RuneTier.Blue_C;
             }
 
@@ -367,25 +482,6 @@ namespace ExpeditionPlanner
             {
                 needsReroll = false;
                 rerollReason = string.Empty;
-            }
-
-            // Build the best recipe reference so the player knows WHICH ROW to click in the Runeshape Combinations dialog
-            // Strategy: pick the best matching recipe (highest golden-slot tier, then highest rewardCount)
-            RecipeDef? bestRecipe = null;
-            if (!isUnique && matchingRecipes.Count > 0)
-            {
-                int capturedGoldenSlot = goldenSlotIndex; // capture out-param for use inside lambda
-                bestRecipe = matchingRecipes
-                    .Where(r => r.runeIdx != null && r.runeIdx.Count > capturedGoldenSlot)
-                    .OrderBy(r =>
-                    {
-                        var gIdx = r.runeIdx![capturedGoldenSlot];
-                        var rName = (gIdx >= 0 && gIdx < RuneNames.Length) ? RuneNames[gIdx] : string.Empty;
-                        return (int)GetRuneTier(rName);
-                    })
-                    .ThenByDescending(r => r.rewardCount)
-                    .ThenByDescending(r => r.size)
-                    .FirstOrDefault();
             }
 
             // Build candidateRuneSequence from best recipe (player can match visually)

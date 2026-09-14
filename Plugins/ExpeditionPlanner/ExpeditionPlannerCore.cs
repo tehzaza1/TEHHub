@@ -382,14 +382,16 @@ namespace ExpeditionPlanner
                             _ => (remnantTarget.IsAnchorInGoldenSlot ? 0xFF00D2FF : 0xFF9E9E9E)
                         };
 
-                        var goldenDisplay = remnantTarget.GoldenSlotIndex >= 0
-                            ? $"Golden Slot #{remnantTarget.GoldenSlotIndex + 1}/{remnantTarget.HoleCount}"
-                            : "Golden Slot";
+                        var goldenDisplay = remnantTarget.GoldenSlotIndices.Count > 1
+                            ? $"Golden Slots {string.Join(", ", remnantTarget.GoldenSlotIndices.Select(i => $"#{i + 1}"))}/{remnantTarget.HoleCount}"
+                            : (remnantTarget.GoldenSlotIndex >= 0
+                                ? $"Golden Slot #{remnantTarget.GoldenSlotIndex + 1}/{remnantTarget.HoleCount}"
+                                : "Golden Slot");
 
                         string choiceText;
                         string subText;
 
-                        if (remnantTarget.IsAnchorInGoldenSlot)
+                        if (remnantTarget.IsAnchorInGoldenSlot && remnantTarget.GoldenSlotIndices.Count <= 1)
                         {
                             choiceText = $"{tierTag} {remnantTarget.RecommendedRuneChoice}";
                             subText = remnantTarget.ProliferationRemaining > 0
@@ -465,7 +467,9 @@ namespace ExpeditionPlanner
                     drawList.AddCircleFilled(sPos, this.Settings.BadgeRadius * 0.55f, badgeColor);
                     drawList.AddCircle(sPos, this.Settings.BadgeRadius * 0.7f, 0xFFFFFFFF, 0, 1.5f);
 
-                    var goldenSlotText = target.GoldenSlotIndex >= 0 ? $"#{target.GoldenSlotIndex + 1}" : "";
+                    var goldenSlotText = target.GoldenSlotIndices.Count > 1
+                        ? $"#{string.Join(",#", target.GoldenSlotIndices.Select(i => (i + 1).ToString()))}"
+                        : (target.GoldenSlotIndex >= 0 ? $"#{target.GoldenSlotIndex + 1}" : "");
                     var gText = !string.IsNullOrEmpty(target.GoldenRuneCandidate) ? target.GoldenRuneCandidate : target.AnchorRuneName;
                     var lbl = $"{goldenSlotText} {gText}";
                     var lSize = ImGui.CalcTextSize(lbl);
@@ -576,20 +580,23 @@ namespace ExpeditionPlanner
                                     _ => new Vector4(0.3f, 0.7f, 1f, 1f)
                                 };
 
-                                var goldenSlotNum = remnant.GoldenSlotIndex >= 0 ? $"Golden Slot #{remnant.GoldenSlotIndex + 1}/{remnant.HoleCount}" : $"{remnant.HoleCount} Slots";
+                                var goldenSlotNum = remnant.GoldenSlotIndices.Count > 1
+                                    ? $"Golden Slots {string.Join(", ", remnant.GoldenSlotIndices.Select(i => $"#{i + 1}"))}/{remnant.HoleCount}"
+                                    : (remnant.GoldenSlotIndex >= 0 ? $"Golden Slot #{remnant.GoldenSlotIndex + 1}/{remnant.HoleCount}" : $"{remnant.HoleCount} Slots");
                                 var goldenRuneDisplay = !string.IsNullOrEmpty(remnant.GoldenRuneCandidate) ? remnant.GoldenRuneCandidate : (remnant.IsAnchorInGoldenSlot ? remnant.AnchorRuneName : "Blue Rune");
                                 ImGui.TextColored(tierColor, $"Step [{p.Step}] Pillar ({goldenSlotNum} - Golden: {goldenRuneDisplay}):");
                                 ImGui.BulletText($"Recipe: {remnant.RecommendedRuneChoice}");
                                 if (remnant.CandidateRuneSequence.Count > 0)
                                 {
                                     var seqParts = remnant.CandidateRuneSequence.Select((r, idx) =>
-                                        idx == remnant.GoldenSlotIndex ? $"[#{idx + 1}: {r} ★]" :
+                                        remnant.GoldenSlotIndices.Contains(idx) ? $"[#{idx + 1}: {r} ★]" :
                                         (idx == remnant.AnchorSlotIndex ? $"[#{idx + 1}: {r} (Anchor)]" : $"[#{idx + 1}: {r}]"));
                                     ImGui.TextDisabled($"   Sockets: {string.Join(" -> ", seqParts)}");
                                 }
-                                if (remnant.GoldenSlotIndex >= 0)
+                                if (remnant.GoldenSlotIndices.Count > 0)
                                 {
-                                    ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"   [★] Golden Crown: ช่องที่ {remnant.GoldenSlotIndex + 1} ({goldenRuneDisplay})");
+                                    var crownSlots = string.Join(", ", remnant.GoldenSlotIndices.Select(i => $"ช่องที่ {i + 1}"));
+                                    ImGui.TextColored(new Vector4(1f, 0.84f, 0f, 1f), $"   [★] Golden Crown: {crownSlots} ({goldenRuneDisplay})");
                                 }
                                 if (!remnant.IsAnchorInGoldenSlot && remnant.AnchorSlotIndex >= 0)
                                 {
@@ -851,7 +858,9 @@ namespace ExpeditionPlanner
             EntityId = source.EntityId, Path = source.Path, Kind = source.Kind, DisplayName = source.DisplayName,
             GridPosition = source.GridPosition, WorldPosition = source.WorldPosition, TerrainHeight = source.TerrainHeight,
             ModNames = new List<string>(source.ModNames), BaseWeight = source.BaseWeight, IsDangerous = source.IsDangerous,
-            HoleCount = source.HoleCount, GoldenSlotIndex = source.GoldenSlotIndex, AnchorSlotIndex = source.AnchorSlotIndex,
+            HoleCount = source.HoleCount, GoldenSlotIndex = source.GoldenSlotIndex,
+            GoldenSlotIndices = new List<int>(source.GoldenSlotIndices),
+            AnchorSlotIndex = source.AnchorSlotIndex,
             AnchorRuneName = source.AnchorRuneName, IsAnchorInGoldenSlot = source.IsAnchorInGoldenSlot,
             RecommendedRuneChoice = source.RecommendedRuneChoice, RecipeDescription = source.RecipeDescription,
             GoldenRuneCandidate = source.GoldenRuneCandidate, CandidateRuneSequence = new List<string>(source.CandidateRuneSequence),
@@ -914,6 +923,7 @@ namespace ExpeditionPlanner
 
                 int holes = 0;
                 int goldenSlot = -1;
+                var goldenSlots = new List<int>();
                 int anchorSlot = -1;
                 string anchor = string.Empty;
                 string goldenRune = string.Empty;
@@ -926,10 +936,13 @@ namespace ExpeditionPlanner
                 bool needsReroll = false;
                 string rerollReason = string.Empty;
 
-                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out anchorSlot, out anchor, out goldenRune, out candidateRuneSeq, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason))
+                if (RemnantRuneAdvisor.TryReadMonolith(entity, area.CurrentAreaLevel, out holes, out goldenSlot, out goldenSlots, out anchorSlot, out anchor, out goldenRune, out candidateRuneSeq, out choice, out desc, out score, out tier, out isAnchorInGoldenSlot, out needsReroll, out rerollReason))
                 {
-                    var goldenText = goldenSlot >= 0 ? $"Golden Slot #{goldenSlot + 1}/{holes}" : $"{holes}x";
-                    displayName = isAnchorInGoldenSlot
+                    var goldenText = goldenSlots.Count > 1
+                        ? $"Golden Slots {string.Join(",", goldenSlots.Select(i => $"#{i + 1}"))}/{holes}"
+                        : (goldenSlot >= 0 ? $"Golden Slot #{goldenSlot + 1}/{holes}" : $"{holes}x");
+
+                    displayName = isAnchorInGoldenSlot && goldenSlots.Count <= 1
                         ? $"Remnant [{goldenText} {anchor}]"
                         : $"Remnant [{goldenText} {goldenRune} | {anchor} @ #{anchorSlot + 1}]";
                 }
@@ -956,6 +969,7 @@ namespace ExpeditionPlanner
                     ModNames = remnantMods,
                     HoleCount = holes,
                     GoldenSlotIndex = goldenSlot,
+                    GoldenSlotIndices = goldenSlots,
                     AnchorSlotIndex = anchorSlot,
                     AnchorRuneName = anchor,
                     IsAnchorInGoldenSlot = isAnchorInGoldenSlot,

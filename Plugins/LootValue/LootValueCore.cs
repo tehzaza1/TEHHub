@@ -2532,7 +2532,10 @@ namespace LootValue
         {
             var best = m.BestOffer;
             var anchorName = m.IsUnique ? "Unique" : (m.AnchorIdx >= 0 ? RuneshapeCatalog.Instance.GetRuneName(m.AnchorIdx) : "Random");
-            var headerText = $"[{m.HoleCount} Sockets] {anchorName}";
+            var crownText = m.GoldenSlots.Count > 1
+                ? $" [★ #{string.Join(",#", m.GoldenSlots.Select(s => (s + 1).ToString()))}]"
+                : (m.GoldenSlots.Count == 1 ? $" [★ #{m.GoldenSlots[0] + 1}]" : "");
+            var headerText = $"[{m.HoleCount} Sockets{crownText}] {anchorName}";
 
             string rewardText;
             string priceText = string.Empty;

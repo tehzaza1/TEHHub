@@ -19,6 +19,7 @@ namespace LootValue
         public bool IsCompleted { get; set; }
         public Vector3 WorldPosition { get; set; }
         public float TerrainHeight { get; set; }
+        public List<int> GoldenSlots { get; set; } = new();
         public RecipeOffer? BestOffer { get; set; }
         public List<RecipeOffer> AllOffers { get; set; } = new();
     }
@@ -43,6 +44,7 @@ namespace LootValue
         private const int StationAnchorHolderOffset = 0x30;
         private const int StationHoleCountOffset = 0x38;
         private const int StationAnchorPosOffset = 0x3C;
+        private const int StationGoldenSlotsOffset = 0x40;
         private const int MinimapCompletedOffset = 0x10;
 
         // Runeforge UI Fingerprints
@@ -154,8 +156,28 @@ namespace LootValue
                 info.TerrainHeight = render.TerrainHeight;
             }
 
+            var goldenSlots = new List<int>();
+            var goldenVec = reader.ReadMemory<StdVector>(station + StationGoldenSlotsOffset);
+            var goldenCount = goldenVec.TotalElements(sizeof(int));
+            if (goldenCount > 0 && goldenCount <= 16)
+            {
+                var slots = reader.ReadMemoryArray<int>(goldenVec.First, (int)goldenCount);
+                if (slots != null)
+                {
+                    foreach (var s in slots)
+                    {
+                        if (s >= 0 && s < holeCount && !goldenSlots.Contains(s))
+                        {
+                            goldenSlots.Add(s);
+                        }
+                    }
+                }
+            }
+            goldenSlots.Sort();
+
             info.EntityAddress = entity.Address;
             info.HoleCount = holeCount;
+            info.GoldenSlots = goldenSlots;
             info.AnchorIdx = anchorIdx;
             info.AnchorPos = anchorPos;
             info.IsUnique = isUnique;

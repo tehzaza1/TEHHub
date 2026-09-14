@@ -55,6 +55,7 @@ namespace ExpeditionPlanner
         // Remnant Pillar / Monolith specific details
         public int HoleCount { get; set; }
         public int GoldenSlotIndex { get; set; } = -1;
+        public List<int> GoldenSlotIndices { get; set; } = new();
         public int AnchorSlotIndex { get; set; } = -1;
         public string AnchorRuneName { get; set; } = string.Empty;
         public bool IsAnchorInGoldenSlot { get; set; } = true;
