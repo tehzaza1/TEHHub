@@ -119,6 +119,7 @@ namespace NinjaPricer
 
         private readonly List<RsRecipe> runeshapeRecipes = new();
         private readonly Dictionary<long, int> partialMinLevel = new();
+        private readonly HashSet<long> collapsedMonoliths = new();
         private string rsSearchFilter = string.Empty;
 
         private static readonly uint[] RsMonolithColors = new uint[]
@@ -2924,75 +2925,6 @@ namespace NinjaPricer
             }
         }
 
-        private void DrawRuneshapeRecipeRow(RsRecipe rec, MonolithData? monolith = null)
-        {
-            string rewardName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
-            PriceResult pr = default;
-            bool isPriced = this.priceService != null && this.priceService.TryLookupPrice(rewardName, out pr);
-            float rowPriceChaos = isPriced ? pr.Chaos * Math.Max(1, rec.RewardCount) : 0f;
-            float rowDisplayPrice = isPriced ? (this.Settings.DisplayCurrency switch
-            {
-                DisplayCurrency.Divine => pr.Divine * Math.Max(1, rec.RewardCount),
-                DisplayCurrency.Exalted => pr.Exalt * Math.Max(1, rec.RewardCount),
-                _ => rowPriceChaos
-            }) : 0f;
-
-            bool lineStarted = false;
-
-            // 1) Reward Icon
-            if (this.Settings.RsShowRowIcon && isPriced && !string.IsNullOrEmpty(pr.ItemIcon))
-            {
-                var iconTex = this.GetItemTexture(pr.ItemIcon);
-                if (iconTex != null && iconTex.Value.Valid)
-                {
-                    float lh = ImGui.GetTextLineHeight();
-                    ImGui.Image(iconTex.Value.Ptr, new Vector2(lh, lh));
-                    lineStarted = true;
-                }
-            }
-
-            // 2) Reward Name + Quantity
-            string txt = rec.RewardCount > 1 ? $"{rewardName}  x{rec.RewardCount}" : rewardName;
-            if (lineStarted) ImGui.SameLine(0f, 4f);
-            if (isPriced)
-                ImGui.TextColored(new Vector4(0.95f, 0.95f, 0.95f, 1.0f), txt);
-            else
-                ImGui.TextDisabled(txt);
-            lineStarted = true;
-
-            // 3) Price
-            if (this.Settings.RsShowRowPrice && isPriced)
-            {
-                if (lineStarted) ImGui.SameLine(0f, 10f);
-                ImGui.TextUnformatted(FormatPriceNumberLocal(rowDisplayPrice));
-                var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
-                if (curTex != null && curTex.Value.Valid)
-                {
-                    ImGui.SameLine(0f, 3f);
-                    float lh = ImGui.GetTextLineHeight();
-                    float iw = (curTex.Value.H > 0) ? lh * (float)curTex.Value.W / curTex.Value.H : lh;
-                    ImGui.Image(curTex.Value.Ptr, new Vector2(iw, lh));
-                }
-                lineStarted = true;
-            }
-
-            // 4) Weight
-            if (this.Settings.ShowRuneshapeWeights && rec.ComboWeight != 0)
-            {
-                if (lineStarted) ImGui.SameLine(0f, 10f);
-                var wc = rec.ComboWeight > 0 ? new Vector4(0.43f, 0.92f, 0.43f, 1f) : new Vector4(0.72f, 0.72f, 0.72f, 1f);
-                ImGui.TextColored(wc, rec.ComboWeight > 0 ? $"+{rec.ComboWeight}" : $"{rec.ComboWeight}");
-            }
-
-            // 5) Rune names
-            if (rec.Runes.Count > 0)
-            {
-                ImGui.Indent(18f);
-                ImGui.TextDisabled($"Runes: {string.Join(" + ", rec.Runes)}");
-                ImGui.Unindent(18f);
-            }
-        }
-
         private List<MonolithData> GetActiveMonoliths()
         {
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
@@ -3018,74 +2950,110 @@ namespace NinjaPricer
             for (int mIdx = 0; mIdx < monoliths.Count; mIdx++)
             {
                 var m = monoliths[mIdx];
-                m.Color = RsMonolithColors[mIdx % RsMonolithColors.Length];
+                var offers = new List<MonolithOffer>();
 
-                if (m.BestOffer == null)
+                foreach (var rec in this.runeshapeRecipes)
                 {
-                    float maxChaos = -1f;
-                    int maxWeight = -1;
-                    MonolithOffer? top = null;
-                    foreach (var rec in this.runeshapeRecipes)
+                    if (rec.Size > m.HoleCount) continue;
+                    if (areaLevel > 0 && rec.MaxLevel > 0 && (areaLevel < rec.MinLevel || areaLevel > rec.MaxLevel)) continue;
+
+                    if (!m.IsUnique && m.AnchorIdx >= 0)
                     {
-                        if (rec.Size > m.HoleCount) continue;
-                        if (areaLevel > 0 && rec.MaxLevel > 0 && (areaLevel < rec.MinLevel || areaLevel > rec.MaxLevel)) continue;
-
-                        if (!m.IsUnique && m.AnchorIdx >= 0)
-                        {
-                            if (rec.RuneIdx == null || rec.RuneIdx.Count <= m.AnchorPos) continue;
-                            if (rec.RuneIdx[m.AnchorPos] != m.AnchorIdx) continue;
-                            if (rec.Size != m.HoleCount && !this.IsPartialAllowed(m.AnchorIdx, m.AnchorPos, rec.Size, areaLevel)) continue;
-                        }
-
-                        string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
-                        int count = Math.Max(1, rec.RewardCount);
-                        float chaos = 0f;
-                        float displayVal = 0f;
-                        string? itemIcon = null;
-
-                        if (this.priceService != null && this.priceService.TryLookupPrice(rName, out var pr))
-                        {
-                            chaos = pr.Chaos * count;
-                            itemIcon = pr.ItemIcon;
-                            displayVal = this.Settings.DisplayCurrency switch
-                            {
-                                DisplayCurrency.Divine => pr.Divine * count,
-                                DisplayCurrency.Exalted => pr.Exalt * count,
-                                _ => chaos
-                            };
-                        }
-
-                        bool isBetter;
-                        if (this.Settings.RsPrioritizeWeight)
-                        {
-                            isBetter = rec.ComboWeight > maxWeight || (rec.ComboWeight == maxWeight && chaos > maxChaos);
-                        }
-                        else
-                        {
-                            isBetter = chaos > maxChaos || (Math.Abs(chaos - maxChaos) < 0.001f && rec.ComboWeight > maxWeight);
-                        }
-
-                        if (isBetter)
-                        {
-                            maxChaos = chaos;
-                            maxWeight = rec.ComboWeight;
-                            top = new MonolithOffer
-                            {
-                                RecipeId = rec.Id,
-                                Description = rec.Description,
-                                Reward = rName,
-                                RewardCount = count,
-                                Runes = rec.Runes,
-                                RuneIdx = rec.RuneIdx != null ? new List<int>(rec.RuneIdx) : new List<int>(),
-                                ItemIcon = itemIcon,
-                                PriceChaos = chaos,
-                                DisplayValue = displayVal,
-                                ComboWeight = rec.ComboWeight
-                            };
-                        }
+                        if (rec.RuneIdx == null || rec.RuneIdx.Count <= m.AnchorPos) continue;
+                        if (rec.RuneIdx[m.AnchorPos] != m.AnchorIdx) continue;
+                        if (rec.Size != m.HoleCount && !this.IsPartialAllowed(m.AnchorIdx, m.AnchorPos, rec.Size, areaLevel)) continue;
                     }
-                    m.BestOffer = top;
+
+                    string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+                    int count = Math.Max(1, rec.RewardCount);
+                    float chaos = 0f;
+                    float displayVal = 0f;
+                    string? itemIcon = null;
+
+                    if (this.priceService != null && this.priceService.TryLookupPrice(rName, out var pr))
+                    {
+                        chaos = pr.Chaos * count;
+                        itemIcon = pr.ItemIcon;
+                        displayVal = this.Settings.DisplayCurrency switch
+                        {
+                            DisplayCurrency.Divine => pr.Divine * count,
+                            DisplayCurrency.Exalted => pr.Exalt * count,
+                            _ => chaos
+                        };
+                    }
+
+                    offers.Add(new MonolithOffer
+                    {
+                        RecipeId = rec.Id,
+                        Description = rec.Description,
+                        Reward = rName,
+                        RewardCount = count,
+                        Runes = rec.Runes,
+                        RuneIdx = rec.RuneIdx != null ? new List<int>(rec.RuneIdx) : new List<int>(),
+                        ItemIcon = itemIcon,
+                        PriceChaos = chaos,
+                        DisplayValue = displayVal,
+                        ComboWeight = rec.ComboWeight
+                    });
                 }
+
+                if (this.Settings.RsPrioritizeWeight)
+                {
+                    offers.Sort((a, b) =>
+                    {
+                        int wCmp = b.ComboWeight.CompareTo(a.ComboWeight);
+                        if (wCmp != 0) return wCmp;
+                        return b.PriceChaos.CompareTo(a.PriceChaos);
+                    });
+                }
+                else
+                {
+                    offers.Sort((a, b) =>
+                    {
+                        int pCmp = b.PriceChaos.CompareTo(a.PriceChaos);
+                        if (pCmp != 0) return pCmp;
+                        return b.ComboWeight.CompareTo(a.ComboWeight);
+                    });
+                }
+
+                m.Offers = offers;
+                m.BestOffer = offers.Count > 0 ? offers[0] : null;
+            }
+
+            // Sort active monoliths globally so both 3D world markers and overlay window match chosen sort mode
+            monoliths.Sort((a, b) =>
+            {
+                int compCmp = a.IsCompleted.CompareTo(b.IsCompleted);
+                if (compCmp != 0) return compCmp;
+
+                if (this.Settings.RsPrioritizeWeight)
+                {
+                    int wA = a.BestOffer?.ComboWeight ?? 0;
+                    int wB = b.BestOffer?.ComboWeight ?? 0;
+                    int wCmp = wB.CompareTo(wA);
+                    if (wCmp != 0) return wCmp;
+
+                    float pA = a.BestOffer?.PriceChaos ?? 0f;
+                    float pB = b.BestOffer?.PriceChaos ?? 0f;
+                    return pB.CompareTo(pA);
+                }
+                else
+                {
+                    float pA = a.BestOffer?.PriceChaos ?? 0f;
+                    float pB = b.BestOffer?.PriceChaos ?? 0f;
+                    int pCmp = pB.CompareTo(pA);
+                    if (pCmp != 0) return pCmp;
+
+                    int wA = a.BestOffer?.ComboWeight ?? 0;
+                    int wB = b.BestOffer?.ComboWeight ?? 0;
+                    return wB.CompareTo(wA);
+                }
+            });
+
+            // Assign colors based on sorted rank
+            for (int mIdx = 0; mIdx < monoliths.Count; mIdx++)
+            {
+                monoliths[mIdx].Color = RsMonolithColors[mIdx % RsMonolithColors.Length];
             }
 
             return monoliths;
@@ -3455,13 +3423,13 @@ namespace NinjaPricer
                 var glow = this.GetRuneUiTexture("RunePropagation.png", ref this.runePropagationTex, ref this.runePropagationTried);
 
                 var displayMonoliths = monoliths.ToList();
-                if (this.Settings.RsPrioritizeWeight)
+                displayMonoliths.Sort((a, b) =>
                 {
-                    displayMonoliths.Sort((a, b) =>
-                    {
-                        int compCmp = a.IsCompleted.CompareTo(b.IsCompleted);
-                        if (compCmp != 0) return compCmp;
+                    int compCmp = a.IsCompleted.CompareTo(b.IsCompleted);
+                    if (compCmp != 0) return compCmp;
 
+                    if (this.Settings.RsPrioritizeWeight)
+                    {
                         int wA = a.BestOffer?.ComboWeight ?? 0;
                         int wB = b.BestOffer?.ComboWeight ?? 0;
                         int wCmp = wB.CompareTo(wA);
@@ -3470,8 +3438,19 @@ namespace NinjaPricer
                         float pA = a.BestOffer?.PriceChaos ?? 0f;
                         float pB = b.BestOffer?.PriceChaos ?? 0f;
                         return pB.CompareTo(pA);
-                    });
-                }
+                    }
+                    else
+                    {
+                        float pA = a.BestOffer?.PriceChaos ?? 0f;
+                        float pB = b.BestOffer?.PriceChaos ?? 0f;
+                        int pCmp = pB.CompareTo(pA);
+                        if (pCmp != 0) return pCmp;
+
+                        int wA = a.BestOffer?.ComboWeight ?? 0;
+                        int wB = b.BestOffer?.ComboWeight ?? 0;
+                        return wB.CompareTo(wA);
+                    }
+                });
 
                 for (int mIdx = 0; mIdx < displayMonoliths.Count; mIdx++)
                 {
@@ -3537,7 +3516,12 @@ namespace NinjaPricer
                     }
                     else
                     {
-                        offers.Sort((a, b) => b.TotalChaos.CompareTo(a.TotalChaos));
+                        offers.Sort((a, b) =>
+                        {
+                            int pCmp = b.TotalChaos.CompareTo(a.TotalChaos);
+                            if (pCmp != 0) return pCmp;
+                            return b.ComboWeight.CompareTo(a.ComboWeight);
+                        });
                     }
                     var bestOffer = offers.Count > 0 ? offers[0] : null;
 
@@ -3577,7 +3561,7 @@ namespace NinjaPricer
                     }
 
                     // Custom header row without triangle arrow
-                    bool headerOpen = !this.Settings.RuneshapeCollapsed.Contains(mColor);
+                    bool headerOpen = !this.collapsedMonoliths.Contains(m.EntityAddress.ToInt64());
                     float headerH = Math.Max(baseFrameH, slotSz + 4f);
                     float availW = ImGui.GetContentRegionAvail().X;
 
@@ -3592,13 +3576,13 @@ namespace NinjaPricer
                     var hmin = ImGui.GetCursorScreenPos();
                     var hmax = new Vector2(hmin.X + btnW, hmin.Y + headerH);
 
-                    bool clicked = ImGui.InvisibleButton($"###rscol_{mColor:X8}_{m.EntityAddress.ToInt64():X}", new Vector2(btnW, headerH));
+                    bool clicked = ImGui.InvisibleButton($"###rscol_{m.EntityAddress.ToInt64():X}", new Vector2(btnW, headerH));
                     bool isHovered = ImGui.IsItemHovered();
                     if (clicked)
                     {
-                        if (headerOpen) this.Settings.RuneshapeCollapsed.Add(mColor);
-                        else this.Settings.RuneshapeCollapsed.Remove(mColor);
-                        this.SaveSettings();
+                        long mAddr = m.EntityAddress.ToInt64();
+                        if (headerOpen) this.collapsedMonoliths.Add(mAddr);
+                        else this.collapsedMonoliths.Remove(mAddr);
                         headerOpen = !headerOpen;
                     }
 
@@ -3829,54 +3813,6 @@ namespace NinjaPricer
 
                     ImGui.Spacing();
                 }
-            }
-
-            // Collapsible full catalog section at bottom
-            if (ImGui.TreeNode(this.PluginText.T("ninjapricer.runeshape.all_catalog", "All Recipes Catalog")))
-            {
-                ImGui.SetNextItemWidth(260f);
-                ImGui.InputTextWithHint("##rsSearch", this.PluginText.T("ninjapricer.runeshape.search_hint", "Search recipe..."), ref this.rsSearchFilter, 64);
-                if (!string.IsNullOrEmpty(this.rsSearchFilter))
-                {
-                    ImGui.SameLine();
-                    if (ImGui.Button(this.PluginText.T("button.clear", "Clear"))) this.rsSearchFilter = string.Empty;
-                }
-
-                string[] colors = { "Red (Physical)", "Blue (Arcane/Cold)", "Green (Chaos/Poison)", "Yellow (Fire/Currency)", "Purple (Celestial/Rare)" };
-                var filter = this.rsSearchFilter.Trim();
-
-                for (int i = 0; i < colors.Length; i++)
-                {
-                    uint colorKey = (uint)i;
-                    bool collapsed = this.Settings.RuneshapeCollapsed.Contains(colorKey);
-
-                    var catRecipes = this.runeshapeRecipes.Where(r => r.Category == i);
-                    if (!string.IsNullOrEmpty(filter))
-                    {
-                        catRecipes = catRecipes.Where(r =>
-                            r.Description.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                            (r.Reward != null && r.Reward.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
-                            r.Runes.Any(rn => rn.Contains(filter, StringComparison.OrdinalIgnoreCase)));
-                    }
-
-                    var list = catRecipes.ToList();
-                    string headerTitle = $"{colors[i]} ({list.Count})##cat{i}";
-
-                    if (ImGui.TreeNode(headerTitle))
-                    {
-                        if (collapsed) this.Settings.RuneshapeCollapsed.Remove(colorKey);
-                        foreach (var rec in list)
-                        {
-                            this.DrawRuneshapeRecipeRow(rec);
-                        }
-                        ImGui.TreePop();
-                    }
-                    else
-                    {
-                        if (!collapsed) this.Settings.RuneshapeCollapsed.Add(colorKey);
-                    }
-                }
-                ImGui.TreePop();
             }
 
             ImGui.End();

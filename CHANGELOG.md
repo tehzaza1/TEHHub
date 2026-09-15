@@ -2,6 +2,21 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.52 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **Runeshape: Synchronized Price & Weight Sorting Across World Markers & UI Window**:
+  - Monoliths and recipes now strictly sort according to the active sort mode (`💰 Price` vs `⚖ Weight`) across all layers:
+    - **In-World & Map Badges (`#1, #2...`)**: Ordered globally by the selected sort mode before badge colors and ranks are assigned.
+    - **Runeshape Window Rows**: Monoliths are ordered matching the active sort mode.
+    - **Recipe List Offers**: Recipes inside each monolith are sorted by Price DESC (with Weight tie-breaker) in Price mode, or by Weight DESC (with Price tie-breaker) in Weight mode.
+- **Runeshape Window: Per-Entity Monolith Collapse Isolation**:
+  - Fixed an issue where expanding or collapsing a monolith would cause other monoliths to open/close simultaneously or carry over unwanted collapse state between maps.
+  - Replaced shared color-palette collapse keys with isolated per-entity address tracking (`collapsedMonoliths`), ensuring clicking one monolith only affects that specific monolith.
+- **Runeshape Window: Cleaned up UI**:
+  - Removed the redundant "All Recipes Catalog" and search tree from the bottom of the active Runeshape window to keep the window fast, compact, and strictly focused on active map monoliths.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.51 — 2026-09-16 [Plugin Update — myFarming]
 
 - **Resource Centralization**:
