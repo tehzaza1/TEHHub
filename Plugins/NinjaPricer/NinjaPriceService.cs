@@ -32,6 +32,17 @@ namespace NinjaPricer
             Timeout = TimeSpan.FromSeconds(15)
         };
 
+        public static readonly List<string> AvailableLeagues = new()
+        {
+            "Forbidden Rites",
+            "HC Forbidden Rites",
+            "Standard",
+            "Rise of the Abyssal",
+            "HC Rise of the Abyssal",
+            "Runes of Aldur",
+            "HC Runes of Aldur",
+        };
+
         private readonly string cacheFilePath;
         private readonly ConcurrentDictionary<string, PriceResult> priceDb = new(StringComparer.OrdinalIgnoreCase);
 

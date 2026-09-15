@@ -261,6 +261,145 @@ namespace NinjaPricer
         [DllImport("user32.dll", CharSet = CharSet.Ansi)]
         private static extern int GetKeyNameTextA(int lParam, byte[] lpString, int nSize);
 
+        [LibraryImport("winmm.dll", EntryPoint = "PlaySound", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool WinMmPlaySound(byte[]? ptrToSound, IntPtr hmod, uint fdwSound);
+
+        private const uint SndAsync = 0x0001;
+        private const uint SndMemory = 0x0004;
+        private const uint SndNoDefault = 0x0002;
+
+        private static byte[]? rawWavBytes;
+        private static byte[]? scaledWavBytes;
+        private static int cachedVolumePercent = -1;
+
+        private readonly HashSet<uint> alertedEntityIds = new();
+        private List<ActiveDropAlert> activeAlertDrops = new();
+        private readonly List<DropAlertBanner> activeAlertBanners = new();
+        private DateTime lastAlertSoundUtc = DateTime.MinValue;
+        private readonly Dictionary<string, string> pathBasenameToItemName = new(StringComparer.OrdinalIgnoreCase);
+
+        private readonly struct ActiveDropAlert
+        {
+            public ActiveDropAlert(uint entityId, Render render, string itemName, double displayValue, string displayCurrency, uint beamColor)
+            {
+                this.EntityId = entityId;
+                this.Render = render;
+                this.ItemName = itemName;
+                this.DisplayValue = displayValue;
+                this.DisplayCurrency = displayCurrency;
+                this.BeamColor = beamColor;
+            }
+
+            public uint EntityId { get; }
+            public Render Render { get; }
+            public string ItemName { get; }
+            public double DisplayValue { get; }
+            public string DisplayCurrency { get; }
+            public uint BeamColor { get; }
+        }
+
+        private sealed class DropAlertBanner
+        {
+            public DropAlertBanner(uint entityId, string itemName, double displayValue, string displayCurrency, DateTime createdUtc)
+            {
+                this.EntityId = entityId;
+                this.ItemName = itemName;
+                this.DisplayValue = displayValue;
+                this.DisplayCurrency = displayCurrency;
+                this.CreatedUtc = createdUtc;
+            }
+
+            public uint EntityId { get; }
+            public string ItemName { get; }
+            public double DisplayValue { get; }
+            public string DisplayCurrency { get; }
+            public DateTime CreatedUtc { get; }
+        }
+
+        private void PrepareWavBuffer()
+        {
+            try
+            {
+                var soundPath = Path.Combine(this.DllDirectory, "default.wav");
+                if (!File.Exists(soundPath))
+                {
+                    soundPath = Path.Combine(AppContext.BaseDirectory, "Plugins", "NinjaPricer", "default.wav");
+                }
+                if (!File.Exists(soundPath)) return;
+
+                if (rawWavBytes == null)
+                {
+                    rawWavBytes = File.ReadAllBytes(soundPath);
+                }
+
+                var vol = Math.Clamp(this.Settings.AlertVolumePercent, 0, 100);
+                if (cachedVolumePercent == vol && scaledWavBytes != null)
+                {
+                    return;
+                }
+
+                cachedVolumePercent = vol;
+                if (vol <= 0)
+                {
+                    scaledWavBytes = null;
+                    return;
+                }
+
+                var copy = (byte[])rawWavBytes.Clone();
+                int dataIndex = -1;
+                for (int i = 0; i < copy.Length - 4; i++)
+                {
+                    if (copy[i] == 'd' && copy[i + 1] == 'a' && copy[i + 2] == 't' && copy[i + 3] == 'a')
+                    {
+                        dataIndex = i + 8;
+                        break;
+                    }
+                }
+
+                if (dataIndex != -1)
+                {
+                    float factor = vol / 100f;
+                    for (int i = dataIndex; i < copy.Length - 1; i += 2)
+                    {
+                        short sample = (short)(copy[i] | (copy[i + 1] << 8));
+                        short newSample = (short)Math.Clamp((int)(sample * factor), short.MinValue, short.MaxValue);
+                        copy[i] = (byte)(newSample & 0xFF);
+                        copy[i + 1] = (byte)((newSample >> 8) & 0xFF);
+                    }
+                }
+
+                scaledWavBytes = copy;
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error("NinjaPricer", $"[NinjaPricer] Error preparing WAV buffer: {ex.Message}");
+            }
+        }
+
+        private void PlayAlertSound(bool force = false)
+        {
+            if (!this.Settings.EnableAlertSound && !force) return;
+            if (this.Settings.AlertVolumePercent <= 0) return;
+
+            var now = DateTime.UtcNow;
+            if (!force && (now - this.lastAlertSoundUtc).TotalMilliseconds < 500) return;
+            this.lastAlertSoundUtc = now;
+
+            try
+            {
+                this.PrepareWavBuffer();
+                if (scaledWavBytes != null)
+                {
+                    WinMmPlaySound(scaledWavBytes, IntPtr.Zero, SndAsync | SndMemory | SndNoDefault);
+                }
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Error("NinjaPricer", $"[NinjaPricer] Failed to play alert sound: {ex.Message}");
+            }
+        }
+
         public override void OnEnable(bool isGameOpened)
         {
             if (File.Exists(this.SettingPathname))
@@ -281,6 +420,7 @@ namespace NinjaPricer
             this.lastAutoRefreshUtc = DateTime.UtcNow;
 
             this.LoadUniqueArtMapping();
+            this.LoadPathBasenameMapping();
             this.LoadRuneshapeRecipes();
 
             this.onAreaChangeCoroutine = CoroutineHandler.Start(this.OnAreaChange());
@@ -293,7 +433,6 @@ namespace NinjaPricer
             {
                 Path.Combine(this.DllDirectory, "uniqueArtMapping.json"),
                 Path.Combine(AppContext.BaseDirectory, "Plugins", "NinjaPricer", "uniqueArtMapping.json"),
-                Path.Combine(AppContext.BaseDirectory, "Plugins", "LootValue", "uniqueArtMapping.json"),
             };
 
             foreach (var p in paths)
@@ -330,6 +469,44 @@ namespace NinjaPricer
             }
         }
 
+        private void LoadPathBasenameMapping()
+        {
+            this.pathBasenameToItemName.Clear();
+            string[] paths =
+            {
+                Path.Combine(this.DllDirectory, "pathBasenameToItemName.json"),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "NinjaPricer", "pathBasenameToItemName.json"),
+            };
+
+            foreach (var p in paths)
+            {
+                if (File.Exists(p))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(p);
+                        var raw = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                        if (raw != null)
+                        {
+                            foreach (var (k, v) in raw)
+                            {
+                                if (!string.IsNullOrWhiteSpace(k) && !string.IsNullOrWhiteSpace(v))
+                                {
+                                    this.pathBasenameToItemName[k.Trim()] = v.Trim();
+                                }
+                            }
+                            PluginLog.Info("NinjaPricer", $"[NinjaPricer] Loaded {this.pathBasenameToItemName.Count} path basename mappings from '{p}'");
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        PluginLog.Error("NinjaPricer", $"[NinjaPricer] Failed reading pathBasenameToItemName from '{p}': {ex.Message}");
+                    }
+                }
+            }
+        }
+
         private void LoadRuneshapeRecipes()
         {
             this.runeshapeRecipes.Clear();
@@ -339,7 +516,6 @@ namespace NinjaPricer
                 Path.Combine(this.DllDirectory, "expedition2_recipes.json"),
                 Path.Combine(AppContext.BaseDirectory, "Plugins", "NinjaPricer", "expedition2_recipes.json"),
                 Path.Combine(AppContext.BaseDirectory, "Plugins", "ExpeditionPlanner", "expedition2_recipes.json"),
-                Path.Combine(AppContext.BaseDirectory, "Plugins", "LootValue", "expedition2_recipes.json"),
                 Path.Combine(AppContext.BaseDirectory, "resources", "runeshape", "expedition2_recipes.json"),
             };
 
@@ -437,6 +613,9 @@ namespace NinjaPricer
             this.cachedGroundTags.Clear();
             this.cachedInvSlots.Clear();
             this.cachedStashSlots.Clear();
+            this.alertedEntityIds.Clear();
+            this.activeAlertDrops.Clear();
+            lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
             for (int i = 0; i < 3; i++)
             {
                 this.currencyTextures[i] = default;
@@ -465,6 +644,9 @@ namespace NinjaPricer
                 this.cachedInvSlots.Clear();
                 this.cachedStashSlots.Clear();
                 this.itemSlotCache.Clear();
+                this.alertedEntityIds.Clear();
+                this.activeAlertDrops.Clear();
+                lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
                 this.lastGroundScanUtc = DateTime.MinValue;
                 this.lastInvScanUtc = DateTime.MinValue;
             }
@@ -507,11 +689,10 @@ namespace NinjaPricer
         {
             var candidates = new[]
             {
+                Path.Combine(this.DllDirectory, "resources", relativePath),
+                Path.Combine(AppContext.BaseDirectory, "Plugins", "NinjaPricer", "resources", relativePath),
                 Path.Combine(AppContext.BaseDirectory, "resources", relativePath),
                 Path.Combine(AppContext.BaseDirectory, relativePath),
-                Path.Combine(this.DllDirectory, "resources", relativePath),
-                Path.Combine(@"C:\Games\Hy-v Tool\GameHelper2-main\resources", relativePath),
-                Path.Combine(@"C:\Games\Hy-v Tool\DXPEOE\TEHhub\resources", relativePath),
             };
 
             foreach (var c in candidates)
@@ -707,8 +888,12 @@ namespace NinjaPricer
             if (!string.IsNullOrEmpty(baseName)) return baseName;
 
             var fullPath = item.Path ?? string.Empty;
-            if (fullPath.Contains('/')) return fullPath[(fullPath.LastIndexOf('/') + 1)..];
-            return fullPath;
+            var pathBasename = fullPath.Contains('/') ? fullPath[(fullPath.LastIndexOf('/') + 1)..] : fullPath;
+            if (!string.IsNullOrEmpty(pathBasename) && this.pathBasenameToItemName.TryGetValue(pathBasename, out var mappedName))
+            {
+                return mappedName;
+            }
+            return pathBasename;
         }
 
         private bool TryGetScrollContainer(
@@ -969,27 +1154,32 @@ namespace NinjaPricer
         {
             if (!ImGui.BeginTabBar("##NinjaPricerTabs")) return;
 
-            if (ImGui.BeginTabItem("Data Source"))
+            if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.datasource", "Data Source", "tab_datasource")))
             {
                 this.DrawTabDataSource();
                 ImGui.EndTabItem();
             }
-            if (ImGui.BeginTabItem("Categories"))
+            if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.drop_alerts", "Valuable Drop Alerts", "tab_drop_alerts")))
+            {
+                this.DrawTabDropAlerts();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.categories", "Categories", "tab_categories")))
             {
                 this.DrawTabCategories();
                 ImGui.EndTabItem();
             }
-            if (ImGui.BeginTabItem("Display Settings"))
+            if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.display", "Display Settings", "tab_display")))
             {
                 this.DrawTabDisplaySettings();
                 ImGui.EndTabItem();
             }
-            if (ImGui.BeginTabItem("Overlay Toggles"))
+            if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.overlays", "Overlay Toggles", "tab_overlays")))
             {
                 this.DrawTabOverlayToggles();
                 ImGui.EndTabItem();
             }
-            if (ImGui.BeginTabItem("Debug"))
+            if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.debug", "Debug", "tab_debug")))
             {
                 this.DrawDebugPanel();
                 ImGui.EndTabItem();
@@ -1002,42 +1192,48 @@ namespace NinjaPricer
         {
             ImGui.Spacing();
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.85f, 0.2f, 1.0f));
-            ImGui.TextWrapped("Warning: POE2 must be set to English. Item names are matched in English only - other languages will not work.");
+            ImGui.TextWrapped(this.PluginText.T("ninjapricer.datasource.warning", "Warning: POE2 must be set to English. Item names are matched in English only - other languages will not work."));
             ImGui.PopStyleColor();
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
             var st = this.priceService?.GetStatus() ?? default;
-            ImGui.Text($"Prices: {(st.Loaded ? "loaded" : "loading...")}   Items: {st.TotalItems}");
+            var statusStr = st.Loaded
+                ? this.PluginText.T("ninjapricer.datasource.status.loaded", "loaded")
+                : this.PluginText.T("ninjapricer.datasource.status.loading", "loading...");
+            ImGui.Text(string.Format(this.PluginText.T("ninjapricer.datasource.status", "Prices: {0}   Items: {1}"), statusStr, st.TotalItems));
 
             if (st.Loaded)
             {
-                ImGui.Text($"Rates: 1 Divine = {st.DivineInChaos:F1} Chaos | 1 Exalted = {st.ExaltedInChaos:F1} Chaos");
+                ImGui.Text(string.Format(this.PluginText.T("ninjapricer.datasource.rates", "Rates: 1 Divine = {0:F1} Chaos | 1 Exalted = {1:F1} Chaos"), st.DivineInChaos, st.ExaltedInChaos));
             }
 
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
-            // League input
-            var league = this.Settings.League;
-            ImGui.SetNextItemWidth(200f);
-            if (ImGui.InputText("League", ref league, 64))
+            // League selection dropdown combo
+            var leagues = NinjaPriceService.AvailableLeagues.ToArray();
+            int selectedLeagueIdx = Array.IndexOf(leagues, this.Settings.League);
+            if (selectedLeagueIdx < 0) selectedLeagueIdx = 0;
+            ImGui.SetNextItemWidth(220f);
+            if (ImGui.Combo(this.PluginText.Label("settings.league", "League", "LeagueSelect"), ref selectedLeagueIdx, leagues, leagues.Length))
             {
-                this.Settings.League = league;
+                this.Settings.League = leagues[selectedLeagueIdx];
                 this.SaveSettings();
+                this.priceService?.TriggerRefresh(this.Settings.League, this.Settings.PriceSource, this.Settings.EnabledCategories);
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Refresh Now"))
+            if (ImGui.Button(this.PluginText.T("button.refresh_prices_now", "Refresh Now")))
             {
                 this.priceService?.TriggerRefresh(this.Settings.League, this.Settings.PriceSource, this.Settings.EnabledCategories);
             }
 
             // Price source
             ImGui.Spacing();
-            ImGui.Text("Data Source:");
+            ImGui.Text(this.PluginText.T("ninjapricer.datasource.source", "Data Source:"));
             int ps = this.Settings.PriceSource;
             if (ImGui.RadioButton("poe2scout", ref ps, 0))
             {
@@ -1056,9 +1252,87 @@ namespace NinjaPricer
             // Auto-refresh slider
             ImGui.Spacing();
             int arm = this.Settings.AutoRefreshMinutes;
-            if (ImGui.SliderInt("Auto-refresh (minutes)", ref arm, 5, 60))
+            if (ImGui.SliderInt(this.PluginText.Label("settings.refresh_interval", "Auto-refresh (minutes)", "AutoRefreshSlider"), ref arm, 5, 60))
             {
                 this.Settings.AutoRefreshMinutes = arm;
+                this.SaveSettings();
+            }
+        }
+
+        private void DrawTabDropAlerts()
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), this.PluginText.T("section.drop_alerts", "Valuable Drop Alerts"));
+            ImGui.Spacing();
+
+            bool sound = this.Settings.EnableAlertSound;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.enable_alert_sound", "Play sound on valuable drop", "AlertSoundCheck"), ref sound))
+            {
+                this.Settings.EnableAlertSound = sound;
+                this.SaveSettings();
+            }
+
+            if (this.Settings.EnableAlertSound)
+            {
+                ImGui.Indent();
+                int vol = this.Settings.AlertVolumePercent;
+                if (ImGui.SliderInt(this.PluginText.Label("settings.alert_volume", "Alert sound volume (%)", "AlertVolSlider"), ref vol, 0, 100))
+                {
+                    this.Settings.AlertVolumePercent = vol;
+                    this.SaveSettings();
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button(this.PluginText.T("settings.test_sound", "Test Sound")))
+                {
+                    this.PlayAlertSound(force: true);
+                }
+                ImGui.Unindent();
+            }
+
+            ImGui.Spacing();
+            bool banner = this.Settings.EnableAlertBanner;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.enable_alert_banner", "Show on-screen alert banner", "AlertBannerCheck"), ref banner))
+            {
+                this.Settings.EnableAlertBanner = banner;
+                this.SaveSettings();
+            }
+
+            if (this.Settings.EnableAlertBanner)
+            {
+                ImGui.Indent();
+                float dur = this.Settings.AlertBannerDurationSec;
+                if (ImGui.SliderFloat(this.PluginText.Label("settings.alert_banner_duration", "Alert banner duration (sec)", "AlertDurSlider"), ref dur, 2f, 20f, "%.1f s"))
+                {
+                    this.Settings.AlertBannerDurationSec = dur;
+                    this.SaveSettings();
+                }
+                ImGui.Unindent();
+            }
+
+            ImGui.Spacing();
+            bool beam = this.Settings.EnableAlertBeam;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.enable_alert_beam", "Show light beam & pointers to drop", "AlertBeamCheck"), ref beam))
+            {
+                this.Settings.EnableAlertBeam = beam;
+                this.SaveSettings();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            string curName = this.Settings.DisplayCurrency switch
+            {
+                DisplayCurrency.Divine => "Divine",
+                DisplayCurrency.Exalted => "Exalted",
+                _ => "Chaos",
+            };
+
+            float minVal = this.Settings.AlertMinDisplayValue;
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.alert_min_value", $"Min drop value to alert ({curName})", "AlertMinValSlider"), ref minVal, 0.1f, 100f, $"%.1f {curName}"))
+            {
+                this.Settings.AlertMinDisplayValue = minVal;
                 this.SaveSettings();
             }
         }
@@ -1066,10 +1340,10 @@ namespace NinjaPricer
         private void DrawTabCategories()
         {
             ImGui.Spacing();
-            ImGui.Text("Select which item categories to fetch and display prices for:");
+            ImGui.Text(this.PluginText.T("ninjapricer.categories.intro", "Select which item categories to fetch and display prices for:"));
             ImGui.Spacing();
 
-            if (ImGui.Button("Enable All"))
+            if (ImGui.Button(this.PluginText.T("button.enable_all", "Enable All")))
             {
                 foreach (var k in this.Settings.EnabledCategories.Keys.ToList())
                 {
@@ -1078,7 +1352,7 @@ namespace NinjaPricer
                 this.SaveSettings();
             }
             ImGui.SameLine();
-            if (ImGui.Button("Disable All"))
+            if (ImGui.Button(this.PluginText.T("button.disable_all", "Disable All")))
             {
                 foreach (var k in this.Settings.EnabledCategories.Keys.ToList())
                 {
@@ -1087,7 +1361,7 @@ namespace NinjaPricer
                 this.SaveSettings();
             }
             ImGui.SameLine();
-            if (ImGui.Button("Apply & Refresh Now"))
+            if (ImGui.Button(this.PluginText.T("button.apply_refresh", "Apply & Refresh Now")))
             {
                 this.priceService?.TriggerRefresh(this.Settings.League, this.Settings.PriceSource, this.Settings.EnabledCategories);
             }
@@ -1096,7 +1370,7 @@ namespace NinjaPricer
             ImGui.Separator();
             ImGui.Spacing();
 
-            (string Key, string Label)[] currencyCats =
+            (string Key, string Fallback)[] currencyCats =
             {
                 ("currency", "Currency"),
                 ("fragments", "Fragments"),
@@ -1118,7 +1392,7 @@ namespace NinjaPricer
                 ("vaal", "Vaal"),
             };
 
-            (string Key, string Label)[] uniqueCats =
+            (string Key, string Fallback)[] uniqueCats =
             {
                 ("weapon", "Unique Weapons"),
                 ("armour", "Unique Armour"),
@@ -1131,12 +1405,13 @@ namespace NinjaPricer
 
             ImGui.Columns(2, "##CategoryCols", true);
 
-            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), "Currency & Bulk Categories");
+            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), this.PluginText.T("ninjapricer.category.currency_bulk", "Currency & Bulk Categories"));
             ImGui.Separator();
-            foreach (var (key, label) in currencyCats)
+            foreach (var (key, fallback) in currencyCats)
             {
                 bool isEnabled = !this.Settings.EnabledCategories.TryGetValue(key, out var val) || val;
-                if (ImGui.Checkbox($"{label}##cat_{key}", ref isEnabled))
+                var localizedLabel = this.PluginText.Label($"category.{key}", fallback, $"cat_{key}");
+                if (ImGui.Checkbox(localizedLabel, ref isEnabled))
                 {
                     this.Settings.EnabledCategories[key] = isEnabled;
                     this.SaveSettings();
@@ -1145,12 +1420,13 @@ namespace NinjaPricer
 
             ImGui.NextColumn();
 
-            ImGui.TextColored(new Vector4(1.0f, 0.65f, 0.2f, 1.0f), "Unique Items & Maps");
+            ImGui.TextColored(new Vector4(1.0f, 0.65f, 0.2f, 1.0f), this.PluginText.T("ninjapricer.category.uniques_maps", "Unique Items & Maps"));
             ImGui.Separator();
-            foreach (var (key, label) in uniqueCats)
+            foreach (var (key, fallback) in uniqueCats)
             {
                 bool isEnabled = !this.Settings.EnabledCategories.TryGetValue(key, out var val) || val;
-                if (ImGui.Checkbox($"{label}##cat_{key}", ref isEnabled))
+                var localizedLabel = this.PluginText.Label($"category.{key}", fallback, $"cat_{key}");
+                if (ImGui.Checkbox(localizedLabel, ref isEnabled))
                 {
                     this.Settings.EnabledCategories[key] = isEnabled;
                     this.SaveSettings();
@@ -1163,26 +1439,26 @@ namespace NinjaPricer
         private void DrawTabDisplaySettings()
         {
             ImGui.Spacing();
-            ImGui.Text("Value Display:");
+            ImGui.Text(this.PluginText.T("ninjapricer.display.value_display", "Value Display:"));
             int dc = (int)this.Settings.DisplayCurrency;
-            if (ImGui.RadioButton("Divine (D)", ref dc, 0)) { this.Settings.DisplayCurrency = DisplayCurrency.Divine; this.SaveSettings(); }
+            if (ImGui.RadioButton(this.PluginText.T("currency.divine", "Divine (D)"), ref dc, 0)) { this.Settings.DisplayCurrency = DisplayCurrency.Divine; this.SaveSettings(); }
             ImGui.SameLine();
-            if (ImGui.RadioButton("Exalted (E)", ref dc, 1)) { this.Settings.DisplayCurrency = DisplayCurrency.Exalted; this.SaveSettings(); }
+            if (ImGui.RadioButton(this.PluginText.T("currency.exalted", "Exalted (E)"), ref dc, 1)) { this.Settings.DisplayCurrency = DisplayCurrency.Exalted; this.SaveSettings(); }
             ImGui.SameLine();
-            if (ImGui.RadioButton("Chaos (C)", ref dc, 2)) { this.Settings.DisplayCurrency = DisplayCurrency.Chaos; this.SaveSettings(); }
+            if (ImGui.RadioButton(this.PluginText.T("currency.chaos", "Chaos (C)"), ref dc, 2)) { this.Settings.DisplayCurrency = DisplayCurrency.Chaos; this.SaveSettings(); }
 
             ImGui.Spacing();
-            ImGui.Text("Price style:");
+            ImGui.Text(this.PluginText.T("ninjapricer.display.price_style", "Price style:"));
             int pds = (int)this.Settings.PriceDisplayStyle;
-            if (ImGui.RadioButton("Currency icon", ref pds, 0)) { this.Settings.PriceDisplayStyle = PriceDisplayStyle.Image; this.SaveSettings(); }
+            if (ImGui.RadioButton(this.PluginText.T("ninjapricer.display.style_icon", "Currency icon"), ref pds, 0)) { this.Settings.PriceDisplayStyle = PriceDisplayStyle.Image; this.SaveSettings(); }
             ImGui.SameLine();
-            if (ImGui.RadioButton("Text", ref pds, 1)) { this.Settings.PriceDisplayStyle = PriceDisplayStyle.Text; this.SaveSettings(); }
+            if (ImGui.RadioButton(this.PluginText.T("ninjapricer.display.style_text", "Text"), ref pds, 1)) { this.Settings.PriceDisplayStyle = PriceDisplayStyle.Text; this.SaveSettings(); }
             ImGui.SameLine();
-            ImGui.TextDisabled("(icon = value + currency image)");
+            ImGui.TextDisabled(this.PluginText.T("ninjapricer.display.style_hint", "(icon = value + currency image)"));
 
             ImGui.Spacing();
             float ts = this.Settings.TextScale;
-            if (ImGui.SliderFloat("Text size", ref ts, 0.5f, 2.0f, "%.1f"))
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Text size", "TextScaleSlider"), ref ts, 0.5f, 2.0f, "%.1f"))
             {
                 this.Settings.TextScale = ts;
                 this.SaveSettings();
@@ -1191,20 +1467,30 @@ namespace NinjaPricer
             ImGui.Separator();
 
             // Ui Price Position
-            string[] uiPositions = { "Top Left", "Top Right", "Bottom Left", "Bottom Right" };
+            string[] uiPositions = {
+                this.PluginText.T("pos.top_left", "Top Left"),
+                this.PluginText.T("pos.top_right", "Top Right"),
+                this.PluginText.T("pos.bottom_left", "Bottom Left"),
+                this.PluginText.T("pos.bottom_right", "Bottom Right")
+            };
             int uiPos = (int)this.Settings.UiPricePosition;
             ImGui.SetNextItemWidth(200f);
-            if (ImGui.Combo("Price position (Inventory/Stash)", ref uiPos, uiPositions, uiPositions.Length))
+            if (ImGui.Combo(this.PluginText.Label("ninjapricer.display.ui_price_pos", "Price position (Inventory/Stash)", "UiPosCombo"), ref uiPos, uiPositions, uiPositions.Length))
             {
                 this.Settings.UiPricePosition = (UiPricePosition)uiPos;
                 this.SaveSettings();
             }
 
             // Ground Price Position
-            string[] gndPositions = { "Top", "Bottom", "Left", "Right" };
+            string[] gndPositions = {
+                this.PluginText.T("pos.top", "Top"),
+                this.PluginText.T("pos.bottom", "Bottom"),
+                this.PluginText.T("pos.left", "Left"),
+                this.PluginText.T("pos.right", "Right")
+            };
             int gndPos = (int)this.Settings.GroundPricePosition;
             ImGui.SetNextItemWidth(200f);
-            if (ImGui.Combo("Price position (Ground items)", ref gndPos, gndPositions, gndPositions.Length))
+            if (ImGui.Combo(this.PluginText.Label("ninjapricer.display.gnd_price_pos", "Price position (Ground items)", "GndPosCombo"), ref gndPos, gndPositions, gndPositions.Length))
             {
                 this.Settings.GroundPricePosition = (GroundPricePosition)gndPos;
                 this.SaveSettings();
@@ -1219,7 +1505,7 @@ namespace NinjaPricer
 
             if (this.captureTarget.HasValue && this.captureTarget.Value == vk)
             {
-                ImGui.TextColored(new Vector4(1.0f, 1.0f, 0.0f, 1.0f), "Press any key... (ESC to cancel)");
+                ImGui.TextColored(new Vector4(1.0f, 1.0f, 0.0f, 1.0f), this.PluginText.T("hotkey.press_any_key", "Press any key... (ESC to cancel)"));
                 if ((GetAsyncKeyState(0x1B) & 0x8000) != 0) // ESC
                 {
                     this.captureTarget = null;
@@ -1245,14 +1531,14 @@ namespace NinjaPricer
             {
                 ImGui.Text(GetVkName(vk));
                 ImGui.SameLine();
-                if (ImGui.Button($"Set Hotkey##{idSuffix}", new Vector2(100f, 0f)))
+                if (ImGui.Button($"{this.PluginText.T("button.set_hotkey", "Set Hotkey")}##{idSuffix}", new Vector2(100f, 0f)))
                 {
                     this.captureTarget = vk;
                 }
                 if (vk != 0)
                 {
                     ImGui.SameLine();
-                    if (ImGui.Button($"Clear##{idSuffix}", new Vector2(60f, 0f)))
+                    if (ImGui.Button($"{this.PluginText.T("button.clear", "Clear")}##{idSuffix}", new Vector2(60f, 0f)))
                     {
                         vk = 0;
                         this.SaveSettings();
@@ -1268,38 +1554,38 @@ namespace NinjaPricer
             ImGui.Spacing();
 
             bool showGnd = this.Settings.ShowGroundPrices;
-            if (ImGui.Checkbox("Show prices on dropped items", ref showGnd)) { this.Settings.ShowGroundPrices = showGnd; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("settings.show_overlay", "Show prices on dropped items", "ShowGroundCheck"), ref showGnd)) { this.Settings.ShowGroundPrices = showGnd; this.SaveSettings(); }
 
             bool showInv = this.Settings.ShowInventoryPrices;
-            if (ImGui.Checkbox("Show prices in inventory", ref showInv)) { this.Settings.ShowInventoryPrices = showInv; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("settings.show_inventory_overlay", "Show prices in inventory", "ShowInvCheck"), ref showInv)) { this.Settings.ShowInventoryPrices = showInv; this.SaveSettings(); }
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), "(may affect FPS)");
+            ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), this.PluginText.T("ninjapricer.overlays.fps_warning", "(may affect FPS)"));
 
             bool showStash = this.Settings.ShowOtherInventoryPrices;
-            if (ImGui.Checkbox("Show prices in stash", ref showStash)) { this.Settings.ShowOtherInventoryPrices = showStash; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("settings.show_stash_overlay", "Show prices in stash", "ShowStashCheck"), ref showStash)) { this.Settings.ShowOtherInventoryPrices = showStash; this.SaveSettings(); }
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), "(may affect FPS)");
+            ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), this.PluginText.T("ninjapricer.overlays.fps_warning", "(may affect FPS)"));
 
             bool showRitual = this.Settings.ShowRitualPrices;
-            if (ImGui.Checkbox("Ritual", ref showRitual)) { this.Settings.ShowRitualPrices = showRitual; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("settings.show_ritual_overlay", "Ritual", "ShowRitualCheck"), ref showRitual)) { this.Settings.ShowRitualPrices = showRitual; this.SaveSettings(); }
             ImGui.SameLine();
-            ImGui.TextDisabled("(price items in the Ritual \"Favours\" shop)");
+            ImGui.TextDisabled(this.PluginText.T("ninjapricer.overlays.ritual_hint", "(price items in the Ritual \"Favours\" shop)"));
 
             bool showRs = this.Settings.ShowRuneshapePrices;
-            if (ImGui.Checkbox("Runeshape", ref showRs)) { this.Settings.ShowRuneshapePrices = showRs; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.runeshape", "Runeshape", "ShowRsCheck"), ref showRs)) { this.Settings.ShowRuneshapePrices = showRs; this.SaveSettings(); }
             ImGui.SameLine();
-            ImGui.TextDisabled("(price rewards in the Runeshape Combinations panel)");
+            ImGui.TextDisabled(this.PluginText.T("ninjapricer.overlays.runeshape_hint", "(price rewards in the Runeshape Combinations panel)"));
 
             bool showRsWin = this.Settings.ShowRuneshapeWindow;
-            if (ImGui.Checkbox("Runeshape window", ref showRsWin)) { this.Settings.ShowRuneshapeWindow = showRsWin; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.runeshape_win", "Runeshape window", "ShowRsWinCheck"), ref showRsWin)) { this.Settings.ShowRuneshapeWindow = showRsWin; this.SaveSettings(); }
             ImGui.SameLine();
-            if (ImGui.Button(this.Settings.ShowRuneshapeWindow ? "Close Window" : "Open Window"))
+            if (ImGui.Button(this.Settings.ShowRuneshapeWindow ? this.PluginText.T("button.close_window", "Close Window") : this.PluginText.T("button.open_window", "Open Window")))
             {
                 this.Settings.ShowRuneshapeWindow = !this.Settings.ShowRuneshapeWindow;
                 this.SaveSettings();
             }
             ImGui.SameLine();
-            if (ImGui.Button("Reset Pos"))
+            if (ImGui.Button(this.PluginText.T("button.reset_pos", "Reset Pos")))
             {
                 this.Settings.RuneshapeWinX = 100f;
                 this.Settings.RuneshapeWinY = 100f;
@@ -1307,16 +1593,16 @@ namespace NinjaPricer
                 this.SaveSettings();
             }
             ImGui.SameLine();
-            ImGui.TextDisabled("(movable overlay listing each Runeshape with prices)");
+            ImGui.TextDisabled(this.PluginText.T("ninjapricer.overlays.runeshape_win_hint", "(movable overlay listing each Runeshape with prices)"));
 
             // Advanced settings for Runeshape window
             ImGui.Indent();
-            if (ImGui.TreeNode("Runeshape window: advanced settings"))
+            if (ImGui.TreeNode(this.PluginText.Title("ninjapricer.overlays.runeshape_advanced", "Runeshape window: advanced settings", "RsWinAdv")))
             {
                 ImGui.Spacing();
 
                 int rshk = this.Settings.RuneshapeWinHotkey;
-                if (this.DrawHotkeyCaptureRow("Show/hide hotkey:", "rswin", ref rshk))
+                if (this.DrawHotkeyCaptureRow(this.PluginText.T("ninjapricer.overlays.hotkey_show_hide", "Show/hide hotkey:"), "rswin", ref rshk))
                 {
                     this.Settings.RuneshapeWinHotkey = rshk;
                     this.runeshapeWinHotkeyWasDown = true;
@@ -1324,18 +1610,18 @@ namespace NinjaPricer
                 }
 
                 bool rhoh = this.Settings.RuneshapeWinHideOnHover;
-                if (ImGui.Checkbox("Hide on mouse hover", ref rhoh)) { this.Settings.RuneshapeWinHideOnHover = rhoh; this.SaveSettings(); }
+                if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.hide_on_hover", "Hide on mouse hover", "HideOnHoverCheck"), ref rhoh)) { this.Settings.RuneshapeWinHideOnHover = rhoh; this.SaveSettings(); }
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("The overlay disappears while the mouse cursor is over it and reappears when cursor leaves.");
+                    ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.hide_on_hover.tooltip", "The overlay disappears while the mouse cursor is over it and reappears when cursor leaves."));
 
                 bool rsmk = this.Settings.ShowRuneshapeWorldMarkers;
-                if (ImGui.Checkbox("Show monolith markers in 3D world", ref rsmk)) { this.Settings.ShowRuneshapeWorldMarkers = rsmk; this.SaveSettings(); }
+                if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.show_monolith_markers", "Show monolith markers in 3D world", "ShowMonolithMarkersCheck"), ref rsmk)) { this.Settings.ShowRuneshapeWorldMarkers = rsmk; this.SaveSettings(); }
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world.");
+                    ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.show_monolith_markers.tooltip", "Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world."));
 
                 float rwa = this.Settings.RuneshapeWinAlpha;
                 ImGui.SetNextItemWidth(200f);
-                if (ImGui.SliderFloat("Opacity##rswin", ref rwa, 0.1f, 1.0f, "%.2f"))
+                if (ImGui.SliderFloat(this.PluginText.Label("settings.opacity", "Opacity", "RsWinAlphaSlider"), ref rwa, 0.1f, 1.0f, "%.2f"))
                 {
                     this.Settings.RuneshapeWinAlpha = rwa;
                     this.SaveSettings();
@@ -1381,24 +1667,24 @@ namespace NinjaPricer
             ImGui.Unindent();
 
             bool showWeights = this.Settings.ShowRuneshapeWeights;
-            if (ImGui.Checkbox("Runeshape weights", ref showWeights)) { this.Settings.ShowRuneshapeWeights = showWeights; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("settings.show_runeshape_weights", "Runeshape weights", "ShowWeightsCheck"), ref showWeights)) { this.Settings.ShowRuneshapeWeights = showWeights; this.SaveSettings(); }
 
             bool showIcons = this.Settings.ShowItemIcons;
-            if (ImGui.Checkbox("Show item icons", ref showIcons)) { this.Settings.ShowItemIcons = showIcons; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("settings.show_item_icons", "Show item icons", "ShowIconsCheck"), ref showIcons)) { this.Settings.ShowItemIcons = showIcons; this.SaveSettings(); }
 
             bool hideUnfocused = this.Settings.HideWhenUnfocused;
-            if (ImGui.Checkbox("Hide when game not focused", ref hideUnfocused)) { this.Settings.HideWhenUnfocused = hideUnfocused; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("settings.hide_when_game_unfocused", "Hide when game not focused", "HideUnfocusedCheck"), ref hideUnfocused)) { this.Settings.HideWhenUnfocused = hideUnfocused; this.SaveSettings(); }
 
             ImGui.Separator();
             int hhk = this.Settings.HideHotkey;
-            if (this.DrawHotkeyCaptureRow("Hold-to-hide hotkey:", "hold", ref hhk))
+            if (this.DrawHotkeyCaptureRow(this.PluginText.T("ninjapricer.overlays.hold_to_hide", "Hold-to-hide hotkey:"), "hold", ref hhk))
             {
                 this.Settings.HideHotkey = hhk;
                 this.SaveSettings();
             }
 
             ImGui.Spacing();
-            if (ImGui.TreeNode("Category filters"))
+            if (ImGui.TreeNode(this.PluginText.Title("ninjapricer.overlays.category_filters", "Category filters", "CatFilters")))
             {
                 var keys = new List<string>(this.Settings.EnabledCategories.Keys);
                 foreach (var k in keys)
@@ -1550,8 +1836,13 @@ namespace NinjaPricer
                 this.DrawRuneshapeOverlay();
             }
 
-            // Ground overlay
-            if (this.Settings.ShowGroundPrices)
+            // Ground overlay & drop alerts
+            bool needGroundScan = this.Settings.ShowGroundPrices ||
+                                  this.Settings.EnableAlertSound ||
+                                  this.Settings.EnableAlertBanner ||
+                                  this.Settings.EnableAlertBeam;
+
+            if (needGroundScan)
             {
                 var swG = Stopwatch.StartNew();
                 if ((DateTime.UtcNow - this.lastGroundScanUtc).TotalMilliseconds >= this.Settings.ScanIntervalMs)
@@ -1559,7 +1850,17 @@ namespace NinjaPricer
                     this.lastGroundScanUtc = DateTime.UtcNow;
                     this.ScanGroundItems();
                 }
-                this.DrawGroundTags();
+
+                if (this.Settings.ShowGroundPrices)
+                {
+                    this.DrawGroundTags();
+                }
+
+                if (this.Settings.EnableAlertBeam || this.Settings.EnableAlertBanner)
+                {
+                    this.DrawDropAlerts();
+                }
+
                 swG.Stop();
                 this.perfGroundMs = swG.Elapsed.TotalMilliseconds;
                 if (this.perfGroundMs > this.perfPeakGroundMs) this.perfPeakGroundMs = this.perfGroundMs;
@@ -1612,6 +1913,8 @@ namespace NinjaPricer
             if (area?.AwakeEntities == null || this.priceService == null) return;
 
             var newTags = new List<GroundTag>();
+            var newAlertDrops = new List<ActiveDropAlert>();
+
             foreach (var entity in area.AwakeEntities.Values)
             {
                 if (!entity.TryGetComponent<WorldItem>(out var worldItem) || worldItem.ItemEntityAddress == IntPtr.Zero)
@@ -1654,13 +1957,45 @@ namespace NinjaPricer
                         _ => chaos,
                     };
 
-                    newTags.Add(new GroundTag
+                    string curSuffix = this.Settings.DisplayCurrency switch
                     {
-                        WorldPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.TerrainHeight),
-                        DisplayValue = displayVal,
-                        Chaos = chaos,
-                        IconPath = price.ItemIcon,
-                    });
+                        DisplayCurrency.Divine => "Divine",
+                        DisplayCurrency.Exalted => "Exalted",
+                        _ => "Chaos",
+                    };
+
+                    if (this.Settings.ShowGroundPrices)
+                    {
+                        newTags.Add(new GroundTag
+                        {
+                            WorldPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.TerrainHeight),
+                            DisplayValue = displayVal,
+                            Chaos = chaos,
+                            IconPath = price.ItemIcon,
+                        });
+                    }
+
+                    if (displayVal >= this.Settings.AlertMinDisplayValue)
+                    {
+                        uint beamCol = 0xFFE5B826u;
+                        newAlertDrops.Add(new ActiveDropAlert(entity.Id, render, itemName, displayVal, curSuffix, beamCol));
+
+                        if (this.alertedEntityIds.Add(entity.Id))
+                        {
+                            this.PlayAlertSound();
+                            if (this.Settings.EnableAlertBanner)
+                            {
+                                lock (this.activeAlertBanners)
+                                {
+                                    this.activeAlertBanners.Add(new DropAlertBanner(entity.Id, itemName, displayVal, curSuffix, DateTime.UtcNow));
+                                    if (this.activeAlertBanners.Count > 5)
+                                    {
+                                        this.activeAlertBanners.RemoveRange(0, this.activeAlertBanners.Count - 5);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -1670,6 +2005,7 @@ namespace NinjaPricer
 
             this.cachedGroundTags.Clear();
             this.cachedGroundTags.AddRange(newTags);
+            this.activeAlertDrops = newAlertDrops;
         }
 
         private void DrawGroundTags()
@@ -1713,6 +2049,168 @@ namespace NinjaPricer
                 }
 
                 this.DrawPriceTag(dl, fontSize, x, y, measured, tag.Chaos);
+            }
+        }
+
+        private void DrawDropAlerts()
+        {
+            var inGameState = Core.States.InGameStateObject;
+            if (inGameState == null) return;
+            var world = inGameState.CurrentWorldInstance;
+            if (world == null) return;
+            var windowArea = Core.Process.WindowArea;
+            var fg = ImGui.GetForegroundDrawList();
+            var now = DateTime.UtcNow;
+
+            // 1. Draw Beams & Pointers to ground items
+            if (this.Settings.EnableAlertBeam && this.activeAlertDrops.Count > 0)
+            {
+                var playerRender = inGameState.CurrentAreaInstance?.Player?.TryGetComponent<Render>(out var pR) == true ? pR : null;
+                Vector2 playerScreen = Vector2.Zero;
+                if (playerRender != null)
+                {
+                    playerScreen = world.WorldToScreen(playerRender.WorldPosition, playerRender.TerrainHeight);
+                }
+
+                foreach (var drop in this.activeAlertDrops)
+                {
+                    var screen = world.WorldToScreen(drop.Render.WorldPosition, drop.Render.TerrainHeight);
+                    if (screen == Vector2.Zero) continue;
+
+                    bool isOnScreen = screen.X >= 20 && screen.X <= windowArea.Width - 20 &&
+                                      screen.Y >= 20 && screen.Y <= windowArea.Height - 20;
+
+                    var colorRgba = ImGui.ColorConvertU32ToFloat4(drop.BeamColor);
+                    var glowInner = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.85f));
+                    var glowOuter = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.35f));
+
+                    if (isOnScreen)
+                    {
+                        // Pulsing / glowing ground rings
+                        fg.AddCircleFilled(screen, 6f, glowInner);
+                        fg.AddCircle(screen, 16f, glowInner, 24, 2.5f);
+                        fg.AddCircle(screen, 26f, glowOuter, 24, 1.5f);
+
+                        // Vertical light beam rising into sky
+                        var topScreen = world.WorldToScreen(drop.Render.WorldPosition, drop.Render.TerrainHeight - 350f);
+                        if (topScreen == Vector2.Zero)
+                        {
+                            topScreen = new Vector2(screen.X, screen.Y - 220f);
+                        }
+
+                        // 3-layer glowing beam
+                        fg.AddLine(screen, topScreen, glowOuter, 8f);
+                        fg.AddLine(screen, topScreen, glowInner, 4f);
+                        fg.AddLine(screen, topScreen, 0xFFFFFFFFu, 1.5f);
+
+                        // Top star/circle cap
+                        fg.AddCircleFilled(topScreen, 4f, glowInner);
+
+                        // Direction trace line from player if far away
+                        if (playerScreen != Vector2.Zero && Vector2.Distance(playerScreen, screen) > 180f)
+                        {
+                            var lineCol = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.45f));
+                            fg.AddLine(playerScreen, screen, lineCol, 1.5f);
+                        }
+                    }
+                    else
+                    {
+                        // Off-screen indicator arrow clamped to screen border
+                        var screenCenter = new Vector2(windowArea.Width / 2f, windowArea.Height / 2f);
+                        var diff = screen - screenCenter;
+                        var dir = diff.LengthSquared() > 0.001f ? Vector2.Normalize(diff) : new Vector2(0, -1);
+
+                        var margin = 45f;
+                        var clampedX = Math.Clamp(screenCenter.X + (dir.X * (windowArea.Width / 2f - margin)), margin, windowArea.Width - margin);
+                        var clampedY = Math.Clamp(screenCenter.Y + (dir.Y * (windowArea.Height / 2f - margin)), margin, windowArea.Height - margin);
+                        var edgePos = new Vector2(clampedX, clampedY);
+
+                        var indicatorCol = ImGui.ColorConvertFloat4ToU32(new Vector4(colorRgba.X, colorRgba.Y, colorRgba.Z, 0.95f));
+
+                        // Draw pointer diamond & line towards target
+                        fg.AddCircleFilled(edgePos, 8f, indicatorCol);
+                        fg.AddLine(edgePos, edgePos + (dir * 18f), indicatorCol, 3f);
+
+                        // Offscreen label chip
+                        var text = $"{drop.ItemName} ({drop.DisplayValue:0.##} {drop.DisplayCurrency})";
+                        var textSize = ImGui.CalcTextSize(text);
+                        var textPos = edgePos + new Vector2(-textSize.X / 2f, 12f);
+                        textPos.X = Math.Clamp(textPos.X, 10f, windowArea.Width - textSize.X - 10f);
+                        textPos.Y = Math.Clamp(textPos.Y, 10f, windowArea.Height - textSize.Y - 10f);
+
+                        fg.AddRectFilled(textPos - new Vector2(4f, 2f), textPos + textSize + new Vector2(4f, 2f), 0xDD101015u, 4f);
+                        fg.AddRect(textPos - new Vector2(4f, 2f), textPos + textSize + new Vector2(4f, 2f), indicatorCol, 4f);
+                        fg.AddText(textPos, 0xFFFFFFFFu, text);
+                    }
+                }
+            }
+
+            // 2. Draw On-Screen Alert Banner
+            if (this.Settings.EnableAlertBanner && this.activeAlertBanners.Count > 0)
+            {
+                lock (this.activeAlertBanners)
+                {
+                    var bannerDuration = Math.Max(2f, this.Settings.AlertBannerDurationSec);
+                    var bannerW = 460f;
+                    var bannerH = 68f;
+                    var startY = 110f;
+
+                    for (var i = this.activeAlertBanners.Count - 1; i >= 0; i--)
+                    {
+                        var banner = this.activeAlertBanners[i];
+                        var elapsedSec = (float)(now - banner.CreatedUtc).TotalSeconds;
+
+                        if (elapsedSec >= bannerDuration)
+                        {
+                            this.activeAlertBanners.RemoveAt(i);
+                            continue;
+                        }
+
+                        // Compute smooth alpha (fade in first 0.3s, fade out last 1.2s)
+                        var alpha = 1.0f;
+                        if (elapsedSec < 0.3f)
+                        {
+                            alpha = elapsedSec / 0.3f;
+                        }
+                        else if (elapsedSec > bannerDuration - 1.2f)
+                        {
+                            alpha = Math.Max(0f, (bannerDuration - elapsedSec) / 1.2f);
+                        }
+
+                        var bannerX = (windowArea.Width - bannerW) / 2f;
+                        var bannerY = startY + (i * (bannerH + 10f));
+                        var min = new Vector2(bannerX, bannerY);
+                        var max = new Vector2(bannerX + bannerW, bannerY + bannerH);
+
+                        var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.04f, 0.04f, 0.07f, 0.92f * alpha));
+                        var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.78f, 0.15f, 0.90f * alpha));
+                        var headerCol = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.85f, 0.30f, 1.0f * alpha));
+                        var titleCol = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 1.0f, 1.0f, 1.0f * alpha));
+                        var valueCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.40f, 1.0f, 0.40f, 1.0f * alpha));
+
+                        // Rounded card background + glowing gold border
+                        fg.AddRectFilled(min, max, bgCol, 8f);
+                        fg.AddRect(min, max, borderCol, 8f, ImDrawFlags.None, 2f);
+
+                        // Header subtitle
+                        var subText = this.PluginText.T("banner.valuable_drop_detected", "★ VALUABLE DROP DETECTED ★");
+                        var subSize = ImGui.CalcTextSize(subText);
+                        fg.AddText(new Vector2(bannerX + (bannerW - subSize.X) / 2f, bannerY + 8f), headerCol, subText);
+
+                        // Item Name + Value
+                        var itemLine = banner.ItemName;
+                        var valueLine = $" ({banner.DisplayValue:0.##} {banner.DisplayCurrency})";
+                        var itemSize = ImGui.CalcTextSize(itemLine);
+                        var valSize = ImGui.CalcTextSize(valueLine);
+                        var totalTextW = itemSize.X + valSize.X;
+
+                        var itemTextX = bannerX + (bannerW - totalTextW) / 2f;
+                        var itemTextY = bannerY + 34f;
+
+                        fg.AddText(new Vector2(itemTextX, itemTextY), titleCol, itemLine);
+                        fg.AddText(new Vector2(itemTextX + itemSize.X, itemTextY), valueCol, valueLine);
+                    }
+                }
             }
         }
 
@@ -2594,7 +3092,7 @@ namespace NinjaPricer
                         ImGuiWindowFlags.NoFocusOnAppearing |
                         ImGuiWindowFlags.NoScrollbar;
 
-            bool open = ImGui.Begin("Runeshape###RuneshapeWindow", ref keepOpen, flags);
+            bool open = ImGui.Begin(this.PluginText.Title("ninjapricer.runeshape.window_title", "Runeshape", "RuneshapeWindow"), ref keepOpen, flags);
             this.Settings.RuneshapeWinCollapsed = !open;
 
             var curPos = ImGui.GetWindowPos();
@@ -2625,7 +3123,7 @@ namespace NinjaPricer
 
             if (monoliths.Count == 0)
             {
-                ImGui.TextDisabled("No Runeshapes");
+                ImGui.TextDisabled(this.PluginText.T("ninjapricer.runeshape.no_runeshapes", "No Runeshapes"));
             }
             else
             {
@@ -2937,14 +3435,14 @@ namespace NinjaPricer
             }
 
             // Collapsible full catalog section at bottom
-            if (ImGui.TreeNode("All Recipes Catalog"))
+            if (ImGui.TreeNode(this.PluginText.T("ninjapricer.runeshape.all_catalog", "All Recipes Catalog")))
             {
                 ImGui.SetNextItemWidth(260f);
-                ImGui.InputTextWithHint("##rsSearch", "Search recipe...", ref this.rsSearchFilter, 64);
+                ImGui.InputTextWithHint("##rsSearch", this.PluginText.T("ninjapricer.runeshape.search_hint", "Search recipe..."), ref this.rsSearchFilter, 64);
                 if (!string.IsNullOrEmpty(this.rsSearchFilter))
                 {
                     ImGui.SameLine();
-                    if (ImGui.Button("Clear")) this.rsSearchFilter = string.Empty;
+                    if (ImGui.Button(this.PluginText.T("button.clear", "Clear"))) this.rsSearchFilter = string.Empty;
                 }
 
                 string[] colors = { "Red (Physical)", "Blue (Arcane/Cold)", "Green (Chaos/Poison)", "Yellow (Fire/Currency)", "Purple (Celestial/Rare)" };

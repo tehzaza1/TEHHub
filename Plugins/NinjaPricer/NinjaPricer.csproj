@@ -24,9 +24,19 @@
       <_NinjaPricerDeployFiles Include="$(OutDir)$(TargetName).pdb" Condition="Exists('$(OutDir)$(TargetName).pdb')" />
       <_NinjaPricerDeployFiles Include="$(MSBuildProjectDirectory)\expedition2_recipes.json" Condition="Exists('$(MSBuildProjectDirectory)\expedition2_recipes.json')" />
       <_NinjaPricerDeployFiles Include="$(MSBuildProjectDirectory)\uniqueArtMapping.json" Condition="Exists('$(MSBuildProjectDirectory)\uniqueArtMapping.json')" />
+      <_NinjaPricerDeployFiles Include="$(MSBuildProjectDirectory)\pathBasenameToItemName.json" Condition="Exists('$(MSBuildProjectDirectory)\pathBasenameToItemName.json')" />
+      <_NinjaPricerDeployFiles Include="$(MSBuildProjectDirectory)\default.wav" Condition="Exists('$(MSBuildProjectDirectory)\default.wav')" />
+      <_NinjaPricerResourceFiles Include="$(MSBuildProjectDirectory)\resources\**\*.*" />
+      <_NinjaPricerLocalizationFiles Include="$(MSBuildProjectDirectory)\Localization\*.json" />
     </ItemGroup>
     <Copy SourceFiles="@(_NinjaPricerDeployFiles)"
           DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_NinjaPricerResourceFiles)"
+          DestinationFiles="@(_NinjaPricerResourceFiles->'..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)\resources\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_NinjaPricerLocalizationFiles)"
+          DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)\Localization"
           SkipUnchangedFiles="true" />
   </Target>
 

@@ -60,6 +60,14 @@ namespace NinjaPricer
         public float MinPriceChaos { get; set; } = 0.0f;
         public int ScanIntervalMs { get; set; } = 100;
 
+        // Valuable Drop Alerts
+        public bool EnableAlertSound { get; set; } = true;
+        public int AlertVolumePercent { get; set; } = 50;
+        public bool EnableAlertBanner { get; set; } = true;
+        public float AlertBannerDurationSec { get; set; } = 6.0f;
+        public bool EnableAlertBeam { get; set; } = true;
+        public float AlertMinDisplayValue { get; set; } = 1.0f;
+
         // Runeshape Movable Window
         public bool ShowRuneshapeWindow { get; set; } = false;
         public bool ShowRuneshapeWorldMarkers { get; set; } = true;

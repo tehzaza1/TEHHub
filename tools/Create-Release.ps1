@@ -55,11 +55,11 @@ try {
         if ($coreMetadata.Contains($typeName)) { throw "Debug API type found in Release: $typeName" }
     }
     foreach ($mappingName in @('pathBasenameToItemName.json', 'uniqueArtMapping.json')) {
-        $sourceMapping = Join-Path $worktree "Plugins/LootValue/$mappingName"
-        $packagedMapping = Join-Path $stage "Plugins/LootValue/$mappingName"
+        $sourceMapping = Join-Path $worktree "Plugins/NinjaPricer/$mappingName"
+        $packagedMapping = Join-Path $stage "Plugins/NinjaPricer/$mappingName"
         if (!(Test-Path -LiteralPath $packagedMapping) -or
             (Get-FileHash -LiteralPath $sourceMapping).Hash -ne (Get-FileHash -LiteralPath $packagedMapping).Hash) {
-            throw "Missing or outdated LootValue mapping: $mappingName"
+            throw "Missing or outdated NinjaPricer mapping: $mappingName"
         }
     }
     if (!(Get-ChildItem -LiteralPath (Join-Path $stage 'Plugins') -Filter '*.dll' -Recurse -File)) { throw 'No plugins were packaged.' }
