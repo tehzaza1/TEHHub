@@ -514,23 +514,27 @@ namespace Radar
             var trackingPos = new Vector2(playerRender.GridPosition.X, playerRender.GridPosition.Y);
             var trackingHeight = playerRender.TerrainHeight;
 
-            var playerOther = currentAreaInstance.AwakeEntities.Values
-                .FirstOrDefault(e => e.EntitySubtype == EntitySubtypes.PlayerOther);
-            var hasCoopPartner = currentAreaInstance.LocalPlayerCount > 1 ||
-                                 currentAreaInstance.Player2.Address != IntPtr.Zero ||
-                                 playerOther != null;
-            if (this.IsLocalCoopActive(playerRender, hasCoopPartner))
+            if (this.IsLocalCoopActive(playerRender, false))
             {
                 if (currentAreaInstance.Player2.Address != IntPtr.Zero &&
                     currentAreaInstance.Player2.TryGetComponent<Render>(out var p2Render))
                 {
-                    trackingPos = (trackingPos + new Vector2(p2Render.GridPosition.X, p2Render.GridPosition.Y)) / 2f;
-                    trackingHeight = (trackingHeight + p2Render.TerrainHeight) / 2f;
+                    trackingPos = (trackingPos + new Vector2(p2Render.GridPosition.X, p2Render.GridPosition.Y)) * 0.5f;
+                    trackingHeight = (trackingHeight + p2Render.TerrainHeight) * 0.5f;
                 }
-                else if (playerOther != null && playerOther.TryGetComponent<Render>(out var pOtherRender))
+                else
                 {
-                    trackingPos = (trackingPos + new Vector2(pOtherRender.GridPosition.X, pOtherRender.GridPosition.Y)) / 2f;
-                    trackingHeight = (trackingHeight + pOtherRender.TerrainHeight) / 2f;
+                    // Fallback to searching AwakeEntities without taking global bucket locks via .Values
+                    foreach (var kv in currentAreaInstance.AwakeEntities)
+                    {
+                        if (kv.Value.EntitySubtype == EntitySubtypes.PlayerOther &&
+                            kv.Value.TryGetComponent<Render>(out var pOtherRender))
+                        {
+                            trackingPos = (trackingPos + new Vector2(pOtherRender.GridPosition.X, pOtherRender.GridPosition.Y)) * 0.5f;
+                            trackingHeight = (trackingHeight + pOtherRender.TerrainHeight) * 0.5f;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -616,7 +620,7 @@ namespace Radar
                 ImGui.End();
             }
 
-            if (miniMap.IsVisible)
+            if (!isController && miniMap.IsVisible && miniMap.Size.X > 50 && miniMap.Size.Y > 50)
             {
                 if (this.miniMapDiagonalLength <= 0)
                 {
