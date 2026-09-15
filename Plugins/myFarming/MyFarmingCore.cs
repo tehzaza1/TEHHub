@@ -23,6 +23,7 @@ namespace myFarming
         private LootDiffEngine diffEngine = null!;
         private KillTracker killTracker = null!;
         private HistoryStore historyStore = null!;
+        private SessionStore sessionStore = null!;
 
         // Runtime run state
         private bool isRunActive = false;
@@ -70,6 +71,7 @@ namespace myFarming
             this.diffEngine = new LootDiffEngine();
             this.killTracker = new KillTracker();
             this.historyStore = new HistoryStore(this.PluginConfigDirectory);
+            this.sessionStore = new SessionStore(this.PluginConfigDirectory);
 
             this.priceHelper.ReloadPrices(this.Settings.CustomPrices);
             this.lastTickUtc = DateTime.UtcNow;
@@ -85,6 +87,7 @@ namespace myFarming
             }
 
             this.historyStore?.Save();
+            this.sessionStore?.Save();
             this.SaveSettings();
             PluginLog.Info("myFarming", "myFarming plugin disabled.");
         }
@@ -235,7 +238,7 @@ namespace myFarming
                 StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 StartedText = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                 DurationSec = 0,
-                SessionId = this.Settings.CurrentSessionId,
+                SessionId = this.sessionStore.Current.SessionId,
                 DivineRate = this.priceHelper.DivineInChaos,
                 ExaltedRate = this.priceHelper.ExaltedInChaos,
             };
@@ -263,14 +266,14 @@ namespace myFarming
                 this.historyStore.AddRun(this.currentRun);
 
                 // Accumulate run into persistent session totals
-                this.Settings.SessionTotalDurationSec += this.currentRun.DurationSec;
-                this.Settings.SessionTotalChaos += this.currentRun.TotalChaos;
-                this.Settings.SessionTotalMaps++;
-                this.Settings.SessionKillsNormal += this.currentRun.KillsNormal;
-                this.Settings.SessionKillsMagic += this.currentRun.KillsMagic;
-                this.Settings.SessionKillsRare += this.currentRun.KillsRare;
-                this.Settings.SessionKillsUnique += this.currentRun.KillsUnique;
-                this.SaveSettings();
+                this.sessionStore.Current.TotalDurationSec += this.currentRun.DurationSec;
+                this.sessionStore.Current.TotalChaos += this.currentRun.TotalChaos;
+                this.sessionStore.Current.TotalMaps++;
+                this.sessionStore.Current.KillsNormal += this.currentRun.KillsNormal;
+                this.sessionStore.Current.KillsMagic += this.currentRun.KillsMagic;
+                this.sessionStore.Current.KillsRare += this.currentRun.KillsRare;
+                this.sessionStore.Current.KillsUnique += this.currentRun.KillsUnique;
+                this.sessionStore.Save();
             }
 
             this.isRunActive = false;
@@ -287,16 +290,8 @@ namespace myFarming
                 this.FinalizeRun();
             }
 
-            this.Settings.CurrentSessionId++;
-            this.Settings.SessionTotalDurationSec = 0;
-            this.Settings.SessionTotalChaos = 0f;
-            this.Settings.SessionTotalMaps = 0;
-            this.Settings.SessionKillsNormal = 0;
-            this.Settings.SessionKillsMagic = 0;
-            this.Settings.SessionKillsRare = 0;
-            this.Settings.SessionKillsUnique = 0;
-            this.SaveSettings();
-            PluginLog.Info("myFarming", $"Session #{this.Settings.CurrentSessionId} started.");
+            this.sessionStore.Reset();
+            PluginLog.Info("myFarming", $"Session #{this.sessionStore.Current.SessionId} started.");
         }
 
         #region Resource & Texture Loading
@@ -395,13 +390,13 @@ namespace myFarming
                 this.Settings.OverlayY = curPos.Y;
 
                 // Live Session Totals (accumulated finished runs + currently active run)
-                int liveSessionSec = this.Settings.SessionTotalDurationSec + (this.currentRun?.DurationSec ?? 0);
-                float liveSessionChaos = this.Settings.SessionTotalChaos + this.currentTotalChaos;
-                int liveSessionMaps = this.Settings.SessionTotalMaps + (this.isRunActive ? 1 : 0);
-                int liveKillsNormal = this.Settings.SessionKillsNormal + this.killTracker.KillsNormal;
-                int liveKillsMagic = this.Settings.SessionKillsMagic + this.killTracker.KillsMagic;
-                int liveKillsRare = this.Settings.SessionKillsRare + this.killTracker.KillsRare;
-                int liveKillsUnique = this.Settings.SessionKillsUnique + this.killTracker.KillsUnique;
+                int liveSessionSec = this.sessionStore.Current.TotalDurationSec + (this.currentRun?.DurationSec ?? 0);
+                float liveSessionChaos = this.sessionStore.Current.TotalChaos + this.currentTotalChaos;
+                int liveSessionMaps = this.sessionStore.Current.TotalMaps + (this.isRunActive ? 1 : 0);
+                int liveKillsNormal = this.sessionStore.Current.KillsNormal + this.killTracker.KillsNormal;
+                int liveKillsMagic = this.sessionStore.Current.KillsMagic + this.killTracker.KillsMagic;
+                int liveKillsRare = this.sessionStore.Current.KillsRare + this.killTracker.KillsRare;
+                int liveKillsUnique = this.sessionStore.Current.KillsUnique + this.killTracker.KillsUnique;
 
                 // Status line
                 string statusText = this.isRunActive
@@ -413,7 +408,7 @@ namespace myFarming
 
                 ImGui.TextColored(statusColor, statusText);
                 ImGui.SameLine();
-                ImGui.TextDisabled($"| Session #{this.Settings.CurrentSessionId}");
+                ImGui.TextDisabled($"| Session #{this.sessionStore.Current.SessionId}");
                 ImGui.SameLine();
                 if (ImGui.SmallButton("New Session"))
                 {
@@ -443,7 +438,7 @@ namespace myFarming
                         ImGui.TextDisabled($"{this.FormatCurrency(sessionRate)}/hr");
                     }
 
-                    if (this.Settings.ShowKills && this.Settings.SessionTotalMaps > 0)
+                    if (this.Settings.ShowKills && this.sessionStore.Current.TotalMaps > 0)
                     {
                         this.DrawColoredKills(liveKillsNormal, liveKillsMagic, liveKillsRare, liveKillsUnique);
                     }
@@ -459,7 +454,7 @@ namespace myFarming
                     int sec = duration % 60;
                     ImGui.Text($"Map: {mapTitle} ({min:D2}:{sec:D2})");
 
-                    if (this.Settings.SessionTotalMaps > 0)
+                    if (this.sessionStore.Current.TotalMaps > 0)
                     {
                         ImGui.Text("Map Loot: ");
                         ImGui.SameLine(0, 2);
@@ -628,11 +623,11 @@ namespace myFarming
             ImGui.Separator();
 
             // Session Control
-            ImGui.Text($"Current Session: #{this.Settings.CurrentSessionId}");
-            ImGui.Text($"Session Progress: {this.Settings.SessionTotalMaps} maps completed | Total Loot: {this.FormatCurrency(this.Settings.SessionTotalChaos)}");
-            int sHrs = this.Settings.SessionTotalDurationSec / 3600;
-            int sMin = (this.Settings.SessionTotalDurationSec % 3600) / 60;
-            int sSec = this.Settings.SessionTotalDurationSec % 60;
+            ImGui.Text($"Current Session: #{this.sessionStore.Current.SessionId}");
+            ImGui.Text($"Session Progress: {this.sessionStore.Current.TotalMaps} maps completed | Total Loot: {this.FormatCurrency(this.sessionStore.Current.TotalChaos)}");
+            int sHrs = this.sessionStore.Current.TotalDurationSec / 3600;
+            int sMin = (this.sessionStore.Current.TotalDurationSec % 3600) / 60;
+            int sSec = this.sessionStore.Current.TotalDurationSec % 60;
             ImGui.Text($"Session Duration: {sHrs:D2}:{sMin:D2}:{sSec:D2}");
 
             if (ImGui.Button("Start New Session (Reset Counters)"))

@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.54 — 2026-09-16 [Plugin Update — myFarming]
+
+- **myFarming: Dedicated Session State Persistence (`session.json`)**:
+  - Decoupled active multi-map farming session data from `settings.json` into its own dedicated `configs/plugins/myFarming/session.json` storage managed by `SessionStore`.
+  - Closing, restarting, or resetting UI settings in TEHhub will never wipe or reset active farming session progress (maps, time, loot, kills).
+  - Session statistics can be independently inspected, backed up, or managed without touching plugin configuration.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.53 — 2026-09-16 [Plugin Update — myFarming & NinjaPricer]
 
 - **NinjaPricer / Runeshape: Weight & Price Icons**:

@@ -43,24 +43,7 @@ namespace myFarming
 
         public float MinItemPriceToDisplay { get; set; } = 0.0f;
 
-        public int CurrentSessionId { get; set; } = 1;
-
         public bool AutoPauseInTownOrHideout { get; set; } = true;
-
-        // Persistent Session Totals (accumulated across maps until explicitly reset by user)
-        public int SessionTotalDurationSec { get; set; } = 0;
-
-        public float SessionTotalChaos { get; set; } = 0f;
-
-        public int SessionTotalMaps { get; set; } = 0;
-
-        public int SessionKillsNormal { get; set; } = 0;
-
-        public int SessionKillsMagic { get; set; } = 0;
-
-        public int SessionKillsRare { get; set; } = 0;
-
-        public int SessionKillsUnique { get; set; } = 0;
 
         public Dictionary<string, float> CustomPrices { get; set; } = new();
     }

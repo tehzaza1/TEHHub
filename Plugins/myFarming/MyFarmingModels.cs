@@ -48,11 +48,14 @@ namespace myFarming
     public sealed class FarmSession
     {
         public int SessionId { get; set; } = 1;
-        public long StartedAt { get; set; }
-        public int TotalDurationSec { get; set; }
-        public int TotalMaps { get; set; }
-        public float TotalChaos { get; set; }
-        public int TotalGold { get; set; }
-        public int TotalKills { get; set; }
+        public long StartedAt { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        public int TotalDurationSec { get; set; } = 0;
+        public int TotalMaps { get; set; } = 0;
+        public float TotalChaos { get; set; } = 0f;
+        public int KillsNormal { get; set; } = 0;
+        public int KillsMagic { get; set; } = 0;
+        public int KillsRare { get; set; } = 0;
+        public int KillsUnique { get; set; } = 0;
+        public int TotalKills => this.KillsNormal + this.KillsMagic + this.KillsRare + this.KillsUnique;
     }
 }
