@@ -39,7 +39,6 @@ try {
     Copy-Item -LiteralPath (Join-Path $publish 'TEHhub.Launcher.exe') -Destination $stage
     foreach ($name in @('README.md', 'CHANGELOG.md')) { Copy-Item -LiteralPath (Join-Path $worktree $name) -Destination $stage }
     Copy-Item -LiteralPath (Join-Path $worktree 'Documentation') -Destination $stage -Recurse
-    if (Test-Path -LiteralPath (Join-Path $worktree 'resources')) { Copy-Item -LiteralPath (Join-Path $worktree 'resources') -Destination $stage -Recurse }
     if (Test-Path -LiteralPath (Join-Path $worktree 'LICENSE')) { Copy-Item -LiteralPath (Join-Path $worktree 'LICENSE') -Destination $stage }
     foreach ($file in Get-ChildItem -LiteralPath (Join-Path $worktree 'Plugins') -File -Recurse | Where-Object { $_.Name -in @('LICENSE', 'CREDITS.md') -and $_.FullName -notmatch '[\\/](bin|obj)[\\/]' }) {
         $destination = Join-Path $stage $file.FullName.Substring($worktree.Length + 1)
@@ -52,8 +51,8 @@ try {
     $version = @($project.Project.PropertyGroup.Version | Where-Object { $_ })[0]
     $manifest = [ordered]@{ product = 'TEHhub'; version = "$version"; commit = $commit; target = 'win-x64'; runtime = '.NET 10 Runtime x64'; builtUtc = [DateTime]::UtcNow.ToString('o'); launcher = 'self-contained single-file' }
     [IO.File]::WriteAllText((Join-Path $stage 'RELEASE_MANIFEST.json'), ($manifest | ConvertTo-Json), $utf8)
-    foreach ($name in @('TEHhub.exe', 'TEHhub.dll', 'TEHhub.Offsets.dll', 'TEHhub.runtimeconfig.json', 'TEHhub.Launcher.exe', 'README.md', 'CHANGELOG.md', 'README_FIRST.txt', 'RELEASE_MANIFEST.json')) {
-        if (!(Test-Path -LiteralPath (Join-Path $stage $name))) { throw "Missing package file: $name" }
+    foreach ($name in @('TEHhub.exe', 'TEHhub.dll', 'TEHhub.Offsets.dll', 'TEHhub.runtimeconfig.json', 'TEHhub.Launcher.exe', 'README.md', 'CHANGELOG.md', 'README_FIRST.txt', 'RELEASE_MANIFEST.json', 'resources')) {
+        if (!(Test-Path -LiteralPath (Join-Path $stage $name))) { throw "Missing package file or directory: $name" }
     }
     if (Get-ChildItem -LiteralPath $stage -Filter '*.pdb' -Recurse -File) { throw 'Debug symbols must not be shipped.' }
     $coreBytes = [IO.File]::ReadAllBytes((Join-Path $stage 'TEHhub.dll'))
