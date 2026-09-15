@@ -1,7 +1,0 @@
-diff --git a/worker-smoke.txt b/worker-smoke.txt
-new file mode 100644
-index 0000000..e4b8ade
---- /dev/null
-+++ b/worker-smoke.txt
-@@ -0,0 +1 @@
-+local worker ready
