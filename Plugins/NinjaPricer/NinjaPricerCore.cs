@@ -3580,10 +3580,19 @@ namespace NinjaPricer
                     bool headerOpen = !this.Settings.RuneshapeCollapsed.Contains(mColor);
                     float headerH = Math.Max(baseFrameH, slotSz + 4f);
                     float availW = ImGui.GetContentRegionAvail().X;
-                    var hmin = ImGui.GetCursorScreenPos();
-                    var hmax = new Vector2(hmin.X + availW, hmin.Y + headerH);
 
-                    bool clicked = ImGui.InvisibleButton($"###rscol_{mColor:X8}_{m.EntityAddress.ToInt64():X}", new Vector2(availW, headerH));
+                    // Ensure window layout reserves enough width for runes, price, and weight text
+                    float requiredRowW = 6.0f * uiScale
+                        + dotsW
+                        + (bestPriced ? 10f + priceW : 0f)
+                        + (!string.IsNullOrEmpty(hdrWBuf) ? 10f + hdrWW : 0f)
+                        + 12f * uiScale;
+                    float btnW = Math.Max(availW, requiredRowW);
+
+                    var hmin = ImGui.GetCursorScreenPos();
+                    var hmax = new Vector2(hmin.X + btnW, hmin.Y + headerH);
+
+                    bool clicked = ImGui.InvisibleButton($"###rscol_{mColor:X8}_{m.EntityAddress.ToInt64():X}", new Vector2(btnW, headerH));
                     bool isHovered = ImGui.IsItemHovered();
                     if (clicked)
                     {

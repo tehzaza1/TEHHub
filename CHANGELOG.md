@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.50 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **Runeshape Window Layout & Auto-Resize**:
+  - Fixed an issue where the monolith combination weight (e.g. `+120`, `+80`) and prices on the right side of monolith header rows were cut off / clipped.
+  - Calculated exact required row width (`badges + runes + price + weight + padding`) and applied it to the header layout button so `AlwaysAutoResize` calculates the full window width properly.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.49 — 2026-09-16 [Plugin Update — myFarming]
 
 - **Game Pause & Escape Menu Detection**:
