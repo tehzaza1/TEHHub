@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.46 — 2026-09-15 [Plugin Update — NinjaPricer]
+
+- **Runeshape Window: Sort Mode Toggle**:
+  - Added `⚖ Weight` / `💰 Price` toggle buttons directly inside the Runeshape overlay window.
+  - Active sort mode button is highlighted (green = Weight, blue = Price); inactive button is dimmed.
+  - Clicking either button immediately switches `RsPrioritizeWeight` and saves settings — no need to open the settings panel.
+- Compatibility: Plugin update (NinjaPricer).
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.45 — 2026-09-15 [Plugin Update — NinjaPricer]
 
 - **New Expedition Settings Tab**:

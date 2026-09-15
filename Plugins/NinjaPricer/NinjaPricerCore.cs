@@ -3396,6 +3396,47 @@ namespace NinjaPricer
                 return;
             }
 
+            // Sort mode toggle bar
+            {
+                bool byWeight = this.Settings.RsPrioritizeWeight;
+                if (byWeight)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.55f, 0.22f, 1f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.28f, 0.68f, 0.28f, 1f));
+                }
+                else
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.22f, 0.22f, 1f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.35f, 0.35f, 1f));
+                }
+                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_weight", "⚖ Weight")))
+                {
+                    this.Settings.RsPrioritizeWeight = true;
+                    this.SaveSettings();
+                }
+                ImGui.PopStyleColor(2);
+
+                ImGui.SameLine();
+
+                if (!byWeight)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.45f, 0.62f, 1f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.28f, 0.58f, 0.78f, 1f));
+                }
+                else
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.22f, 0.22f, 1f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.35f, 0.35f, 1f));
+                }
+                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_price", "💰 Price")))
+                {
+                    this.Settings.RsPrioritizeWeight = false;
+                    this.SaveSettings();
+                }
+                ImGui.PopStyleColor(2);
+                ImGui.Separator();
+            }
+
             if (monoliths.Count == 0)
             {
                 ImGui.TextDisabled(this.PluginText.T("ninjapricer.runeshape.no_runeshapes", "No Runeshapes"));
