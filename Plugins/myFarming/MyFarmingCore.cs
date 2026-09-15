@@ -79,17 +79,29 @@ namespace myFarming
 
         public override void DrawUI()
         {
-            if (Core.States.GameCurrentState != GameStateTypes.InGameState) return;
+            var currentState = Core.States.GameCurrentState;
+            // Only active in InGameState or EscapeState (when game is paused via ESC menu)
+            if (currentState != GameStateTypes.InGameState && currentState != GameStateTypes.EscapeState)
+            {
+                this.lastTickUtc = DateTime.UtcNow;
+                return;
+            }
+
+            bool isGamePaused = currentState == GameStateTypes.EscapeState;
+            var now = DateTime.UtcNow;
 
             var inGame = Core.States.InGameStateObject;
-            if (inGame == null) return;
+            if (inGame == null)
+            {
+                this.lastTickUtc = now;
+                return;
+            }
 
             var areaDetails = inGame.CurrentWorldInstance?.AreaDetails;
             var area = inGame.CurrentAreaInstance;
             bool inTownOrHideout = areaDetails?.IsTown == true || areaDetails?.IsHideout == true;
 
             var areaHash = $"{areaDetails?.Id ?? "Unknown"}_{area?.CurrentAreaLevel ?? 0}";
-            var now = DateTime.UtcNow;
 
             // Handle Zone / Map transitions
             if (areaHash != this.lastAreaHash)
@@ -98,8 +110,10 @@ namespace myFarming
                 this.lastAreaHash = areaHash;
             }
 
+            bool isPaused = this.isRunPaused || isGamePaused;
+
             // Run updates
-            if (this.isRunActive && this.currentRun != null && !this.isRunPaused)
+            if (this.isRunActive && this.currentRun != null && !isPaused)
             {
                 double deltaSec = (now - this.lastTickUtc).TotalSeconds;
                 if (deltaSec >= 1.0)
@@ -131,7 +145,7 @@ namespace myFarming
             // Render HUD overlay
             if (this.Settings.ShowOverlay)
             {
-                this.DrawOverlay(inTownOrHideout, areaDetails?.Name ?? "None");
+                this.DrawOverlay(inTownOrHideout, areaDetails?.Name ?? "None", isPaused);
             }
         }
 
@@ -214,7 +228,7 @@ namespace myFarming
             this.currentTotalChaos = 0f;
         }
 
-        private void DrawOverlay(bool inTownOrHideout, string currentZoneName)
+        private void DrawOverlay(bool inTownOrHideout, string currentZoneName, bool isPaused)
         {
             var flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse;
             if (this.Settings.LockOverlay)
@@ -235,10 +249,10 @@ namespace myFarming
 
                 // Status line
                 string statusText = this.isRunActive
-                    ? (this.isRunPaused ? "⏸ PAUSED" : "▶ FARMING")
+                    ? (isPaused ? "⏸ PAUSED" : "▶ FARMING")
                     : "IDLE";
                 Vector4 statusColor = this.isRunActive
-                    ? (this.isRunPaused ? new Vector4(1f, 0.8f, 0.2f, 1f) : new Vector4(0.3f, 1f, 0.3f, 1f))
+                    ? (isPaused ? new Vector4(1f, 0.8f, 0.2f, 1f) : new Vector4(0.3f, 1f, 0.3f, 1f))
                     : new Vector4(0.7f, 0.7f, 0.7f, 1f);
 
                 ImGui.TextColored(statusColor, statusText);

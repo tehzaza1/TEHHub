@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.49 — 2026-09-16 [Plugin Update — myFarming]
+
+- **Game Pause & Escape Menu Detection**:
+  - Added support for `GameStateTypes.EscapeState` (Solo Play true pause) and loading screen states.
+  - When the player presses ESC to pause the game in solo play, `myFarming` automatically enters paused state (`⏸ PAUSED`), freezes the map duration timer, and prevents elapsed paused time from inflating map duration when unpausing.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.48 — 2026-09-16 [New Plugin — myFarming & Plugin Update — NinjaPricer]
 
 - **New Plugin: `myFarming` (Ported from FarmCounter)**:
