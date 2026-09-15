@@ -2224,7 +2224,9 @@ namespace NinjaPricer
                     {
                         newTags.Add(new GroundTag
                         {
-                            WorldPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.TerrainHeight),
+                            // Use WorldPosition.Z (label/healthbar height) so the price tag
+                            // projects to the same screen point as the floating item name label.
+                            WorldPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.WorldPosition.Z),
                             DisplayValue = displayVal,
                             Chaos = chaos,
                             IconPath = price.ItemIcon,
