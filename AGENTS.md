@@ -1,9 +1,9 @@
 # Project version and changelog policy
 
 TEHhub uses MAJOR.MINOR.PATCH (x.x.x).
-- **Core Framework Versioning Only**: Advance/bump TEHhub and TEHhub.Launcher versions (`TEHhub.csproj`, `TEHhub.Launcher.csproj`) ONLY when modifying the TEHhub core framework, engine, architecture, or launcher.
-- **Plugin Updates**: Do NOT bump TEHhub core version for plugin-specific additions, bugfixes, or adjustments (e.g. ExpeditionPlanner, Radar, LootValue, etc.).
-- When bumping core version, keep core and launcher versions synchronized; assembly/file versions use x.x.x.0.
+- **Synchronized Version Bumps**: Advance/bump TEHhub and TEHhub.Launcher versions (`TEHhub.csproj`, `TEHhub.Launcher.csproj`) for all functional updates (both SDK/core framework and plugins).
+- **Mandatory Scope Label**: Always explicitly label whether the release is an **[SDK / Core Framework Update]** or **[Plugin Update — PluginName]** in `CHANGELOG.md` and commit messages.
+- When bumping version, keep core and launcher versions synchronized; assembly/file versions use x.x.x.0.
 - Update CHANGELOG.md with date, concrete changes, compatibility notes when relevant, and validation actually performed. Do not claim live-game testing unless performed.
 
 # Sub-agent implementation and debugging policy

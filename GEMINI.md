@@ -35,6 +35,6 @@
 - ภายใน `AreaInstance` สแกนหาตัวแปร 1 ไบต์ (Byte) ที่มีค่าตรงกับเลเวลของด่านที่ตัวละครยืนอยู่ (1 - 100) ➔ ได้ออฟเซ็ตของ **CurrentAreaLevel** (เช่น `0x0BC`)
 
 ## 4. Versioning Policy
-- **ห้ามอัปเดต / Bump Version ของ TEHhub** (`TEHhub.csproj` / `TEHhub.Launcher.csproj`) เมื่อเป็นการแก้ไข ปรับปรุง หรือแก้บักแค่ตัว Plugin (เช่น ExpeditionPlanner, Radar, LootValue ฯลฯ)
-- **จะเปลี่ยน Version ของ TEHhub ก็ต่อเมื่อ**: มีการแก้ไขหรืออัปเดตที่ตัว Core Framework, Engine, สถาปัตยกรรมหลัก หรือตัว Launcher โดยตรงเท่านั้น
+- **อัปเดต / Bump Version ของ TEHhub ได้ทุกครั้งที่มีการอัปเดต**: ทั้ง `TEHhub.csproj` และ `TEHhub.Launcher.csproj`
+- **ข้อกำหนดสำคัญ**: ต้องระบุให้ชัดเจนใน `CHANGELOG.md` และ Commit Message เสมอว่าการอัปเดตรอบนั้นเป็นการอัปเดต **SDK / Core Framework** หรือเป็นการอัปเดต **Plugin (ระบุชื่อ Plugin)**
 

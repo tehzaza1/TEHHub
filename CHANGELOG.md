@@ -2,6 +2,20 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.40 — 2026-09-15 [Plugin Update — NinjaPricer]
+
+- **Multi-Golden Socket & Propagating Rune Icons**: Added support for monoliths with multiple golden sockets (2+ slots); recipe rows now render the exact rune icons slotted into each golden socket with layered golden glow auras and slot-specific tooltips.
+- **Runeshape Window Text Scaling**: Integrated `ImGui.SetWindowFontScale` with `TextScale` setting so the font size slider properly scales all text, headers, sockets, and icons in the Runeshape window.
+- **Clean Monolith Badges**: Removed index number text (`#1`, `#2`...) from header color badges to provide clean, compact color indicators matching the world map.
+- **Recipe Runes Tooltip**: Added hover tooltip on recipe rows displaying the complete list of rune ingredients needed.
+- **Valuable Drop Alerts**: Integrated expensive item drop notification system (volume-scaled WAV sound alert via WinMM, 3-layer vertical ground light beams, off-screen direction indicator chips, and animated floating card banners).
+- **Manual League Selector**: Added dropdown combo to select league manually or automatically from poe.ninja.
+- **Plugin Localization**: Added full Localization support for NinjaPricer across 11 languages with complete Thai (`th-TH.json`) and English (`en-US.json`).
+- **Plugin Resources**: Relocated all icons and recipe data into `Plugins/NinjaPricer/resources/` with local resolution.
+- **LootValue Decommissioning**: Removed obsolete `LootValue` plugin.
+- Compatibility: Plugin update (NinjaPricer).
+- Validation: Solution built in Debug and Release with 0 warnings and 0 errors.
+
 ## 1.8.39 — 2026-09-14
 
 - Fixed TargetableOffsets memory layout for PoE 2: corrected IsTargetable from legacy 0x51 to 0x69 (+0x18 offset displacement), IsHighlightable to 0x6A, and IsTargettedByPlayer to 0x6B based on live process memory probing.
