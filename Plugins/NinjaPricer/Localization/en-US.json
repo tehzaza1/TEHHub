@@ -121,6 +121,6 @@
   "button.dup_profile": "Dup",
   "button.del_profile": "Del",
   "ninjapricer.expedition.new_profile_hint": "profile name",
-  "ninjapricer.runeshape.sort_weight": "⚖ Weight",
-  "ninjapricer.runeshape.sort_price": "💰 Price"
+  "ninjapricer.runeshape.sort_weight": "Weight",
+  "ninjapricer.runeshape.sort_price": "Price"
 }

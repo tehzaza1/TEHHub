@@ -121,6 +121,6 @@
   "button.dup_profile": "คัดลอก",
   "button.del_profile": "ลบ",
   "ninjapricer.expedition.new_profile_hint": "ชื่อโปรไฟล์",
-  "ninjapricer.runeshape.sort_weight": "⚖ น้ำหนัก",
-  "ninjapricer.runeshape.sort_price": "💰 ราคา"
+  "ninjapricer.runeshape.sort_weight": "น้ำหนัก",
+  "ninjapricer.runeshape.sort_price": "ราคา"
 }

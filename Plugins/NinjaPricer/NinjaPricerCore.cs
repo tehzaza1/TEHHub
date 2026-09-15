@@ -119,7 +119,7 @@ namespace NinjaPricer
 
         private readonly List<RsRecipe> runeshapeRecipes = new();
         private readonly Dictionary<long, int> partialMinLevel = new();
-        private readonly HashSet<long> collapsedMonoliths = new();
+        private readonly HashSet<long> expandedMonoliths = new();
         private string rsSearchFilter = string.Empty;
 
         private static readonly uint[] RsMonolithColors = new uint[]
@@ -3316,6 +3316,41 @@ namespace NinjaPricer
             }
         }
 
+        private bool DrawSortButton(string id, string text, CurrencyTex? icon, bool isSelected, Vector4 activeBg, Vector4 hoverBg)
+        {
+            float lineH = ImGui.GetTextLineHeight();
+            float iconSz = lineH;
+            Vector2 textSz = ImGui.CalcTextSize(text);
+            float padX = 8f;
+            bool hasIcon = icon != null && icon.Value.Valid;
+            float spacing = hasIcon ? 6f : 0f;
+            float btnW = padX * 2 + (hasIcon ? iconSz : 0f) + spacing + textSz.X;
+            float btnH = lineH + 6f;
+
+            ImGui.PushStyleColor(ImGuiCol.Button, isSelected ? activeBg : new Vector4(0.22f, 0.22f, 0.22f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, isSelected ? hoverBg : new Vector4(0.35f, 0.35f, 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, isSelected ? hoverBg : new Vector4(0.45f, 0.45f, 0.45f, 1f));
+
+            Vector2 p0 = ImGui.GetCursorScreenPos();
+            bool clicked = ImGui.Button($"###{id}", new Vector2(btnW, btnH));
+            ImGui.PopStyleColor(3);
+
+            var dl = ImGui.GetWindowDrawList();
+            float curX = p0.X + padX;
+            float midY = p0.Y + btnH * 0.5f;
+
+            if (hasIcon)
+            {
+                dl.AddImage(icon!.Value.Ptr, new Vector2(curX, midY - iconSz * 0.5f), new Vector2(curX + iconSz, midY + iconSz * 0.5f));
+                curX += iconSz + spacing;
+            }
+
+            uint txtCol = isSelected ? 0xFFFFFFFFu : 0xFFCCCCCCu;
+            dl.AddText(new Vector2(curX, midY - textSz.Y * 0.5f), txtCol, text);
+
+            return clicked;
+        }
+
         private void DrawRuneshapeWindow(List<MonolithData> monoliths)
         {
             if (monoliths == null || monoliths.Count == 0) return;
@@ -3382,64 +3417,27 @@ namespace NinjaPricer
 
             var wTex = this.GetRuneUiTexture("Weight.png", ref this.rsWeightIconTex, ref this.rsWeightIconTried);
             var pTex = this.GetRuneUiTexture("Price.png", ref this.rsPriceIconTex, ref this.rsPriceIconTried);
-            float btnIconSz = ImGui.GetTextLineHeight();
 
-            // Sort mode toggle bar
+            // Sort mode toggle bar (Unified Icon + Text single button)
             {
                 bool byWeight = this.Settings.RsPrioritizeWeight;
-                if (byWeight)
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.55f, 0.22f, 1f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.28f, 0.68f, 0.28f, 1f));
-                }
-                else
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.22f, 0.22f, 1f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.35f, 0.35f, 1f));
-                }
-                if (wTex != null && wTex.Value.Valid)
-                {
-                    if (ImGui.ImageButton("###sort_w_btn", wTex.Value.Ptr, new Vector2(btnIconSz, btnIconSz)))
-                    {
-                        this.Settings.RsPrioritizeWeight = true;
-                        this.SaveSettings();
-                    }
-                    ImGui.SameLine(0, 4);
-                }
-                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight")))
+                string wText = this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight");
+                string pText = this.PluginText.T("ninjapricer.runeshape.sort_price", "Price");
+
+                if (this.DrawSortButton("sort_w_btn", wText, wTex, byWeight, new Vector4(0.22f, 0.55f, 0.22f, 1f), new Vector4(0.28f, 0.68f, 0.28f, 1f)))
                 {
                     this.Settings.RsPrioritizeWeight = true;
                     this.SaveSettings();
                 }
-                ImGui.PopStyleColor(2);
 
                 ImGui.SameLine();
 
-                if (!byWeight)
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.45f, 0.62f, 1f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.28f, 0.58f, 0.78f, 1f));
-                }
-                else
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.22f, 0.22f, 1f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.35f, 0.35f, 1f));
-                }
-                if (pTex != null && pTex.Value.Valid)
-                {
-                    if (ImGui.ImageButton("###sort_p_btn", pTex.Value.Ptr, new Vector2(btnIconSz, btnIconSz)))
-                    {
-                        this.Settings.RsPrioritizeWeight = false;
-                        this.SaveSettings();
-                    }
-                    ImGui.SameLine(0, 4);
-                }
-                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_price", "Price")))
+                if (this.DrawSortButton("sort_p_btn", pText, pTex, !byWeight, new Vector4(0.22f, 0.45f, 0.62f, 1f), new Vector4(0.28f, 0.58f, 0.78f, 1f)))
                 {
                     this.Settings.RsPrioritizeWeight = false;
                     this.SaveSettings();
                 }
-                ImGui.PopStyleColor(2);
+
                 ImGui.Separator();
             }
 
@@ -3599,8 +3597,8 @@ namespace NinjaPricer
                         ImGui.SameLine();
                     }
 
-                    // Custom header row without triangle arrow
-                    bool headerOpen = !this.collapsedMonoliths.Contains(m.EntityAddress.ToInt64());
+                    // Custom header row without triangle arrow (collapsed by default until clicked)
+                    bool headerOpen = this.expandedMonoliths.Contains(m.EntityAddress.ToInt64());
                     float headerH = Math.Max(baseFrameH, slotSz + 4f);
                     float availW = ImGui.GetContentRegionAvail().X;
 
@@ -3620,8 +3618,8 @@ namespace NinjaPricer
                     if (clicked)
                     {
                         long mAddr = m.EntityAddress.ToInt64();
-                        if (headerOpen) this.collapsedMonoliths.Add(mAddr);
-                        else this.collapsedMonoliths.Remove(mAddr);
+                        if (headerOpen) this.expandedMonoliths.Remove(mAddr);
+                        else this.expandedMonoliths.Add(mAddr);
                         headerOpen = !headerOpen;
                     }
 
