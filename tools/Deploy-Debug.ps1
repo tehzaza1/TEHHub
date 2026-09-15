@@ -29,6 +29,11 @@ $robocopyArgs = @(
 $exitCode = $LASTEXITCODE
 # Robocopy exit codes 0-7 indicate success / files copied
 if ($exitCode -le 7) {
+    $resSource = "$PSScriptRoot\..\resources"
+    $resTarget = Join-Path $targetDir "resources"
+    if (Test-Path $resSource) {
+        & robocopy $resSource $resTarget /E /R:2 /W:1 /NJH /NJS /NDL /NC /NS | Out-Null
+    }
     Write-Host "[OK] Debug build deployed to $targetDir successfully." -ForegroundColor Green
 } else {
     throw "Robocopy failed with exit code $exitCode"
