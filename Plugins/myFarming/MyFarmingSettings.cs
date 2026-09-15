@@ -15,6 +15,8 @@ namespace myFarming
     {
         public bool ShowOverlay { get; set; } = true;
 
+        public bool HideWhenGameNotFocused { get; set; } = true;
+
         public bool LockOverlay { get; set; } = false;
 
         public float OverlayX { get; set; } = 150f;

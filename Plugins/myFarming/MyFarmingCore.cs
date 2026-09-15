@@ -145,7 +145,10 @@ namespace myFarming
             // Render HUD overlay
             if (this.Settings.ShowOverlay)
             {
-                this.DrawOverlay(inTownOrHideout, areaDetails?.Name ?? "None", isPaused);
+                if (!this.Settings.HideWhenGameNotFocused || Core.Process.Foreground)
+                {
+                    this.DrawOverlay(inTownOrHideout, areaDetails?.Name ?? "None", isPaused);
+                }
             }
         }
 
@@ -381,6 +384,12 @@ namespace myFarming
             if (ImGui.Checkbox("Show HUD Overlay", ref showOverlay))
             {
                 this.Settings.ShowOverlay = showOverlay;
+            }
+
+            bool hideNotFocused = this.Settings.HideWhenGameNotFocused;
+            if (ImGui.Checkbox("Hide When Game Not Focused", ref hideNotFocused))
+            {
+                this.Settings.HideWhenGameNotFocused = hideNotFocused;
             }
 
             bool lockOverlay = this.Settings.LockOverlay;
