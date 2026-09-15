@@ -327,7 +327,7 @@ namespace TEHhub
                     break;
                 }
 
-                yield return new Wait(1d);
+                yield return new Wait(0.2d);
             }
         }
 
@@ -389,7 +389,21 @@ namespace TEHhub
         /// </summary>
         private void UpdateIsForeground()
         {
-            var foreground = GetForegroundWindow() == this.Information.MainWindowHandle;
+            var fgHwnd = GetForegroundWindow();
+            bool foreground = false;
+            if (fgHwnd != IntPtr.Zero && this.Information != null)
+            {
+                if (fgHwnd == this.Information.MainWindowHandle)
+                {
+                    foreground = true;
+                }
+                else
+                {
+                    _ = GetWindowThreadProcessId(fgHwnd, out var fgPid);
+                    foreground = fgPid == (uint)this.Information.Id || fgPid == (uint)Environment.ProcessId;
+                }
+            }
+
             if (foreground != this.Foreground)
             {
                 this.Foreground = foreground;
@@ -414,6 +428,9 @@ namespace TEHhub
 
         [LibraryImport("user32.dll")]
         private static partial IntPtr GetForegroundWindow();
+
+        [LibraryImport("user32.dll")]
+        private static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
         [LibraryImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]

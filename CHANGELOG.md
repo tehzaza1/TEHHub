@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.57 — 2026-09-16 [SDK / Core Framework Update]
+
+- **Core Framework: Robust Foreground Window & Focus Handling**:
+  - Updated `GameProcess.UpdateIsForeground()` to treat both the game process (`PathOfExile2.exe`) and the TEHhub process (`Environment.ProcessId`) as foreground.
+  - Clicking on any overlay UI element, settings panel, or plugin widget no longer causes the overlay to falsely detect a background/alt-tab state and disappear.
+  - Alt-Tabbing away to external applications (e.g. browser, Discord, desktop) continues to reliably hide all background-sensitive overlays as intended.
+  - Reduced monitor loop polling interval from 1.0s to 0.2s for instantaneous focus and window bounds tracking.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.56 — 2026-09-16 [Plugin Update — myFarming]
 
 - **myFarming: Dynamic Proportional Currency Icons**:
