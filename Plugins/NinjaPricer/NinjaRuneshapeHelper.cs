@@ -38,6 +38,7 @@ namespace NinjaPricer
         public int AnchorIdx { get; set; } = -1;
         public bool IsUnique { get; set; }
         public bool IsCompleted { get; set; }
+        public int ActivatedState { get; set; } = 0;
         public List<int> GoldenSlots { get; set; } = new();
         public Vector3 WorldPos { get; set; }
         public uint Color { get; set; } = 0xFFFFFFFF;
@@ -148,10 +149,13 @@ namespace NinjaPricer
             }
 
             var isCompleted = false;
+            var activatedState = 0;
 
             // Check StateMachine "activated" state:
-            // 1 = not chosen recipe yet
-            // 2 = recipe chosen
+            // 1 = not chosen recipe yet (Idle)
+            // 2 = recipe chosen (Recipe Selected)
+            // 3 = detonator button pressed / detonation sequence initiated (countdown/blast started)
+            // 5 = active encounter, detonated & monsters spawning
             // 6 = detonated, waiting to click and collect loot
             // 7 = detonated and loot collected -> completed!
             // 8 = detonated without bomb on this monolith (missed/expired) -> completed!
@@ -161,6 +165,7 @@ namespace NinjaPricer
                 {
                     if (string.Equals(s.Name, "activated", StringComparison.OrdinalIgnoreCase))
                     {
+                        activatedState = (int)s.Value;
                         if (s.Value >= 7) // 7 = collected reward, 8 = detonated without bomb
                         {
                             isCompleted = true;
@@ -200,6 +205,7 @@ namespace NinjaPricer
             info.AnchorIdx = anchorIdx;
             info.IsUnique = isUnique;
             info.IsCompleted = isCompleted;
+            info.ActivatedState = activatedState;
             info.GoldenSlots = goldenSlots;
 
             // Assign color based on anchor or category

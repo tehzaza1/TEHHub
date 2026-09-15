@@ -152,12 +152,14 @@ namespace NinjaPricer
             { "Protective", 20 },
         };
 
-        private static int CalculateRecipeWeight(IEnumerable<string> runes)
+        private int CalculateRecipeWeight(IEnumerable<string> runes)
         {
+            var activeWeights = this.Settings.GetActiveWeights();
             int total = 0;
             foreach (var r in runes)
             {
-                if (DefaultRuneWeights.TryGetValue(r, out var w)) total += w;
+                if (activeWeights != null && activeWeights.TryGetValue(r, out var w)) total += w;
+                else if (DefaultRuneWeights.TryGetValue(r, out var defW)) total += defW;
                 else total += 20;
             }
             return total;
@@ -204,6 +206,7 @@ namespace NinjaPricer
         private Vector2 runeshapeWinRectMin = Vector2.Zero;
         private Vector2 runeshapeWinRectMax = Vector2.Zero;
         private bool runeshapeWinRectValid = false;
+        private string newProfileInput = string.Empty;
 
         // Ground tags cache
         private struct GroundTag
@@ -1174,6 +1177,11 @@ namespace NinjaPricer
                 this.DrawTabDisplaySettings();
                 ImGui.EndTabItem();
             }
+            if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.expedition", "Expedition", "tab_expedition")))
+            {
+                this.DrawTabExpedition();
+                ImGui.EndTabItem();
+            }
             if (ImGui.BeginTabItem(this.PluginText.Title("ninjapricer.tab.overlays", "Overlay Toggles", "tab_overlays")))
             {
                 this.DrawTabOverlayToggles();
@@ -1578,6 +1586,48 @@ namespace NinjaPricer
             ImGui.SameLine();
             ImGui.TextDisabled(this.PluginText.T("ninjapricer.overlays.ritual_hint", "(price items in the Ritual \"Favours\" shop)"));
 
+            bool showIcons = this.Settings.ShowItemIcons;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.show_item_icons", "Show item icons", "ShowIconsCheck"), ref showIcons)) { this.Settings.ShowItemIcons = showIcons; this.SaveSettings(); }
+
+            bool hideUnfocused = this.Settings.HideWhenUnfocused;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.hide_when_game_unfocused", "Hide when game not focused", "HideUnfocusedCheck"), ref hideUnfocused)) { this.Settings.HideWhenUnfocused = hideUnfocused; this.SaveSettings(); }
+
+            ImGui.Separator();
+            int hhk = this.Settings.HideHotkey;
+            if (this.DrawHotkeyCaptureRow(this.PluginText.T("ninjapricer.overlays.hold_to_hide", "Hold-to-hide hotkey:"), "hold", ref hhk))
+            {
+                this.Settings.HideHotkey = hhk;
+                this.SaveSettings();
+            }
+
+            ImGui.Spacing();
+            if (ImGui.TreeNode(this.PluginText.Title("ninjapricer.overlays.category_filters", "Category filters", "CatFilters")))
+            {
+                var keys = new List<string>(this.Settings.EnabledCategories.Keys);
+                foreach (var k in keys)
+                {
+                    bool val = this.Settings.EnabledCategories[k];
+                    if (ImGui.Checkbox(k, ref val))
+                    {
+                        this.Settings.EnabledCategories[k] = val;
+                        this.SaveSettings();
+                    }
+                }
+                ImGui.TreePop();
+            }
+        }
+
+        private void DrawTabExpedition()
+        {
+            ImGui.Spacing();
+
+            // ================================================================
+            // 1. General Runeshape & Monolith Settings
+            // ================================================================
+            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), this.PluginText.T("ninjapricer.expedition.general_header", "Runeshape & Monolith Settings"));
+            ImGui.Separator();
+            ImGui.Spacing();
+
             bool showRs = this.Settings.ShowRuneshapePrices;
             if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.runeshape", "Runeshape", "ShowRsCheck"), ref showRs)) { this.Settings.ShowRuneshapePrices = showRs; this.SaveSettings(); }
             ImGui.SameLine();
@@ -1679,34 +1729,230 @@ namespace NinjaPricer
             bool prioritizeWeight = this.Settings.RsPrioritizeWeight;
             if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_prioritize_weight", "Prioritize highest weight (+)", "RsPrioritizeWeightCheck"), ref prioritizeWeight)) { this.Settings.RsPrioritizeWeight = prioritizeWeight; this.SaveSettings(); }
 
-            bool showIcons = this.Settings.ShowItemIcons;
-            if (ImGui.Checkbox(this.PluginText.Label("settings.show_item_icons", "Show item icons", "ShowIconsCheck"), ref showIcons)) { this.Settings.ShowItemIcons = showIcons; this.SaveSettings(); }
-
-            bool hideUnfocused = this.Settings.HideWhenUnfocused;
-            if (ImGui.Checkbox(this.PluginText.Label("settings.hide_when_game_unfocused", "Hide when game not focused", "HideUnfocusedCheck"), ref hideUnfocused)) { this.Settings.HideWhenUnfocused = hideUnfocused; this.SaveSettings(); }
-
+            ImGui.Spacing();
             ImGui.Separator();
-            int hhk = this.Settings.HideHotkey;
-            if (this.DrawHotkeyCaptureRow(this.PluginText.T("ninjapricer.overlays.hold_to_hide", "Hold-to-hide hotkey:"), "hold", ref hhk))
+            ImGui.Spacing();
+
+            // ================================================================
+            // 2. Rune Weights Editor (Profiles + Sliders)
+            // ================================================================
+            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), this.PluginText.T("ninjapricer.expedition.weights_header", "Rune weights"));
+            ImGui.TextDisabled(this.PluginText.T("ninjapricer.expedition.weights_desc", "Independent of the RuneShape tab. These weights drive the Glow runes placement mode: the planner stacks unique glow runes by them."));
+            ImGui.Spacing();
+
+            // Ensure profile exists
+            if (this.Settings.RuneWeightProfiles == null || this.Settings.RuneWeightProfiles.Count == 0)
             {
-                this.Settings.HideHotkey = hhk;
+                var def = RuneWeightProfile.CreateDefault("Default");
+                this.Settings.RuneWeightProfiles = new List<RuneWeightProfile> { def };
+                this.Settings.ActiveRuneWeightProfile = "Default";
                 this.SaveSettings();
             }
 
-            ImGui.Spacing();
-            if (ImGui.TreeNode(this.PluginText.Title("ninjapricer.overlays.category_filters", "Category filters", "CatFilters")))
+            var currentProfile = this.Settings.RuneWeightProfiles.Find(p => string.Equals(p.Name, this.Settings.ActiveRuneWeightProfile, StringComparison.OrdinalIgnoreCase))
+                                 ?? this.Settings.RuneWeightProfiles[0];
+
+            // Profile bar
+            ImGui.SetNextItemWidth(140f);
+            if (ImGui.BeginCombo("##ProfileSelector", currentProfile.Name))
             {
-                var keys = new List<string>(this.Settings.EnabledCategories.Keys);
-                foreach (var k in keys)
+                foreach (var prof in this.Settings.RuneWeightProfiles)
                 {
-                    bool val = this.Settings.EnabledCategories[k];
-                    if (ImGui.Checkbox(k, ref val))
+                    bool isSelected = string.Equals(prof.Name, currentProfile.Name, StringComparison.OrdinalIgnoreCase);
+                    if (ImGui.Selectable(prof.Name, isSelected))
                     {
-                        this.Settings.EnabledCategories[k] = val;
+                        this.Settings.ActiveRuneWeightProfile = prof.Name;
+                        this.SaveSettings();
+                        this.RecalculateRecipeWeights();
+                    }
+                    if (isSelected) ImGui.SetItemDefaultFocus();
+                }
+                ImGui.EndCombo();
+            }
+
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(130f);
+            ImGui.InputTextWithHint("##NewProfName", this.PluginText.T("ninjapricer.expedition.new_profile_hint", "profile name"), ref this.newProfileInput, 32);
+
+            ImGui.SameLine();
+            if (ImGui.Button(this.PluginText.T("button.new_profile", "New")))
+            {
+                string pName = string.IsNullOrWhiteSpace(this.newProfileInput) ? $"Profile {this.Settings.RuneWeightProfiles.Count + 1}" : this.newProfileInput.Trim();
+                if (!this.Settings.RuneWeightProfiles.Any(p => string.Equals(p.Name, pName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var np = RuneWeightProfile.CreateDefault(pName);
+                    this.Settings.RuneWeightProfiles.Add(np);
+                    this.Settings.ActiveRuneWeightProfile = pName;
+                    this.newProfileInput = string.Empty;
+                    this.SaveSettings();
+                    this.RecalculateRecipeWeights();
+                }
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button(this.PluginText.T("button.rename_profile", "Rename")))
+            {
+                if (!string.IsNullOrWhiteSpace(this.newProfileInput))
+                {
+                    string pName = this.newProfileInput.Trim();
+                    if (!this.Settings.RuneWeightProfiles.Any(p => string.Equals(p.Name, pName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        currentProfile.Name = pName;
+                        this.Settings.ActiveRuneWeightProfile = pName;
+                        this.newProfileInput = string.Empty;
                         this.SaveSettings();
                     }
                 }
-                ImGui.TreePop();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button(this.PluginText.T("button.dup_profile", "Dup")))
+            {
+                string copyName = $"{currentProfile.Name} (Copy)";
+                int count = 1;
+                while (this.Settings.RuneWeightProfiles.Any(p => string.Equals(p.Name, copyName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    count++;
+                    copyName = $"{currentProfile.Name} (Copy {count})";
+                }
+                var copyProf = new RuneWeightProfile
+                {
+                    Name = copyName,
+                    Weights = new Dictionary<string, int>(currentProfile.Weights, StringComparer.OrdinalIgnoreCase)
+                };
+                this.Settings.RuneWeightProfiles.Add(copyProf);
+                this.Settings.ActiveRuneWeightProfile = copyName;
+                this.SaveSettings();
+                this.RecalculateRecipeWeights();
+            }
+
+            if (this.Settings.RuneWeightProfiles.Count > 1)
+            {
+                ImGui.SameLine();
+                if (ImGui.Button(this.PluginText.T("button.del_profile", "Del")))
+                {
+                    this.Settings.RuneWeightProfiles.Remove(currentProfile);
+                    this.Settings.ActiveRuneWeightProfile = this.Settings.RuneWeightProfiles[0].Name;
+                    this.SaveSettings();
+                    this.RecalculateRecipeWeights();
+                }
+            }
+
+            // Quick reset buttons aligned to right
+            float availW = ImGui.GetContentRegionAvail().X;
+            float btnW1 = 150f;
+            float btnW2 = 80f;
+            if (availW > (btnW1 + btnW2 + 20f))
+            {
+                ImGui.SameLine(ImGui.GetCursorPosX() + availW - (btnW1 + btnW2 + 10f));
+            }
+            else
+            {
+                ImGui.Spacing();
+            }
+
+            if (ImGui.Button(this.PluginText.T("button.reset_tier_defaults", "Reset to tier defaults"), new Vector2(btnW1, 0f)))
+            {
+                var def = RuneWeightProfile.CreateDefault(currentProfile.Name);
+                currentProfile.Weights = def.Weights;
+                this.SaveSettings();
+                this.RecalculateRecipeWeights();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button(this.PluginText.T("button.zero_all", "Zero all"), new Vector2(btnW2, 0f)))
+            {
+                foreach (var rName in NinjaRuneshapeHelper.RuneNames)
+                {
+                    currentProfile.Weights[rName] = 0;
+                }
+                this.SaveSettings();
+                this.RecalculateRecipeWeights();
+            }
+
+            ImGui.Spacing();
+
+            // Rare runes list (11 runes) and Common runes list (23 runes)
+            string[] rareRunes = { "Opulent", "Power", "Bond", "Sky", "Death", "Soul", "Earth", "Time", "Life", "Ward", "Oath" };
+            var rareSet = new HashSet<string>(rareRunes, StringComparer.OrdinalIgnoreCase);
+            var commonRunes = NinjaRuneshapeHelper.RuneNames.Where(r => !rareSet.Contains(r)).ToArray();
+
+            void DrawRuneSlidersSection(string sectionTitle, string[] runes, Vector4 headerCol)
+            {
+                ImGui.TextColored(headerCol, sectionTitle);
+                ImGui.Spacing();
+
+                float colWidth = (ImGui.GetContentRegionAvail().X - 30f) * 0.5f;
+                int half = (runes.Length + 1) / 2;
+
+                ImGui.Columns(2, $"##{sectionTitle}Cols", false);
+                ImGui.SetColumnWidth(0, colWidth + 15f);
+                ImGui.SetColumnWidth(1, colWidth + 15f);
+
+                for (int i = 0; i < runes.Length; i++)
+                {
+                    if (i == half) ImGui.NextColumn();
+
+                    var rName = runes[i];
+                    int rIdx = Array.IndexOf(NinjaRuneshapeHelper.RuneNames, rName);
+                    var runeTex = this.GetRuneTexture(rIdx);
+
+                    float lh = ImGui.GetTextLineHeight();
+                    float iconSz = lh * 1.25f;
+
+                    if (runeTex != null && runeTex.Value.Valid)
+                    {
+                        ImGui.Image(runeTex.Value.Ptr, new Vector2(iconSz, iconSz));
+                        ImGui.SameLine(0f, 6f);
+                    }
+
+                    // Rune Name with fixed label width
+                    ImGui.AlignTextToFramePadding();
+                    if (string.Equals(rName, "Opulent", StringComparison.OrdinalIgnoreCase))
+                        ImGui.TextColored(new Vector4(1f, 0.85f, 0.2f, 1f), $"{rName,-11}");
+                    else if (rareSet.Contains(rName))
+                        ImGui.TextColored(new Vector4(0.85f, 0.6f, 1.0f, 1f), $"{rName,-11}");
+                    else
+                        ImGui.TextColored(new Vector4(0.7f, 0.85f, 1.0f, 1f), $"{rName,-11}");
+
+                    ImGui.SameLine(0f, 8f);
+
+                    if (!currentProfile.Weights.TryGetValue(rName, out int curVal))
+                    {
+                        curVal = DefaultRuneWeights.TryGetValue(rName, out int defW) ? defW : 20;
+                        currentProfile.Weights[rName] = curVal;
+                    }
+
+                    ImGui.SetNextItemWidth(Math.Max(120f, colWidth - iconSz - 160f));
+                    if (ImGui.SliderInt($"##slider_{rName}", ref curVal, 0, 500, ""))
+                    {
+                        currentProfile.Weights[rName] = curVal;
+                        this.SaveSettings();
+                        this.RecalculateRecipeWeights();
+                    }
+
+                    ImGui.SameLine(0f, 8f);
+                    if (curVal > 0)
+                        ImGui.TextColored(new Vector4(0.43f, 0.92f, 0.43f, 1f), $"+{curVal,3}");
+                    else
+                        ImGui.TextDisabled($"{curVal,4}");
+                }
+
+                ImGui.Columns(1);
+                ImGui.Spacing();
+            }
+
+            DrawRuneSlidersSection(this.PluginText.T("ninjapricer.expedition.rare_runes", "Rare runes"), rareRunes, new Vector4(0.85f, 0.6f, 1.0f, 1f));
+            ImGui.Separator();
+            ImGui.Spacing();
+            DrawRuneSlidersSection(this.PluginText.T("ninjapricer.expedition.common_runes", "Common runes"), commonRunes, new Vector4(0.5f, 0.8f, 1.0f, 1f));
+        }
+
+        private void RecalculateRecipeWeights()
+        {
+            if (this.runeshapeRecipes == null || this.runeshapeRecipes.Count == 0) return;
+            foreach (var r in this.runeshapeRecipes)
+            {
+                r.ComboWeight = this.CalculateRecipeWeight(r.Runes);
             }
         }
 

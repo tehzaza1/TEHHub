@@ -107,6 +107,18 @@
   "ninjapricer.runeshape.search_hint": "Search recipe...",
   "ninjapricer.runeshape.all_catalog": "All Recipes Catalog",
   "ninjapricer.runeshape.monolith": "Monolith {0}",
-  "ninjapricer.runeshape.prop_rune_tooltip": "Golden Socket (Slot {0}): {1} rune carries over",
-  "ninjapricer.runeshape.recipe_runes_tooltip": "Recipe: {0}\nRunes: {1}"
+  "ninjapricer.runeshape.recipe_runes_tooltip": "Recipe: {0}\nRunes: {1}",
+  "ninjapricer.tab.expedition": "Expedition",
+  "ninjapricer.expedition.general_header": "Runeshape & Monolith Settings",
+  "ninjapricer.expedition.weights_header": "Rune weights",
+  "ninjapricer.expedition.weights_desc": "Independent of the RuneShape tab. These weights drive the Glow runes placement mode: the planner stacks unique glow runes by them.",
+  "ninjapricer.expedition.rare_runes": "Rare runes",
+  "ninjapricer.expedition.common_runes": "Common runes",
+  "button.reset_tier_defaults": "Reset to tier defaults",
+  "button.zero_all": "Zero all",
+  "button.new_profile": "New",
+  "button.rename_profile": "Rename",
+  "button.dup_profile": "Dup",
+  "button.del_profile": "Del",
+  "ninjapricer.expedition.new_profile_hint": "profile name"
 }

@@ -119,5 +119,75 @@ namespace NinjaPricer
             { "map", true },
             { "sanctum", true },
         };
+
+        // Rune Weight Profiles
+        public string ActiveRuneWeightProfile { get; set; } = "Default";
+        public List<RuneWeightProfile> RuneWeightProfiles { get; set; } = new();
+
+        public Dictionary<string, int> GetActiveWeights()
+        {
+            if (this.RuneWeightProfiles == null || this.RuneWeightProfiles.Count == 0)
+            {
+                var def = RuneWeightProfile.CreateDefault("Default");
+                this.RuneWeightProfiles = new List<RuneWeightProfile> { def };
+                this.ActiveRuneWeightProfile = "Default";
+                return def.Weights;
+            }
+
+            var prof = this.RuneWeightProfiles.Find(p => string.Equals(p.Name, this.ActiveRuneWeightProfile, StringComparison.OrdinalIgnoreCase))
+                       ?? this.RuneWeightProfiles[0];
+            return prof.Weights;
+        }
+    }
+
+    public class RuneWeightProfile
+    {
+        public string Name { get; set; } = "Default";
+        public Dictionary<string, int> Weights { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public static RuneWeightProfile CreateDefault(string name = "Default")
+        {
+            return new RuneWeightProfile
+            {
+                Name = name,
+                Weights = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "Opulent", 500 },
+                    { "Bond", 120 },
+                    { "Oath", 110 },
+                    { "Power", 100 },
+                    { "Death", 100 },
+                    { "Time", 80 },
+                    { "Rebirth", 60 },
+                    { "Prismatic", 30 },
+                    { "Arcane", 30 },
+                    { "Soul", 25 },
+                    { "Celestial", 25 },
+                    { "Vision", 25 },
+                    { "Wisdom", 25 },
+                    { "Rage", 25 },
+                    { "Protective", 20 },
+                    { "Sky", 20 },
+                    { "Earth", 20 },
+                    { "Life", 20 },
+                    { "Ward", 20 },
+                    { "Adaptive", 20 },
+                    { "Bait", 20 },
+                    { "Bloodletting", 20 },
+                    { "Cold", 20 },
+                    { "Cyclonic", 20 },
+                    { "Electrocuting", 20 },
+                    { "Fire", 20 },
+                    { "Gasp", 20 },
+                    { "Lightning", 20 },
+                    { "Momentum", 20 },
+                    { "Moon", 20 },
+                    { "Stone", 20 },
+                    { "Tempest", 20 },
+                    { "Tidal", 20 },
+                    { "Toxic", 20 }
+                }
+            };
+        }
     }
 }

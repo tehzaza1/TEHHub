@@ -107,6 +107,18 @@
   "ninjapricer.runeshape.search_hint": "ค้นหาสูตร...",
   "ninjapricer.runeshape.all_catalog": "แคตตาล็อกสูตรทั้งหมด",
   "ninjapricer.runeshape.monolith": "เสา Monolith {0}",
-  "ninjapricer.runeshape.prop_rune_tooltip": "ช่องทอง (ช่องที่ {0}): รูน {1} ส่งต่อผลบัฟไปยังเสาถัดไป",
-  "ninjapricer.runeshape.recipe_runes_tooltip": "สูตร: {0}\nรูน: {1}"
+  "ninjapricer.runeshape.recipe_runes_tooltip": "สูตร: {0}\nรูน: {1}",
+  "ninjapricer.tab.expedition": "เอ็กซ์เพดิชัน (Expedition)",
+  "ninjapricer.expedition.general_header": "การตั้งค่า Runeshape และเสา Monolith",
+  "ninjapricer.expedition.weights_header": "ค่าน้ำหนักรูน (Rune weights)",
+  "ninjapricer.expedition.weights_desc": "ค่าน้ำหนักเหล่านี้จะถูกนำไปคำนวณสูตรและจัดอันดับของ Runeshape พร้อมทั้งจัดลำดับการส่งต่อรูนแสงสีทอง (Glow runes)",
+  "ninjapricer.expedition.rare_runes": "รูนหายาก (Rare runes)",
+  "ninjapricer.expedition.common_runes": "รูนทั่วไป (Common runes)",
+  "button.reset_tier_defaults": "รีเซ็ตตามค่าเริ่มต้น",
+  "button.zero_all": "ตั้งเป็น 0 ทั้งหมด",
+  "button.new_profile": "สร้างใหม่",
+  "button.rename_profile": "เปลี่ยนชื่อ",
+  "button.dup_profile": "คัดลอก",
+  "button.del_profile": "ลบ",
+  "ninjapricer.expedition.new_profile_hint": "ชื่อโปรไฟล์"
 }

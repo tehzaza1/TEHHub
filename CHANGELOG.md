@@ -2,6 +2,24 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.45 — 2026-09-15 [Plugin Update — NinjaPricer]
+
+- **New Expedition Settings Tab**:
+  - Consolidated all Runeshape/Monolith-related settings into a new dedicated **Expedition** tab in NinjaPricer settings, replacing the scattered controls in the Overlay Toggles tab.
+  - Tab sections: Runeshape & Monolith Settings (Enable toggle, priority weight, scale/color/range sliders) and Rune Weights.
+- **Rune Weights Profile Editor**:
+  - Added per-rune weight editor with named profiles (default: "Default").
+  - Sliders grouped by rarity (Rare runes: Opulent, Power, Bond, Sky, Death, Soul, Earth, Time, Life, Ward, Oath; Common runes: all others).
+  - Reset button restores all weights to the built-in default table; Zero button sets all to 0.
+  - Profile weights are saved to settings and persisted across sessions.
+  - Changing any slider immediately recalculates `ComboWeight` for all cached recipes.
+- **`MonolithData.ActivatedState` Field**:
+  - Added `ActivatedState` (int) to `MonolithData` to track the current StateMachine `activated` value for each monolith.
+- **State 3 Documentation Corrected**:
+  - Fixed comment in `NinjaRuneshapeHelper.cs`: state `3` means *detonator button pressed / detonation sequence initiated*, not "connected with explosive bomb, waiting to detonate".
+- Compatibility: Plugin update (NinjaPricer).
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.44 — 2026-09-15 [Plugin Update — NinjaPricer]
 
 - **Separate UI Size & Text Size Scaling**:
