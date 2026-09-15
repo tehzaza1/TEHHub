@@ -2,6 +2,13 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.56 — 2026-09-16 [Plugin Update — myFarming]
+
+- **myFarming: Dynamic Proportional Currency Icons**:
+  - Increased currency icon sizes (Divine, Exalted, Chaos) to dynamically scale with line height and text scale (1.4x line height), making currency badges noticeably larger, clearer, and vertically centered with currency values.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.55 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **Runeshape: Unified Sort Button (Combined Icon + Text)**:

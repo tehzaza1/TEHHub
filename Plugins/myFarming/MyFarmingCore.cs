@@ -340,12 +340,18 @@ namespace myFarming
             return this.currencyTextures[idx].Valid ? this.currencyTextures[idx] : null;
         }
 
-        private void DrawCurrencyIcon(DisplayCurrency c, float size = 16f)
+        private void DrawCurrencyIcon(DisplayCurrency c, float sizeMultiplier = 1.35f)
         {
             var tex = this.GetCurrencyTexture(c);
             if (tex != null && tex.Value.Valid)
             {
+                float lineH = ImGui.GetTextLineHeight();
+                float size = lineH * sizeMultiplier;
+                float curY = ImGui.GetCursorPosY();
+                float yOffset = (lineH - size) * 0.5f;
+                ImGui.SetCursorPosY(curY + yOffset);
                 ImGui.Image(tex.Value.Ptr, new Vector2(size, size));
+                ImGui.SetCursorPosY(curY);
                 ImGui.SameLine(0, 4);
             }
         }
@@ -426,7 +432,7 @@ namespace myFarming
                     // Session Loot
                     ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), "Session Loot: ");
                     ImGui.SameLine(0, 2);
-                    this.DrawCurrencyIcon(this.Settings.Currency, 16f);
+                    this.DrawCurrencyIcon(this.Settings.Currency, 1.4f);
                     ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), this.FormatCurrency(liveSessionChaos));
 
                     if (this.Settings.ShowProfitPerHour && liveSessionSec > 5)
@@ -434,7 +440,7 @@ namespace myFarming
                         float sessionRate = liveSessionChaos * 3600f / liveSessionSec;
                         ImGui.TextDisabled("Session Rate: ");
                         ImGui.SameLine(0, 2);
-                        this.DrawCurrencyIcon(this.Settings.Currency, 14f);
+                        this.DrawCurrencyIcon(this.Settings.Currency, 1.25f);
                         ImGui.TextDisabled($"{this.FormatCurrency(sessionRate)}/hr");
                     }
 
@@ -458,7 +464,7 @@ namespace myFarming
                     {
                         ImGui.Text("Map Loot: ");
                         ImGui.SameLine(0, 2);
-                        this.DrawCurrencyIcon(this.Settings.Currency, 14f);
+                        this.DrawCurrencyIcon(this.Settings.Currency, 1.3f);
                         ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), this.FormatCurrency(this.currentTotalChaos));
                     }
 
