@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.43 — 2026-09-15 [Plugin Update — NinjaPricer]
+
+- **Fix Runeshape Monolith Completion Check via StateMachine**:
+  - Replaced the flawed `MinimapIcon` check (which erroneously marked all monoliths as completed upon detonating) with precise `StateMachine` `activated` state checking.
+  - Monoliths are considered completed (`IsCompleted = true`) only when `activated == 7` (reward clicked and collected) or `activated == 8` (monolith was bypassed/missed during detonation chain and expired).
+  - Monoliths remain active while recipes are unselected (`activated == 1`), selected (`activated == 2`), or detonated awaiting loot pickup (`activated == 6`).
+- Compatibility: Plugin update (NinjaPricer).
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.42 — 2026-09-15 [Plugin Update — NinjaPricer]
 
 - **Runeshape Weight Prioritization**: Added toggleable setting `RsPrioritizeWeight` (enabled by default) to prioritize combinations with the highest rune weight (`ComboWeight`) over price when determining the best offer and ordering recipes/monoliths.

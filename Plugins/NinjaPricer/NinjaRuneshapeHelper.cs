@@ -149,14 +149,24 @@ namespace NinjaPricer
 
             var isCompleted = false;
 
-            // MinimapIcon component state / flags (matching POEFixer behavior)
-            // Note: We deliberately do NOT use Targetable here because pressing the Detonator
-            // causes PoE 2 to set IsTargetable=false on ALL monoliths simultaneously.
-            if (entity.TryGetComponent<MinimapIcon>(out var mmIcon) && mmIcon.Address != IntPtr.Zero)
+            // Check StateMachine "activated" state:
+            // 1 = not chosen recipe yet
+            // 2 = recipe chosen
+            // 6 = detonated, waiting to click and collect loot
+            // 7 = detonated and loot collected -> completed!
+            // 8 = detonated without bomb on this monolith (missed/expired) -> completed!
+            if (sm.States != null)
             {
-                if (mmIcon.IsHide || mmIcon.State != 0)
+                foreach (var s in sm.States)
                 {
-                    isCompleted = true;
+                    if (string.Equals(s.Name, "activated", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (s.Value >= 7) // 7 = collected reward, 8 = detonated without bomb
+                        {
+                            isCompleted = true;
+                        }
+                        break;
+                    }
                 }
             }
 
