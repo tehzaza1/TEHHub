@@ -44,6 +44,7 @@ namespace NinjaPricer
         public DisplayCurrency DisplayCurrency { get; set; } = DisplayCurrency.Divine;
         public PriceDisplayStyle PriceDisplayStyle { get; set; } = PriceDisplayStyle.Image;
         public float TextScale { get; set; } = 1.0f;
+        public float UiScale { get; set; } = 1.0f;
         public UiPricePosition UiPricePosition { get; set; } = UiPricePosition.BottomRight;
         public GroundPricePosition GroundPricePosition { get; set; } = GroundPricePosition.Top;
 

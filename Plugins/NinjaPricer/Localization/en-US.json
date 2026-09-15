@@ -64,6 +64,7 @@
   "ninjapricer.display.style_text": "Text",
   "ninjapricer.display.style_hint": "(icon = value + currency image)",
   "settings.font_size": "Text size",
+  "settings.ui_size": "UI size",
   "ninjapricer.display.ui_price_pos": "Price position (Inventory/Stash)",
   "ninjapricer.display.gnd_price_pos": "Price position (Ground items)",
   "pos.top_left": "Top Left",

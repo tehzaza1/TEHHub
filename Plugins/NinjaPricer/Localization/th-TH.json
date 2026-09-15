@@ -64,6 +64,7 @@
   "ninjapricer.display.style_text": "ข้อความตัวอักษร",
   "ninjapricer.display.style_hint": "(ไอคอน = ค่าตัวเลข + รูปเหรียญเงินตรา)",
   "settings.font_size": "ขนาดตัวอักษร (Text Size)",
+  "settings.ui_size": "ขนาด UI (UI Size)",
   "ninjapricer.display.ui_price_pos": "ตำแหน่งราคา (ใน Inventory / คลัง Stash)",
   "ninjapricer.display.gnd_price_pos": "ตำแหน่งราคา (ไอเทมตกบนพื้น)",
   "pos.top_left": "บนซ้าย",

@@ -1458,9 +1458,16 @@ namespace NinjaPricer
 
             ImGui.Spacing();
             float ts = this.Settings.TextScale;
-            if (ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Text size", "TextScaleSlider"), ref ts, 0.5f, 2.0f, "%.1f"))
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Text size", "TextScaleSlider"), ref ts, 0.5f, 2.5f, "%.1f"))
             {
                 this.Settings.TextScale = ts;
+                this.SaveSettings();
+            }
+
+            float us = this.Settings.UiScale;
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.ui_size", "UI size", "UiScaleSlider"), ref us, 0.5f, 2.5f, "%.1f"))
+            {
+                this.Settings.UiScale = us;
                 this.SaveSettings();
             }
 
@@ -1808,7 +1815,7 @@ namespace NinjaPricer
                     }
                 }
 
-                if (this.Settings.ShowRuneshapeWindow)
+                if (this.Settings.ShowRuneshapeWindow && activeMonoliths.Count > 0)
                 {
                     this.DrawRuneshapeWindow(activeMonoliths);
                 }
@@ -2910,22 +2917,26 @@ namespace NinjaPricer
                 if (screenPos == Vector2.Zero) continue;
 
                 // 1) Sockets row sizing
-                float slotSz = 22f;
-                float slotGap = 2f;
+                float uiScale = Math.Clamp(this.Settings.UiScale, 0.5f, 2.5f);
+                float textScale = Math.Clamp(this.Settings.TextScale, 0.5f, 2.5f);
+                float fontSize = ImGui.GetFontSize() * textScale;
+
+                float slotSz = 22f * uiScale;
+                float slotGap = 2f * uiScale;
                 int holes = Math.Clamp(m.HoleCount, 1, 16);
                 float socketsW = (holes * slotSz) + Math.Max(0, holes - 1) * slotGap;
                 float socketsH = slotSz;
 
                 // 2) Bottom info chip sizing
-                float chipH = 26f;
-                float padX = 6f;
-                float spacing = 5f;
+                float chipH = 26f * uiScale;
+                float padX = 6f * uiScale;
+                float spacing = 5f * uiScale;
 
-                float sqSz = 16f;
+                float sqSz = 16f * uiScale;
                 float curX = padX + sqSz;
 
                 CurrencyTex? itemTex = null;
-                float iconSz = 22f;
+                float iconSz = 22f * uiScale;
                 if (m.BestOffer != null && !string.IsNullOrEmpty(m.BestOffer.ItemIcon))
                 {
                     itemTex = this.GetItemTexture(m.BestOffer.ItemIcon);
@@ -2935,17 +2946,17 @@ namespace NinjaPricer
                     }
                 }
 
-                float curW = 18f;
+                float curW = 18f * uiScale;
                 if (curTex != null && curTex.Value.Valid)
                 {
-                    curW = (curTex.Value.H > 0) ? 18f * (float)curTex.Value.W / curTex.Value.H : 18f;
+                    curW = (curTex.Value.H > 0) ? (18f * uiScale) * (float)curTex.Value.W / curTex.Value.H : 18f * uiScale;
                     curX += spacing + curW;
                 }
 
                 string priceText = m.IsCompleted
                     ? "DONE"
                     : (m.BestOffer != null ? FormatPriceNumberLocal(m.BestOffer.DisplayValue) : string.Empty);
-                Vector2 priceSz = !string.IsNullOrEmpty(priceText) ? ImGui.CalcTextSize(priceText) : Vector2.Zero;
+                Vector2 priceSz = !string.IsNullOrEmpty(priceText) ? ImGui.CalcTextSize(priceText) * textScale : Vector2.Zero;
                 if (priceSz.X > 0)
                 {
                     curX += 3f + priceSz.X;
@@ -2956,7 +2967,7 @@ namespace NinjaPricer
                 if (!m.IsCompleted && m.BestOffer != null && m.BestOffer.ComboWeight != 0)
                 {
                     weightText = m.BestOffer.ComboWeight > 0 ? $"+{m.BestOffer.ComboWeight}" : $"{m.BestOffer.ComboWeight}";
-                    weightSz = ImGui.CalcTextSize(weightText);
+                    weightSz = ImGui.CalcTextSize(weightText) * textScale;
                     curX += spacing + weightSz.X;
                 }
 
@@ -3054,7 +3065,7 @@ namespace NinjaPricer
                 // Currency icon
                 if (curTex != null && curTex.Value.Valid)
                 {
-                    dl.AddImage(curTex.Value.Ptr, new Vector2(renderX, midY - 18f * 0.5f), new Vector2(renderX + curW, midY + 18f * 0.5f), Vector2.Zero, Vector2.One, imgTint);
+                    dl.AddImage(curTex.Value.Ptr, new Vector2(renderX, midY - (18f * uiScale) * 0.5f), new Vector2(renderX + curW, midY + (18f * uiScale) * 0.5f), Vector2.Zero, Vector2.One, imgTint);
                     renderX += curW + 3f;
                 }
 
@@ -3062,7 +3073,7 @@ namespace NinjaPricer
                 if (priceSz.X > 0)
                 {
                     uint priceCol = m.IsCompleted ? 0xFF888888u : 0xFFFFFFFFu;
-                    dl.AddText(new Vector2(renderX, midY - priceSz.Y * 0.5f), priceCol, priceText);
+                    dl.AddText(ImGui.GetFont(), fontSize, new Vector2(renderX, midY - priceSz.Y * 0.5f), priceCol, priceText);
                     renderX += priceSz.X + spacing;
                 }
 
@@ -3070,13 +3081,15 @@ namespace NinjaPricer
                 if (!string.IsNullOrEmpty(weightText))
                 {
                     uint wCol = (m.BestOffer != null && m.BestOffer.ComboWeight > 0) ? 0xFF70EB70u : 0xFF8080EBu;
-                    dl.AddText(new Vector2(renderX, midY - weightSz.Y * 0.5f), wCol, weightText);
+                    dl.AddText(ImGui.GetFont(), fontSize, new Vector2(renderX, midY - weightSz.Y * 0.5f), wCol, weightText);
                 }
             }
         }
 
         private void DrawRuneshapeWindow(List<MonolithData> monoliths)
         {
+            if (monoliths == null || monoliths.Count == 0) return;
+
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
 
             if (this.Settings.RuneshapeWinHideOnHover && this.runeshapeWinRectValid)
@@ -3145,9 +3158,10 @@ namespace NinjaPricer
             {
                 int areaLevel = area?.CurrentAreaLevel ?? 0;
                 float lineH = ImGui.GetTextLineHeight();
-                float kSquareSz = Math.Max(lineH * 0.75f, 13f);
-                float slotSz = lineH;
-                float slotGap = 3.0f;
+                float uiScale = Math.Clamp(this.Settings.UiScale, 0.5f, 2.5f);
+                float kSquareSz = Math.Max(lineH * 0.75f, 13f) * uiScale;
+                float slotSz = lineH * uiScale;
+                float slotGap = 3.0f * uiScale;
                 var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
 
                 var bgReg = this.GetRuneUiTexture("RuneBgRegular.png", ref this.runeBgRegularTex, ref this.runeBgRegularTried);
@@ -3394,7 +3408,8 @@ namespace NinjaPricer
                                 if (itex != null && itex.Value.Valid)
                                 {
                                     float lh = ImGui.GetTextLineHeight();
-                                    ImGui.Image(itex.Value.Ptr, new Vector2(lh, lh));
+                                    float itemIconSz = lh * uiScale;
+                                    ImGui.Image(itex.Value.Ptr, new Vector2(itemIconSz, itemIconSz));
                                     lineStarted = true;
                                 }
                             }
@@ -3457,7 +3472,7 @@ namespace NinjaPricer
                                         if (lineStarted) ImGui.SameLine(0f, 5f);
 
                                         float lh = ImGui.GetTextLineHeight();
-                                        float iconSz = lh * 1.05f;
+                                        float iconSz = lh * 1.05f * uiScale;
                                         var cp = ImGui.GetCursorScreenPos();
 
                                         // Dark background circle

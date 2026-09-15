@@ -2,6 +2,19 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.44 — 2026-09-15 [Plugin Update — NinjaPricer]
+
+- **Separate UI Size & Text Size Scaling**:
+  - Added dedicated UI size slider (`UiScale`, range 0.5x to 2.5x) independent from Text size (`TextScale`).
+  - `UiScale` cleanly controls graphic elements, including Runeshape recipe row item icons, propagating rune icons, socket sizes, and world marker chip padding/icons.
+  - `TextScale` independently scales typography, ImGui font scale, and label sizes without distorting icon layouts.
+  - Added localization keys (`settings.ui_size`) across supported locales.
+- **Runeshape Window Auto-Hide**:
+  - Gated the Runeshape recipe calculation and window display to show exclusively when active Runeshape monoliths are present in the current area (`activeMonoliths.Count > 0`).
+  - Automatically hides the window completely when not in an area containing Runeshape monoliths or when all monoliths are completed.
+- Compatibility: Plugin update (NinjaPricer).
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; generated release zip package via `Create-Release.ps1`.
+
 ## 1.8.43 — 2026-09-15 [Plugin Update — NinjaPricer]
 
 - **Fix Runeshape Monolith Completion Check via StateMachine**:
