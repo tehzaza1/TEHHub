@@ -2,6 +2,22 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.53 — 2026-09-16 [Plugin Update — myFarming & NinjaPricer]
+
+- **NinjaPricer / Runeshape: Weight & Price Icons**:
+  - Added dedicated crisp high-resolution UI textures for Weight (`resources/runeshape/ui/Weight.png`) and Price (`resources/runeshape/ui/Price.png`).
+  - Integrated Weight and Price icons into the Runeshape sort toggle buttons, in-world 3D monolith badges, window headers, and recipe rows.
+- **myFarming: Precise Monster Kill Tracker**:
+  - Rewrote monster kill tracking to require observing monsters in an active **Alive** state (`Health.Current > 0`) before transitioning to death, eliminating overcounting (e.g. killing 1 counting as 4).
+  - Filtered out friendly summons, minions, pets, and allies (`EntityStates.MonsterFriendly`, `Positioned.IsFriendly`, minion paths).
+  - Removed flawed despawn radius guessing (`dist < 120f`) and pre-existing dead corpse counting.
+- **myFarming: Overlay UI De-duplication & Button Cleanup**:
+  - Removed manual "Finish Map" and "Resume / Pause" buttons from the overlay HUD, as map transitions and pause states are handled automatically.
+  - Eliminated duplicate kills/loot lines when running a single map session.
+  - Formatted looted items cleanly with bullet points, removing misleading leading chaos icons on non-chaos items.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.52 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **Runeshape: Synchronized Price & Weight Sorting Across World Markers & UI Window**:

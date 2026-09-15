@@ -429,7 +429,7 @@ namespace myFarming
                         ImGui.TextDisabled($"{this.FormatCurrency(sessionRate)}/hr");
                     }
 
-                    if (this.Settings.ShowKills)
+                    if (this.Settings.ShowKills && this.Settings.SessionTotalMaps > 0)
                     {
                         this.DrawColoredKills(liveKillsNormal, liveKillsMagic, liveKillsRare, liveKillsUnique);
                     }
@@ -445,37 +445,17 @@ namespace myFarming
                     int sec = duration % 60;
                     ImGui.Text($"Map: {mapTitle} ({min:D2}:{sec:D2})");
 
-                    ImGui.Text("Map Loot: ");
-                    ImGui.SameLine(0, 2);
-                    this.DrawCurrencyIcon(this.Settings.Currency, 14f);
-                    ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), this.FormatCurrency(this.currentTotalChaos));
+                    if (this.Settings.SessionTotalMaps > 0)
+                    {
+                        ImGui.Text("Map Loot: ");
+                        ImGui.SameLine(0, 2);
+                        this.DrawCurrencyIcon(this.Settings.Currency, 14f);
+                        ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), this.FormatCurrency(this.currentTotalChaos));
+                    }
 
                     if (this.Settings.ShowKills)
                     {
                         this.DrawColoredKills(this.killTracker.KillsNormal, this.killTracker.KillsMagic, this.killTracker.KillsRare, this.killTracker.KillsUnique);
-                    }
-                }
-
-                ImGui.Separator();
-
-                // Action buttons
-                if (this.isRunActive)
-                {
-                    if (ImGui.SmallButton("Finish Map"))
-                    {
-                        this.FinalizeRun();
-                    }
-                    ImGui.SameLine();
-                    if (ImGui.SmallButton(this.isRunPaused ? "Resume" : "Pause"))
-                    {
-                        this.isRunPaused = !this.isRunPaused;
-                    }
-                }
-                else
-                {
-                    if (ImGui.SmallButton("Start Map"))
-                    {
-                        this.StartNewRun(this.lastAreaHash, currentZoneName);
                     }
                 }
 
@@ -495,8 +475,9 @@ namespace myFarming
                             break;
                         }
 
-                        this.DrawCurrencyIcon(this.Settings.Currency, 13f);
                         string itemVal = this.FormatCurrency(item.TotalChaos);
+                        ImGui.Bullet();
+                        ImGui.SameLine(0, 4);
                         ImGui.Text($"{item.StackCount}x {item.Name} ({itemVal})");
                         shown++;
                     }

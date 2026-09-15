@@ -196,6 +196,10 @@ namespace NinjaPricer
         private bool runeBgPurpleTried = false;
         private CurrencyTex runePropagationTex = default;
         private bool runePropagationTried = false;
+        private CurrencyTex rsWeightIconTex = default;
+        private bool rsWeightIconTried = false;
+        private CurrencyTex rsPriceIconTex = default;
+        private bool rsPriceIconTried = false;
         private readonly ConcurrentDictionary<string, CurrencyTex> itemTextures = new(StringComparer.OrdinalIgnoreCase);
 
         // Runtime states & caches
@@ -3109,6 +3113,7 @@ namespace NinjaPricer
             var bgReg = this.GetRuneUiTexture("RuneBgRegular.png", ref this.runeBgRegularTex, ref this.runeBgRegularTried);
             var bgPur = this.GetRuneUiTexture("RuneBgPurple.png", ref this.runeBgPurpleTex, ref this.runeBgPurpleTried);
             var glow = this.GetRuneUiTexture("RunePropagation.png", ref this.runePropagationTex, ref this.runePropagationTried);
+            var weightTex = this.GetRuneUiTexture("Weight.png", ref this.rsWeightIconTex, ref this.rsWeightIconTried);
             var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
 
             for (int i = 0; i < monoliths.Count; i++)
@@ -3181,7 +3186,14 @@ namespace NinjaPricer
                 {
                     weightText = m.BestOffer.ComboWeight > 0 ? $"+{m.BestOffer.ComboWeight}" : $"{m.BestOffer.ComboWeight}";
                     weightSz = ImGui.CalcTextSize(weightText) * textScale;
-                    curX += spacing + weightSz.X;
+                    if (weightTex != null && weightTex.Value.Valid)
+                    {
+                        curX += spacing + (14f * uiScale) + 3f + weightSz.X;
+                    }
+                    else
+                    {
+                        curX += spacing + weightSz.X;
+                    }
                 }
 
                 curX += padX;
@@ -3293,6 +3305,11 @@ namespace NinjaPricer
                 // Weight text
                 if (!string.IsNullOrEmpty(weightText))
                 {
+                    if (weightTex != null && weightTex.Value.Valid)
+                    {
+                        dl.AddImage(weightTex.Value.Ptr, new Vector2(renderX, midY - (14f * uiScale) * 0.5f), new Vector2(renderX + 14f * uiScale, midY + (14f * uiScale) * 0.5f), Vector2.Zero, Vector2.One, imgTint);
+                        renderX += 14f * uiScale + 3f;
+                    }
                     uint wCol = (m.BestOffer != null && m.BestOffer.ComboWeight > 0) ? 0xFF70EB70u : 0xFF8080EBu;
                     dl.AddText(ImGui.GetFont(), fontSize, new Vector2(renderX, midY - weightSz.Y * 0.5f), wCol, weightText);
                 }
@@ -3363,6 +3380,10 @@ namespace NinjaPricer
                 return;
             }
 
+            var wTex = this.GetRuneUiTexture("Weight.png", ref this.rsWeightIconTex, ref this.rsWeightIconTried);
+            var pTex = this.GetRuneUiTexture("Price.png", ref this.rsPriceIconTex, ref this.rsPriceIconTried);
+            float btnIconSz = ImGui.GetTextLineHeight();
+
             // Sort mode toggle bar
             {
                 bool byWeight = this.Settings.RsPrioritizeWeight;
@@ -3376,7 +3397,16 @@ namespace NinjaPricer
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.22f, 0.22f, 1f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.35f, 0.35f, 1f));
                 }
-                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_weight", "⚖ Weight")))
+                if (wTex != null && wTex.Value.Valid)
+                {
+                    if (ImGui.ImageButton("###sort_w_btn", wTex.Value.Ptr, new Vector2(btnIconSz, btnIconSz)))
+                    {
+                        this.Settings.RsPrioritizeWeight = true;
+                        this.SaveSettings();
+                    }
+                    ImGui.SameLine(0, 4);
+                }
+                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight")))
                 {
                     this.Settings.RsPrioritizeWeight = true;
                     this.SaveSettings();
@@ -3395,7 +3425,16 @@ namespace NinjaPricer
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.22f, 0.22f, 0.22f, 1f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.35f, 0.35f, 1f));
                 }
-                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_price", "💰 Price")))
+                if (pTex != null && pTex.Value.Valid)
+                {
+                    if (ImGui.ImageButton("###sort_p_btn", pTex.Value.Ptr, new Vector2(btnIconSz, btnIconSz)))
+                    {
+                        this.Settings.RsPrioritizeWeight = false;
+                        this.SaveSettings();
+                    }
+                    ImGui.SameLine(0, 4);
+                }
+                if (ImGui.Button(this.PluginText.T("ninjapricer.runeshape.sort_price", "Price")))
                 {
                     this.Settings.RsPrioritizeWeight = false;
                     this.SaveSettings();
@@ -3541,7 +3580,7 @@ namespace NinjaPricer
                     int bestWeight = bestOffer?.ComboWeight ?? (offers.Count > 0 ? offers.Max(o => o.ComboWeight) : 0);
                     string hdrWBuf = (this.Settings.ShowRuneshapeWeights && bestWeight != 0)
                         ? (bestWeight > 0 ? $"+{bestWeight}" : $"{bestWeight}") : string.Empty;
-                    float hdrWW = !string.IsNullOrEmpty(hdrWBuf) ? ImGui.CalcTextSize(hdrWBuf).X : 0f;
+                    float hdrWW = !string.IsNullOrEmpty(hdrWBuf) ? ImGui.CalcTextSize(hdrWBuf).X + ((wTex != null && wTex.Value.Valid) ? lineH + 3f : 0f) : 0f;
 
                     float reserve = dotsW + (priceW > 0f ? priceW + 10f : 0f) + (hdrWW > 0f ? hdrWW + 10f : 0f) + 8f;
                     float spaceW = ImGui.CalcTextSize(" ").X;
@@ -3677,6 +3716,12 @@ namespace NinjaPricer
                     if (!string.IsNullOrEmpty(hdrWBuf))
                     {
                         xl += 10f;
+                        if (wTex != null && wTex.Value.Valid)
+                        {
+                            float iw = lineH;
+                            dl.AddImage(wTex.Value.Ptr, new Vector2(xl, midY - lineH * 0.5f), new Vector2(xl + iw, midY + lineH * 0.5f), Vector2.Zero, Vector2.One, imgTint);
+                            xl += iw + 3f;
+                        }
                         uint wCol = m.IsCompleted ? txtCol : 0xFF70EB70u; // green
                         dl.AddText(new Vector2(xl, midY - lineH * 0.5f), wCol, hdrWBuf);
                     }
@@ -3739,6 +3784,12 @@ namespace NinjaPricer
                             if (this.Settings.ShowRuneshapeWeights && rw.ComboWeight != 0)
                             {
                                 if (lineStarted) ImGui.SameLine(0f, 10f);
+                                if (wTex != null && wTex.Value.Valid)
+                                {
+                                    float lh = ImGui.GetTextLineHeight();
+                                    ImGui.Image(wTex.Value.Ptr, new Vector2(lh, lh));
+                                    ImGui.SameLine(0f, 3f);
+                                }
                                 var wc = rw.ComboWeight > 0 ? new Vector4(0.43f, 0.92f, 0.43f, 1f) : new Vector4(0.72f, 0.72f, 0.72f, 1f);
                                 string wText = rw.ComboWeight > 0 ? $"+{rw.ComboWeight}" : $"{rw.ComboWeight}";
                                 ImGui.TextColored(wc, wText);

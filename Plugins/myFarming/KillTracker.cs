@@ -2,7 +2,6 @@ namespace myFarming
 {
     using System;
     using System.Collections.Generic;
-    using System.Numerics;
     using TEHhub;
     using TEHhub.RemoteEnums;
     using TEHhub.RemoteEnums.Entity;
@@ -12,7 +11,7 @@ namespace myFarming
     public sealed class KillTracker
     {
         private readonly HashSet<uint> deadEntityIds = new();
-        private readonly Dictionary<uint, MonsterState> previousMonsters = new();
+        private readonly Dictionary<uint, Rarity> knownAliveMonsters = new();
 
         public int KillsNormal { get; private set; }
         public int KillsMagic { get; private set; }
@@ -20,16 +19,10 @@ namespace myFarming
         public int KillsUnique { get; private set; }
         public int KillsTotal => this.KillsNormal + this.KillsMagic + this.KillsRare + this.KillsUnique;
 
-        private struct MonsterState
-        {
-            public Rarity Rarity;
-            public Vector2 Position;
-        }
-
         public void Reset()
         {
             this.deadEntityIds.Clear();
-            this.previousMonsters.Clear();
+            this.knownAliveMonsters.Clear();
             this.KillsNormal = 0;
             this.KillsMagic = 0;
             this.KillsRare = 0;
@@ -40,24 +33,29 @@ namespace myFarming
         {
             if (area?.AwakeEntities == null || inTownOrHideout) return;
 
-            var player = area.Player;
-            Vector2 playerPos = Vector2.Zero;
-            if (player != null && player.TryGetComponent<Render>(out var pR) && pR != null)
-            {
-                playerPos = new Vector2(pR.GridPosition.X, pR.GridPosition.Y);
-            }
-
-            var currentIds = new HashSet<uint>();
-
             foreach (var entity in area.AwakeEntities.Values)
             {
                 if (entity == null || entity.Id == 0) continue;
                 if (entity.EntityType != EntityTypes.Monster) continue;
 
-                currentIds.Add(entity.Id);
+                // Skip friendly minions, summons, pets, and allies
+                if (entity.EntityState == EntityStates.MonsterFriendly) continue;
+                if (entity.TryGetComponent<Positioned>(out var pos) && pos.IsFriendly) continue;
+                if (entity.Path != null && (entity.Path.Contains("/Minions/", StringComparison.OrdinalIgnoreCase) ||
+                                            entity.Path.Contains("/Pets/", StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
 
+                // If already counted as dead for this map, ignore
                 if (this.deadEntityIds.Contains(entity.Id)) continue;
 
+                if (!entity.TryGetComponent<Life>(out var life) || life == null || life.Health.Total <= 0)
+                {
+                    continue;
+                }
+
+                // Resolve rarity
                 var rarity = Rarity.Normal;
                 if (entity.TryGetComponent<ObjectMagicProperties>(out var omp) && omp != null)
                 {
@@ -68,52 +66,24 @@ namespace myFarming
                     rarity = mods.Rarity;
                 }
 
-                Vector2 monsterPos = Vector2.Zero;
-                if (entity.TryGetComponent<Render>(out var render) && render != null)
-                {
-                    monsterPos = new Vector2(render.GridPosition.X, render.GridPosition.Y);
-                }
+                bool isAlive = life.IsAlive && life.Health.Current > 0;
+                bool isDead = !life.IsAlive || life.Health.Current <= 0 || entity.EntityState == EntityStates.Useless;
 
-                // Check if monster is dead via Life component
-                if (entity.TryGetComponent<Life>(out var life) && life != null)
+                if (isAlive)
                 {
-                    if (life.Health.Current <= 0 && life.Health.Total > 0)
+                    // Record monster as alive
+                    this.knownAliveMonsters[entity.Id] = rarity;
+                }
+                else if (isDead)
+                {
+                    // Only count as a kill if we witnessed this monster alive in this map run
+                    if (this.knownAliveMonsters.TryGetValue(entity.Id, out var trackedRarity))
                     {
                         this.deadEntityIds.Add(entity.Id);
-                        this.AddKill(rarity);
-                        continue;
+                        this.knownAliveMonsters.Remove(entity.Id);
+                        this.AddKill(trackedRarity);
                     }
                 }
-
-                this.previousMonsters[entity.Id] = new MonsterState
-                {
-                    Rarity = rarity,
-                    Position = monsterPos,
-                };
-            }
-
-            // Check monsters that disappeared close to player (died and despawned)
-            var toRemove = new List<uint>();
-            foreach (var kvp in this.previousMonsters)
-            {
-                if (!currentIds.Contains(kvp.Key))
-                {
-                    if (!this.deadEntityIds.Contains(kvp.Key))
-                    {
-                        float dist = Vector2.Distance(kvp.Value.Position, playerPos);
-                        if (dist < 120f)
-                        {
-                            this.AddKill(kvp.Value.Rarity);
-                            this.deadEntityIds.Add(kvp.Key);
-                        }
-                    }
-                    toRemove.Add(kvp.Key);
-                }
-            }
-
-            foreach (var id in toRemove)
-            {
-                this.previousMonsters.Remove(id);
             }
         }
 
@@ -137,3 +107,4 @@ namespace myFarming
         }
     }
 }
+
