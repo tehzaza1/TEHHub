@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.47 — 2026-09-15 [Plugin Update — NinjaPricer]
+
+- **Fix Ground Price Tag Position**:
+  - Price labels on dropped items now anchor to `Render.WorldPosition.Z` (the entity's label/healthbar height) instead of `TerrainHeight` (floor level).
+  - This makes the price tag stay locked to the same floating position as the game's item name label, instead of drifting above/below it based on camera angle and terrain slope.
+- Compatibility: Plugin update (NinjaPricer).
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.46 — 2026-09-15 [Plugin Update — NinjaPricer]
 
 - **Runeshape Window: Sort Mode Toggle**:
