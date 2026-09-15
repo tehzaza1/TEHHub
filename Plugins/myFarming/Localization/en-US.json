@@ -1,0 +1,7 @@
+{
+  "plugin.description": "Farming session & backpack loot tracker for Path of Exile 2. Tracks loot, rates, and kills per map.",
+  "myfarming.overlay.title": "myFarming",
+  "myfarming.tab.general": "General",
+  "myfarming.tab.history": "Statistics & History",
+  "myfarming.tab.custom_prices": "Custom Prices"
+}

@@ -1556,6 +1556,8 @@ namespace NinjaPricer
                     if (ImGui.Button($"{this.PluginText.T("button.clear", "Clear")}##{idSuffix}", new Vector2(60f, 0f)))
                     {
                         vk = 0;
+                        this.captureTarget = null;
+                        boundNow = true;
                         this.SaveSettings();
                     }
                 }
@@ -1662,7 +1664,7 @@ namespace NinjaPricer
                 if (this.DrawHotkeyCaptureRow(this.PluginText.T("ninjapricer.overlays.hotkey_show_hide", "Show/hide hotkey:"), "rswin", ref rshk))
                 {
                     this.Settings.RuneshapeWinHotkey = rshk;
-                    this.runeshapeWinHotkeyWasDown = true;
+                    this.runeshapeWinHotkeyWasDown = false;
                     this.SaveSettings();
                 }
 
@@ -2046,6 +2048,10 @@ namespace NinjaPricer
                 this.runeshapeWinHotkeyWasDown = down;
             }
 
+            // Global overlay visibility gate (hide when unfocused or hold-to-hide hotkey active)
+            if (this.Settings.HideWhenUnfocused && !IsGameWindowFocused()) return;
+            if (this.Settings.HideHotkey != 0 && (GetAsyncKeyState(this.Settings.HideHotkey) & 0x8000) != 0) return;
+
             // Runeshape Monoliths (in-world badges / large map markers & movable window)
             if (!inTownOrHideout && (this.Settings.ShowRuneshapeWorldMarkers || this.Settings.ShowRuneshapeWindow))
             {
@@ -2053,12 +2059,7 @@ namespace NinjaPricer
 
                 if (this.Settings.ShowRuneshapeWorldMarkers && activeMonoliths.Count > 0)
                 {
-                    bool hideOverlays = (this.Settings.HideWhenUnfocused && !IsGameWindowFocused()) ||
-                                        (this.Settings.HideHotkey != 0 && (GetAsyncKeyState(this.Settings.HideHotkey) & 0x8000) != 0);
-                    if (!hideOverlays)
-                    {
-                        this.DrawMonolithWorldMarkers(activeMonoliths);
-                    }
+                    this.DrawMonolithWorldMarkers(activeMonoliths);
                 }
 
                 if (this.Settings.ShowRuneshapeWindow && activeMonoliths.Count > 0)
@@ -2066,10 +2067,6 @@ namespace NinjaPricer
                     this.DrawRuneshapeWindow(activeMonoliths);
                 }
             }
-
-            // In-world overlays gate (ground & inventory)
-            if (this.Settings.HideWhenUnfocused && !IsGameWindowFocused()) return;
-            if (this.Settings.HideHotkey != 0 && (GetAsyncKeyState(this.Settings.HideHotkey) & 0x8000) != 0) return;
 
             // Auto refresh trigger
             if ((DateTime.UtcNow - this.lastAutoRefreshUtc).TotalMinutes >= Math.Max(5, this.Settings.AutoRefreshMinutes))
@@ -3568,37 +3565,47 @@ namespace NinjaPricer
 
                     // Colored square / badge for monolith (clean color without number text)
                     var dl = ImGui.GetWindowDrawList();
+                    float baseFrameH = ImGui.GetFrameHeight();
                     if (this.Settings.RsShowHdrColor)
                     {
-                        float frameH = ImGui.GetFrameHeight();
-                        float sqYOff = (frameH > kSquareSz) ? (frameH - kSquareSz) * 0.5f : 0f;
+                        float sqYOff = (baseFrameH > kSquareSz) ? (baseFrameH - kSquareSz) * 0.5f : 0f;
                         var cp = ImGui.GetCursorScreenPos();
                         dl.AddRectFilled(new Vector2(cp.X, cp.Y + sqYOff), new Vector2(cp.X + kSquareSz, cp.Y + sqYOff + kSquareSz), m.IsCompleted ? 0xFF787878u : mColor, 3f);
 
-                        ImGui.Dummy(new Vector2(kSquareSz, frameH));
+                        ImGui.Dummy(new Vector2(kSquareSz, baseFrameH));
                         ImGui.SameLine();
                     }
 
-                    // CollapsingHeader
-                    bool wantOpen = !this.Settings.RuneshapeCollapsed.Contains(mColor);
-                    ImGui.SetNextItemOpen(wantOpen);
-                    string header = $"{new string(' ', padCnt)}###rscol_{mColor:X8}_{m.EntityAddress.ToInt64():X}";
-                    bool headerOpen = ImGui.CollapsingHeader(header, ImGuiTreeNodeFlags.DefaultOpen);
-                    if (headerOpen != wantOpen)
+                    // Custom header row without triangle arrow
+                    bool headerOpen = !this.Settings.RuneshapeCollapsed.Contains(mColor);
+                    float headerH = Math.Max(baseFrameH, slotSz + 4f);
+                    float availW = ImGui.GetContentRegionAvail().X;
+                    var hmin = ImGui.GetCursorScreenPos();
+                    var hmax = new Vector2(hmin.X + availW, hmin.Y + headerH);
+
+                    bool clicked = ImGui.InvisibleButton($"###rscol_{mColor:X8}_{m.EntityAddress.ToInt64():X}", new Vector2(availW, headerH));
+                    bool isHovered = ImGui.IsItemHovered();
+                    if (clicked)
                     {
-                        if (headerOpen) this.Settings.RuneshapeCollapsed.Remove(mColor);
-                        else this.Settings.RuneshapeCollapsed.Add(mColor);
+                        if (headerOpen) this.Settings.RuneshapeCollapsed.Add(mColor);
+                        else this.Settings.RuneshapeCollapsed.Remove(mColor);
                         this.SaveSettings();
+                        headerOpen = !headerOpen;
                     }
 
+                    // Background with rounded corners
+                    uint bgCol = isHovered
+                        ? ImGui.GetColorU32(ImGuiCol.HeaderHovered)
+                        : (headerOpen ? ImGui.GetColorU32(ImGuiCol.Header) : ImGui.GetColorU32(ImGuiCol.FrameBg));
+                    dl.AddRectFilled(hmin, hmax, bgCol, 4f);
+
                     // Header decorations drawn with dl
-                    var hmin = ImGui.GetItemRectMin();
-                    var hmax = ImGui.GetItemRectMax();
                     float midY = (hmin.Y + hmax.Y) * 0.5f;
                     uint imgTint = m.IsCompleted ? 0xC8969696u : 0xFFFFFFFFu;
                     uint txtCol = m.IsCompleted ? 0xDC969696u : 0xFFFFFFFFu;
 
-                    float xl = hmin.X + ImGui.GetTreeNodeToLabelSpacing();
+                    // Start runes forward (directly after left margin, no triangle arrow)
+                    float xl = hmin.X + 6.0f * uiScale;
 
                     // 1) Rune sockets
                     if (this.Settings.RsShowHdrRunes)

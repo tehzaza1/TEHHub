@@ -1,0 +1,7 @@
+{
+  "plugin.description": "ตัวบันทึกสถิติการฟาร์มและไอเทมในกระเป๋าสำหรับ Path of Exile 2 คำนวณมูลค่า อัตราการฟาร์ม และจำนวนมอนสเตอร์ต่อรอบ",
+  "myfarming.overlay.title": "myFarming",
+  "myfarming.tab.general": "ทั่วไป",
+  "myfarming.tab.history": "สถิติและประวัติ",
+  "myfarming.tab.custom_prices": "กำหนดราคาเอง"
+}

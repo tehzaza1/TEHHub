@@ -2,6 +2,24 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.48 — 2026-09-16 [New Plugin — myFarming & Plugin Update — NinjaPricer]
+
+- **New Plugin: `myFarming` (Ported from FarmCounter)**:
+  - Added native C# farming session & backpack loot tracker plugin for TEHhub.
+  - **Live Backpack Loot Diffing**: Snapshots the player's `MainInventory1` backpack upon entering maps with a stability gate (waits for 2 consecutive stable reads to avoid false loot from lazy inventory loading) and computes added loot quantities.
+  - **Hideout Roundtrips**: Automatically pauses when portaling to town or hideout and resumes tracking when returning to the same map instance, preserving carryover loot.
+  - **Auto-Pricing & Conversion**: Integrates with price cache (from NinjaPricer / poe2scout / poe.ninja) with fallback currency prices and supports user-defined custom price overrides.
+  - **Map & Session Timers**: Displays map duration and session duration with real-time Profit / Hour rate calculation.
+  - **Kill Tracking**: Tracks killed monsters categorized by rarity (Normal, Magic, Rare, Unique).
+  - **Floating HUD Overlay**: Configurable in-game HUD with movable/lockable position, font scale, profit rate, and collapsible looted items list.
+  - **Statistics & History**: Records completed runs to JSON history file with all-time summaries and run-by-run details.
+- **NinjaPricer: Runeshape UI & Hotkey Fixes**:
+  - **Runeshape Window Layout**: Removed the triangle arrow `▶` in front of each monolith row and moved the rune sockets forward directly adjacent to the colored monolith badge.
+  - **Hotkey Capture Fix**: Fixed the `Clear` button in hotkey settings rows so it properly resets the hotkey binding to None and persists to settings immediately.
+  - **Hide When Game Not Focused**: Moved the `HideWhenUnfocused` and hold-to-hide hotkey check before the Runeshape monolith world markers and overlay window so they properly hide when the game is unfocused.
+- Compatibility: New Plugin (`myFarming`), TEHhub SDK (`InternalsVisibleTo`).
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.47 — 2026-09-15 [Plugin Update — NinjaPricer]
 
 - **Fix Ground Price Tag Position**:
