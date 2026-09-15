@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.41 — 2026-09-15 [SDK / Core Framework Update]
+
+- **PoE 2 Spirit Pool Support**: Fixed `LifeOffset.Spirit` type at offset `0x380` from `StdVector SpiritPtr` to `VitalStruct Spirit`. Exposed `Spirit` property in `TEHhub.RemoteObjects.Components.Life` with ImGui visualization and per-frame update, allowing plugins and core systems to inspect player Spirit (Total, Reserved, Current, Unreserved).
+- **PoE 1 Legacy Leftovers Cleanup**: Audited component offsets for deprecated PoE 1 structures (Hellscape/Crucible mod vectors and dead Vaal soul structures).
+- **Chest Component Safety Guard**: Added null pointer validation in `Chest.UpdateData` to prevent null dereference when reading `ChestsDataPtr`.
+- Compatibility: SDK / Core Framework update.
+- Validation: Built `TEHhub.sln` in Debug and Release configurations with 0 warnings and 0 errors.
+
 ## 1.8.40 — 2026-09-15 [Plugin Update — NinjaPricer]
 
 - **Multi-Golden Socket & Propagating Rune Icons**: Added support for monoliths with multiple golden sockets (2+ slots); recipe rows now render the exact rune icons slotted into each golden socket with layered golden glow auras and slot-specific tooltips.

@@ -56,9 +56,17 @@ namespace TEHhub.RemoteObjects.Components
             this.IsOpened = data.IsOpened;
             if (hasAddressChanged)
             {
-                var dataInternal = reader.ReadMemory<ChestsStructInternal>(data.ChestsDataPtr);
-                this.IsStrongbox = dataInternal.StrongboxDatPtr != IntPtr.Zero;
-                this.IsLabelVisible = dataInternal.IsLabelVisible;
+                if (data.ChestsDataPtr != IntPtr.Zero)
+                {
+                    var dataInternal = reader.ReadMemory<ChestsStructInternal>(data.ChestsDataPtr);
+                    this.IsStrongbox = dataInternal.StrongboxDatPtr != IntPtr.Zero;
+                    this.IsLabelVisible = dataInternal.IsLabelVisible;
+                }
+                else
+                {
+                    this.IsStrongbox = false;
+                    this.IsLabelVisible = false;
+                }
             }
         }
     }

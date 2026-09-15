@@ -52,6 +52,11 @@ namespace TEHhub.RemoteObjects.Components
         public VitalStruct Divinity { get; private set; }
 
         /// <summary>
+        ///     Gets the spirit related information of the entity (PoE 2 vital pool).
+        /// </summary>
+        public VitalStruct Spirit { get; private set; }
+
+        /// <summary>
         ///     Converts the <see cref="Life" /> class data to ImGui.
         /// </summary>
         internal override void ToImGui()
@@ -87,6 +92,12 @@ namespace TEHhub.RemoteObjects.Components
                 this.VitalToImGui(this.Divinity);
                 ImGui.TreePop();
             }
+
+            if (ImGui.TreeNode("Spirit"))
+            {
+                this.VitalToImGui(this.Spirit);
+                ImGui.TreePop();
+            }
         }
 
         /// <inheritdoc />
@@ -100,6 +111,7 @@ namespace TEHhub.RemoteObjects.Components
             this.Mana = data.Mana;
             this.Ward = data.Ward;
             this.Divinity = data.Divinity;
+            this.Spirit = data.Spirit;
             this.IsAlive = data.Health.Current > 0;
         }
 
