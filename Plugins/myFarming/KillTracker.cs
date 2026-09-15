@@ -59,7 +59,11 @@ namespace myFarming
                 if (this.deadEntityIds.Contains(entity.Id)) continue;
 
                 var rarity = Rarity.Normal;
-                if (entity.TryGetComponent<Mods>(out var mods) && mods != null)
+                if (entity.TryGetComponent<ObjectMagicProperties>(out var omp) && omp != null)
+                {
+                    rarity = omp.Rarity;
+                }
+                else if (entity.TryGetComponent<Mods>(out var mods) && mods != null)
                 {
                     rarity = mods.Rarity;
                 }

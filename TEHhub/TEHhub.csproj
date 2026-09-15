@@ -8,9 +8,9 @@
     <Product>TEHhub</Product>
     <Title>TEHhub</Title>
     <Description>TEHhub overlay and plugin platform for Path of Exile 2, based on GameHelper2.</Description>
-    <Version>1.8.50</Version>
-    <AssemblyVersion>1.8.50.0</AssemblyVersion>
-    <FileVersion>1.8.50.0</FileVersion>
+    <Version>1.8.51</Version>
+    <AssemblyVersion>1.8.51.0</AssemblyVersion>
+    <FileVersion>1.8.51.0</FileVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -27,9 +27,6 @@
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>Radar</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>ExpeditionPlanner</_Parameter1>
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>NinjaPricer</_Parameter1>

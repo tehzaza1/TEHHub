@@ -2,6 +2,24 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.51 — 2026-09-16 [Plugin Update — myFarming]
+
+- **Resource Centralization**:
+  - Centralized shared resources into root `resources/` folder: `resources/currency/poe2/` (Chaos, Divine, Exalted, etc.), `resources/radar/icons.png` (monster & entity radar spritesheet), and `resources/runeshape/expedition2_recipes.json` (Runeshape recipes).
+  - Removed deprecated `ExpeditionPlanner` plugin and cleaned up solution project files and `InternalsVisibleTo` attributes.
+- **myFarming: Currency Icon Rendering**:
+  - Added inline currency icon textures (Exalted, Divine, Chaos) rendered using `ImGui.Image` next to Loot values, Profit/Hour rates, and looted items list rows.
+- **myFarming: Multi-Map Session Retention & Persistence**:
+  - Active farming session totals (completed map count, total duration, accumulated profit, profit rate, and monster kills) now persist across maps and hideout roundtrips until the player explicitly clicks "New Session" / "Reset Session" (`จำ session ล่าสุดไว้ตลอดจนกว่าจะกดปิดเอง`).
+  - Added one-click "New Session" button directly into the HUD overlay header and the General settings tab.
+- **myFarming: Monster Kill Rarity Breakdown**:
+  - Fixed monster rarity tracking to read `ObjectMagicProperties.Rarity` instead of uninitialized mod properties.
+  - Added colored breakdown for White/Normal (`W`), Magic (`M`), Rare (`R`), and Unique (`U`) kills in both the HUD overlay and settings summary.
+- **myFarming: Foreground Window Handling**:
+  - Overlay respects game window and TEHhub launcher window focus to prevent unwanted hiding while interacting with overlay controls.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.50 — 2026-09-16 [Plugin Update — NinjaPricer & myFarming]
 
 - **NinjaPricer: Runeshape Window Layout & Auto-Resize**:
