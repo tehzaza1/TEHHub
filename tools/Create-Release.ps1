@@ -5,6 +5,12 @@ function Invoke-ReleaseCommand([string]$Executable, [string[]]$Arguments) {
     & $Executable @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Executable failed with exit code $LASTEXITCODE" }
 }
+function Get-FileSha256([string]$FilePath) {
+    $stream = [IO.File]::OpenRead($FilePath)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
+    finally { $stream.Dispose(); $hasher.Dispose() }
+}
 $commit = (& git -C $releaseRoot rev-parse --verify --end-of-options "${Ref}^{commit}")
 if ($LASTEXITCODE -ne 0) { throw 'Invalid release revision.' }
 $commit = $commit.Trim()
@@ -58,7 +64,7 @@ try {
         $sourceMapping = Join-Path $worktree "Plugins/NinjaPricer/$mappingName"
         $packagedMapping = Join-Path $stage "Plugins/NinjaPricer/$mappingName"
         if (!(Test-Path -LiteralPath $packagedMapping) -or
-            (Get-FileHash -LiteralPath $sourceMapping).Hash -ne (Get-FileHash -LiteralPath $packagedMapping).Hash) {
+            (Get-FileSha256 $sourceMapping) -ne (Get-FileSha256 $packagedMapping)) {
             throw "Missing or outdated NinjaPricer mapping: $mappingName"
         }
     }
