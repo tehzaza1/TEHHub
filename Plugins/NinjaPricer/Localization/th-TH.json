@@ -104,5 +104,7 @@
   "ninjapricer.runeshape.window_title": "สูตรและราคา Runeshape",
   "ninjapricer.runeshape.search_hint": "ค้นหาสูตร...",
   "ninjapricer.runeshape.all_catalog": "แคตตาล็อกสูตรทั้งหมด",
-  "ninjapricer.runeshape.monolith": "เสา Monolith {0}"
+  "ninjapricer.runeshape.monolith": "เสา Monolith {0}",
+  "ninjapricer.runeshape.prop_rune_tooltip": "ช่องทอง (ช่องที่ {0}): รูน {1} ส่งต่อผลบัฟไปยังเสาถัดไป",
+  "ninjapricer.runeshape.recipe_runes_tooltip": "สูตร: {0}\nรูน: {1}"
 }

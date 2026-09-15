@@ -104,5 +104,7 @@
   "ninjapricer.runeshape.window_title": "Runeshape Recipes & Prices",
   "ninjapricer.runeshape.search_hint": "Search recipe...",
   "ninjapricer.runeshape.all_catalog": "All Recipes Catalog",
-  "ninjapricer.runeshape.monolith": "Monolith {0}"
+  "ninjapricer.runeshape.monolith": "Monolith {0}",
+  "ninjapricer.runeshape.prop_rune_tooltip": "Golden Socket (Slot {0}): {1} rune carries over",
+  "ninjapricer.runeshape.recipe_runes_tooltip": "Recipe: {0}\nRunes: {1}"
 }

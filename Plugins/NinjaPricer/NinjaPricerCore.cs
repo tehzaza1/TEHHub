@@ -3095,6 +3095,9 @@ namespace NinjaPricer
             bool open = ImGui.Begin(this.PluginText.Title("ninjapricer.runeshape.window_title", "Runeshape", "RuneshapeWindow"), ref keepOpen, flags);
             this.Settings.RuneshapeWinCollapsed = !open;
 
+            float fontScale = Math.Clamp(this.Settings.TextScale, 0.5f, 2.5f);
+            ImGui.SetWindowFontScale(fontScale);
+
             var curPos = ImGui.GetWindowPos();
             var curSize = ImGui.GetWindowSize();
             this.runeshapeWinRectMin = curPos;
@@ -3128,9 +3131,8 @@ namespace NinjaPricer
             else
             {
                 int areaLevel = area?.CurrentAreaLevel ?? 0;
-                float baseFontSize = ImGui.GetFontSize() * this.Settings.TextScale;
-                float kSquareSz = Math.Max(baseFontSize * 1.35f, 22f);
                 float lineH = ImGui.GetTextLineHeight();
+                float kSquareSz = Math.Max(lineH * 0.75f, 13f);
                 float slotSz = lineH;
                 float slotGap = 3.0f;
                 var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
@@ -3218,7 +3220,7 @@ namespace NinjaPricer
                     float spaceW = ImGui.CalcTextSize(" ").X;
                     int padCnt = spaceW > 0f ? (int)MathF.Ceiling(reserve / spaceW) : 0;
 
-                    // Colored square / badge with monolith index #1, #2...
+                    // Colored square / badge for monolith (clean color without number text)
                     var dl = ImGui.GetWindowDrawList();
                     if (this.Settings.RsShowHdrColor)
                     {
@@ -3226,13 +3228,6 @@ namespace NinjaPricer
                         float sqYOff = (frameH > kSquareSz) ? (frameH - kSquareSz) * 0.5f : 0f;
                         var cp = ImGui.GetCursorScreenPos();
                         dl.AddRectFilled(new Vector2(cp.X, cp.Y + sqYOff), new Vector2(cp.X + kSquareSz, cp.Y + sqYOff + kSquareSz), m.IsCompleted ? 0xFF787878u : mColor, 3f);
-
-                        // Draw #1, #2... text centered in the badge
-                        string numStr = $"#{mIdx + 1}";
-                        var numSz = ImGui.CalcTextSize(numStr);
-                        float numX = cp.X + (kSquareSz - numSz.X) * 0.5f;
-                        float numY = cp.Y + sqYOff + (kSquareSz - numSz.Y) * 0.5f;
-                        dl.AddText(new Vector2(numX, numY), 0xFFFFFFFFu, numStr);
 
                         ImGui.Dummy(new Vector2(kSquareSz, frameH));
                         ImGui.SameLine();
@@ -3361,13 +3356,19 @@ namespace NinjaPricer
                                 }
                             }
 
-                            // 2) Name + quantity
+                            // 2) Name + quantity with full recipe runes tooltip
                             string txt = this.Settings.RsShowRowQty ? $"{rw.Name}  x{rw.Count}" : rw.Name;
                             if (!string.IsNullOrEmpty(txt))
                             {
                                 if (lineStarted) ImGui.SameLine(0f, 4f);
                                 if (rw.IsPriced) ImGui.TextUnformatted(txt);
                                 else ImGui.TextDisabled(txt);
+
+                                if (ImGui.IsItemHovered() && rw.Recipe.Runes != null && rw.Recipe.Runes.Count > 0)
+                                {
+                                    string rList = string.Join(" + ", rw.Recipe.Runes);
+                                    ImGui.SetTooltip(string.Format(this.PluginText.T("ninjapricer.runeshape.recipe_runes_tooltip", "Recipe: {0}\nRunes: {1}"), rw.Name, rList));
+                                }
                                 lineStarted = true;
                             }
 
@@ -3398,31 +3399,64 @@ namespace NinjaPricer
                                 lineStarted = true;
                             }
 
-                            // 5) Propagating rune icon if this recipe uses a golden slot
+                            // 5) Propagating rune icon(s) if this recipe uses golden socket(s) (supports 1, 2 or more golden slots)
                             if (this.Settings.RsShowRowPropRunes && m.GoldenSlots.Count > 0)
                             {
-                                bool hasProp = false;
                                 foreach (int gs in m.GoldenSlots)
                                 {
-                                    if (rw.Recipe.RuneIdx != null && gs < rw.Recipe.RuneIdx.Count)
+                                    if (rw.Recipe.RuneIdx != null && gs >= 0 && gs < rw.Recipe.RuneIdx.Count)
                                     {
-                                        hasProp = true;
-                                        break;
-                                    }
-                                }
-                                if (hasProp)
-                                {
-                                    if (lineStarted) ImGui.SameLine(0f, 6f);
-                                    if (glow != null && glow.Value.Valid)
-                                    {
+                                        int rIdx = rw.Recipe.RuneIdx[gs];
+                                        string rName = (rIdx >= 0 && rIdx < NinjaRuneshapeHelper.RuneNames.Length)
+                                            ? NinjaRuneshapeHelper.RuneNames[rIdx]
+                                            : "Rune";
+
+                                        if (lineStarted) ImGui.SameLine(0f, 5f);
+
                                         float lh = ImGui.GetTextLineHeight();
-                                        ImGui.Image(glow.Value.Ptr, new Vector2(lh * 0.9f, lh * 0.9f));
+                                        float iconSz = lh * 1.05f;
+                                        var cp = ImGui.GetCursorScreenPos();
+
+                                        // Dark background circle
+                                        dl.AddCircleFilled(new Vector2(cp.X + iconSz * 0.5f, cp.Y + iconSz * 0.5f), iconSz * 0.5f, 0xD0141414u);
+
+                                        // Regular or Purple Rune background frame
+                                        bool slotRare = rIdx >= 23 && rIdx <= 32;
+                                        var bg = (slotRare && bgPur != null && bgPur.Value.Valid) ? bgPur : bgReg;
+                                        if (bg != null && bg.Value.Valid)
+                                        {
+                                            dl.AddImage(bg.Value.Ptr, cp, cp + new Vector2(iconSz, iconSz));
+                                        }
+
+                                        // Actual Rune icon
+                                        var runeTex = (rIdx >= 0 && rIdx < 34) ? this.GetRuneTexture(rIdx) : null;
+                                        if (runeTex != null && runeTex.Value.Valid)
+                                        {
+                                            float inset = iconSz * 0.12f;
+                                            dl.AddImage(runeTex.Value.Ptr, new Vector2(cp.X + inset, cp.Y + inset), new Vector2(cp.X + iconSz - inset, cp.Y + iconSz - inset));
+                                        }
+
+                                        // Golden propagation glow / aura
+                                        if (glow != null && glow.Value.Valid)
+                                        {
+                                            float cx2 = cp.X + iconSz * 0.5f;
+                                            float gw = iconSz * 1.15f;
+                                            float gt = cp.Y - iconSz * 0.40f;
+                                            dl.AddImage(glow.Value.Ptr, new Vector2(cx2 - gw * 0.5f, gt), new Vector2(cx2 + gw * 0.5f, gt + iconSz * 1.6f));
+                                        }
+                                        else
+                                        {
+                                            dl.AddCircle(new Vector2(cp.X + iconSz * 0.5f, cp.Y + iconSz * 0.5f), iconSz * 0.52f, 0xFFFFD23Cu, 0, 1.5f);
+                                        }
+
+                                        ImGui.Dummy(new Vector2(iconSz, lh));
+                                        if (ImGui.IsItemHovered())
+                                        {
+                                            string tt = string.Format(this.PluginText.T("ninjapricer.runeshape.prop_rune_tooltip", "Golden Socket (Slot {0}): {1} rune carries over"), gs + 1, rName);
+                                            ImGui.SetTooltip(tt);
+                                        }
+                                        lineStarted = true;
                                     }
-                                    else
-                                    {
-                                        ImGui.TextColored(new Vector4(1.0f, 0.82f, 0.27f, 1.0f), "★");
-                                    }
-                                    if (ImGui.IsItemHovered()) ImGui.SetTooltip("Uses golden socket - propagating rune carries over");
                                 }
                             }
                         }
