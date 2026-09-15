@@ -68,7 +68,9 @@ namespace NinjaPricer
             };
         }
 
-        public bool TryLookupPrice(string name, out PriceResult result)
+        public bool TryLookupPrice(string name, out PriceResult result) => this.TryLookupPrice(name, null, out result);
+
+        public bool TryLookupPrice(string name, string? variant, out PriceResult result)
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -77,9 +79,28 @@ namespace NinjaPricer
             }
 
             var clean = CleanItemName(name);
+
+            if (!string.IsNullOrEmpty(variant))
+            {
+                var vKey = $"{clean}:{variant.ToLowerInvariant()}";
+                if (this.priceDb.TryGetValue(vKey, out result))
+                {
+                    return true;
+                }
+            }
+
             if (this.priceDb.TryGetValue(clean, out result))
             {
                 return true;
+            }
+
+            if (!string.IsNullOrEmpty(variant))
+            {
+                var vKey = $"{name.Trim()}:{variant.ToLowerInvariant()}";
+                if (this.priceDb.TryGetValue(vKey, out result))
+                {
+                    return true;
+                }
             }
 
             if (this.priceDb.TryGetValue(name.Trim(), out result))
@@ -303,12 +324,30 @@ namespace NinjaPricer
                                         primaryVal = pv;
                                     }
 
+                                    string variant = string.Empty;
+                                    if (line.TryGetProperty("variant", out var vp)) variant = vp.GetString() ?? string.Empty;
+
                                     if (primaryVal > 0f)
                                     {
                                         float divine = primaryVal;
                                         float chaos = divine * this.divineInChaos;
                                         float exalt = (this.exaltedInChaos > 0) ? (chaos / this.exaltedInChaos) : 0;
-                                        targetDb[info.Name] = new PriceResult(chaos, divine, exalt, info.Image);
+                                        var priceRes = new PriceResult(chaos, divine, exalt, info.Image);
+
+                                        if (!string.IsNullOrEmpty(variant))
+                                        {
+                                            var varKey = $"{info.Name}:{variant.ToLowerInvariant()}";
+                                            targetDb[varKey] = priceRes;
+
+                                            if (!targetDb.ContainsKey(info.Name) || variant.Equals("Normal", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                targetDb[info.Name] = priceRes;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            targetDb[info.Name] = priceRes;
+                                        }
                                     }
                                 }
                             }
@@ -368,12 +407,33 @@ namespace NinjaPricer
                                 string icon = string.Empty;
                                 if (line.TryGetProperty("icon", out var ic)) icon = ic.GetString() ?? string.Empty;
 
+                                string variant = string.Empty;
+                                if (line.TryGetProperty("variant", out var vp)) variant = vp.GetString() ?? string.Empty;
+
                                 if (primaryVal > 0f)
                                 {
                                     float divine = primaryVal;
                                     float chaos = divine * this.divineInChaos;
                                     float exalt = (this.exaltedInChaos > 0) ? (chaos / this.exaltedInChaos) : 0;
-                                    targetDb[name] = new PriceResult(chaos, divine, exalt, icon);
+                                    var priceRes = new PriceResult(chaos, divine, exalt, icon);
+
+                                    if (!string.IsNullOrEmpty(variant))
+                                    {
+                                        var varKey = $"{name}:{variant.ToLowerInvariant()}";
+                                        targetDb[varKey] = priceRes;
+
+                                        // For the un-suffixed base name:
+                                        // 1. If variant is "Normal", it takes precedence (clean base item).
+                                        // 2. Otherwise, if not set yet, store it.
+                                        if (!targetDb.ContainsKey(name) || variant.Equals("Normal", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            targetDb[name] = priceRes;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        targetDb[name] = priceRes;
+                                    }
                                 }
                             }
                         }

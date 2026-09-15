@@ -668,6 +668,11 @@ namespace NinjaPricer
         {
             stackCount = item.TryGetComponent<TEHhub.RemoteObjects.Components.Stack>(out var s) && s.Count > 1 ? s.Count : 1;
             var baseName = item.TryGetComponent<Base>(out var b) ? b.BaseItemName?.Trim() ?? string.Empty : string.Empty;
+            if (baseName.EndsWith("Tablet", StringComparison.OrdinalIgnoreCase) ||
+                (item.Path != null && item.Path.Contains("Tablet", StringComparison.OrdinalIgnoreCase)))
+            {
+                stackCount = 1;
+            }
             var rarity = item.TryGetComponent<Mods>(out var m) ? m.Rarity : Rarity.Normal;
 
             if (rarity == Rarity.Unique)
@@ -1620,9 +1625,19 @@ namespace NinjaPricer
                 var itemName = this.ResolveItemName(item, out var stackMultiplier);
                 if (string.IsNullOrEmpty(itemName)) continue;
 
+                var rarity = item.TryGetComponent<Mods>(out var m) ? m.Rarity : Rarity.Normal;
+                string? variant = rarity switch
+                {
+                    Rarity.Normal => "normal",
+                    Rarity.Magic => "magic",
+                    Rarity.Rare => "rare",
+                    Rarity.Unique => "unique",
+                    _ => null
+                };
+
                 var clean = NinjaPriceService.CleanItemName(itemName);
                 var swL = Stopwatch.StartNew();
-                bool found = this.priceService.TryLookupPrice(clean, out var price);
+                bool found = this.priceService.TryLookupPrice(clean, variant, out var price);
                 swL.Stop();
                 this.perfLookupMs += swL.Elapsed.TotalMilliseconds;
 
@@ -1871,9 +1886,19 @@ namespace NinjaPricer
                     var itemName = this.ResolveItemName(item, out stackCount);
                     if (string.IsNullOrWhiteSpace(itemName)) continue;
 
+                    var rarity = item.TryGetComponent<Mods>(out var m) ? m.Rarity : Rarity.Normal;
+                    string? variant = rarity switch
+                    {
+                        Rarity.Normal => "normal",
+                        Rarity.Magic => "magic",
+                        Rarity.Rare => "rare",
+                        Rarity.Unique => "unique",
+                        _ => null
+                    };
+
                     var clean = NinjaPriceService.CleanItemName(itemName);
                     var swL = Stopwatch.StartNew();
-                    isPriced = service.TryLookupPrice(clean, out price);
+                    isPriced = service.TryLookupPrice(clean, variant, out price);
                     swL.Stop();
                     lookupMs += swL.Elapsed.TotalMilliseconds;
 
