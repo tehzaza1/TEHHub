@@ -52,6 +52,20 @@ namespace myFarming
 
         public override void OnEnable(bool isGameOpened)
         {
+            var settingsPath = this.PluginConfigPath("settings.json");
+            if (File.Exists(settingsPath))
+            {
+                try
+                {
+                    var content = File.ReadAllText(settingsPath);
+                    this.Settings = JsonSerializer.Deserialize<MyFarmingSettings>(content) ?? new MyFarmingSettings();
+                }
+                catch (Exception ex)
+                {
+                    PluginLog.Error("myFarming", $"Failed to load settings from {settingsPath}: {ex.Message}");
+                }
+            }
+
             this.priceHelper = new PriceHelper();
             this.diffEngine = new LootDiffEngine();
             this.killTracker = new KillTracker();
