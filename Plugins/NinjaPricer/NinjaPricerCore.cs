@@ -1669,6 +1669,9 @@ namespace NinjaPricer
             bool showWeights = this.Settings.ShowRuneshapeWeights;
             if (ImGui.Checkbox(this.PluginText.Label("settings.show_runeshape_weights", "Runeshape weights", "ShowWeightsCheck"), ref showWeights)) { this.Settings.ShowRuneshapeWeights = showWeights; this.SaveSettings(); }
 
+            bool prioritizeWeight = this.Settings.RsPrioritizeWeight;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_prioritize_weight", "Prioritize highest weight (+)", "RsPrioritizeWeightCheck"), ref prioritizeWeight)) { this.Settings.RsPrioritizeWeight = prioritizeWeight; this.SaveSettings(); }
+
             bool showIcons = this.Settings.ShowItemIcons;
             if (ImGui.Checkbox(this.PluginText.Label("settings.show_item_icons", "Show item icons", "ShowIconsCheck"), ref showIcons)) { this.Settings.ShowItemIcons = showIcons; this.SaveSettings(); }
 
@@ -2800,7 +2803,17 @@ namespace NinjaPricer
                             };
                         }
 
-                        if (chaos > maxChaos || (Math.Abs(chaos - maxChaos) < 0.001f && rec.ComboWeight > maxWeight))
+                        bool isBetter;
+                        if (this.Settings.RsPrioritizeWeight)
+                        {
+                            isBetter = rec.ComboWeight > maxWeight || (rec.ComboWeight == maxWeight && chaos > maxChaos);
+                        }
+                        else
+                        {
+                            isBetter = chaos > maxChaos || (Math.Abs(chaos - maxChaos) < 0.001f && rec.ComboWeight > maxWeight);
+                        }
+
+                        if (isBetter)
                         {
                             maxChaos = chaos;
                             maxWeight = rec.ComboWeight;
@@ -3141,10 +3154,29 @@ namespace NinjaPricer
                 var bgPur = this.GetRuneUiTexture("RuneBgPurple.png", ref this.runeBgPurpleTex, ref this.runeBgPurpleTried);
                 var glow = this.GetRuneUiTexture("RunePropagation.png", ref this.runePropagationTex, ref this.runePropagationTried);
 
-                for (int mIdx = 0; mIdx < monoliths.Count; mIdx++)
+                var displayMonoliths = monoliths.ToList();
+                if (this.Settings.RsPrioritizeWeight)
                 {
-                    var m = monoliths[mIdx];
-                    uint mColor = RsMonolithColors[mIdx % RsMonolithColors.Length];
+                    displayMonoliths.Sort((a, b) =>
+                    {
+                        int compCmp = a.IsCompleted.CompareTo(b.IsCompleted);
+                        if (compCmp != 0) return compCmp;
+
+                        int wA = a.BestOffer?.ComboWeight ?? 0;
+                        int wB = b.BestOffer?.ComboWeight ?? 0;
+                        int wCmp = wB.CompareTo(wA);
+                        if (wCmp != 0) return wCmp;
+
+                        float pA = a.BestOffer?.PriceChaos ?? 0f;
+                        float pB = b.BestOffer?.PriceChaos ?? 0f;
+                        return pB.CompareTo(pA);
+                    });
+                }
+
+                for (int mIdx = 0; mIdx < displayMonoliths.Count; mIdx++)
+                {
+                    var m = displayMonoliths[mIdx];
+                    uint mColor = m.Color != 0 ? m.Color : RsMonolithColors[mIdx % RsMonolithColors.Length];
 
                     var offers = new List<RsOffer>();
                     foreach (var rec in this.runeshapeRecipes)
@@ -3194,8 +3226,19 @@ namespace NinjaPricer
                         });
                     }
 
-                    // Sort by Chaos descending
-                    offers.Sort((a, b) => b.TotalChaos.CompareTo(a.TotalChaos));
+                    if (this.Settings.RsPrioritizeWeight)
+                    {
+                        offers.Sort((a, b) =>
+                        {
+                            int wCmp = b.ComboWeight.CompareTo(a.ComboWeight);
+                            if (wCmp != 0) return wCmp;
+                            return b.TotalChaos.CompareTo(a.TotalChaos);
+                        });
+                    }
+                    else
+                    {
+                        offers.Sort((a, b) => b.TotalChaos.CompareTo(a.TotalChaos));
+                    }
                     var bestOffer = offers.Count > 0 ? offers[0] : null;
 
                     // Measure elements for CollapsingHeader
@@ -3236,7 +3279,7 @@ namespace NinjaPricer
                     // CollapsingHeader
                     bool wantOpen = !this.Settings.RuneshapeCollapsed.Contains(mColor);
                     ImGui.SetNextItemOpen(wantOpen);
-                    string header = $"{new string(' ', padCnt)}###rscol_{mColor:X8}_{mIdx}";
+                    string header = $"{new string(' ', padCnt)}###rscol_{mColor:X8}_{m.EntityAddress.ToInt64():X}";
                     bool headerOpen = ImGui.CollapsingHeader(header, ImGuiTreeNodeFlags.DefaultOpen);
                     if (headerOpen != wantOpen)
                     {

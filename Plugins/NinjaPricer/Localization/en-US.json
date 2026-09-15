@@ -94,6 +94,7 @@
   "ninjapricer.overlays.show_monolith_markers.tooltip": "Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world.",
   "settings.opacity": "Opacity",
   "settings.show_runeshape_weights": "Runeshape weights",
+  "settings.runeshape_prioritize_weight": "Prioritize highest weight (+)",
   "settings.show_item_icons": "Show item icons",
   "settings.hide_when_game_unfocused": "Hide when game not focused",
   "ninjapricer.overlays.hold_to_hide": "Hold-to-hide hotkey:",

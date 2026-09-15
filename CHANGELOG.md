@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.42 — 2026-09-15 [Plugin Update — NinjaPricer]
+
+- **Runeshape Weight Prioritization**: Added toggleable setting `RsPrioritizeWeight` (enabled by default) to prioritize combinations with the highest rune weight (`ComboWeight`) over price when determining the best offer and ordering recipes/monoliths.
+  - Monolith world markers and window collapsing headers now show the highest weight (+) offer, breaking ties with highest Chaos value.
+  - Runeshape window collapsing headers sort monoliths with highest weight offer first.
+  - Expanded recipe offer rows order by weight descending first, then price.
+  - Added localization strings (`settings.runeshape_prioritize_weight`) in `th-TH.json` and `en-US.json`.
+- Compatibility: Plugin update (NinjaPricer).
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.41 — 2026-09-15 [SDK / Core Framework Update]
 
 - **PoE 2 Spirit Pool Support**: Fixed `LifeOffset.Spirit` type at offset `0x380` from `StdVector SpiritPtr` to `VitalStruct Spirit`. Exposed `Spirit` property in `TEHhub.RemoteObjects.Components.Life` with ImGui visualization and per-frame update, allowing plugins and core systems to inspect player Spirit (Total, Reserved, Current, Unreserved).

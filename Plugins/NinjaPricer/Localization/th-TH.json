@@ -94,6 +94,7 @@
   "ninjapricer.overlays.show_monolith_markers.tooltip": "แสดงป้ายหมายเลขและสีลอยอยู่เหนือเสา Monolith ในฉากเกม",
   "settings.opacity": "ความโปร่งใส (Opacity)",
   "settings.show_runeshape_weights": "แสดงน้ำหนักรูน (Runeshape Weights)",
+  "settings.runeshape_prioritize_weight": "เลือกและเรียงตามค่าน้ำหนัก (+) สูงที่สุด",
   "settings.show_item_icons": "แสดงไอคอนรูปไอเทม",
   "settings.hide_when_game_unfocused": "ซ่อน Overlay เมื่อไม่ได้โฟกัสหน้าต่างเกม",
   "ninjapricer.overlays.hold_to_hide": "ปุ่มลัดกดค้างเพื่อซ่อน (Hold-to-hide):",
