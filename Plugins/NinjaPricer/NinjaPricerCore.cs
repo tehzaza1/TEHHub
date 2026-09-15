@@ -1499,10 +1499,25 @@ namespace NinjaPricer
                 this.runeshapeWinHotkeyWasDown = down;
             }
 
-            // Runeshape Window (suppressed in town/hideout, matching original POEFixer)
-            if (this.Settings.ShowRuneshapeWindow && !inTownOrHideout)
+            // Runeshape Monoliths (in-world badges / large map markers & movable window)
+            if (!inTownOrHideout && (this.Settings.ShowRuneshapeWorldMarkers || this.Settings.ShowRuneshapeWindow))
             {
-                this.DrawRuneshapeWindow();
+                var activeMonoliths = this.GetActiveMonoliths();
+
+                if (this.Settings.ShowRuneshapeWorldMarkers && activeMonoliths.Count > 0)
+                {
+                    bool hideOverlays = (this.Settings.HideWhenUnfocused && !IsGameWindowFocused()) ||
+                                        (this.Settings.HideHotkey != 0 && (GetAsyncKeyState(this.Settings.HideHotkey) & 0x8000) != 0);
+                    if (!hideOverlays)
+                    {
+                        this.DrawMonolithWorldMarkers(activeMonoliths);
+                    }
+                }
+
+                if (this.Settings.ShowRuneshapeWindow)
+                {
+                    this.DrawRuneshapeWindow(activeMonoliths);
+                }
             }
 
             // In-world overlays gate (ground & inventory)
@@ -2200,61 +2215,7 @@ namespace NinjaPricer
             }
         }
 
-        private void DrawMonolithWorldMarkers(List<MonolithData> monoliths)
-        {
-            var world = Core.States.InGameStateObject?.CurrentWorldInstance;
-            if (world == null) return;
-
-            var dl = ImGui.GetBackgroundDrawList();
-
-            for (int i = 0; i < monoliths.Count; i++)
-            {
-                var m = monoliths[i];
-                if (m.WorldPos == Vector3.Zero) continue;
-
-                // Project 3D world position to 2D screen coords (lifted by +40f to hover cleanly above the monolith)
-                var screenPos = world.WorldToScreen(new Vector2(m.WorldPos.X, m.WorldPos.Y), m.WorldPos.Z + 40f);
-                if (screenPos == Vector2.Zero) continue;
-
-                // Colors & labels
-                uint badgeColor = m.IsCompleted ? 0xFF787878u : m.Color;
-                string numText = $"#{i + 1}";
-                string infoText = m.IsCompleted
-                    ? "DONE"
-                    : (m.BestOffer != null && m.BestOffer.DisplayValue > 0 ? $"{m.BestOffer.DisplayValue:0.#}c" : string.Empty);
-
-                var numSz = ImGui.CalcTextSize(numText);
-                var infoSz = !string.IsNullOrEmpty(infoText) ? ImGui.CalcTextSize(infoText) : Vector2.Zero;
-
-                float padX = 6f;
-                float padY = 3f;
-                float totalW = numSz.X + (infoSz.X > 0 ? infoSz.X + 8f : 0f) + padX * 2f;
-                float totalH = Math.Max(numSz.Y, infoSz.Y) + padY * 2f;
-
-                float x0 = screenPos.X - totalW * 0.5f;
-                float y0 = screenPos.Y - totalH * 0.5f;
-                float x1 = x0 + totalW;
-                float y1 = y0 + totalH;
-
-                // Background box
-                dl.AddRectFilled(new Vector2(x0, y0), new Vector2(x1, y1), m.IsCompleted ? 0xB0202020u : 0xDD141414u, 4f);
-                dl.AddRect(new Vector2(x0, y0), new Vector2(x1, y1), badgeColor, 4f, ImDrawFlags.None, 1.5f);
-
-                // Left number pill
-                float pillW = numSz.X + padX * 2f;
-                dl.AddRectFilled(new Vector2(x0, y0), new Vector2(x0 + pillW, y1), badgeColor, 4f, ImDrawFlags.RoundCornersLeft);
-                dl.AddText(new Vector2(x0 + padX, y0 + padY), 0xFFFFFFFFu, numText);
-
-                // Right info (price or DONE)
-                if (!string.IsNullOrEmpty(infoText))
-                {
-                    uint infoColor = m.IsCompleted ? 0xFF888888u : 0xFFE5D570u;
-                    dl.AddText(new Vector2(x0 + pillW + 4f, y0 + padY), infoColor, infoText);
-                }
-            }
-        }
-
-        private void DrawRuneshapeWindow()
+        private List<MonolithData> GetActiveMonoliths()
         {
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
             var monoliths = new List<MonolithData>();
@@ -2272,14 +2233,10 @@ namespace NinjaPricer
                 }
             }
 
-            if (monoliths.Count == 0)
-            {
-                return;
-            }
+            if (monoliths.Count == 0) return monoliths;
 
             int areaLevel = area?.CurrentAreaLevel ?? 0;
 
-            // Pre-calculate monolith colors and best offers so world markers and window match identically
             for (int mIdx = 0; mIdx < monoliths.Count; mIdx++)
             {
                 var m = monoliths[mIdx];
@@ -2288,6 +2245,7 @@ namespace NinjaPricer
                 if (m.BestOffer == null)
                 {
                     float maxChaos = -1f;
+                    int maxWeight = -1;
                     MonolithOffer? top = null;
                     foreach (var rec in this.runeshapeRecipes)
                     {
@@ -2305,10 +2263,12 @@ namespace NinjaPricer
                         int count = Math.Max(1, rec.RewardCount);
                         float chaos = 0f;
                         float displayVal = 0f;
+                        string? itemIcon = null;
 
                         if (this.priceService != null && this.priceService.TryLookupPrice(rName, out var pr))
                         {
                             chaos = pr.Chaos * count;
+                            itemIcon = pr.ItemIcon;
                             displayVal = this.Settings.DisplayCurrency switch
                             {
                                 DisplayCurrency.Divine => pr.Divine * count,
@@ -2317,15 +2277,19 @@ namespace NinjaPricer
                             };
                         }
 
-                        if (chaos > maxChaos)
+                        if (chaos > maxChaos || (Math.Abs(chaos - maxChaos) < 0.001f && rec.ComboWeight > maxWeight))
                         {
                             maxChaos = chaos;
+                            maxWeight = rec.ComboWeight;
                             top = new MonolithOffer
                             {
                                 RecipeId = rec.Id,
                                 Description = rec.Description,
                                 Reward = rName,
                                 RewardCount = count,
+                                Runes = rec.Runes,
+                                RuneIdx = rec.RuneIdx != null ? new List<int>(rec.RuneIdx) : new List<int>(),
+                                ItemIcon = itemIcon,
                                 PriceChaos = chaos,
                                 DisplayValue = displayVal,
                                 ComboWeight = rec.ComboWeight
@@ -2336,11 +2300,248 @@ namespace NinjaPricer
                 }
             }
 
-            // Draw Fixer-style in-world indicators on the physical monoliths
-            if (this.Settings.ShowRuneshapeWorldMarkers)
+            return monoliths;
+        }
+
+        private void DrawMonolithWorldMarkers(List<MonolithData> monoliths)
+        {
+            var world = Core.States.InGameStateObject?.CurrentWorldInstance;
+            if (world == null || monoliths.Count == 0) return;
+
+            var game = Core.States.InGameStateObject;
+            var largeMap = game?.GameUi?.LargeMap;
+            bool isLargeMapVisible = largeMap != null && largeMap.Address != IntPtr.Zero && largeMap.IsVisible;
+            var player = game?.CurrentAreaInstance?.Player;
+            Render? playerRender = null;
+            bool canMapProject = isLargeMapVisible && player != null && player.TryGetComponent<Render>(out playerRender, false) && playerRender != null;
+
+            Vector2 center = Vector2.Zero;
+            float cos = 0, sin = 0;
+            if (canMapProject && playerRender != null)
             {
-                this.DrawMonolithWorldMarkers(monoliths);
+                center = largeMap!.Center + largeMap.Shift + largeMap.DefaultShift;
+                const float LargeMapXBias = 0.6f;
+                const float LargeMapYBias = 0.3f;
+                center.X += LargeMapXBias;
+                center.Y += LargeMapYBias;
+
+                var baseRes = UiElementBaseFuncs.BaseResolution;
+                var baseDiag = Math.Sqrt((baseRes.X * baseRes.X) + (baseRes.Y * baseRes.Y));
+                var mapHeight = largeMap.Size.Y > 0 ? largeMap.Size.Y : Core.Process.WindowArea.Size.Height;
+                var largeMapDiagonalLength = baseDiag * mapHeight / baseRes.Y;
+
+                const float LargeMapScaleBaseline = 0.187812f;
+                var largeMapModifiedZoom = Math.Max(0.001f, (float)(largeMap.Zoom * LargeMapScaleBaseline));
+
+                const double CameraAngle = 38.7 * Math.PI / 180;
+                float mapScale = 240f / largeMapModifiedZoom;
+                cos = (float)(largeMapDiagonalLength * Math.Cos(CameraAngle) / mapScale);
+                sin = (float)(largeMapDiagonalLength * Math.Sin(CameraAngle) / mapScale);
             }
+
+            Vector2 ToMap(Vector3 worldPos)
+            {
+                var gridX = worldPos.X / 10.86957f;
+                var gridY = worldPos.Y / 10.86957f;
+                var delta = new Vector2(gridX - playerRender!.GridPosition.X, gridY - playerRender.GridPosition.Y);
+                float deltaZ = (worldPos.Z - playerRender.TerrainHeight) / 10.86957f;
+                return center + new Vector2((delta.X - delta.Y) * cos, (deltaZ - (delta.X + delta.Y)) * sin);
+            }
+
+            var dl = ImGui.GetBackgroundDrawList();
+
+            var bgReg = this.GetRuneUiTexture("RuneBgRegular.png", ref this.runeBgRegularTex, ref this.runeBgRegularTried);
+            var bgPur = this.GetRuneUiTexture("RuneBgPurple.png", ref this.runeBgPurpleTex, ref this.runeBgPurpleTried);
+            var glow = this.GetRuneUiTexture("RunePropagation.png", ref this.runePropagationTex, ref this.runePropagationTried);
+            var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
+
+            for (int i = 0; i < monoliths.Count; i++)
+            {
+                var m = monoliths[i];
+                if (m.WorldPos == Vector3.Zero) continue;
+
+                Vector2 screenPos;
+                if (canMapProject)
+                {
+                    screenPos = ToMap(m.WorldPos);
+                }
+                else
+                {
+                    // Project 3D world position to 2D screen coords (lifted by +45f to hover cleanly above the monolith)
+                    screenPos = world.WorldToScreen(new Vector2(m.WorldPos.X, m.WorldPos.Y), m.WorldPos.Z + 45f);
+                }
+
+                if (screenPos == Vector2.Zero) continue;
+
+                // 1) Sockets row sizing
+                float slotSz = 22f;
+                float slotGap = 2f;
+                int holes = Math.Clamp(m.HoleCount, 1, 16);
+                float socketsW = (holes * slotSz) + Math.Max(0, holes - 1) * slotGap;
+                float socketsH = slotSz;
+
+                // 2) Bottom info chip sizing
+                float chipH = 26f;
+                float padX = 6f;
+                float spacing = 5f;
+
+                float sqSz = 16f;
+                float curX = padX + sqSz;
+
+                CurrencyTex? itemTex = null;
+                float iconSz = 22f;
+                if (m.BestOffer != null && !string.IsNullOrEmpty(m.BestOffer.ItemIcon))
+                {
+                    itemTex = this.GetItemTexture(m.BestOffer.ItemIcon);
+                    if (itemTex != null && itemTex.Value.Valid)
+                    {
+                        curX += spacing + iconSz;
+                    }
+                }
+
+                float curW = 18f;
+                if (curTex != null && curTex.Value.Valid)
+                {
+                    curW = (curTex.Value.H > 0) ? 18f * (float)curTex.Value.W / curTex.Value.H : 18f;
+                    curX += spacing + curW;
+                }
+
+                string priceText = m.IsCompleted
+                    ? "DONE"
+                    : (m.BestOffer != null ? FormatPriceNumberLocal(m.BestOffer.DisplayValue) : string.Empty);
+                Vector2 priceSz = !string.IsNullOrEmpty(priceText) ? ImGui.CalcTextSize(priceText) : Vector2.Zero;
+                if (priceSz.X > 0)
+                {
+                    curX += 3f + priceSz.X;
+                }
+
+                string weightText = string.Empty;
+                Vector2 weightSz = Vector2.Zero;
+                if (!m.IsCompleted && m.BestOffer != null && m.BestOffer.ComboWeight != 0)
+                {
+                    weightText = m.BestOffer.ComboWeight > 0 ? $"+{m.BestOffer.ComboWeight}" : $"{m.BestOffer.ComboWeight}";
+                    weightSz = ImGui.CalcTextSize(weightText);
+                    curX += spacing + weightSz.X;
+                }
+
+                curX += padX;
+                float chipW = curX;
+
+                float totalW = Math.Max(socketsW, chipW);
+                float totalH = socketsH + 4f + chipH;
+
+                float bX0 = screenPos.X - totalW * 0.5f;
+                float bY0 = screenPos.Y - totalH;
+
+                uint imgTint = m.IsCompleted ? 0xC8969696u : 0xFFFFFFFFu;
+
+                // Draw Top Sockets Row
+                float sockStartX = screenPos.X - socketsW * 0.5f;
+                float sockY = bY0;
+
+                for (int slot = 0; slot < holes; slot++)
+                {
+                    bool prop = m.GoldenSlots.Contains(slot);
+                    int rIdx = -1;
+                    if (m.BestOffer?.RuneIdx != null && slot < m.BestOffer.RuneIdx.Count)
+                        rIdx = m.BestOffer.RuneIdx[slot];
+                    else if (slot == m.AnchorPos && m.AnchorIdx >= 0)
+                        rIdx = m.AnchorIdx;
+
+                    bool slotRare = rIdx >= 23 && rIdx <= 32;
+                    float sx0 = sockStartX + slot * (slotSz + slotGap);
+                    float sy0 = sockY;
+                    var p0 = new Vector2(sx0, sy0);
+                    var p1 = new Vector2(sx0 + slotSz, sy0 + slotSz);
+
+                    var bg = (slotRare && bgPur != null) ? bgPur : bgReg;
+                    if (bg != null && bg.Value.Valid)
+                    {
+                        dl.AddImage(bg.Value.Ptr, p0, p1, Vector2.Zero, Vector2.One, imgTint);
+                    }
+                    else
+                    {
+                        float dr = slotSz * 0.5f;
+                        dl.AddCircleFilled(new Vector2(sx0 + dr, sy0 + dr), dr, 0xDD141414u);
+                        dl.AddCircle(new Vector2(sx0 + dr, sy0 + dr), dr, prop ? 0xFFFFD23Cu : 0xFF505050u, 0, 1.5f);
+                    }
+
+                    if (rIdx >= 0 && rIdx < 34)
+                    {
+                        var runeTex = this.GetRuneTexture(rIdx);
+                        if (runeTex != null && runeTex.Value.Valid)
+                        {
+                            float inset = slotSz * 0.14f;
+                            dl.AddImage(runeTex.Value.Ptr, new Vector2(p0.X + inset, p0.Y + inset), new Vector2(p1.X - inset, p1.Y - inset), Vector2.Zero, Vector2.One, imgTint);
+                        }
+                    }
+
+                    if (prop && !m.IsCompleted)
+                    {
+                        if (glow != null && glow.Value.Valid)
+                        {
+                            float cx2 = sx0 + slotSz * 0.5f;
+                            float gw = slotSz * 1.10f;
+                            float gt = sy0 - slotSz * 0.40f;
+                            dl.AddImage(glow.Value.Ptr, new Vector2(cx2 - gw * 0.5f, gt), new Vector2(cx2 + gw * 0.5f, gt + slotSz * 1.5f));
+                        }
+                        else
+                        {
+                            dl.AddCircle(new Vector2(sx0 + slotSz * 0.5f, sy0 + slotSz * 0.5f), slotSz * 0.55f, 0xFFFFD23Cu, 0, 1.8f);
+                        }
+                    }
+                }
+
+                // Draw Bottom Info Chip
+                float chipX0 = screenPos.X - chipW * 0.5f;
+                float chipY0 = bY0 + socketsH + 4f;
+                float chipX1 = chipX0 + chipW;
+                float chipY1 = chipY0 + chipH;
+                float midY = chipY0 + chipH * 0.5f;
+
+                dl.AddRectFilled(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), m.IsCompleted ? 0xC0202020u : 0xF0101010u, 4f);
+                dl.AddRect(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), m.IsCompleted ? 0x88787878u : 0x88404040u, 4f, ImDrawFlags.None, 1.0f);
+
+                float renderX = chipX0 + padX;
+
+                // Color square
+                dl.AddRectFilled(new Vector2(renderX, midY - sqSz * 0.5f), new Vector2(renderX + sqSz, midY + sqSz * 0.5f), m.IsCompleted ? 0xFF787878u : m.Color, 3f);
+                renderX += sqSz + spacing;
+
+                // Reward icon
+                if (itemTex != null && itemTex.Value.Valid)
+                {
+                    dl.AddImage(itemTex.Value.Ptr, new Vector2(renderX, midY - iconSz * 0.5f), new Vector2(renderX + iconSz, midY + iconSz * 0.5f), Vector2.Zero, Vector2.One, imgTint);
+                    renderX += iconSz + spacing;
+                }
+
+                // Currency icon
+                if (curTex != null && curTex.Value.Valid)
+                {
+                    dl.AddImage(curTex.Value.Ptr, new Vector2(renderX, midY - 18f * 0.5f), new Vector2(renderX + curW, midY + 18f * 0.5f), Vector2.Zero, Vector2.One, imgTint);
+                    renderX += curW + 3f;
+                }
+
+                // Price text
+                if (priceSz.X > 0)
+                {
+                    uint priceCol = m.IsCompleted ? 0xFF888888u : 0xFFFFFFFFu;
+                    dl.AddText(new Vector2(renderX, midY - priceSz.Y * 0.5f), priceCol, priceText);
+                    renderX += priceSz.X + spacing;
+                }
+
+                // Weight text
+                if (!string.IsNullOrEmpty(weightText))
+                {
+                    uint wCol = (m.BestOffer != null && m.BestOffer.ComboWeight > 0) ? 0xFF70EB70u : 0xFF8080EBu;
+                    dl.AddText(new Vector2(renderX, midY - weightSz.Y * 0.5f), wCol, weightText);
+                }
+            }
+        }
+
+        private void DrawRuneshapeWindow(List<MonolithData> monoliths)
+        {
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
 
             if (this.Settings.RuneshapeWinHideOnHover && this.runeshapeWinRectValid)
             {
@@ -2403,7 +2604,7 @@ namespace NinjaPricer
             }
             else
             {
-                areaLevel = area?.CurrentAreaLevel ?? 0;
+                int areaLevel = area?.CurrentAreaLevel ?? 0;
                 float baseFontSize = ImGui.GetFontSize() * this.Settings.TextScale;
                 float kSquareSz = Math.Max(baseFontSize * 1.35f, 22f);
                 float lineH = ImGui.GetTextLineHeight();

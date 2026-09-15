@@ -22,10 +22,12 @@ namespace NinjaPricer
         public string Reward { get; set; } = string.Empty;
         public int RewardCount { get; set; } = 1;
         public List<string> Runes { get; set; } = new();
+        public List<int> RuneIdx { get; set; } = new();
         public float PriceChaos { get; set; } = 0f;
         public float DisplayValue { get; set; } = 0f;
         public int ComboWeight { get; set; } = 0;
         public bool HasRareRune { get; set; } = false;
+        public string? ItemIcon { get; set; }
     }
 
     public sealed class MonolithData
