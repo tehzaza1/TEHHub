@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.89 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Fixed Stash / Fragment Tab Empty Space Hover Hide Bug**:
+  - **Precise Per-Slot Hover Check**: Refactored `HideSlotPriceOnHover` to evaluate the mouse cursor position against each individual item slot (`s.Pos` / `s.Size`) directly during rendering.
+  - **Fixed False-Positive Background Hiding**: Eliminated `cachedAllItemRects` which previously caused background container rects in Fragment/Special stash tabs to trigger false-positive hover detection across empty spaces. Hovering over empty space now keeps all item prices visible, and hovering over an item hides only that specific item's price badge so tooltips can be read cleanly.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and ready for deployment.
+
 ## 1.8.88 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Rune Chain (เชนรูน) — Explosive Path & Radius Visualizer**:
