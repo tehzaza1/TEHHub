@@ -2,6 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.94 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
+
+- **`ExpeditionPathOptimizer` Rune Timing Propagation, Conflict Detection, Weighted Target Selection & Dynamic Path Length**:
+  - **Rune Timing Propagation Fix**: Properly evaluates and scores the active rune carried into each bomb step before updating the active rune from newly detonated remnants. Correctly grants `FinalRuneBonus` based on the rune brought into the Final Target rather than the Final Remnant's own rune.
+  - **Multiple-Remnant Rune Conflict Detection**: Automatically invalidates paths (`double.NegativeInfinity`) if a single bomb radius covers multiple remnants with conflicting distinct propagated runes in V1.
+  - **Weighted Candidate Selection for Distant High-Value Remnants**: Replaced uniform random target sampling in `BuildPath()` with weighted roulette-wheel selection based on $\text{TargetValue} = (\text{RuneSlots} \times 100) + \text{RuneWeight} - (\text{EstimatedBridgeBombs} \times 20)$, ensuring distant high-value monoliths are actively explored.
+  - **Dynamic Path Length & Zero Travel Distance Penalty**: Allowed variable bomb count in `BuildPath()` between `minBombs` and `MaxExplosions`, allowing the genetic algorithm to discover optimal paths with fewer bombs without forcing wasteful bomb exhaustion. Set `TravelPenaltyMultiplier` to 0.
+  - **Short Bridge Penalty**: Implemented penalty specifically targeting empty bridge bombs that waste explosive reach ($< 60\%$ of max range) while leaving short bombs that hit valuable remnants completely unpenalized.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and ready for deployment.
+
 ## 1.8.93 — 2026-09-16 [SDK / Core Framework Update]
 
 - **`DataVisualization` Tab Stability, ID Conflict Elimination & Performance Overhaul**:

@@ -38,7 +38,9 @@ namespace ExpeditionPathOptimizer
         public double UsefulBridgePenalty { get; set; } = 20.0; // Bridge ไปหาเป้าหมายได้ = -20
         public double EmptyBombPenalty { get; set; } = 150.0; // Bridge ที่ไม่ช่วยอะไร = -150
         public double FuturePotentialBonusMultiplier { get; set; } = 15.0; // ระเบิดยังเหลือ + Remnant Reachable -> FuturePotential bonus
-        public double TravelPenaltyMultiplier { get; set; } = 60.0;
+        public double TravelPenaltyMultiplier { get; set; } = 0.0;
+        public double ShortBridgePenaltyThreshold { get; set; } = 0.60; // ลงโทษเฉพาะ bridge ที่สั้นกว่า 60% ของ ExplosionRange
+        public double ShortBridgePenaltyMultiplier { get; set; } = 100.0;
 
         // Authoritative Rune Base Weights
         public Dictionary<string, double> RuneWeights { get; set; } = new(StringComparer.OrdinalIgnoreCase)

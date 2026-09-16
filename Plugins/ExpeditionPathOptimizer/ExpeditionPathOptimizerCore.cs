@@ -326,10 +326,24 @@ namespace ExpeditionPathOptimizer
                 this.SaveSettings();
             }
 
+            float shortBridgePct = (float)(this.Settings.ShortBridgePenaltyThreshold * 100.0);
+            if (ImGui.SliderFloat("Short Bridge Min Reach (%)", ref shortBridgePct, 20.0f, 90.0f, "%.0f%%"))
+            {
+                this.Settings.ShortBridgePenaltyThreshold = shortBridgePct / 100.0;
+                this.SaveSettings();
+            }
+
             float futurePot = (float)this.Settings.FuturePotentialBonusMultiplier;
             if (ImGui.SliderFloat("Future Potential Multiplier (%)", ref futurePot, 0.0f, 50.0f, "%.0f%%"))
             {
                 this.Settings.FuturePotentialBonusMultiplier = futurePot;
+                this.SaveSettings();
+            }
+
+            float travelPen = (float)this.Settings.TravelPenaltyMultiplier;
+            if (ImGui.SliderFloat("Travel Penalty Multiplier", ref travelPen, 0.0f, 100.0f, "%.0f"))
+            {
+                this.Settings.TravelPenaltyMultiplier = travelPen;
                 this.SaveSettings();
             }
         }
