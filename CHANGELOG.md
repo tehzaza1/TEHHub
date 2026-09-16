@@ -2,6 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.66 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Dynamic Auto-Sizing & Expand/Collapse All for Runeshape Overlay**:
+  - **Dynamic Content-Adaptive Window Sizing**:
+    - Replaced static `availW` calculation with per-frame natural content width measurement (`maxContentW`) across sort bar controls, monolith headers, and expanded recipe rows.
+    - Window smoothly expands and shrinks dynamically in both width and height when rows are expanded/collapsed or when monolith counts change.
+  - **Expand All (+) & Collapse All (-) Controls**:
+    - Added quick action buttons `+` and `-` directly on the sort header bar to collapse all rows into a sleek minimal box or expand all recipe details at once.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; packaged to standalone zip artifact.
+
 ## 1.8.65 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Revert Iron Rune Filter**:

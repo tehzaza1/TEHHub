@@ -3496,7 +3496,7 @@ namespace NinjaPricer
             var wTex = this.GetRuneUiTexture("Weight.png", ref this.rsWeightIconTex, ref this.rsWeightIconTried);
             var pTex = this.GetRuneUiTexture("Price.png", ref this.rsPriceIconTex, ref this.rsPriceIconTried);
 
-            // Sort mode toggle bar (Unified Icon + Text single button)
+            // Sort mode toggle bar (Unified Icon + Text single button) + Expand/Collapse All
             {
                 bool byWeight = this.Settings.RsPrioritizeWeight;
                 string wText = this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight");
@@ -3508,13 +3508,28 @@ namespace NinjaPricer
                     this.SaveSettings();
                 }
 
-                ImGui.SameLine();
+                ImGui.SameLine(0f, 4f);
 
                 if (this.DrawSortButton("sort_p_btn", pText, pTex, !byWeight, new Vector4(0.22f, 0.45f, 0.62f, 1f), new Vector4(0.28f, 0.58f, 0.78f, 1f)))
                 {
                     this.Settings.RsPrioritizeWeight = false;
                     this.SaveSettings();
                 }
+
+                ImGui.SameLine(0f, 6f);
+                float btnH = ImGui.GetTextLineHeight() + 6f;
+                if (ImGui.Button("+###rs_exp_all", new Vector2(btnH, btnH)))
+                {
+                    foreach (var m in monoliths) this.expandedMonoliths.Add(m.EntityAddress.ToInt64());
+                }
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Expand all");
+
+                ImGui.SameLine(0f, 2f);
+                if (ImGui.Button("-###rs_col_all", new Vector2(btnH, btnH)))
+                {
+                    this.expandedMonoliths.Clear();
+                }
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Collapse all");
 
                 ImGui.Separator();
             }
@@ -3569,6 +3584,83 @@ namespace NinjaPricer
                         return wB.CompareTo(wA);
                     }
                 });
+
+                // Pre-calculate natural content width across all visible rows for dynamic auto-sizing
+                float maxContentW = 80f * effectiveScale;
+
+                // 1. Sort bar natural width
+                {
+                    float padX = 8f;
+                    float lineHBtn = ImGui.GetTextLineHeight();
+                    Vector2 wSz = ImGui.CalcTextSize(this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight"));
+                    Vector2 pSz = ImGui.CalcTextSize(this.PluginText.T("ninjapricer.runeshape.sort_price", "Price"));
+                    float sbH = lineHBtn + 6f;
+                    float sortBarW = (padX * 2 + lineHBtn + 6f + wSz.X) + 4f + (padX * 2 + lineHBtn + 6f + pSz.X) + 6f + (sbH * 2 + 4f);
+                    if (sortBarW > maxContentW) maxContentW = sortBarW;
+                }
+
+                // 2. Measure headers and expanded rows
+                for (int mIdx = 0; mIdx < displayMonoliths.Count; mIdx++)
+                {
+                    var m = displayMonoliths[mIdx];
+                    float dotsW = (this.Settings.RsShowHdrRunes && m.HoleCount > 0)
+                        ? (m.HoleCount * slotSz + (m.HoleCount - 1) * slotGap) : 0f;
+
+                    bool bestPriced = this.Settings.RsShowHdrBest && m.BestOffer != null && m.BestOffer.PriceChaos > 0f;
+                    string bestNum = bestPriced ? FormatPriceNumberLocal(m.BestOffer!.DisplayValue) : string.Empty;
+                    float priceW = 0f;
+                    if (bestPriced)
+                    {
+                        float iw = (curTex != null && curTex.Value.H > 0) ? lineH * (float)curTex.Value.W / curTex.Value.H : lineH;
+                        priceW = iw + 4f + ImGui.CalcTextSize(bestNum).X;
+                    }
+
+                    int bestWeight = m.BestOffer?.ComboWeight ?? 0;
+                    string hdrWBuf = (this.Settings.ShowRuneshapeWeights && bestWeight != 0)
+                        ? (bestWeight > 0 ? $"+{bestWeight}" : $"{bestWeight}") : string.Empty;
+                    float hdrWW = !string.IsNullOrEmpty(hdrWBuf) ? ImGui.CalcTextSize(hdrWBuf).X + ((wTex != null && wTex.Value.Valid) ? lineH + 3f : 0f) : 0f;
+
+                    float hdrW = (this.Settings.RsShowHdrColor ? kSquareSz + 4f * effectiveScale : 0f)
+                        + 4f * effectiveScale
+                        + dotsW
+                        + (bestPriced ? 8f + priceW : 0f)
+                        + (!string.IsNullOrEmpty(hdrWBuf) ? 8f + hdrWW : 0f)
+                        + 8f * effectiveScale;
+                    if (hdrW > maxContentW) maxContentW = hdrW;
+
+                    if (this.expandedMonoliths.Contains(m.EntityAddress.ToInt64()) && m.Offers != null)
+                    {
+                        foreach (var offer in m.Offers)
+                        {
+                            float rowW = (this.Settings.RsShowHdrColor ? kSquareSz + 4f * effectiveScale : 0f) + 4f;
+                            if (this.Settings.RsShowRowIcon && offer.PriceChaos > 0f && !string.IsNullOrEmpty(offer.ItemIcon))
+                            {
+                                rowW += lineH * uiScale + 4f;
+                            }
+                            string txt = this.Settings.RsShowRowQty ? $"{offer.Reward}  x{offer.RewardCount}" : offer.Reward;
+                            if (!string.IsNullOrEmpty(txt))
+                            {
+                                rowW += ImGui.CalcTextSize(txt).X + 4f;
+                            }
+                            if (this.Settings.RsShowRowPrice && offer.PriceChaos > 0f)
+                            {
+                                string pNum = FormatPriceNumberLocal(offer.DisplayValue);
+                                float iw = (curTex != null && curTex.Value.H > 0) ? lineH * (float)curTex.Value.W / curTex.Value.H : lineH;
+                                rowW += 10f + ImGui.CalcTextSize(pNum).X + 3f + iw;
+                            }
+                            if (this.Settings.ShowRuneshapeWeights && offer.ComboWeight != 0)
+                            {
+                                string wText = offer.ComboWeight > 0 ? $"+{offer.ComboWeight}" : $"{offer.ComboWeight}";
+                                rowW += 10f + ((wTex != null && wTex.Value.Valid) ? lineH + 3f : 0f) + ImGui.CalcTextSize(wText).X;
+                            }
+                            if (this.Settings.RsShowRowPropRunes && m.GoldenSlots.Count > 0)
+                            {
+                                rowW += m.GoldenSlots.Count * (lineH * 1.05f * uiScale + 5f);
+                            }
+                            if (rowW > maxContentW) maxContentW = rowW;
+                        }
+                    }
+                }
 
                 if (this.Settings.RsCompactRows)
                 {
@@ -3686,15 +3778,9 @@ namespace NinjaPricer
                     // Custom header row without triangle arrow (collapsed by default until clicked)
                     bool headerOpen = this.expandedMonoliths.Contains(m.EntityAddress.ToInt64());
                     float headerH = Math.Max(baseFrameH, slotSz + 2f);
-                    float availW = ImGui.GetContentRegionAvail().X;
 
-                    // Ensure window layout reserves enough width for runes, price, and weight text
-                    float requiredRowW = 4.0f * effectiveScale
-                        + dotsW
-                        + (bestPriced ? 8f + priceW : 0f)
-                        + (!string.IsNullOrEmpty(hdrWBuf) ? 8f + hdrWW : 0f)
-                        + 8f * effectiveScale;
-                    float btnW = Math.Max(availW, requiredRowW);
+                    // Dynamically size button width to fit maxContentW
+                    float btnW = Math.Max(80f * effectiveScale, maxContentW - (this.Settings.RsShowHdrColor ? kSquareSz + 4f * effectiveScale : 0f));
 
                     var hmin = ImGui.GetCursorScreenPos();
                     var hmax = new Vector2(hmin.X + btnW, hmin.Y + headerH);

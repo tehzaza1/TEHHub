@@ -5,6 +5,7 @@
 *.cs~
 *.pdb
 *.dll
+*.zip
 **/bin/
 **/obj/
 
