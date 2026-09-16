@@ -57,6 +57,7 @@ namespace NinjaPricer
         public bool ShowRuneshapeWeights { get; set; } = true;
         public bool ShowItemIcons { get; set; } = true;
         public bool HideWhenUnfocused { get; set; } = false;
+        public bool HideSlotPriceOnHover { get; set; } = true;
         public int HideHotkey { get; set; } = 0;
         public float MinPriceChaos { get; set; } = 0.0f;
         public int ScanIntervalMs { get; set; } = 100;

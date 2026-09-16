@@ -1598,6 +1598,15 @@ namespace NinjaPricer
             bool showIcons = this.Settings.ShowItemIcons;
             if (ImGui.Checkbox(this.PluginText.Label("settings.show_item_icons", "Show item icons", "ShowIconsCheck"), ref showIcons)) { this.Settings.ShowItemIcons = showIcons; this.SaveSettings(); }
 
+            bool hideSlotHover = this.Settings.HideSlotPriceOnHover;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.hide_slot_price_on_hover", "Hide price on hovered item (Inventory / Stash)", "HideSlotHoverCheck"), ref hideSlotHover))
+            {
+                this.Settings.HideSlotPriceOnHover = hideSlotHover;
+                this.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(this.PluginText.T("settings.hide_slot_price_on_hover.tooltip", "Hides the price overlay when the mouse cursor is over an item slot in Inventory or Stash, allowing you to read game item tooltips clearly."));
+
             ImGui.Separator();
             int hhk = this.Settings.HideHotkey;
             if (this.DrawHotkeyCaptureRow(this.PluginText.T("ninjapricer.overlays.hold_to_hide", "Hold-to-hide hotkey:"), "hold", ref hhk))
@@ -2333,6 +2342,8 @@ namespace NinjaPricer
 
             var dl = ImGui.GetBackgroundDrawList();
             float fontSize = ImGui.GetFontSize() * this.Settings.TextScale;
+            Vector2 mousePos = ImGui.GetMousePos();
+            bool hideHover = this.Settings.HideSlotPriceOnHover;
 
             foreach (var tag in this.cachedGroundTags)
             {
@@ -2363,6 +2374,12 @@ namespace NinjaPricer
                         x += 8.0f;
                         y -= measured.TotalH * 0.5f;
                         break;
+                }
+
+                if (hideHover && mousePos.X >= x && mousePos.X <= x + measured.TotalW &&
+                    mousePos.Y >= y && mousePos.Y <= y + measured.TotalH)
+                {
+                    continue;
                 }
 
                 this.DrawPriceTag(dl, fontSize, x, y, measured, tag.Chaos);
@@ -2762,11 +2779,19 @@ namespace NinjaPricer
         {
             var dl = ImGui.GetBackgroundDrawList();
             float baseFontSize = ImGui.GetFontSize() * this.Settings.TextScale;
+            Vector2 mousePos = ImGui.GetMousePos();
+            bool hideHover = this.Settings.HideSlotPriceOnHover;
 
             void DrawSlots(List<SlotTag> slots)
             {
                 foreach (var s in slots)
                 {
+                    if (hideHover && mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
+                        mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
+                    {
+                        continue; // Hide on mouse hover over item slot
+                    }
+
                     float adaptiveFont = ComputeAdaptiveFontSize(baseFontSize, s.Size.X, s.Size.Y);
                     var measured = this.MeasurePriceTag(s.DisplayValue, adaptiveFont, s.IconPath, s.Size.X);
 

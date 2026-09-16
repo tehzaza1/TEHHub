@@ -98,6 +98,8 @@
   "settings.runeshape_prioritize_weight": "เลือกและเรียงตามค่าน้ำหนัก (+) สูงที่สุด",
   "settings.show_item_icons": "แสดงไอคอนรูปไอเทม",
   "settings.hide_when_game_unfocused": "ซ่อน Overlay เมื่อไม่ได้โฟกัสหน้าต่างเกม",
+  "settings.hide_slot_price_on_hover": "ซ่อนราคาเมื่อนำเมาส์ไปชี้ที่ไอเทม (Inventory / คลัง Stash)",
+  "settings.hide_slot_price_on_hover.tooltip": "ซ่อนราคาของไอเทมชิ้นนั้นทันทีเมื่อเคอร์เซอร์เมาส์ชี้อยู่ เพื่อให้อ่าน Tooltip รายละเอียดไอเทมในเกมได้อย่างชัดเจนไม่บดบัง",
   "ninjapricer.overlays.hold_to_hide": "ปุ่มลัดกดค้างเพื่อซ่อน (Hold-to-hide):",
   "hotkey.press_any_key": "กดปุ่มใดๆ... (ESC เพื่อยกเลิก)",
   "button.set_hotkey": "ตั้งปุ่มลัด",

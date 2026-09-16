@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.71 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Hide Slot & Ground Prices on Mouse Hover (Enabled by Default)**:
+  - **Hide on Hover for Inventory & Stash Slots**:
+    - Added `HideSlotPriceOnHover` setting (enabled by default) and checkbox in settings.
+    - When hovering the mouse cursor over an item slot in Inventory or Stash, its price tag overlay automatically hides so the in-game item tooltip and stats are crystal clear and unobscured.
+    - Added mouse bounding-box check for ground loot price tags to hide when hovered as well.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Audited all scaling and hover detection code; built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; synced directly to installation directory.
+
 ## 1.8.70 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Independent Text & UI Scaling for Ninja vs. Expedition + Clean Header Bar**:
