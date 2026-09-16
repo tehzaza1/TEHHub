@@ -931,12 +931,12 @@ namespace TEHhub.Settings
                     }
                 }
 
-                ImGui.Checkbox(L.Label("settings.misc.hide_when_inactive", "Hide all plugin overlays when game is inactive", "HideOverlaysWhenGameInactive"),
+                ImGui.Checkbox(L.Label("settings.misc.hide_when_inactive", "Hide when game not focused", "HideOverlaysWhenGameInactive"),
                     ref Core.GHSettings.HideOverlaysWhenGameInactive);
                 ImGuiHelper.ToolTip(
                     L.T(
                         "settings.misc.hide_when_inactive.tooltip",
-                        "When enabled, all plugin overlay rendering is automatically paused and hidden when you switch away from the game, saving CPU and GPU resources."));
+                        "When enabled, all overlays are automatically paused and hidden when you switch away from the game, saving CPU and GPU resources."));
                 ImGui.Checkbox(L.Label("settings.misc.disable_entity_processing", "Disable entity processing when in town or hideout", "DisableEntityProcessingInTownOrHideout"),
                     ref Core.GHSettings.DisableEntityProcessingInTownOrHideout);
                 ImGui.Checkbox(L.Label("settings.misc.hide_overlay_on_start", "Hide overlay settings upon start", "HideSettingWindowOnStart"), ref Core.GHSettings.HideSettingWindowOnStart);
