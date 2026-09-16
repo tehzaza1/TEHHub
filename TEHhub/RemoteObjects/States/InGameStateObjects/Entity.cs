@@ -246,7 +246,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
             var radius = customRadiusWorld ?? Core.States.InGameStateObject?.CurrentAreaInstance?.ExpeditionConfig.ExplosionRadiusWorld ?? ExpeditionMechanics.RegularRadiusWorld;
             var dist = this.DistanceWorldFrom(explosive);
-            return dist <= radius;
+            return dist <= radius * ExpeditionMechanics.CoverageToleranceFactor;
         }
 
         /// <summary>

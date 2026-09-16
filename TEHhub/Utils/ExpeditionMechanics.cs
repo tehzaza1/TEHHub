@@ -46,6 +46,13 @@ namespace TEHhub.Utils
         // -------------------------------------------------------------
 
         /// <summary>
+        ///     Tolerance factor applied to the blast radius for coverage detection (+5%).
+        ///     Compensates for entity model center offsets and the game's visual blast
+        ///     circle being slightly larger than the raw constant.
+        /// </summary>
+        public const float CoverageToleranceFactor = 1.05f;
+
+        /// <summary>
         ///     Regular Expedition explosive base count.
         /// </summary>
         public const int RegularBaseExplosives = 5;
@@ -398,6 +405,11 @@ namespace TEHhub.Utils
             }
 
             var radiusGrid = radiusWorld / gridConvertor;
+
+            // Apply a small tolerance buffer (+5%) to compensate for entity model center offsets
+            // and the game's visual blast circle being slightly larger than the raw constant.
+            var effectiveRadius = radiusWorld * CoverageToleranceFactor;
+
             var explosives = GetPlacedExplosives(area);
             if (explosives.Count == 0)
             {
@@ -429,7 +441,7 @@ namespace TEHhub.Utils
                     closestId = exp.Id;
                 }
 
-                if (dist <= radiusWorld)
+                if (dist <= effectiveRadius)
                 {
                     coveringCount++;
                     if (dist < bestCoveringDist)
