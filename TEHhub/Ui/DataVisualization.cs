@@ -142,7 +142,9 @@ namespace TEHhub.Ui
                             : float.IsNaN(mod.Values.Value1)
                                 ? $" ({mod.Values.Value0})"
                                 : $" ({mod.Values.Value0} - {mod.Values.Value1})";
-                        ImGuiHelper.DisplayTextAndCopyOnClick($"• {mod.RawName}{valStr}", mod.RawName);
+                        ImGui.PushID(i);
+                        ImGuiHelper.DisplayTextAndCopyOnClick($"• {mod.DisplayName}{valStr}", mod.DisplayName);
+                        ImGui.PopID();
                     }
                     ImGui.EndChild();
                 }

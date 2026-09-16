@@ -261,11 +261,13 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     {
                         var mod = this.AreaMods[i];
                         var text = float.IsNaN(mod.Values.Value0)
-                            ? mod.RawName
+                            ? mod.DisplayName
                             : float.IsNaN(mod.Values.Value1)
-                                ? $"{mod.RawName}: {mod.Values.Value0}"
-                                : $"{mod.RawName}: {mod.Values.Value0} - {mod.Values.Value1}";
-                        ImGuiHelper.DisplayTextAndCopyOnClick(text, mod.RawName);
+                                ? $"{mod.DisplayName}: {mod.Values.Value0}"
+                                : $"{mod.DisplayName}: {mod.Values.Value0} - {mod.Values.Value1}";
+                        ImGui.PushID(i);
+                        ImGuiHelper.DisplayTextAndCopyOnClick(text, mod.DisplayName);
+                        ImGui.PopID();
                     }
                 }
 

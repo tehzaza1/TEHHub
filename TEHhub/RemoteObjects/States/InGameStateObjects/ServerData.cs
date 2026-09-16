@@ -83,11 +83,13 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     {
                         var mod = this.AreaMods[i];
                         var text = float.IsNaN(mod.Values.Value0)
-                            ? mod.RawName
+                            ? mod.DisplayName
                             : float.IsNaN(mod.Values.Value1)
-                                ? $"{mod.RawName}: {mod.Values.Value0}"
-                                : $"{mod.RawName}: {mod.Values.Value0} - {mod.Values.Value1}";
-                        ImGuiHelper.DisplayTextAndCopyOnClick(text, mod.RawName);
+                                ? $"{mod.DisplayName}: {mod.Values.Value0}"
+                                : $"{mod.DisplayName}: {mod.Values.Value0} - {mod.Values.Value1}";
+                        ImGui.PushID(i);
+                        ImGuiHelper.DisplayTextAndCopyOnClick(text, mod.DisplayName);
+                        ImGui.PopID();
                     }
                 }
 
@@ -194,7 +196,24 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.AreaMods.Clear();
             this.AreaModNames.Clear();
 
-            // 1. Try known/cached offset first
+            // 1. Try reading live modifier strings from the Map UI container (100% accurate human-readable text in PoE 2)
+            var uiManager = Core.States.InGameStateObject.GameUi.Address;
+            if (uiManager != IntPtr.Zero)
+            {
+                var uiMods = AreaModUiReader.ReadAreaMods(reader, uiManager);
+                if (uiMods.Count > 0)
+                {
+                    foreach (var mod in uiMods)
+                    {
+                        this.AreaMods.Add(mod);
+                        this.AreaModNames.Add(mod.RawName);
+                    }
+
+                    return;
+                }
+            }
+
+            // 2. Try known/cached offset first
             if (this.lastDiscoveredModsOffset >= 0)
             {
                 var cachedVec = reader.ReadMemory<StdVector>(playerServerDataAddress + this.lastDiscoveredModsOffset);
@@ -206,7 +225,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 this.lastDiscoveredModsOffset = -1;
             }
 
-            // 2. Try default struct offset (0x8A8)
+            // 3. Try default struct offset (0x8A8)
             if (this.TryReadModsFromVector(reader, playerData.WorldAreaMods))
             {
                 this.lastDiscoveredModsOffset = 0x8A8;
