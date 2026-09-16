@@ -42,6 +42,12 @@ namespace myFarming
             this.Save();
         }
 
+        public void ClearDate(string dateKey)
+        {
+            this.Runs.RemoveAll(r => r.DateKey == dateKey);
+            this.Save();
+        }
+
         public void ClearAll()
         {
             this.Runs.Clear();

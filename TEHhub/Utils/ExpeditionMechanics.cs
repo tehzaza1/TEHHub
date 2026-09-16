@@ -383,6 +383,19 @@ namespace TEHhub.Utils
                 }
             }
 
+            // Synchronize TrackedExplosives: remove any explosive that was undone or deleted by the player
+            if (!TrackedExplosives.IsEmpty)
+            {
+                var liveIds = new HashSet<uint>(results.Select(e => e.Id));
+                foreach (var id in TrackedExplosives.Keys)
+                {
+                    if (!liveIds.Contains(id))
+                    {
+                        TrackedExplosives.TryRemove(id, out _);
+                    }
+                }
+            }
+
             return results;
         }
 

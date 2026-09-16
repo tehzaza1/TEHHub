@@ -27,6 +27,7 @@ namespace myFarming
     public sealed class MapRun
     {
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string DateKey { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
         public string MapName { get; set; } = string.Empty;
         public string AreaHash { get; set; } = string.Empty;
         public long StartedAt { get; set; }
@@ -37,7 +38,7 @@ namespace myFarming
         public float ExaltedRate { get; set; } = 1.0f;
         public List<LootEntry> Loot { get; set; } = new();
         public int SessionId { get; set; }
-        public int GoldGain { get; set; }
+        public long GoldGain { get; set; }
         public int KillsNormal { get; set; }
         public int KillsMagic { get; set; }
         public int KillsRare { get; set; }
@@ -47,11 +48,13 @@ namespace myFarming
 
     public sealed class FarmSession
     {
+        public string DateKey { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
         public int SessionId { get; set; } = 1;
         public long StartedAt { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         public int TotalDurationSec { get; set; } = 0;
         public int TotalMaps { get; set; } = 0;
         public float TotalChaos { get; set; } = 0f;
+        public long TotalGold { get; set; } = 0;
         public int KillsNormal { get; set; } = 0;
         public int KillsMagic { get; set; } = 0;
         public int KillsRare { get; set; } = 0;

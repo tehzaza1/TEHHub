@@ -19,6 +19,7 @@ namespace myFarming
         private PriceHelper priceHelper = null!;
         private LootDiffEngine diffEngine = null!;
         private KillTracker killTracker = null!;
+        private GoldTracker goldTracker = null!;
         private HistoryStore historyStore = null!;
         private SessionStore sessionStore = null!;
 
@@ -37,7 +38,7 @@ namespace myFarming
         private string customItemInput = string.Empty;
         private float customPriceInput = 1.0f;
 
-        // Currency texture caching
+        // Currency texture caching (0: Chaos, 1: Divine, 2: Exalted, 3: Gold)
         private struct CurrencyTex
         {
             public IntPtr Ptr;
@@ -46,8 +47,8 @@ namespace myFarming
             public bool Valid;
         }
 
-        private readonly CurrencyTex[] currencyTextures = new CurrencyTex[3];
-        private readonly bool[] currencyTexTried = new bool[3];
+        private readonly CurrencyTex[] currencyTextures = new CurrencyTex[4];
+        private readonly bool[] currencyTexTried = new bool[4];
 
         public override void OnEnable(bool isGameOpened)
         {
@@ -68,6 +69,7 @@ namespace myFarming
             this.priceHelper = new PriceHelper();
             this.diffEngine = new LootDiffEngine();
             this.killTracker = new KillTracker();
+            this.goldTracker = new GoldTracker();
             this.historyStore = new HistoryStore(this.PluginConfigDirectory);
             this.sessionStore = new SessionStore(this.PluginConfigDirectory);
 
@@ -135,6 +137,12 @@ namespace myFarming
                 return;
             }
 
+            // Hide HUD overlay when blocking UI panels (Stash, Inventory, Passives, etc.) are open, but NOT when LargeMap is open
+            if (this.Settings.HideWhenUiPanelsOpen && inGame.GameUi != null && inGame.GameUi.IsAnyLargePanelOpen)
+            {
+                return;
+            }
+
             var areaDetails = inGame.CurrentWorldInstance?.AreaDetails;
             var area = inGame.CurrentAreaInstance;
             bool inTownOrHideout = areaDetails?.IsTown == true || areaDetails?.IsHideout == true;
@@ -150,13 +158,13 @@ namespace myFarming
 
             bool isPaused = this.isRunPaused || isGamePaused;
 
-            // Run updates
+            // Run updates (0.5s rate-limited interval for smooth and lightweight scanning)
             if (this.isRunActive && this.currentRun != null && !isPaused)
             {
                 double deltaSec = (now - this.lastTickUtc).TotalSeconds;
-                if (deltaSec >= 1.0)
+                if (deltaSec >= 0.5)
                 {
-                    this.currentRun.DurationSec += (int)deltaSec;
+                    this.currentRun.DurationSec = (int)(now - this.runStartTimeUtc).TotalSeconds;
                     this.lastTickUtc = now;
 
                     // Periodic price refresh check
@@ -173,6 +181,10 @@ namespace myFarming
                     this.currentRun.KillsMagic = this.killTracker.KillsMagic;
                     this.currentRun.KillsRare = this.killTracker.KillsRare;
                     this.currentRun.KillsUnique = this.killTracker.KillsUnique;
+
+                    // Update Gold
+                    this.goldTracker.Update();
+                    this.currentRun.GoldGain = this.goldTracker.MapGoldGain;
                 }
             }
             else
@@ -209,6 +221,7 @@ namespace myFarming
                         // Returning to same map portal
                         this.isRunPaused = false;
                         this.diffEngine.ResumeMap(areaHash, this.currentLoot);
+                        this.goldTracker.ResumeMap(this.currentRun.GoldGain);
                     }
                     else
                     {
@@ -228,10 +241,12 @@ namespace myFarming
 
         private void StartNewRun(string areaHash, string areaName)
         {
+            this.sessionStore.EnsureTodaySession();
             this.currentRun = new MapRun
             {
                 MapName = areaName,
                 AreaHash = areaHash,
+                DateKey = this.sessionStore.Current.DateKey,
                 StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 StartedText = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
                 DurationSec = 0,
@@ -249,27 +264,35 @@ namespace myFarming
 
             this.diffEngine.StartNewMap(areaHash, areaName);
             this.killTracker.Reset();
+            this.goldTracker.StartMap();
         }
 
         private void FinalizeRun()
         {
             if (this.currentRun == null) return;
 
-            // Only record runs that lasted at least 5 seconds or found loot
-            if (this.currentRun.DurationSec >= 5 || this.currentRun.TotalChaos > 0.05f)
+            // Only record runs that lasted at least 5 seconds or found loot/gold
+            if (this.currentRun.DurationSec >= 5 || this.currentRun.TotalChaos > 0.05f || this.goldTracker.MapGoldGain > 0)
             {
                 this.currentRun.Loot = new List<LootEntry>(this.currentLoot);
                 this.currentRun.TotalChaos = this.currentTotalChaos;
+                this.currentRun.GoldGain = this.goldTracker.MapGoldGain;
                 this.currentRun.KillsNormal = this.killTracker.KillsNormal;
                 this.currentRun.KillsMagic = this.killTracker.KillsMagic;
                 this.currentRun.KillsRare = this.killTracker.KillsRare;
                 this.currentRun.KillsUnique = this.killTracker.KillsUnique;
                 this.historyStore.AddRun(this.currentRun);
 
-                // Accumulate run into persistent session totals
+                // Accumulate run into persistent daily session totals
+                this.sessionStore.EnsureTodaySession();
                 this.sessionStore.Current.TotalDurationSec += this.currentRun.DurationSec;
                 this.sessionStore.Current.TotalChaos += this.currentRun.TotalChaos;
+                this.sessionStore.Current.TotalGold += this.currentRun.GoldGain;
                 this.sessionStore.Current.TotalMaps++;
+                this.sessionStore.Current.KillsNormal += this.killTracker.KillsNormal;
+                this.sessionStore.Current.KillsMagic += this.killTracker.KillsMagic;
+                this.sessionStore.Current.KillsRare += this.killTracker.KillsRare;
+                this.sessionStore.Current.KillsUnique += this.killTracker.KillsUnique;
                 this.sessionStore.Save();
             }
 
@@ -278,6 +301,7 @@ namespace myFarming
             this.currentRun = null;
             this.currentLoot.Clear();
             this.currentTotalChaos = 0f;
+            this.goldTracker.Reset();
         }
 
         public void ResetSession()
@@ -288,7 +312,7 @@ namespace myFarming
             }
 
             this.sessionStore.Reset();
-            PluginLog.Info("myFarming", $"Session #{this.sessionStore.Current.SessionId} started.");
+            PluginLog.Info("myFarming", $"Daily session for {this.sessionStore.Current.DateKey} reset.");
         }
 
         #region Resource & Texture Loading
@@ -353,24 +377,75 @@ namespace myFarming
             }
         }
 
+        private void DrawGoldIcon(float sizeMultiplier = 1.25f)
+        {
+            if (!this.currencyTexTried[3])
+            {
+                this.currencyTexTried[3] = true;
+                var path = this.ResolveResourcePath(Path.Combine("currency", "poe2", "gold.png"))
+                           ?? this.ResolveResourcePath(Path.Combine("images", "currency", "gold.png"));
+
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                {
+                    Core.Overlay.AddOrGetImagePointer(path, false, out var ptr, out var w, out var h);
+                    if (ptr != IntPtr.Zero)
+                    {
+                        this.currencyTextures[3] = new CurrencyTex { Ptr = ptr, W = (int)w, H = (int)h, Valid = true };
+                    }
+                }
+            }
+
+            if (this.currencyTextures[3].Valid)
+            {
+                float lineH = ImGui.GetTextLineHeight();
+                float size = lineH * sizeMultiplier;
+                float curY = ImGui.GetCursorPosY();
+                float yOffset = (lineH - size) * 0.5f;
+                ImGui.SetCursorPosY(curY + yOffset);
+                ImGui.Image(this.currencyTextures[3].Ptr, new Vector2(size, size));
+                ImGui.SetCursorPosY(curY);
+                ImGui.SameLine(0, 4);
+            }
+        }
+
         #endregion
 
         #region UI Rendering
 
+        private void DrawColoredKillBadge(uint color, int count)
+        {
+            var dl = ImGui.GetWindowDrawList();
+            float lineH = ImGui.GetTextLineHeight();
+            float badgeSize = lineH * 0.72f;
+            var screenPos = ImGui.GetCursorScreenPos();
+            float yOff = (lineH - badgeSize) * 0.5f;
+
+            dl.AddRectFilled(
+                new Vector2(screenPos.X, screenPos.Y + yOff),
+                new Vector2(screenPos.X + badgeSize, screenPos.Y + yOff + badgeSize),
+                color,
+                2.5f);
+
+            ImGui.Dummy(new Vector2(badgeSize, lineH));
+            ImGui.SameLine(0, 3);
+            ImGui.Text($"{count}");
+            ImGui.SameLine(0, 6);
+        }
+
         private void DrawColoredKills(int normal, int magic, int rare, int unique)
         {
+            uint colNormal = ImGui.GetColorU32(new Vector4(0.88f, 0.88f, 0.88f, 1f));
+            uint colMagic = ImGui.GetColorU32(new Vector4(0.35f, 0.60f, 1.0f, 1f));
+            uint colRare = ImGui.GetColorU32(new Vector4(1.0f, 0.85f, 0.25f, 1f));
+            uint colUnique = ImGui.GetColorU32(new Vector4(1.0f, 0.50f, 0.15f, 1f));
+
+            this.DrawColoredKillBadge(colNormal, normal);
+            this.DrawColoredKillBadge(colMagic, magic);
+            this.DrawColoredKillBadge(colRare, rare);
+            this.DrawColoredKillBadge(colUnique, unique);
+
             int total = normal + magic + rare + unique;
-            ImGui.Text($"Kills: {total} (");
-            ImGui.SameLine(0, 0);
-            ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.85f, 1f), $"W:{normal} ");
-            ImGui.SameLine(0, 0);
-            ImGui.TextColored(new Vector4(0.53f, 0.63f, 1f, 1f), $"M:{magic} ");
-            ImGui.SameLine(0, 0);
-            ImGui.TextColored(new Vector4(1f, 0.9f, 0.35f, 1f), $"R:{rare} ");
-            ImGui.SameLine(0, 0);
-            ImGui.TextColored(new Vector4(1f, 0.6f, 0.2f, 1f), $"U:{unique}");
-            ImGui.SameLine(0, 0);
-            ImGui.Text(")");
+            ImGui.TextDisabled($"({total})");
         }
 
         private void DrawOverlay(bool inTownOrHideout, string currentZoneName, bool isPaused)
@@ -378,13 +453,26 @@ namespace myFarming
             var flags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse;
             if (this.Settings.LockOverlay)
             {
-                flags |= ImGuiWindowFlags.NoMove;
+                flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize;
             }
 
             ImGui.SetNextWindowPos(new Vector2(this.Settings.OverlayX, this.Settings.OverlayY), ImGuiCond.FirstUseEver);
 
+            float bgAlpha = Math.Clamp(this.Settings.BackgroundOpacity, 0.0f, 1.0f);
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.06f, 0.07f, 0.09f, bgAlpha));
+            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.25f, 0.30f, 0.40f, Math.Min(bgAlpha, 0.50f)));
+
             bool open = true;
-            if (ImGui.Begin("myFarming###myFarmingOverlay", ref open, flags))
+            bool shouldDraw = this.Settings.LockOverlay
+                ? ImGui.Begin("myFarming###myFarmingOverlay", flags)
+                : ImGui.Begin("myFarming###myFarmingOverlay", ref open, flags);
+
+            if (!open && !this.Settings.LockOverlay)
+            {
+                this.Settings.ShowOverlay = false;
+            }
+
+            if (shouldDraw)
             {
                 float fontScale = Math.Clamp(this.Settings.TextScale, 0.5f, 2.5f);
                 ImGui.SetWindowFontScale(fontScale);
@@ -392,81 +480,93 @@ namespace myFarming
                 this.Settings.OverlayX = curPos.X;
                 this.Settings.OverlayY = curPos.Y;
 
-                // Live Session Totals (accumulated finished runs + currently active run)
+                // Live Session Totals for Today (accumulated finished runs + currently active run)
                 int liveSessionSec = this.sessionStore.Current.TotalDurationSec + (this.currentRun?.DurationSec ?? 0);
                 float liveSessionChaos = this.sessionStore.Current.TotalChaos + this.currentTotalChaos;
                 int liveSessionMaps = this.sessionStore.Current.TotalMaps + (this.isRunActive ? 1 : 0);
 
-                // Status line
-                string statusText = this.isRunActive
-                    ? (isPaused ? "PAUSED" : "FARMING")
-                    : "IDLE";
-                Vector4 statusColor = this.isRunActive
-                    ? (isPaused ? new Vector4(1f, 0.8f, 0.2f, 1f) : new Vector4(0.3f, 1f, 0.3f, 1f))
-                    : new Vector4(0.7f, 0.7f, 0.7f, 1f);
-
-                ImGui.TextColored(statusColor, statusText);
-                ImGui.SameLine();
-                ImGui.TextDisabled($"| Session #{this.sessionStore.Current.SessionId}");
-                ImGui.SameLine();
-                if (ImGui.SmallButton("New Session"))
+                // Line 1: Kills (White / Magic / Rare / Unique / Total)
+                if (this.Settings.ShowKills)
                 {
-                    this.ResetSession();
+                    int kNorm = (this.isRunActive && !inTownOrHideout) ? this.killTracker.KillsNormal : this.sessionStore.Current.KillsNormal;
+                    int kMag = (this.isRunActive && !inTownOrHideout) ? this.killTracker.KillsMagic : this.sessionStore.Current.KillsMagic;
+                    int kRare = (this.isRunActive && !inTownOrHideout) ? this.killTracker.KillsRare : this.sessionStore.Current.KillsRare;
+                    int kUniq = (this.isRunActive && !inTownOrHideout) ? this.killTracker.KillsUnique : this.sessionStore.Current.KillsUnique;
+
+                    this.DrawColoredKills(kNorm, kMag, kRare, kUniq);
                 }
 
-                // Session Summary (retained across maps until reset)
+                // Line 2: Session info & Profit per hour & maps count & Gold
                 if (this.Settings.ShowSessionSummary)
                 {
                     int sHrs = liveSessionSec / 3600;
                     int sMin = (liveSessionSec % 3600) / 60;
                     int sSec = liveSessionSec % 60;
-                    ImGui.Text($"Session: {liveSessionMaps} maps ({sHrs:D2}:{sMin:D2}:{sSec:D2})");
+                    string sessionTimeStr = sHrs > 0 ? $"{sHrs:D2}:{sMin:D2}:{sSec:D2}" : $"{sMin:D2}:{sSec:D2}";
 
-                    // Session Loot
-                    ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), "Session Loot: ");
-                    ImGui.SameLine(0, 2);
-                    this.DrawCurrencyIcon(this.Settings.Currency, 1.4f);
-                    ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), this.FormatCurrency(liveSessionChaos));
+                    float sessionRateChaos = liveSessionSec > 5 ? (liveSessionChaos * 3600f / liveSessionSec) : 0f;
+                    string profitStr = this.FormatCurrencyValueOnly(sessionRateChaos);
 
-                    if (this.Settings.ShowProfitPerHour && liveSessionSec > 5)
+                    ImGui.Text($"Session: {sessionTimeStr} | Profit: {profitStr}");
+                    ImGui.SameLine(0, 3);
+                    this.DrawCurrencyIcon(this.Settings.Currency, 1.15f);
+                    ImGui.Text($"/h [{liveSessionMaps} maps]");
+
+                    if (this.Settings.ShowGold)
                     {
-                        float sessionRate = liveSessionChaos * 3600f / liveSessionSec;
-                        ImGui.TextDisabled("Session Rate: ");
-                        ImGui.SameLine(0, 2);
-                        this.DrawCurrencyIcon(this.Settings.Currency, 1.25f);
-                        ImGui.TextDisabled($"{this.FormatCurrency(sessionRate)}/hr");
+                        long liveSessionGold = this.sessionStore.Current.TotalGold + (this.isRunActive ? this.goldTracker.MapGoldGain : 0);
+                        ImGui.SameLine(0, 4);
+                        ImGui.TextDisabled("|");
+                        ImGui.SameLine(0, 4);
+                        this.DrawGoldIcon(1.15f);
+                        ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), GoldTracker.FormatGold(liveSessionGold));
                     }
                 }
 
-                // Current Map Section (only show when actively in combat map)
-                if (this.Settings.ShowCurrentMapStats && !inTownOrHideout && this.isRunActive)
+                // Line 3: Current Map / Zone status & loot earned & Gold
+                if (this.Settings.ShowCurrentMapStats)
                 {
-                    ImGui.Separator();
-                    string mapTitle = this.currentRun != null ? this.currentRun.MapName : currentZoneName;
-                    int duration = this.currentRun?.DurationSec ?? 0;
-                    int min = duration / 60;
-                    int sec = duration % 60;
-                    ImGui.Text($"Map: {mapTitle} ({min:D2}:{sec:D2})");
-
-                    if (this.isRunActive || this.currentTotalChaos > 0)
+                    if (this.isRunActive && !inTownOrHideout && this.currentRun != null)
                     {
-                        ImGui.Text("Map Loot: ");
-                        ImGui.SameLine(0, 2);
-                        this.DrawCurrencyIcon(this.Settings.Currency, 1.3f);
-                        ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), this.FormatCurrency(this.currentTotalChaos));
+                        int mDur = this.currentRun.DurationSec;
+                        int mMin = mDur / 60;
+                        int mSec = mDur % 60;
+                        string mapTimeStr = $"{mMin:D2}:{mSec:D2}";
+                        string mapValStr = this.FormatCurrencyValueOnly(this.currentTotalChaos);
+
+                        ImGui.Text($"{this.currentRun.MapName} ({mapTimeStr}) | +{mapValStr}");
+                        ImGui.SameLine(0, 3);
+                        this.DrawCurrencyIcon(this.Settings.Currency, 1.15f);
+
+                        if (this.Settings.ShowGold && this.goldTracker.MapGoldGain > 0)
+                        {
+                            ImGui.SameLine(0, 4);
+                            this.DrawGoldIcon(1.15f);
+                            ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), $"+{GoldTracker.FormatGold(this.goldTracker.MapGoldGain)}");
+                        }
                     }
-
-                    if (this.Settings.ShowKills)
+                    else
                     {
-                        this.DrawColoredKills(this.killTracker.KillsNormal, this.killTracker.KillsMagic, this.killTracker.KillsRare, this.killTracker.KillsUnique);
+                        string statusText = inTownOrHideout ? (currentZoneName.Length > 0 ? currentZoneName : "Town / Hideout") : "Idle";
+                        string totalTodayValStr = this.FormatCurrencyValueOnly(liveSessionChaos);
+                        ImGui.TextDisabled($"{statusText} | Total: +{totalTodayValStr}");
+                        ImGui.SameLine(0, 3);
+                        this.DrawCurrencyIcon(this.Settings.Currency, 1.15f);
+
+                        if (this.Settings.ShowGold && this.sessionStore.Current.TotalGold > 0)
+                        {
+                            ImGui.SameLine(0, 4);
+                            this.DrawGoldIcon(1.15f);
+                            ImGui.TextDisabled($"+{GoldTracker.FormatGold(this.sessionStore.Current.TotalGold)}");
+                        }
                     }
                 }
 
-                // Loot list preview
-                if (this.Settings.ShowLootList && this.currentLoot.Count > 0)
+                // Optional: Loot list preview if enabled
+                if (this.Settings.ShowLootList && this.currentLoot.Count > 0 && !inTownOrHideout)
                 {
                     ImGui.Separator();
-                    ImGui.TextDisabled($"Looted Items ({this.currentLoot.Count}):");
+                    ImGui.TextDisabled($"Looted ({this.currentLoot.Count}):");
 
                     int shown = 0;
                     foreach (var item in this.currentLoot)
@@ -474,7 +574,7 @@ namespace myFarming
                         if (item.ChaosEach < this.Settings.MinItemPriceToDisplay) continue;
                         if (shown >= this.Settings.MaxLootListRows)
                         {
-                            ImGui.TextDisabled($"... and {this.currentLoot.Count - shown} more items");
+                            ImGui.TextDisabled($"... and {this.currentLoot.Count - shown} more");
                             break;
                         }
 
@@ -487,6 +587,23 @@ namespace myFarming
                 }
 
                 ImGui.End();
+            }
+
+            ImGui.PopStyleColor(2);
+        }
+
+        private string FormatCurrencyValueOnly(float chaos)
+        {
+            switch (this.Settings.Currency)
+            {
+                case DisplayCurrency.Divine:
+                    float div = this.priceHelper.DivineInChaos > 0 ? (chaos / this.priceHelper.DivineInChaos) : 0f;
+                    return $"{div:F2}";
+                case DisplayCurrency.Exalted:
+                    float ex = this.priceHelper.ExaltedInChaos > 0 ? (chaos / this.priceHelper.ExaltedInChaos) : 0f;
+                    return $"{ex:F2}";
+                default:
+                    return $"{chaos:F1}";
             }
         }
 
@@ -539,11 +656,22 @@ namespace myFarming
                 this.Settings.ShowOverlay = showOverlay;
             }
 
+            bool hidePanels = this.Settings.HideWhenUiPanelsOpen;
+            if (ImGui.Checkbox("Hide HUD when Panels are Open (Stash, Inventory, Passives, etc.)", ref hidePanels))
+            {
+                this.Settings.HideWhenUiPanelsOpen = hidePanels;
+            }
 
             bool lockOverlay = this.Settings.LockOverlay;
-            if (ImGui.Checkbox("Lock HUD Position", ref lockOverlay))
+            if (ImGui.Checkbox("Lock HUD (Hide Titlebar & Close Button)", ref lockOverlay))
             {
                 this.Settings.LockOverlay = lockOverlay;
+            }
+
+            float bgOpacity = this.Settings.BackgroundOpacity;
+            if (ImGui.SliderFloat("Background Opacity", ref bgOpacity, 0.0f, 1.0f, "%.2f"))
+            {
+                this.Settings.BackgroundOpacity = bgOpacity;
             }
 
             float textScale = this.Settings.TextScale;
@@ -552,14 +680,26 @@ namespace myFarming
                 this.Settings.TextScale = textScale;
             }
 
+            bool showKills = this.Settings.ShowKills;
+            if (ImGui.Checkbox("Show Kills Count Badges (Normal / Magic / Rare / Unique)", ref showKills))
+            {
+                this.Settings.ShowKills = showKills;
+            }
+
+            bool showGold = this.Settings.ShowGold;
+            if (ImGui.Checkbox("Show Gold Count in HUD", ref showGold))
+            {
+                this.Settings.ShowGold = showGold;
+            }
+
             bool showSessionSummary = this.Settings.ShowSessionSummary;
-            if (ImGui.Checkbox("Show Multi-Map Session Summary in HUD", ref showSessionSummary))
+            if (ImGui.Checkbox("Show Daily Session Line in HUD", ref showSessionSummary))
             {
                 this.Settings.ShowSessionSummary = showSessionSummary;
             }
 
             bool showCurrentMap = this.Settings.ShowCurrentMapStats;
-            if (ImGui.Checkbox("Show Current Map Details in HUD", ref showCurrentMap))
+            if (ImGui.Checkbox("Show Current Map Line in HUD", ref showCurrentMap))
             {
                 this.Settings.ShowCurrentMapStats = showCurrentMap;
             }
@@ -570,16 +710,13 @@ namespace myFarming
                 this.Settings.ShowLootList = showLootList;
             }
 
-            int maxRows = this.Settings.MaxLootListRows;
-            if (ImGui.SliderInt("Max Loot Rows Shown", ref maxRows, 3, 30))
+            if (this.Settings.ShowLootList)
             {
-                this.Settings.MaxLootListRows = maxRows;
-            }
-
-            bool showKills = this.Settings.ShowKills;
-            if (ImGui.Checkbox("Show Kills Count (White / Magic / Rare / Unique)", ref showKills))
-            {
-                this.Settings.ShowKills = showKills;
+                int maxRows = this.Settings.MaxLootListRows;
+                if (ImGui.SliderInt("Max Loot Rows Shown", ref maxRows, 3, 30))
+                {
+                    this.Settings.MaxLootListRows = maxRows;
+                }
             }
 
             bool showRate = this.Settings.ShowProfitPerHour;
@@ -611,15 +748,16 @@ namespace myFarming
 
             ImGui.Separator();
 
-            // Session Control
-            ImGui.Text($"Current Session: #{this.sessionStore.Current.SessionId}");
-            ImGui.Text($"Session Progress: {this.sessionStore.Current.TotalMaps} maps completed | Total Loot: {this.FormatCurrency(this.sessionStore.Current.TotalChaos)}");
+            // Daily Session Status
+            ImGui.TextColored(new Vector4(0.35f, 0.75f, 1f, 1f), $"Today's Session ({this.sessionStore.Current.DateKey}):");
+            string goldStr = GoldTracker.FormatGold(this.sessionStore.Current.TotalGold);
+            ImGui.Text($"Maps Completed: {this.sessionStore.Current.TotalMaps} maps | Total Loot: {this.FormatCurrency(this.sessionStore.Current.TotalChaos)} | Gold: {goldStr}");
             int sHrs = this.sessionStore.Current.TotalDurationSec / 3600;
             int sMin = (this.sessionStore.Current.TotalDurationSec % 3600) / 60;
             int sSec = this.sessionStore.Current.TotalDurationSec % 60;
-            ImGui.Text($"Session Duration: {sHrs:D2}:{sMin:D2}:{sSec:D2}");
+            ImGui.Text($"Total Time: {sHrs:D2}:{sMin:D2}:{sSec:D2} | Kills: {this.sessionStore.Current.TotalKills}");
 
-            if (ImGui.Button("Start New Session (Reset Counters)"))
+            if (ImGui.Button("Reset Today's Session"))
             {
                 this.ResetSession();
             }
@@ -630,13 +768,15 @@ namespace myFarming
             var runs = this.historyStore.Runs;
             int totalRuns = runs.Count;
             float totalChaos = runs.Sum(r => r.TotalChaos);
+            long totalGold = runs.Sum(r => r.GoldGain);
             int totalSec = runs.Sum(r => r.DurationSec);
             int totalKills = runs.Sum(r => r.KillsTotal);
 
             ImGui.TextColored(new Vector4(0.4f, 0.85f, 1f, 1f), "All-Time Summary:");
             int hrs = totalSec / 3600;
             int mins = (totalSec % 3600) / 60;
-            ImGui.Text($"Total Maps: {totalRuns} | Time: {hrs}h {mins}m | Total Loot: {this.FormatCurrency(totalChaos)} | Kills: {totalKills}");
+            string totalGoldStr = GoldTracker.FormatGold(totalGold);
+            ImGui.Text($"Total Maps: {totalRuns} | Time: {hrs}h {mins}m | Total Loot: {this.FormatCurrency(totalChaos)} | Gold: {totalGoldStr} | Kills: {totalKills}");
 
             if (totalSec > 60)
             {
@@ -659,14 +799,15 @@ namespace myFarming
                 return;
             }
 
-            if (ImGui.BeginTable("RunsTable", 6, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY, new Vector2(0, 350)))
+            if (ImGui.BeginTable("RunsTable", 7, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY, new Vector2(0, 350)))
             {
-                ImGui.TableSetupColumn("Time", ImGuiTableColumnFlags.WidthFixed, 120);
-                ImGui.TableSetupColumn("Map", ImGuiTableColumnFlags.WidthStretch, 140);
-                ImGui.TableSetupColumn("Duration", ImGuiTableColumnFlags.WidthFixed, 70);
-                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthFixed, 90);
-                ImGui.TableSetupColumn("Kills", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn("Date / Time", ImGuiTableColumnFlags.WidthFixed, 130);
+                ImGui.TableSetupColumn("Map", ImGuiTableColumnFlags.WidthStretch, 130);
+                ImGui.TableSetupColumn("Duration", ImGuiTableColumnFlags.WidthFixed, 65);
+                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthFixed, 85);
+                ImGui.TableSetupColumn("Gold", ImGuiTableColumnFlags.WidthFixed, 65);
+                ImGui.TableSetupColumn("Kills", ImGuiTableColumnFlags.WidthFixed, 55);
+                ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 55);
                 ImGui.TableHeadersRow();
 
                 string? toDelete = null;
@@ -688,6 +829,9 @@ namespace myFarming
 
                     ImGui.TableNextColumn();
                     ImGui.TextColored(new Vector4(1f, 0.84f, 0.2f, 1f), this.FormatCurrency(run.TotalChaos));
+
+                    ImGui.TableNextColumn();
+                    ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), GoldTracker.FormatGold(run.GoldGain));
 
                     ImGui.TableNextColumn();
                     ImGui.Text($"{run.KillsTotal}");

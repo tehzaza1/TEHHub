@@ -2,7 +2,23 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
-## 1.8.77 — 2026-09-16 [SDK / Core Framework Update & Plugin Update — NinjaPricer]
+## 1.8.78 — 2026-09-16 [Plugin Update — myFarming & NinjaPricer, SDK / Core Framework Update]
+
+- **`myFarming` HUD Overlay Redesign & Daily Rolling Sessions**:
+  - **Modern Compact 3-Line HUD**: Redesigned overlay into an ultra-clean 3-line floating display matching reference aesthetic:
+    - **Line 1 (Kill Badges)**: Rounded colored badges with counts: `◻ White (normal) 🟦 Blue (magic) 🟨 Yellow (rare) 🟧 Orange (unique) (total)`.
+    - **Line 2 (Daily Session & Profit & Gold)**: `Session: {time} | Profit: {profitVal} [currency icon]/h [{totalMaps} maps] | {sessionGold} [gold icon]`.
+    - **Line 3 (Current Map / Status & Gold)**: `{mapName} ({time}) | +{lootVal} [currency icon] | +{mapGold} [gold icon]`.
+  - **Daily Rolling Sessions**: Replaced static numbered sessions with automatic daily rolling sessions stored as `sessions/session_YYYY-MM-DD.json`. Daily sessions automatically advance on midnight date rollover.
+  - **Gold Tracking & k/m Formatting**: Added real-time Player Gold memory tracking (`GoldTracker`) with clean compact scaling units (`1k`, `10k`, `100k`, `1.0m`, `10.0m`, `100.0m`) and custom high-resolution `gold.png` coin icon.
+  - **Smart Panel Hiding**: Automatically suppresses HUD overlay when blocking UI panels (Stash, Inventory, Passives, Vendors, etc.) are open while keeping the HUD visible over Large Map (`Tab`).
+  - **Background Opacity & Borderless Lock Mode**: Added opacity slider (0% to 100%) and complete header/close `[X]` removal in locked mode for a sleek borderless HUD.
+  - **Optimized 0.5s Scan Rate**: Tuned background item/gold/kill update tick to a smooth and lightweight 500ms interval.
+- **`NinjaPricer` & `ExpeditionMechanics` Monolith Undone-Bomb Un-Green Fix**:
+  - Fixed `TrackedExplosives` caching in `ExpeditionMechanics.cs` to synchronize and immediately purge bombs undone/deleted by the player.
+  - Fixed `NinjaPricerCore.cs` pre-detonation coverage logic so removing an explosive immediately turns the monolith un-green in real-time.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
 
 - **`State` & `Entity` Placed Explosives Retention Across Distances**:
   - Added `Metadata/MiscellaneousObjects/Expedition/ExpeditionExplosive` and `Metadata/MiscellaneousObjects/Expedition/ExpeditionDynamite` to `SpecialMiscObjPaths` (group 100) so placed explosive bombs are never culled or lost when moving far away.

@@ -3116,18 +3116,18 @@ namespace NinjaPricer
                         }
 
                         // Coverage detection: only turn green if real bombs are placed or encounter is active post-detonation
-                        bool isDetonatedOrActive = mData.ActivatedState >= 3;
+                        bool isDetonated = mData.ActivatedState >= 5;
                         var cov = e.GetExpeditionExplosiveCoverage();
 
-                        if (hasPlacedExplosives && cov.IsCovered)
+                        if (cov.IsCovered)
                         {
                             this.coveredMonoliths.Add(e.Address);
                             mData.IsCoveredByExplosive = true;
                             mData.DistanceToExplosive = cov.DistanceWorld;
                         }
-                        else if (!isDetonatedOrActive)
+                        else if (!isDetonated)
                         {
-                            // Pre-detonation: not covered by any placed bomb right now
+                            // Pre-detonation: live coverage only! If bomb was removed/undone, remove from covered set immediately
                             this.coveredMonoliths.Remove(e.Address);
                             mData.IsCoveredByExplosive = false;
                             mData.DistanceToExplosive = cov.DistanceWorld;

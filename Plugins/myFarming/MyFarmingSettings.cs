@@ -17,6 +17,8 @@ namespace myFarming
 
         public bool HideWhenGameNotFocused { get; set; } = true;
 
+        public bool HideWhenUiPanelsOpen { get; set; } = true;
+
         public bool LockOverlay { get; set; } = false;
 
         public float OverlayX { get; set; } = 150f;
@@ -27,11 +29,15 @@ namespace myFarming
 
         public float TextScale { get; set; } = 1.0f;
 
+        public float BackgroundOpacity { get; set; } = 0.75f;
+
         public bool ShowLootList { get; set; } = true;
 
         public int MaxLootListRows { get; set; } = 12;
 
         public bool ShowKills { get; set; } = true;
+
+        public bool ShowGold { get; set; } = true;
 
         public bool ShowProfitPerHour { get; set; } = true;
 
