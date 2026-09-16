@@ -17,6 +17,8 @@ namespace ExpeditionPathOptimizer
         public bool ShowPathLines { get; set; } = true;
         public float BlastRadiusOpacity { get; set; } = 0.25f;
         public float PathLineWidth { get; set; } = 3.0f;
+        public bool ShowDetonatorMarker { get; set; } = true;
+        public uint DetonatorBadgeBgColor { get; set; } = 0xFF27AE60u; // Emerald Green anchor (Badge 0)
         public uint ExplosiveColor { get; set; } = 0xFF9900CCu; // Purple
         public uint PathLineColor { get; set; } = 0xFF00D7FFu; // Gold
         public uint BadgeBgColor { get; set; } = 0xFF141414u;

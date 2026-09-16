@@ -93,7 +93,7 @@ namespace ExpeditionPathOptimizer
 
                 this.ScanEntities(area);
 
-                // Auto-start only ONCE per area when Expedition encounter is first detected
+                // Auto-start only ONCE per area when Expedition Detonator is detected
                 if (!this.hasAutoSearchedThisArea &&
                     this.Settings.AutoStartOnAreaChange &&
                     !this.runner.IsRunning &&
@@ -164,7 +164,15 @@ namespace ExpeditionPathOptimizer
             ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Live Encounter Detection Status");
 
             bool hasDetonator = this.detonatorWorldPos != Vector3.Zero;
-            ImGui.Text($"Detonator Found: {(hasDetonator ? "Yes" : "No")}");
+            if (hasDetonator)
+            {
+                ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"Detonator Plunger: FOUND at ({this.detonatorWorldPos.X:F0}, {this.detonatorWorldPos.Y:F0})");
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Detonator Plunger: NOT FOUND (Please walk towards Detonator)");
+            }
+
             ImGui.Text($"Remnants / Relics Found: {this.discoveredRelics.Count}");
             ImGui.Text($"Chests / Monsters Found: {this.discoveredLoot.Count}");
             ImGui.Text($"Placed Explosives Detected: {this.placedExplosives.Count}");
@@ -210,6 +218,13 @@ namespace ExpeditionPathOptimizer
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Visual Overlays");
+
+            bool showDet = this.Settings.ShowDetonatorMarker;
+            if (ImGui.Checkbox("Show Detonator '0' (START) Badge", ref showDet))
+            {
+                this.Settings.ShowDetonatorMarker = showDet;
+                this.SaveSettings();
+            }
 
             bool showWorld = this.Settings.ShowWorldMarkers;
             if (ImGui.Checkbox("Show 3D World Markers", ref showWorld))
@@ -291,7 +306,24 @@ namespace ExpeditionPathOptimizer
                 var wPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.TerrainHeight);
                 var gPos = new Vector2(render.GridPosition.X, render.GridPosition.Y);
 
-                if (path.Contains("ExpeditionDetonator", StringComparison.OrdinalIgnoreCase))
+                bool isDetonator = false;
+                if (path.Contains("Detonator", StringComparison.OrdinalIgnoreCase) ||
+                    path.Contains("Plunger", StringComparison.OrdinalIgnoreCase) ||
+                    path.Contains("ExpeditionDetonator", StringComparison.OrdinalIgnoreCase) ||
+                    path.Contains("Expedition2Detonator", StringComparison.OrdinalIgnoreCase))
+                {
+                    isDetonator = true;
+                }
+                else if (entity.TryGetComponent<Animated>(out var anim, false) && anim != null && !string.IsNullOrEmpty(anim.ModelPath))
+                {
+                    if (anim.ModelPath.Contains("plunger", StringComparison.OrdinalIgnoreCase) ||
+                        anim.ModelPath.Contains("detonator", StringComparison.OrdinalIgnoreCase))
+                    {
+                        isDetonator = true;
+                    }
+                }
+
+                if (isDetonator)
                 {
                     this.detonatorWorldPos = wPos;
                     this.detonatorGridPos = gPos;
@@ -299,14 +331,16 @@ namespace ExpeditionPathOptimizer
                 else if (path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase) &&
                          !path.Contains("Fuse", StringComparison.OrdinalIgnoreCase) &&
                          !path.Contains("Connector", StringComparison.OrdinalIgnoreCase) &&
-                         !path.Contains("Indicator", StringComparison.OrdinalIgnoreCase))
+                         !path.Contains("Indicator", StringComparison.OrdinalIgnoreCase) &&
+                         !path.Contains("Marker", StringComparison.OrdinalIgnoreCase))
                 {
                     this.placedExplosives[entity.Address] = wPos;
                 }
                 else if (path.Contains("ExpeditionRelic", StringComparison.OrdinalIgnoreCase) ||
                          path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase) ||
                          path.Contains("ExpeditionEncounter", StringComparison.OrdinalIgnoreCase) ||
-                         path.Contains("Expedition2Remnant", StringComparison.OrdinalIgnoreCase))
+                         path.Contains("Expedition2Remnant", StringComparison.OrdinalIgnoreCase) ||
+                         path.Contains("ExpeditionRemnant", StringComparison.OrdinalIgnoreCase))
                 {
                     this.discoveredRelics[entity.Address] = (wPos, gPos, new ConfigurableRelic(1.5, 0.4, true));
                 }
@@ -349,19 +383,19 @@ namespace ExpeditionPathOptimizer
                     ProcessEntity(e);
                 }
             }
-
-            if (this.detonatorWorldPos == Vector3.Zero && this.discoveredRelics.Count > 0)
-            {
-                var first = this.discoveredRelics.Values.First();
-                this.detonatorWorldPos = first.WorldPos;
-                this.detonatorGridPos = first.GridPos;
-            }
         }
 
         public void StartSearch(AreaInstance area)
         {
-            if (this.detonatorWorldPos == Vector3.Zero && this.discoveredRelics.Count == 0 && this.discoveredLoot.Count == 0)
+            if (this.detonatorWorldPos == Vector3.Zero)
             {
+                PluginLog.Warning("ExpeditionPathOptimizer", "Cannot start optimization: Detonator Plunger not detected yet. Please walk towards the Detonator.");
+                return;
+            }
+
+            if (this.discoveredRelics.Count == 0 && this.discoveredLoot.Count == 0)
+            {
+                PluginLog.Warning("ExpeditionPathOptimizer", "No expedition relics or loot detected in area.");
                 return;
             }
 
@@ -400,9 +434,6 @@ namespace ExpeditionPathOptimizer
         public override void DrawUI()
         {
             if (!this.Settings.Enable) return;
-
-            var bestDetailed = this.runner.CurrentBestPath;
-            if (bestDetailed == null || bestDetailed.PerPointScore == null || bestDetailed.PerPointScore.Count == 0) return;
 
             var game = Core.States.InGameStateObject;
             var area = game?.CurrentAreaInstance;
@@ -459,40 +490,115 @@ namespace ExpeditionPathOptimizer
             }
 
             var dl = ImGui.GetBackgroundDrawList();
-            var points = bestDetailed.PerPointScore;
-            float radiusWorld = bestDetailed.Environment.ExplosionRadius * GridToWorldMultiplier;
-            float zHeight = this.detonatorWorldPos.Z;
 
-            Vector3 startWorld = this.detonatorWorldPos;
-            if (this.placedExplosives.Count > 0)
+            // 1. Draw Detonator "0" / START Anchor Badge
+            if (this.detonatorWorldPos != Vector3.Zero && this.Settings.ShowDetonatorMarker)
             {
-                startWorld = this.placedExplosives.Values.Last();
-            }
-
-            // 1. Draw Connecting Lines
-            if (this.Settings.ShowPathLines)
-            {
-                Vector2 prevScreen = canMapProject
-                    ? ToMap(startWorld)
-                    : world.WorldToScreen(new Vector2(startWorld.X, startWorld.Y), zHeight);
-
-                for (int i = 0; i < points.Count; i++)
+                if (canMapProject)
                 {
-                    var gridPt = points[i].Point;
-                    var bombWorld = new Vector3(gridPt.X * GridToWorldMultiplier, gridPt.Y * GridToWorldMultiplier, zHeight);
-                    var curScreen = canMapProject
-                        ? ToMap(bombWorld)
-                        : world.WorldToScreen(new Vector2(bombWorld.X, bombWorld.Y), zHeight);
-
-                    if (curScreen != Vector2.Zero && prevScreen != Vector2.Zero)
+                    var dMapPos = ToMap(this.detonatorWorldPos);
+                    if (dMapPos != Vector2.Zero)
                     {
-                        dl.AddLine(prevScreen, curScreen, this.Settings.PathLineColor, this.Settings.PathLineWidth);
+                        dl.AddCircleFilled(dMapPos, 12f, this.Settings.DetonatorBadgeBgColor);
+                        dl.AddCircle(dMapPos, 12f, 0xFFFFFFFFu, 0, 2.0f);
+                        string dStr = "0";
+                        var tSz = ImGui.CalcTextSize(dStr);
+                        dl.AddText(new Vector2(dMapPos.X - tSz.X * 0.5f, dMapPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, dStr);
+
+                        var lblSz = ImGui.CalcTextSize("START");
+                        dl.AddText(new Vector2(dMapPos.X - lblSz.X * 0.5f, dMapPos.Y - 24f), 0xFF2ECC71u, "START");
                     }
-                    prevScreen = curScreen;
+                }
+                else
+                {
+                    var dScreenPos = world.WorldToScreen(new Vector2(this.detonatorWorldPos.X, this.detonatorWorldPos.Y), this.detonatorWorldPos.Z);
+                    if (dScreenPos != Vector2.Zero)
+                    {
+                        dl.AddCircleFilled(dScreenPos, 16f, this.Settings.DetonatorBadgeBgColor);
+                        dl.AddCircle(dScreenPos, 16f, 0xFFFFFFFFu, 0, 2.5f);
+                        string dStr = "0";
+                        var tSz = ImGui.CalcTextSize(dStr);
+                        dl.AddText(new Vector2(dScreenPos.X - tSz.X * 0.5f, dScreenPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, dStr);
+
+                        var lblSz = ImGui.CalcTextSize("START");
+                        dl.AddText(new Vector2(dScreenPos.X - lblSz.X * 0.5f, dScreenPos.Y - 30f), 0xFF2ECC71u, "START");
+                    }
                 }
             }
 
-            // 2. Draw Blast Circles & Badges
+            // 2. Draw Placed Explosives Badges
+            int placedIdx = 1;
+            foreach (var placedWPos in this.placedExplosives.Values)
+            {
+                if (canMapProject)
+                {
+                    var pMapPos = ToMap(placedWPos);
+                    if (pMapPos != Vector2.Zero)
+                    {
+                        dl.AddCircleFilled(pMapPos, 10f, 0xDD555555u);
+                        dl.AddCircle(pMapPos, 10f, 0xFFAAAAAAu, 0, 1.5f);
+                        string pStr = placedIdx.ToString();
+                        var tSz = ImGui.CalcTextSize(pStr);
+                        dl.AddText(new Vector2(pMapPos.X - tSz.X * 0.5f, pMapPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, pStr);
+                    }
+                }
+                else
+                {
+                    var pScreenPos = world.WorldToScreen(new Vector2(placedWPos.X, placedWPos.Y), placedWPos.Z);
+                    if (pScreenPos != Vector2.Zero)
+                    {
+                        dl.AddCircleFilled(pScreenPos, 14f, 0xDD555555u);
+                        dl.AddCircle(pScreenPos, 14f, 0xFFAAAAAAu, 0, 2.0f);
+                        string pStr = placedIdx.ToString();
+                        var tSz = ImGui.CalcTextSize(pStr);
+                        dl.AddText(new Vector2(pScreenPos.X - tSz.X * 0.5f, pScreenPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, pStr);
+                    }
+                }
+                placedIdx++;
+            }
+
+            var bestDetailed = this.runner.CurrentBestPath;
+            if (bestDetailed == null || bestDetailed.PerPointScore == null || bestDetailed.PerPointScore.Count == 0) return;
+
+            var points = bestDetailed.PerPointScore;
+            float radiusWorld = bestDetailed.Environment.ExplosionRadius * GridToWorldMultiplier;
+            float zHeight = this.detonatorWorldPos != Vector3.Zero ? this.detonatorWorldPos.Z : (playerRender?.TerrainHeight ?? 0f);
+
+            // 3. Draw Connecting Lines (Detonator -> Placed Bombs -> Planned Bombs)
+            if (this.Settings.ShowPathLines)
+            {
+                var wirePoints = new List<Vector3>();
+                if (this.detonatorWorldPos != Vector3.Zero)
+                {
+                    wirePoints.Add(this.detonatorWorldPos);
+                }
+
+                foreach (var p in this.placedExplosives.Values)
+                {
+                    wirePoints.Add(p);
+                }
+
+                foreach (var pt in points)
+                {
+                    wirePoints.Add(new Vector3(pt.Point.X * GridToWorldMultiplier, pt.Point.Y * GridToWorldMultiplier, zHeight));
+                }
+
+                for (int k = 0; k < wirePoints.Count - 1; k++)
+                {
+                    var p1 = wirePoints[k];
+                    var p2 = wirePoints[k + 1];
+
+                    var s1 = canMapProject ? ToMap(p1) : world.WorldToScreen(new Vector2(p1.X, p1.Y), p1.Z);
+                    var s2 = canMapProject ? ToMap(p2) : world.WorldToScreen(new Vector2(p2.X, p2.Y), p2.Z);
+
+                    if (s1 != Vector2.Zero && s2 != Vector2.Zero)
+                    {
+                        dl.AddLine(s1, s2, this.Settings.PathLineColor, this.Settings.PathLineWidth);
+                    }
+                }
+            }
+
+            // 4. Draw Planned Blast Circles & Badges
             for (int i = 0; i < points.Count; i++)
             {
                 var gridPt = points[i].Point;
