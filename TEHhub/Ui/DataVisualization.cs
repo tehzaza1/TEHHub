@@ -39,8 +39,6 @@ namespace TEHhub.Ui
         private static int selectedUiChildIndex = 0;
         private static bool showInWorldLabels = true;
         private static float inWorldLabelMaxDistance = 2500f;
-        private static bool drawExpeditionExplosionRadius = true;
-        private static float expeditionExplosionRadius = 360f;
 
         /// <summary>
         ///     Initializes the co-routines.
@@ -361,14 +359,6 @@ namespace TEHhub.Ui
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(150);
                 ImGui.SliderFloat("Max Range##InWorldRange", ref inWorldLabelMaxDistance, 300f, 6000f, "%.0f");
-            }
-
-            ImGui.Checkbox("Draw Expedition Explosive Radius Circles", ref drawExpeditionExplosionRadius);
-            if (drawExpeditionExplosionRadius)
-            {
-                ImGui.SameLine();
-                ImGui.SetNextItemWidth(150);
-                ImGui.SliderFloat("Explosion Radius##ExpRad", ref expeditionExplosionRadius, 100f, 800f, "%.0f");
             }
 
             ImGui.Text($"Awake: {area.AwakeEntities.Count} | Sleeping: {area.SleepingEntities.Count} | Network Bubble: {area.NetworkBubbleEntityCount}");
@@ -936,20 +926,6 @@ namespace TEHhub.Ui
                     borderColor = 0xFF20A040;
                     var nameParts = entity.Path.Split('/');
                     friendlyName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
-
-                    // Expedition 3D explosion radius projection
-                    if (drawExpeditionExplosionRadius && entity.Path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase))
-                    {
-                        textColor = 0xFF20B0FF; // Bright Gold/Orange
-                        borderColor = 0xFF1080EE;
-                        DrawWorldCircleOnTerrain(area, world, drawList, entPos, expeditionExplosionRadius, 0xFFFF9020, 2.5f, 0x22FF9020);
-                    }
-                    else if (drawExpeditionExplosionRadius && entity.Path.Contains("ExpeditionDetonator", StringComparison.OrdinalIgnoreCase))
-                    {
-                        textColor = 0xFF50FF80;
-                        borderColor = 0xFF20A040;
-                        DrawWorldCircleOnTerrain(area, world, drawList, entPos, 140f, 0xFF50FF80, 2.0f, 0x1850FF80);
-                    }
                 }
                 else if (!string.IsNullOrEmpty(entitySearchFilter))
                 {
@@ -1020,73 +996,6 @@ namespace TEHhub.Ui
                 drawList.AddRectFilled(min, max, 0xDD101010, 3.0f);
                 drawList.AddRect(min, max, borderColor, 3.0f);
                 drawList.AddText(min + pad, textColor, labelText);
-            }
-        }
-
-        private static void DrawWorldCircleOnTerrain(
-            AreaInstance area,
-            WorldData world,
-            ImDrawListPtr drawList,
-            Vector3 centerWorld,
-            float radiusWorld,
-            uint color,
-            float thickness = 2.0f,
-            uint fillColor = 0)
-        {
-            if (world == null || radiusWorld <= 1f)
-            {
-                return;
-            }
-
-            var gridToWorld = area?.WorldToGridConvertor ?? 10.87f;
-            if (gridToWorld <= 0f)
-            {
-                gridToWorld = 10.87f;
-            }
-
-            float centerGridX = centerWorld.X / gridToWorld;
-            float centerGridY = centerWorld.Y / gridToWorld;
-            float gridRadius = radiusWorld / gridToWorld;
-
-            const int segments = 48;
-            Span<Vector2> screenPoints = stackalloc Vector2[segments];
-            int validCount = 0;
-            float step = (float)(2.0 * Math.PI / segments);
-
-            for (int i = 0; i < segments; i++)
-            {
-                float angle = i * step;
-                float gx = centerGridX + (gridRadius * MathF.Cos(angle));
-                float gy = centerGridY + (gridRadius * MathF.Sin(angle));
-                float z = centerWorld.Z;
-
-                try
-                {
-                    if (area?.GridHeightData != null && (int)gy >= 0 && (int)gy < area.GridHeightData.Length &&
-                        (int)gx >= 0 && (int)gx < area.GridHeightData[(int)gy].Length)
-                    {
-                        z = area.GridHeightData[(int)gy][(int)gx];
-                    }
-                }
-                catch
-                {
-                }
-
-                Vector2 sPos = world.WorldToScreen(new StdTuple3D<float> { X = gx * gridToWorld, Y = gy * gridToWorld, Z = z }, z);
-                if (sPos.X > -300 && sPos.X < 5000 && sPos.Y > -300 && sPos.Y < 5000)
-                {
-                    screenPoints[validCount++] = sPos;
-                }
-            }
-
-            if (validCount >= 3)
-            {
-                if (fillColor != 0)
-                {
-                    drawList.AddConvexPolyFilled(ref screenPoints[0], validCount, fillColor);
-                }
-
-                drawList.AddPolyline(ref screenPoints[0], validCount, color, ImDrawFlags.Closed, thickness);
             }
         }
     }
