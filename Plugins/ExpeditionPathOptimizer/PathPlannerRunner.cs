@@ -20,6 +20,7 @@ namespace ExpeditionPathOptimizer
         private PathPlanner? pathPlanner;
         private ExpeditionEnvironment? environment;
         private BestValue?[]? bestValues;
+        private PathPlanner.DetailedLootScore? finalBestPath;
         private readonly ConditionalWeakTable<List<Vector2>, PathPlanner.DetailedLootScore> lootCache = new();
 
         public bool IsRunning => this.searchTask is { IsCompleted: false };
@@ -28,6 +29,11 @@ namespace ExpeditionPathOptimizer
         {
             get
             {
+                if (this.finalBestPath != null)
+                {
+                    return this.finalBestPath;
+                }
+
                 if (this.bestValues == null) return null;
                 var bestEntry = this.bestValues.Where(x => x != null).MaxBy(x => x!.Score);
                 if (bestEntry?.Path is not { } bestPath) return null;
@@ -43,11 +49,19 @@ namespace ExpeditionPathOptimizer
             }
         }
 
-        public double CurrentBestScore => this.bestValues?.Max(x => x?.Score ?? 0) ?? 0;
+        public double CurrentBestScore
+        {
+            get
+            {
+                if (this.finalBestPath != null) return this.finalBestPath.TotalScore;
+                return this.bestValues?.Max(x => x?.Score ?? 0) ?? 0;
+            }
+        }
 
         public void Start(ExpeditionPathOptimizerSettings settings, ExpeditionEnvironment env)
         {
             this.Stop();
+            this.finalBestPath = null;
             this.cts = new CancellationTokenSource();
             this.searchTask = this.RunAsync(settings, env, this.cts.Token);
         }
@@ -105,7 +119,15 @@ namespace ExpeditionPathOptimizer
             }
             finally
             {
-                PluginLog.Info("ExpeditionPathOptimizer", "Path search completed.");
+                if (!token.IsCancellationRequested && this.bestValues != null && this.pathPlanner != null && this.environment != null)
+                {
+                    var absoluteBest = this.bestValues.Where(x => x != null).MaxBy(x => x!.Score);
+                    if (absoluteBest?.Path is { } bPath)
+                    {
+                        this.finalBestPath = this.pathPlanner.GetDetailedScore(bPath, this.environment);
+                    }
+                }
+                PluginLog.Info("ExpeditionPathOptimizer", "Path search completed and locked.");
             }
         }
 
@@ -114,6 +136,15 @@ namespace ExpeditionPathOptimizer
             this.cts?.Cancel();
             this.cts?.Dispose();
             this.cts = null;
+        }
+
+        public void Clear()
+        {
+            this.Stop();
+            this.finalBestPath = null;
+            this.bestValues = null;
+            this.pathPlanner = null;
+            this.environment = null;
         }
     }
 }
