@@ -642,7 +642,7 @@ namespace ExpeditionPathOptimizer
             // Final Bomb: step to a walkable candidate near final target
             var finalBombPos = environment.FindWalkableCandidateNearRemnant(finalTarget, current, radius);
             path.Add(RoundPoint(finalBombPos));
-            return path;
+            return this.SimplifyPath(path, environment);
         }
 
         private List<Vector2> MutatePath(List<Vector2> path, ExpeditionEnvironment environment)
@@ -809,7 +809,52 @@ namespace ExpeditionPathOptimizer
                 }
             }
 
-            return mutated;
+            return this.SimplifyPath(mutated, environment);
+        }
+
+        private List<Vector2> SimplifyPath(List<Vector2> path, ExpeditionEnvironment environment)
+        {
+            if (path == null || path.Count <= 1) return path ?? new List<Vector2>();
+
+            float reach = environment.ExplosionRange;
+            var currentPath = new List<Vector2>(path);
+            double currentScore = this.GetScore(currentPath, environment);
+            if (double.IsNegativeInfinity(currentScore)) return path;
+
+            bool changed;
+            do
+            {
+                changed = false;
+                int n = currentPath.Count;
+                if (n <= 1) break;
+
+                // Try removing each intermediate bomb (0 to n - 2, do NOT remove final bomb at n - 1)
+                for (int i = 0; i < n - 1; i++)
+                {
+                    var prev = (i == 0) ? environment.StartingPoint : currentPath[i - 1];
+                    var next = currentPath[i + 1];
+
+                    // Check direct connection validity from prev to next
+                    if (Vector2.Distance(prev, next) > reach) continue;
+                    if (!environment.IsPointWalkable(next)) continue;
+                    if (!environment.HasLineOfSight(prev, next)) continue;
+
+                    var pathWithoutI = new List<Vector2>(currentPath);
+                    pathWithoutI.RemoveAt(i);
+
+                    double candidateScore = this.GetScore(pathWithoutI, environment);
+                    if (!double.IsNegativeInfinity(candidateScore) && candidateScore >= currentScore)
+                    {
+                        currentPath = pathWithoutI;
+                        currentScore = candidateScore;
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+            while (changed);
+
+            return currentPath;
         }
 
         private static Vector2 RoundPoint(Vector2 v) => new(MathF.Round(v.X, 1), MathF.Round(v.Y, 1));
