@@ -3670,7 +3670,9 @@ namespace NinjaPricer
                             {
                                 rowW += lineH * uiScale + 4f;
                             }
-                            string txt = this.Settings.RsShowRowQty ? $"{offer.Reward}  x{offer.RewardCount}" : offer.Reward;
+                            string namePart = this.Settings.RsShowRowName ? offer.Reward : string.Empty;
+                            string qtyPart = this.Settings.RsShowRowQty ? (offer.RewardCount > 1 || !this.Settings.RsShowRowName ? $"x{offer.RewardCount}" : string.Empty) : string.Empty;
+                            string txt = !string.IsNullOrEmpty(namePart) && !string.IsNullOrEmpty(qtyPart) ? $"{namePart}  {qtyPart}" : $"{namePart}{qtyPart}";
                             if (!string.IsNullOrEmpty(txt))
                             {
                                 rowW += ImGui.CalcTextSize(txt).X + 4f;
@@ -3957,7 +3959,9 @@ namespace NinjaPricer
                             }
 
                             // 2) Name + quantity with full recipe runes tooltip
-                            string txt = this.Settings.RsShowRowQty ? $"{rw.Name}  x{rw.Count}" : rw.Name;
+                            string namePart = this.Settings.RsShowRowName ? rw.Name : string.Empty;
+                            string qtyPart = this.Settings.RsShowRowQty ? (rw.Count > 1 || !this.Settings.RsShowRowName ? $"x{rw.Count}" : string.Empty) : string.Empty;
+                            string txt = !string.IsNullOrEmpty(namePart) && !string.IsNullOrEmpty(qtyPart) ? $"{namePart}  {qtyPart}" : $"{namePart}{qtyPart}";
                             if (!string.IsNullOrEmpty(txt))
                             {
                                 if (lineStarted) ImGui.SameLine(0f, 4f);

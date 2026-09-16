@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.68 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Expanded Recipe List Visual Toggles Fix**:
+  - **Hooked `RsShowRowName` into Child Row Text Rendering**:
+    - Fixed an issue where the `Reward name` checkbox under `Expanded list elements:` in settings had no effect.
+    - Accurately toggles the reward item name text string on/off inside expanded monolith recipe rows while keeping quantity and price intact as configured.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; synced directly to installation directory.
+
 ## 1.8.67 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Minimal Map/World Marker Mode & Row Isolation Fix**:
