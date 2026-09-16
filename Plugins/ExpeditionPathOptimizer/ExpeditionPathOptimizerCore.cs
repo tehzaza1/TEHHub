@@ -492,7 +492,7 @@ namespace ExpeditionPathOptimizer
                     var iconName = miniIcon.IconName;
                     if (!string.IsNullOrEmpty(iconName) && ExpeditionRewardChestIcons.Contains(iconName))
                     {
-                        var chest = new ExpeditionChest(entity.Id, entity.Address, wPos, gPos, iconName, this.Settings.ChestHitBaseScore);
+                        var chest = new ExpeditionChest(entity.Id, entity.Address, wPos, gPos, iconName);
                         this.discoveredChests[entity.Address] = chest;
                     }
                 }

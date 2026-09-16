@@ -4,7 +4,7 @@ namespace ExpeditionPathOptimizer.PathPlannerData
     using System.Collections.Generic;
     using System.Numerics;
 
-    public class ExpeditionRemnant : IExpeditionRelic
+    public class ExpeditionRemnant
     {
         public uint EntityId { get; set; }
         public IntPtr EntityAddress { get; set; }
@@ -12,14 +12,13 @@ namespace ExpeditionPathOptimizer.PathPlannerData
         public Vector2 GridPos { get; set; }
         public int RuneSlots { get; set; } = 4;
         public string PropagatedRune { get; set; } = string.Empty;
-        public List<string> Runes { get; set; } = new();
         public double BaseRuneWeight { get; set; } = 20.0;
 
         public ExpeditionRemnant()
         {
         }
 
-        public ExpeditionRemnant(uint entityId, IntPtr entityAddress, Vector3 worldPos, Vector2 gridPos, int runeSlots, string propagatedRune, List<string>? runes = null)
+        public ExpeditionRemnant(uint entityId, IntPtr entityAddress, Vector3 worldPos, Vector2 gridPos, int runeSlots, string propagatedRune)
         {
             this.EntityId = entityId;
             this.EntityAddress = entityAddress;
@@ -27,7 +26,6 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             this.GridPos = gridPos;
             this.RuneSlots = Math.Clamp(runeSlots, 1, 16);
             this.PropagatedRune = propagatedRune ?? string.Empty;
-            this.Runes = runes ?? (string.IsNullOrEmpty(propagatedRune) ? new List<string>() : new List<string> { propagatedRune });
         }
 
         public void UpdateBaseRuneWeight(Dictionary<string, double> weights)
@@ -40,11 +38,6 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             {
                 this.BaseRuneWeight = 20.0;
             }
-        }
-
-        public (double Multiplier, double Increase) GetScoreMultiplier(IExpeditionLoot loot)
-        {
-            return (1.0, 0.0);
         }
     }
 }
