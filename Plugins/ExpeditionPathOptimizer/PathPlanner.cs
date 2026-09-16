@@ -61,6 +61,17 @@ namespace ExpeditionPathOptimizer
                     return double.NegativeInfinity;
                 }
 
+                // Terrain Check: Point must be walkable and wire must have line of sight
+                if (!env.IsPointWalkable(curPoint))
+                {
+                    return double.NegativeInfinity;
+                }
+
+                if (!env.HasLineOfSight(prevPoint, curPoint))
+                {
+                    return double.NegativeInfinity;
+                }
+
                 // Rule 3: Intermediate bombs (0 .. n-2) MUST NOT hit finalTarget
                 if (i < n - 1)
                 {
@@ -252,72 +263,102 @@ namespace ExpeditionPathOptimizer
 
             var path = new List<Vector2>(maxBombs);
             var current = environment.StartingPoint;
-            var intermediateRemnants = environment.Remnants.Where(r => r != finalTarget).ToList();
+            var remainingRemnants = environment.Remnants.Where(r => r != finalTarget).ToList();
 
             float reach = environment.ExplosionRange;
             float radius = environment.ExplosionRadius;
 
             for (int i = 0; i < maxBombs - 1; i++)
             {
-                int remainingSteps = maxBombs - 1 - i;
-                var validCandidates = new List<ExpeditionRemnant>();
+                int remainingStepsAfterThis = maxBombs - 1 - (i + 1);
+                var validCandidates = new List<(ExpeditionRemnant Remnant, Vector2 Pos)>();
 
-                foreach (var r in intermediateRemnants)
+                foreach (var r in remainingRemnants)
                 {
-                    float distToR = Vector2.Distance(current, r.GridPos);
-                    if (distToR <= reach + radius)
+                    var candPos = environment.FindWalkableCandidateNearRemnant(r, current, radius);
+                    float distToCand = Vector2.Distance(current, candPos);
+                    if (distToCand <= reach)
                     {
-                        float distRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
-                        if (distRToFinal <= ((remainingSteps - 1) * reach) + radius)
+                        float distCandToFinal = Vector2.Distance(candPos, finalTarget.GridPos);
+                        if (distCandToFinal <= ((remainingStepsAfterThis + 1) * reach) + radius && distCandToFinal > radius + 3.0f)
                         {
-                            validCandidates.Add(r);
+                            if (environment.HasLineOfSight(current, candPos))
+                            {
+                                validCandidates.Add((r, candPos));
+                            }
                         }
                     }
                 }
 
                 Vector2 nextPos;
-                if (validCandidates.Count > 0 && Random.Shared.NextDouble() < 0.8)
+                if (validCandidates.Count > 0 && Random.Shared.NextDouble() < 0.75)
                 {
                     var chosen = validCandidates[Random.Shared.Next(validCandidates.Count)];
-                    var diff = chosen.GridPos - current;
-                    float dist = diff.Length();
-                    if (dist <= reach)
-                    {
-                        nextPos = chosen.GridPos;
-                    }
-                    else
-                    {
-                        float scale = reach * (0.80f + 0.18f * Random.Shared.NextSingle());
-                        nextPos = current + Vector2.Normalize(diff) * scale;
-                    }
+                    remainingRemnants.Remove(chosen.Remnant);
+                    nextPos = chosen.Pos;
                 }
                 else
                 {
-                    var diff = finalTarget.GridPos - current;
+                    // Target direction: if remaining unvisited remnants exist, aim towards one of them, else finalTarget
+                    var targetPos = finalTarget.GridPos;
+                    if (remainingRemnants.Count > 0)
+                    {
+                        targetPos = remainingRemnants[Random.Shared.Next(remainingRemnants.Count)].GridPos;
+                    }
+
+                    var diff = targetPos - current;
                     float dist = diff.Length();
-                    float maxStep = Math.Min(reach, dist - radius * 0.5f);
-                    float step = Math.Max(5f, maxStep * (0.70f + 0.28f * Random.Shared.NextSingle()));
-                    nextPos = current + (dist > 0.001f ? Vector2.Normalize(diff) * step : Vector2.Zero);
+                    float baseAngle = dist > 0.001f ? MathF.Atan2(diff.Y, diff.X) : 0f;
+
+                    float maxAllowedDistToFinal = ((remainingStepsAfterThis + 1) * reach) + radius;
+                    float minAllowedDistToFinal = radius + 3.0f;
+
+                    Vector2? bestNext = null;
+                    float[] angleOffsets = { 0.0f, 0.3f, -0.3f, 0.6f, -0.6f, 1.0f, -1.0f, 1.5f, -1.5f, 2.0f, -2.0f };
+                    float[] stepFractions = { 0.90f, 0.75f, 0.60f, 0.45f, 0.30f };
+
+                    foreach (var angOffset in angleOffsets)
+                    {
+                        float ang = baseAngle + angOffset;
+                        foreach (var sFrac in stepFractions)
+                        {
+                            float s = reach * sFrac;
+                            var cand = current + new Vector2(MathF.Cos(ang) * s, MathF.Sin(ang) * s);
+                            float dF = Vector2.Distance(cand, finalTarget.GridPos);
+
+                            if (dF > minAllowedDistToFinal && dF <= maxAllowedDistToFinal)
+                            {
+                                if (environment.IsPointWalkable(cand) && environment.HasLineOfSight(current, cand))
+                                {
+                                    bestNext = cand;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (bestNext.HasValue) break;
+                    }
+
+                    if (!bestNext.HasValue)
+                    {
+                        // Safe tangential orbit around final target
+                        var fDiff = finalTarget.GridPos - current;
+                        float fAng = MathF.Atan2(fDiff.Y, fDiff.X);
+                        float tanAng = fAng + (MathF.PI * 0.5f);
+                        float s = Math.Min(reach * 0.7f, 40.0f);
+                        var fallback = current + new Vector2(MathF.Cos(tanAng) * s, MathF.Sin(tanAng) * s);
+                        bestNext = fallback;
+                    }
+
+                    nextPos = bestNext.Value;
                 }
 
                 path.Add(RoundPoint(nextPos));
                 current = nextPos;
             }
 
-            // Final Bomb: step to final target
-            var finalDiff = finalTarget.GridPos - current;
-            float finalDist = finalDiff.Length();
-            Vector2 finalBombPos;
-            if (finalDist <= reach)
-            {
-                finalBombPos = finalTarget.GridPos;
-            }
-            else
-            {
-                float scale = Math.Min(reach, finalDist);
-                finalBombPos = current + (finalDist > 0.001f ? Vector2.Normalize(finalDiff) * scale : Vector2.Zero);
-            }
-
+            // Final Bomb: step to a walkable candidate near final target
+            var finalBombPos = environment.FindWalkableCandidateNearRemnant(finalTarget, current, radius);
             path.Add(RoundPoint(finalBombPos));
             return path;
         }
@@ -330,35 +371,73 @@ namespace ExpeditionPathOptimizer
             var finalTarget = environment.FinalTarget;
             if (finalTarget == null) return mutated;
 
-            int idx = Random.Shared.Next(0, n - 1);
-            var prev = idx == 0 ? environment.StartingPoint : mutated[idx - 1];
             float reach = environment.ExplosionRange;
             float radius = environment.ExplosionRadius;
-            int remainingSteps = n - 1 - idx;
 
-            var candidates = environment.Remnants
-                .Where(r => r != finalTarget && Vector2.Distance(prev, r.GridPos) <= reach + radius)
-                .Where(r => Vector2.Distance(r.GridPos, finalTarget.GridPos) <= ((remainingSteps - 1) * reach) + radius)
-                .ToList();
-
-            Vector2 newPoint;
-            if (candidates.Count > 0 && Random.Shared.NextDouble() < 0.6)
+            int idx = Random.Shared.Next(0, n);
+            if (idx == n - 1)
             {
-                var chosen = candidates[Random.Shared.Next(candidates.Count)];
-                var diff = chosen.GridPos - prev;
-                float d = diff.Length();
-                newPoint = d <= reach ? chosen.GridPos : prev + Vector2.Normalize(diff) * reach * (0.85f + 0.14f * Random.Shared.NextSingle());
+                // Mutate final bomb
+                var prev = n > 1 ? mutated[n - 2] : environment.StartingPoint;
+                var cand = environment.FindWalkableCandidateNearRemnant(finalTarget, prev, radius);
+                if (Vector2.Distance(prev, cand) <= reach && environment.HasLineOfSight(prev, cand))
+                {
+                    mutated[idx] = RoundPoint(cand);
+                }
             }
             else
             {
-                float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
-                float rDist = reach * (0.5f + 0.49f * Random.Shared.NextSingle());
-                newPoint = prev + new Vector2(MathF.Cos(angle) * rDist, MathF.Sin(angle) * rDist);
-            }
+                // Mutate intermediate bomb
+                var prev = idx == 0 ? environment.StartingPoint : mutated[idx - 1];
+                var nxt = mutated[idx + 1];
+                int remainingStepsAfterThis = n - 1 - (idx + 1);
 
-            if (Vector2.Distance(newPoint, finalTarget.GridPos) <= (remainingSteps * reach) + radius)
-            {
-                mutated[idx] = RoundPoint(newPoint);
+                var candidates = new List<Vector2>();
+                foreach (var r in environment.Remnants.Where(r => r != finalTarget))
+                {
+                    var candPos = environment.FindWalkableCandidateNearRemnant(r, prev, radius);
+                    if (Vector2.Distance(prev, candPos) <= reach && Vector2.Distance(candPos, nxt) <= reach)
+                    {
+                        float dF = Vector2.Distance(candPos, finalTarget.GridPos);
+                        if (dF > radius + 3.0f && dF <= ((remainingStepsAfterThis + 1) * reach) + radius)
+                        {
+                            if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
+                            {
+                                candidates.Add(candPos);
+                            }
+                        }
+                    }
+                }
+
+                if (candidates.Count > 0 && Random.Shared.NextDouble() < 0.6)
+                {
+                    mutated[idx] = RoundPoint(candidates[Random.Shared.Next(candidates.Count)]);
+                }
+                else
+                {
+                    var curPt = mutated[idx];
+                    for (int attempt = 0; attempt < 8; attempt++)
+                    {
+                        float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
+                        float step = (reach * 0.1f) + (Random.Shared.NextSingle() * reach * 0.35f);
+                        var cand = curPt + new Vector2(MathF.Cos(angle) * step, MathF.Sin(angle) * step);
+
+                        if (Vector2.Distance(prev, cand) <= reach && Vector2.Distance(cand, nxt) <= reach)
+                        {
+                            float dF = Vector2.Distance(cand, finalTarget.GridPos);
+                            if (dF > radius + 3.0f && dF <= ((remainingStepsAfterThis + 1) * reach) + radius)
+                            {
+                                if (environment.IsPointWalkable(cand) &&
+                                    environment.HasLineOfSight(prev, cand) &&
+                                    environment.HasLineOfSight(cand, nxt))
+                                {
+                                    mutated[idx] = RoundPoint(cand);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             return mutated;

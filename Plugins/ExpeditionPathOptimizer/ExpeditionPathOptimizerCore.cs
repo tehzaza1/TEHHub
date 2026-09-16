@@ -527,7 +527,8 @@ namespace ExpeditionPathOptimizer
                 radiusGrid,
                 Math.Max(1, maxExplosions - this.placedExplosives.Count),
                 startGrid,
-                p => true,
+                area.GridWalkableData,
+                area.TerrainMetadata.BytesPerRow,
                 config.IsGrandExpedition);
 
             this.runner.Start(this.Settings, env);
