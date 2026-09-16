@@ -238,6 +238,7 @@ namespace NinjaPricer
         }
         private List<SlotTag> cachedInvSlots = new();
         private List<SlotTag> cachedStashSlots = new();
+        private List<Vector4> cachedAllItemRects = new();
         private volatile bool isInvScanRunning = false;
 
         private sealed class CachedSlotItem
@@ -625,6 +626,7 @@ namespace NinjaPricer
             this.cachedGroundTags.Clear();
             this.cachedInvSlots.Clear();
             this.cachedStashSlots.Clear();
+            this.cachedAllItemRects.Clear();
             this.alertedEntityIds.Clear();
             this.activeAlertDrops.Clear();
             lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
@@ -655,6 +657,7 @@ namespace NinjaPricer
                 this.cachedGroundTags.Clear();
                 this.cachedInvSlots.Clear();
                 this.cachedStashSlots.Clear();
+                this.cachedAllItemRects.Clear();
                 this.itemSlotCache.Clear();
                 this.alertedEntityIds.Clear();
                 this.activeAlertDrops.Clear();
@@ -2345,6 +2348,51 @@ namespace NinjaPricer
             Vector2 mousePos = ImGui.GetMousePos();
             bool hideHover = this.Settings.HideSlotPriceOnHover;
 
+            if (hideHover)
+            {
+                var inGame = Core.States.InGameStateObject;
+                if (inGame?.MouseOverEntity != null && inGame.MouseOverEntity.IsValid && inGame.MouseOverEntity.Address != IntPtr.Zero)
+                {
+                    return; // Hide ALL ground tags when pointing at any world entity/loot
+                }
+
+                foreach (var tag in this.cachedGroundTags)
+                {
+                    var screenPos = world.WorldToScreen(new Vector2(tag.WorldPos.X, tag.WorldPos.Y), tag.WorldPos.Z);
+                    if (screenPos == Vector2.Zero) continue;
+
+                    var measured = this.MeasurePriceTag(tag.DisplayValue, fontSize, tag.IconPath);
+                    float x = screenPos.X;
+                    float y = screenPos.Y;
+
+                    switch (this.Settings.GroundPricePosition)
+                    {
+                        case GroundPricePosition.Top:
+                            x -= measured.TotalW * 0.5f;
+                            y -= measured.TotalH + 8.0f;
+                            break;
+                        case GroundPricePosition.Bottom:
+                            x -= measured.TotalW * 0.5f;
+                            y += 8.0f;
+                            break;
+                        case GroundPricePosition.Left:
+                            x -= measured.TotalW + 8.0f;
+                            y -= measured.TotalH * 0.5f;
+                            break;
+                        case GroundPricePosition.Right:
+                            x += 8.0f;
+                            y -= measured.TotalH * 0.5f;
+                            break;
+                    }
+
+                    if (mousePos.X >= x && mousePos.X <= x + measured.TotalW &&
+                        mousePos.Y >= y && mousePos.Y <= y + measured.TotalH)
+                    {
+                        return; // Hide ALL ground tags when pointing at any ground price tag
+                    }
+                }
+            }
+
             foreach (var tag in this.cachedGroundTags)
             {
                 var screenPos = world.WorldToScreen(new Vector2(tag.WorldPos.X, tag.WorldPos.Y), tag.WorldPos.Z);
@@ -2374,12 +2422,6 @@ namespace NinjaPricer
                         x += 8.0f;
                         y -= measured.TotalH * 0.5f;
                         break;
-                }
-
-                if (hideHover && mousePos.X >= x && mousePos.X <= x + measured.TotalW &&
-                    mousePos.Y >= y && mousePos.Y <= y + measured.TotalH)
-                {
-                    continue;
                 }
 
                 this.DrawPriceTag(dl, fontSize, x, y, measured, tag.Chaos);
@@ -2555,6 +2597,7 @@ namespace NinjaPricer
 
             var newInv = new List<SlotTag>();
             var newStash = new List<SlotTag>();
+            var newAllItemRects = new List<Vector4>();
             double totalScanMs = 0;
             double totalGetMs = 0;
             int totalFound = 0;
@@ -2563,7 +2606,7 @@ namespace NinjaPricer
 
             if (rightAddress != IntPtr.Zero)
             {
-                this.ScanPanelSlots(rightAddress, newInv, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
+                this.ScanPanelSlots(rightAddress, newInv, newAllItemRects, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
                 totalScanMs += sMs;
                 totalGetMs += gMs;
                 totalFound += fCount;
@@ -2573,7 +2616,7 @@ namespace NinjaPricer
 
             if (leftAddress != IntPtr.Zero)
             {
-                this.ScanPanelSlots(leftAddress, newStash, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
+                this.ScanPanelSlots(leftAddress, newStash, newAllItemRects, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
                 totalScanMs += sMs;
                 totalGetMs += gMs;
                 totalFound += fCount;
@@ -2594,11 +2637,13 @@ namespace NinjaPricer
 
             this.cachedInvSlots = newInv;
             this.cachedStashSlots = newStash;
+            this.cachedAllItemRects = newAllItemRects;
         }
 
         private void ScanPanelSlots(
             IntPtr panelAddress,
             List<SlotTag> output,
+            List<Vector4> allItemRects,
             out double scanUiMs,
             out double getSlotsMs,
             out int exactFound,
@@ -2694,6 +2739,8 @@ namespace NinjaPricer
 
                 if (!hasVisibleRect) continue;
 
+                allItemRects.Add(new Vector4(slotPos.X, slotPos.Y, slotPos.X + slotSize.X, slotPos.Y + slotSize.Y));
+
                 bool isPriced = false;
                 int stackCount = 1;
                 PriceResult price = default;
@@ -2777,21 +2824,60 @@ namespace NinjaPricer
 
         private void DrawSlotOverlays()
         {
+            if (this.Settings.HideSlotPriceOnHover)
+            {
+                Vector2 mousePos = ImGui.GetMousePos();
+                bool isAnySlotHovered = false;
+
+                foreach (var r in this.cachedAllItemRects)
+                {
+                    if (mousePos.X >= r.X && mousePos.X <= r.Z &&
+                        mousePos.Y >= r.Y && mousePos.Y <= r.W)
+                    {
+                        isAnySlotHovered = true;
+                        break;
+                    }
+                }
+
+                if (!isAnySlotHovered)
+                {
+                    foreach (var s in this.cachedInvSlots)
+                    {
+                        if (mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
+                            mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
+                        {
+                            isAnySlotHovered = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isAnySlotHovered)
+                {
+                    foreach (var s in this.cachedStashSlots)
+                    {
+                        if (mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
+                            mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
+                        {
+                            isAnySlotHovered = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isAnySlotHovered)
+                {
+                    return; // Hide ALL slot prices when mouse hovers over any item slot
+                }
+            }
+
             var dl = ImGui.GetBackgroundDrawList();
             float baseFontSize = ImGui.GetFontSize() * this.Settings.TextScale;
-            Vector2 mousePos = ImGui.GetMousePos();
-            bool hideHover = this.Settings.HideSlotPriceOnHover;
 
             void DrawSlots(List<SlotTag> slots)
             {
                 foreach (var s in slots)
                 {
-                    if (hideHover && mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
-                        mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
-                    {
-                        continue; // Hide on mouse hover over item slot
-                    }
-
                     float adaptiveFont = ComputeAdaptiveFontSize(baseFontSize, s.Size.X, s.Size.Y);
                     var measured = this.MeasurePriceTag(s.DisplayValue, adaptiveFont, s.IconPath, s.Size.X);
 
