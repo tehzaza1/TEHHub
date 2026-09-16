@@ -2932,6 +2932,9 @@ namespace NinjaPricer
                     {
                         if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
                         {
+                            var cov = e.GetExpeditionExplosiveCoverage();
+                            mData.IsCoveredByExplosive = cov.IsCovered;
+                            mData.DistanceToExplosive = cov.DistanceWorld;
                             monoliths.Add(mData);
                         }
                     }
@@ -3263,7 +3266,9 @@ namespace NinjaPricer
                 float midY = chipY0 + chipH * 0.5f;
 
                 dl.AddRectFilled(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), m.IsCompleted ? 0xC0202020u : 0xF0101010u, 4f);
-                dl.AddRect(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), m.IsCompleted ? 0x88787878u : 0x88404040u, 4f, ImDrawFlags.None, 1.0f);
+                uint borderCol = m.IsCompleted ? 0x88787878u : (m.IsCoveredByExplosive ? 0xFF30F030u : 0x88404040u);
+                float borderThick = m.IsCoveredByExplosive && !m.IsCompleted ? 2.0f : 1.0f;
+                dl.AddRect(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), borderCol, 4f, ImDrawFlags.None, borderThick);
 
                 float renderX = chipX0 + padX;
 
@@ -3619,6 +3624,10 @@ namespace NinjaPricer
                         ? ImGui.GetColorU32(ImGuiCol.HeaderHovered)
                         : (headerOpen ? ImGui.GetColorU32(ImGuiCol.Header) : ImGui.GetColorU32(ImGuiCol.FrameBg));
                     dl.AddRectFilled(hmin, hmax, bgCol, 4f);
+                    if (m.IsCoveredByExplosive && !m.IsCompleted)
+                    {
+                        dl.AddRect(hmin, hmax, 0xFF30F030u, 4f, ImDrawFlags.None, 1.5f);
+                    }
 
                     // Header decorations drawn with dl
                     float midY = (hmin.Y + hmax.Y) * 0.5f;

@@ -183,6 +183,84 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         }
 
         /// <summary>
+        ///     Calculates the horizontal (2D) Euclidean distance in World Units from the other entity.
+        ///     Returns float.MaxValue if either entity lacks a Render component or is null.
+        /// </summary>
+        /// <param name="other">Other entity object.</param>
+        /// <returns>Horizontal distance in World Units, or float.MaxValue if unavailable.</returns>
+        public float DistanceWorldFrom(Entity other)
+        {
+            if (other != null &&
+                this.TryGetComponent<Render>(out var myPosComp) &&
+                other.TryGetComponent<Render>(out var otherPosComp))
+            {
+                var dx = myPosComp.WorldPosition.X - otherPosComp.WorldPosition.X;
+                var dy = myPosComp.WorldPosition.Y - otherPosComp.WorldPosition.Y;
+                return MathF.Sqrt(dx * dx + dy * dy);
+            }
+
+            return float.MaxValue;
+        }
+
+        /// <summary>
+        ///     Calculates the 3D Euclidean distance in World Units from the other entity.
+        ///     Returns float.MaxValue if either entity lacks a Render component or is null.
+        /// </summary>
+        /// <param name="other">Other entity object.</param>
+        /// <returns>3D distance in World Units, or float.MaxValue if unavailable.</returns>
+        public float Distance3DWorldFrom(Entity other)
+        {
+            if (other != null &&
+                this.TryGetComponent<Render>(out var myPosComp) &&
+                other.TryGetComponent<Render>(out var otherPosComp))
+            {
+                var dx = myPosComp.WorldPosition.X - otherPosComp.WorldPosition.X;
+                var dy = myPosComp.WorldPosition.Y - otherPosComp.WorldPosition.Y;
+                var dz = myPosComp.WorldPosition.Z - otherPosComp.WorldPosition.Z;
+                return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+            }
+
+            return float.MaxValue;
+        }
+
+        /// <summary>
+        ///     Gets a value indicating whether this entity represents an Expedition Encounter (Remnant pillar / Monolith).
+        /// </summary>
+        public bool IsExpeditionEncounter =>
+            this.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase) ||
+            (this.TryGetComponent<StateMachine>(out var sm, false) && sm.TryGetRuneStationDetails(out _));
+
+        /// <summary>
+        ///     Checks whether this entity is within explosive blast radius of the specified explosive entity.
+        ///     Calculates radius dynamically from active Map/Area modifiers via ExpeditionMechanics.
+        /// </summary>
+        /// <param name="explosive">The placed explosive entity.</param>
+        /// <param name="customRadiusWorld">Optional custom blast radius in World Units. If null, calculates from map mods.</param>
+        /// <returns>True if within explosive blast radius; otherwise, false.</returns>
+        public bool IsInRangeOfExplosive(Entity explosive, float? customRadiusWorld = null)
+        {
+            if (explosive == null || !explosive.IsValid)
+            {
+                return false;
+            }
+
+            var radius = customRadiusWorld ?? Core.States.InGameStateObject?.CurrentAreaInstance?.ExpeditionConfig.ExplosionRadiusWorld ?? ExpeditionMechanics.RegularRadiusWorld;
+            var dist = this.DistanceWorldFrom(explosive);
+            return dist <= radius;
+        }
+
+        /// <summary>
+        ///     Evaluates placement coverage of this entity against all placed Expedition explosives in the current area.
+        ///     Accounts for dynamic explosive blast radius modifiers (increased radius / Grand Expedition).
+        /// </summary>
+        /// <param name="customRadiusWorld">Optional custom blast radius in World Units. If null, calculates from map mods.</param>
+        /// <returns>An authoritative ExpeditionExplosiveCoverage struct.</returns>
+        public ExpeditionMechanics.ExpeditionExplosiveCoverage GetExpeditionExplosiveCoverage(float? customRadiusWorld = null)
+        {
+            return ExpeditionMechanics.CalculateCoverage(this, null, customRadiusWorld);
+        }
+
+        /// <summary>
         ///     Gets the Component data associated with the entity.
         /// </summary>
         /// <typeparam name="T">Component type to get.</typeparam>
@@ -300,34 +378,62 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 }
             }
 
-            if (this.TryGetComponent<StateMachine>(out var smComp, false) && smComp.TryGetRuneStationDetails(out var rs) && rs != null)
+            RuneStationDetails? rs = null;
+            bool hasRuneStation = this.TryGetComponent<StateMachine>(out var smComp, false) && smComp.TryGetRuneStationDetails(out rs) && rs != null;
+            if (hasRuneStation || this.IsExpeditionEncounter)
             {
                 ImGui.Separator();
                 ImGui.TextColored(new System.Numerics.Vector4(1f, 0.84f, 0f, 1f), "[Expedition Monolith / Remnant]");
-                ImGui.Text($"Total Sockets: {rs.SocketCount}");
-                ImGui.Text($"Golden Crown Slot: #{rs.GoldenSlotIndex + 1} (index: {rs.GoldenSlotIndex})");
-                ImGui.Text($"Recipe Anchor Rune: {rs.AnchorRuneName} at Slot #{rs.AnchorSlotIndex + 1} (index: {rs.AnchorSlotIndex})");
-                if (rs.IsAnchorInGoldenSlot)
+                if (hasRuneStation && rs != null)
                 {
-                    ImGui.TextColored(new System.Numerics.Vector4(0.2f, 1f, 0.4f, 1f), $"Proliferating: YES ({rs.AnchorRuneName} in Golden Slot)");
+                    ImGui.Text($"Total Sockets: {rs.SocketCount}");
+                    ImGui.Text($"Golden Crown Slot: #{rs.GoldenSlotIndex + 1} (index: {rs.GoldenSlotIndex})");
+                    ImGui.Text($"Recipe Anchor Rune: {rs.AnchorRuneName} at Slot #{rs.AnchorSlotIndex + 1} (index: {rs.AnchorSlotIndex})");
+                    if (rs.IsAnchorInGoldenSlot)
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.2f, 1f, 0.4f, 1f), $"Proliferating: YES ({rs.AnchorRuneName} in Golden Slot)");
+                    }
+                    else
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(1f, 0.4f, 0.4f, 1f), $"Proliferating: NO (Golden Slot #{rs.GoldenSlotIndex + 1} has Blue rune; {rs.AnchorRuneName} is local-only)");
+                    }
+
+                    if (rs.SlotRunes != null && rs.SlotRunes.Length > 0)
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.6f, 0.9f, 1f, 1f), "Runes per slot:");
+                        for (int si = 0; si < rs.SlotRunes.Length; si++)
+                        {
+                            var isGolden = si == rs.GoldenSlotIndex;
+                            var marker = isGolden ? " ★" : "";
+                            var col = isGolden
+                                ? new System.Numerics.Vector4(1f, 0.84f, 0f, 1f)
+                                : new System.Numerics.Vector4(0.8f, 0.8f, 0.8f, 1f);
+                            ImGui.TextColored(col, $"  Slot #{si + 1}: {rs.SlotRunes[si]}{marker}");
+                        }
+                    }
+                }
+
+                // Placed Explosive Coverage Status
+                var cov = this.GetExpeditionExplosiveCoverage();
+                if (cov.IsCovered)
+                {
+                    ImGui.TextColored(new System.Numerics.Vector4(0.2f, 1f, 0.4f, 1f),
+                        $"Explosive Coverage: IN RANGE (Bomb #{cov.CoveringExplosiveId} at {cov.DistanceWorld:F1} W <= Radius {cov.ExplosionRadiusWorld:F0} W)");
+                    if (cov.TotalCoveringExplosives > 1)
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.4f, 0.9f, 0.5f, 1f),
+                            $"  (Covered by {cov.TotalCoveringExplosives} placed bombs)");
+                    }
+                }
+                else if (cov.TotalExplosivesInArea > 0)
+                {
+                    var diff = cov.DistanceToClosestWorld - cov.ExplosionRadiusWorld;
+                    ImGui.TextColored(new System.Numerics.Vector4(1f, 0.45f, 0.2f, 1f),
+                        $"Explosive Coverage: OUT OF RANGE (Closest Bomb #{cov.ClosestExplosiveId} at {cov.DistanceToClosestWorld:F1} W > Radius {cov.ExplosionRadiusWorld:F0} W, need {diff:F1} W closer)");
                 }
                 else
                 {
-                    ImGui.TextColored(new System.Numerics.Vector4(1f, 0.4f, 0.4f, 1f), $"Proliferating: NO (Golden Slot #{rs.GoldenSlotIndex + 1} has Blue rune; {rs.AnchorRuneName} is local-only)");
-                }
-
-                if (rs.SlotRunes != null && rs.SlotRunes.Length > 0)
-                {
-                    ImGui.TextColored(new System.Numerics.Vector4(0.6f, 0.9f, 1f, 1f), "Runes per slot:");
-                    for (int si = 0; si < rs.SlotRunes.Length; si++)
-                    {
-                        var isGolden = si == rs.GoldenSlotIndex;
-                        var marker = isGolden ? " ★" : "";
-                        var col = isGolden
-                            ? new System.Numerics.Vector4(1f, 0.84f, 0f, 1f)
-                            : new System.Numerics.Vector4(0.8f, 0.8f, 0.8f, 1f);
-                        ImGui.TextColored(col, $"  Slot #{si + 1}: {rs.SlotRunes[si]}{marker}");
-                    }
+                    ImGui.TextDisabled($"Explosive Coverage: No placed explosives in area (Effective Radius: {cov.ExplosionRadiusWorld:F0} W / {cov.ExplosionRadiusGrid:F1} G)");
                 }
 
                 ImGui.Separator();

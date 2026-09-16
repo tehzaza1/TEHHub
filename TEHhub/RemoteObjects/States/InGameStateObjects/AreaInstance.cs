@@ -181,6 +181,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public float WorldToGridConvertor => TileStructure.TileToWorldConversion / TileStructure.TileToGridConversion;
 
         /// <summary>
+        ///     Gets the authoritative runtime Expedition configuration calculated from current Area and Map Mods.
+        /// </summary>
+        public Utils.ExpeditionMechanics.ExpeditionConfig ExpeditionConfig => Utils.ExpeditionMechanics.GetConfig(this);
+
+        /// <summary>
         ///     Gets the active area / map modifiers from UI or ServerData.
         /// </summary>
         public IReadOnlyList<AreaMod> AreaMods
@@ -1080,7 +1085,15 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                         var status = nodeRs.IsAnchorInGoldenSlot
                             ? $"★ Gold #{nodeRs.GoldenSlotIndex + 1}: {nodeRs.AnchorRuneName} (Proliferates)"
                             : $"Gold #{nodeRs.GoldenSlotIndex + 1}: Blue | Slot #{nodeRs.AnchorSlotIndex + 1}: {nodeRs.AnchorRuneName} (Local)";
-                        nodeLabel = $"{entity.Value.Id} [Expedition {nodeRs.SocketCount}s | {status}{slotInfo}] {entity.Value.Path}";
+                        var cov = entity.Value.GetExpeditionExplosiveCoverage();
+                        var covTag = cov.IsCovered ? " | [Bomb IN RANGE]" : (cov.TotalExplosivesInArea > 0 ? " | [Bomb OUT]" : "");
+                        nodeLabel = $"{entity.Value.Id} [Expedition {nodeRs.SocketCount}s | {status}{slotInfo}{covTag}] {entity.Value.Path}";
+                    }
+                    else if (entity.Value.IsExpeditionEncounter)
+                    {
+                        var cov = entity.Value.GetExpeditionExplosiveCoverage();
+                        var covTag = cov.IsCovered ? " | [Bomb IN RANGE]" : (cov.TotalExplosivesInArea > 0 ? " | [Bomb OUT]" : "");
+                        nodeLabel = $"{entity.Value.Id} [Expedition Remnant{covTag}] {entity.Value.Path}";
                     }
                     else
                     {
@@ -1311,20 +1324,30 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
                         // -------- Expedition Monolith / RuneStation --------
                         object? expeditionMonolith = null;
-                        if (entity.Value.TryGetComponent<StateMachine>(out var dumpSm, false) &&
-                            dumpSm.TryGetRuneStationDetails(out var dumpRs) && dumpRs != null)
+                        RuneStationDetails? rs2 = null;
+                        bool hasDetails = entity.Value.TryGetComponent<StateMachine>(out var sm2, false) &&
+                                          sm2.TryGetRuneStationDetails(out rs2) && rs2 != null;
+                        if (entity.Value.IsExpeditionEncounter || hasDetails)
                         {
+                            var cov = entity.Value.GetExpeditionExplosiveCoverage();
                             expeditionMonolith = new
                             {
-                                Sockets = dumpRs.SocketCount,
-                                GoldenSlotNumber = dumpRs.GoldenSlotIndex + 1,
-                                GoldenSlotIndex = dumpRs.GoldenSlotIndex,
-                                AnchorRune = dumpRs.AnchorRuneName,
-                                AnchorSlotNumber = dumpRs.AnchorSlotIndex + 1,
-                                AnchorSlotIndex = dumpRs.AnchorSlotIndex,
-                                IsAnchorInGoldenSlot = dumpRs.IsAnchorInGoldenSlot,
-                                Proliferates = dumpRs.Proliferates,
-                                IsUnique = dumpRs.IsUnique
+                                Sockets = hasDetails ? rs2!.SocketCount : (int?)null,
+                                GoldenSlotNumber = hasDetails ? rs2!.GoldenSlotIndex + 1 : (int?)null,
+                                GoldenSlotIndex = hasDetails ? rs2!.GoldenSlotIndex : (int?)null,
+                                AnchorRune = hasDetails ? rs2!.AnchorRuneName : null,
+                                AnchorSlotNumber = hasDetails ? rs2!.AnchorSlotIndex + 1 : (int?)null,
+                                AnchorSlotIndex = hasDetails ? rs2!.AnchorSlotIndex : (int?)null,
+                                IsAnchorInGoldenSlot = hasDetails && rs2!.IsAnchorInGoldenSlot,
+                                Proliferates = hasDetails && rs2!.Proliferates,
+                                IsUnique = hasDetails && rs2!.IsUnique,
+                                IsCoveredByExplosive = cov.IsCovered,
+                                CoveringExplosiveId = cov.CoveringExplosiveId,
+                                DistanceToExplosiveWorld = cov.DistanceWorld < float.MaxValue ? cov.DistanceWorld : (float?)null,
+                                DistanceToClosestExplosiveWorld = cov.DistanceToClosestWorld < float.MaxValue ? cov.DistanceToClosestWorld : (float?)null,
+                                TotalCoveringExplosives = cov.TotalCoveringExplosives,
+                                TotalExplosivesInArea = cov.TotalExplosivesInArea,
+                                ExplosionRadiusWorld = cov.ExplosionRadiusWorld
                             };
                         }
 

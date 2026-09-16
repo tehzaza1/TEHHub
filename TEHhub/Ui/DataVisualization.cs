@@ -119,20 +119,27 @@ namespace TEHhub.Ui
             var world = inGame.CurrentWorldInstance;
             var player = area.Player;
 
-            // Section 1: Area Info & Modifiers
-            if (ImGui.CollapsingHeader("Area Information & Modifiers", ImGuiTreeNodeFlags.DefaultOpen))
+            // Section 1: Area Information
+            if (ImGui.CollapsingHeader("Area Information", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.Columns(2, "AreaCol", false);
-                ImGui.SetColumnWidth(0, 420);
-
                 ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), $"Area: {world.AreaDetails.Name} (ID: {world.AreaDetails.Id})");
                 ImGui.Text($"Monster Level: {area.CurrentAreaLevel} | Act: {world.AreaDetails.Act}");
                 ImGui.Text($"Area Hash: {area.AreaHash} | IsTown: {world.AreaDetails.IsTown} | IsHideout: {world.AreaDetails.IsHideout}");
                 ImGuiHelper.IntPtrToImGui("AreaInstance Address", area.Address);
                 ImGuiHelper.IntPtrToImGui("ServerData Address", area.ServerDataObject.Address);
 
-                ImGui.NextColumn();
-                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), $"Active Area Modifiers ({area.AreaMods.Count})");
+                // Display dynamic Expedition Config if present in area
+                var exp = area.ExpeditionConfig;
+                if (exp.IsGrandExpedition || exp.IncreasedExplosivesPercent > 0f || world.AreaDetails.Id.Contains("Expedition", StringComparison.OrdinalIgnoreCase))
+                {
+                    ImGui.Separator();
+                    ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), $"Expedition Config: {exp}");
+                }
+            }
+
+            // Section 2: Active Area Modifiers (Separate Header)
+            if (ImGui.CollapsingHeader($"Active Area / Map Modifiers ({area.AreaMods.Count})###AreaModsHeader", ImGuiTreeNodeFlags.DefaultOpen))
+            {
                 if (area.AreaMods.Count == 0)
                 {
                     ImGui.TextDisabled("No active area modifiers (Town / Hideout).");
@@ -152,8 +159,6 @@ namespace TEHhub.Ui
                         ImGui.PopID();
                     }
                 }
-
-                ImGui.Columns(1);
             }
 
             // Section 2: Player Vitals & Status

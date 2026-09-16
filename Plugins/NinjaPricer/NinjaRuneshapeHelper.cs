@@ -44,6 +44,8 @@ namespace NinjaPricer
         public uint Color { get; set; } = 0xFFFFFFFF;
         public List<MonolithOffer> Offers { get; set; } = new();
         public MonolithOffer? BestOffer { get; set; }
+        public bool IsCoveredByExplosive { get; set; }
+        public float DistanceToExplosive { get; set; }
     }
 
     public static class NinjaRuneshapeHelper
