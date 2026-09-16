@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.59 — 2026-09-16 [SDK / Core Framework Update]
+
+- **Core Framework: Map & Area Modifiers SDK**:
+  - Added new `AreaMod` data structure in `TEHhub.RemoteObjects.States.InGameStateObjects` containing `RawName`, `DisplayName`, `Values (Value0, Value1)`, and `ModRecordPtr`.
+  - Implemented memory parsing for active zone/map modifiers in `ServerData` and exposed via `Core.States.InGameStateObject.CurrentAreaInstance.AreaMods` and `AreaModNames`.
+  - Added helper methods in `AreaInstance`: `HasMod(string modNameFragment)` and `TryGetMod(string modNameFragment, out AreaMod? mod)` for convenient consumption across all plugins.
+  - Added interactive "Area / Map Modifiers" tree nodes in both `ServerData` and `AreaInstance` ImGui widgets and DataVisualization, with one-click copy and adaptive memory probing.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; passed test suites.
+
 ## 1.8.58 — 2026-09-16 [SDK / Core Framework Update]
 
 - **Core Framework: Centralized Master Switch for Inactive Overlay Hiding**:

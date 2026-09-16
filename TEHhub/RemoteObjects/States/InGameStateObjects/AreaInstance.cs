@@ -181,11 +181,96 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public float WorldToGridConvertor => TileStructure.TileToWorldConversion / TileStructure.TileToGridConversion;
 
         /// <summary>
+        ///     Gets the active area / map modifiers from ServerData.
+        /// </summary>
+        public IReadOnlyList<AreaMod> AreaMods => this.ServerDataObject.AreaMods;
+
+        /// <summary>
+        ///     Gets the set of active area / map modifier raw names from ServerData.
+        /// </summary>
+        public HashSet<string> AreaModNames => this.ServerDataObject.AreaModNames;
+
+        /// <summary>
+        ///     Checks if an active area modifier exists with a name containing <paramref name="modNameFragment"/> (case-insensitive).
+        /// </summary>
+        /// <param name="modNameFragment">Substring or mod identifier to look for.</param>
+        /// <returns><c>true</c> if the mod exists; otherwise, <c>false</c>.</returns>
+        public bool HasMod(string modNameFragment)
+        {
+            if (string.IsNullOrWhiteSpace(modNameFragment))
+            {
+                return false;
+            }
+
+            var mods = this.ServerDataObject.AreaMods;
+            for (var i = 0; i < mods.Count; i++)
+            {
+                if (mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
+                    mods[i].DisplayName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        ///     Tries to get the first active area modifier matching <paramref name="modNameFragment"/>.
+        /// </summary>
+        /// <param name="modNameFragment">Substring or mod identifier to look for.</param>
+        /// <param name="mod">The matched modifier if found; otherwise, null.</param>
+        /// <returns><c>true</c> if found; otherwise, <c>false</c>.</returns>
+        public bool TryGetMod(string modNameFragment, out AreaMod? mod)
+        {
+            mod = null;
+            if (string.IsNullOrWhiteSpace(modNameFragment))
+            {
+                return false;
+            }
+
+            var mods = this.ServerDataObject.AreaMods;
+            for (var i = 0; i < mods.Count; i++)
+            {
+                if (mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
+                    mods[i].DisplayName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase))
+                {
+                    mod = mods[i];
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         ///     Converts the <see cref="AreaInstance" /> class data to ImGui.
         /// </summary>
         internal override void ToImGui()
         {
             base.ToImGui();
+            if (ImGui.TreeNode($"Area / Map Modifiers ({this.AreaMods.Count})###AreaInstanceModsNode"))
+            {
+                if (this.AreaMods.Count == 0)
+                {
+                    ImGui.TextDisabled("No active area modifiers detected.");
+                }
+                else
+                {
+                    for (var i = 0; i < this.AreaMods.Count; i++)
+                    {
+                        var mod = this.AreaMods[i];
+                        var text = float.IsNaN(mod.Values.Value0)
+                            ? mod.RawName
+                            : float.IsNaN(mod.Values.Value1)
+                                ? $"{mod.RawName}: {mod.Values.Value0}"
+                                : $"{mod.RawName}: {mod.Values.Value0} - {mod.Values.Value1}";
+                        ImGuiHelper.DisplayTextAndCopyOnClick(text, mod.RawName);
+                    }
+                }
+
+                ImGui.TreePop();
+            }
             if (ImGui.TreeNode("Environment Info"))
             {
                 ImGuiHelper.IntPtrToImGui("Address", this.environmentPtr.First);

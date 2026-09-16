@@ -14,6 +14,7 @@ namespace TEHhub.Offsets.Objects.States.InGameState
     public struct ServerDataStructure
     {
         [FieldOffset(0x320)] public StdVector PlayerInventories; // InventoryArrayStruct
+        [FieldOffset(0x8A8)] public StdVector WorldAreaMods; // ModArrayStruct or pointers to Mods.dat
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
