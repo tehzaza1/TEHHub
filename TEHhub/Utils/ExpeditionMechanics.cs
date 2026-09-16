@@ -195,6 +195,19 @@ namespace TEHhub.Utils
             float increasedExplosivesPct = 0f;
             float increasedRadiusPct = 0f;
 
+            // 1. Check World Area Id & Name (e.g. ExpeditionLogBook_Reef, ExpeditionLogBook_Atoll, etc.)
+            var worldAreaId = Core.States.InGameStateObject?.CurrentWorldInstance?.AreaDetails?.Id ?? string.Empty;
+            var worldAreaName = Core.States.InGameStateObject?.CurrentWorldInstance?.AreaDetails?.Name ?? string.Empty;
+
+            if (worldAreaId.StartsWith("ExpeditionLogBook", StringComparison.OrdinalIgnoreCase) ||
+                worldAreaId.StartsWith("ExpeditionSubArea", StringComparison.OrdinalIgnoreCase) ||
+                worldAreaId.Contains("ExpeditionLogBook", StringComparison.OrdinalIgnoreCase) ||
+                worldAreaName.Contains("Logbook", StringComparison.OrdinalIgnoreCase) ||
+                worldAreaName.Contains("Grand Expedition", StringComparison.OrdinalIgnoreCase))
+            {
+                isGrand = true;
+            }
+
             if (area?.AreaMods != null)
             {
                 foreach (var mod in area.AreaMods)
@@ -203,7 +216,8 @@ namespace TEHhub.Utils
 
                     // Check for Grand Expedition
                     if (text.Contains("Grand Expedition", StringComparison.OrdinalIgnoreCase) ||
-                        text.Contains("Große Expedition", StringComparison.OrdinalIgnoreCase))
+                        text.Contains("Große Expedition", StringComparison.OrdinalIgnoreCase) ||
+                        text.Contains("Logbook", StringComparison.OrdinalIgnoreCase))
                     {
                         isGrand = true;
                     }
