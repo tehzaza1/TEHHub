@@ -11,33 +11,57 @@ namespace ExpeditionPathOptimizer.PathPlannerData
         public Vector3 WorldPos { get; set; }
         public Vector2 GridPos { get; set; }
         public int RuneSlots { get; set; } = 4;
-        public string PropagatedRune { get; set; } = string.Empty;
-        public double BaseRuneWeight { get; set; } = 20.0;
+        public int AnchorIdx { get; set; } = -1;
+        public int AnchorPos { get; set; }
+        public string? AnchorRune { get; set; }
+        public bool IsUnique { get; set; }
+        public List<int> GoldenSlots { get; set; } = new();
+        public IReadOnlyList<RuneshapeRecipeOffer> RecipeOffers { get; set; } = Array.Empty<RuneshapeRecipeOffer>();
+        public RuneshapeRecipeOffer? BestRecipe { get; set; }
 
         public ExpeditionRemnant()
         {
         }
 
-        public ExpeditionRemnant(uint entityId, IntPtr entityAddress, Vector3 worldPos, Vector2 gridPos, int runeSlots, string propagatedRune)
+        public ExpeditionRemnant(
+            uint entityId,
+            IntPtr entityAddress,
+            Vector3 worldPos,
+            Vector2 gridPos,
+            int runeSlots,
+            int anchorIdx,
+            int anchorPos,
+            string? anchorRune,
+            bool isUnique,
+            List<int> goldenSlots,
+            IReadOnlyList<RuneshapeRecipeOffer> recipeOffers,
+            RuneshapeRecipeOffer? bestRecipe)
         {
             this.EntityId = entityId;
             this.EntityAddress = entityAddress;
             this.WorldPos = worldPos;
             this.GridPos = gridPos;
             this.RuneSlots = Math.Clamp(runeSlots, 1, 16);
-            this.PropagatedRune = propagatedRune ?? string.Empty;
+            this.AnchorIdx = anchorIdx;
+            this.AnchorPos = anchorPos;
+            this.AnchorRune = anchorRune;
+            this.IsUnique = isUnique;
+            this.GoldenSlots = goldenSlots ?? new List<int>();
+            this.RecipeOffers = recipeOffers ?? Array.Empty<RuneshapeRecipeOffer>();
+            this.BestRecipe = bestRecipe;
         }
 
-        public void UpdateBaseRuneWeight(Dictionary<string, double> weights)
+        public double CalculateBaseRuneWeight(Dictionary<string, double> weights)
         {
-            if (!string.IsNullOrEmpty(this.PropagatedRune) && weights.TryGetValue(this.PropagatedRune, out var w))
+            if (this.BestRecipe?.PropagatedRunes == null || this.BestRecipe.PropagatedRunes.Count == 0)
+                return 0.0;
+
+            double sum = 0.0;
+            foreach (var r in this.BestRecipe.PropagatedRunes)
             {
-                this.BaseRuneWeight = w;
+                sum += weights.GetValueOrDefault(r, 20.0);
             }
-            else
-            {
-                this.BaseRuneWeight = 20.0;
-            }
+            return sum;
         }
     }
 }

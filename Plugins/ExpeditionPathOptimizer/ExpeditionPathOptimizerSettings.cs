@@ -9,6 +9,11 @@ namespace ExpeditionPathOptimizer
         public bool Enable { get; set; } = true;
         public bool AutoStartOnAreaChange { get; set; } = true;
 
+        // Price Service Settings
+        public string League { get; set; } = "Forbidden Rites";
+        public int PriceSource { get; set; } = 1; // 0 = poe2scout, 1 = poe.ninja
+        public int AutoRefreshMinutes { get; set; } = 30;
+
         // Visuals
         public bool ShowWorldMarkers { get; set; } = true;
         public bool ShowLargeMapMarkers { get; set; } = true;

@@ -24,6 +24,9 @@ namespace ExpeditionPathOptimizer
         private const float GridToWorldMultiplier = 250f / 23f; // 10.869565f
         private string SettingPathname => this.PluginConfigPath("settings.json");
         private readonly PathPlannerRunner runner = new();
+        private readonly RuneshapeRecipePredictor recipePredictor = new();
+        private ExpeditionPriceService? priceService;
+        private DateTime lastPriceRefreshUtc = DateTime.MinValue;
         private ActiveCoroutine? onAreaChangeCoroutine;
         private ActiveCoroutine? periodicScanCoroutine;
 
@@ -47,19 +50,16 @@ namespace ExpeditionPathOptimizer
         private string lastAreaHash = string.Empty;
         private bool hasAutoSearchedThisArea = false;
 
-        public static readonly string[] RuneNames = new string[]
-        {
-            "Fire", "Cold", "Lightning", "Tempest", "Momentum", "Bloodletting",
-            "Stone", "Adaptive", "Arcane", "Toxic", "Electrocuting", "Protective",
-            "Cyclonic", "Vision", "Tidal", "Rebirth", "Prismatic", "Gasp",
-            "Moon", "Celestial", "Opulent", "Rage", "Wisdom", "Sky",
-            "Earth", "Life", "Bond", "Ward", "Soul", "Death",
-            "Oath", "Time", "Power", "Bait"
-        };
+        public static string[] RuneNames => RuneshapeRecipePredictor.RuneNames;
 
         public override void OnEnable(bool isAutoEnabling)
         {
             this.LoadSettings();
+            this.recipePredictor.LoadRecipes(this.DllDirectory);
+            this.priceService = new ExpeditionPriceService(this.PluginConfigDirectory);
+            this.priceService.TriggerRefresh(this.Settings.League, this.Settings.PriceSource);
+            this.lastPriceRefreshUtc = DateTime.UtcNow;
+
             this.onAreaChangeCoroutine = CoroutineHandler.Start(this.OnAreaChange(), "[ExpeditionPathOptimizer] Area Change");
             this.periodicScanCoroutine = CoroutineHandler.Start(this.PeriodicScan(), "[ExpeditionPathOptimizer] Periodic Scan");
         }
@@ -70,6 +70,8 @@ namespace ExpeditionPathOptimizer
             this.onAreaChangeCoroutine = null;
             this.periodicScanCoroutine?.Cancel();
             this.periodicScanCoroutine = null;
+            this.priceService?.Dispose();
+            this.priceService = null;
             this.runner.Clear();
             this.ClearState();
         }
@@ -103,6 +105,17 @@ namespace ExpeditionPathOptimizer
             {
                 yield return new Wait(0.5f);
                 if (!this.Settings.Enable) continue;
+
+                // Check background price auto-refresh
+                if (this.priceService != null && this.Settings.AutoRefreshMinutes > 0)
+                {
+                    if (DateTime.UtcNow - this.lastPriceRefreshUtc > TimeSpan.FromMinutes(this.Settings.AutoRefreshMinutes))
+                    {
+                        this.lastPriceRefreshUtc = DateTime.UtcNow;
+                        this.priceService.TriggerRefresh(this.Settings.League, this.Settings.PriceSource);
+                    }
+                }
+
                 var area = Core.States.InGameStateObject?.CurrentAreaInstance;
                 if (area == null || area.Address == IntPtr.Zero) continue;
 
@@ -164,7 +177,7 @@ namespace ExpeditionPathOptimizer
 
         public override void DrawSettings()
         {
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Expedition Path Optimizer V1 (Rune & Remnant Strategy)");
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Expedition Path Optimizer (Runeshape Recipe & Path Strategy)");
             ImGui.Separator();
             ImGui.Spacing();
 
@@ -180,6 +193,24 @@ namespace ExpeditionPathOptimizer
             {
                 this.Settings.AutoStartOnAreaChange = autoStart;
                 this.SaveSettings();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Runeshape & Live Price Status");
+
+            ImGui.Text($"Recipes Loaded: {this.recipePredictor.RecipeCount} | Partial Weights: {this.recipePredictor.RuneWeightsCount}");
+            if (this.priceService != null)
+            {
+                var pStat = this.priceService.GetStatus();
+                ImGui.TextColored(pStat.Loaded ? new Vector4(0.2f, 1.0f, 0.4f, 1.0f) : new Vector4(0.9f, 0.9f, 0.2f, 1.0f), $"Price Status: {pStat.Message}");
+                ImGui.Text($"Cached Rates: 1 Divine = {pStat.DivineInChaos:F1}c | 1 Exalt = {pStat.ExaltedInChaos:F2}c ({pStat.TotalItems} items)");
+
+                if (ImGui.Button("Refresh Prices Now", new Vector2(160, 24)))
+                {
+                    this.priceService.TriggerRefresh(this.Settings.League, this.Settings.PriceSource);
+                    this.lastPriceRefreshUtc = DateTime.UtcNow;
+                }
             }
 
             ImGui.Spacing();
@@ -205,7 +236,16 @@ namespace ExpeditionPathOptimizer
             }
             if (this.selectedFinalTarget != null)
             {
-                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {this.selectedFinalTarget.RuneSlots} Slots, Rune: {(string.IsNullOrEmpty(this.selectedFinalTarget.PropagatedRune) ? "None" : this.selectedFinalTarget.PropagatedRune)} (Base: {this.selectedFinalTarget.BaseRuneWeight:F0})");
+                var target = this.selectedFinalTarget;
+                string anchorStr = target.IsUnique ? "Unique" : (target.AnchorRune ?? "None");
+                string propStr = target.BestRecipe?.PropagatedRunes != null && target.BestRecipe.PropagatedRunes.Count > 0
+                    ? string.Join(", ", target.BestRecipe.PropagatedRunes)
+                    : "None";
+                string rewardStr = target.BestRecipe != null
+                    ? $" -> {target.BestRecipe.Reward} x{target.BestRecipe.RewardCount} ({(target.BestRecipe.IsPriced ? $"{target.BestRecipe.PriceChaos:F0}c / {target.BestRecipe.PriceDivine:F2}d" : "No price")})"
+                    : "";
+
+                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {target.RuneSlots} Slots (Anchor: {anchorStr}), Propagated: [{propStr}]{rewardStr}");
             }
             ImGui.Text($"Placed Explosives Detected: {this.placedExplosives.Count}");
 
@@ -417,74 +457,142 @@ namespace ExpeditionPathOptimizer
                          path.Contains("ExpeditionRemnant", StringComparison.OrdinalIgnoreCase))
                 {
                     int slots = 4;
-                    string propRune = string.Empty;
+                    int anchorPos = 0;
+                    int anchorIdx = -1;
+                    string? anchorRune = null;
+                    bool isUnique = false;
+                    var goldenSlots = new List<int>();
 
                     // Read Remnant details from StateMachine & Station pointer
                     if (entity.TryGetComponent<StateMachine>(out var sm) && sm.Address != IntPtr.Zero)
                     {
                         var listeners = reader.ReadMemory<StdVector>(sm.Address + 0x20);
-                        var totalNodes = (int)listeners.TotalElements(sizeof(long));
-                        if (totalNodes > 0 && totalNodes <= 256)
+                        var nodes = reader.ReadStdVector<long>(listeners);
+                        if (nodes != null && nodes.Length > 0 && nodes.Length <= 256)
                         {
-                            var nodes = reader.ReadMemoryArray<long>(listeners.First, totalNodes);
-                            if (nodes != null)
+                            IntPtr station = IntPtr.Zero;
+                            foreach (var nodeValue in nodes)
                             {
-                                foreach (var nodeValue in nodes)
+                                if (nodeValue == 0) continue;
+                                var sub = reader.ReadMemory<IntPtr>(new IntPtr(nodeValue));
+                                if (sub == IntPtr.Zero) continue;
+
+                                var cand1 = sub - 0xA0;
+                                if (reader.ReadMemory<IntPtr>(cand1 + 0x10) == entity.Address)
                                 {
-                                    if (nodeValue == 0) continue;
-                                    var sub = reader.ReadMemory<IntPtr>(new IntPtr(nodeValue));
-                                    if (sub == IntPtr.Zero) continue;
+                                    station = cand1;
+                                    break;
+                                }
 
-                                    IntPtr station = IntPtr.Zero;
-                                    for (int off = 0x60; off <= 0x120; off += 8)
+                                var cand2 = sub - 0x98;
+                                if (reader.ReadMemory<IntPtr>(cand2 + 0x10) == entity.Address)
+                                {
+                                    station = cand2;
+                                    break;
+                                }
+
+                                for (int off = 0x60; off <= 0x120; off += 8)
+                                {
+                                    var cand = sub - off;
+                                    if (reader.ReadMemory<IntPtr>(cand + 0x10) == entity.Address)
                                     {
-                                        var cand = sub - off;
-                                        if (reader.ReadMemory<IntPtr>(cand + 0x10) == entity.Address)
-                                        {
-                                            station = cand;
-                                            break;
-                                        }
-                                    }
-
-                                    if (station != IntPtr.Zero)
-                                    {
-                                        var hCount = reader.ReadMemory<int>(station + 0x38);
-                                        if (hCount is > 0 and <= 16) slots = hCount;
-
-                                        var rowPtr = reader.ReadMemory<IntPtr>(station + 0x28);
-                                        var holder = reader.ReadMemory<IntPtr>(station + 0x30);
-                                        if (holder != IntPtr.Zero && rowPtr != IntPtr.Zero)
-                                        {
-                                            var p1 = reader.ReadMemory<IntPtr>(holder + 0x28);
-                                            if (p1 != IntPtr.Zero)
-                                            {
-                                                var tableBase = reader.ReadMemory<long>(p1);
-                                                if (tableBase != 0)
-                                                {
-                                                    var delta = rowPtr.ToInt64() - tableBase;
-                                                    int anchorIdx = -1;
-                                                    if (delta >= 0)
-                                                    {
-                                                        if (delta % 0x68 == 0) anchorIdx = (int)(delta / 0x68);
-                                                        else if (delta % 0x6C == 0) anchorIdx = (int)(delta / 0x6C);
-                                                    }
-
-                                                    if (anchorIdx >= 0 && anchorIdx < RuneNames.Length)
-                                                    {
-                                                        propRune = RuneNames[anchorIdx];
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        station = cand;
                                         break;
                                     }
                                 }
+
+                                if (station != IntPtr.Zero) break;
+                            }
+
+                            if (station != IntPtr.Zero)
+                            {
+                                var hCount = reader.ReadMemory<int>(station + 0x38);
+                                if (hCount is > 0 and <= 16) slots = hCount;
+
+                                anchorPos = reader.ReadMemory<int>(station + 0x3C);
+                                var rowPtr = reader.ReadMemory<IntPtr>(station + 0x28);
+                                if (rowPtr == IntPtr.Zero)
+                                {
+                                    isUnique = true;
+                                }
+                                else
+                                {
+                                    var holder = reader.ReadMemory<IntPtr>(station + 0x30);
+                                    if (holder != IntPtr.Zero)
+                                    {
+                                        var p1 = reader.ReadMemory<IntPtr>(holder + 0x28);
+                                        if (p1 != IntPtr.Zero)
+                                        {
+                                            var tableBase = reader.ReadMemory<long>(p1);
+                                            if (tableBase != 0)
+                                            {
+                                                var delta = rowPtr.ToInt64() - tableBase;
+                                                if (delta >= 0)
+                                                {
+                                                    if (delta % 0x68 == 0) anchorIdx = (int)(delta / 0x68);
+                                                    else if (delta % 0x6C == 0) anchorIdx = (int)(delta / 0x6C);
+                                                }
+
+                                                if (anchorIdx >= 0 && anchorIdx < RuneNames.Length)
+                                                {
+                                                    anchorRune = RuneNames[anchorIdx];
+                                                }
+                                                else
+                                                {
+                                                    anchorIdx = -1;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                var goldenVec = reader.ReadMemory<StdVector>(station + 0x40);
+                                var goldenCount = goldenVec.TotalElements(sizeof(int));
+                                if (goldenCount > 0 && goldenCount <= 16)
+                                {
+                                    var gSlots = reader.ReadMemoryArray<int>(goldenVec.First, (int)goldenCount);
+                                    if (gSlots != null)
+                                    {
+                                        foreach (var s in gSlots)
+                                        {
+                                            if (s >= 0 && s < slots && !goldenSlots.Contains(s))
+                                            {
+                                                goldenSlots.Add(s);
+                                            }
+                                        }
+                                    }
+                                }
+                                goldenSlots.Sort();
                             }
                         }
                     }
 
-                    var remnant = new ExpeditionRemnant(entity.Id, entity.Address, wPos, gPos, slots, propRune);
-                    remnant.UpdateBaseRuneWeight(this.Settings.RuneWeights);
+                    int areaLevel = area.CurrentAreaLevel;
+                    var offers = this.recipePredictor.PredictOffers(
+                        slots,
+                        anchorIdx,
+                        anchorPos,
+                        isUnique,
+                        goldenSlots,
+                        areaLevel,
+                        this.priceService);
+
+                    var bestRecipe = offers.Count > 0 ? offers[0] : null;
+
+                    var remnant = new ExpeditionRemnant(
+                        entity.Id,
+                        entity.Address,
+                        wPos,
+                        gPos,
+                        slots,
+                        anchorIdx,
+                        anchorPos,
+                        anchorRune,
+                        isUnique,
+                        goldenSlots,
+                        offers,
+                        bestRecipe);
+
                     this.discoveredRemnants[entity.Address] = remnant;
                 }
                 else if (entity.TryGetComponent<MinimapIcon>(out var miniIcon, false) && miniIcon != null)
@@ -514,7 +622,7 @@ namespace ExpeditionPathOptimizer
                 int maxSlots = this.discoveredRemnants.Values.Max(r => r.RuneSlots);
                 var candidates = this.discoveredRemnants.Values.Where(r => r.RuneSlots == maxSlots).ToList();
                 this.selectedFinalTarget = candidates
-                    .OrderByDescending(r => r.BaseRuneWeight)
+                    .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings.RuneWeights))
                     .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
                     .First();
             }

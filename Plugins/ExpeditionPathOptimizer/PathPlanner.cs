@@ -28,10 +28,6 @@ namespace ExpeditionPathOptimizer
 
         public void Init(ExpeditionEnvironment environment)
         {
-            foreach (var r in environment.Remnants)
-            {
-                r.UpdateBaseRuneWeight(this.settings.RuneWeights);
-            }
         }
 
         public double GetScore(List<Vector2> path, ExpeditionEnvironment env)
@@ -155,13 +151,18 @@ namespace ExpeditionPathOptimizer
                             localScore += this.settings.RemnantHitBaseScore;
                             localScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
 
-                            // Rune Base Weight scored ONCE upon discovery
-                            if (!string.IsNullOrEmpty(r.PropagatedRune))
+                            // Rune Base Weight scored ONLY when newly added to acquiredRunes
+                            if (r.BestRecipe?.PropagatedRunes != null)
                             {
-                                acquiredRunes.Add(r.PropagatedRune);
-                                double w = this.settings.RuneWeights.GetValueOrDefault(r.PropagatedRune, 20.0);
-                                localScore += w;
-                                runeScore += w;
+                                foreach (var rune in r.BestRecipe.PropagatedRunes)
+                                {
+                                    if (acquiredRunes.Add(rune))
+                                    {
+                                        double w = this.settings.RuneWeights.GetValueOrDefault(rune, 20.0);
+                                        localScore += w;
+                                        runeScore += w;
+                                    }
+                                }
                             }
                         }
                     }
@@ -382,7 +383,7 @@ namespace ExpeditionPathOptimizer
                         {
                             score += this.settings.RemnantHitBaseScore +
                                      (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                     r.BaseRuneWeight;
+                                     r.CalculateBaseRuneWeight(this.settings.RuneWeights);
                         }
                     }
 
@@ -493,7 +494,7 @@ namespace ExpeditionPathOptimizer
                             double targetVal =
                                 this.settings.RemnantHitBaseScore +
                                 (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                r.BaseRuneWeight -
+                                r.CalculateBaseRuneWeight(this.settings.RuneWeights) -
                                 (estBridges * this.settings.UsefulBridgePenalty);
                             reachableRemnants.Add((r.GridPos, targetVal));
                         }
@@ -690,7 +691,7 @@ namespace ExpeditionPathOptimizer
                         {
                             score += this.settings.RemnantHitBaseScore +
                                      (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                     r.BaseRuneWeight;
+                                     r.CalculateBaseRuneWeight(this.settings.RuneWeights);
                         }
                     }
                     foreach (var c in uncoveredChests)

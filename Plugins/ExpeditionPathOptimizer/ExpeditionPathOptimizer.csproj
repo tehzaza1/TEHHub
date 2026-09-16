@@ -26,7 +26,13 @@
   </ItemGroup>
 
   <Target Name="CopyFiles" AfterTargets="Build">
-    <Copy SourceFiles="$(OutDir)$(TargetName)$(TargetExt); $(OutDir)$(TargetName).pdb;" DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)" SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <_ExpeditionPathOptimizerDeployFiles Include="$(OutDir)$(TargetName)$(TargetExt)" />
+      <_ExpeditionPathOptimizerDeployFiles Include="$(OutDir)$(TargetName).pdb" Condition="Exists('$(OutDir)$(TargetName).pdb')" />
+      <_ExpeditionPathOptimizerDeployFiles Include="$(MSBuildProjectDirectory)\expedition2_recipes.json" Condition="Exists('$(MSBuildProjectDirectory)\expedition2_recipes.json')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ExpeditionPathOptimizerDeployFiles)"
+          DestinationFolder="..\..\TEHhub\$(OutDir)Plugins\$(ProjectName)"
+          SkipUnchangedFiles="true" />
   </Target>
-
 </Project>
