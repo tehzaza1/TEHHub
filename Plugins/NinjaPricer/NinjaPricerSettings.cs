@@ -92,6 +92,7 @@ namespace NinjaPricer
         public bool RsMinimalMapBadges { get; set; } = false;
         public float ExpeditionTextScale { get; set; } = 1.0f;
         public float ExpeditionUiScale { get; set; } = 1.0f;
+        public float RsBadgeBgAlpha { get; set; } = 0.65f;
         public bool RsCompactRows { get; set; } = true;
         public float RsRowScale { get; set; } = 0.85f;
         public HashSet<uint> RuneshapeCollapsed { get; set; } = new();

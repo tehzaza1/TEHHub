@@ -1705,6 +1705,15 @@ namespace NinjaPricer
                 this.SaveSettings();
             }
 
+            float rsBgAlpha = this.Settings.RsBadgeBgAlpha;
+            if (ImGui.SliderFloat(this.PluginText.Label("ninjapricer.overlays.monolith_badge_bg_alpha", "Badge background opacity", "RsBadgeBgAlphaSlider"), ref rsBgAlpha, 0.0f, 1.0f, "%.2f"))
+            {
+                this.Settings.RsBadgeBgAlpha = Math.Clamp(rsBgAlpha, 0.0f, 1.0f);
+                this.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.monolith_badge_bg_alpha.tooltip", "Adjusts the opacity/transparency of the monolith badge background (0.0 = completely transparent, 1.0 = solid)."));
+
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
@@ -3548,7 +3557,11 @@ namespace NinjaPricer
                 float chipY1 = chipY0 + chipH;
                 float midY = chipY0 + chipH * 0.5f;
 
-                dl.AddRectFilled(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), m.IsCompleted ? 0xC0202020u : 0xF0101010u, 4f);
+                uint bgAlpha = (uint)(Math.Clamp(this.Settings.RsBadgeBgAlpha, 0.0f, 1.0f) * 255f);
+                uint chipBg = m.IsCompleted
+                    ? ((Math.Min(bgAlpha, 0xC0u)) << 24) | 0x00202020u
+                    : (bgAlpha << 24) | 0x00101010u;
+                dl.AddRectFilled(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), chipBg, 4f);
                 uint borderCol = m.IsCompleted ? 0x88787878u : (m.IsCoveredByExplosive ? 0xFF30F030u : 0x88404040u);
                 float borderThick = m.IsCoveredByExplosive && !m.IsCompleted ? 2.0f : 1.0f;
                 dl.AddRect(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), borderCol, 4f, ImDrawFlags.None, borderThick);
