@@ -212,6 +212,7 @@ namespace NinjaPricer
         private Vector2 runeshapeWinRectMin = Vector2.Zero;
         private Vector2 runeshapeWinRectMax = Vector2.Zero;
         private bool runeshapeWinRectValid = false;
+        private readonly HashSet<uint> coveredMonolithIds = new();
         private readonly HashSet<IntPtr> coveredMonoliths = new();
         private string newProfileInput = string.Empty;
 
@@ -663,6 +664,7 @@ namespace NinjaPricer
                 lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
                 this.lastGroundScanUtc = DateTime.MinValue;
                 this.lastInvScanUtc = DateTime.MinValue;
+                this.coveredMonolithIds.Clear();
                 this.coveredMonoliths.Clear();
                 this.expandedMonoliths.Clear();
             }
@@ -3111,6 +3113,7 @@ namespace NinjaPricer
                     {
                         if (mData.IsCompleted)
                         {
+                            this.coveredMonolithIds.Remove(e.Id);
                             this.coveredMonoliths.Remove(e.Address);
                             continue;
                         }
@@ -3119,8 +3122,19 @@ namespace NinjaPricer
                         bool isDetonated = mData.ActivatedState >= 5;
                         var cov = e.GetExpeditionExplosiveCoverage();
 
-                        if (cov.IsCovered)
+                        bool isCurrentlyCovered = cov.IsCovered;
+                        if (!isCurrentlyCovered && hasPlacedExplosives)
                         {
+                            // Sticky persistence: if already marked covered in this encounter and bombs still exist in the area, stay covered
+                            if (this.coveredMonolithIds.Contains(e.Id) || this.coveredMonoliths.Contains(e.Address))
+                            {
+                                isCurrentlyCovered = true;
+                            }
+                        }
+
+                        if (isCurrentlyCovered)
+                        {
+                            this.coveredMonolithIds.Add(e.Id);
                             this.coveredMonoliths.Add(e.Address);
                             mData.IsCoveredByExplosive = true;
                             mData.DistanceToExplosive = cov.DistanceWorld;
@@ -3128,11 +3142,12 @@ namespace NinjaPricer
                         else if (!isDetonated)
                         {
                             // Pre-detonation: live coverage only! If bomb was removed/undone, remove from covered set immediately
+                            this.coveredMonolithIds.Remove(e.Id);
                             this.coveredMonoliths.Remove(e.Address);
                             mData.IsCoveredByExplosive = false;
                             mData.DistanceToExplosive = cov.DistanceWorld;
                         }
-                        else if (this.coveredMonoliths.Contains(e.Address))
+                        else if (this.coveredMonolithIds.Contains(e.Id) || this.coveredMonoliths.Contains(e.Address))
                         {
                             // Post-detonation: was covered before detonation, keep green while fighting/looting
                             mData.IsCoveredByExplosive = true;

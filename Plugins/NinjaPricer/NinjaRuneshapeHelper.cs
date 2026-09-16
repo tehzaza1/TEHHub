@@ -32,6 +32,7 @@ namespace NinjaPricer
 
     public sealed class MonolithData
     {
+        public uint EntityId { get; set; }
         public IntPtr EntityAddress { get; set; }
         public int HoleCount { get; set; }
         public int AnchorPos { get; set; }
@@ -201,6 +202,7 @@ namespace NinjaPricer
                 info.WorldPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.TerrainHeight);
             }
 
+            info.EntityId = entity.Id;
             info.EntityAddress = entity.Address;
             info.HoleCount = holeCount;
             info.AnchorPos = anchorPos;

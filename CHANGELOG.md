@@ -2,6 +2,18 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.80 — 2026-09-16 [Plugin Update — NinjaPricer, SDK / Core Framework Update]
+
+- **`ExpeditionMechanics` Distant Explosive Persistence & Proximity Pruning**:
+  - Fixed `TrackedExplosives` synchronization in `ExpeditionMechanics.cs`: Distant explosives beyond the local wake bubble are now persistently retained across the entire zone rather than being wiped when the player moves away.
+  - Placed explosives are now only pruned when the player is within proximity (`< 1200 W`) and the explosive entity is genuinely missing (undone/deleted by the player).
+- **`NinjaPricer` Monolith Coverage Persistence**:
+  - Enhanced `MonolithData` and `NinjaPricerCore.cs` with `coveredMonolithIds` (unique entity ID tracking) alongside entity address tracking.
+  - Sticky coverage persistence ensures covered Expedition Remnant monoliths remain green even when the player travels far across the map.
+  - Undone bombs in proximity properly un-green the monolith in real time, and completed monoliths (`ActivatedState >= 7` or looted) cleanly disappear.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
+
 ## 1.8.79 — 2026-09-16 [Plugin Update — myFarming]
 
 - **`myFarming` Multi-Layer Hybrid Gold Tracking Engine**:

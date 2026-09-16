@@ -8,9 +8,9 @@
     <Title>TEHhub Launcher</Title>
     <Description>Launcher for the TEHhub overlay and plugin platform.</Description>
     <Authors>Tanaw; Arsenic; Gordin; GameHelper2 community contributors</Authors>
-    <Version>1.8.79</Version>
-    <AssemblyVersion>1.8.79.0</AssemblyVersion>
-    <FileVersion>1.8.79.0</FileVersion>
+    <Version>1.8.80</Version>
+    <AssemblyVersion>1.8.80.0</AssemblyVersion>
+    <FileVersion>1.8.80.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

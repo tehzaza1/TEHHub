@@ -383,15 +383,28 @@ namespace TEHhub.Utils
                 }
             }
 
-            // Synchronize TrackedExplosives: remove any explosive that was undone or deleted by the player
+            // Synchronize TrackedExplosives: only prune explosives that are within the player's wake bubble (~1200 W)
+            // and genuinely missing (undone/removed by player). Keep distant explosives tracked across the area.
             if (!TrackedExplosives.IsEmpty)
             {
                 var liveIds = new HashSet<uint>(results.Select(e => e.Id));
-                foreach (var id in TrackedExplosives.Keys)
+                var playerRender = area?.Player?.TryGetComponent<Render>(out var pr, false) == true ? pr : null;
+                var playerPos = playerRender != null ? new System.Numerics.Vector3(playerRender.WorldPosition.X, playerRender.WorldPosition.Y, playerRender.TerrainHeight) : (System.Numerics.Vector3?)null;
+
+                foreach (var (id, (ePos, _)) in TrackedExplosives)
                 {
                     if (!liveIds.Contains(id))
                     {
-                        TrackedExplosives.TryRemove(id, out _);
+                        if (playerPos.HasValue)
+                        {
+                            var dx = playerPos.Value.X - ePos.X;
+                            var dy = playerPos.Value.Y - ePos.Y;
+                            var distToPlayer = MathF.Sqrt(dx * dx + dy * dy);
+                            if (distToPlayer < 1200f)
+                            {
+                                TrackedExplosives.TryRemove(id, out _);
+                            }
+                        }
                     }
                 }
             }
