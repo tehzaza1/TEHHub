@@ -2912,8 +2912,79 @@ namespace NinjaPricer
             getSlotsMs = swGet.Elapsed.TotalMilliseconds;
         }
 
+        private static bool IsStashTabDropdownOpen(IntPtr leftAddress, IntPtr gameUiAddress)
+        {
+            var handle = Core.Process?.Handle;
+            if (handle == null) return false;
+
+            if (leftAddress != IntPtr.Zero && handle.TryReadMemory<UiElementBaseOffset>(leftAddress, out var leftOff) && UiElementBaseFuncs.IsVisibleChecker(leftOff.Flags))
+            {
+                var children = handle.ReadStdVector<IntPtr>(leftOff.ChildrensPtr);
+                if (children != null && children.Length > 0)
+                {
+                    foreach (var child in children)
+                    {
+                        if (child == IntPtr.Zero) continue;
+                        if (!handle.TryReadMemory<UiElementBaseOffset>(child, out var cOff) || !UiElementBaseFuncs.IsVisibleChecker(cOff.Flags))
+                            continue;
+
+                        var subKids = handle.ReadStdVector<IntPtr>(cOff.ChildrensPtr);
+                        if (subKids != null && subKids.Length >= 2)
+                        {
+                            if (PluginUiElementReflection.TryGetAbsoluteRect(child, out var cPos, out var cSize))
+                            {
+                                if (cSize.X > 120 && cSize.Y > 120)
+                                {
+                                    int visibleSubCount = 0;
+                                    for (int k = 0; k < Math.Min(subKids.Length, 20); k++)
+                                    {
+                                        if (subKids[k] != IntPtr.Zero &&
+                                            handle.TryReadMemory<UiElementBaseOffset>(subKids[k], out var kOff) &&
+                                            UiElementBaseFuncs.IsVisibleChecker(kOff.Flags))
+                                        {
+                                            visibleSubCount++;
+                                        }
+                                    }
+                                    if (visibleSubCount >= 2)
+                                    {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private void DrawSlotOverlays()
         {
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi == null) return;
+
+            // Hide slot prices when large fullscreen blocking panels are open
+            if (gameUi.WorldMapPanel.IsVisible ||
+                gameUi.Atlas.IsVisible ||
+                gameUi.AtlasSkillsPanel.IsVisible ||
+                gameUi.IsPassiveSkillTreeOpen ||
+                gameUi.SekhemasTrialMapPanel.IsVisible ||
+                (gameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && gameUi.RuneshapeCombinationsPanel.IsVisible))
+            {
+                return;
+            }
+
+            var isLeftVisible = gameUi.LeftPanel.Address != IntPtr.Zero && gameUi.LeftPanel.IsVisible;
+            var isRightVisible = gameUi.RightPanel.Address != IntPtr.Zero && gameUi.RightPanel.IsVisible;
+
+            if (!isLeftVisible && !isRightVisible)
+            {
+                return;
+            }
+
+            var stashDropdownOpen = isLeftVisible && IsStashTabDropdownOpen(gameUi.LeftPanel.Address, gameUi.Address);
+
             if (this.Settings.HideSlotPriceOnHover)
             {
                 Vector2 mousePos = ImGui.GetMousePos();
@@ -2973,8 +3044,8 @@ namespace NinjaPricer
                 }
             }
 
-            if (this.Settings.ShowInventoryPrices) DrawSlots(this.cachedInvSlots);
-            if (this.Settings.ShowOtherInventoryPrices) DrawSlots(this.cachedStashSlots);
+            if (this.Settings.ShowInventoryPrices && isRightVisible) DrawSlots(this.cachedInvSlots);
+            if (this.Settings.ShowOtherInventoryPrices && isLeftVisible && !stashDropdownOpen) DrawSlots(this.cachedStashSlots);
         }
 
         private void ScanRuneshapeRows()
