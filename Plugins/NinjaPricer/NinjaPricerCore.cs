@@ -212,6 +212,7 @@ namespace NinjaPricer
         private Vector2 runeshapeWinRectMin = Vector2.Zero;
         private Vector2 runeshapeWinRectMax = Vector2.Zero;
         private bool runeshapeWinRectValid = false;
+        private readonly Dictionary<string, MonolithData> trackedMonoliths = new();
         private readonly HashSet<uint> coveredMonolithIds = new();
         private readonly HashSet<IntPtr> coveredMonoliths = new();
         private string newProfileInput = string.Empty;
@@ -664,9 +665,11 @@ namespace NinjaPricer
                 lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
                 this.lastGroundScanUtc = DateTime.MinValue;
                 this.lastInvScanUtc = DateTime.MinValue;
+                this.trackedMonoliths.Clear();
                 this.coveredMonolithIds.Clear();
                 this.coveredMonoliths.Clear();
                 this.expandedMonoliths.Clear();
+                ExpeditionMechanics.ClearTrackedExplosives();
             }
         }
 
@@ -3100,68 +3103,72 @@ namespace NinjaPricer
         private List<MonolithData> GetActiveMonoliths()
         {
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
-            if (area == null || area.AwakeEntities == null) return new List<MonolithData>();
+            if (area == null) return new List<MonolithData>();
 
-            bool hasPlacedExplosives = ExpeditionMechanics.HasPlacedExplosives(area);
-            var monoliths = new List<MonolithData>();
-
-            foreach (var e in area.AwakeEntities.Values)
+            // 1. Discover and continuously update monolith definitions from awake entities
+            if (area.AwakeEntities != null)
             {
-                if (e.Path != null && e.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase))
+                foreach (var e in area.AwakeEntities.Values)
                 {
-                    if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
+                    if (e.Path != null && e.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (mData.IsCompleted)
+                        if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
                         {
-                            this.coveredMonolithIds.Remove(e.Id);
-                            this.coveredMonoliths.Remove(e.Address);
-                            continue;
-                        }
+                            var key = $"{MathF.Round(mData.WorldPos.X / 10f) * 10f}_{MathF.Round(mData.WorldPos.Y / 10f) * 10f}";
 
-                        // Coverage detection: only turn green if real bombs are placed or encounter is active post-detonation
-                        bool isDetonated = mData.ActivatedState >= 5;
-                        var cov = e.GetExpeditionExplosiveCoverage();
-
-                        bool isCurrentlyCovered = cov.IsCovered;
-                        if (!isCurrentlyCovered && hasPlacedExplosives)
-                        {
-                            // Sticky persistence: if already marked covered in this encounter and bombs still exist in the area, stay covered
-                            if (this.coveredMonolithIds.Contains(e.Id) || this.coveredMonoliths.Contains(e.Address))
+                            if (mData.IsCompleted)
                             {
-                                isCurrentlyCovered = true;
+                                this.trackedMonoliths.Remove(key);
+                                this.coveredMonolithIds.Remove(mData.EntityId);
+                                this.coveredMonoliths.Remove(mData.EntityAddress);
+                                continue;
                             }
-                        }
 
-                        if (isCurrentlyCovered)
-                        {
-                            this.coveredMonolithIds.Add(e.Id);
-                            this.coveredMonoliths.Add(e.Address);
-                            mData.IsCoveredByExplosive = true;
-                            mData.DistanceToExplosive = cov.DistanceWorld;
+                            this.trackedMonoliths[key] = mData;
                         }
-                        else if (!isDetonated)
-                        {
-                            // Pre-detonation: live coverage only! If bomb was removed/undone, remove from covered set immediately
-                            this.coveredMonolithIds.Remove(e.Id);
-                            this.coveredMonoliths.Remove(e.Address);
-                            mData.IsCoveredByExplosive = false;
-                            mData.DistanceToExplosive = cov.DistanceWorld;
-                        }
-                        else if (this.coveredMonolithIds.Contains(e.Id) || this.coveredMonoliths.Contains(e.Address))
-                        {
-                            // Post-detonation: was covered before detonation, keep green while fighting/looting
-                            mData.IsCoveredByExplosive = true;
-                            mData.DistanceToExplosive = cov.DistanceWorld;
-                        }
-                        else
-                        {
-                            mData.IsCoveredByExplosive = false;
-                            mData.DistanceToExplosive = cov.DistanceWorld;
-                        }
-
-                        monoliths.Add(mData);
                     }
                 }
+            }
+
+            if (this.trackedMonoliths.Count == 0) return new List<MonolithData>();
+
+            // 2. Authoritative Coverage Evaluation across ALL tracked monoliths (independent of player distance)
+            bool hasPlacedExplosives = ExpeditionMechanics.HasPlacedExplosives(area);
+            var monoliths = new List<MonolithData>(this.trackedMonoliths.Count);
+
+            foreach (var (key, mData) in this.trackedMonoliths)
+            {
+                if (mData.IsCompleted) continue;
+
+                bool isDetonated = mData.ActivatedState >= 5;
+                var cov = ExpeditionMechanics.CalculateCoverage(mData.WorldPos, area);
+
+                if (cov.IsCovered)
+                {
+                    this.coveredMonolithIds.Add(mData.EntityId);
+                    if (mData.EntityAddress != IntPtr.Zero) this.coveredMonoliths.Add(mData.EntityAddress);
+                    mData.IsCoveredByExplosive = true;
+                    mData.DistanceToExplosive = cov.DistanceWorld;
+                }
+                else if (!isDetonated)
+                {
+                    this.coveredMonolithIds.Remove(mData.EntityId);
+                    if (mData.EntityAddress != IntPtr.Zero) this.coveredMonoliths.Remove(mData.EntityAddress);
+                    mData.IsCoveredByExplosive = false;
+                    mData.DistanceToExplosive = cov.DistanceWorld;
+                }
+                else if (this.coveredMonolithIds.Contains(mData.EntityId) || (mData.EntityAddress != IntPtr.Zero && this.coveredMonoliths.Contains(mData.EntityAddress)))
+                {
+                    mData.IsCoveredByExplosive = true;
+                    mData.DistanceToExplosive = cov.DistanceWorld;
+                }
+                else
+                {
+                    mData.IsCoveredByExplosive = false;
+                    mData.DistanceToExplosive = cov.DistanceWorld;
+                }
+
+                monoliths.Add(mData);
             }
 
             if (monoliths.Count == 0) return monoliths;

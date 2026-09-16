@@ -452,17 +452,17 @@ namespace TEHhub.Utils
         }
 
         /// <summary>
-        ///     Calculates the explosive coverage for a specific target entity (e.g. Expedition2Encounter).
+        ///     Calculates the explosive coverage for a target world position.
         ///     Uses the dynamic blast radius calculated from map modifiers.
         ///     Evaluates against both active explosive entities and persistently tracked explosive locations.
         /// </summary>
-        /// <param name="target">The target entity to test.</param>
+        /// <param name="targetPos">The target world position to test.</param>
         /// <param name="area">The active AreaInstance, or null to use the current area.</param>
         /// <param name="customRadiusWorld">Optional custom radius in World Units. If null, calculates from map modifiers.</param>
         /// <returns>Authoritative explosive placement coverage details.</returns>
-        public static ExpeditionExplosiveCoverage CalculateCoverage(Entity target, AreaInstance? area = null, float? customRadiusWorld = null)
+        public static ExpeditionExplosiveCoverage CalculateCoverage(System.Numerics.Vector3 targetPos, AreaInstance? area = null, float? customRadiusWorld = null)
         {
-            if (target == null || !target.IsValid)
+            if (targetPos == System.Numerics.Vector3.Zero)
             {
                 return ExpeditionExplosiveCoverage.None();
             }
@@ -481,9 +481,6 @@ namespace TEHhub.Utils
             }
 
             var radiusGrid = radiusWorld / gridConvertor;
-
-            // Apply a small tolerance buffer (+5%) to compensate for entity model center offsets
-            // and the game's visual blast circle being slightly larger than the raw constant.
             var effectiveRadius = radiusWorld * CoverageToleranceFactor;
 
             var explosives = GetPlacedExplosives(area);
@@ -510,11 +507,10 @@ namespace TEHhub.Utils
                 if (exp == null) continue;
                 checkedIds.Add(exp.Id);
 
-                var dist = target.DistanceWorldFrom(exp);
-                if (dist == float.MaxValue)
-                {
-                    continue;
-                }
+                if (!exp.TryGetComponent<Render>(out var expRender, false) || expRender == null) continue;
+                var dx = targetPos.X - expRender.WorldPosition.X;
+                var dy = targetPos.Y - expRender.WorldPosition.Y;
+                var dist = MathF.Sqrt(dx * dx + dy * dy);
 
                 if (dist < closestDist)
                 {
@@ -536,33 +532,29 @@ namespace TEHhub.Utils
             }
 
             // 2. Check persistently tracked explosive locations (handles explosives that fell out of proximity bubble)
-            if (target.TryGetComponent<Render>(out var targetRender, false) && targetRender != null)
+            foreach (var (expId, (ePos, eRef)) in TrackedExplosives)
             {
-                var tPos = targetRender.WorldPosition;
-                foreach (var (expId, (ePos, eRef)) in TrackedExplosives)
+                if (checkedIds.Contains(expId)) continue;
+
+                var dx = targetPos.X - ePos.X;
+                var dy = targetPos.Y - ePos.Y;
+                var dist = MathF.Sqrt(dx * dx + dy * dy);
+
+                if (dist < closestDist)
                 {
-                    if (checkedIds.Contains(expId)) continue;
+                    closestDist = dist;
+                    closestEntity = eRef;
+                    closestId = expId;
+                }
 
-                    var dx = tPos.X - ePos.X;
-                    var dy = tPos.Y - ePos.Y;
-                    var dist = MathF.Sqrt(dx * dx + dy * dy);
-
-                    if (dist < closestDist)
+                if (dist <= effectiveRadius)
+                {
+                    coveringCount++;
+                    if (dist < bestCoveringDist)
                     {
-                        closestDist = dist;
-                        closestEntity = eRef;
-                        closestId = expId;
-                    }
-
-                    if (dist <= effectiveRadius)
-                    {
-                        coveringCount++;
-                        if (dist < bestCoveringDist)
-                        {
-                            bestCoveringDist = dist;
-                            bestCoveringEntity = eRef;
-                            bestCoveringId = expId;
-                        }
+                        bestCoveringDist = dist;
+                        bestCoveringEntity = eRef;
+                        bestCoveringId = expId;
                     }
                 }
             }
@@ -584,6 +576,30 @@ namespace TEHhub.Utils
                 closestDist,
                 closestId,
                 closestEntity);
+        }
+
+        /// <summary>
+        ///     Calculates the explosive coverage for a specific target entity (e.g. Expedition2Encounter).
+        ///     Uses the dynamic blast radius calculated from map modifiers.
+        ///     Evaluates against both active explosive entities and persistently tracked explosive locations.
+        /// </summary>
+        /// <param name="target">The target entity to test.</param>
+        /// <param name="area">The active AreaInstance, or null to use the current area.</param>
+        /// <param name="customRadiusWorld">Optional custom radius in World Units. If null, calculates from map modifiers.</param>
+        /// <returns>Authoritative explosive placement coverage details.</returns>
+        public static ExpeditionExplosiveCoverage CalculateCoverage(Entity target, AreaInstance? area = null, float? customRadiusWorld = null)
+        {
+            if (target == null || !target.IsValid)
+            {
+                return ExpeditionExplosiveCoverage.None();
+            }
+
+            if (target.TryGetComponent<Render>(out var r, false) && r != null)
+            {
+                return CalculateCoverage(new System.Numerics.Vector3(r.WorldPosition.X, r.WorldPosition.Y, r.TerrainHeight), area, customRadiusWorld);
+            }
+
+            return ExpeditionExplosiveCoverage.None();
         }
     }
 }

@@ -2,6 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.81 — 2026-09-16 [Plugin Update — NinjaPricer, SDK / Core Framework Update]
+
+- **`NinjaPricer` Persistent Spatial Monolith Registry**:
+  - Implemented `trackedMonoliths` persistent spatial registry: Monoliths discovered across the entire zone remain tracked and visible in both the Runeshape Combination UI window and Large Map (`Tab`) world markers, preventing distant monoliths from vanishing when moving away.
+  - Decoupled coverage evaluation from player proximity: Evaluates coverage directly against static monolith world coordinates and all placed explosive locations across the zone.
+- **`ExpeditionMechanics` World-Coordinate Coverage Overload**:
+  - Added direct `Vector3` coverage calculation overload: `CalculateCoverage(Vector3 targetPos, AreaInstance? area, float? customRadiusWorld)` evaluates 2D blast radius independently of volatile entity pointers.
+  - Refined explosive pruning radius to arm's reach (`< 250 W`) to eliminate false-positive bomb un-tracking during movement.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
+
 ## 1.8.80 — 2026-09-16 [Plugin Update — NinjaPricer, SDK / Core Framework Update]
 
 - **`ExpeditionMechanics` Distant Explosive Persistence & Proximity Pruning**:
