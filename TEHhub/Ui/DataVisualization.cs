@@ -25,13 +25,13 @@ namespace TEHhub.Ui
     using Utils;
 
     /// <summary>
-    ///     Data Visualization 2.0: Comprehensive Real-time Game Inspector and Debugger Suite.
+    ///     Data Visualization 2.0: Streamlined Real-time Game Inspector and Debugger Suite.
     /// </summary>
     public static class DataVisualization
     {
         private static string buffSearchFilter = string.Empty;
         private static string entitySearchFilter = string.Empty;
-        private static byte entityFilterMode = 0; // 0: Id, 1: Path, 2: Rarity
+        private static byte entityFilterMode = 1; // 0: Id, 1: Path, 2: Rarity
         private static Rarity entityRarityFilter = Rarity.Normal;
         private static InventoryName selectedInventory = InventoryName.NoInvSelected;
         private static Vector3 testWorldCoords = Vector3.Zero;
@@ -60,80 +60,38 @@ namespace TEHhub.Ui
                     continue;
                 }
 
-                ImGui.SetNextWindowSize(new Vector2(940, 650), ImGuiCond.FirstUseEver);
+                ImGui.SetNextWindowSize(new Vector2(980, 680), ImGuiCond.FirstUseEver);
                 if (ImGui.Begin("Data Visualization 2.0", ref Core.GHSettings.ShowDataVisualization))
                 {
                     if (ImGui.BeginTabBar("DataVisualizationTabBar", ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyScroll))
                     {
-                        if (ImGui.BeginTabItem("Area & Vitals"))
+                        if (ImGui.BeginTabItem("Player & Area"))
                         {
-                            DrawAreaAndVitalsTab();
+                            DrawPlayerAndAreaTab();
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("Buffs"))
+                        if (ImGui.BeginTabItem("Entities & World"))
                         {
-                            DrawBuffsTab();
+                            DrawEntitiesAndWorldTab();
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("Entities"))
+                        if (ImGui.BeginTabItem("Inventories & Items"))
                         {
-                            DrawEntitiesTab();
+                            DrawInventoriesAndItemsTab();
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("Inventories"))
+                        if (ImGui.BeginTabItem("Map & Terrain"))
                         {
-                            DrawInventoriesTab();
+                            DrawMapAndTerrainTab();
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("Flasks & Charms"))
+                        if (ImGui.BeginTabItem("UI & System"))
                         {
-                            DrawFlasksAndCharmsTab();
-                            ImGui.EndTabItem();
-                        }
-
-                        if (ImGui.BeginTabItem("Memory"))
-                        {
-                            DrawMemoryTab();
-                            ImGui.EndTabItem();
-                        }
-
-                        if (ImGui.BeginTabItem("UI Explorer"))
-                        {
-                            DrawUiExplorerTab();
-                            ImGui.EndTabItem();
-                        }
-
-                        if (ImGui.BeginTabItem("Components"))
-                        {
-                            DrawComponentsTab();
-                            ImGui.EndTabItem();
-                        }
-
-                        if (ImGui.BeginTabItem("Render"))
-                        {
-                            DrawRenderTab();
-                            ImGui.EndTabItem();
-                        }
-
-                        if (ImGui.BeginTabItem("Terrain"))
-                        {
-                            DrawTerrainTab();
-                            ImGui.EndTabItem();
-                        }
-
-                        if (ImGui.BeginTabItem("Events"))
-                        {
-                            DrawEventsTab();
-                            ImGui.EndTabItem();
-                        }
-
-                        if (ImGui.BeginTabItem("Skills & Timing"))
-                        {
-                            DrawSkillsAndTimingTab();
+                            DrawUiAndSystemTab();
                             ImGui.EndTabItem();
                         }
 
@@ -146,183 +104,274 @@ namespace TEHhub.Ui
         }
 
         // ==========================================
-        // TAB 1: Area & Vitals
+        // TAB 1: Player & Area
         // ==========================================
-        private static void DrawAreaAndVitalsTab()
+        private static void DrawPlayerAndAreaTab()
         {
             var inGame = Core.States.InGameStateObject;
             var area = inGame.CurrentAreaInstance;
             var world = inGame.CurrentWorldInstance;
             var player = area.Player;
 
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), "=== CURRENT AREA INFO ===");
-            ImGui.Text($"Area Name: {world.AreaDetails.Name} (ID: {world.AreaDetails.Id})");
-            ImGui.Text($"Monster Level: {area.CurrentAreaLevel} | Act: {world.AreaDetails.Act}");
-            ImGui.Text($"Area Hash: {area.AreaHash} | IsTown: {world.AreaDetails.IsTown} | IsHideout: {world.AreaDetails.IsHideout}");
-            ImGuiHelper.IntPtrToImGui("AreaInstance Address", area.Address);
-            ImGuiHelper.IntPtrToImGui("ServerData Address", area.ServerDataObject.Address);
+            // Section 1: Area Info & Modifiers
+            if (ImGui.CollapsingHeader("Area Information & Modifiers", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                ImGui.Columns(2, "AreaCol", false);
+                ImGui.SetColumnWidth(0, 420);
 
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), $"=== ACTIVE AREA / MAP MODIFIERS ({area.AreaMods.Count}) ===");
-            if (area.AreaMods.Count == 0)
-            {
-                ImGui.TextDisabled("No active area modifiers detected (or in town/hideout).");
-            }
-            else
-            {
-                for (var i = 0; i < area.AreaMods.Count; i++)
+                ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), $"Area: {world.AreaDetails.Name} (ID: {world.AreaDetails.Id})");
+                ImGui.Text($"Monster Level: {area.CurrentAreaLevel} | Act: {world.AreaDetails.Act}");
+                ImGui.Text($"Area Hash: {area.AreaHash} | IsTown: {world.AreaDetails.IsTown} | IsHideout: {world.AreaDetails.IsHideout}");
+                ImGuiHelper.IntPtrToImGui("AreaInstance Address", area.Address);
+                ImGuiHelper.IntPtrToImGui("ServerData Address", area.ServerDataObject.Address);
+
+                ImGui.NextColumn();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), $"Active Area Modifiers ({area.AreaMods.Count})");
+                if (area.AreaMods.Count == 0)
                 {
-                    var mod = area.AreaMods[i];
-                    var valStr = float.IsNaN(mod.Values.Value0)
-                        ? ""
-                        : float.IsNaN(mod.Values.Value1)
-                            ? $" ({mod.Values.Value0})"
-                            : $" ({mod.Values.Value0} - {mod.Values.Value1})";
-                    ImGuiHelper.DisplayTextAndCopyOnClick($"• {mod.RawName}{valStr}", mod.RawName);
+                    ImGui.TextDisabled("No active area modifiers (Town / Hideout).");
                 }
-            }
-
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(0.4f, 1.0f, 0.4f, 1.0f), "=== PLAYER VITALS & POSITION ===");
-            if (player.IsValid)
-            {
-                ImGuiHelper.IntPtrToImGui("Player Address", player.Address);
-                if (player.TryGetComponent<Life>(out var life))
+                else
                 {
-                    ImGuiHelper.IntPtrToImGui("Life Component", life.Address);
-                    var hp = life.Health;
-                    var mp = life.Mana;
-                    var es = life.EnergyShield;
-                    var spirit = life.Spirit;
-
-                    var hpRatio = hp.Total > 0 ? (float)hp.Current / hp.Total : 0f;
-                    ImGui.ProgressBar(hpRatio, new Vector2(320, 20), $"HP: {hp.Current} / {hp.Total} ({hp.ReservedTotal} reserved)");
-
-                    var mpRatio = mp.Total > 0 ? (float)mp.Current / mp.Total : 0f;
-                    ImGui.ProgressBar(mpRatio, new Vector2(320, 20), $"MP: {mp.Current} / {mp.Total} ({mp.ReservedTotal} reserved)");
-
-                    if (es.Total > 0)
+                    ImGui.BeginChild("AreaModsScroll", new Vector2(0, 110), ImGuiChildFlags.Borders);
+                    for (var i = 0; i < area.AreaMods.Count; i++)
                     {
-                        var esRatio = (float)es.Current / es.Total;
-                        ImGui.ProgressBar(esRatio, new Vector2(320, 20), $"ES: {es.Current} / {es.Total}");
+                        var mod = area.AreaMods[i];
+                        var valStr = float.IsNaN(mod.Values.Value0)
+                            ? ""
+                            : float.IsNaN(mod.Values.Value1)
+                                ? $" ({mod.Values.Value0})"
+                                : $" ({mod.Values.Value0} - {mod.Values.Value1})";
+                        ImGuiHelper.DisplayTextAndCopyOnClick($"• {mod.RawName}{valStr}", mod.RawName);
                     }
-
-                    if (spirit.Total > 0)
-                    {
-                        ImGui.Text($"Spirit: {spirit.Current} / {spirit.Total} (Reserved: {spirit.ReservedTotal})");
-                    }
-
-                    ImGui.Text($"IsAlive: {life.IsAlive} | Ward: {life.Ward.Current} | Divinity: {life.Divinity.Current}");
+                    ImGui.EndChild();
                 }
 
-                if (player.TryGetComponent<Render>(out var render))
+                ImGui.Columns(1);
+            }
+
+            // Section 2: Player Vitals & Status
+            if (ImGui.CollapsingHeader("Player Vitals & Position", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                if (player.IsValid)
                 {
-                    ImGui.Text($"World Pos: ({render.WorldPosition.X:F1}, {render.WorldPosition.Y:F1}, {render.WorldPosition.Z:F1})");
-                    ImGui.Text($"Grid Pos:  ({render.GridPosition.X:F1}, {render.GridPosition.Y:F1})");
-                    ImGui.Text($"Terrain Height: {render.TerrainHeight:F1}");
+                    if (player.TryGetComponent<Life>(out var life))
+                    {
+                        var hp = life.Health;
+                        var mp = life.Mana;
+                        var es = life.EnergyShield;
+                        var spirit = life.Spirit;
+
+                        ImGui.Columns(2, "VitalsCol", false);
+                        ImGui.SetColumnWidth(0, 360);
+
+                        var hpRatio = hp.Total > 0 ? (float)hp.Current / hp.Total : 0f;
+                        ImGui.ProgressBar(hpRatio, new Vector2(340, 20), $"HP: {hp.Current} / {hp.Total} ({hp.ReservedTotal} res)");
+
+                        var mpRatio = mp.Total > 0 ? (float)mp.Current / mp.Total : 0f;
+                        ImGui.ProgressBar(mpRatio, new Vector2(340, 20), $"MP: {mp.Current} / {mp.Total} ({mp.ReservedTotal} res)");
+
+                        if (es.Total > 0)
+                        {
+                            var esRatio = (float)es.Current / es.Total;
+                            ImGui.ProgressBar(esRatio, new Vector2(340, 20), $"ES: {es.Current} / {es.Total}");
+                        }
+
+                        if (spirit.Total > 0)
+                        {
+                            var spRatio = (float)spirit.Current / spirit.Total;
+                            ImGui.ProgressBar(spRatio, new Vector2(340, 20), $"Spirit: {spirit.Current} / {spirit.Total} ({spirit.ReservedTotal} res)");
+                        }
+
+                        ImGui.NextColumn();
+                        ImGui.Text($"IsAlive: {life.IsAlive} | Ward: {life.Ward.Current} | Divinity: {life.Divinity.Current}");
+                        ImGuiHelper.IntPtrToImGui("Player Entity", player.Address);
+                        ImGuiHelper.IntPtrToImGui("Life Component", life.Address);
+
+                        if (player.TryGetComponent<Render>(out var render))
+                        {
+                            ImGui.Text($"World Pos: ({render.WorldPosition.X:F1}, {render.WorldPosition.Y:F1}, {render.WorldPosition.Z:F1})");
+                            ImGui.Text($"Grid Pos:  ({render.GridPosition.X:F1}, {render.GridPosition.Y:F1}) | Height: {render.TerrainHeight:F1}");
+                        }
+
+                        ImGui.Columns(1);
+                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("Local player entity not loaded.");
                 }
             }
-            else
+
+            // Section 3: Active Buffs & Status Effects
+            if (ImGui.CollapsingHeader("Active Status Effects & Buffs", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.TextDisabled("Local player entity not loaded.");
+                if (player.IsValid && player.TryGetComponent<Buffs>(out var buffs))
+                {
+                    var statusEffects = buffs.StatusEffects;
+                    ImGui.InputTextWithHint("##BuffSearch", "Filter buffs by name...", ref buffSearchFilter, 100);
+                    ImGui.SameLine();
+                    if (ImGui.Button("Clear##Buff")) buffSearchFilter = string.Empty;
+                    ImGui.SameLine();
+                    ImGui.TextColored(new Vector4(0.4f, 1.0f, 0.4f, 1.0f), $"Total Active: {statusEffects.Count}");
+
+                    if (ImGui.BeginTable("BuffsTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY, new Vector2(0, 160)))
+                    {
+                        ImGui.TableSetupColumn("Buff Name", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Stacks", ImGuiTableColumnFlags.WidthFixed, 70);
+                        ImGui.TableSetupColumn("Stage", ImGuiTableColumnFlags.WidthFixed, 70);
+                        ImGui.TableSetupColumn("Time Left", ImGuiTableColumnFlags.WidthFixed, 80);
+                        ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 60);
+                        ImGui.TableHeadersRow();
+
+                        foreach (var (name, se) in statusEffects)
+                        {
+                            if (!string.IsNullOrEmpty(buffSearchFilter) &&
+                                !name.Contains(buffSearchFilter, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            ImGui.TableNextRow();
+                            ImGui.TableNextColumn();
+                            ImGui.Text(name);
+
+                            ImGui.TableNextColumn();
+                            ImGui.Text(se.Charges.ToString());
+
+                            ImGui.TableNextColumn();
+                            ImGui.Text(se.RawStage.ToString());
+
+                            ImGui.TableNextColumn();
+                            ImGui.Text($"{se.TimeLeft:F1}s");
+
+                            ImGui.TableNextColumn();
+                            if (ImGui.SmallButton($"Copy##{name}"))
+                            {
+                                ImGui.SetClipboardText(name);
+                            }
+                        }
+
+                        ImGui.EndTable();
+                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("Buffs component unavailable on player.");
+                }
+            }
+
+            // Section 4: Active Skills & Animations
+            if (ImGui.CollapsingHeader("Player Active Skills & Animation"))
+            {
+                if (player.IsValid && player.TryGetComponent<Actor>(out var actor))
+                {
+                    ImGui.Text($"Current Animation: {actor.Animation} | Total Active Skills: {actor.ActiveSkills.Count}");
+
+                    if (ImGui.BeginTable("SkillsTable", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY, new Vector2(0, 160)))
+                    {
+                        ImGui.TableSetupColumn("Skill Name", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Usable?", ImGuiTableColumnFlags.WidthFixed, 75);
+                        ImGui.TableSetupColumn("Use Stage", ImGuiTableColumnFlags.WidthFixed, 80);
+                        ImGui.TableSetupColumn("Cast Type", ImGuiTableColumnFlags.WidthFixed, 90);
+                        ImGui.TableHeadersRow();
+
+                        foreach (var (name, details) in actor.ActiveSkills)
+                        {
+                            var isUsable = actor.IsSkillUsable.Contains(name);
+                            ImGui.TableNextRow();
+                            ImGui.TableNextColumn();
+                            ImGui.Text(name);
+
+                            ImGui.TableNextColumn();
+                            if (isUsable)
+                            {
+                                ImGui.TextColored(new Vector4(0, 1, 0, 1), "YES");
+                            }
+                            else
+                            {
+                                ImGui.TextColored(new Vector4(1, 0.3f, 0.3f, 1), "NO");
+                            }
+
+                            ImGui.TableNextColumn();
+                            ImGui.Text(details.UseStage.ToString());
+
+                            ImGui.TableNextColumn();
+                            ImGui.Text(details.CastType.ToString());
+                        }
+
+                        ImGui.EndTable();
+                    }
+                }
+                else
+                {
+                    ImGui.TextDisabled("Actor component unavailable on player.");
+                }
             }
         }
 
         // ==========================================
-        // TAB 2: Buffs
+        // TAB 2: Entities & World
         // ==========================================
-        private static void DrawBuffsTab()
+        private static void DrawEntitiesAndWorldTab()
         {
-            var player = Core.States.InGameStateObject.CurrentAreaInstance.Player;
-            if (!player.IsValid || !player.TryGetComponent<Buffs>(out var buffs))
+            var inGame = Core.States.InGameStateObject;
+            var area = inGame.CurrentAreaInstance;
+            var mouseOver = inGame.MouseOverEntity;
+
+            // Hovered Entity Bar
+            if (mouseOver.IsValid)
             {
-                ImGui.TextDisabled("No active buffs or player component unavailable.");
-                return;
-            }
-
-            ImGui.InputTextWithHint("##BuffSearch", "Search buffs...", ref buffSearchFilter, 100);
-            ImGui.SameLine();
-            if (ImGui.Button("Clear")) buffSearchFilter = string.Empty;
-
-            ImGui.Separator();
-            var statusEffects = buffs.StatusEffects;
-            ImGui.Text($"Total Active Status Effects: {statusEffects.Count}");
-
-            if (ImGui.BeginTable("BuffsTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
-            {
-                ImGui.TableSetupColumn("Buff Name", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Charges/Stacks", ImGuiTableColumnFlags.WidthFixed, 100);
-                ImGui.TableSetupColumn("Stage", ImGuiTableColumnFlags.WidthFixed, 80);
-                ImGui.TableSetupColumn("Time Left", ImGuiTableColumnFlags.WidthFixed, 90);
-                ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableHeadersRow();
-
-                foreach (var (name, se) in statusEffects)
+                ImGui.TextColored(new Vector4(1.0f, 0.9f, 0.2f, 1.0f), $"[Mouse-Over] ID: {mouseOver.Id} | Path: {mouseOver.Path}");
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Inspect Hovered Components"))
                 {
-                    if (!string.IsNullOrEmpty(buffSearchFilter) &&
-                        !name.Contains(buffSearchFilter, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    ImGui.Text(name);
-
-                    ImGui.TableNextColumn();
-                    ImGui.Text(se.Charges.ToString());
-
-                    ImGui.TableNextColumn();
-                    ImGui.Text(se.RawStage.ToString());
-
-                    ImGui.TableNextColumn();
-                    ImGui.Text($"{se.TimeLeft:F1}s");
-
-                    ImGui.TableNextColumn();
-                    if (ImGui.SmallButton($"Copy##{name}"))
-                    {
-                        ImGui.SetClipboardText(name);
-                    }
+                    ImGui.OpenPopup("HoveredEntityModal");
                 }
 
-                ImGui.EndTable();
+                if (ImGui.BeginPopup("HoveredEntityModal"))
+                {
+                    DrawEntityComponents(mouseOver);
+                    if (ImGui.Button("Close")) ImGui.CloseCurrentPopup();
+                    ImGui.EndPopup();
+                }
+                ImGui.Separator();
             }
-        }
 
-        // ==========================================
-        // TAB 3: Entities
-        // ==========================================
-        private static void DrawEntitiesTab()
-        {
-            var area = Core.States.InGameStateObject.CurrentAreaInstance;
-            ImGui.Text($"Awake: {area.AwakeEntities.Count} | Sleeping: {area.SleepingEntities.Count} | In Network Bubble: {area.NetworkBubbleEntityCount}");
+            // Entity Controls
+            ImGui.Text($"Awake: {area.AwakeEntities.Count} | Sleeping: {area.SleepingEntities.Count} | Network Bubble: {area.NetworkBubbleEntityCount}");
 
-            if (ImGui.RadioButton("Filter by ID", entityFilterMode == 0)) entityFilterMode = 0;
+            if (ImGui.RadioButton("Filter ID", entityFilterMode == 0)) entityFilterMode = 0;
             ImGui.SameLine();
-            if (ImGui.RadioButton("Filter by Path", entityFilterMode == 1)) entityFilterMode = 1;
+            if (ImGui.RadioButton("Filter Path", entityFilterMode == 1)) entityFilterMode = 1;
             ImGui.SameLine();
-            if (ImGui.RadioButton("Filter by Rarity", entityFilterMode == 2)) entityFilterMode = 2;
+            if (ImGui.RadioButton("Filter Rarity", entityFilterMode == 2)) entityFilterMode = 2;
 
+            ImGui.SameLine();
             switch (entityFilterMode)
             {
                 case 0:
-                    ImGui.InputTextWithHint("##EntIdFilter", "Filter by Entity ID...", ref entitySearchFilter, 20, ImGuiInputTextFlags.CharsDecimal);
+                    ImGui.SetNextItemWidth(180);
+                    ImGui.InputTextWithHint("##EntIdFilter", "Entity ID...", ref entitySearchFilter, 20, ImGuiInputTextFlags.CharsDecimal);
                     break;
                 case 1:
-                    ImGui.InputTextWithHint("##EntPathFilter", "Filter by Entity Path (e.g. Monster, Chest, Expedition)...", ref entitySearchFilter, 120);
+                    ImGui.SetNextItemWidth(260);
+                    ImGui.InputTextWithHint("##EntPathFilter", "Filter path (Monster, Chest, Expedition)...", ref entitySearchFilter, 120);
                     break;
                 case 2:
-                    ImGuiHelper.EnumComboBox("Rarity Filter", ref entityRarityFilter);
+                    ImGui.SetNextItemWidth(120);
+                    ImGuiHelper.EnumComboBox("##RarityFilter", ref entityRarityFilter);
                     break;
             }
 
+            ImGui.SameLine();
             if (ImGui.Button("Scan Sleeping Entities"))
             {
                 area.ScanAllSleepingEntities();
             }
 
             ImGui.Separator();
-            if (ImGui.BeginTabBar("EntitiesSubTab"))
+            if (ImGui.BeginTabBar("EntitiesSubTabBar"))
             {
                 if (ImGui.BeginTabItem($"Awake Entities ({area.AwakeEntities.Count})"))
                 {
@@ -343,8 +392,9 @@ namespace TEHhub.Ui
         private static void DrawEntityList(System.Collections.Concurrent.ConcurrentDictionary<EntityNodeKey, Entity> entities)
         {
             var rendered = 0;
-            const int maxDisplay = 300;
+            const int maxDisplay = 250;
 
+            ImGui.BeginChild("EntityListScroll", new Vector2(0, 0), ImGuiChildFlags.None);
             foreach (var kv in entities)
             {
                 var entity = kv.Value;
@@ -370,214 +420,22 @@ namespace TEHhub.Ui
                 }
 
                 var label = $"[{entity.Id}] {entity.Path}";
+                ImGui.PushID((int)entity.Id);
                 var opened = ImGui.TreeNode(label);
                 ImGui.SameLine();
-                if (ImGui.SmallButton($"Dump JSON##{entity.Id}"))
+                if (ImGui.SmallButton("JSON"))
                 {
                     DumpEntityJson(kv.Key, entity);
                 }
 
                 if (opened)
                 {
-                    entity.ToImGui();
+                    DrawEntityComponents(entity);
                     ImGui.TreePop();
                 }
+                ImGui.PopID();
             }
-        }
-
-        private static void DumpEntityJson(EntityNodeKey key, Entity entity)
-        {
-            try
-            {
-                var payload = new
-                {
-                    EntityId = entity.Id,
-                    Key = key.id,
-                    Path = entity.Path,
-                    IsValid = entity.IsValid,
-                    Components = entity.GetComponentNames()?.ToList()
-                };
-                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
-                Directory.CreateDirectory("entity_dumps");
-                var path = Path.Combine("entity_dumps", $"entity_{entity.Id}.json");
-                File.WriteAllText(path, json);
-                ImGui.SetClipboardText(json);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DumpEntityJson] Failed: {ex.Message}");
-            }
-        }
-
-        // ==========================================
-        // TAB 4: Inventories
-        // ==========================================
-        private static void DrawInventoriesTab()
-        {
-            var serverData = Core.States.InGameStateObject.CurrentAreaInstance.ServerDataObject;
-            var inventories = serverData.PlayerInventories;
-
-            ImGui.Text($"Available Inventories: {inventories.Count}");
-            if (ImGuiHelper.IEnumerableComboBox("Select Inventory", inventories.Keys, ref selectedInventory))
-            {
-                serverData.SelectedInv.Address = inventories.TryGetValue(selectedInventory, out var addr) ? addr : IntPtr.Zero;
-            }
-
-            ImGui.SameLine();
-            if (ImGui.Button("Clear Selection"))
-            {
-                selectedInventory = InventoryName.NoInvSelected;
-                serverData.SelectedInv.Address = IntPtr.Zero;
-            }
-
-            ImGui.Separator();
-            if (selectedInventory != InventoryName.NoInvSelected && serverData.SelectedInv.Address != IntPtr.Zero)
-            {
-                serverData.SelectedInv.ToImGui();
-            }
-            else
-            {
-                ImGui.TextDisabled("Select an inventory from the dropdown above to inspect its items and slots.");
-            }
-        }
-
-        // ==========================================
-        // TAB 5: Flasks & Charms
-        // ==========================================
-        private static void DrawFlasksAndCharmsTab()
-        {
-            var serverData = Core.States.InGameStateObject.CurrentAreaInstance.ServerDataObject;
-            var flaskInv = serverData.FlaskInventory;
-
-            ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), "=== FLASK SLOTS (1 - 5) ===");
-            ImGuiHelper.IntPtrToImGui("Flask Inventory Address", flaskInv.Address);
-
-            if (flaskInv.Address != IntPtr.Zero)
-            {
-                flaskInv.ToImGui();
-            }
-            else
-            {
-                ImGui.TextDisabled("Flask inventory not available or in town.");
-            }
-        }
-
-        // ==========================================
-        // TAB 6: Memory
-        // ==========================================
-        private static void DrawMemoryTab()
-        {
-            var proc = Core.Process;
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), "=== PROCESS INFORMATION ===");
-            ImGuiHelper.IntPtrToImGui("Base Address", proc.Address);
-            ImGui.Text($"Process: {proc.Information} (PID: {proc.Pid})");
-            ImGui.Text($"Window Area: {proc.WindowArea} | Foreground: {proc.Foreground}");
-
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "=== STATIC ADDRESSES ===");
-            foreach (var kv in proc.StaticAddresses)
-            {
-                ImGuiHelper.IntPtrToImGui(kv.Key, kv.Value);
-            }
-
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(0.4f, 1.0f, 0.4f, 1.0f), "=== GGPK CACHES ===");
-            Core.CacheImGui();
-
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.8f, 1.0f), "=== MEMORY DIAGNOSTICS & SETTINGS ===");
-            if (ImGui.Button("Open Full Memory Read Diagnostics Window"))
-            {
-                Core.GHSettings.ShowMemoryDiagnostics = true;
-            }
-
-            ImGui.Checkbox("Enable New Memory Read Pipeline", ref Core.GHSettings.EnableNewMemoryRead);
-            ImGui.Checkbox("Enable Stale Entity Cleanup", ref Core.GHSettings.EnableStaleEntityCleanup);
-            ImGui.Checkbox("Hide Overlays When Game Inactive", ref Core.GHSettings.HideOverlaysWhenGameInactive);
-        }
-
-        // ==========================================
-        // TAB 7: UI Explorer
-        // ==========================================
-        private static void DrawUiExplorerTab()
-        {
-            var inGame = Core.States.InGameStateObject;
-            var gameUi = inGame.GameUi;
-
-            ImGui.Text($"UiRoot Address: 0x{inGame.UiRootAddress.ToInt64():X} | GameUi Address: 0x{gameUi.Address.ToInt64():X}");
-            ImGui.Text($"Controller Mode: {Core.GHSettings.EnableControllerMode}");
-
-            ImGui.Separator();
-            if (ImGui.TreeNode("Important UI Elements Panels"))
-            {
-                gameUi.ToImGui();
-                ImGui.TreePop();
-            }
-
-            if (gameUi.Address != IntPtr.Zero)
-            {
-                var reader = Core.Process.Handle;
-                var rootElem = reader.ReadMemory<UiElementBaseOffset>(gameUi.Address);
-                var childCount = (int)rootElem.ChildrensPtr.TotalElements(8);
-                ImGui.Text($"Top-level UI Children Count: {childCount}");
-
-                if (childCount > 0)
-                {
-                    ImGui.SliderInt("Child Index", ref selectedUiChildIndex, 0, Math.Max(0, childCount - 1));
-                    var children = reader.ReadStdVector<IntPtr>(rootElem.ChildrensPtr);
-                    if (selectedUiChildIndex >= 0 && selectedUiChildIndex < children.Length)
-                    {
-                        var childAddr = children[selectedUiChildIndex];
-                        ImGuiHelper.IntPtrToImGui($"Child[{selectedUiChildIndex}] Address", childAddr);
-                        if (childAddr != IntPtr.Zero)
-                        {
-                            var childElem = reader.ReadMemory<UiElementBaseOffset>(childAddr);
-                            var isVisible = UiElementBaseFuncs.IsVisibleChecker(childElem.Flags);
-                            ImGui.Text($"Flags: 0x{childElem.Flags:X8} | Visible: {isVisible}");
-                            ImGui.Text($"RelPos: ({childElem.RelativePosition.X}, {childElem.RelativePosition.Y}) | UnscaledSize: ({childElem.UnscaledSize.X} x {childElem.UnscaledSize.Y})");
-                            ImGui.Text($"Children: {childElem.ChildrensPtr.TotalElements(8)}");
-                        }
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // TAB 8: Components
-        // ==========================================
-        private static void DrawComponentsTab()
-        {
-            var inGame = Core.States.InGameStateObject;
-            var player = inGame.CurrentAreaInstance.Player;
-            var mouseOver = inGame.MouseOverEntity;
-
-            ImGui.InputTextWithHint("##CompSearch", "Filter component names...", ref componentSearchFilter, 50);
-
-            ImGui.Separator();
-            if (ImGui.CollapsingHeader("Local Player Components", ImGuiTreeNodeFlags.DefaultOpen))
-            {
-                if (player.IsValid)
-                {
-                    DrawEntityComponents(player);
-                }
-                else
-                {
-                    ImGui.TextDisabled("Local player not available.");
-                }
-            }
-
-            if (ImGui.CollapsingHeader("Mouse-Over Entity Components"))
-            {
-                if (mouseOver.IsValid)
-                {
-                    ImGui.Text($"Hovered Entity ID: {mouseOver.Id} | Path: {mouseOver.Path}");
-                    DrawEntityComponents(mouseOver);
-                }
-                else
-                {
-                    ImGui.TextDisabled("No entity currently hovered under mouse cursor.");
-                }
-            }
+            ImGui.EndChild();
         }
 
         private static void DrawEntityComponents(Entity entity)
@@ -631,132 +489,226 @@ namespace TEHhub.Ui
             }
         }
 
+        private static void DumpEntityJson(EntityNodeKey key, Entity entity)
+        {
+            try
+            {
+                var payload = new
+                {
+                    EntityId = entity.Id,
+                    Key = key.id,
+                    Path = entity.Path,
+                    IsValid = entity.IsValid,
+                    Components = entity.GetComponentNames()?.ToList()
+                };
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+                Directory.CreateDirectory("entity_dumps");
+                var path = Path.Combine("entity_dumps", $"entity_{entity.Id}.json");
+                File.WriteAllText(path, json);
+                ImGui.SetClipboardText(json);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DumpEntityJson] Failed: {ex.Message}");
+            }
+        }
+
         // ==========================================
-        // TAB 9: Render
+        // TAB 3: Inventories & Items
         // ==========================================
-        private static void DrawRenderTab()
+        private static void DrawInventoriesAndItemsTab()
+        {
+            var serverData = Core.States.InGameStateObject.CurrentAreaInstance.ServerDataObject;
+            var inventories = serverData.PlayerInventories;
+            var flaskInv = serverData.FlaskInventory;
+
+            // Section 1: Flasks & Charms
+            if (ImGui.CollapsingHeader("Flask & Charm Slots (1 - 5)", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                ImGuiHelper.IntPtrToImGui("Flask Inventory Address", flaskInv.Address);
+                if (flaskInv.Address != IntPtr.Zero)
+                {
+                    flaskInv.ToImGui();
+                }
+                else
+                {
+                    ImGui.TextDisabled("Flask inventory unavailable (or in town).");
+                }
+            }
+
+            // Section 2: Player & Stash Inventories
+            if (ImGui.CollapsingHeader("Player Inventories & Stash", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                ImGui.Text($"Available Inventories: {inventories.Count}");
+                if (ImGuiHelper.IEnumerableComboBox("Select Inventory", inventories.Keys, ref selectedInventory))
+                {
+                    serverData.SelectedInv.Address = inventories.TryGetValue(selectedInventory, out var addr) ? addr : IntPtr.Zero;
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button("Clear Selection"))
+                {
+                    selectedInventory = InventoryName.NoInvSelected;
+                    serverData.SelectedInv.Address = IntPtr.Zero;
+                }
+
+                ImGui.Separator();
+                if (selectedInventory != InventoryName.NoInvSelected && serverData.SelectedInv.Address != IntPtr.Zero)
+                {
+                    serverData.SelectedInv.ToImGui();
+                }
+                else
+                {
+                    ImGui.TextDisabled("Select an inventory from the dropdown above to inspect items and slot layout.");
+                }
+            }
+        }
+
+        // ==========================================
+        // TAB 4: Map & Terrain
+        // ==========================================
+        private static void DrawMapAndTerrainTab()
         {
             var inGame = Core.States.InGameStateObject;
+            var area = inGame.CurrentAreaInstance;
             var world = inGame.CurrentWorldInstance;
-
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), "=== GAME VIEWPORT & RESOLUTION ===");
-            ImGui.Text($"Window Area: {Core.Process.WindowArea}");
-            ImGui.Text($"Overlay Size: {Core.Overlay.Size}");
-
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "=== WORLD TO SCREEN MATRIX ===");
-            world.ToImGui();
-
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(0.4f, 1.0f, 0.4f, 1.0f), "=== WORLD TO SCREEN TESTER ===");
-            ImGui.InputFloat3("World Coords (X, Y, Z)", ref testWorldCoords);
-            var screenPos = world.WorldToScreen(new StdTuple3D<float> { X = testWorldCoords.X, Y = testWorldCoords.Y, Z = testWorldCoords.Z });
-            ImGui.Text($"Calculated Screen Pos: ({screenPos.X:F1}, {screenPos.Y:F1})");
-        }
-
-        // ==========================================
-        // TAB 10: Terrain
-        // ==========================================
-        private static void DrawTerrainTab()
-        {
-            var area = Core.States.InGameStateObject.CurrentAreaInstance;
             var metadata = area.TerrainMetadata;
 
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), "=== TERRAIN METADATA ===");
-            ImGui.Text($"Total Tiles: {metadata.TotalTiles}");
-            ImGuiHelper.IntPtrToImGui("Tile Details Pointer", metadata.TileDetailsPtr.First);
-            ImGui.Text($"Tile Height Multiplier: {metadata.TileHeightMultiplier}");
-            ImGui.Text($"Grid Walkable Data Size: {area.GridWalkableData.Length} bytes");
-            ImGui.Text($"Grid Height Data Rows: {area.GridHeightData.Length}");
-            ImGui.Text($"Tgt Named Tile Locations: {area.TgtTilesLocations.Count}");
-
-            ImGui.Separator();
-            if (ImGui.TreeNode($"All Tgt Tile Types ({area.TgtTilesLocations.Count})"))
+            // Section 1: Terrain Info
+            if (ImGui.CollapsingHeader("Terrain Metadata & Grid Data", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                foreach (var kv in area.TgtTilesLocations)
+                ImGui.Columns(2, "TerrainCol", false);
+                ImGui.Text($"Total Tiles: {metadata.TotalTiles}");
+                ImGuiHelper.IntPtrToImGui("Tile Details Ptr", metadata.TileDetailsPtr.First);
+                ImGui.Text($"Tile Height Multiplier: {metadata.TileHeightMultiplier}");
+
+                ImGui.NextColumn();
+                ImGui.Text($"Grid Walkable Data: {area.GridWalkableData.Length} bytes");
+                ImGui.Text($"Grid Height Rows: {area.GridHeightData.Length}");
+                ImGui.Text($"Tgt Named Tile Types: {area.TgtTilesLocations.Count}");
+                ImGui.Columns(1);
+            }
+
+            // Section 2: TGT Tile Locations
+            if (ImGui.CollapsingHeader($"TGT Named Tile Locations ({area.TgtTilesLocations.Count})", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                if (area.TgtTilesLocations.Count == 0)
                 {
-                    if (ImGui.TreeNode($"{kv.Key} ({kv.Value.Count} instances)"))
+                    ImGui.TextDisabled("No named TGT tile markers in this area.");
+                }
+                else
+                {
+                    ImGui.BeginChild("TgtScroll", new Vector2(0, 160), ImGuiChildFlags.Borders);
+                    foreach (var kv in area.TgtTilesLocations)
                     {
-                        foreach (var loc in kv.Value)
+                        if (ImGui.TreeNode($"{kv.Key} ({kv.Value.Count} instances)"))
                         {
-                            ImGui.Text($"  Grid: ({loc.X}, {loc.Y})");
+                            foreach (var loc in kv.Value)
+                            {
+                                ImGui.Text($"  Grid: ({loc.X}, {loc.Y})");
+                            }
+
+                            ImGui.TreePop();
                         }
-
-                        ImGui.TreePop();
                     }
+                    ImGui.EndChild();
                 }
+            }
 
-                ImGui.TreePop();
+            // Section 3: World to Screen & Projection Matrix
+            if (ImGui.CollapsingHeader("World-to-Screen Projection Matrix"))
+            {
+                world.ToImGui();
+
+                ImGui.Separator();
+                ImGui.TextColored(new Vector4(0.4f, 1.0f, 0.4f, 1.0f), "World-to-Screen Calculator:");
+                ImGui.InputFloat3("World Coords (X, Y, Z)", ref testWorldCoords);
+                var screenPos = world.WorldToScreen(new StdTuple3D<float> { X = testWorldCoords.X, Y = testWorldCoords.Y, Z = testWorldCoords.Z });
+                ImGui.Text($"Calculated Screen Pos: ({screenPos.X:F1}, {screenPos.Y:F1}) | Viewport: {Core.Process.WindowArea}");
             }
         }
 
         // ==========================================
-        // TAB 11: Events
+        // TAB 5: UI & System
         // ==========================================
-        private static void DrawEventsTab()
+        private static void DrawUiAndSystemTab()
         {
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), "=== COROUTINES & EVENT TICKS ===");
-            ImGui.Text("Active Core Events & Ticks:");
-            ImGui.BulletText("OnRender: UI Rendering Loop (Overlay FPS)");
-            ImGui.BulletText("PerFrameDataUpdate: Memory entities and player state scanning");
-            ImGui.BulletText("PostPerFrameDataUpdate: WorldToScreen matrix and camera tracking");
-            ImGui.BulletText("OnAreaChange: Area instance loading trigger");
+            var inGame = Core.States.InGameStateObject;
+            var gameUi = inGame.GameUi;
+            var proc = Core.Process;
 
-            ImGui.Separator();
-            ImGui.Text("Memory Diagnostics Status:");
-            ImGui.Text($"Is Recording: {MemoryReadDiagnostics.IsRecording}");
-        }
-
-        // ==========================================
-        // TAB 12: Skills & Timing
-        // ==========================================
-        private static void DrawSkillsAndTimingTab()
-        {
-            var player = Core.States.InGameStateObject.CurrentAreaInstance.Player;
-            if (!player.IsValid || !player.TryGetComponent<Actor>(out var actor))
+            // Section 1: Process & Static Addresses
+            if (ImGui.CollapsingHeader("Process & Static Addresses", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                ImGui.TextDisabled("Actor component unavailable on local player.");
-                return;
-            }
+                ImGui.Columns(2, "ProcCol", false);
+                ImGui.Text($"Process: {proc.Information} (PID: {proc.Pid})");
+                ImGuiHelper.IntPtrToImGui("Base Address", proc.Address);
+                ImGui.Text($"Window Area: {proc.WindowArea}");
+                ImGui.Text($"Foreground: {proc.Foreground}");
 
-            ImGui.TextColored(new Vector4(0.3f, 0.9f, 1.0f, 1.0f), "=== PLAYER ACTOR & ACTIVE SKILLS ===");
-            ImGui.Text($"Current Animation: {actor.Animation}");
-            ImGui.Text($"Total Active Skills: {actor.ActiveSkills.Count}");
-
-            if (ImGui.BeginTable("SkillsTable", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
-            {
-                ImGui.TableSetupColumn("Skill Name", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Usable?", ImGuiTableColumnFlags.WidthFixed, 80);
-                ImGui.TableSetupColumn("Use Stage", ImGuiTableColumnFlags.WidthFixed, 90);
-                ImGui.TableSetupColumn("Cast Type", ImGuiTableColumnFlags.WidthFixed, 100);
-                ImGui.TableHeadersRow();
-
-                foreach (var (name, details) in actor.ActiveSkills)
+                ImGui.NextColumn();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Static Offsets Found:");
+                foreach (var kv in proc.StaticAddresses)
                 {
-                    var isUsable = actor.IsSkillUsable.Contains(name);
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    ImGui.Text(name);
+                    ImGuiHelper.IntPtrToImGui(kv.Key, kv.Value);
+                }
+                ImGui.Columns(1);
+            }
 
-                    ImGui.TableNextColumn();
-                    if (isUsable)
-                    {
-                        ImGui.TextColored(new Vector4(0, 1, 0, 1), "YES");
-                    }
-                    else
-                    {
-                        ImGui.TextColored(new Vector4(1, 0.3f, 0.3f, 1), "NO");
-                    }
+            // Section 2: UI Explorer
+            if (ImGui.CollapsingHeader("Game UI Tree & Panels", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                ImGui.Text($"UiRoot: 0x{inGame.UiRootAddress.ToInt64():X} | GameUi: 0x{gameUi.Address.ToInt64():X} | Controller Mode: {Core.GHSettings.EnableControllerMode}");
 
-                    ImGui.TableNextColumn();
-                    ImGui.Text(details.UseStage.ToString());
-
-                    ImGui.TableNextColumn();
-                    ImGui.Text(details.CastType.ToString());
+                if (ImGui.TreeNode("Important UI Panels"))
+                {
+                    gameUi.ToImGui();
+                    ImGui.TreePop();
                 }
 
-                ImGui.EndTable();
+                if (gameUi.Address != IntPtr.Zero)
+                {
+                    var reader = Core.Process.Handle;
+                    var rootElem = reader.ReadMemory<UiElementBaseOffset>(gameUi.Address);
+                    var childCount = (int)rootElem.ChildrensPtr.TotalElements(8);
+                    ImGui.Text($"Top-level UI Children: {childCount}");
+
+                    if (childCount > 0)
+                    {
+                        ImGui.SliderInt("Child Index", ref selectedUiChildIndex, 0, Math.Max(0, childCount - 1));
+                        var children = reader.ReadStdVector<IntPtr>(rootElem.ChildrensPtr);
+                        if (selectedUiChildIndex >= 0 && selectedUiChildIndex < children.Length)
+                        {
+                            var childAddr = children[selectedUiChildIndex];
+                            ImGuiHelper.IntPtrToImGui($"Child[{selectedUiChildIndex}] Address", childAddr);
+                            if (childAddr != IntPtr.Zero)
+                            {
+                                var childElem = reader.ReadMemory<UiElementBaseOffset>(childAddr);
+                                var isVisible = UiElementBaseFuncs.IsVisibleChecker(childElem.Flags);
+                                ImGui.Text($"Flags: 0x{childElem.Flags:X8} | Visible: {isVisible} | Children: {childElem.ChildrensPtr.TotalElements(8)}");
+                                ImGui.Text($"RelPos: ({childElem.RelativePosition.X}, {childElem.RelativePosition.Y}) | UnscaledSize: ({childElem.UnscaledSize.X} x {childElem.UnscaledSize.Y})");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Section 3: GGPK Caches & Diagnostics
+            if (ImGui.CollapsingHeader("GGPK Caches & Diagnostics Settings"))
+            {
+                Core.CacheImGui();
+
+                ImGui.Separator();
+                if (ImGui.Button("Open Full Memory Read Diagnostics Window"))
+                {
+                    Core.GHSettings.ShowMemoryDiagnostics = true;
+                }
+
+                ImGui.Checkbox("Enable New Memory Read Pipeline", ref Core.GHSettings.EnableNewMemoryRead);
+                ImGui.Checkbox("Enable Stale Entity Cleanup", ref Core.GHSettings.EnableStaleEntityCleanup);
+                ImGui.Checkbox("Hide Overlays When Game Inactive", ref Core.GHSettings.HideOverlaysWhenGameInactive);
             }
         }
     }
 }
+

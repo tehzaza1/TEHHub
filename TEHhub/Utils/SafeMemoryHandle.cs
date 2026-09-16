@@ -803,11 +803,11 @@ namespace TEHhub.Utils
                 }
 
                 var count = 0;
-                for (var i = 0; i < bufferLength - 2; i++)
+                for (var i = 0; i < bufferLength - 1; i += 2)
                 {
-                    if (buffer[i] == 0x00 && buffer[i + 1] == 0x00 && buffer[i + 2] == 0x00)
+                    if (buffer[i] == 0x00 && buffer[i + 1] == 0x00)
                     {
-                        count = i % 2 == 0 ? i : i + 1;
+                        count = i;
                         break;
                     }
                 }
