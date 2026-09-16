@@ -19,16 +19,23 @@ namespace myFarming
             this.configDir = configDir;
             this.sessionsDir = Path.Combine(configDir, "sessions");
             Directory.CreateDirectory(this.sessionsDir);
-            this.EnsureTodaySession();
+            this.LoadTodaySession();
         }
 
         public void EnsureTodaySession()
         {
             string today = TodayKey;
-            if (this.Current != null && this.Current.DateKey == today)
+            if (this.Current != null && !string.IsNullOrEmpty(this.Current.DateKey) && this.Current.DateKey == today)
             {
                 return;
             }
+
+            this.LoadTodaySession();
+        }
+
+        public void LoadTodaySession()
+        {
+            string today = TodayKey;
 
             // If switching from another date, save the previous date's file first
             if (this.Current != null && !string.IsNullOrEmpty(this.Current.DateKey) && this.Current.DateKey != today)
@@ -43,9 +50,13 @@ namespace myFarming
                 try
                 {
                     var json = File.ReadAllText(todayPath);
-                    this.Current = JsonSerializer.Deserialize<FarmSession>(json) ?? new FarmSession { DateKey = today };
-                    PluginLog.Info("myFarming", $"Resumed daily session for {today} ({this.Current.TotalMaps} maps, {this.Current.TotalChaos:F1}c).");
-                    return;
+                    var loaded = JsonSerializer.Deserialize<FarmSession>(json);
+                    if (loaded != null && !string.IsNullOrEmpty(loaded.DateKey))
+                    {
+                        this.Current = loaded;
+                        PluginLog.Info("myFarming", $"Resumed daily session for {today} ({this.Current.TotalMaps} maps, {this.Current.TotalChaos:F1}c).");
+                        return;
+                    }
                 }
                 catch (Exception ex)
                 {

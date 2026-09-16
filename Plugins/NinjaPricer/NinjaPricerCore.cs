@@ -125,14 +125,38 @@ namespace NinjaPricer
 
         private static readonly uint[] RsMonolithColors = new uint[]
         {
-            0xFF3333E5, // 0: Red
-            0xFF33D5E5, // 1: Yellow
-            0xFF33E533, // 2: Green
-            0xFFE5D533, // 3: Cyan
-            0xFF3366E5, // 4: Orange
-            0xFFD533D5, // 5: Magenta
-            0xFFE58833, // 6: Sky Blue
-            0xFF8833E5  // 7: Violet
+            0xFF2A2AEB, // 0: Crimson Red
+            0xFF14D7FF, // 1: Gold Yellow
+            0xFF32E632, // 2: Bright Lime
+            0xFFE6D200, // 3: Vivid Cyan
+            0xFF0082FF, // 4: Electric Orange
+            0xFFD814FF, // 5: Fuchsia Pink
+            0xFFFFA01E, // 6: Sky Blue
+            0xFFE6288C, // 7: Deep Violet
+            0xFF6E7FFF, // 8: Coral Salmon
+            0xFF78E100, // 9: Bright Emerald
+            0xFFB42864, // 10: Royal Purple
+            0xFF1EC8FF, // 11: Amber Bronze
+            0xFFB4C800, // 12: Teal Turquoise
+            0xFF8C14FF, // 13: Hot Rose
+            0xFFA0FF46, // 14: Neon Mint
+            0xFFFF6400, // 15: Dodger Azure
+            0xFF00FFB4, // 16: Spring Chartreuse
+            0xFFE696B4, // 17: Lavender
+            0xFF28A5FF, // 18: Tangerine
+            0xFFD2E646, // 19: Aquamarine
+            0xFF4632FF, // 20: Ruby Scarlet
+            0xFF14C8A0, // 21: Olive Chartreuse
+            0xFFFF5064, // 22: Indigo Periwinkle
+            0xFF96B4FF, // 23: Apricot Peach
+            0xFF50D200, // 24: Bright Malachite
+            0xFF9628C8, // 25: Plum Wine
+            0xFF00E6FF, // 26: Sunburst Ochre
+            0xFFFFE164, // 27: Ice Blue
+            0xFF5014DC, // 28: Crimson Cherry
+            0xFF82C828, // 29: Sea Green
+            0xFFE65AD2, // 30: Orchid Purple
+            0xFF64FAFF  // 31: Light Gold
         };
 
         private static readonly Dictionary<string, int> DefaultRuneWeights = new(StringComparer.OrdinalIgnoreCase)

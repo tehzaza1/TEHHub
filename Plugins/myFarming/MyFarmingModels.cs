@@ -48,7 +48,7 @@ namespace myFarming
 
     public sealed class FarmSession
     {
-        public string DateKey { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
+        public string DateKey { get; set; } = string.Empty;
         public int SessionId { get; set; } = 1;
         public long StartedAt { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         public int TotalDurationSec { get; set; } = 0;
