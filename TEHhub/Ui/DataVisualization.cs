@@ -399,7 +399,7 @@ namespace TEHhub.Ui
         private static void DrawEntityList(System.Collections.Concurrent.ConcurrentDictionary<EntityNodeKey, Entity> entities)
         {
             var rendered = 0;
-            const int maxDisplay = 250;
+            const int maxDisplay = 300;
 
             ImGui.BeginChild("EntityListScroll", new Vector2(0, 0), ImGuiChildFlags.None);
             foreach (var kv in entities)
@@ -407,16 +407,66 @@ namespace TEHhub.Ui
                 var entity = kv.Value;
                 if (!entity.IsValid) continue;
 
+                // Extract friendly name, item info, and rarity
+                string extraInfo = string.Empty;
+                Rarity? entityRarity = null;
+
+                if (entity.TryGetComponent<WorldItem>(out var wi))
+                {
+                    var itemName = !string.IsNullOrWhiteSpace(wi.ItemName) ? wi.ItemName : wi.ItemPath;
+                    if (!string.IsNullOrWhiteSpace(itemName))
+                    {
+                        var countStr = string.Empty;
+                        if (wi.Item != null && wi.Item.TryGetComponent<TEHhub.RemoteObjects.Components.Stack>(out var st) && st.Count > 1)
+                        {
+                            countStr = $" x{st.Count}";
+                        }
+
+                        if (wi.Item != null && wi.Item.TryGetComponent<Mods>(out var m))
+                        {
+                            entityRarity = m.Rarity;
+                            extraInfo = $" -> WorldItem: {itemName}{countStr} [{m.Rarity}]";
+                        }
+                        else
+                        {
+                            entityRarity = Rarity.Normal;
+                            extraInfo = $" -> WorldItem: {itemName}{countStr}";
+                        }
+                    }
+                }
+                else if (entity.TryGetComponent<ObjectMagicProperties>(out var omp))
+                {
+                    entityRarity = omp.Rarity;
+                    extraInfo = $" [{omp.Rarity}]";
+                }
+
+                // Filtering logic
                 switch (entityFilterMode)
                 {
-                    case 0:
-                        if (!string.IsNullOrEmpty(entitySearchFilter) && !$"{entity.Id}".Contains(entitySearchFilter)) continue;
+                    case 0: // Filter ID
+                        if (!string.IsNullOrEmpty(entitySearchFilter) && !$"{entity.Id}".Contains(entitySearchFilter))
+                        {
+                            continue;
+                        }
                         break;
-                    case 1:
-                        if (!string.IsNullOrEmpty(entitySearchFilter) && !entity.Path.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    case 1: // Filter Path / Name
+                        if (!string.IsNullOrEmpty(entitySearchFilter))
+                        {
+                            bool matchPath = entity.Path.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase);
+                            bool matchExtra = extraInfo.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase);
+                            if (!matchPath && !matchExtra)
+                            {
+                                continue;
+                            }
+                        }
                         break;
-                    case 2:
-                        if (entity.TryGetComponent<ObjectMagicProperties>(out var omp) && omp.Rarity != entityRarityFilter) continue;
+
+                    case 2: // Filter Rarity
+                        if (entityRarity == null || entityRarity != entityRarityFilter)
+                        {
+                            continue;
+                        }
                         break;
                 }
 
@@ -426,7 +476,7 @@ namespace TEHhub.Ui
                     break;
                 }
 
-                var label = $"[{entity.Id}] {entity.Path}";
+                var label = $"[{entity.Id}] {entity.Path}{extraInfo}";
                 ImGui.PushID((int)entity.Id);
                 var opened = ImGui.TreeNode(label);
                 ImGui.SameLine();
