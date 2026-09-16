@@ -12,10 +12,10 @@ namespace ExpeditionPathOptimizer
             Vector2 Point,
             double ScoreDiff,
             List<ExpeditionRemnant> NewRemnants,
+            List<ExpeditionChest> NewChests,
             string? ActiveRune,
             double RuneScore,
-            bool IsUsefulBridge,
-            double FuturePotential);
+            bool IsUsefulBridge);
 
         public record DetailedLootScore(List<PerPointScoreInfo> PerPointScore, double TotalScore, ExpeditionEnvironment Environment);
 
@@ -36,27 +36,61 @@ namespace ExpeditionPathOptimizer
 
         public double GetScore(List<Vector2> path, ExpeditionEnvironment env)
         {
+            if (this.TryEvaluatePath(path, env, collectDetails: false, out double totalScore, out _))
+            {
+                return totalScore;
+            }
+
+            return double.NegativeInfinity;
+        }
+
+        public DetailedLootScore GetDetailedScore(List<Vector2> path, ExpeditionEnvironment env)
+        {
+            if (this.TryEvaluatePath(path, env, collectDetails: true, out double totalScore, out var pointsScore) && pointsScore != null)
+            {
+                return new DetailedLootScore(pointsScore, totalScore, env);
+            }
+
+            return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env);
+        }
+
+        private bool TryEvaluatePath(
+            List<Vector2> path,
+            ExpeditionEnvironment env,
+            bool collectDetails,
+            out double totalScore,
+            out List<PerPointScoreInfo>? pointsScore)
+        {
+            totalScore = double.NegativeInfinity;
+            pointsScore = null;
+
             if (path == null || path.Count == 0 || path.Count > env.MaxExplosions)
             {
-                return double.NegativeInfinity;
+                return false;
+            }
+
+            var finalTarget = env.FinalTarget;
+            if (finalTarget == null)
+            {
+                return false;
             }
 
             int n = path.Count;
-            var finalTarget = env.FinalTarget;
-            if (finalTarget == null) return double.NegativeInfinity;
 
             // Rule 1: Final bomb (path[n-1]) MUST hit finalTarget
             var lastBomb = path[n - 1];
             float distToFinal = Vector2.Distance(lastBomb, finalTarget.GridPos);
             if (distToFinal > env.ExplosionRadius)
             {
-                return double.NegativeInfinity;
+                return false;
             }
 
             var hitRemnants = new HashSet<ExpeditionRemnant>();
-            double totalScore = 0.0;
+            var hitChests = new HashSet<ExpeditionChest>();
+            double accumulatedScore = 0.0;
             var prevPoint = env.StartingPoint;
             string? activePropagatedRune = null;
+            List<PerPointScoreInfo>? detailedList = collectDetails ? new List<PerPointScoreInfo>(n) : null;
 
             for (int i = 0; i < n; i++)
             {
@@ -66,18 +100,18 @@ namespace ExpeditionPathOptimizer
                 // Rule 2: Step distance <= ExplosionRange
                 if (stepDist > env.ExplosionRange * 1.01f)
                 {
-                    return double.NegativeInfinity;
+                    return false;
                 }
 
                 // Terrain Check: Point must be walkable and wire must have line of sight
                 if (!env.IsPointWalkable(curPoint))
                 {
-                    return double.NegativeInfinity;
+                    return false;
                 }
 
                 if (!env.HasLineOfSight(prevPoint, curPoint))
                 {
-                    return double.NegativeInfinity;
+                    return false;
                 }
 
                 int remainingSteps = n - 1 - i;
@@ -87,161 +121,22 @@ namespace ExpeditionPathOptimizer
                 {
                     if (Vector2.Distance(curPoint, finalTarget.GridPos) <= env.ExplosionRadius)
                     {
-                        return double.NegativeInfinity;
+                        return false;
                     }
 
                     // Rule 4: Reachability to final target in remaining steps
                     float distRemaining = Vector2.Distance(curPoint, finalTarget.GridPos);
                     if (distRemaining > (remainingSteps * env.ExplosionRange) + env.ExplosionRadius + 0.1f)
                     {
-                        return double.NegativeInfinity;
+                        return false;
                     }
                 }
 
-                // 1. Final Target Bonus and Final Rune Bonus on last bomb
-                if (i == n - 1)
-                {
-                    totalScore += this.settings.FinalTargetBonus;
-                    if (!string.IsNullOrEmpty(activePropagatedRune))
-                    {
-                        totalScore += this.settings.FinalRuneBonus;
-                    }
-                }
-
-                // 2. Find newly covered remnants
-                var newHits = new List<ExpeditionRemnant>();
-                foreach (var r in env.Remnants)
-                {
-                    if (Vector2.Distance(curPoint, r.GridPos) <= env.ExplosionRadius)
-                    {
-                        if (hitRemnants.Add(r))
-                        {
-                            newHits.Add(r);
-                            // Remnant Hit Base Score + Slot Score
-                            totalScore += this.settings.RemnantHitBaseScore;
-                            totalScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
-
-                            // Rune Base Weight scored ONCE upon discovery
-                            if (!string.IsNullOrEmpty(r.PropagatedRune))
-                            {
-                                totalScore += this.settings.RuneWeights.GetValueOrDefault(r.PropagatedRune, 20.0);
-                            }
-                        }
-                    }
-                }
-
-                // 3. Update Active Propagated Rune for subsequent bombs (with conflict check)
-                var newRunes = newHits
-                    .Select(x => x.PropagatedRune)
-                    .Where(x => !string.IsNullOrEmpty(x))
-                    .Distinct()
-                    .ToList();
-
-                if (newRunes.Count > 1)
-                {
-                    // Single bomb hits multiple conflicting runes in V1
-                    return double.NegativeInfinity;
-                }
-                else if (newRunes.Count == 1)
-                {
-                    activePropagatedRune = newRunes[0];
-                }
-
-                // 4. Empty Bomb vs Useful Bridge Penalty & Short Bridge Penalty
-                if (newHits.Count == 0)
-                {
-                    // Short Bridge Penalty: penalize empty bombs that waste reach (< 60% of reach)
-                    double usage = stepDist / env.ExplosionRange;
-                    if (usage < this.settings.ShortBridgePenaltyThreshold)
-                    {
-                        totalScore -= (this.settings.ShortBridgePenaltyThreshold - usage) * this.settings.ShortBridgePenaltyMultiplier;
-                    }
-
-                    bool isUsefulBridge = false;
-
-                    // 4a. Check if actively bridging towards an unvisited reachable remnant
-                    foreach (var r in env.Remnants)
-                    {
-                        if (!hitRemnants.Contains(r) && r != finalTarget)
-                        {
-                            float distCurToR = Vector2.Distance(curPoint, r.GridPos);
-                            float distPrevToR = Vector2.Distance(prevPoint, r.GridPos);
-                            if (remainingSteps >= 2)
-                            {
-                                if (distCurToR <= ((remainingSteps - 1) * env.ExplosionRange) + env.ExplosionRadius)
-                                {
-                                    float distRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
-                                    if (distRToFinal <= ((remainingSteps - 2) * env.ExplosionRange) + env.ExplosionRadius)
-                                    {
-                                        if (distCurToR < distPrevToR - 3.0f)
-                                        {
-                                            isUsefulBridge = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // 4b. Check if actively bridging towards Final Target
-                    if (!isUsefulBridge)
-                    {
-                        float distCurToFinal = Vector2.Distance(curPoint, finalTarget.GridPos);
-                        float distPrevToFinal = Vector2.Distance(prevPoint, finalTarget.GridPos);
-                        if (distCurToFinal < distPrevToFinal - 3.0f && distCurToFinal <= (remainingSteps * env.ExplosionRange) + env.ExplosionRadius)
-                        {
-                            isUsefulBridge = true;
-                        }
-                    }
-
-                    if (isUsefulBridge)
-                    {
-                        totalScore -= this.settings.UsefulBridgePenalty; // Bridge ไปหาเป้าหมายได้ = -20
-                    }
-                    else
-                    {
-                        totalScore -= this.settings.EmptyBombPenalty; // Bridge ที่ไม่ช่วยอะไร = -150
-                    }
-                }
-
-                // 5. Travel Penalty (if configured)
-                if (this.settings.TravelPenaltyMultiplier > 0.0)
-                {
-                    double travelPenalty = (stepDist / env.ExplosionRange) * this.settings.TravelPenaltyMultiplier;
-                    totalScore -= travelPenalty;
-                }
-
-                prevPoint = curPoint;
-            }
-
-            return totalScore;
-        }
-
-        public DetailedLootScore GetDetailedScore(List<Vector2> path, ExpeditionEnvironment env)
-        {
-            var pointsScore = new List<PerPointScoreInfo>();
-            if (path == null || path.Count == 0 || env.FinalTarget == null)
-            {
-                return new DetailedLootScore(pointsScore, 0.0, env);
-            }
-
-            int n = path.Count;
-            var finalTarget = env.FinalTarget;
-            var hitRemnants = new HashSet<ExpeditionRemnant>();
-            double totalScore = 0.0;
-            var prevPoint = env.StartingPoint;
-            string? activePropagatedRune = null;
-
-            for (int i = 0; i < n; i++)
-            {
-                var curPoint = path[i];
-                float stepDist = Vector2.Distance(prevPoint, curPoint);
                 double localScore = 0.0;
-                var newHits = new List<ExpeditionRemnant>();
-                int remainingSteps = n - 1 - i;
                 double runeScore = 0.0;
                 string? currentBombActiveRune = activePropagatedRune;
+                var newHits = new List<ExpeditionRemnant>();
+                var newChestHits = new List<ExpeditionChest>();
 
                 // 1. Final Target Bonus and Final Rune Bonus on last bomb
                 if (i == n - 1)
@@ -262,6 +157,7 @@ namespace ExpeditionPathOptimizer
                         if (hitRemnants.Add(r))
                         {
                             newHits.Add(r);
+                            // Remnant Hit Base Score + Slot Score
                             localScore += this.settings.RemnantHitBaseScore;
                             localScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
 
@@ -276,22 +172,45 @@ namespace ExpeditionPathOptimizer
                     }
                 }
 
-                // 3. Update Active Propagated Rune for subsequent bombs
+                // 2b. Find newly covered reward chests
+                if (env.Chests != null)
+                {
+                    foreach (var c in env.Chests)
+                    {
+                        if (Vector2.Distance(curPoint, c.GridPos) <= env.ExplosionRadius)
+                        {
+                            if (hitChests.Add(c))
+                            {
+                                newChestHits.Add(c);
+                                double cScore = this.settings.ChestWeights.GetValueOrDefault(c.IconName, this.settings.ChestHitBaseScore);
+                                localScore += cScore;
+                            }
+                        }
+                    }
+                }
+
+                // 3. Update Active Propagated Rune for subsequent bombs (with conflict check)
                 var newRunes = newHits
                     .Select(x => x.PropagatedRune)
                     .Where(x => !string.IsNullOrEmpty(x))
                     .Distinct()
                     .ToList();
 
-                if (newRunes.Count == 1)
+                if (newRunes.Count > 1)
+                {
+                    // Single bomb hits multiple conflicting runes in V1
+                    return false;
+                }
+                else if (newRunes.Count == 1)
                 {
                     activePropagatedRune = newRunes[0];
                 }
 
                 // 4. Empty Bomb vs Useful Bridge Penalty & Short Bridge Penalty
                 bool isUsefulBridge = false;
-                if (newHits.Count == 0)
+                if (newHits.Count == 0 && newChestHits.Count == 0)
                 {
+                    // Short Bridge Penalty: penalize empty bombs that waste reach (< 60% of reach)
                     double usage = stepDist / env.ExplosionRange;
                     if (usage < this.settings.ShortBridgePenaltyThreshold)
                     {
@@ -323,7 +242,35 @@ namespace ExpeditionPathOptimizer
                         }
                     }
 
-                    // 4b. Check if actively bridging towards Final Target
+                    // 4b. Check if actively bridging towards an unvisited reachable chest
+                    if (!isUsefulBridge && env.Chests != null)
+                    {
+                        foreach (var c in env.Chests)
+                        {
+                            if (!hitChests.Contains(c))
+                            {
+                                float distCurToC = Vector2.Distance(curPoint, c.GridPos);
+                                float distPrevToC = Vector2.Distance(prevPoint, c.GridPos);
+                                if (remainingSteps >= 2)
+                                {
+                                    if (distCurToC <= ((remainingSteps - 1) * env.ExplosionRange) + env.ExplosionRadius)
+                                    {
+                                        float distCToFinal = Vector2.Distance(c.GridPos, finalTarget.GridPos);
+                                        if (distCToFinal <= ((remainingSteps - 2) * env.ExplosionRange) + env.ExplosionRadius)
+                                        {
+                                            if (distCurToC < distPrevToC - 3.0f)
+                                            {
+                                                isUsefulBridge = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 4c. Check if actively bridging towards Final Target
                     if (!isUsefulBridge)
                     {
                         float distCurToFinal = Vector2.Distance(curPoint, finalTarget.GridPos);
@@ -336,27 +283,34 @@ namespace ExpeditionPathOptimizer
 
                     if (isUsefulBridge)
                     {
-                        localScore -= this.settings.UsefulBridgePenalty; // -20
+                        localScore -= this.settings.UsefulBridgePenalty; // Bridge ไปหาเป้าหมายได้ = -20
                     }
                     else
                     {
-                        localScore -= this.settings.EmptyBombPenalty; // -150
+                        localScore -= this.settings.EmptyBombPenalty; // Bridge ที่ไม่ช่วยอะไร = -150
                     }
                 }
 
-                // 5. Travel Penalty
+                // 5. Travel Penalty (if configured)
                 if (this.settings.TravelPenaltyMultiplier > 0.0)
                 {
                     double travelPenalty = (stepDist / env.ExplosionRange) * this.settings.TravelPenaltyMultiplier;
                     localScore -= travelPenalty;
                 }
 
-                totalScore += localScore;
-                pointsScore.Add(new PerPointScoreInfo(curPoint, localScore, newHits, currentBombActiveRune, runeScore, isUsefulBridge, 0.0));
+                accumulatedScore += localScore;
+
+                if (collectDetails && detailedList != null)
+                {
+                    detailedList.Add(new PerPointScoreInfo(curPoint, localScore, newHits, newChestHits, currentBombActiveRune, runeScore, isUsefulBridge));
+                }
+
                 prevPoint = curPoint;
             }
 
-            return new DetailedLootScore(pointsScore, totalScore, env);
+            totalScore = accumulatedScore;
+            pointsScore = detailedList;
+            return true;
         }
 
         public IEnumerable<PathState> GetBestPathSeries(ExpeditionEnvironment environment)
@@ -422,12 +376,14 @@ namespace ExpeditionPathOptimizer
             var path = new List<Vector2>(bombCount);
             var current = environment.StartingPoint;
             var remainingRemnants = environment.Remnants.Where(r => r != finalTarget).ToList();
+            var remainingChests = environment.Chests != null ? environment.Chests.ToList() : new List<ExpeditionChest>();
 
             for (int i = 0; i < bombCount - 1; i++)
             {
                 int remainingStepsAfterThis = bombCount - 1 - (i + 1);
-                var validCandidates = new List<(ExpeditionRemnant Remnant, Vector2 Pos, double TargetValue)>();
+                var validCandidates = new List<(object Target, Vector2 Pos, double TargetValue, bool IsChest)>();
 
+                // 1. Check Remnant candidates
                 foreach (var r in remainingRemnants)
                 {
                     var candPos = environment.FindWalkableCandidateNearRemnant(r, current, radius);
@@ -437,15 +393,40 @@ namespace ExpeditionPathOptimizer
                         float distCandToFinal = Vector2.Distance(candPos, finalTarget.GridPos);
                         if (distCandToFinal > radius + 3.0f)
                         {
-                            int bombsToCand = 1;
+                            int bombsAfterThis = bombCount - (i + 1);
                             int bombsCandToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, distCandToFinal - radius) / reach));
-                            if (bombsToCand + bombsCandToFinal <= remainingStepsAfterThis + 1)
+                            if (bombsCandToFinal <= bombsAfterThis)
                             {
                                 if (environment.HasLineOfSight(current, candPos))
                                 {
                                     int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distToCand - radius) / reach));
                                     double targetVal = (r.RuneSlots * 100.0) + r.BaseRuneWeight - (estBridges * 20.0);
-                                    validCandidates.Add((r, candPos, targetVal));
+                                    validCandidates.Add((r, candPos, targetVal, false));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 2. Check Chest candidates
+                foreach (var c in remainingChests)
+                {
+                    var candPos = environment.FindWalkableCandidateNearChest(c, current, radius);
+                    float distToCand = Vector2.Distance(current, candPos);
+                    if (distToCand <= reach)
+                    {
+                        float distCandToFinal = Vector2.Distance(candPos, finalTarget.GridPos);
+                        if (distCandToFinal > radius + 3.0f)
+                        {
+                            int bombsAfterThis = bombCount - (i + 1);
+                            int bombsCandToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, distCandToFinal - radius) / reach));
+                            if (bombsCandToFinal <= bombsAfterThis)
+                            {
+                                if (environment.HasLineOfSight(current, candPos))
+                                {
+                                    int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distToCand - radius) / reach));
+                                    double targetVal = c.BaseScore - (estBridges * 20.0);
+                                    validCandidates.Add((c, candPos, targetVal, true));
                                 }
                             }
                         }
@@ -453,7 +434,7 @@ namespace ExpeditionPathOptimizer
                 }
 
                 Vector2 nextPos;
-                if (validCandidates.Count > 0 && Random.Shared.NextDouble() < 0.80)
+                if (validCandidates.Count > 0 && Random.Shared.NextDouble() < 0.85)
                 {
                     // Weighted random selection based on TargetValue
                     double minVal = validCandidates.Min(c => c.TargetValue);
@@ -473,49 +454,72 @@ namespace ExpeditionPathOptimizer
                         }
                     }
 
-                    remainingRemnants.Remove(chosen.Remnant);
+                    if (chosen.IsChest && chosen.Target is ExpeditionChest ec)
+                    {
+                        remainingChests.Remove(ec);
+                    }
+                    else if (!chosen.IsChest && chosen.Target is ExpeditionRemnant er)
+                    {
+                        remainingRemnants.Remove(er);
+                    }
+
                     nextPos = chosen.Pos;
                 }
                 else
                 {
-                    // Target direction: filter remnants that are reachable within budget
+                    // Target direction: filter remnants and chests that are reachable within budget
                     var targetPos = finalTarget.GridPos;
-                    var reachableRemnants = remainingRemnants.Where(r =>
+                    int bombsAvailable = bombCount - i;
+
+                    var reachableTargets = new List<(Vector2 Pos, double Value)>();
+
+                    foreach (var r in remainingRemnants)
                     {
                         float dToR = Vector2.Distance(current, r.GridPos);
                         float dRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
                         int bToR = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dToR - radius) / reach));
                         int bRToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dRToFinal - radius) / reach));
-                        return bToR + bRToFinal <= remainingStepsAfterThis + 1;
-                    }).ToList();
-
-                    if (reachableRemnants.Count > 0)
-                    {
-                        var weightedRemnants = reachableRemnants.Select(r =>
+                        if (bToR + bRToFinal <= bombsAvailable)
                         {
-                            float d = Vector2.Distance(current, r.GridPos);
-                            int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, d - radius) / reach));
+                            int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, dToR - radius) / reach));
                             double targetVal = (r.RuneSlots * 100.0) + r.BaseRuneWeight - (estBridges * 20.0);
-                            return (Remnant: r, Value: targetVal);
-                        }).ToList();
+                            reachableTargets.Add((r.GridPos, targetVal));
+                        }
+                    }
 
-                        double minVal = weightedRemnants.Min(c => c.Value);
+                    foreach (var c in remainingChests)
+                    {
+                        float dToC = Vector2.Distance(current, c.GridPos);
+                        float dCToFinal = Vector2.Distance(c.GridPos, finalTarget.GridPos);
+                        int bToC = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dToC - radius) / reach));
+                        int bCToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dCToFinal - radius) / reach));
+                        if (bToC + bCToFinal <= bombsAvailable)
+                        {
+                            int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, dToC - radius) / reach));
+                            double targetVal = c.BaseScore - (estBridges * 20.0);
+                            reachableTargets.Add((c.GridPos, targetVal));
+                        }
+                    }
+
+                    if (reachableTargets.Count > 0)
+                    {
+                        double minVal = reachableTargets.Min(c => c.Value);
                         double offset = minVal < 1.0 ? (1.0 - minVal) : 0.0;
-                        double totalWeight = weightedRemnants.Sum(c => c.Value + offset);
+                        double totalWeight = reachableTargets.Sum(c => c.Value + offset);
                         double roll = Random.Shared.NextDouble() * totalWeight;
                         double accum = 0.0;
-                        var chosenRemnant = weightedRemnants[0].Remnant;
-                        foreach (var wr in weightedRemnants)
+                        var chosenTarget = reachableTargets[0];
+                        foreach (var rt in reachableTargets)
                         {
-                            accum += wr.Value + offset;
+                            accum += rt.Value + offset;
                             if (roll <= accum)
                             {
-                                chosenRemnant = wr.Remnant;
+                                chosenTarget = rt;
                                 break;
                             }
                         }
 
-                        targetPos = chosenRemnant.GridPos;
+                        targetPos = chosenTarget.Pos;
                     }
 
                     var diff = targetPos - current;
@@ -616,6 +620,25 @@ namespace ExpeditionPathOptimizer
                             if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
                             {
                                 candidates.Add(candPos);
+                            }
+                        }
+                    }
+                }
+
+                if (environment.Chests != null)
+                {
+                    foreach (var c in environment.Chests)
+                    {
+                        var candPos = environment.FindWalkableCandidateNearChest(c, prev, radius);
+                        if (Vector2.Distance(prev, candPos) <= reach && Vector2.Distance(candPos, nxt) <= reach)
+                        {
+                            float dF = Vector2.Distance(candPos, finalTarget.GridPos);
+                            if (dF > radius + 3.0f && dF <= ((remainingStepsAfterThis + 1) * reach) + radius)
+                            {
+                                if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
+                                {
+                                    candidates.Add(candPos);
+                                }
                             }
                         }
                     }

@@ -12,6 +12,9 @@ using TEHhub.Offsets.Objects;
 using TEHhub.Offsets.Objects.Components;
 using TEHhub.Offsets.Objects.States;
 using TEHhub.Offsets.Objects.States.InGameState;
+using TEHhub.RemoteObjects;
+using TEHhub.RemoteObjects.States.InGameStateObjects;
+using TEHhub.RemoteObjects.Components;
 
 // Exercises the real read-only process-memory reader against allocations in this test process.
 // No game process is opened or modified. No external test packages are needed.
@@ -111,6 +114,117 @@ if (args.Length >= 1 && args[0] == "--scan-spirit")
         var unreserved = e.Total - e.ReservedFlat;
         Console.WriteLine($"  Entry [{i}]: Total={e.Total}, ReservedFlat={e.ReservedFlat}, ReservedPercent={e.ReservedPercent}, Unreserved={unreserved}, PtrToLife=0x{e.PtrToLifeComponent.ToInt64():X}");
     }
+    return;
+}
+
+if (args.Length >= 1 && args[0] == "--scan-icons")
+{
+    var proc = Process.GetProcessesByName("PathOfExile").Concat(Process.GetProcessesByName("PathOfExileSteam")).FirstOrDefault();
+    if (proc == null) { Console.WriteLine("Game process not found!"); return; }
+    Console.WriteLine($"Found PoE Process: {proc.ProcessName} (PID {proc.Id})");
+    var baseAddress = proc.MainModule?.BaseAddress ?? IntPtr.Zero;
+    var procSize = proc.MainModule?.ModuleMemorySize ?? 0;
+    using var handle = new SafeMemoryHandle(proc.Id);
+    typeof(GameProcess).GetProperty(nameof(GameProcess.Handle))!.SetValue(Core.Process, handle);
+    typeof(GameProcess).GetProperty("Information", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Core.Process, proc);
+    var patterns = PatternFinder.Find(handle, baseAddress, procSize);
+    if (!patterns.TryGetValue("Game States", out var gsOffset))
+    {
+        Console.WriteLine("Could not find Game States pattern!");
+        return;
+    }
+    var offsetDataValue = handle.ReadMemory<int>(baseAddress + gsOffset);
+    var gameStatesAddr = baseAddress + gsOffset + offsetDataValue + 0x04;
+    var staticObj = handle.ReadMemory<GameStateStaticOffset>(gameStatesAddr);
+    var gameStateData = handle.ReadMemory<GameStateOffset>(staticObj.GameState);
+    var inGameStatePtr = gameStateData.States[4].X;
+    var inGameData = handle.ReadMemory<InGameStateOffset>(inGameStatePtr);
+    var areaInstancePtr = inGameData.AreaInstanceData;
+    var areaData = handle.ReadMemory<AreaInstanceOffsets>(areaInstancePtr);
+    
+    Console.WriteLine($"\n=== SCANNING LIVE ENTITIES IN CURRENT AREA ===");
+    var awakeMap = areaData.Entities.AwakeEntities;
+    var sleepingMap = areaData.Entities.SleepingEntities;
+    
+    var iconNameCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    var markerDetails = new List<string>();
+
+    var methodUpdateData = typeof(RemoteObjectBase).GetMethod("UpdateData", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    void InspectMap(StdMap map, string mapName)
+    {
+        handle.ReadStdMapBatched<EntityNodeKey, EntityNodeValue>(map, 100000, false, (key, value) =>
+        {
+            if (value.EntityPtr == IntPtr.Zero || !SafeMemoryHandle.IsValidAddress(value.EntityPtr)) return true;
+            var ent = new Entity(value.EntityPtr);
+            methodUpdateData?.Invoke(ent, new object[] { true });
+
+            if (string.IsNullOrEmpty(ent.Path)) return true;
+
+            string? iconName = null;
+            int iconState = -1;
+            if (ent.TryGetComponent<MinimapIcon>(out var miniComp) && miniComp != null)
+            {
+                methodUpdateData?.Invoke(miniComp, new object[] { true });
+                iconName = miniComp.IconName;
+                iconState = miniComp.State;
+            }
+
+            string? modelPath = null;
+            if (ent.TryGetComponent<Animated>(out var animComp) && animComp != null)
+            {
+                methodUpdateData?.Invoke(animComp, new object[] { true });
+                modelPath = animComp.ModelPath;
+            }
+
+            if (!string.IsNullOrEmpty(iconName))
+            {
+                iconNameCounts[iconName] = iconNameCounts.GetValueOrDefault(iconName, 0) + 1;
+                markerDetails.Add($"[{mapName}] Path='{ent.Path}', IconName='{iconName}', State={iconState}, Model='{modelPath}'");
+            }
+            else if (ent.Path.Contains("Expedition", StringComparison.OrdinalIgnoreCase) || ent.Path.Contains("Marker", StringComparison.OrdinalIgnoreCase))
+            {
+                markerDetails.Add($"[{mapName}] (No IconName) Path='{ent.Path}', Model='{modelPath}'");
+            }
+
+            return true;
+        });
+    }
+
+    InspectMap(awakeMap, "Awake");
+    InspectMap(sleepingMap, "Sleeping");
+
+    Console.WriteLine($"\n--- Discovered MinimapIcon Names in Area ({iconNameCounts.Count} types) ---");
+    foreach (var (k, v) in iconNameCounts.OrderBy(x => x.Key))
+    {
+        Console.WriteLine($"  {k}: {v} occurrences");
+    }
+
+    Console.WriteLine($"\n--- Expedition / Marker Entities Detail ({markerDetails.Count}) ---");
+    foreach (var d in markerDetails)
+    {
+        Console.WriteLine($"  {d}");
+    }
+
+    // Now scan memory pages for all strings matching RewardChest*
+    Console.WriteLine($"\n=== SCANNING PROCESS MEMORY FOR ALL RewardChest* AND Expedition* ICONS IN DAT TABLES ===");
+    var discoveredRewardChests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var discoveredExpeditionIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    MemoryScannerHelper.ScanProcess(proc.Id, handle, discoveredRewardChests, discoveredExpeditionIcons);
+
+    Console.WriteLine($"\n--- All Discovered 'RewardChest*' Strings in Game Memory ({discoveredRewardChests.Count}) ---");
+    foreach (var s in discoveredRewardChests.OrderBy(x => x))
+    {
+        Console.WriteLine($"  {s}");
+    }
+
+    Console.WriteLine($"\n--- All Discovered 'Expedition*' Strings in Game Memory ({discoveredExpeditionIcons.Count}) ---");
+    foreach (var s in discoveredExpeditionIcons.OrderBy(x => x))
+    {
+        Console.WriteLine($"  {s}");
+    }
+
     return;
 }
 
@@ -294,6 +408,176 @@ sealed class ManualTime : TimeProvider
     private DateTimeOffset value = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
     public override DateTimeOffset GetUtcNow() => value;
     public void Advance(int seconds) => value = value.AddSeconds(seconds);
+}
+
+static class MemoryScannerHelper
+{
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MEMORY_BASIC_INFORMATION64
+    {
+        public ulong BaseAddress;
+        public ulong AllocationBase;
+        public uint AllocationProtect;
+        public uint __alignment1;
+        public ulong RegionSize;
+        public uint State;
+        public uint Protect;
+        public uint Type;
+        public uint __alignment2;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, int processId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern int VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MEMORY_BASIC_INFORMATION64 lpBuffer, uint dwLength);
+
+    public static void ScanProcess(int pid, SafeMemoryHandle handle, HashSet<string> discoveredRewardChests, HashSet<string> discoveredExpeditionIcons)
+    {
+        IntPtr hProc = OpenProcess(0x0410 /* PROCESS_VM_READ | PROCESS_QUERY_INFORMATION */, false, pid);
+        if (hProc == IntPtr.Zero)
+        {
+            hProc = OpenProcess(0x1010 /* PROCESS_VM_READ | PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
+        }
+        if (hProc == IntPtr.Zero)
+        {
+            Console.WriteLine($"[ScanProcess] OpenProcess failed with error: {Marshal.GetLastWin32Error()}");
+            return;
+        }
+
+        try
+        {
+            ulong currentAddr = 0x10000;
+            byte[] searchBuf = new byte[4 * 1024 * 1024]; // 4MB chunk
+            long totalScannedMb = 0;
+
+            while (currentAddr < 0x7FFFFFFF0000UL)
+            {
+                var queryRes = VirtualQueryEx(hProc, new IntPtr((long)currentAddr), out var memInfo, (uint)Marshal.SizeOf<MEMORY_BASIC_INFORMATION64>());
+                if (queryRes == 0 || memInfo.RegionSize == 0)
+                {
+                    break;
+                }
+
+                // Check if committed (MEM_COMMIT = 0x1000) and not NOACCESS (0x01) and not GUARD (0x100)
+                bool readable = (memInfo.State == 0x1000) && ((memInfo.Protect & 0x01) == 0) && ((memInfo.Protect & 0x100) == 0);
+                if (readable && memInfo.RegionSize <= 512 * 1024 * 1024)
+                {
+                    totalScannedMb += (long)(memInfo.RegionSize / (1024 * 1024));
+                    ulong regionEnd = memInfo.BaseAddress + memInfo.RegionSize;
+                    ulong scanPos = memInfo.BaseAddress;
+
+                while (scanPos < regionEnd)
+                {
+                    int readSize = (int)Math.Min((ulong)searchBuf.Length, regionEnd - scanPos);
+                    if (handle.TryReadMemoryArray(new IntPtr((long)scanPos), searchBuf, readSize, out _))
+                    {
+                        // 1. UTF-16 "RewardChest"
+                        byte[] patChestU16 = System.Text.Encoding.Unicode.GetBytes("RewardChest");
+                        for (int bi = 0; bi <= readSize - patChestU16.Length; bi += 2)
+                        {
+                            if (searchBuf[bi] == patChestU16[0] && searchBuf[bi + 1] == patChestU16[1])
+                            {
+                                bool match = true;
+                                for (int pi = 2; pi < patChestU16.Length; pi++)
+                                {
+                                    if (searchBuf[bi + pi] != patChestU16[pi]) { match = false; break; }
+                                }
+                                if (match)
+                                {
+                                    int end = bi;
+                                    while (end + 1 < readSize && (searchBuf[end] != 0 || searchBuf[end + 1] != 0))
+                                    {
+                                        char c = (char)(searchBuf[end] | (searchBuf[end + 1] << 8));
+                                        if (!char.IsLetterOrDigit(c) && c != '_') break;
+                                        end += 2;
+                                    }
+                                    if (end > bi)
+                                    {
+                                        string s = System.Text.Encoding.Unicode.GetString(searchBuf, bi, end - bi);
+                                        if (s.StartsWith("RewardChest", StringComparison.OrdinalIgnoreCase) && s.Length <= 50)
+                                            discoveredRewardChests.Add(s);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. UTF-8 / ASCII "RewardChest"
+                        byte[] patChestAscii = System.Text.Encoding.ASCII.GetBytes("RewardChest");
+                        for (int bi = 0; bi <= readSize - patChestAscii.Length; bi++)
+                        {
+                            if (searchBuf[bi] == patChestAscii[0])
+                            {
+                                bool match = true;
+                                for (int pi = 1; pi < patChestAscii.Length; pi++)
+                                {
+                                    if (searchBuf[bi + pi] != patChestAscii[pi]) { match = false; break; }
+                                }
+                                if (match)
+                                {
+                                    int end = bi;
+                                    while (end < readSize && searchBuf[end] != 0)
+                                    {
+                                        char c = (char)searchBuf[end];
+                                        if (!char.IsLetterOrDigit(c) && c != '_') break;
+                                        end++;
+                                    }
+                                    if (end > bi)
+                                    {
+                                        string s = System.Text.Encoding.ASCII.GetString(searchBuf, bi, end - bi);
+                                        if (s.StartsWith("RewardChest", StringComparison.OrdinalIgnoreCase) && s.Length <= 50)
+                                            discoveredRewardChests.Add(s);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3. UTF-16 "Expedition"
+                        byte[] patExpU16 = System.Text.Encoding.Unicode.GetBytes("Expedition");
+                        for (int bi = 0; bi <= readSize - patExpU16.Length; bi += 2)
+                        {
+                            if (searchBuf[bi] == patExpU16[0] && searchBuf[bi + 1] == patExpU16[1])
+                            {
+                                bool match = true;
+                                for (int pi = 2; pi < patExpU16.Length; pi++)
+                                {
+                                    if (searchBuf[bi + pi] != patExpU16[pi]) { match = false; break; }
+                                }
+                                if (match)
+                                {
+                                    int end = bi;
+                                    while (end + 1 < readSize && (searchBuf[end] != 0 || searchBuf[end + 1] != 0))
+                                    {
+                                        char c = (char)(searchBuf[end] | (searchBuf[end + 1] << 8));
+                                        if (!char.IsLetterOrDigit(c) && c != '_') break;
+                                        end += 2;
+                                    }
+                                    if (end > bi)
+                                    {
+                                        string s = System.Text.Encoding.Unicode.GetString(searchBuf, bi, end - bi);
+                                        if (s.StartsWith("Expedition", StringComparison.OrdinalIgnoreCase) && s.Length <= 50)
+                                            discoveredExpeditionIcons.Add(s);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    scanPos += (ulong)readSize;
+                }
+            }
+
+            currentAddr = memInfo.BaseAddress + memInfo.RegionSize;
+        }
+    }
+    finally
+    {
+        CloseHandle(hProc);
+    }
+}
 }
 
 

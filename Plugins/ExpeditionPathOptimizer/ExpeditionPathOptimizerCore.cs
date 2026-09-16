@@ -30,9 +30,19 @@ namespace ExpeditionPathOptimizer
         private Vector3 detonatorWorldPos = Vector3.Zero;
         private Vector2 detonatorGridPos = Vector2.Zero;
         private readonly Dictionary<IntPtr, ExpeditionRemnant> discoveredRemnants = new();
+        private readonly Dictionary<IntPtr, ExpeditionChest> discoveredChests = new();
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
-        private readonly List<IntPtr> placedExplosiveOrder = new();
         private ExpeditionRemnant? selectedFinalTarget = null;
+
+        private static readonly HashSet<string> ExpeditionRewardChestIcons =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                "RewardChestCurrencyRare",
+                "RewardChestCurrency",
+                "RewardChestUnique",
+                "RewardChestMaps",
+                "RewardChestGeneric",
+            };
 
         private string lastAreaHash = string.Empty;
         private bool hasAutoSearchedThisArea = false;
@@ -69,8 +79,8 @@ namespace ExpeditionPathOptimizer
             this.detonatorWorldPos = Vector3.Zero;
             this.detonatorGridPos = Vector2.Zero;
             this.discoveredRemnants.Clear();
+            this.discoveredChests.Clear();
             this.placedExplosives.Clear();
-            this.placedExplosiveOrder.Clear();
             this.selectedFinalTarget = null;
             this.hasAutoSearchedThisArea = false;
         }
@@ -187,6 +197,12 @@ namespace ExpeditionPathOptimizer
             }
 
             ImGui.Text($"Discovered Remnants / Monoliths: {this.discoveredRemnants.Count}");
+            ImGui.Text($"Discovered Reward Chests: {this.discoveredChests.Count}");
+            if (this.discoveredChests.Count > 0)
+            {
+                var chestGroups = this.discoveredChests.Values.GroupBy(c => c.IconName).Select(g => $"{g.Key}: {g.Count()}");
+                ImGui.TextDisabled($"  ({string.Join(", ", chestGroups)})");
+            }
             if (this.selectedFinalTarget != null)
             {
                 ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {this.selectedFinalTarget.RuneSlots} Slots, Rune: {(string.IsNullOrEmpty(this.selectedFinalTarget.PropagatedRune) ? "None" : this.selectedFinalTarget.PropagatedRune)} (Base: {this.selectedFinalTarget.BaseRuneWeight:F0})");
@@ -219,7 +235,6 @@ namespace ExpeditionPathOptimizer
                 if (ImGui.Button("Clear Path", new Vector2(110, 30)))
                 {
                     this.runner.Clear();
-                    this.placedExplosives.Clear();
                 }
                 ImGui.SameLine();
                 if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
@@ -332,13 +347,6 @@ namespace ExpeditionPathOptimizer
             if (ImGui.SliderFloat("Short Bridge Min Reach (%)", ref shortBridgePct, 20.0f, 90.0f, "%.0f%%"))
             {
                 this.Settings.ShortBridgePenaltyThreshold = shortBridgePct / 100.0;
-                this.SaveSettings();
-            }
-
-            float futurePot = (float)this.Settings.FuturePotentialBonusMultiplier;
-            if (ImGui.SliderFloat("Future Potential Multiplier (%)", ref futurePot, 0.0f, 50.0f, "%.0f%%"))
-            {
-                this.Settings.FuturePotentialBonusMultiplier = futurePot;
                 this.SaveSettings();
             }
 
@@ -472,6 +480,16 @@ namespace ExpeditionPathOptimizer
                     remnant.UpdateBaseRuneWeight(this.Settings.RuneWeights);
                     this.discoveredRemnants[entity.Address] = remnant;
                 }
+                else if (entity.TryGetComponent<MinimapIcon>(out var miniIcon, false) && miniIcon != null)
+                {
+                    var iconName = miniIcon.IconName;
+                    if (!string.IsNullOrEmpty(iconName) && ExpeditionRewardChestIcons.Contains(iconName))
+                    {
+                        double baseScore = this.Settings.ChestWeights.GetValueOrDefault(iconName, this.Settings.ChestHitBaseScore);
+                        var chest = new ExpeditionChest(entity.Id, entity.Address, wPos, gPos, iconName, baseScore);
+                        this.discoveredChests[entity.Address] = chest;
+                    }
+                }
             }
 
             if (area.AwakeEntities != null)
@@ -499,46 +517,11 @@ namespace ExpeditionPathOptimizer
                 this.selectedFinalTarget = null;
             }
 
-            // 2. Detect if placed explosives were added or undone/removed in game
-            bool explosivesChanged = false;
-            if (currentLiveExplosives.Count != this.placedExplosives.Count)
+            // 2. Synchronize placed explosives positions for grey marker detection
+            this.placedExplosives.Clear();
+            foreach (var (k, v) in currentLiveExplosives)
             {
-                explosivesChanged = true;
-            }
-            else
-            {
-                foreach (var k in currentLiveExplosives.Keys)
-                {
-                    if (!this.placedExplosives.ContainsKey(k))
-                    {
-                        explosivesChanged = true;
-                        break;
-                    }
-                }
-            }
-
-            if (explosivesChanged)
-            {
-                // Synchronize ordered explosive tracking
-                foreach (var k in currentLiveExplosives.Keys)
-                {
-                    if (!this.placedExplosiveOrder.Contains(k))
-                    {
-                        this.placedExplosiveOrder.Add(k);
-                    }
-                }
-                this.placedExplosiveOrder.RemoveAll(k => !currentLiveExplosives.ContainsKey(k));
-
-                this.placedExplosives.Clear();
-                foreach (var (k, v) in currentLiveExplosives)
-                {
-                    this.placedExplosives[k] = v;
-                }
-
-                if (this.Settings.Enable && this.detonatorWorldPos != Vector3.Zero && this.discoveredRemnants.Count > 0)
-                {
-                    this.StartSearch(area);
-                }
+                this.placedExplosives[k] = v;
             }
         }
 
@@ -565,21 +548,14 @@ namespace ExpeditionPathOptimizer
             float rangeGrid = rangeWorld / GridToWorldMultiplier;
 
             Vector2 startGrid = this.detonatorGridPos;
-            if (this.placedExplosiveOrder.Count > 0)
-            {
-                var lastAddr = this.placedExplosiveOrder.Last();
-                if (this.placedExplosives.TryGetValue(lastAddr, out var lastExplosive))
-                {
-                    startGrid = new Vector2(lastExplosive.X / GridToWorldMultiplier, lastExplosive.Y / GridToWorldMultiplier);
-                }
-            }
 
             var env = new ExpeditionEnvironment(
                 this.discoveredRemnants.Values.ToList(),
+                this.discoveredChests.Values.ToList(),
                 this.selectedFinalTarget,
                 rangeGrid,
                 radiusGrid,
-                Math.Max(1, maxExplosions - this.placedExplosives.Count),
+                maxExplosions,
                 startGrid,
                 area.GridWalkableData,
                 area.TerrainMetadata.BytesPerRow,
@@ -683,37 +659,6 @@ namespace ExpeditionPathOptimizer
                 }
             }
 
-            // 2. Draw Placed Explosives Badges
-            int placedIdx = 1;
-            foreach (var placedWPos in this.placedExplosives.Values)
-            {
-                if (canMapProject)
-                {
-                    var pMapPos = ToMap(placedWPos);
-                    if (pMapPos != Vector2.Zero)
-                    {
-                        dl.AddCircleFilled(pMapPos, 10f, 0xDD555555u);
-                        dl.AddCircle(pMapPos, 10f, 0xFFAAAAAAu, 0, 1.5f);
-                        string pStr = placedIdx.ToString();
-                        var tSz = ImGui.CalcTextSize(pStr);
-                        dl.AddText(new Vector2(pMapPos.X - tSz.X * 0.5f, pMapPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, pStr);
-                    }
-                }
-                else
-                {
-                    var pScreenPos = world.WorldToScreen(new Vector2(placedWPos.X, placedWPos.Y), placedWPos.Z);
-                    if (pScreenPos != Vector2.Zero)
-                    {
-                        dl.AddCircleFilled(pScreenPos, 14f, 0xDD555555u);
-                        dl.AddCircle(pScreenPos, 14f, 0xFFAAAAAAu, 0, 2.0f);
-                        string pStr = placedIdx.ToString();
-                        var tSz = ImGui.CalcTextSize(pStr);
-                        dl.AddText(new Vector2(pScreenPos.X - tSz.X * 0.5f, pScreenPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, pStr);
-                    }
-                }
-                placedIdx++;
-            }
-
             var bestDetailed = this.runner.CurrentBestPath;
             if (bestDetailed == null || bestDetailed.PerPointScore == null || bestDetailed.PerPointScore.Count == 0) return;
 
@@ -721,18 +666,46 @@ namespace ExpeditionPathOptimizer
             float radiusWorld = bestDetailed.Environment.ExplosionRadius * GridToWorldMultiplier;
             float zHeight = this.detonatorWorldPos != Vector3.Zero ? this.detonatorWorldPos.Z : (playerRender?.TerrainHeight ?? 0f);
 
-            // 3. Draw Connecting Lines (Detonator -> Placed Bombs -> Planned Bombs)
+            // 2. Match placed explosives with planned bomb locations
+            const float matchTolerance = 4.0f;
+            var placedPlanIndices = new HashSet<int>();
+
+            foreach (var placedWorld in this.placedExplosives.Values)
+            {
+                var placedGrid = new Vector2(
+                    placedWorld.X / GridToWorldMultiplier,
+                    placedWorld.Y / GridToWorldMultiplier);
+
+                int bestIndex = -1;
+                float bestDist = matchTolerance;
+
+                for (int i = 0; i < points.Count; i++)
+                {
+                    if (placedPlanIndices.Contains(i))
+                        continue;
+
+                    float d = Vector2.Distance(placedGrid, points[i].Point);
+
+                    if (d <= bestDist)
+                    {
+                        bestDist = d;
+                        bestIndex = i;
+                    }
+                }
+
+                if (bestIndex >= 0)
+                {
+                    placedPlanIndices.Add(bestIndex);
+                }
+            }
+
+            // 3. Draw Connecting Lines (Detonator -> Planned Bombs)
             if (this.Settings.ShowPathLines)
             {
                 var wirePoints = new List<Vector3>();
                 if (this.detonatorWorldPos != Vector3.Zero)
                 {
                     wirePoints.Add(this.detonatorWorldPos);
-                }
-
-                foreach (var p in this.placedExplosives.Values)
-                {
-                    wirePoints.Add(p);
                 }
 
                 foreach (var pt in points)
@@ -755,17 +728,31 @@ namespace ExpeditionPathOptimizer
                 }
             }
 
-            // 4. Draw Planned Blast Circles & Badges
+            // 4. Draw Planned Blast Circles & Badges (Greyed out if placed)
             for (int i = 0; i < points.Count; i++)
             {
                 var ptInfo = points[i];
                 var gridPt = ptInfo.Point;
                 var bombWorld = new Vector3(gridPt.X * GridToWorldMultiplier, gridPt.Y * GridToWorldMultiplier, zHeight);
-                int bombIndex = this.placedExplosives.Count + i + 1;
+                int bombIndex = i + 1;
+                bool isPlaced = placedPlanIndices.Contains(i);
                 bool isFinalBomb = (i == points.Count - 1);
 
-                uint badgeBg = isFinalBomb ? this.Settings.FinalTargetBadgeBgColor : this.Settings.BadgeBgColor;
-                uint borderColor = isFinalBomb ? 0xFFFFD700u : 0xFFFFFFFFu;
+                uint badgeBg = isPlaced
+                    ? 0xFF666666u
+                    : isFinalBomb
+                        ? this.Settings.FinalTargetBadgeBgColor
+                        : this.Settings.BadgeBgColor;
+
+                uint borderColor = isPlaced
+                    ? 0xFF999999u
+                    : isFinalBomb
+                        ? 0xFFFFD700u
+                        : 0xFFFFFFFFu;
+
+                uint explosiveColor = isPlaced
+                    ? 0xFF666666u
+                    : this.Settings.ExplosiveColor;
 
                 if (canMapProject)
                 {
@@ -778,9 +765,9 @@ namespace ExpeditionPathOptimizer
                         if (this.Settings.ShowBlastRadius)
                         {
                             uint fillAlpha = (uint)(Math.Clamp(this.Settings.BlastRadiusOpacity, 0f, 1f) * 255f);
-                            uint fillColor = (fillAlpha << 24) | (this.Settings.ExplosiveColor & 0x00FFFFFFu);
+                            uint fillColor = (fillAlpha << 24) | (explosiveColor & 0x00FFFFFFu);
                             dl.AddCircleFilled(mCenter, mapR, fillColor, 32);
-                            dl.AddCircle(mCenter, mapR, this.Settings.ExplosiveColor, 32, isFinalBomb ? 2.5f : 2.0f);
+                            dl.AddCircle(mCenter, mapR, explosiveColor, 32, isFinalBomb ? 2.5f : 2.0f);
                         }
 
                         // Draw Number Badge
@@ -793,7 +780,7 @@ namespace ExpeditionPathOptimizer
                         if (isFinalBomb)
                         {
                             var fSz = ImGui.CalcTextSize("★ FINAL");
-                            dl.AddText(new Vector2(mCenter.X - fSz.X * 0.5f, mCenter.Y - 24f), 0xFFFFD700u, "★ FINAL");
+                            dl.AddText(new Vector2(mCenter.X - fSz.X * 0.5f, mCenter.Y - 24f), isPlaced ? 0xFF999999u : 0xFFFFD700u, "★ FINAL");
                         }
                     }
                 }
@@ -824,14 +811,14 @@ namespace ExpeditionPathOptimizer
                             if (s == 0) firstRing = ringScreen;
                             if (prevRing != Vector2.Zero)
                             {
-                                dl.AddLine(prevRing, ringScreen, this.Settings.ExplosiveColor, isFinalBomb ? 2.5f : 2.0f);
+                                dl.AddLine(prevRing, ringScreen, explosiveColor, isFinalBomb ? 2.5f : 2.0f);
                             }
                             prevRing = ringScreen;
                         }
 
                         if (prevRing != Vector2.Zero && firstRing != Vector2.Zero)
                         {
-                            dl.AddLine(prevRing, firstRing, this.Settings.ExplosiveColor, isFinalBomb ? 2.5f : 2.0f);
+                            dl.AddLine(prevRing, firstRing, explosiveColor, isFinalBomb ? 2.5f : 2.0f);
                         }
                     }
 
@@ -845,7 +832,7 @@ namespace ExpeditionPathOptimizer
                     if (isFinalBomb)
                     {
                         var fSz = ImGui.CalcTextSize("★ FINAL");
-                        dl.AddText(new Vector2(sPos.X - fSz.X * 0.5f, sPos.Y - 30f), 0xFFFFD700u, "★ FINAL");
+                        dl.AddText(new Vector2(sPos.X - fSz.X * 0.5f, sPos.Y - 30f), isPlaced ? 0xFF999999u : 0xFFFFD700u, "★ FINAL");
                     }
                 }
             }

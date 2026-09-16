@@ -30,17 +30,27 @@ namespace ExpeditionPathOptimizer
         public float PathMutateChance { get; set; } = 0.5f;
         public float NewRandomPathInjectionRate { get; set; } = 1.0f;
 
-        // V1 Scoring Parameters
+        // V1 & V2 Scoring Parameters
         public double RemnantHitBaseScore { get; set; } = 150.0;
         public double RuneSlotMultiplier { get; set; } = 100.0;
         public double FinalTargetBonus { get; set; } = 1000.0;
         public double FinalRuneBonus { get; set; } = 100.0;
         public double UsefulBridgePenalty { get; set; } = 20.0; // Bridge ไปหาเป้าหมายได้ = -20
         public double EmptyBombPenalty { get; set; } = 150.0; // Bridge ที่ไม่ช่วยอะไร = -150
-        public double FuturePotentialBonusMultiplier { get; set; } = 15.0; // ระเบิดยังเหลือ + Remnant Reachable -> FuturePotential bonus
         public double TravelPenaltyMultiplier { get; set; } = 0.0;
         public double ShortBridgePenaltyThreshold { get; set; } = 0.60; // ลงโทษเฉพาะ bridge ที่สั้นกว่า 60% ของ ExplosionRange
         public double ShortBridgePenaltyMultiplier { get; set; } = 100.0;
+
+        // Chest Scoring Parameters (V2 Phase 1)
+        public double ChestHitBaseScore { get; set; } = 40.0;
+        public Dictionary<string, double> ChestWeights { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "RewardChestCurrencyRare", 40.0 },
+            { "RewardChestCurrency", 40.0 },
+            { "RewardChestUnique", 40.0 },
+            { "RewardChestMaps", 40.0 },
+            { "RewardChestGeneric", 40.0 },
+        };
 
         // Authoritative Rune Base Weights
         public Dictionary<string, double> RuneWeights { get; set; } = new(StringComparer.OrdinalIgnoreCase)

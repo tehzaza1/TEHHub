@@ -7,6 +7,7 @@ namespace ExpeditionPathOptimizer.PathPlannerData
 
     public record ExpeditionEnvironment(
         List<ExpeditionRemnant> Remnants,
+        List<ExpeditionChest> Chests,
         ExpeditionRemnant? FinalTarget,
         float ExplosionRange,
         float ExplosionRadius,
@@ -91,15 +92,14 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             return this.GetCellValue(bx, by) >= minWalkable;
         }
 
-        public Vector2 FindWalkableCandidateNearRemnant(ExpeditionRemnant remnant, Vector2 anchor, float radius)
+        public Vector2 FindWalkableCandidateNearPoint(Vector2 targetPos, Vector2 anchor, float radius)
         {
             if (this.WalkableData == null || this.BytesPerRow <= 0)
             {
-                return remnant.GridPos;
+                return targetPos;
             }
 
-            var rPos = remnant.GridPos;
-            var diff = anchor - rPos;
+            var diff = anchor - targetPos;
             float d = diff.Length();
             var dir = d > 0.001f ? diff / d : Vector2.Zero;
 
@@ -107,21 +107,21 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             float[] offsetRatios = { 0.0f, 0.35f, 0.65f, 0.85f };
             foreach (var ratio in offsetRatios)
             {
-                var cand = rPos + dir * (radius * 0.85f * ratio);
+                var cand = targetPos + dir * (radius * 0.85f * ratio);
                 if (this.IsPointWalkable(cand) && this.HasLineOfSight(anchor, cand))
                 {
                     return cand;
                 }
             }
 
-            // 2. Search spiral around remnant
+            // 2. Search spiral around targetPos
             int maxR = (int)(radius * 0.85f);
             for (int r = 2; r <= maxR; r += 4)
             {
                 for (int angleDeg = 0; angleDeg < 360; angleDeg += 30)
                 {
                     float rad = angleDeg * MathF.PI / 180f;
-                    var cand = rPos + new Vector2(MathF.Cos(rad) * r, MathF.Sin(rad) * r);
+                    var cand = targetPos + new Vector2(MathF.Cos(rad) * r, MathF.Sin(rad) * r);
                     if (this.IsPointWalkable(cand) && this.HasLineOfSight(anchor, cand))
                     {
                         return cand;
@@ -129,7 +129,13 @@ namespace ExpeditionPathOptimizer.PathPlannerData
                 }
             }
 
-            return rPos;
+            return targetPos;
         }
+
+        public Vector2 FindWalkableCandidateNearRemnant(ExpeditionRemnant remnant, Vector2 anchor, float radius)
+            => this.FindWalkableCandidateNearPoint(remnant.GridPos, anchor, radius);
+
+        public Vector2 FindWalkableCandidateNearChest(ExpeditionChest chest, Vector2 anchor, float radius)
+            => this.FindWalkableCandidateNearPoint(chest.GridPos, anchor, radius);
     }
 }

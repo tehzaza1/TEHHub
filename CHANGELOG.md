@@ -2,6 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.96 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
+
+- **`ExpeditionPathOptimizer` Chest V2 Phase 1 with Exact Icon Allowlist & Equal Scoring**:
+  - **Exact `IconName` Allowlist**: Added `ExpeditionRewardChestIcons` whitelist explicitly matching verified PoE 2 reward chest icons (`RewardChestCurrencyRare`, `RewardChestCurrency`, `RewardChestUnique`, `RewardChestMaps`, `RewardChestGeneric`) using exact `HashSet.Contains()` matching; strictly excluded non-whitelisted entities, `ExpeditionPOI` (ReefClam), and `ExpeditionCavernEntrance`.
+  - **Flat Chest Scoring (+40.0 pts)**: Configured all 5 allowlisted chest types with equal 40.0 base score (`ChestHitBaseScore = 40.0`), scored once per unique chest covered by the bomb path.
+  - **Productive Bomb Definition & Bridge Penalty Protection**: Bombs covering reward chests are treated as productive loot collectors, preventing false empty-bomb bridge penalties.
+  - **Chest-Aware Path Generation & Mutation**: Integrated chest locations into `BuildPath()` candidate selection and `MutatePath()`, allowing the optimizer to plan routes through reward chests on the way to the Final Target.
+  - **Live Chest Status in UI**: Added discovered reward chests counter and grouped icon breakdown to plugin settings window.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified live entity scanning and deployed to live installation.
+
 ## 1.8.95 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
 
 - **`ExpeditionPathOptimizer` Single-Count Rune Scoring, Pure TotalScore, True Placed Order & Reachability Budget**:
