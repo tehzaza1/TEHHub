@@ -111,6 +111,19 @@ namespace NinjaPricer
                     station = cand2;
                     break;
                 }
+
+                // Fallback: scan candidate range [sub - 0x120 .. sub - 0x60] for station owner pointer
+                for (int off = 0x60; off <= 0x120; off += 8)
+                {
+                    var cand = sub - off;
+                    if (reader.ReadMemory<IntPtr>(cand + StationOwnerOffset) == entity.Address)
+                    {
+                        station = cand;
+                        break;
+                    }
+                }
+
+                if (station != IntPtr.Zero) break;
             }
 
             if (station == IntPtr.Zero) return false;

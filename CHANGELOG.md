@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.84 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Normal Map Runeshape & Monolith Full Detection Support**:
+  - **Awake + Sleeping Entities Dual Scanning**: `GetActiveMonoliths()` now processes both awake entities and distant sleeping entities so monoliths in large normal maps are discovered across the entire map immediately.
+  - **Flexible Entity Path Matching**: Broadened candidate path matching to include all standard Expedition encounter path variants (`Expedition2Encounter`, `ExpeditionEncounter`, etc.).
+  - **Dynamic Station Offset Scanning**: Added `[sub - 0x120 .. sub - 0x60]` fallback scan in `TryReadMonolith` to reliably resolve the monolith station structure across all map formats and memory configurations.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
+
 ## 1.8.83 — 2026-09-16 [Plugin Update — myFarming]
 
 - **`myFarming` Restored Total Session Divine / Currency Count in HUD**:
