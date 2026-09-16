@@ -2,6 +2,28 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.62 — 2026-09-16 [SDK & Plugin Update]
+
+- **SDK / Core Framework: Authoritative Expedition Mechanics & Proximity Detection API**:
+  - **`ExpeditionMechanics` Helper**:
+    - Centralized authoritative PoE 2 Expedition constants: Regular Expedition (5 base explosives, 300 W / 3.0m blast radius, 1,000 W / 10.0m reach) and Grand Expedition (15 base explosives, 380 W / 3.8m blast radius, 1,200 W / 12.0m reach).
+    - Strictly enforced PoE engine flooring rule (`Math.Floor` for explosive counts).
+    - Dynamic parsing of area/map modifiers (`% increased number of Expedition Explosives` and `% increased Expedition Explosive Radius`).
+    - Exposed `area.ExpeditionConfig` on `AreaInstance`.
+  - **`Entity` Proximity & Coverage API**:
+    - Added `DistanceWorldFrom(Entity other)` and `Distance3DWorldFrom(Entity other)` for horizontal 2D and 3D World Unit calculations.
+    - Added `IsExpeditionEncounter` property to identify Remnant monolith entities.
+    - Added `IsInRangeOfExplosive(Entity explosive, float? customRadiusWorld)` and `GetExpeditionExplosiveCoverage()` to check whether placed explosives cover the entity.
+    - Added `ExpeditionExplosiveCoverage` struct tracking coverage status, covering explosive ID, exact distance, and closest explosive.
+- **Core UI & Data Visualization**:
+  - **Entities Tab Restoration**: Restored standard `entity.ToImGui()` rendering in `DataVisualization` -> `Entities` tab, eliminating dummy `"No custom ImGui widget implemented for ..."` entries and providing full entity header, Remnant rune/explosive coverage, and clean collapsible `Components` tree with `[Load]` buttons.
+  - **Area Modifiers Display**: Separated `Active Area / Map Modifiers` into its own distinct collapsible header in `DataVisualization` -> `Player & Area`.
+- **Plugins Update**:
+  - **`myFarming`**: Removed kill tracking accumulation from Session Summary; strictly scoped monster kill counters (`W: M: R: U:`) to the active combat map only.
+  - **`NinjaPricer`**: Added green border highlights on 3D world monolith markers and Runeshape window header rows when a placed explosive covers the monolith.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified clean builds.
+
 ## 1.8.61 — 2026-09-16 [SDK / Core Framework Update]
 
 - **Core Framework: Fix ImGui Duplicate ID Conflict in GGPK Caches**:
