@@ -25,16 +25,19 @@ namespace myFarming
                 {
                     var json = File.ReadAllText(this.filePath);
                     this.Current = JsonSerializer.Deserialize<FarmSession>(json) ?? new FarmSession();
+                    PluginLog.Info("myFarming", $"Resumed session #{this.Current.SessionId} ({this.Current.TotalMaps} maps, {this.Current.TotalChaos:F1}c).");
                 }
                 catch (Exception ex)
                 {
                     PluginLog.Error("myFarming", $"Failed to load session from {this.filePath}: {ex.Message}");
                     this.Current = new FarmSession();
+                    this.Save();
                 }
             }
             else
             {
                 this.Current = new FarmSession();
+                this.Save();
             }
         }
 

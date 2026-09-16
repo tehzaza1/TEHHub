@@ -114,6 +114,11 @@ namespace myFarming
             // Only active in InGameState or EscapeState (when game is paused via ESC menu)
             if (currentState != GameStateTypes.InGameState && currentState != GameStateTypes.EscapeState)
             {
+                if (this.isRunActive && this.currentRun != null)
+                {
+                    this.FinalizeRun();
+                }
+                this.lastAreaHash = string.Empty;
                 this.lastTickUtc = DateTime.UtcNow;
                 return;
             }
@@ -430,7 +435,7 @@ namespace myFarming
                         ImGui.TextDisabled($"{this.FormatCurrency(sessionRate)}/hr");
                     }
 
-                    if (this.Settings.ShowKills && this.sessionStore.Current.TotalMaps > 0)
+                    if (this.Settings.ShowKills && (liveSessionMaps > 0 || (liveKillsNormal + liveKillsMagic + liveKillsRare + liveKillsUnique) > 0))
                     {
                         this.DrawColoredKills(liveKillsNormal, liveKillsMagic, liveKillsRare, liveKillsUnique);
                     }
@@ -446,7 +451,7 @@ namespace myFarming
                     int sec = duration % 60;
                     ImGui.Text($"Map: {mapTitle} ({min:D2}:{sec:D2})");
 
-                    if (this.sessionStore.Current.TotalMaps > 0)
+                    if (this.isRunActive || this.currentTotalChaos > 0)
                     {
                         ImGui.Text("Map Loot: ");
                         ImGui.SameLine(0, 2);
