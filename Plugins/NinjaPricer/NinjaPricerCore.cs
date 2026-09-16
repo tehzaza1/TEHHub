@@ -236,7 +236,8 @@ namespace NinjaPricer
         private Vector2 runeshapeWinRectMin = Vector2.Zero;
         private Vector2 runeshapeWinRectMax = Vector2.Zero;
         private bool runeshapeWinRectValid = false;
-        private readonly Dictionary<string, MonolithData> trackedMonoliths = new();
+        private readonly Dictionary<uint, MonolithData> trackedMonoliths = new();
+        private string lastMonolithAreaHash = string.Empty;
         private string newProfileInput = string.Empty;
 
         // Rune Chain Spatial Memory Cache (Proximity-Based Invalidation)
@@ -696,6 +697,7 @@ namespace NinjaPricer
                 this.rememberedChainNodes.Clear();
                 this.rememberedDetonatorPos = Vector3.Zero;
                 this.lastChainAreaHash = string.Empty;
+                this.lastMonolithAreaHash = string.Empty;
             }
         }
 
@@ -3238,9 +3240,18 @@ namespace NinjaPricer
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
             if (area == null) return new List<MonolithData>();
 
+            var currentAreaHash = area.AreaHash ?? string.Empty;
+            if (this.lastMonolithAreaHash != currentAreaHash)
+            {
+                this.lastMonolithAreaHash = currentAreaHash;
+                this.trackedMonoliths.Clear();
+            }
+
+            var currentMonolithIds = new HashSet<uint>();
+
             void ProcessMonolithEntity(Entity e)
             {
-                if (e == null || string.IsNullOrEmpty(e.Path)) return;
+                if (e == null || !e.IsValid || string.IsNullOrEmpty(e.Path)) return;
 
                 bool isCandidate = e.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase) ||
                                    e.Path.Contains("ExpeditionEncounter", StringComparison.OrdinalIgnoreCase) ||
@@ -3248,17 +3259,17 @@ namespace NinjaPricer
 
                 if (!isCandidate) return;
 
+                currentMonolithIds.Add(e.Id);
+
                 if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
                 {
-                    var key = $"{MathF.Round(mData.WorldPos.X / 10f) * 10f}_{MathF.Round(mData.WorldPos.Y / 10f) * 10f}";
-
                     if (mData.IsCompleted)
                     {
-                        this.trackedMonoliths.Remove(key);
+                        this.trackedMonoliths.Remove(e.Id);
                         return;
                     }
 
-                    this.trackedMonoliths[key] = mData;
+                    this.trackedMonoliths[e.Id] = mData;
                 }
             }
 
@@ -3271,22 +3282,62 @@ namespace NinjaPricer
                 }
             }
 
-            // 2. Discover distant monoliths from SleepingEntities in normal maps
+            // 2. Discover distant monoliths from SleepingEntities in normal maps (only if not already awake)
             if (area.SleepingEntities != null)
             {
                 foreach (var e in area.SleepingEntities.Values)
                 {
-                    ProcessMonolithEntity(e);
+                    if (!currentMonolithIds.Contains(e.Id))
+                    {
+                        ProcessMonolithEntity(e);
+                    }
+                }
+            }
+
+            // Evict monoliths that no longer exist in Awake or Sleeping
+            if (this.trackedMonoliths.Count > 0)
+            {
+                var toRemove = new List<uint>();
+                foreach (var id in this.trackedMonoliths.Keys)
+                {
+                    if (!currentMonolithIds.Contains(id))
+                    {
+                        toRemove.Add(id);
+                    }
+                }
+                foreach (var id in toRemove)
+                {
+                    this.trackedMonoliths.Remove(id);
                 }
             }
 
             if (this.trackedMonoliths.Count == 0) return new List<MonolithData>();
 
-            var monoliths = new List<MonolithData>(this.trackedMonoliths.Count);
-            foreach (var (key, mData) in this.trackedMonoliths)
+            // Spatial deduplication: prevent duplicate entities at virtually the same world position (< 35 units)
+            var rawList = this.trackedMonoliths.Values.Where(m => !m.IsCompleted).ToList();
+            var monoliths = new List<MonolithData>();
+            foreach (var m in rawList)
             {
-                if (mData.IsCompleted) continue;
-                monoliths.Add(mData);
+                bool isDuplicate = false;
+                for (int i = 0; i < monoliths.Count; i++)
+                {
+                    var existing = monoliths[i];
+                    float dx = existing.WorldPos.X - m.WorldPos.X;
+                    float dy = existing.WorldPos.Y - m.WorldPos.Y;
+                    if ((dx * dx + dy * dy) < (35f * 35f))
+                    {
+                        if (m.HoleCount > existing.HoleCount || (m.HoleCount == existing.HoleCount && m.EntityId > existing.EntityId))
+                        {
+                            monoliths[i] = m;
+                        }
+                        isDuplicate = true;
+                        break;
+                    }
+                }
+                if (!isDuplicate)
+                {
+                    monoliths.Add(m);
+                }
             }
 
             if (monoliths.Count == 0) return monoliths;
@@ -4113,6 +4164,12 @@ namespace NinjaPricer
         private void DrawRuneshapeWindow(List<MonolithData> monoliths)
         {
             if (monoliths == null || monoliths.Count == 0) return;
+
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi != null && (gameUi.IsAnyLargePanelOpen || (gameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && gameUi.RuneshapeCombinationsPanel.IsVisible)))
+            {
+                return;
+            }
 
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
 
