@@ -381,43 +381,47 @@ namespace ExpeditionPathOptimizer
             {
                 int remainingStepsAfterThis = bombCount - 1 - (i + 1);
 
-                // 1. Remnant Candidates (Directly Reachable)
-                var remnantCandidates = new List<(ExpeditionRemnant Remnant, Vector2 Pos, double TargetValue)>();
-                foreach (var r in remainingRemnants)
+                double CalculateCandidateCoverageScore(
+                    Vector2 candPos,
+                    List<ExpeditionRemnant> uncovRemnants,
+                    List<ExpeditionChest> uncovChests,
+                    float distFromCurrent)
                 {
-                    var candPos = environment.FindWalkableCandidateNearRemnant(r, current, radius);
-                    float distToCand = Vector2.Distance(current, candPos);
-                    if (distToCand <= reach)
+                    double score = 0.0;
+                    int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distFromCurrent - radius) / reach));
+                    score -= estBridges * this.settings.UsefulBridgePenalty;
+
+                    foreach (var r in uncovRemnants)
                     {
-                        float distCandToFinal = Vector2.Distance(candPos, finalTarget.GridPos);
-                        if (distCandToFinal > radius + 3.0f)
+                        if (Vector2.Distance(candPos, r.GridPos) <= radius)
                         {
-                            int bombsAfterThis = bombCount - (i + 1);
-                            int bombsCandToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, distCandToFinal - radius) / reach));
-                            if (bombsCandToFinal <= bombsAfterThis)
-                            {
-                                if (environment.HasLineOfSight(current, candPos))
-                                {
-                                    int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distToCand - radius) / reach));
-                                    double targetVal =
-                                        this.settings.RemnantHitBaseScore +
-                                        (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                        r.BaseRuneWeight -
-                                        (estBridges * this.settings.UsefulBridgePenalty);
-                                    remnantCandidates.Add((r, candPos, targetVal));
-                                }
-                            }
+                            score += this.settings.RemnantHitBaseScore +
+                                     (r.RuneSlots * this.settings.RuneSlotMultiplier) +
+                                     r.BaseRuneWeight;
                         }
                     }
+
+                    foreach (var c in uncovChests)
+                    {
+                        if (Vector2.Distance(candPos, c.GridPos) <= radius)
+                        {
+                            score += this.settings.ChestHitBaseScore;
+                        }
+                    }
+
+                    return score;
                 }
 
-                // 2. Chest Candidates (Directly Reachable - Only considered when no Remnant candidates exist)
-                var chestCandidates = new List<(ExpeditionChest Chest, Vector2 Pos, double TargetValue)>();
-                if (remnantCandidates.Count == 0 && remainingChests.Count > 0)
+                // 1. Remnant Candidates (Directly Reachable)
+                var remnantCandidates = new List<(Vector2 Pos, double TargetValue)>();
+                foreach (var r in remainingRemnants)
                 {
-                    foreach (var c in remainingChests)
+                    var candidatesNearR = environment.GetWalkableCandidatesNearRemnant(r, current, radius);
+                    Vector2? bestPointForR = null;
+                    double bestScoreForR = double.MinValue;
+
+                    foreach (var candPos in candidatesNearR)
                     {
-                        var candPos = environment.FindWalkableCandidateNearChest(c, current, radius);
                         float distToCand = Vector2.Distance(current, candPos);
                         if (distToCand <= reach)
                         {
@@ -430,14 +434,73 @@ namespace ExpeditionPathOptimizer
                                 {
                                     if (environment.HasLineOfSight(current, candPos))
                                     {
-                                        int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distToCand - radius) / reach));
-                                        double targetVal =
-                                            this.settings.ChestHitBaseScore -
-                                            (estBridges * this.settings.UsefulBridgePenalty);
-                                        chestCandidates.Add((c, candPos, targetVal));
+                                        double coverageScore = CalculateCandidateCoverageScore(
+                                            candPos,
+                                            remainingRemnants,
+                                            remainingChests,
+                                            distToCand);
+
+                                        if (coverageScore > bestScoreForR)
+                                        {
+                                            bestScoreForR = coverageScore;
+                                            bestPointForR = candPos;
+                                        }
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    if (bestPointForR.HasValue)
+                    {
+                        remnantCandidates.Add((bestPointForR.Value, bestScoreForR));
+                    }
+                }
+
+                // 2. Chest Candidates (Directly Reachable - Only considered when no Remnant candidates exist)
+                var chestCandidates = new List<(Vector2 Pos, double TargetValue)>();
+                if (remnantCandidates.Count == 0 && remainingChests.Count > 0)
+                {
+                    foreach (var c in remainingChests)
+                    {
+                        var candidatesNearC = environment.GetWalkableCandidatesNearChest(c, current, radius);
+                        Vector2? bestPointForC = null;
+                        double bestScoreForC = double.MinValue;
+
+                        foreach (var candPos in candidatesNearC)
+                        {
+                            float distToCand = Vector2.Distance(current, candPos);
+                            if (distToCand <= reach)
+                            {
+                                float distCandToFinal = Vector2.Distance(candPos, finalTarget.GridPos);
+                                if (distCandToFinal > radius + 3.0f)
+                                {
+                                    int bombsAfterThis = bombCount - (i + 1);
+                                    int bombsCandToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, distCandToFinal - radius) / reach));
+                                    if (bombsCandToFinal <= bombsAfterThis)
+                                    {
+                                        if (environment.HasLineOfSight(current, candPos))
+                                        {
+                                            double coverageScore = CalculateCandidateCoverageScore(
+                                                candPos,
+                                                remainingRemnants,
+                                                remainingChests,
+                                                distToCand);
+
+                                            if (coverageScore > bestScoreForC)
+                                            {
+                                                bestScoreForC = coverageScore;
+                                                bestPointForC = candPos;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (bestPointForC.HasValue)
+                        {
+                            chestCandidates.Add((bestPointForC.Value, bestScoreForC));
                         }
                     }
                 }
@@ -686,33 +749,46 @@ namespace ExpeditionPathOptimizer
                     return false;
                 }
 
-                // Priority 1: Remnant candidates
-                var remnantCandidates = new List<Vector2>();
-                foreach (var r in environment.Remnants.Where(r =>
-                    r != finalTarget &&
-                    !CoveredByOtherBomb(r.GridPos)))
+                var uncoveredRemnants = environment.Remnants
+                    .Where(r => r != finalTarget && !CoveredByOtherBomb(r.GridPos))
+                    .ToList();
+
+                var uncoveredChests = environment.Chests != null
+                    ? environment.Chests.Where(c => !CoveredByOtherBomb(c.GridPos)).ToList()
+                    : new List<ExpeditionChest>();
+
+                double CalculateMutationCoverageScore(Vector2 candPos)
                 {
-                    var candPos = environment.FindWalkableCandidateNearRemnant(r, prev, radius);
-                    if (Vector2.Distance(prev, candPos) <= reach && Vector2.Distance(candPos, nxt) <= reach)
+                    double score = 0.0;
+                    foreach (var r in uncoveredRemnants)
                     {
-                        float dF = Vector2.Distance(candPos, finalTarget.GridPos);
-                        if (dF > radius + 3.0f && dF <= ((remainingStepsAfterThis + 1) * reach) + radius)
+                        if (Vector2.Distance(candPos, r.GridPos) <= radius)
                         {
-                            if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
-                            {
-                                remnantCandidates.Add(candPos);
-                            }
+                            score += this.settings.RemnantHitBaseScore +
+                                     (r.RuneSlots * this.settings.RuneSlotMultiplier) +
+                                     r.BaseRuneWeight;
                         }
                     }
+                    foreach (var c in uncoveredChests)
+                    {
+                        if (Vector2.Distance(candPos, c.GridPos) <= radius)
+                        {
+                            score += this.settings.ChestHitBaseScore;
+                        }
+                    }
+                    return score;
                 }
 
-                // Priority 2: Chest candidates (only if no Remnant candidates)
-                var chestCandidates = new List<Vector2>();
-                if (remnantCandidates.Count == 0 && environment.Chests != null)
+                // Priority 1: Remnant candidates
+                var remnantCandidates = new List<(Vector2 Pos, double Score)>();
+                foreach (var r in uncoveredRemnants)
                 {
-                    foreach (var c in environment.Chests.Where(c => !CoveredByOtherBomb(c.GridPos)))
+                    var candidatesNearR = environment.GetWalkableCandidatesNearRemnant(r, prev, radius);
+                    Vector2? bestPointForR = null;
+                    double bestScoreForR = double.MinValue;
+
+                    foreach (var candPos in candidatesNearR)
                     {
-                        var candPos = environment.FindWalkableCandidateNearChest(c, prev, radius);
                         if (Vector2.Distance(prev, candPos) <= reach && Vector2.Distance(candPos, nxt) <= reach)
                         {
                             float dF = Vector2.Distance(candPos, finalTarget.GridPos);
@@ -720,20 +796,97 @@ namespace ExpeditionPathOptimizer
                             {
                                 if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
                                 {
-                                    chestCandidates.Add(candPos);
+                                    double score = CalculateMutationCoverageScore(candPos);
+                                    if (score > bestScoreForR)
+                                    {
+                                        bestScoreForR = score;
+                                        bestPointForR = candPos;
+                                    }
                                 }
                             }
+                        }
+                    }
+
+                    if (bestPointForR.HasValue)
+                    {
+                        remnantCandidates.Add((bestPointForR.Value, bestScoreForR));
+                    }
+                }
+
+                // Priority 2: Chest candidates (only if no Remnant candidates)
+                var chestCandidates = new List<(Vector2 Pos, double Score)>();
+                if (remnantCandidates.Count == 0 && uncoveredChests.Count > 0)
+                {
+                    foreach (var c in uncoveredChests)
+                    {
+                        var candidatesNearC = environment.GetWalkableCandidatesNearChest(c, prev, radius);
+                        Vector2? bestPointForC = null;
+                        double bestScoreForC = double.MinValue;
+
+                        foreach (var candPos in candidatesNearC)
+                        {
+                            if (Vector2.Distance(prev, candPos) <= reach && Vector2.Distance(candPos, nxt) <= reach)
+                            {
+                                float dF = Vector2.Distance(candPos, finalTarget.GridPos);
+                                if (dF > radius + 3.0f && dF <= ((remainingStepsAfterThis + 1) * reach) + radius)
+                                {
+                                    if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
+                                    {
+                                        double score = CalculateMutationCoverageScore(candPos);
+                                        if (score > bestScoreForC)
+                                        {
+                                            bestScoreForC = score;
+                                            bestPointForC = candPos;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (bestPointForC.HasValue)
+                        {
+                            chestCandidates.Add((bestPointForC.Value, bestScoreForC));
                         }
                     }
                 }
 
                 if (remnantCandidates.Count > 0 && Random.Shared.NextDouble() < 0.7)
                 {
-                    mutated[idx] = RoundPoint(remnantCandidates[Random.Shared.Next(remnantCandidates.Count)]);
+                    double minVal = remnantCandidates.Min(c => c.Score);
+                    double offset = minVal < 1.0 ? (1.0 - minVal) : 0.0;
+                    double totalWeight = remnantCandidates.Sum(c => c.Score + offset);
+                    double roll = Random.Shared.NextDouble() * totalWeight;
+                    double accum = 0.0;
+                    var chosen = remnantCandidates[0];
+                    foreach (var cand in remnantCandidates)
+                    {
+                        accum += cand.Score + offset;
+                        if (roll <= accum)
+                        {
+                            chosen = cand;
+                            break;
+                        }
+                    }
+                    mutated[idx] = RoundPoint(chosen.Pos);
                 }
                 else if (chestCandidates.Count > 0 && Random.Shared.NextDouble() < 0.7)
                 {
-                    mutated[idx] = RoundPoint(chestCandidates[Random.Shared.Next(chestCandidates.Count)]);
+                    double minVal = chestCandidates.Min(c => c.Score);
+                    double offset = minVal < 1.0 ? (1.0 - minVal) : 0.0;
+                    double totalWeight = chestCandidates.Sum(c => c.Score + offset);
+                    double roll = Random.Shared.NextDouble() * totalWeight;
+                    double accum = 0.0;
+                    var chosen = chestCandidates[0];
+                    foreach (var cand in chestCandidates)
+                    {
+                        accum += cand.Score + offset;
+                        if (roll <= accum)
+                        {
+                            chosen = cand;
+                            break;
+                        }
+                    }
+                    mutated[idx] = RoundPoint(chosen.Pos);
                 }
                 else
                 {

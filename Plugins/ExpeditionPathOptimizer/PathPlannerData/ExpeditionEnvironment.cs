@@ -132,6 +132,73 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             return targetPos;
         }
 
+        public List<Vector2> GetWalkableCandidatesNearPoint(Vector2 targetPos, Vector2 anchor, float radius)
+        {
+            var result = new List<Vector2>();
+            if (this.WalkableData == null || this.BytesPerRow <= 0)
+            {
+                result.Add(targetPos);
+                return result;
+            }
+
+            var yielded = new HashSet<(int, int)>();
+
+            // 1. Target center itself
+            if (this.IsPointWalkable(targetPos) && this.HasLineOfSight(anchor, targetPos))
+            {
+                yielded.Add(((int)MathF.Round(targetPos.X), (int)MathF.Round(targetPos.Y)));
+                result.Add(targetPos);
+            }
+
+            var diff = anchor - targetPos;
+            float d = diff.Length();
+            var dir = d > 0.001f ? diff / d : Vector2.Zero;
+
+            // 2. Sample along line towards anchor within blast radius
+            float[] offsetRatios = { 0.25f, 0.50f, 0.75f, 0.90f };
+            foreach (var ratio in offsetRatios)
+            {
+                var cand = targetPos + dir * (radius * ratio);
+                var key = ((int)MathF.Round(cand.X), (int)MathF.Round(cand.Y));
+                if (!yielded.Contains(key) && this.IsPointWalkable(cand) && this.HasLineOfSight(anchor, cand))
+                {
+                    yielded.Add(key);
+                    result.Add(cand);
+                }
+            }
+
+            // 3. Sample concentric rings around targetPos
+            float[] ringRatios = { 0.35f, 0.65f, 0.90f };
+            foreach (var ringRatio in ringRatios)
+            {
+                float ringRadius = radius * ringRatio;
+                for (int angleDeg = 0; angleDeg < 360; angleDeg += 30)
+                {
+                    float rad = angleDeg * MathF.PI / 180f;
+                    var cand = targetPos + new Vector2(MathF.Cos(rad) * ringRadius, MathF.Sin(rad) * ringRadius);
+                    var key = ((int)MathF.Round(cand.X), (int)MathF.Round(cand.Y));
+                    if (!yielded.Contains(key) && this.IsPointWalkable(cand) && this.HasLineOfSight(anchor, cand))
+                    {
+                        yielded.Add(key);
+                        result.Add(cand);
+                    }
+                }
+            }
+
+            if (result.Count == 0)
+            {
+                result.Add(this.FindWalkableCandidateNearPoint(targetPos, anchor, radius));
+            }
+
+            return result;
+        }
+
+        public List<Vector2> GetWalkableCandidatesNearRemnant(ExpeditionRemnant remnant, Vector2 anchor, float radius)
+            => this.GetWalkableCandidatesNearPoint(remnant.GridPos, anchor, radius);
+
+        public List<Vector2> GetWalkableCandidatesNearChest(ExpeditionChest chest, Vector2 anchor, float radius)
+            => this.GetWalkableCandidatesNearPoint(chest.GridPos, anchor, radius);
+
         public Vector2 FindWalkableCandidateNearRemnant(ExpeditionRemnant remnant, Vector2 anchor, float radius)
             => this.FindWalkableCandidateNearPoint(remnant.GridPos, anchor, radius);
 
