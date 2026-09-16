@@ -37,6 +37,8 @@ namespace TEHhub.Ui
         private static Vector3 testWorldCoords = Vector3.Zero;
         private static string componentSearchFilter = string.Empty;
         private static int selectedUiChildIndex = 0;
+        private static bool showInWorldLabels = true;
+        private static float inWorldLabelMaxDistance = 2500f;
 
         /// <summary>
         ///     Initializes the co-routines.
@@ -55,6 +57,11 @@ namespace TEHhub.Ui
             while (true)
             {
                 yield return new Wait(TEHhubEvents.OnRender);
+                if (Core.States.GameCurrentState == GameStateTypes.InGameState)
+                {
+                    DrawInWorldEntityLabels();
+                }
+
                 if (!Core.GHSettings.ShowDataVisualization)
                 {
                     continue;
@@ -346,6 +353,14 @@ namespace TEHhub.Ui
             }
 
             // Entity Controls
+            ImGui.Checkbox("Show In-World 3D Entity Labels (ID + Name on Screen)", ref showInWorldLabels);
+            if (showInWorldLabels)
+            {
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(150);
+                ImGui.SliderFloat("Max Range##InWorldRange", ref inWorldLabelMaxDistance, 300f, 6000f, "%.0f");
+            }
+
             ImGui.Text($"Awake: {area.AwakeEntities.Count} | Sleeping: {area.SleepingEntities.Count} | Network Bubble: {area.NetworkBubbleEntityCount}");
 
             if (ImGui.RadioButton("Filter ID", entityFilterMode == 0)) entityFilterMode = 0;
@@ -762,6 +777,203 @@ namespace TEHhub.Ui
                 ImGui.Checkbox("Enable New Memory Read Pipeline", ref Core.GHSettings.EnableNewMemoryRead);
                 ImGui.Checkbox("Enable Stale Entity Cleanup", ref Core.GHSettings.EnableStaleEntityCleanup);
                 ImGui.Checkbox("Hide Overlays When Game Inactive", ref Core.GHSettings.HideOverlaysWhenGameInactive);
+            }
+        }
+
+        private static void DrawInWorldEntityLabels()
+        {
+            if (!showInWorldLabels)
+            {
+                return;
+            }
+
+            var inGame = Core.States.InGameStateObject;
+            var area = inGame?.CurrentAreaInstance;
+            var world = inGame?.CurrentWorldInstance;
+            if (area == null || world == null || area.AwakeEntities.IsEmpty)
+            {
+                return;
+            }
+
+            var player = area.Player;
+            Vector3 playerPos = Vector3.Zero;
+            bool hasPlayerPos = false;
+            if (player.IsValid && player.TryGetComponent<Render>(out var pRender))
+            {
+                playerPos = new Vector3(pRender.WorldPosition.X, pRender.WorldPosition.Y, pRender.WorldPosition.Z);
+                hasPlayerPos = true;
+            }
+
+            var drawList = ImGui.GetBackgroundDrawList();
+            var maxDistSq = inWorldLabelMaxDistance * inWorldLabelMaxDistance;
+
+            foreach (var kv in area.AwakeEntities)
+            {
+                var entity = kv.Value;
+                if (!entity.IsValid)
+                {
+                    continue;
+                }
+
+                if (!entity.TryGetComponent<Render>(out var render))
+                {
+                    continue;
+                }
+
+                var entPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.WorldPosition.Z);
+                if (hasPlayerPos && Vector3.DistanceSquared(playerPos, entPos) > maxDistSq)
+                {
+                    continue;
+                }
+
+                string labelText;
+                uint textColor = 0xFFFFFFFF; // White
+                uint borderColor = 0xFF888888;
+                bool isTargetedType = false;
+
+                if (entity.TryGetComponent<WorldItem>(out var wi))
+                {
+                    isTargetedType = true;
+                    var itemName = !string.IsNullOrWhiteSpace(wi.ItemName) ? wi.ItemName : (!string.IsNullOrWhiteSpace(wi.ItemPath) ? wi.ItemPath : "Item");
+                    var countStr = string.Empty;
+                    if (wi.Item != null && wi.Item.TryGetComponent<TEHhub.RemoteObjects.Components.Stack>(out var st) && st.Count > 1)
+                    {
+                        countStr = $" x{st.Count}";
+                    }
+
+                    Rarity rarity = Rarity.Normal;
+                    if (wi.Item != null && wi.Item.TryGetComponent<Mods>(out var m))
+                    {
+                        rarity = m.Rarity;
+                    }
+
+                    switch (rarity)
+                    {
+                        case Rarity.Unique:
+                            textColor = 0xFF3090F0; // Orange / Brown
+                            borderColor = 0xFF3090F0;
+                            break;
+                        case Rarity.Rare:
+                            textColor = 0xFF50D0F0; // Yellow
+                            borderColor = 0xFF50D0F0;
+                            break;
+                        case Rarity.Magic:
+                            textColor = 0xFFFFB070; // Blue
+                            borderColor = 0xFFFFB070;
+                            break;
+                        default:
+                            textColor = 0xFFFFFFFF; // White
+                            borderColor = 0xFFAAAAAA;
+                            break;
+                    }
+
+                    labelText = $"[{entity.Id}] {itemName}{countStr}";
+                }
+                else if (entity.Path.StartsWith("Metadata/Monsters", StringComparison.OrdinalIgnoreCase))
+                {
+                    isTargetedType = true;
+                    if (entity.TryGetComponent<Life>(out var life) && !life.IsAlive)
+                    {
+                        continue;
+                    }
+
+                    Rarity rarity = Rarity.Normal;
+                    if (entity.TryGetComponent<ObjectMagicProperties>(out var omp))
+                    {
+                        rarity = omp.Rarity;
+                    }
+
+                    switch (rarity)
+                    {
+                        case Rarity.Unique:
+                            textColor = 0xFF3090F0;
+                            borderColor = 0xFF3090F0;
+                            break;
+                        case Rarity.Rare:
+                            textColor = 0xFF50D0F0;
+                            borderColor = 0xFF50D0F0;
+                            break;
+                        case Rarity.Magic:
+                            textColor = 0xFFFFB070;
+                            borderColor = 0xFFFFB070;
+                            break;
+                        default:
+                            textColor = 0xFFE0E0E0;
+                            borderColor = 0xFF666666;
+                            break;
+                    }
+
+                    var nameParts = entity.Path.Split('/');
+                    var shortName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
+                    labelText = $"[{entity.Id}] {shortName}";
+                }
+                else if (entity.TryGetComponent<Chest>(out _) || entity.Path.StartsWith("Metadata/Chests", StringComparison.OrdinalIgnoreCase))
+                {
+                    isTargetedType = true;
+                    textColor = 0xFF80E0FF; // Soft Cyan
+                    borderColor = 0xFF40A0C0;
+                    var nameParts = entity.Path.Split('/');
+                    var shortName = nameParts.Length > 0 ? nameParts[^1] : "Chest";
+                    labelText = $"[{entity.Id}] {shortName}";
+                }
+                else if (entity.Path.Contains("Expedition", StringComparison.OrdinalIgnoreCase) ||
+                         entity.Path.Contains("Delve", StringComparison.OrdinalIgnoreCase) ||
+                         entity.Path.Contains("NPC", StringComparison.OrdinalIgnoreCase) ||
+                         entity.Path.Contains("Shrine", StringComparison.OrdinalIgnoreCase) ||
+                         entity.Path.Contains("Portal", StringComparison.OrdinalIgnoreCase) ||
+                         entity.Path.Contains("Waypoint", StringComparison.OrdinalIgnoreCase))
+                {
+                    isTargetedType = true;
+                    textColor = 0xFF50FF80; // Greenish
+                    borderColor = 0xFF20A040;
+                    var nameParts = entity.Path.Split('/');
+                    var shortName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
+                    labelText = $"[{entity.Id}] {shortName}";
+                }
+                else if (!string.IsNullOrEmpty(entitySearchFilter))
+                {
+                    isTargetedType = true;
+                    var nameParts = entity.Path.Split('/');
+                    var shortName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
+                    labelText = $"[{entity.Id}] {shortName}";
+                }
+                else
+                {
+                    continue;
+                }
+
+                // Apply active search filter if specified
+                if (!string.IsNullOrEmpty(entitySearchFilter))
+                {
+                    if (entityFilterMode == 0 && !$"{entity.Id}".Contains(entitySearchFilter))
+                    {
+                        continue;
+                    }
+                    else if (entityFilterMode == 1 && !entity.Path.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase) && !labelText.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+
+                if (!isTargetedType || string.IsNullOrEmpty(labelText))
+                {
+                    continue;
+                }
+
+                var screenPos = world.WorldToScreen(new StdTuple3D<float> { X = render.WorldPosition.X, Y = render.WorldPosition.Y, Z = render.WorldPosition.Z });
+                if (screenPos.X < -100 || screenPos.Y < -100 || screenPos.X > 5000 || screenPos.Y > 5000)
+                {
+                    continue;
+                }
+
+                var textSize = ImGui.CalcTextSize(labelText);
+                var pad = new Vector2(4, 2);
+                var min = screenPos - (textSize / 2) - pad;
+                var max = screenPos + (textSize / 2) + pad;
+
+                drawList.AddRectFilled(min, max, 0xDD101010, 3.0f);
+                drawList.AddRect(min, max, borderColor, 3.0f);
+                drawList.AddText(min + pad, textColor, labelText);
             }
         }
     }
