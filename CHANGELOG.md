@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.76 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Runeshape Duplicate Row Deduplication & Premature Green Highlight Fix**:
+  - **Runeshape Monolith Spatial Deduplication**: Resolved duplicate entity handles and duplicate rows in the Runeshape window by introducing multi-pass spatial proximity clustering (< 100 World Units). Each physical monolith station in the world now displays exactly once in the list.
+  - **Zero-Explosive Uncoverage & False-Positive Green Elimination**: Guaranteed that monoliths never highlight green before explosives are actually placed. All coverage flags and cached addresses are strictly cleared when zero bombs are on the ground pre-detonation.
+  - **Accurate Sticky Detonation State**: Green highlight is only preserved post-detonation while monsters are spawning and rewards are collected.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; deployed to target directory.
+
 ## 1.8.75 — 2026-09-16 [SDK / Core Framework Update]
 
 - **`ExpeditionMechanics` Correct Placed Explosive Entity Filtering**:

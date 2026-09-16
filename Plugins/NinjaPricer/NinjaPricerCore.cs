@@ -3113,13 +3113,26 @@ namespace NinjaPricer
                     {
                         if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
                         {
-                            long mKey = e.Address.ToInt64();
+                            // Find existing monolith by proximity (< 100 World Units) to avoid duplicate entity entries
+                            long matchKey = -1;
+                            foreach (var (key, existing) in this.cachedAreaMonoliths)
+                            {
+                                if (existing.EntityAddress == e.Address ||
+                                    (existing.WorldPos != Vector3.Zero && mData.WorldPos != Vector3.Zero &&
+                                     Vector3.Distance(existing.WorldPos, mData.WorldPos) < 100f))
+                                {
+                                    matchKey = key;
+                                    break;
+                                }
+                            }
+
+                            long mKey = matchKey != -1 ? matchKey : e.Address.ToInt64();
 
                             // Completed monolith (looted / missed) — clear sticky coverage and skip rendering (disappear)
                             if (mData.IsCompleted)
                             {
                                 this.coveredMonoliths.Remove(e.Address);
-                                if (this.cachedAreaMonoliths.TryGetValue(mKey, out var existing))
+                                if (matchKey != -1 && this.cachedAreaMonoliths.TryGetValue(matchKey, out var existing))
                                 {
                                     existing.IsCompleted = true;
                                     existing.IsCoveredByExplosive = false;
@@ -3127,27 +3140,52 @@ namespace NinjaPricer
                                 continue;
                             }
 
-                            // Check live coverage from currently placed explosives (via ExpeditionMechanics which checks both live and cached explosive positions)
+                            // Coverage detection: only turn green if real bombs are placed or encounter is active post-detonation
+                            bool isDetonatedOrActive = mData.ActivatedState >= 3;
                             var cov = e.GetExpeditionExplosiveCoverage();
-                            if (cov.IsCovered)
+
+                            if (hasPlacedExplosives && cov.IsCovered)
                             {
-                                // Covered by a placed explosive — remember it
                                 this.coveredMonoliths.Add(e.Address);
                                 mData.IsCoveredByExplosive = true;
                                 mData.DistanceToExplosive = cov.DistanceWorld;
                             }
-                            else if (hasPlacedExplosives)
+                            else if (!isDetonatedOrActive)
                             {
-                                // Explosives are on the ground, but none covers this monolith (e.g. moved away)
+                                // Pre-detonation: not covered by any placed bomb right now
                                 this.coveredMonoliths.Remove(e.Address);
                                 mData.IsCoveredByExplosive = false;
                                 mData.DistanceToExplosive = cov.DistanceWorld;
                             }
                             else if (this.coveredMonoliths.Contains(e.Address))
                             {
-                                // Was previously covered before detonation (explosives now gone) — keep green
+                                // Post-detonation: was covered before detonation, keep green while fighting/looting
                                 mData.IsCoveredByExplosive = true;
                                 mData.DistanceToExplosive = cov.DistanceWorld;
+                            }
+                            else
+                            {
+                                mData.IsCoveredByExplosive = false;
+                                mData.DistanceToExplosive = cov.DistanceWorld;
+                            }
+
+                            // Keep the most informative monolith data if merging duplicates
+                            if (matchKey != -1 && this.cachedAreaMonoliths.TryGetValue(matchKey, out var prev))
+                            {
+                                if (mData.AnchorIdx < 0 && prev.AnchorIdx >= 0)
+                                {
+                                    mData.AnchorIdx = prev.AnchorIdx;
+                                    mData.AnchorPos = prev.AnchorPos;
+                                    mData.Color = prev.Color;
+                                }
+                                if (mData.HoleCount <= 0 && prev.HoleCount > 0)
+                                {
+                                    mData.HoleCount = prev.HoleCount;
+                                }
+                                if (mData.WorldPos == Vector3.Zero && prev.WorldPos != Vector3.Zero)
+                                {
+                                    mData.WorldPos = prev.WorldPos;
+                                }
                             }
 
                             this.cachedAreaMonoliths[mKey] = mData;
@@ -3157,12 +3195,45 @@ namespace NinjaPricer
             }
 
             var monoliths = new List<MonolithData>();
+            var seenPositions = new List<Vector3>();
+
+            // Check if any monolith has detonated
+            bool anyDetonated = false;
+            foreach (var kvp in this.cachedAreaMonoliths)
+            {
+                if (kvp.Value.ActivatedState >= 3)
+                {
+                    anyDetonated = true;
+                    break;
+                }
+            }
+
             foreach (var kvp in this.cachedAreaMonoliths)
             {
                 var m = kvp.Value;
                 if (m.IsCompleted) continue;
 
-                if (this.coveredMonoliths.Contains(m.EntityAddress))
+                // Ensure spatial deduplication in final output list
+                if (m.WorldPos != Vector3.Zero)
+                {
+                    bool isDuplicate = false;
+                    foreach (var pos in seenPositions)
+                    {
+                        if (Vector3.Distance(pos, m.WorldPos) < 100f)
+                        {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+                    if (isDuplicate) continue;
+                    seenPositions.Add(m.WorldPos);
+                }
+
+                if (!hasPlacedExplosives && !anyDetonated)
+                {
+                    m.IsCoveredByExplosive = false;
+                }
+                else if (this.coveredMonoliths.Contains(m.EntityAddress) || this.coveredMonoliths.Contains((IntPtr)kvp.Key))
                 {
                     m.IsCoveredByExplosive = true;
                 }
