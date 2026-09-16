@@ -1591,9 +1591,6 @@ namespace NinjaPricer
             bool showIcons = this.Settings.ShowItemIcons;
             if (ImGui.Checkbox(this.PluginText.Label("settings.show_item_icons", "Show item icons", "ShowIconsCheck"), ref showIcons)) { this.Settings.ShowItemIcons = showIcons; this.SaveSettings(); }
 
-            bool hideUnfocused = this.Settings.HideWhenUnfocused;
-            if (ImGui.Checkbox(this.PluginText.Label("settings.hide_when_game_unfocused", "Hide when game not focused", "HideUnfocusedCheck"), ref hideUnfocused)) { this.Settings.HideWhenUnfocused = hideUnfocused; this.SaveSettings(); }
-
             ImGui.Separator();
             int hhk = this.Settings.HideHotkey;
             if (this.DrawHotkeyCaptureRow(this.PluginText.T("ninjapricer.overlays.hold_to_hide", "Hold-to-hide hotkey:"), "hold", ref hhk))

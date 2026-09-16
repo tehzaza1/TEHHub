@@ -114,7 +114,6 @@ namespace AmanamuVoidAlert
         public override void DrawSettings()
         {
             ImGui.Checkbox(this.PluginText.Label("settings.enable_overlay", "Enable overlay", "AmanamuEnableOverlay"), ref this.Settings.EnableOverlay);
-            ImGui.Checkbox(this.PluginText.Label("settings.hide_unfocused", "Hide when game unfocused/paused", "AmanamuHideUnfocused"), ref this.Settings.HideWhenGameUnfocusedOrPaused);
             ImGui.Checkbox(this.PluginText.Label("settings.show_debug_window", "Show debug window", "AmanamuShowDebug"), ref this.Settings.ShowDebugWindow);
             ImGui.Checkbox(this.PluginText.Label("settings.draw_labels", "Draw on-screen labels", "AmanamuDrawLabels"), ref this.Settings.DrawOnScreenLabels);
             ImGui.Checkbox(this.PluginText.Label("settings.draw_arrows", "Draw off-screen edge arrows", "AmanamuDrawArrows"), ref this.Settings.DrawOffscreenArrows);

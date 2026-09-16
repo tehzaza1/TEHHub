@@ -537,11 +537,6 @@ namespace myFarming
                 this.Settings.ShowOverlay = showOverlay;
             }
 
-            bool hideNotFocused = this.Settings.HideWhenGameNotFocused;
-            if (ImGui.Checkbox("Hide When Game Not Focused", ref hideNotFocused))
-            {
-                this.Settings.HideWhenGameNotFocused = hideNotFocused;
-            }
 
             bool lockOverlay = this.Settings.LockOverlay;
             if (ImGui.Checkbox("Lock HUD Position", ref lockOverlay))

@@ -217,11 +217,7 @@ namespace Radar
             {
                 this.SaveSettings();
             }
-            ImGuiHelper.ToolTip(this.PluginText.T("settings.controller_ignore_panels.tooltip", "Prevents false-positive menu panel detections from blocking Radar rendering in controller mode."));
-
             ImGui.Checkbox(this.PluginText.Label("settings.hide_hideout_town", "Hide Radar when in Hideout/Town", "RadarHideHideoutTown"), ref this.Settings.DrawWhenNotInHideoutOrTown);
-            ImGui.Checkbox(this.PluginText.Label("settings.hide_background", "Hide Radar when game is in the background", "RadarHideBackground"), ref this.Settings.DrawWhenForeground);
-            ImGui.Checkbox(this.PluginText.Label("settings.hide_paused", "Hide Radar when game is paused", "RadarHidePaused"), ref this.Settings.DrawWhenNotPaused);
             if (ImGui.Checkbox(this.PluginText.Label("settings.modify_culling_window", "Modify Large Map Culling Window", "RadarModifyCullingWindow"), ref this.Settings.ModifyCullWindow))
             {
                 if (this.Settings.ModifyCullWindow)
