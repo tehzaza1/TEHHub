@@ -38,6 +38,8 @@ namespace TEHhub.Ui
         private static string componentSearchFilter = string.Empty;
         private static int selectedUiChildIndex = 0;
         private static float inWorldLabelMaxDistance = 3000f;
+        private static bool showInWorldLabels = false;
+        private static volatile bool isScanningSleeping = false;
 
         /// <summary>
         ///     Initializes the co-routines.
@@ -66,15 +68,15 @@ namespace TEHhub.Ui
                 {
                     if (ImGui.BeginTabBar("DataVisualizationTabBar", ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyScroll))
                     {
-                        if (ImGui.BeginTabItem("Player & Area"))
+                        if (ImGui.BeginTabItem("Player & Area###PlayerAreaTab"))
                         {
                             DrawPlayerAndAreaTab();
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("Entities & World"))
+                        if (ImGui.BeginTabItem("Entities & World###EntitiesWorldTab"))
                         {
-                            if (Core.States.GameCurrentState == GameStateTypes.InGameState)
+                            if (Core.States.GameCurrentState == GameStateTypes.InGameState && showInWorldLabels)
                             {
                                 DrawInWorldEntityLabels();
                             }
@@ -83,19 +85,19 @@ namespace TEHhub.Ui
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("Inventories & Items"))
+                        if (ImGui.BeginTabItem("Inventories & Items###InventoriesItemsTab"))
                         {
                             DrawInventoriesAndItemsTab();
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("Map & Terrain"))
+                        if (ImGui.BeginTabItem("Map & Terrain###MapTerrainTab"))
                         {
                             DrawMapAndTerrainTab();
                             ImGui.EndTabItem();
                         }
 
-                        if (ImGui.BeginTabItem("UI & System"))
+                        if (ImGui.BeginTabItem("UI & System###UiSystemTab"))
                         {
                             DrawUiAndSystemTab();
                             ImGui.EndTabItem();
@@ -364,8 +366,9 @@ namespace TEHhub.Ui
             if (ImGui.RadioButton("Filter Path", entityFilterMode == 1)) entityFilterMode = 1;
             ImGui.SameLine();
             if (ImGui.RadioButton("Filter Rarity", entityFilterMode == 2)) entityFilterMode = 2;
-
             ImGui.SameLine();
+            ImGui.Checkbox("Show 3D Labels (Overhead)", ref showInWorldLabels);
+
             switch (entityFilterMode)
             {
                 case 0:
@@ -383,21 +386,39 @@ namespace TEHhub.Ui
             }
 
             ImGui.SameLine();
-            if (ImGui.Button("Scan Sleeping Entities"))
+            if (isScanningSleeping)
             {
-                area.ScanAllSleepingEntities();
+                ImGui.TextDisabled("Scanning Sleeping...");
+            }
+            else
+            {
+                if (ImGui.Button("Scan Sleeping Entities"))
+                {
+                    isScanningSleeping = true;
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        try
+                        {
+                            area.ScanAllSleepingEntities();
+                        }
+                        finally
+                        {
+                            isScanningSleeping = false;
+                        }
+                    });
+                }
             }
 
             ImGui.Separator();
             if (ImGui.BeginTabBar("EntitiesSubTabBar"))
             {
-                if (ImGui.BeginTabItem($"Awake Entities ({area.AwakeEntities.Count})"))
+                if (ImGui.BeginTabItem($"Awake Entities ({area.AwakeEntities.Count})###AwakeEntitiesSubTab"))
                 {
                     DrawEntityList(area.AwakeEntities);
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem($"Sleeping Entities ({area.SleepingEntities.Count})"))
+                if (ImGui.BeginTabItem($"Sleeping Entities ({area.SleepingEntities.Count})###SleepingEntitiesSubTab"))
                 {
                     DrawEntityList(area.SleepingEntities);
                     ImGui.EndTabItem();
@@ -607,7 +628,7 @@ namespace TEHhub.Ui
             }
 
             // Section 2: TGT Tile Locations
-            if (ImGui.CollapsingHeader($"TGT Named Tile Locations ({area.TgtTilesLocations.Count})", ImGuiTreeNodeFlags.DefaultOpen))
+            if (ImGui.CollapsingHeader($"TGT Named Tile Locations ({area.TgtTilesLocations.Count})###TgtTileLocationsHeader", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 if (area.TgtTilesLocations.Count == 0)
                 {
@@ -843,16 +864,14 @@ namespace TEHhub.Ui
                             break;
                     }
 
-                    var nameParts = entity.Path.Split('/');
-                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
+                    friendlyName = GetCleanPathName(entity.Path);
                 }
                 else if (entity.TryGetComponent<Chest>(out _) || entity.Path.StartsWith("Metadata/Chests", StringComparison.OrdinalIgnoreCase))
                 {
                     isTargetedType = true;
                     textColor = 0xFF80E0FF; // Soft Cyan
                     borderColor = 0xFF40A0C0;
-                    var nameParts = entity.Path.Split('/');
-                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : "Chest";
+                    friendlyName = "Chest";
                 }
                 else if (entity.Path.Contains("Expedition", StringComparison.OrdinalIgnoreCase) ||
                          entity.Path.Contains("Delve", StringComparison.OrdinalIgnoreCase) ||
@@ -864,14 +883,12 @@ namespace TEHhub.Ui
                     isTargetedType = true;
                     textColor = 0xFF50FF80; // Greenish
                     borderColor = 0xFF20A040;
-                    var nameParts = entity.Path.Split('/');
-                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
+                    friendlyName = GetCleanPathName(entity.Path);
                 }
                 else if (!string.IsNullOrEmpty(entitySearchFilter))
                 {
                     isTargetedType = true;
-                    var nameParts = entity.Path.Split('/');
-                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
+                    friendlyName = GetCleanPathName(entity.Path);
                 }
                 else
                 {
@@ -937,6 +954,13 @@ namespace TEHhub.Ui
                 drawList.AddRect(min, max, borderColor, 3.0f);
                 drawList.AddText(min + pad, textColor, labelText);
             }
+        }
+
+        private static string GetCleanPathName(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return string.Empty;
+            var idx = path.LastIndexOf('/');
+            return idx >= 0 && idx < path.Length - 1 ? path.Substring(idx + 1) : path;
         }
     }
 }

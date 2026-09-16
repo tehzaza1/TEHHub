@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.93 — 2026-09-16 [SDK / Core Framework Update]
+
+- **`DataVisualization` Tab Stability, ID Conflict Elimination & Performance Overhaul**:
+  - **Eliminated ImGui Tab ID Instability (`###`)**: Added stable identifiers across all main tabs (`PlayerAreaTab`, `EntitiesWorldTab`, `InventoriesItemsTab`, `MapTerrainTab`, `UiSystemTab`) and sub-tabs (`AwakeEntitiesSubTab`, `SleepingEntitiesSubTab`) to completely eliminate erratic tab jumping when entity counts fluctuate.
+  - **Universal Address Button ID Conflict Fix (`IntPtrToImGui`)**: Enclosed `ImGuiHelper.IntPtrToImGui` SmallButtons in `PushID(name)`/`PopID()`, eliminating duplicate ID warnings and conflicts when inspecting identical pointer values in nested objects.
+  - **Non-Blocking Sleeping Entity Scanning**: Offloaded `ScanAllSleepingEntities()` to a background `Task.Run` worker with live progress state, eliminating render thread frame drops.
+  - **Zero-Allocation 3D In-World Entity Labels**: Replaced `string.Split('/')` with allocation-free path substring extraction and added an explicit `Show 3D Labels (Overhead)` checkbox toggle.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and ready for deployment.
+
 ## 1.8.92 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Smart Proximity Memory System for Rune Chain (เชนรูน)**:

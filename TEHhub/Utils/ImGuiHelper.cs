@@ -186,11 +186,13 @@ namespace TEHhub.Utils
             ImGui.Text(name);
             ImGui.SameLine();
             ImGui.PushStyleColor(ImGuiCol.Button, Color(0, 0, 0, 0));
+            ImGui.PushID(name);
             if (ImGui.SmallButton(addr))
             {
                 ImGui.SetClipboardText(addr);
             }
 
+            ImGui.PopID();
             ImGui.PopStyleColor();
         }
 
