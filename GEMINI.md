@@ -34,7 +34,8 @@
 ### Step 4: Area Level Discovery
 - ภายใน `AreaInstance` สแกนหาตัวแปร 1 ไบต์ (Byte) ที่มีค่าตรงกับเลเวลของด่านที่ตัวละครยืนอยู่ (1 - 100) ➔ ได้ออฟเซ็ตของ **CurrentAreaLevel** (เช่น `0x0BC`)
 
-## 4. Versioning Policy
-- **อัปเดต / Bump Version ของ TEHhub ได้ทุกครั้งที่มีการอัปเดต**: ทั้ง `TEHhub.csproj` และ `TEHhub.Launcher.csproj`
-- **ข้อกำหนดสำคัญ**: ต้องระบุให้ชัดเจนใน `CHANGELOG.md` และ Commit Message เสมอว่าการอัปเดตรอบนั้นเป็นการอัปเดต **SDK / Core Framework** หรือเป็นการอัปเดต **Plugin (ระบุชื่อ Plugin)**
+## 4. Versioning & Changelog Policy
+- **ห้ามอัปเดต / Bump Version และห้ามเขียน CHANGELOG.md เด็ดขาด** จนกว่าผู้ใช้จะสั่งทำ Release ชัดเจนเท่านั้น
+- ในการแก้โค้ด พัฒนาฟีเจอร์ หรือแก้บักทั่วไป ให้โฟกัสที่การแก้โค้ด ตรวจสอบความถูกต้อง คอมไพล์ และทำ `git commit` ตามปกติ โดยไม่ต้องแก้เลข Version ใน `.csproj` และไม่ต้องแตะไฟล์ `CHANGELOG.md`
+- เมื่อผู้ใช้สั่ง "ทำ Release" หรือ "สั่งรีลีส" เท่านั้น จึงจะทำการ Bump Version ใน `TEHhub.csproj`, `TEHhub.Launcher.csproj` และบันทึก Changelog
 

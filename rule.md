@@ -50,3 +50,7 @@ Within AreaInstance, scan for a 1-byte variable (Byte) matching the level of the
 Communication with User: Communicate with the user in Thai at all times.
 
 Code: Write all code, variable names, method names, class names, and code comments in English.
+
+5. Versioning & Changelog Policy
+DO NOT advance/bump version in .csproj files and DO NOT update CHANGELOG.md during routine development, debugging, or iterative tasks.
+Only bump versions and write CHANGELOG.md entries when the user explicitly instructs to make/publish a Release.
