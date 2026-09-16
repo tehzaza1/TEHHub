@@ -2,27 +2,6 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
-## 1.8.62 — 2026-09-16 [SDK / Core Framework Update]
-
-- **SDK / Core Framework: Authoritative Expedition Mechanics & Entity Proximity / Placement Detection**:
-  - **`ExpeditionMechanics`**: Authoritative SDK utility for PoE/PoE2 Expedition constants, formulas, and dynamic modifier parsing.
-    - Base parameters: Regular Expedition (5 base explosives, 300 W / 3.0m blast radius, 1,000 W / 10.0m wire reach); Grand Expedition (15 base explosives, 380 W / 3.8m blast radius, 1,200 W / 12.0m wire reach).
-    - Enforced PoE engine flooring rule (`Math.Floor` for explosive counts).
-    - Dynamic parsing for area/map mods (`% increased number of Expedition Explosives` and `% increased Expedition Explosive Radius`).
-    - Exposed `area.ExpeditionConfig` on `AreaInstance`.
-  - **`Entity` Proximity & Coverage API**:
-    - Added `DistanceWorldFrom(Entity other)` and `Distance3DWorldFrom(Entity other)` for precise World-space distance calculations.
-    - Added `IsExpeditionEncounter` property to identify Remnant monoliths (`Expedition2Encounter`).
-    - Added `IsInRangeOfExplosive(Entity explosive, float? customRadiusWorld)` and `GetExpeditionExplosiveCoverage()` to check if placed bombs cover the entity.
-    - Added `ExpeditionExplosiveCoverage` struct tracking coverage status, covering bomb ID, exact distance, and closest bomb.
-  - **Visual & Inspection Integration**:
-    - Integrated live bomb coverage status into `Entity.ToImGui()` under the `[Expedition Monolith / Remnant]` section.
-    - Added `[Bomb IN RANGE]` / `[Bomb OUT]` badge to entity tree nodes in `EntitiesWidget` and JSON dump payloads in `AreaInstance`.
-    - Enhanced `NinjaPricer` Monolith tracking and 3D world markers to highlight monoliths covered by placed explosives.
-    - Separated `Active Area / Map Modifiers` into its own distinct collapsible header in `DataVisualization` -> `Area & Vitals`.
-- Compatibility: Fully compatible with all TEHhub plugins.
-- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified clean builds.
-
 ## 1.8.61 — 2026-09-16 [SDK / Core Framework Update]
 
 - **Core Framework: Fix ImGui Duplicate ID Conflict in GGPK Caches**:
