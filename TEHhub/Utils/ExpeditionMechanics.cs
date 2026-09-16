@@ -329,7 +329,19 @@ namespace TEHhub.Utils
             {
                 foreach (var entity in area.AwakeEntities.Values)
                 {
-                    if (entity != null && entity.IsValid && entity.Path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase))
+                    if (entity != null && entity.IsValid && IsExplosiveEntity(entity.Path))
+                    {
+                        results.Add(entity);
+                    }
+                }
+            }
+
+            // Also scan sleeping entities — placed explosives may appear there during placement phase
+            if (area?.SleepingEntities != null)
+            {
+                foreach (var entity in area.SleepingEntities.Values)
+                {
+                    if (entity != null && entity.IsValid && IsExplosiveEntity(entity.Path))
                     {
                         results.Add(entity);
                     }
@@ -337,6 +349,24 @@ namespace TEHhub.Utils
             }
 
             return results;
+        }
+
+        /// <summary>
+        ///     Checks whether the entity path matches any known Expedition explosive path variants.
+        /// </summary>
+        private static bool IsExplosiveEntity(string? path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return false;
+            }
+
+            // Match: ExpeditionExplosive, ExpeditionDynamite, Expedition2Explosive, etc.
+            return path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase) ||
+                   path.Contains("ExpeditionDynamite", StringComparison.OrdinalIgnoreCase) ||
+                   (path.Contains("Expedition", StringComparison.OrdinalIgnoreCase) &&
+                    path.Contains("Explosive", StringComparison.OrdinalIgnoreCase) &&
+                    !path.Contains("Fuse", StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
