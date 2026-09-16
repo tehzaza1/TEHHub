@@ -31,6 +31,7 @@ namespace ExpeditionPathOptimizer
         private Vector2 detonatorGridPos = Vector2.Zero;
         private readonly Dictionary<IntPtr, ExpeditionRemnant> discoveredRemnants = new();
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
+        private readonly List<IntPtr> placedExplosiveOrder = new();
         private ExpeditionRemnant? selectedFinalTarget = null;
 
         private string lastAreaHash = string.Empty;
@@ -69,6 +70,7 @@ namespace ExpeditionPathOptimizer
             this.detonatorGridPos = Vector2.Zero;
             this.discoveredRemnants.Clear();
             this.placedExplosives.Clear();
+            this.placedExplosiveOrder.Clear();
             this.selectedFinalTarget = null;
             this.hasAutoSearchedThisArea = false;
         }
@@ -482,7 +484,22 @@ namespace ExpeditionPathOptimizer
                 foreach (var e in area.SleepingEntities.Values) ProcessEntity(e);
             }
 
-            // Detect if placed explosives were added or undone/removed in game
+            // 1. Determine Final Target BEFORE starting search: Max Slots -> Highest Rune Weight -> Proximity
+            if (this.discoveredRemnants.Count > 0)
+            {
+                int maxSlots = this.discoveredRemnants.Values.Max(r => r.RuneSlots);
+                var candidates = this.discoveredRemnants.Values.Where(r => r.RuneSlots == maxSlots).ToList();
+                this.selectedFinalTarget = candidates
+                    .OrderByDescending(r => r.BaseRuneWeight)
+                    .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
+                    .First();
+            }
+            else
+            {
+                this.selectedFinalTarget = null;
+            }
+
+            // 2. Detect if placed explosives were added or undone/removed in game
             bool explosivesChanged = false;
             if (currentLiveExplosives.Count != this.placedExplosives.Count)
             {
@@ -502,6 +519,16 @@ namespace ExpeditionPathOptimizer
 
             if (explosivesChanged)
             {
+                // Synchronize ordered explosive tracking
+                foreach (var k in currentLiveExplosives.Keys)
+                {
+                    if (!this.placedExplosiveOrder.Contains(k))
+                    {
+                        this.placedExplosiveOrder.Add(k);
+                    }
+                }
+                this.placedExplosiveOrder.RemoveAll(k => !currentLiveExplosives.ContainsKey(k));
+
                 this.placedExplosives.Clear();
                 foreach (var (k, v) in currentLiveExplosives)
                 {
@@ -512,21 +539,6 @@ namespace ExpeditionPathOptimizer
                 {
                     this.StartSearch(area);
                 }
-            }
-
-            // Determine Final Target: Max Slots -> Highest Rune Weight -> Proximity
-            if (this.discoveredRemnants.Count > 0)
-            {
-                int maxSlots = this.discoveredRemnants.Values.Max(r => r.RuneSlots);
-                var candidates = this.discoveredRemnants.Values.Where(r => r.RuneSlots == maxSlots).ToList();
-                this.selectedFinalTarget = candidates
-                    .OrderByDescending(r => r.BaseRuneWeight)
-                    .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
-                    .First();
-            }
-            else
-            {
-                this.selectedFinalTarget = null;
             }
         }
 
@@ -553,10 +565,13 @@ namespace ExpeditionPathOptimizer
             float rangeGrid = rangeWorld / GridToWorldMultiplier;
 
             Vector2 startGrid = this.detonatorGridPos;
-            if (this.placedExplosives.Count > 0)
+            if (this.placedExplosiveOrder.Count > 0)
             {
-                var lastExplosive = this.placedExplosives.Values.Last();
-                startGrid = new Vector2(lastExplosive.X / GridToWorldMultiplier, lastExplosive.Y / GridToWorldMultiplier);
+                var lastAddr = this.placedExplosiveOrder.Last();
+                if (this.placedExplosives.TryGetValue(lastAddr, out var lastExplosive))
+                {
+                    startGrid = new Vector2(lastExplosive.X / GridToWorldMultiplier, lastExplosive.Y / GridToWorldMultiplier);
+                }
             }
 
             var env = new ExpeditionEnvironment(

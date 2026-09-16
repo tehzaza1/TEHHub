@@ -2,6 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.95 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
+
+- **`ExpeditionPathOptimizer` Single-Count Rune Scoring, Pure TotalScore, True Placed Order & Reachability Budget**:
+  - **Rune Base Weight Single-Scoring**: Fixed scoring to grant Rune Base Weight (e.g. +150 for Opulent) exactly once upon destroying the corresponding Remnant, completely eliminating repetitive padding bonuses on intermediate empty bombs. The final bomb correctly receives `FinalRuneBonus` for the active rune carried in.
+  - **Removed FuturePotential from TotalScore**: Fully decoupled future potential from `TotalScore` evaluation so long paths no longer receive duplicated speculative score boosts; retained it purely as a heuristic inside `BuildPath()`.
+  - **Pre-Search Final Target Calculation**: Guaranteed `selectedFinalTarget` is computed and updated prior to triggering `StartSearch()` upon explosive count changes.
+  - **Chronological Placed Explosive Tracking**: Replaced arbitrary dictionary value iteration with `placedExplosiveOrder` list, accurately identifying the latest placed explosive anchor for seamless live re-planning.
+  - **Reachability Budget Enforcement in Candidate Selection**: Required candidates in `BuildPath()` to satisfy $\text{BombsNeeded}(\text{current} \to \text{target}) + \text{BombsNeeded}(\text{target} \to \text{final}) \le \text{bombsRemaining}$, preventing unreachable distant tangents.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and ready for deployment.
+
 ## 1.8.94 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
 
 - **`ExpeditionPathOptimizer` Rune Timing Propagation, Conflict Detection, Weighted Target Selection & Dynamic Path Length**:
