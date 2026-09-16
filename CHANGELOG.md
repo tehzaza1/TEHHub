@@ -20,6 +20,8 @@ Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, 
 - Compatibility: Fully compatible with all TEHhub plugins.
 - Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
 
+## 1.8.77 — 2026-09-16 [Plugin Update — NinjaPricer, SDK / Core Framework Update]
+
 - **`State` & `Entity` Placed Explosives Retention Across Distances**:
   - Added `Metadata/MiscellaneousObjects/Expedition/ExpeditionExplosive` and `Metadata/MiscellaneousObjects/Expedition/ExpeditionDynamite` to `SpecialMiscObjPaths` (group 100) so placed explosive bombs are never culled or lost when moving far away.
   - Automatically ensures missing required special misc paths on existing settings deserialization.
