@@ -6,6 +6,8 @@ namespace TEHhub.Utils
 {
     using System;
     using System.Collections.Generic;
+    using System.Globalization;
+    using System.Text.RegularExpressions;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
 
     /// <summary>
@@ -14,6 +16,31 @@ namespace TEHhub.Utils
     /// </summary>
     public static class ExpeditionMechanics
     {
+        private static readonly Regex PercentageRegex = new(@"([+-]?\d+(?:\.\d+)?)\s*%", RegexOptions.Compiled);
+        private static readonly Regex NumberRegex = new(@"([+-]?\d+(?:\.\d+)?)", RegexOptions.Compiled);
+
+        private static float ExtractModValue(AreaMod mod)
+        {
+            if (!float.IsNaN(mod.Values.Value0))
+            {
+                return mod.Values.Value0;
+            }
+
+            var text = $"{mod.DisplayName} {mod.RawName}";
+            var pctMatch = PercentageRegex.Match(text);
+            if (pctMatch.Success && float.TryParse(pctMatch.Groups[1].Value, NumberStyles.Float | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var val))
+            {
+                return val;
+            }
+
+            var numMatch = NumberRegex.Match(text);
+            if (numMatch.Success && float.TryParse(numMatch.Groups[1].Value, NumberStyles.Float | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var num))
+            {
+                return num;
+            }
+
+            return 0f;
+        }
         // -------------------------------------------------------------
         // Base Constants (World Units: 100 W = 1.0 metre)
         // -------------------------------------------------------------
@@ -224,23 +251,32 @@ namespace TEHhub.Utils
 
                     // Check for increased number of Expedition Explosives
                     // e.g. "42% increased number of Expedition Explosives"
-                    if (text.Contains("number of Expedition Explosives", StringComparison.OrdinalIgnoreCase) ||
-                        text.Contains("increased Expedition Explosives", StringComparison.OrdinalIgnoreCase))
+                    if (text.Contains("Expedition Explosive", StringComparison.OrdinalIgnoreCase) &&
+                        (text.Contains("number", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("increased", StringComparison.OrdinalIgnoreCase) ||
+                         text.Contains("additional", StringComparison.OrdinalIgnoreCase)) &&
+                        !text.Contains("Radius", StringComparison.OrdinalIgnoreCase) &&
+                        !text.Contains("Area of Effect", StringComparison.OrdinalIgnoreCase) &&
+                        !text.Contains("Placement", StringComparison.OrdinalIgnoreCase) &&
+                        !text.Contains("Range", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!float.IsNaN(mod.Values.Value0))
+                        var val = ExtractModValue(mod);
+                        if (val != 0f)
                         {
-                            increasedExplosivesPct += mod.Values.Value0;
+                            increasedExplosivesPct += val;
                         }
                     }
 
                     // Check for increased Expedition Explosive Radius / Area of Effect
                     if (text.Contains("Expedition Explosive Radius", StringComparison.OrdinalIgnoreCase) ||
                         text.Contains("radius of Expedition Explosives", StringComparison.OrdinalIgnoreCase) ||
-                        text.Contains("area of effect of Expedition Explosives", StringComparison.OrdinalIgnoreCase))
+                        text.Contains("area of effect of Expedition Explosives", StringComparison.OrdinalIgnoreCase) ||
+                        (text.Contains("Expedition", StringComparison.OrdinalIgnoreCase) && text.Contains("Explosive", StringComparison.OrdinalIgnoreCase) && (text.Contains("Radius", StringComparison.OrdinalIgnoreCase) || text.Contains("Area of Effect", StringComparison.OrdinalIgnoreCase))))
                     {
-                        if (!float.IsNaN(mod.Values.Value0))
+                        var val = ExtractModValue(mod);
+                        if (val != 0f)
                         {
-                            increasedRadiusPct += mod.Values.Value0;
+                            increasedRadiusPct += val;
                         }
                     }
                 }

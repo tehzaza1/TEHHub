@@ -9,7 +9,7 @@ Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, 
     - Centralized authoritative PoE 2 Expedition constants: Regular Expedition (5 base explosives, 300 W / 3.0m blast radius, 1,000 W / 10.0m reach) and Grand Expedition (15 base explosives, 380 W / 3.8m blast radius, 1,200 W / 12.0m reach).
     - Added automatic Grand Expedition zone identification via Area ID (`ExpeditionLogBook_*`, `ExpeditionSubArea_*`) and Map Name in addition to active map modifiers.
     - Strictly enforced PoE engine flooring rule (`Math.Floor` for explosive counts).
-    - Dynamic parsing of area/map modifiers (`% increased number of Expedition Explosives` and `% increased Expedition Explosive Radius`).
+    - Robust dynamic parsing of active area/map modifiers: extracts percentage values directly from UI modifier text when `Values.Value0` is `NaN` (e.g. `42% increased number of Expedition Explosives` correctly adds +42% to scale 15 base bombs to 21).
     - Exposed `area.ExpeditionConfig` on `AreaInstance`.
   - **`Entity` Proximity & Coverage API**:
     - Added `DistanceWorldFrom(Entity other)` and `Distance3DWorldFrom(Entity other)` for horizontal 2D and 3D World Unit calculations.
