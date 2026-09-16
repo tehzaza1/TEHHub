@@ -388,6 +388,7 @@ namespace TEHhub.Utils
 
         /// <summary>
         ///     Checks whether the entity path matches any known Expedition explosive path variants.
+        ///     Explicitly excludes the detonator, fuse wire, connector poles, markers, and encounters.
         /// </summary>
         private static bool IsExplosiveEntity(string? path)
         {
@@ -396,12 +397,23 @@ namespace TEHhub.Utils
                 return false;
             }
 
-            // Match: ExpeditionExplosive, ExpeditionDynamite, Expedition2Explosive, etc.
+            // Must NOT be a fuse wire, detonator plunger, connector pole, indicator, marker, relic, or encounter
+            if (path.Contains("Fuse", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Detonator", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("ConnectorPole", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("PlacementIndicator", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Marker", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Relic", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Encounter", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Match real placed explosive bomb: ExpeditionExplosive, ExpeditionDynamite, Expedition2Explosive, etc.
             return path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase) ||
                    path.Contains("ExpeditionDynamite", StringComparison.OrdinalIgnoreCase) ||
                    (path.Contains("Expedition", StringComparison.OrdinalIgnoreCase) &&
-                    path.Contains("Explosive", StringComparison.OrdinalIgnoreCase) &&
-                    !path.Contains("Fuse", StringComparison.OrdinalIgnoreCase));
+                    path.Contains("Explosive", StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

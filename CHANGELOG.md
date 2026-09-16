@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.75 — 2026-09-16 [SDK / Core Framework Update]
+
+- **`ExpeditionMechanics` Correct Placed Explosive Entity Filtering**:
+  - Fixed `IsExplosiveEntity` in `ExpeditionMechanics.cs` to explicitly exclude `ExpeditionExplosiveFuse` (fuse wire), `ExpeditionDetonator`, `ExpeditionConnectorPole`, and placement indicators from being mistakenly classified as placed explosive bombs.
+  - Previously, the fuse wire entity connected to the detonator was matched as an explosive, causing monoliths and remnants near the detonator to turn green before any bomb was placed.
+  - Blast radius and green highlight coverage calculations now strictly and accurately originate only from real placed explosive bombs.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; fully deployed and verified all synchronization.
+
 ## 1.8.74 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Global Price Hide When Hovering Over Any Item / Slot / Loot**:
