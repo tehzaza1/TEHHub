@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.79 — 2026-09-16 [Plugin Update — myFarming]
+
+- **`myFarming` Multi-Layer Hybrid Gold Tracking Engine**:
+  - **Ground Gold Auto-Loot Tracking**: Monitors dropped gold piles (`Metadata/Items/Currency/Gold*`, `CoinPile*`, `Stack.Count`) and registers live auto-pickup gain as the player runs over gold in combat maps.
+  - **Dynamic UI Gold Reading**: Scans `GameUi.RightPanel` (inventory) for gold counter text and calibrates exact player gold balance.
+  - **Adaptive Memory Offset Auto-Calibration**: Replaced static candidate locking with dynamic baseline delta matching across `PlayerServerData` to automatically locate and bind the true live gold memory offset without false positives.
+  - **Persistent Line 3 HUD Indicator**: Map gold counter is now continuously visible on Line 3 whenever `ShowGold` is enabled (starting from `+0` and updating in real-time as gold is looted).
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
+
 ## 1.8.78 — 2026-09-16 [Plugin Update — myFarming & NinjaPricer, SDK / Core Framework Update]
 
 - **`myFarming` HUD Overlay Redesign & Daily Rolling Sessions**:

@@ -538,7 +538,7 @@ namespace myFarming
                         ImGui.SameLine(0, 3);
                         this.DrawCurrencyIcon(this.Settings.Currency, 1.15f);
 
-                        if (this.Settings.ShowGold && this.goldTracker.MapGoldGain > 0)
+                        if (this.Settings.ShowGold)
                         {
                             ImGui.SameLine(0, 4);
                             this.DrawGoldIcon(1.15f);
