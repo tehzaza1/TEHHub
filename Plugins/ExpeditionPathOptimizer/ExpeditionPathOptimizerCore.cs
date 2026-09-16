@@ -329,6 +329,13 @@ namespace ExpeditionPathOptimizer
             ImGui.Separator();
             ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Scoring & Penalty Parameters");
 
+            float chestScore = (float)this.Settings.ChestHitBaseScore;
+            if (ImGui.SliderFloat("Chest Hit Score (+)", ref chestScore, 0.0f, 150.0f, "%.0f"))
+            {
+                this.Settings.ChestHitBaseScore = chestScore;
+                this.SaveSettings();
+            }
+
             float usefulBridge = (float)this.Settings.UsefulBridgePenalty;
             if (ImGui.SliderFloat("Useful Bridge Penalty (-)", ref usefulBridge, 0.0f, 100.0f, "%.0f"))
             {
@@ -485,8 +492,7 @@ namespace ExpeditionPathOptimizer
                     var iconName = miniIcon.IconName;
                     if (!string.IsNullOrEmpty(iconName) && ExpeditionRewardChestIcons.Contains(iconName))
                     {
-                        double baseScore = this.Settings.ChestWeights.GetValueOrDefault(iconName, this.Settings.ChestHitBaseScore);
-                        var chest = new ExpeditionChest(entity.Id, entity.Address, wPos, gPos, iconName, baseScore);
+                        var chest = new ExpeditionChest(entity.Id, entity.Address, wPos, gPos, iconName, this.Settings.ChestHitBaseScore);
                         this.discoveredChests[entity.Address] = chest;
                     }
                 }

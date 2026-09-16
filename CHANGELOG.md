@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.97 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
+
+- **`ExpeditionPathOptimizer` Strict Priority Order (Remnant > Chest > Bridge/Final) & Dynamic Settings Formula Overhaul**:
+  - **Strict Multi-Tier Priority (`BuildPath` & `MutatePath`)**: Separated candidate pools and strictly enforced priority hierarchy: `if (remnantCandidates.Count > 0) ChooseRemnant(); else if (chestCandidates.Count > 0) ChooseChest(); else BridgeOrFinal();`. Completely prevented chest candidates from competing in the same weighted pool as remnants.
+  - **Single Source of Truth for Chest Scoring**: Removed `ChestWeights` dictionary and bound all chest evaluations (`localScore`, target values, and scanner) directly to `Settings.ChestHitBaseScore`. Added `Chest Hit Score` slider (0–150, default 40.0) in UI settings.
+  - **Dynamic Settings Formulas in Path Planning**: Replaced all hardcoded multipliers and penalties in `BuildPath()` with configurable settings properties (`RemnantHitBaseScore`, `RuneSlotMultiplier`, `UsefulBridgePenalty`).
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to live installation.
+
 ## 1.8.96 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
 
 - **`ExpeditionPathOptimizer` Chest V2 Phase 1 with Exact Icon Allowlist & Equal Scoring**:

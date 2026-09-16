@@ -182,8 +182,7 @@ namespace ExpeditionPathOptimizer
                             if (hitChests.Add(c))
                             {
                                 newChestHits.Add(c);
-                                double cScore = this.settings.ChestWeights.GetValueOrDefault(c.IconName, this.settings.ChestHitBaseScore);
-                                localScore += cScore;
+                                localScore += this.settings.ChestHitBaseScore;
                             }
                         }
                     }
@@ -381,9 +380,9 @@ namespace ExpeditionPathOptimizer
             for (int i = 0; i < bombCount - 1; i++)
             {
                 int remainingStepsAfterThis = bombCount - 1 - (i + 1);
-                var validCandidates = new List<(object Target, Vector2 Pos, double TargetValue, bool IsChest)>();
 
-                // 1. Check Remnant candidates
+                // 1. Remnant Candidates (Directly Reachable)
+                var remnantCandidates = new List<(ExpeditionRemnant Remnant, Vector2 Pos, double TargetValue)>();
                 foreach (var r in remainingRemnants)
                 {
                     var candPos = environment.FindWalkableCandidateNearRemnant(r, current, radius);
@@ -400,33 +399,43 @@ namespace ExpeditionPathOptimizer
                                 if (environment.HasLineOfSight(current, candPos))
                                 {
                                     int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distToCand - radius) / reach));
-                                    double targetVal = (r.RuneSlots * 100.0) + r.BaseRuneWeight - (estBridges * 20.0);
-                                    validCandidates.Add((r, candPos, targetVal, false));
+                                    double targetVal =
+                                        this.settings.RemnantHitBaseScore +
+                                        (r.RuneSlots * this.settings.RuneSlotMultiplier) +
+                                        r.BaseRuneWeight -
+                                        (estBridges * this.settings.UsefulBridgePenalty);
+                                    remnantCandidates.Add((r, candPos, targetVal));
                                 }
                             }
                         }
                     }
                 }
 
-                // 2. Check Chest candidates
-                foreach (var c in remainingChests)
+                // 2. Chest Candidates (Directly Reachable - Only considered when no Remnant candidates exist)
+                var chestCandidates = new List<(ExpeditionChest Chest, Vector2 Pos, double TargetValue)>();
+                if (remnantCandidates.Count == 0 && remainingChests.Count > 0)
                 {
-                    var candPos = environment.FindWalkableCandidateNearChest(c, current, radius);
-                    float distToCand = Vector2.Distance(current, candPos);
-                    if (distToCand <= reach)
+                    foreach (var c in remainingChests)
                     {
-                        float distCandToFinal = Vector2.Distance(candPos, finalTarget.GridPos);
-                        if (distCandToFinal > radius + 3.0f)
+                        var candPos = environment.FindWalkableCandidateNearChest(c, current, radius);
+                        float distToCand = Vector2.Distance(current, candPos);
+                        if (distToCand <= reach)
                         {
-                            int bombsAfterThis = bombCount - (i + 1);
-                            int bombsCandToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, distCandToFinal - radius) / reach));
-                            if (bombsCandToFinal <= bombsAfterThis)
+                            float distCandToFinal = Vector2.Distance(candPos, finalTarget.GridPos);
+                            if (distCandToFinal > radius + 3.0f)
                             {
-                                if (environment.HasLineOfSight(current, candPos))
+                                int bombsAfterThis = bombCount - (i + 1);
+                                int bombsCandToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, distCandToFinal - radius) / reach));
+                                if (bombsCandToFinal <= bombsAfterThis)
                                 {
-                                    int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distToCand - radius) / reach));
-                                    double targetVal = c.BaseScore - (estBridges * 20.0);
-                                    validCandidates.Add((c, candPos, targetVal, true));
+                                    if (environment.HasLineOfSight(current, candPos))
+                                    {
+                                        int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, distToCand - radius) / reach));
+                                        double targetVal =
+                                            this.settings.ChestHitBaseScore -
+                                            (estBridges * this.settings.UsefulBridgePenalty);
+                                        chestCandidates.Add((c, candPos, targetVal));
+                                    }
                                 }
                             }
                         }
@@ -434,17 +443,17 @@ namespace ExpeditionPathOptimizer
                 }
 
                 Vector2 nextPos;
-                if (validCandidates.Count > 0 && Random.Shared.NextDouble() < 0.85)
+                if (remnantCandidates.Count > 0)
                 {
-                    // Weighted random selection based on TargetValue
-                    double minVal = validCandidates.Min(c => c.TargetValue);
+                    // Priority 1: Choose Remnant (Weighted random selection based on TargetValue)
+                    double minVal = remnantCandidates.Min(c => c.TargetValue);
                     double offset = minVal < 1.0 ? (1.0 - minVal) : 0.0;
-                    double totalWeight = validCandidates.Sum(c => c.TargetValue + offset);
+                    double totalWeight = remnantCandidates.Sum(c => c.TargetValue + offset);
 
                     double roll = Random.Shared.NextDouble() * totalWeight;
                     double accum = 0.0;
-                    var chosen = validCandidates[0];
-                    foreach (var cand in validCandidates)
+                    var chosen = remnantCandidates[0];
+                    foreach (var cand in remnantCandidates)
                     {
                         accum += cand.TargetValue + offset;
                         if (roll <= accum)
@@ -454,25 +463,39 @@ namespace ExpeditionPathOptimizer
                         }
                     }
 
-                    if (chosen.IsChest && chosen.Target is ExpeditionChest ec)
+                    remainingRemnants.Remove(chosen.Remnant);
+                    nextPos = chosen.Pos;
+                }
+                else if (chestCandidates.Count > 0)
+                {
+                    // Priority 2: Choose Chest (Weighted random selection based on TargetValue)
+                    double minVal = chestCandidates.Min(c => c.TargetValue);
+                    double offset = minVal < 1.0 ? (1.0 - minVal) : 0.0;
+                    double totalWeight = chestCandidates.Sum(c => c.TargetValue + offset);
+
+                    double roll = Random.Shared.NextDouble() * totalWeight;
+                    double accum = 0.0;
+                    var chosen = chestCandidates[0];
+                    foreach (var cand in chestCandidates)
                     {
-                        remainingChests.Remove(ec);
-                    }
-                    else if (!chosen.IsChest && chosen.Target is ExpeditionRemnant er)
-                    {
-                        remainingRemnants.Remove(er);
+                        accum += cand.TargetValue + offset;
+                        if (roll <= accum)
+                        {
+                            chosen = cand;
+                            break;
+                        }
                     }
 
+                    remainingChests.Remove(chosen.Chest);
                     nextPos = chosen.Pos;
                 }
                 else
                 {
-                    // Target direction: filter remnants and chests that are reachable within budget
+                    // Priority 3: Bridge or Final
                     var targetPos = finalTarget.GridPos;
                     int bombsAvailable = bombCount - i;
 
-                    var reachableTargets = new List<(Vector2 Pos, double Value)>();
-
+                    var reachableRemnants = new List<(Vector2 Pos, double Value)>();
                     foreach (var r in remainingRemnants)
                     {
                         float dToR = Vector2.Distance(current, r.GridPos);
@@ -482,34 +505,25 @@ namespace ExpeditionPathOptimizer
                         if (bToR + bRToFinal <= bombsAvailable)
                         {
                             int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, dToR - radius) / reach));
-                            double targetVal = (r.RuneSlots * 100.0) + r.BaseRuneWeight - (estBridges * 20.0);
-                            reachableTargets.Add((r.GridPos, targetVal));
+                            double targetVal =
+                                this.settings.RemnantHitBaseScore +
+                                (r.RuneSlots * this.settings.RuneSlotMultiplier) +
+                                r.BaseRuneWeight -
+                                (estBridges * this.settings.UsefulBridgePenalty);
+                            reachableRemnants.Add((r.GridPos, targetVal));
                         }
                     }
 
-                    foreach (var c in remainingChests)
+                    if (reachableRemnants.Count > 0)
                     {
-                        float dToC = Vector2.Distance(current, c.GridPos);
-                        float dCToFinal = Vector2.Distance(c.GridPos, finalTarget.GridPos);
-                        int bToC = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dToC - radius) / reach));
-                        int bCToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dCToFinal - radius) / reach));
-                        if (bToC + bCToFinal <= bombsAvailable)
-                        {
-                            int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, dToC - radius) / reach));
-                            double targetVal = c.BaseScore - (estBridges * 20.0);
-                            reachableTargets.Add((c.GridPos, targetVal));
-                        }
-                    }
-
-                    if (reachableTargets.Count > 0)
-                    {
-                        double minVal = reachableTargets.Min(c => c.Value);
+                        // Aim towards highest-value / weighted reachable Remnant
+                        double minVal = reachableRemnants.Min(c => c.Value);
                         double offset = minVal < 1.0 ? (1.0 - minVal) : 0.0;
-                        double totalWeight = reachableTargets.Sum(c => c.Value + offset);
+                        double totalWeight = reachableRemnants.Sum(c => c.Value + offset);
                         double roll = Random.Shared.NextDouble() * totalWeight;
                         double accum = 0.0;
-                        var chosenTarget = reachableTargets[0];
-                        foreach (var rt in reachableTargets)
+                        var chosenTarget = reachableRemnants[0];
+                        foreach (var rt in reachableRemnants)
                         {
                             accum += rt.Value + offset;
                             if (roll <= accum)
@@ -520,6 +534,48 @@ namespace ExpeditionPathOptimizer
                         }
 
                         targetPos = chosenTarget.Pos;
+                    }
+                    else
+                    {
+                        // Else check reachable Chests
+                        var reachableChests = new List<(Vector2 Pos, double Value)>();
+                        foreach (var c in remainingChests)
+                        {
+                            float dToC = Vector2.Distance(current, c.GridPos);
+                            float dCToFinal = Vector2.Distance(c.GridPos, finalTarget.GridPos);
+                            int bToC = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dToC - radius) / reach));
+                            int bCToFinal = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dCToFinal - radius) / reach));
+                            if (bToC + bCToFinal <= bombsAvailable)
+                            {
+                                int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, dToC - radius) / reach));
+                                double targetVal =
+                                    this.settings.ChestHitBaseScore -
+                                    (estBridges * this.settings.UsefulBridgePenalty);
+                                reachableChests.Add((c.GridPos, targetVal));
+                            }
+                        }
+
+                        if (reachableChests.Count > 0)
+                        {
+                            // Aim towards weighted reachable Chest
+                            double minVal = reachableChests.Min(c => c.Value);
+                            double offset = minVal < 1.0 ? (1.0 - minVal) : 0.0;
+                            double totalWeight = reachableChests.Sum(c => c.Value + offset);
+                            double roll = Random.Shared.NextDouble() * totalWeight;
+                            double accum = 0.0;
+                            var chosenTarget = reachableChests[0];
+                            foreach (var ct in reachableChests)
+                            {
+                                accum += ct.Value + offset;
+                                if (roll <= accum)
+                                {
+                                    chosenTarget = ct;
+                                    break;
+                                }
+                            }
+
+                            targetPos = chosenTarget.Pos;
+                        }
                     }
 
                     var diff = targetPos - current;
@@ -608,7 +664,8 @@ namespace ExpeditionPathOptimizer
                 var nxt = mutated[idx + 1];
                 int remainingStepsAfterThis = n - 1 - (idx + 1);
 
-                var candidates = new List<Vector2>();
+                // Priority 1: Remnant candidates
+                var remnantCandidates = new List<Vector2>();
                 foreach (var r in environment.Remnants.Where(r => r != finalTarget))
                 {
                     var candPos = environment.FindWalkableCandidateNearRemnant(r, prev, radius);
@@ -619,13 +676,15 @@ namespace ExpeditionPathOptimizer
                         {
                             if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
                             {
-                                candidates.Add(candPos);
+                                remnantCandidates.Add(candPos);
                             }
                         }
                     }
                 }
 
-                if (environment.Chests != null)
+                // Priority 2: Chest candidates (only if no Remnant candidates)
+                var chestCandidates = new List<Vector2>();
+                if (remnantCandidates.Count == 0 && environment.Chests != null)
                 {
                     foreach (var c in environment.Chests)
                     {
@@ -637,16 +696,20 @@ namespace ExpeditionPathOptimizer
                             {
                                 if (environment.HasLineOfSight(prev, candPos) && environment.HasLineOfSight(candPos, nxt))
                                 {
-                                    candidates.Add(candPos);
+                                    chestCandidates.Add(candPos);
                                 }
                             }
                         }
                     }
                 }
 
-                if (candidates.Count > 0 && Random.Shared.NextDouble() < 0.6)
+                if (remnantCandidates.Count > 0 && Random.Shared.NextDouble() < 0.7)
                 {
-                    mutated[idx] = RoundPoint(candidates[Random.Shared.Next(candidates.Count)]);
+                    mutated[idx] = RoundPoint(remnantCandidates[Random.Shared.Next(remnantCandidates.Count)]);
+                }
+                else if (chestCandidates.Count > 0 && Random.Shared.NextDouble() < 0.7)
+                {
+                    mutated[idx] = RoundPoint(chestCandidates[Random.Shared.Next(chestCandidates.Count)]);
                 }
                 else
                 {

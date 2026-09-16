@@ -43,14 +43,6 @@ namespace ExpeditionPathOptimizer
 
         // Chest Scoring Parameters (V2 Phase 1)
         public double ChestHitBaseScore { get; set; } = 40.0;
-        public Dictionary<string, double> ChestWeights { get; set; } = new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "RewardChestCurrencyRare", 40.0 },
-            { "RewardChestCurrency", 40.0 },
-            { "RewardChestUnique", 40.0 },
-            { "RewardChestMaps", 40.0 },
-            { "RewardChestGeneric", 40.0 },
-        };
 
         // Authoritative Rune Base Weights
         public Dictionary<string, double> RuneWeights { get; set; } = new(StringComparer.OrdinalIgnoreCase)
