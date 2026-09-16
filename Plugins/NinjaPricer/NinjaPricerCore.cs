@@ -239,6 +239,10 @@ namespace NinjaPricer
         private readonly Dictionary<string, MonolithData> trackedMonoliths = new();
         private string newProfileInput = string.Empty;
 
+        // Rune Chain Spatial Memory Cache (Proximity-Based Invalidation)
+        private readonly Dictionary<uint, CachedChainNode> rememberedChainNodes = new();
+        private Vector3 rememberedDetonatorPos = Vector3.Zero;
+        private string lastChainAreaHash = string.Empty;
 
         // Ground tags cache
         private struct GroundTag
@@ -650,7 +654,6 @@ namespace NinjaPricer
             this.cachedInvSlots.Clear();
             this.cachedStashSlots.Clear();
             this.cachedRealItemRects.Clear();
-            this.rememberedChainNodes.Clear();
             this.alertedEntityIds.Clear();
             this.activeAlertDrops.Clear();
             lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
@@ -682,7 +685,6 @@ namespace NinjaPricer
                 this.cachedInvSlots.Clear();
                 this.cachedStashSlots.Clear();
                 this.cachedRealItemRects.Clear();
-                this.rememberedChainNodes.Clear();
                 this.itemSlotCache.Clear();
                 this.alertedEntityIds.Clear();
                 this.activeAlertDrops.Clear();
@@ -691,6 +693,9 @@ namespace NinjaPricer
                 this.lastInvScanUtc = DateTime.MinValue;
                 this.trackedMonoliths.Clear();
                 this.expandedMonoliths.Clear();
+                this.rememberedChainNodes.Clear();
+                this.rememberedDetonatorPos = Vector3.Zero;
+                this.lastChainAreaHash = string.Empty;
             }
         }
 
@@ -3644,15 +3649,12 @@ namespace NinjaPricer
             public int ExplosiveIndex;
         }
 
-        private sealed class RememberedChainNode
+        private sealed class CachedChainNode
         {
-            public uint EntityId;
+            public uint Id;
             public Vector3 WorldPos;
             public RuneChainNodeType Type;
         }
-
-        private readonly Dictionary<uint, RememberedChainNode> rememberedChainNodes = new();
-        private string lastRuneChainAreaHash = string.Empty;
 
         private static bool IsExpeditionExplosiveEntity(string? path)
         {
@@ -3687,20 +3689,32 @@ namespace NinjaPricer
                 return;
             }
 
-            if (area.AreaHash != this.lastRuneChainAreaHash)
+            // Synchronize with AreaHash changes
+            var currentAreaHash = area.AreaHash ?? string.Empty;
+            if (this.lastChainAreaHash != currentAreaHash)
             {
-                this.lastRuneChainAreaHash = area.AreaHash;
+                this.lastChainAreaHash = currentAreaHash;
                 this.rememberedChainNodes.Clear();
+                this.rememberedDetonatorPos = Vector3.Zero;
             }
 
-            // 1. Ingest newly placed / currently active entities from AwakeEntities into smart memory
-            if (area.AwakeEntities != null)
+            // Get player position for proximity verification
+            var player = area.Player;
+            Vector3 playerPos = Vector3.Zero;
+            if (player != null && player.TryGetComponent<Render>(out var pRender, false) && pRender != null)
             {
-                foreach (var (key, e) in area.AwakeEntities)
+                var wp = pRender.WorldPosition;
+                playerPos = new Vector3(wp.X, wp.Y, wp.Z);
+            }
+
+            // 1. Scan AwakeEntities to update / remember newly placed or visible nodes
+            var awake = area.AwakeEntities;
+            if (awake != null)
+            {
+                foreach (var e in awake.Values)
                 {
                     if (e == null || !e.IsValid || string.IsNullOrEmpty(e.Path)) continue;
                     var path = e.Path;
-
                     if (!path.Contains("Expedition", StringComparison.OrdinalIgnoreCase)) continue;
 
                     if (e.TryGetComponent<Render>(out var render, false) && render != null)
@@ -3711,85 +3725,64 @@ namespace NinjaPricer
 
                         if (path.Contains("Detonator", StringComparison.OrdinalIgnoreCase))
                         {
-                            this.rememberedChainNodes[key.id] = new RememberedChainNode
-                            {
-                                EntityId = key.id,
-                                WorldPos = pos,
-                                Type = RuneChainNodeType.Detonator
-                            };
+                            this.rememberedDetonatorPos = pos;
                         }
                         else if (path.Contains("ConnectorPole", StringComparison.OrdinalIgnoreCase))
                         {
-                            this.rememberedChainNodes[key.id] = new RememberedChainNode
-                            {
-                                EntityId = key.id,
-                                WorldPos = pos,
-                                Type = RuneChainNodeType.ConnectorPole
-                            };
+                            this.rememberedChainNodes[e.Id] = new CachedChainNode { Id = e.Id, WorldPos = pos, Type = RuneChainNodeType.ConnectorPole };
                         }
                         else if (IsExpeditionExplosiveEntity(path))
                         {
-                            this.rememberedChainNodes[key.id] = new RememberedChainNode
-                            {
-                                EntityId = key.id,
-                                WorldPos = pos,
-                                Type = RuneChainNodeType.Explosive
-                            };
+                            this.rememberedChainNodes[e.Id] = new CachedChainNode { Id = e.Id, WorldPos = pos, Type = RuneChainNodeType.Explosive };
                         }
                     }
                 }
             }
 
-            // 2. Proximity Sweep: If player is near a remembered node (< 550 world units),
-            // but it is no longer in AwakeEntities, it was detonated / exploded or picked up -> prune it!
-            var player = area.Player;
-            if (player != null && player.TryGetComponent<Render>(out var pRender, false) && pRender != null)
+            // 2. Proximity-Based Invalidation:
+            // When the player is within the network bubble radius (~150 grid / ~1600 world units),
+            // if a remembered node is NO LONGER present in AwakeEntities, it was undone/deleted -> evict from memory.
+            if (playerPos != Vector3.Zero && awake != null && this.rememberedChainNodes.Count > 0)
             {
-                var pPos = new Vector3(pRender.WorldPosition.X, pRender.WorldPosition.Y, pRender.WorldPosition.Z);
-                var toPrune = new List<uint>();
+                const float ProximityVerificationRadiusSq = 1600f * 1600f; // ~150 Grid units
+                List<uint>? toRemove = null;
 
-                foreach (var node in this.rememberedChainNodes.Values)
+                foreach (var kvp in this.rememberedChainNodes)
                 {
-                    // If node is Detonator, keep it as long as area is active (unless picked up/destroyed)
-                    float dist = Vector3.Distance(pPos, node.WorldPos);
-                    if (dist < 550f)
+                    var node = kvp.Value;
+                    float distSq = Vector3.DistanceSquared(playerPos, node.WorldPos);
+                    if (distSq <= ProximityVerificationRadiusSq)
                     {
-                        var k = new EntityNodeKey { id = node.EntityId };
-                        if (area.AwakeEntities == null || !area.AwakeEntities.TryGetValue(k, out var liveEntity) || liveEntity == null || !liveEntity.IsValid)
+                        if (!awake.ContainsKey(new TEHhub.Offsets.Objects.States.InGameState.EntityNodeKey { id = node.Id }))
                         {
-                            toPrune.Add(node.EntityId);
+                            toRemove ??= new List<uint>();
+                            toRemove.Add(kvp.Key);
                         }
                     }
                 }
 
-                for (int i = 0; i < toPrune.Count; i++)
+                if (toRemove != null)
                 {
-                    this.rememberedChainNodes.Remove(toPrune[i]);
+                    for (int i = 0; i < toRemove.Count; i++)
+                    {
+                        this.rememberedChainNodes.Remove(toRemove[i]);
+                    }
                 }
             }
 
-            if (this.rememberedChainNodes.Count == 0)
-            {
-                return;
-            }
-
-            Vector3 detonatorPos = Vector3.Zero;
+            Vector3 detonatorPos = this.rememberedDetonatorPos;
             var poles = new List<Vector3>();
             var explosives = new List<Vector3>();
 
             foreach (var node in this.rememberedChainNodes.Values)
             {
-                switch (node.Type)
+                if (node.Type == RuneChainNodeType.ConnectorPole)
                 {
-                    case RuneChainNodeType.Detonator:
-                        detonatorPos = node.WorldPos;
-                        break;
-                    case RuneChainNodeType.ConnectorPole:
-                        poles.Add(node.WorldPos);
-                        break;
-                    case RuneChainNodeType.Explosive:
-                        explosives.Add(node.WorldPos);
-                        break;
+                    poles.Add(node.WorldPos);
+                }
+                else if (node.Type == RuneChainNodeType.Explosive)
+                {
+                    explosives.Add(node.WorldPos);
                 }
             }
 
