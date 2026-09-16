@@ -998,7 +998,6 @@ namespace NinjaPricer
                 size = parentSize;
             }
 
-            position.Y -= candidate.Scroll.ScanOffsetY;
             return true;
         }
 
@@ -2423,6 +2422,9 @@ namespace NinjaPricer
         private void DrawGroundTags()
         {
             if (this.cachedGroundTags.Count == 0) return;
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi != null && gameUi.IsAnyLargePanelOpen) return;
+
             var world = Core.States.InGameStateObject?.CurrentWorldInstance;
             if (world == null) return;
 
@@ -2812,7 +2814,8 @@ namespace NinjaPricer
                     if (!TryGetSlotRect(candidate, out var cPos, out var cSize)) continue;
                     var center = cPos + (cSize * 0.5f);
                     if (center.X < panelPos.X || center.X > panelMax.X) continue;
-                    if (!candidate.Scroll.IsActive && (center.Y < panelPos.Y || center.Y > panelMax.Y)) continue;
+                    if (center.Y < panelPos.Y || center.Y > panelMax.Y) continue;
+                    if (candidate.Scroll.IsActive && (center.Y < candidate.Scroll.ClipTop || center.Y > candidate.Scroll.ClipBottom)) continue;
 
                     slotPos = cPos;
                     slotSize = cSize;
@@ -3390,10 +3393,24 @@ namespace NinjaPricer
             var weightTex = this.GetRuneUiTexture("Weight.png", ref this.rsWeightIconTex, ref this.rsWeightIconTried);
             var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
 
+            var winSize = Core.Process.WindowArea.Size;
+            float winW = winSize.Width > 0 ? winSize.Width : 2560f;
+            float winH = winSize.Height > 0 ? winSize.Height : 1440f;
+
             for (int i = 0; i < monoliths.Count; i++)
             {
                 var m = monoliths[i];
                 if (m.WorldPos == Vector3.Zero) continue;
+
+                if (!canMapProject && playerRender != null)
+                {
+                    // In 3D world view, only draw monoliths within nearby radius (~170 grid units) to prevent off-screen horizon artifacts
+                    var pGrid = playerRender.GridPosition;
+                    var mGridX = m.WorldPos.X / 10.86957f;
+                    var mGridY = m.WorldPos.Y / 10.86957f;
+                    float distGridSq = (pGrid.X - mGridX) * (pGrid.X - mGridX) + (pGrid.Y - mGridY) * (pGrid.Y - mGridY);
+                    if (distGridSq > 170f * 170f) continue;
+                }
 
                 Vector2 screenPos;
                 if (canMapProject)
@@ -3407,6 +3424,13 @@ namespace NinjaPricer
                 }
 
                 if (screenPos == Vector2.Zero) continue;
+
+                // Culling: Skip markers that fall outside the screen viewport
+                if (screenPos.X < -50f || screenPos.X > winW + 50f ||
+                    screenPos.Y < -50f || screenPos.Y > winH + 50f)
+                {
+                    continue;
+                }
 
                 bool isMinimal = this.Settings.RsMinimalMapBadges;
 
