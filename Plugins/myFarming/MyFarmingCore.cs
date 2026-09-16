@@ -189,11 +189,14 @@ namespace myFarming
         {
             if (inTownOrHideout)
             {
-                // In town or hideout
+                // In town or hideout -> auto pause timers and save state
                 if (this.isRunActive && this.Settings.AutoPauseInTownOrHideout)
                 {
                     this.isRunPaused = true;
                 }
+
+                this.sessionStore?.Save();
+                this.historyStore?.Save();
             }
             else
             {
@@ -217,6 +220,9 @@ namespace myFarming
                 {
                     this.StartNewRun(areaHash, areaName);
                 }
+
+                this.sessionStore?.Save();
+                this.historyStore?.Save();
             }
         }
 
