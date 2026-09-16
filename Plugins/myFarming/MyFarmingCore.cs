@@ -191,19 +191,13 @@ namespace myFarming
         {
             if (inTownOrHideout)
             {
-                // In town or hideout -> auto pause timers
-                if (this.isRunActive && this.Settings.AutoPauseInTownOrHideout)
+                // In town or hideout -> finalize active map run and save session
+                if (this.isRunActive && this.currentRun != null)
                 {
-                    this.isRunPaused = true;
+                    this.FinalizeRun();
                 }
 
-                // Map -> Hideout/Town transition: save session & history
-                // Hideout -> Town transition (e.g. Hideout -> Tower): do NOT save
-                if (!this.lastAreaWasTownOrHideout)
-                {
-                    this.sessionStore?.Save();
-                    this.historyStore?.Save();
-                }
+                this.isRunPaused = true;
             }
             else
             {
@@ -409,7 +403,7 @@ namespace myFarming
 
                 // Status line
                 string statusText = this.isRunActive
-                    ? (isPaused ? "⏸ PAUSED" : "▶ FARMING")
+                    ? (isPaused ? "PAUSED" : "FARMING")
                     : "IDLE";
                 Vector4 statusColor = this.isRunActive
                     ? (isPaused ? new Vector4(1f, 0.8f, 0.2f, 1f) : new Vector4(0.3f, 1f, 0.3f, 1f))
@@ -453,8 +447,8 @@ namespace myFarming
                     }
                 }
 
-                // Current Map Section
-                if (this.Settings.ShowCurrentMapStats && (this.isRunActive || !inTownOrHideout))
+                // Current Map Section (only show when actively in combat map)
+                if (this.Settings.ShowCurrentMapStats && !inTownOrHideout && this.isRunActive)
                 {
                     ImGui.Separator();
                     string mapTitle = this.currentRun != null ? this.currentRun.MapName : currentZoneName;
