@@ -124,5 +124,10 @@
   "ninjapricer.runeshape.sort_weight": "Weight",
   "ninjapricer.runeshape.sort_price": "Price",
   "settings.runeshape_compact_rows": "Compact row layout (optimized for 1080p / FullHD)",
-  "settings.runeshape_row_scale": "Row height scale"
+  "settings.runeshape_row_scale": "Row height scale",
+  "ninjapricer.rune_chain.header": "Rune Chain — Explosive Path & Radius",
+  "ninjapricer.rune_chain.show_path": "Show Explosive Chain Path (Detonator -> Poles -> Bombs)",
+  "ninjapricer.rune_chain.show_radius": "Show Explosive Blast Radius Circle",
+  "ninjapricer.rune_chain.line_width": "Path Line Width",
+  "ninjapricer.rune_chain.radius_opacity": "Blast Radius Fill Opacity"
 }

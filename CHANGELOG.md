@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.88 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Rune Chain (เชนรูน) — Explosive Path & Radius Visualizer**:
+  - **Multi-Pole Explosive Path Chaining**: Implemented dynamic continuous path visualizer connecting Detonator $\rightarrow$ Connector Poles $\rightarrow$ Explosive Bombs in both 3D World and Large Map coordinates. Gracefully handles 0, 1, or multiple intermediate connector poles between any pair of nodes.
+  - **Dynamic Blast Radius Visualization**: Renders accurate 3D ground rings and Large Map shaded circles around each placed explosive using dynamic area modifiers (`area.ExpeditionConfig.ExplosionRadiusWorld`).
+  - **Node Badges & Numbering**: Displays distinct visual indicators for Detonator (green anchor), Connector Poles (yellow-cyan pins), and sequentially numbered badges (#1, #2, #3...) on explosive charges.
+  - **Settings UI & Strict Monolith Isolation**: Added dedicated "Rune Chain (เชนรูน)" settings section with path toggle, radius toggle, line width slider, and opacity slider. Operates completely isolated from Monoliths without modifying any Monolith pricing or display logic.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and ready for deployment.
+
 ## 1.8.87 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Removed Explosive Coverage "Green System"**:

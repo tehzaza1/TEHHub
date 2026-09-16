@@ -134,5 +134,10 @@
   "ninjapricer.expedition.header_elements": "องค์ประกอบหัวข้อแถวเสา (Header elements):",
   "ninjapricer.expedition.expanded_elements": "องค์ประกอบแถวสูตรย่อยข้างในเมื่อคลิกกางออก (Expanded list elements):",
   "settings.expedition_font_size": "ขนาดตัวอักษร Expedition (Text Size - Expedition / Runeshape)",
-  "settings.expedition_ui_size": "ขนาด UI และป้าย Expedition (UI Size - LargeMap / 3D Markers)"
+  "settings.expedition_ui_size": "ขนาด UI และป้าย Expedition (UI Size - LargeMap / 3D Markers)",
+  "ninjapricer.rune_chain.header": "ระบบเชนรูน (Rune Chain) — เส้นทางระเบิดและรัศมี",
+  "ninjapricer.rune_chain.show_path": "วาดเส้นเชื่อมต่อทางระเบิด (แท่นจุดระเบิด -> เสา -> ลูกระเบิด)",
+  "ninjapricer.rune_chain.show_radius": "วาดวงกลมรัศมีของลูกระเบิด (Explosive Blast Radius)",
+  "ninjapricer.rune_chain.line_width": "ความหนาของเส้นทางระเบิด (Line Width)",
+  "ninjapricer.rune_chain.radius_opacity": "ความทึบแสงของพื้นที่รัศมีระเบิด (Blast Radius Fill Opacity)"
 }

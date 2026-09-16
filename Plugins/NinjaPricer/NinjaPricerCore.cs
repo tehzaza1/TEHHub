@@ -1715,7 +1715,46 @@ namespace NinjaPricer
             ImGui.Spacing();
 
             // ================================================================
-            // 2. Runeshape Overlay & Movable Window
+            // 2. Rune Chain (เชนรูน) — Explosive Path & Radius
+            // ================================================================
+            ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), this.PluginText.T("ninjapricer.rune_chain.header", "Rune Chain (เชนรูน) — Explosive Path & Radius"));
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            bool showRcPath = this.Settings.ShowRuneChainPath;
+            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.rune_chain.show_path", "Show Explosive Chain Path (Detonator -> Poles -> Bombs)", "ShowRcPathCheck"), ref showRcPath))
+            {
+                this.Settings.ShowRuneChainPath = showRcPath;
+                this.SaveSettings();
+            }
+
+            bool showExpRad = this.Settings.ShowExplosiveRadius;
+            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.rune_chain.show_radius", "Show Explosive Blast Radius Circle", "ShowExpRadCheck"), ref showExpRad))
+            {
+                this.Settings.ShowExplosiveRadius = showExpRad;
+                this.SaveSettings();
+            }
+
+            float rcLw = this.Settings.RuneChainLineWidth;
+            if (ImGui.SliderFloat(this.PluginText.Label("ninjapricer.rune_chain.line_width", "Path Line Width", "RcLwSlider"), ref rcLw, 1.0f, 5.0f, "%.1f"))
+            {
+                this.Settings.RuneChainLineWidth = rcLw;
+                this.SaveSettings();
+            }
+
+            float rcRadOp = this.Settings.RuneChainRadiusOpacity;
+            if (ImGui.SliderFloat(this.PluginText.Label("ninjapricer.rune_chain.radius_opacity", "Blast Radius Fill Opacity", "RcRadOpSlider"), ref rcRadOp, 0.0f, 1.0f, "%.2f"))
+            {
+                this.Settings.RuneChainRadiusOpacity = Math.Clamp(rcRadOp, 0.0f, 1.0f);
+                this.SaveSettings();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // ================================================================
+            // 3. Runeshape Overlay & Movable Window
             // ================================================================
             ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), this.PluginText.T("ninjapricer.expedition.window_header", "Runeshape Overlay Window"));
             ImGui.Separator();
@@ -2171,6 +2210,12 @@ namespace NinjaPricer
                 {
                     this.DrawRuneshapeWindow(activeMonoliths);
                 }
+            }
+
+            // Rune Chain (เชนรูน) — Path & Explosive Radius Overlay
+            if (!inTownOrHideout && (this.Settings.ShowRuneChainPath || this.Settings.ShowExplosiveRadius))
+            {
+                this.DrawRuneChain();
             }
 
             // Auto refresh trigger
@@ -3602,6 +3647,330 @@ namespace NinjaPricer
             dl.AddText(new Vector2(curX, midY - textSz.Y * 0.5f), txtCol, text);
 
             return clicked;
+        }
+
+        private enum RuneChainNodeType
+        {
+            Detonator,
+            ConnectorPole,
+            Explosive
+        }
+
+        private sealed class RuneChainNode
+        {
+            public Vector3 WorldPos;
+            public RuneChainNodeType Type;
+            public int ExplosiveIndex;
+        }
+
+        private static bool IsExpeditionExplosiveEntity(string? path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+
+            if (path.Contains("Fuse", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Detonator", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("ConnectorPole", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("PlacementIndicator", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Marker", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Relic", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("Encounter", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase) ||
+                   path.Contains("ExpeditionDynamite", StringComparison.OrdinalIgnoreCase) ||
+                   (path.Contains("Expedition", StringComparison.OrdinalIgnoreCase) &&
+                    path.Contains("Explosive", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void DrawRuneChain()
+        {
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+            var world = Core.States.InGameStateObject?.CurrentWorldInstance;
+            if (area == null || world == null) return;
+
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi != null && (gameUi.IsAnyLargePanelOpen || (gameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && gameUi.RuneshapeCombinationsPanel.IsVisible)))
+            {
+                return;
+            }
+
+            Vector3 detonatorPos = Vector3.Zero;
+            var poles = new List<Vector3>();
+            var explosives = new List<Vector3>();
+
+            void ProcessChainEntity(Entity e)
+            {
+                if (e == null || string.IsNullOrEmpty(e.Path)) return;
+                var path = e.Path;
+
+                if (!path.Contains("Expedition", StringComparison.OrdinalIgnoreCase)) return;
+
+                if (e.TryGetComponent<Render>(out var render, false) && render != null)
+                {
+                    var wp = render.WorldPosition;
+                    var pos = new Vector3(wp.X, wp.Y, wp.Z);
+                    if (pos == Vector3.Zero) return;
+
+                    if (path.Contains("Detonator", StringComparison.OrdinalIgnoreCase))
+                    {
+                        detonatorPos = pos;
+                    }
+                    else if (path.Contains("ConnectorPole", StringComparison.OrdinalIgnoreCase))
+                    {
+                        poles.Add(pos);
+                    }
+                    else if (IsExpeditionExplosiveEntity(path))
+                    {
+                        explosives.Add(pos);
+                    }
+                }
+            }
+
+            if (area.AwakeEntities != null)
+            {
+                foreach (var e in area.AwakeEntities.Values)
+                {
+                    ProcessChainEntity(e);
+                }
+            }
+
+            if (area.SleepingEntities != null)
+            {
+                foreach (var e in area.SleepingEntities.Values)
+                {
+                    ProcessChainEntity(e);
+                }
+            }
+
+            if (detonatorPos == Vector3.Zero && poles.Count == 0 && explosives.Count == 0)
+            {
+                return;
+            }
+
+            // Build ordered chain from Detonator outward through all poles and explosives
+            var unvisited = new List<(Vector3 Pos, RuneChainNodeType Type)>();
+            foreach (var p in poles) unvisited.Add((p, RuneChainNodeType.ConnectorPole));
+            foreach (var ex in explosives) unvisited.Add((ex, RuneChainNodeType.Explosive));
+
+            var orderedChain = new List<RuneChainNode>();
+            if (detonatorPos != Vector3.Zero)
+            {
+                orderedChain.Add(new RuneChainNode { WorldPos = detonatorPos, Type = RuneChainNodeType.Detonator });
+            }
+            else if (unvisited.Count > 0)
+            {
+                orderedChain.Add(new RuneChainNode { WorldPos = unvisited[0].Pos, Type = unvisited[0].Type });
+                unvisited.RemoveAt(0);
+            }
+
+            int bombCounter = (orderedChain.Count > 0 && orderedChain[0].Type == RuneChainNodeType.Explosive) ? 1 : 0;
+            if (orderedChain.Count > 0 && orderedChain[0].Type == RuneChainNodeType.Explosive)
+            {
+                orderedChain[0].ExplosiveIndex = 1;
+            }
+
+            var currentPos = orderedChain.Count > 0 ? orderedChain[^1].WorldPos : Vector3.Zero;
+            while (unvisited.Count > 0)
+            {
+                int bestIdx = -1;
+                float bestDistSq = float.MaxValue;
+                for (int i = 0; i < unvisited.Count; i++)
+                {
+                    float dSq = Vector3.DistanceSquared(currentPos, unvisited[i].Pos);
+                    if (dSq < bestDistSq)
+                    {
+                        bestDistSq = dSq;
+                        bestIdx = i;
+                    }
+                }
+
+                if (bestIdx >= 0)
+                {
+                    var chosen = unvisited[bestIdx];
+                    var node = new RuneChainNode { WorldPos = chosen.Pos, Type = chosen.Type };
+                    if (node.Type == RuneChainNodeType.Explosive)
+                    {
+                        bombCounter++;
+                        node.ExplosiveIndex = bombCounter;
+                    }
+                    orderedChain.Add(node);
+                    currentPos = chosen.Pos;
+                    unvisited.RemoveAt(bestIdx);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // LargeMap projection setup
+            var game = Core.States.InGameStateObject;
+            var largeMap = game?.GameUi?.LargeMap;
+            bool isLargeMapVisible = largeMap != null && largeMap.Address != IntPtr.Zero && largeMap.IsVisible;
+            var player = game?.CurrentAreaInstance?.Player;
+            Render? playerRender = null;
+            bool canMapProject = isLargeMapVisible && player != null && player.TryGetComponent<Render>(out playerRender, false) && playerRender != null;
+
+            Vector2 center = Vector2.Zero;
+            float cos = 0, sin = 0;
+            if (canMapProject && playerRender != null)
+            {
+                center = largeMap!.Center + largeMap.Shift + largeMap.DefaultShift;
+                const float LargeMapXBias = 0.6f;
+                const float LargeMapYBias = 0.3f;
+                center.X += LargeMapXBias;
+                center.Y += LargeMapYBias;
+
+                var baseRes = UiElementBaseFuncs.BaseResolution;
+                var baseDiag = Math.Sqrt((baseRes.X * baseRes.X) + (baseRes.Y * baseRes.Y));
+                var mapHeight = largeMap.Size.Y > 0 ? largeMap.Size.Y : Core.Process.WindowArea.Size.Height;
+                var largeMapDiagonalLength = baseDiag * mapHeight / baseRes.Y;
+
+                const float LargeMapScaleBaseline = 0.187812f;
+                var largeMapModifiedZoom = Math.Max(0.001f, (float)(largeMap.Zoom * LargeMapScaleBaseline));
+
+                const double CameraAngle = 38.7 * Math.PI / 180;
+                float mapScale = 240f / largeMapModifiedZoom;
+                cos = (float)(largeMapDiagonalLength * Math.Cos(CameraAngle) / mapScale);
+                sin = (float)(largeMapDiagonalLength * Math.Sin(CameraAngle) / mapScale);
+            }
+
+            Vector2 ToMap(Vector3 worldPos)
+            {
+                var gridX = worldPos.X / 10.86957f;
+                var gridY = worldPos.Y / 10.86957f;
+                var delta = new Vector2(gridX - playerRender!.GridPosition.X, gridY - playerRender.GridPosition.Y);
+                float deltaZ = (worldPos.Z - playerRender.TerrainHeight) / 10.86957f;
+                return center + new Vector2((delta.X - delta.Y) * cos, (deltaZ - (delta.X + delta.Y)) * sin);
+            }
+
+            var dl = ImGui.GetBackgroundDrawList();
+            float lineThick = Math.Clamp(this.Settings.RuneChainLineWidth, 1.0f, 6.0f);
+            uint pathCol = 0xFF00D7FFu; // Vibrant Amber / Gold
+            uint poleCol = 0xFFFFCC00u; // Bright Yellow-Cyan
+            uint detonatorCol = 0xFF00FF7Fu; // Bright Spring Green
+
+            float blastRadiusWorld = area.ExpeditionConfig.ExplosionRadiusWorld;
+            if (blastRadiusWorld <= 0f) blastRadiusWorld = 300f; // Default 300 World Units
+
+            // 1. Draw Explosion Radius Circles
+            if (this.Settings.ShowExplosiveRadius)
+            {
+                float radiusAlpha = Math.Clamp(this.Settings.RuneChainRadiusOpacity, 0.0f, 1.0f);
+                uint fillAlphaByte = (uint)(radiusAlpha * 255f);
+                uint circleBorder = 0xFFFFA500u; // Vibrant Orange
+                uint circleFill = (fillAlphaByte << 24) | 0x00FFA500u;
+
+                foreach (var node in orderedChain)
+                {
+                    if (node.Type != RuneChainNodeType.Explosive) continue;
+
+                    // LargeMap Radius
+                    if (canMapProject)
+                    {
+                        var mCenter = ToMap(node.WorldPos);
+                        var mEdge = ToMap(new Vector3(node.WorldPos.X + blastRadiusWorld, node.WorldPos.Y, node.WorldPos.Z));
+                        float mapR = Vector2.Distance(mCenter, mEdge);
+                        if (mapR > 1f)
+                        {
+                            if (fillAlphaByte > 0) dl.AddCircleFilled(mCenter, mapR, circleFill, 48);
+                            dl.AddCircle(mCenter, mapR, circleBorder, 48, 2.0f);
+                        }
+                    }
+                    else
+                    {
+                        // 3D World Radius Ground Ring
+                        const int segments = 32;
+                        Vector2 prevScreen = Vector2.Zero;
+                        Vector2 firstScreen = Vector2.Zero;
+
+                        for (int s = 0; s <= segments; s++)
+                        {
+                            float angle = (s % segments) * (MathF.PI * 2f / segments);
+                            float px = node.WorldPos.X + MathF.Cos(angle) * blastRadiusWorld;
+                            float py = node.WorldPos.Y + MathF.Sin(angle) * blastRadiusWorld;
+                            var sPos = world.WorldToScreen(new Vector2(px, py), node.WorldPos.Z);
+
+                            if (sPos == Vector2.Zero)
+                            {
+                                prevScreen = Vector2.Zero;
+                                continue;
+                            }
+
+                            if (s == 0) firstScreen = sPos;
+
+                            if (prevScreen != Vector2.Zero)
+                            {
+                                dl.AddLine(prevScreen, sPos, circleBorder, 2.0f);
+                            }
+                            prevScreen = sPos;
+                        }
+
+                        if (prevScreen != Vector2.Zero && firstScreen != Vector2.Zero)
+                        {
+                            dl.AddLine(prevScreen, firstScreen, circleBorder, 2.0f);
+                        }
+                    }
+                }
+            }
+
+            // 2. Draw Chain Path Lines & Nodes
+            if (this.Settings.ShowRuneChainPath && orderedChain.Count > 1)
+            {
+                for (int i = 0; i < orderedChain.Count - 1; i++)
+                {
+                    var a = orderedChain[i];
+                    var b = orderedChain[i + 1];
+
+                    if (canMapProject)
+                    {
+                        var pa = ToMap(a.WorldPos);
+                        var pb = ToMap(b.WorldPos);
+                        dl.AddLine(pa, pb, pathCol, lineThick);
+                    }
+                    else
+                    {
+                        var pa = world.WorldToScreen(new Vector2(a.WorldPos.X, a.WorldPos.Y), a.WorldPos.Z + 5f);
+                        var pb = world.WorldToScreen(new Vector2(b.WorldPos.X, b.WorldPos.Y), b.WorldPos.Z + 5f);
+                        if (pa != Vector2.Zero && pb != Vector2.Zero)
+                        {
+                            dl.AddLine(pa, pb, pathCol, lineThick);
+                        }
+                    }
+                }
+
+                // Draw Node Indicators
+                for (int i = 0; i < orderedChain.Count; i++)
+                {
+                    var node = orderedChain[i];
+                    Vector2 sPos = canMapProject ? ToMap(node.WorldPos) : world.WorldToScreen(new Vector2(node.WorldPos.X, node.WorldPos.Y), node.WorldPos.Z + 5f);
+                    if (sPos == Vector2.Zero) continue;
+
+                    if (node.Type == RuneChainNodeType.Detonator)
+                    {
+                        dl.AddCircleFilled(sPos, 6f, detonatorCol);
+                        dl.AddCircle(sPos, 8f, 0xFFFFFFFFu, 0, 1.5f);
+                    }
+                    else if (node.Type == RuneChainNodeType.ConnectorPole)
+                    {
+                        dl.AddCircleFilled(sPos, 3.5f, poleCol);
+                        dl.AddCircle(sPos, 5f, 0xFF000000u, 0, 1.0f);
+                    }
+                    else if (node.Type == RuneChainNodeType.Explosive)
+                    {
+                        dl.AddCircleFilled(sPos, 7f, 0xFFFF8000u);
+                        dl.AddCircle(sPos, 9f, 0xFFFFFFFFu, 0, 1.5f);
+                        if (node.ExplosiveIndex > 0)
+                        {
+                            string numStr = node.ExplosiveIndex.ToString();
+                            var tSz = ImGui.CalcTextSize(numStr);
+                            dl.AddText(new Vector2(sPos.X - tSz.X * 0.5f, sPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, numStr);
+                        }
+                    }
+                }
+            }
         }
 
         private void DrawRuneshapeWindow(List<MonolithData> monoliths)
