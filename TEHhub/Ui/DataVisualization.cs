@@ -61,11 +61,6 @@ namespace TEHhub.Ui
                     continue;
                 }
 
-                if (Core.States.GameCurrentState == GameStateTypes.InGameState)
-                {
-                    DrawInWorldEntityLabels();
-                }
-
                 ImGui.SetNextWindowSize(new Vector2(980, 680), ImGuiCond.FirstUseEver);
                 if (ImGui.Begin("Data Visualization 2.0", ref Core.GHSettings.ShowDataVisualization))
                 {
@@ -79,6 +74,11 @@ namespace TEHhub.Ui
 
                         if (ImGui.BeginTabItem("Entities & World"))
                         {
+                            if (Core.States.GameCurrentState == GameStateTypes.InGameState)
+                            {
+                                DrawInWorldEntityLabels();
+                            }
+
                             DrawEntitiesAndWorldTab();
                             ImGui.EndTabItem();
                         }
