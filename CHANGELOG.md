@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.90 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Real-Item Hover Complete Price Hiding**:
+  - **Full Overlay Suppression on Item Hover**: When the mouse hovers over an actual priced item in Inventory or Stash, all price badges across the screen are cleanly hidden so the user can inspect the loot, item frame, and game tooltips without any visual obstruction.
+  - **Empty Space Immunity**: Moving the cursor over empty spaces in Fragment, Essence, or standard stash tabs leaves all price badges visible, completely fixing false-positive background hovering.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and ready for deployment.
+
 ## 1.8.89 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Fixed Stash / Fragment Tab Empty Space Hover Hide Bug**:

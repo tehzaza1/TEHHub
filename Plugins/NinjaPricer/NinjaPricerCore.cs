@@ -2892,23 +2892,52 @@ namespace NinjaPricer
 
         private void DrawSlotOverlays()
         {
+            if (this.Settings.HideSlotPriceOnHover)
+            {
+                Vector2 mousePos = ImGui.GetMousePos();
+                bool isHoveringRealItem = false;
+
+                if (this.Settings.ShowInventoryPrices)
+                {
+                    for (int i = 0; i < this.cachedInvSlots.Count; i++)
+                    {
+                        var s = this.cachedInvSlots[i];
+                        if (mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
+                            mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
+                        {
+                            isHoveringRealItem = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isHoveringRealItem && this.Settings.ShowOtherInventoryPrices)
+                {
+                    for (int i = 0; i < this.cachedStashSlots.Count; i++)
+                    {
+                        var s = this.cachedStashSlots[i];
+                        if (mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
+                            mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
+                        {
+                            isHoveringRealItem = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isHoveringRealItem)
+                {
+                    return; // Hide ALL slot prices when mouse hovers over an actual item slot so loot/tooltips can be viewed cleanly
+                }
+            }
+
             var dl = ImGui.GetBackgroundDrawList();
             float baseFontSize = ImGui.GetFontSize() * this.Settings.TextScale;
-            Vector2 mousePos = ImGui.GetMousePos();
-            bool hideHover = this.Settings.HideSlotPriceOnHover;
 
             void DrawSlots(List<SlotTag> slots)
             {
                 foreach (var s in slots)
                 {
-                    // If HideSlotPriceOnHover is enabled, hide price tag ONLY on the specific hovered slot
-                    if (hideHover &&
-                        mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
-                        mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
-                    {
-                        continue;
-                    }
-
                     float adaptiveFont = ComputeAdaptiveFontSize(baseFontSize, s.Size.X, s.Size.Y);
                     var measured = this.MeasurePriceTag(s.DisplayValue, adaptiveFont, s.IconPath, s.Size.X);
 
