@@ -217,6 +217,7 @@ namespace ExpeditionPathOptimizer
                 if (ImGui.Button("Clear Path", new Vector2(110, 30)))
                 {
                     this.runner.Clear();
+                    this.placedExplosives.Clear();
                 }
                 ImGui.SameLine();
                 if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
@@ -311,10 +312,11 @@ namespace ExpeditionPathOptimizer
         public void ScanEntities(AreaInstance area)
         {
             var reader = Core.Process.Handle;
+            var currentLiveExplosives = new Dictionary<IntPtr, Vector3>();
 
             void ProcessEntity(Entity entity)
             {
-                if (entity == null || entity.Address == IntPtr.Zero) return;
+                if (entity == null || entity.Address == IntPtr.Zero || !entity.IsValid) return;
                 var path = entity.Path;
                 if (string.IsNullOrEmpty(path)) return;
 
@@ -350,7 +352,7 @@ namespace ExpeditionPathOptimizer
                          !path.Contains("Indicator", StringComparison.OrdinalIgnoreCase) &&
                          !path.Contains("Marker", StringComparison.OrdinalIgnoreCase))
                 {
-                    this.placedExplosives[entity.Address] = wPos;
+                    currentLiveExplosives[entity.Address] = wPos;
                 }
                 else if (path.Contains("ExpeditionRelic", StringComparison.OrdinalIgnoreCase) ||
                          path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase) ||
@@ -439,6 +441,38 @@ namespace ExpeditionPathOptimizer
             if (area.SleepingEntities != null)
             {
                 foreach (var e in area.SleepingEntities.Values) ProcessEntity(e);
+            }
+
+            // Detect if placed explosives were added or undone/removed in game
+            bool explosivesChanged = false;
+            if (currentLiveExplosives.Count != this.placedExplosives.Count)
+            {
+                explosivesChanged = true;
+            }
+            else
+            {
+                foreach (var k in currentLiveExplosives.Keys)
+                {
+                    if (!this.placedExplosives.ContainsKey(k))
+                    {
+                        explosivesChanged = true;
+                        break;
+                    }
+                }
+            }
+
+            if (explosivesChanged)
+            {
+                this.placedExplosives.Clear();
+                foreach (var (k, v) in currentLiveExplosives)
+                {
+                    this.placedExplosives[k] = v;
+                }
+
+                if (this.Settings.Enable && this.detonatorWorldPos != Vector3.Zero && this.discoveredRemnants.Count > 0)
+                {
+                    this.StartSearch(area);
+                }
             }
 
             // Determine Final Target: Max Slots -> Highest Rune Weight -> Proximity
