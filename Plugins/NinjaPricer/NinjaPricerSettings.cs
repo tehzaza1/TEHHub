@@ -97,11 +97,6 @@ namespace NinjaPricer
         public float RsRowScale { get; set; } = 0.85f;
         public HashSet<uint> RuneshapeCollapsed { get; set; } = new();
 
-        // Rune Chain (เชนรูน) Overlay
-        public bool ShowRuneChainPath { get; set; } = false;
-        public bool ShowExplosiveRadius { get; set; } = false;
-        public float RuneChainLineWidth { get; set; } = 2.5f;
-        public float RuneChainRadiusOpacity { get; set; } = 0.20f;
 
         // Category Toggles
         public Dictionary<string, bool> EnabledCategories { get; set; } = new()
