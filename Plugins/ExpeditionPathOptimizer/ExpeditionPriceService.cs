@@ -243,6 +243,7 @@ namespace ExpeditionPathOptimizer
                 var catKey = type.ToLowerInvariant();
                 bool isEnabled = IsCategoryEnabled(enabledCategories, catKey);
 
+                // If disabled and not Currency (which provides rates), skip network request
                 if (!isEnabled && !catKey.Equals("currency", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -251,7 +252,7 @@ namespace ExpeditionPathOptimizer
                 this.catsPending++;
                 try
                 {
-                    var url = $"https://poe.ninja/api/data/itemexchangeoverview?league={leagueParam}&type={type}";
+                    var url = $"https://poe.ninja/poe2/api/economy/exchange/current/overview?league={leagueParam}&type={type}";
                     using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     req.Headers.TryAddWithoutValidation("User-Agent", "TEHhub-ExpeditionPathOptimizer/1.0");
 
@@ -262,85 +263,107 @@ namespace ExpeditionPathOptimizer
                         using var doc = JsonDocument.Parse(json);
                         var root = doc.RootElement;
 
-                        if (type.Equals("Currency", StringComparison.OrdinalIgnoreCase) && root.TryGetProperty("lines", out var curLines) && curLines.ValueKind == JsonValueKind.Array)
+                        // Parse rates
+                        if (root.TryGetProperty("core", out var core))
                         {
-                            foreach (var line in curLines.EnumerateArray())
+                            if (core.TryGetProperty("rates", out var rates))
                             {
-                                if (line.TryGetProperty("detailsId", out var dId) && dId.GetString() == "divine-orb")
+                                if (rates.TryGetProperty("chaos", out var cProp) && cProp.TryGetSingle(out var cRate) && cRate > 0)
                                 {
-                                    if (line.TryGetProperty("chaosEquivalent", out var ce) && ce.TryGetSingle(out var ceVal) && ceVal > 0)
-                                    {
-                                        this.divineInChaos = ceVal;
-                                    }
+                                    this.divineInChaos = cRate;
                                 }
-                                if (line.TryGetProperty("detailsId", out var eId) && eId.GetString() == "exalted-orb")
+                                if (rates.TryGetProperty("exalted", out var exProp) && exProp.TryGetSingle(out var exRate) && exRate > 0)
                                 {
-                                    if (line.TryGetProperty("chaosEquivalent", out var ee) && ee.TryGetSingle(out var eeVal) && eeVal > 0)
+                                    this.exaltedInChaos = this.divineInChaos / exRate;
+                                }
+                            }
+                            if (isEnabled && core.TryGetProperty("items", out var coreItems) && coreItems.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var ci in coreItems.EnumerateArray())
+                                {
+                                    if (ci.TryGetProperty("name", out var n) && ci.TryGetProperty("image", out var img))
                                     {
-                                        this.exaltedInChaos = eeVal;
+                                        var cName = n.GetString() ?? string.Empty;
+                                        var cImg = img.GetString() ?? string.Empty;
+                                        if (!string.IsNullOrEmpty(cName))
+                                        {
+                                            if (cName.Equals("Divine Orb", StringComparison.OrdinalIgnoreCase))
+                                                targetDb[cName] = new PriceResult(this.divineInChaos, 1.0f, this.divineInChaos / (this.exaltedInChaos > 0 ? this.exaltedInChaos : 1.0f), cImg);
+                                            else if (cName.Equals("Exalted Orb", StringComparison.OrdinalIgnoreCase))
+                                                targetDb[cName] = new PriceResult(this.exaltedInChaos, this.exaltedInChaos / (this.divineInChaos > 0 ? this.divineInChaos : 1.0f), 1.0f, cImg);
+                                            else if (cName.Equals("Chaos Orb", StringComparison.OrdinalIgnoreCase))
+                                                targetDb[cName] = new PriceResult(1.0f, 1.0f / (this.divineInChaos > 0 ? this.divineInChaos : 1.0f), 1.0f / (this.exaltedInChaos > 0 ? this.exaltedInChaos : 1.0f), cImg);
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        if (this.divineInChaos <= 0) this.divineInChaos = 9.43f;
-                        if (this.exaltedInChaos <= 0) this.exaltedInChaos = 1.0f;
-
-                        targetDb["Divine Orb"] = new PriceResult(this.divineInChaos, 1.0f, this.divineInChaos / this.exaltedInChaos);
-                        targetDb["Exalted Orb"] = new PriceResult(this.exaltedInChaos, this.exaltedInChaos / this.divineInChaos, 1.0f);
-                        targetDb["Chaos Orb"] = new PriceResult(1.0f, 1.0f / this.divineInChaos, 1.0f / this.exaltedInChaos);
-
                         if (isEnabled)
                         {
-                            var itemDict = new Dictionary<string, (string Name, string Icon)>(StringComparer.OrdinalIgnoreCase);
+                            // Map item id -> (name, image)
+                            var itemMap = new Dictionary<string, (string Name, string Image)>(StringComparer.OrdinalIgnoreCase);
                             if (root.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == JsonValueKind.Array)
                             {
                                 foreach (var item in itemsElem.EnumerateArray())
                                 {
-                                    string id = string.Empty;
-                                    string name = string.Empty;
-                                    string icon = string.Empty;
-                                    if (item.TryGetProperty("id", out var idProp)) id = idProp.GetString() ?? string.Empty;
-                                    if (item.TryGetProperty("name", out var nProp)) name = nProp.GetString() ?? string.Empty;
-                                    if (item.TryGetProperty("icon", out var iProp)) icon = iProp.GetString() ?? string.Empty;
-
-                                    if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(name))
+                                    if (item.TryGetProperty("id", out var idProp) && item.TryGetProperty("name", out var nameProp))
                                     {
-                                        itemDict[id] = (name, icon);
+                                        var id = idProp.GetString();
+                                        var name = nameProp.GetString();
+                                        string image = string.Empty;
+                                        if (item.TryGetProperty("image", out var imgProp)) image = imgProp.GetString() ?? string.Empty;
+                                        if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(name))
+                                        {
+                                            itemMap[id] = (name, image);
+                                        }
                                     }
                                 }
                             }
 
+                            // Map lines -> prices (primaryValue is in Divine)
                             if (root.TryGetProperty("lines", out var linesElem) && linesElem.ValueKind == JsonValueKind.Array)
                             {
                                 foreach (var line in linesElem.EnumerateArray())
                                 {
-                                    string id = string.Empty;
-                                    if (line.TryGetProperty("detailsId", out var dProp)) id = dProp.GetString() ?? string.Empty;
-                                    else if (line.TryGetProperty("id", out var idProp)) id = idProp.GetString() ?? string.Empty;
+                                    if (!line.TryGetProperty("id", out var idProp)) continue;
+                                    var id = idProp.GetString();
+                                    if (string.IsNullOrEmpty(id) || !itemMap.TryGetValue(id, out var info)) continue;
 
-                                    float chaosVal = 0f;
-                                    if (line.TryGetProperty("chaosEquivalent", out var ceProp) && ceProp.TryGetSingle(out var cv))
+                                    float primaryVal = 0f;
+                                    if (line.TryGetProperty("primaryValue", out var pvProp) && pvProp.TryGetSingle(out var pv))
                                     {
-                                        chaosVal = cv;
-                                    }
-                                    else if (line.TryGetProperty("primaryValue", out var pvProp) && pvProp.TryGetSingle(out var pv))
-                                    {
-                                        chaosVal = pv;
+                                        primaryVal = pv;
                                     }
 
-                                    if (chaosVal <= 0f) continue;
+                                    string variant = string.Empty;
+                                    if (line.TryGetProperty("variant", out var vp)) variant = vp.GetString() ?? string.Empty;
 
-                                    if (itemDict.TryGetValue(id, out var info))
+                                    if (primaryVal > 0f)
                                     {
-                                        float divine = this.divineInChaos > 0 ? (chaosVal / this.divineInChaos) : 0;
-                                        float exalt = this.exaltedInChaos > 0 ? (chaosVal / this.exaltedInChaos) : 0;
-                                        targetDb[info.Name] = new PriceResult(chaosVal, divine, exalt, info.Icon);
+                                        float divine = primaryVal;
+                                        float chaos = divine * this.divineInChaos;
+                                        float exalt = (this.exaltedInChaos > 0) ? (chaos / this.exaltedInChaos) : 0;
+                                        var priceRes = new PriceResult(chaos, divine, exalt, info.Image);
+
+                                        if (!string.IsNullOrEmpty(variant))
+                                        {
+                                            var varKey = $"{info.Name}:{variant.ToLowerInvariant()}";
+                                            targetDb[varKey] = priceRes;
+
+                                            if (!targetDb.ContainsKey(info.Name) || variant.Equals("Normal", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                targetDb[info.Name] = priceRes;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            targetDb[info.Name] = priceRes;
+                                        }
                                     }
                                 }
                             }
                         }
-
                         this.catsOk++;
                     }
                     else
@@ -358,7 +381,7 @@ namespace ExpeditionPathOptimizer
                 }
             }
 
-            // 2. Process stash types (uniques)
+            // 2. Process stash types (unique items)
             foreach (var type in stashTypes)
             {
                 if (token.IsCancellationRequested) return;
@@ -369,7 +392,7 @@ namespace ExpeditionPathOptimizer
                 this.catsPending++;
                 try
                 {
-                    var url = $"https://poe.ninja/api/data/itemoverview?league={leagueParam}&type={type}";
+                    var url = $"https://poe.ninja/poe2/api/economy/stash/current/item/overview?league={leagueParam}&type={type}";
                     using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     req.Headers.TryAddWithoutValidation("User-Agent", "TEHhub-ExpeditionPathOptimizer/1.0");
 
@@ -379,39 +402,47 @@ namespace ExpeditionPathOptimizer
                         var json = await res.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                         using var doc = JsonDocument.Parse(json);
                         var root = doc.RootElement;
-
-                        if (root.TryGetProperty("lines", out var linesElem) && linesElem.ValueKind == JsonValueKind.Array)
+                        if (root.TryGetProperty("lines", out var lines) && lines.ValueKind == JsonValueKind.Array)
                         {
-                            foreach (var line in linesElem.EnumerateArray())
+                            foreach (var line in lines.EnumerateArray())
                             {
-                                string name = string.Empty;
-                                if (line.TryGetProperty("name", out var nProp)) name = nProp.GetString() ?? string.Empty;
+                                if (!line.TryGetProperty("name", out var n)) continue;
+                                var name = n.GetString();
                                 if (string.IsNullOrEmpty(name)) continue;
 
-                                float chaosVal = 0f;
-                                if (line.TryGetProperty("chaosValue", out var cvProp) && cvProp.TryGetSingle(out var cv))
+                                float primaryVal = 0f;
+                                if (line.TryGetProperty("primaryValue", out var pv) && pv.TryGetSingle(out var val))
                                 {
-                                    chaosVal = cv;
+                                    primaryVal = val;
                                 }
-                                else if (line.TryGetProperty("price", out var pProp) && pProp.TryGetSingle(out var pv))
-                                {
-                                    chaosVal = pv;
-                                }
-
-                                if (chaosVal <= 0f) continue;
 
                                 string icon = string.Empty;
-                                if (line.TryGetProperty("icon", out var iProp)) icon = iProp.GetString() ?? string.Empty;
+                                if (line.TryGetProperty("icon", out var ic)) icon = ic.GetString() ?? string.Empty;
 
-                                float divine = this.divineInChaos > 0 ? (chaosVal / this.divineInChaos) : 0;
-                                float exalt = this.exaltedInChaos > 0 ? (chaosVal / this.exaltedInChaos) : 0;
-                                var pr = new PriceResult(chaosVal, divine, exalt, icon);
+                                string variant = string.Empty;
+                                if (line.TryGetProperty("variant", out var vp)) variant = vp.GetString() ?? string.Empty;
 
-                                targetDb[name] = pr;
-
-                                if (line.TryGetProperty("baseType", out var btProp) && btProp.GetString() is { } bt && !string.IsNullOrEmpty(bt))
+                                if (primaryVal > 0f)
                                 {
-                                    targetDb[$"{name} ({bt})"] = pr;
+                                    float divine = primaryVal;
+                                    float chaos = divine * this.divineInChaos;
+                                    float exalt = (this.exaltedInChaos > 0) ? (chaos / this.exaltedInChaos) : 0;
+                                    var priceRes = new PriceResult(chaos, divine, exalt, icon);
+
+                                    if (!string.IsNullOrEmpty(variant))
+                                    {
+                                        var varKey = $"{name}:{variant.ToLowerInvariant()}";
+                                        targetDb[varKey] = priceRes;
+
+                                        if (!targetDb.ContainsKey(name) || variant.Equals("Normal", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            targetDb[name] = priceRes;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        targetDb[name] = priceRes;
+                                    }
                                 }
                             }
                         }

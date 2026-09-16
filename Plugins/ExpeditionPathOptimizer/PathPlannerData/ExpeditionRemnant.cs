@@ -10,14 +10,15 @@ namespace ExpeditionPathOptimizer.PathPlannerData
         public IntPtr EntityAddress { get; set; }
         public Vector3 WorldPos { get; set; }
         public Vector2 GridPos { get; set; }
-        public int RuneSlots { get; set; } = 4;
+        public int RuneSlots { get; set; } = 0;
         public int AnchorIdx { get; set; } = -1;
         public int AnchorPos { get; set; }
         public string? AnchorRune { get; set; }
         public bool IsUnique { get; set; }
         public List<int> GoldenSlots { get; set; } = new();
         public IReadOnlyList<RuneshapeRecipeOffer> RecipeOffers { get; set; } = Array.Empty<RuneshapeRecipeOffer>();
-        public RuneshapeRecipeOffer? BestRecipe { get; set; }
+        public RuneshapeRecipeOffer? BestPriceRecipe { get; set; }
+        public RuneshapeRecipeOffer? BestRuneRecipe { get; set; }
 
         public ExpeditionRemnant()
         {
@@ -35,31 +36,37 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             bool isUnique,
             List<int> goldenSlots,
             IReadOnlyList<RuneshapeRecipeOffer> recipeOffers,
-            RuneshapeRecipeOffer? bestRecipe)
+            RuneshapeRecipeOffer? bestPriceRecipe,
+            RuneshapeRecipeOffer? bestRuneRecipe)
         {
             this.EntityId = entityId;
             this.EntityAddress = entityAddress;
             this.WorldPos = worldPos;
             this.GridPos = gridPos;
-            this.RuneSlots = Math.Clamp(runeSlots, 1, 16);
+            this.RuneSlots = runeSlots is >= 0 and <= 16 ? runeSlots : 0;
             this.AnchorIdx = anchorIdx;
             this.AnchorPos = anchorPos;
             this.AnchorRune = anchorRune;
             this.IsUnique = isUnique;
             this.GoldenSlots = goldenSlots ?? new List<int>();
             this.RecipeOffers = recipeOffers ?? Array.Empty<RuneshapeRecipeOffer>();
-            this.BestRecipe = bestRecipe;
+            this.BestPriceRecipe = bestPriceRecipe;
+            this.BestRuneRecipe = bestRuneRecipe;
         }
 
-        public double CalculateBaseRuneWeight(Dictionary<string, double> weights)
+        public double CalculateBaseRuneWeight(IReadOnlyDictionary<string, double> weights)
         {
-            if (this.BestRecipe?.PropagatedRunes == null || this.BestRecipe.PropagatedRunes.Count == 0)
+            if (this.BestRuneRecipe?.PropagatedRunes == null || this.BestRuneRecipe.PropagatedRunes.Count == 0)
                 return 0.0;
 
             double sum = 0.0;
-            foreach (var r in this.BestRecipe.PropagatedRunes)
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in this.BestRuneRecipe.PropagatedRunes)
             {
-                sum += weights.GetValueOrDefault(r, 20.0);
+                if (seen.Add(r))
+                {
+                    sum += weights.GetValueOrDefault(r, 20.0);
+                }
             }
             return sum;
         }

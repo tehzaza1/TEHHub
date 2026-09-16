@@ -238,14 +238,14 @@ namespace ExpeditionPathOptimizer
             {
                 var target = this.selectedFinalTarget;
                 string anchorStr = target.IsUnique ? "Unique" : (target.AnchorRune ?? "None");
-                string propStr = target.BestRecipe?.PropagatedRunes != null && target.BestRecipe.PropagatedRunes.Count > 0
-                    ? string.Join(", ", target.BestRecipe.PropagatedRunes)
+                string propStr = target.BestRuneRecipe?.PropagatedRunes != null && target.BestRuneRecipe.PropagatedRunes.Count > 0
+                    ? string.Join(", ", target.BestRuneRecipe.PropagatedRunes)
                     : "None";
-                string rewardStr = target.BestRecipe != null
-                    ? $" -> {target.BestRecipe.Reward} x{target.BestRecipe.RewardCount} ({(target.BestRecipe.IsPriced ? $"{target.BestRecipe.PriceChaos:F0}c / {target.BestRecipe.PriceDivine:F2}d" : "No price")})"
+                string priceBestStr = target.BestPriceRecipe != null
+                    ? $" | Price Best: {target.BestPriceRecipe.Reward} x{target.BestPriceRecipe.RewardCount} ({(target.BestPriceRecipe.IsPriced ? $"{target.BestPriceRecipe.PriceChaos:F0}c / {target.BestPriceRecipe.PriceDivine:F2}d" : "No price")})"
                     : "";
 
-                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {target.RuneSlots} Slots (Anchor: {anchorStr}), Propagated: [{propStr}]{rewardStr}");
+                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {target.RuneSlots} Slots (Anchor: {anchorStr}), Rune Best Propagated: [{propStr}]{priceBestStr}");
             }
             ImGui.Text($"Placed Explosives Detected: {this.placedExplosives.Count}");
 
@@ -456,7 +456,7 @@ namespace ExpeditionPathOptimizer
                          path.Contains("Expedition2Remnant", StringComparison.OrdinalIgnoreCase) ||
                          path.Contains("ExpeditionRemnant", StringComparison.OrdinalIgnoreCase))
                 {
-                    int slots = 4;
+                    int slots = 0;
                     int anchorPos = 0;
                     int anchorIdx = -1;
                     string? anchorRune = null;
@@ -568,16 +568,29 @@ namespace ExpeditionPathOptimizer
                     }
 
                     int areaLevel = area.CurrentAreaLevel;
-                    var offers = this.recipePredictor.PredictOffers(
-                        slots,
-                        anchorIdx,
-                        anchorPos,
-                        isUnique,
-                        goldenSlots,
-                        areaLevel,
-                        this.priceService);
+                    List<RuneshapeRecipeOffer> offers;
+                    RuneshapeRecipeOffer? bestPriceRecipe = null;
+                    RuneshapeRecipeOffer? bestRuneRecipe = null;
 
-                    var bestRecipe = offers.Count > 0 ? offers[0] : null;
+                    if (slots > 0 && (isUnique || (anchorIdx >= 0 && anchorIdx < RuneNames.Length && anchorPos >= 0 && anchorPos < slots)))
+                    {
+                        offers = this.recipePredictor.PredictOffers(
+                            slots,
+                            anchorIdx,
+                            anchorPos,
+                            isUnique,
+                            goldenSlots,
+                            areaLevel,
+                            this.priceService,
+                            this.Settings.RuneWeights);
+
+                        bestPriceRecipe = this.recipePredictor.SelectBestPriceRecipe(offers);
+                        bestRuneRecipe = this.recipePredictor.SelectBestRuneRecipe(offers, this.Settings.RuneWeights);
+                    }
+                    else
+                    {
+                        offers = new List<RuneshapeRecipeOffer>();
+                    }
 
                     var remnant = new ExpeditionRemnant(
                         entity.Id,
@@ -591,7 +604,8 @@ namespace ExpeditionPathOptimizer
                         isUnique,
                         goldenSlots,
                         offers,
-                        bestRecipe);
+                        bestPriceRecipe,
+                        bestRuneRecipe);
 
                     this.discoveredRemnants[entity.Address] = remnant;
                 }
@@ -616,11 +630,12 @@ namespace ExpeditionPathOptimizer
                 foreach (var e in area.SleepingEntities.Values) ProcessEntity(e);
             }
 
-            // 1. Determine Final Target BEFORE starting search: Max Slots -> Highest Rune Weight -> Proximity
-            if (this.discoveredRemnants.Count > 0)
+            // 1. Determine Final Target BEFORE starting search: Max Slots -> Highest Rune Weight -> Proximity (only consider remnants with RuneSlots > 0)
+            var validRemnants = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
+            if (validRemnants.Count > 0)
             {
-                int maxSlots = this.discoveredRemnants.Values.Max(r => r.RuneSlots);
-                var candidates = this.discoveredRemnants.Values.Where(r => r.RuneSlots == maxSlots).ToList();
+                int maxSlots = validRemnants.Max(r => r.RuneSlots);
+                var candidates = validRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
                 this.selectedFinalTarget = candidates
                     .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings.RuneWeights))
                     .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
@@ -649,7 +664,7 @@ namespace ExpeditionPathOptimizer
 
             if (this.discoveredRemnants.Count == 0 || this.selectedFinalTarget == null)
             {
-                PluginLog.Warning("ExpeditionPathOptimizer", "No expedition remnants/monoliths detected in area.");
+                PluginLog.Warning("ExpeditionPathOptimizer", "No valid expedition remnants/monoliths with known slot count detected in area.");
                 return;
             }
 

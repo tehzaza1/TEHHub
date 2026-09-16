@@ -20,7 +20,6 @@ namespace ExpeditionPathOptimizer
         public int Category { get; set; }
         public int MinLevel { get; set; }
         public int MaxLevel { get; set; }
-        public int ComboWeight { get; set; }
     }
 
     public class RuneshapeRecipeOffer
@@ -54,29 +53,19 @@ namespace ExpeditionPathOptimizer
         };
 
         /// <summary>
-        /// Game data definition of Runes that are eligible to propagate modifiers via GoldenSlots.
-        /// Common / white / Tier-B Runes (e.g. Fire, Cold, Lightning, Stone, Toxic, etc.) cannot propagate.
+        /// Explicit game data definition of Runes that are eligible to propagate modifiers via GoldenSlots.
+        /// EXACTLY the S + A tiers: Opulent, Bond, Oath, Power, Death, Time, Rebirth.
+        /// Tier B (Arcane, Prismatic, Soul, Vision, Celestial, Rage, Wisdom) and all white/Tier C runes CANNOT propagate.
         /// </summary>
         public static readonly HashSet<string> PropagatingRuneNames = new(StringComparer.OrdinalIgnoreCase)
         {
             "Opulent",
-            "Power",
             "Bond",
             "Oath",
+            "Power",
             "Death",
             "Time",
-            "Rebirth",
-            "Soul",
-            "Celestial",
-            "Vision",
-            "Wisdom",
-            "Rage",
-            "Arcane",
-            "Prismatic",
-            "Earth",
-            "Sky",
-            "Life",
-            "Ward",
+            "Rebirth"
         };
 
         public static bool CanPropagateRune(int runeIdx)
@@ -91,24 +80,23 @@ namespace ExpeditionPathOptimizer
             return PropagatingRuneNames.Contains(runeName);
         }
 
-        private static readonly Dictionary<string, int> DefaultRuneWeights = new(StringComparer.OrdinalIgnoreCase)
+        public static int CalculateRecipeWeight(IEnumerable<string>? runes, IReadOnlyDictionary<string, double>? runeWeights)
         {
-            { "Opulent", 500 },
-            { "Bond", 120 },
-            { "Oath", 110 },
-            { "Power", 100 },
-            { "Death", 100 },
-            { "Time", 80 },
-            { "Rebirth", 60 },
-            { "Prismatic", 30 },
-            { "Arcane", 30 },
-            { "Soul", 25 },
-            { "Celestial", 25 },
-            { "Vision", 25 },
-            { "Wisdom", 25 },
-            { "Rage", 25 },
-            { "Protective", 20 },
-        };
+            if (runes == null) return 0;
+            double total = 0.0;
+            foreach (var r in runes)
+            {
+                if (runeWeights != null && runeWeights.TryGetValue(r, out var w))
+                {
+                    total += w;
+                }
+                else
+                {
+                    total += 20.0;
+                }
+            }
+            return (int)Math.Round(total);
+        }
 
         private readonly List<RuneshapeRecipe> recipes = new();
         private readonly Dictionary<long, int> partialMinLevel = new();
@@ -184,7 +172,6 @@ namespace ExpeditionPathOptimizer
                                 }
                             }
 
-                            r.ComboWeight = CalculateRecipeWeight(r.Runes);
                             this.recipes.Add(r);
                         }
                     }
@@ -218,17 +205,6 @@ namespace ExpeditionPathOptimizer
             }
         }
 
-        private static int CalculateRecipeWeight(IEnumerable<string> runes)
-        {
-            int total = 0;
-            foreach (var r in runes)
-            {
-                if (DefaultRuneWeights.TryGetValue(r, out var defW)) total += defW;
-                else total += 20;
-            }
-            return total;
-        }
-
         public bool IsPartialAllowed(int runeIdx, int pos0Based, int recipeSize, int areaLevel)
         {
             long key = ((long)runeIdx << 16) | ((long)(pos0Based + 1) << 8) | (uint)recipeSize;
@@ -243,8 +219,20 @@ namespace ExpeditionPathOptimizer
             bool isUnique,
             List<int> goldenSlots,
             int areaLevel,
-            ExpeditionPriceService? priceService)
+            ExpeditionPriceService? priceService,
+            IReadOnlyDictionary<string, double>? runeWeights)
         {
+            if (holeCount <= 0) return new List<RuneshapeRecipeOffer>();
+
+            // For non-unique monolith, require valid anchor index and position within holeCount
+            if (!isUnique)
+            {
+                if (anchorIdx < 0 || anchorIdx >= RuneNames.Length || anchorPos < 0 || anchorPos >= holeCount)
+                {
+                    return new List<RuneshapeRecipeOffer>();
+                }
+            }
+
             var offers = new List<RuneshapeRecipeOffer>();
 
             foreach (var rec in this.recipes)
@@ -259,7 +247,7 @@ namespace ExpeditionPathOptimizer
                     if (rec.Size != holeCount && !this.IsPartialAllowed(anchorIdx, anchorPos, rec.Size, areaLevel)) continue;
                 }
 
-                // Propagated Runes come from GoldenSlots AND must be propagation-eligible (non-white / non-common)
+                // Propagated Runes come from GoldenSlots AND must be propagation-eligible (S + A tier only)
                 var propRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 if (goldenSlots != null && rec.RuneIdx != null)
                 {
@@ -291,6 +279,8 @@ namespace ExpeditionPathOptimizer
                     priceExalt = price.Exalt * count;
                 }
 
+                int comboWeight = CalculateRecipeWeight(rec.Runes, runeWeights);
+
                 offers.Add(new RuneshapeRecipeOffer
                 {
                     RecipeId = rec.Id,
@@ -304,40 +294,59 @@ namespace ExpeditionPathOptimizer
                     PriceDivine = priceDivine,
                     PriceExalt = priceExalt,
                     IsPriced = isPriced,
-                    ComboWeight = rec.ComboWeight,
+                    ComboWeight = comboWeight,
                     Size = rec.Size,
                     Category = rec.Category
                 });
             }
 
-            // BestRecipe selection:
-            // If at least one offer is priced:
-            //   BestRecipe = highest PriceChaos, tie-break by ComboWeight
-            // If no offers are priced:
-            //   BestRecipe = highest ComboWeight, tie-break by RewardCount
+            return offers;
+        }
+
+        public RuneshapeRecipeOffer? SelectBestPriceRecipe(IReadOnlyList<RuneshapeRecipeOffer>? offers)
+        {
+            if (offers == null || offers.Count == 0) return null;
+
             bool anyPriced = offers.Any(o => o.IsPriced);
             if (anyPriced)
             {
-                offers.Sort((a, b) =>
-                {
-                    int pCmp = b.PriceChaos.CompareTo(a.PriceChaos);
-                    if (pCmp != 0) return pCmp;
-                    int wCmp = b.ComboWeight.CompareTo(a.ComboWeight);
-                    if (wCmp != 0) return wCmp;
-                    return b.RewardCount.CompareTo(a.RewardCount);
-                });
-            }
-            else
-            {
-                offers.Sort((a, b) =>
-                {
-                    int wCmp = b.ComboWeight.CompareTo(a.ComboWeight);
-                    if (wCmp != 0) return wCmp;
-                    return b.RewardCount.CompareTo(a.RewardCount);
-                });
+                return offers
+                    .OrderByDescending(o => o.PriceChaos)
+                    .ThenByDescending(o => o.ComboWeight)
+                    .ThenByDescending(o => o.RewardCount)
+                    .First();
             }
 
-            return offers;
+            return offers
+                .OrderByDescending(o => o.ComboWeight)
+                .ThenByDescending(o => o.RewardCount)
+                .First();
+        }
+
+        public RuneshapeRecipeOffer? SelectBestRuneRecipe(IReadOnlyList<RuneshapeRecipeOffer>? offers, IReadOnlyDictionary<string, double>? runeWeights)
+        {
+            if (offers == null || offers.Count == 0) return null;
+
+            double GetDistinctPropagatedRuneWeight(RuneshapeRecipeOffer offer)
+            {
+                if (offer.PropagatedRunes == null || offer.PropagatedRunes.Count == 0) return 0.0;
+                double sum = 0.0;
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var r in offer.PropagatedRunes)
+                {
+                    if (seen.Add(r))
+                    {
+                        sum += runeWeights?.GetValueOrDefault(r, 20.0) ?? 20.0;
+                    }
+                }
+                return sum;
+            }
+
+            return offers
+                .OrderByDescending(o => GetDistinctPropagatedRuneWeight(o))
+                .ThenByDescending(o => o.ComboWeight)
+                .ThenByDescending(o => o.RewardCount)
+                .First();
         }
     }
 }

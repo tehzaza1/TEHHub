@@ -152,9 +152,9 @@ namespace ExpeditionPathOptimizer
                             localScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
 
                             // Rune Base Weight scored ONLY when newly added to acquiredRunes
-                            if (r.BestRecipe?.PropagatedRunes != null)
+                            if (r.BestRuneRecipe?.PropagatedRunes != null)
                             {
-                                foreach (var rune in r.BestRecipe.PropagatedRunes)
+                                foreach (var rune in r.BestRuneRecipe.PropagatedRunes)
                                 {
                                     if (acquiredRunes.Add(rune))
                                     {
