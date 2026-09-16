@@ -34,7 +34,6 @@ namespace ExpeditionPathOptimizer
         public double RemnantHitBaseScore { get; set; } = 150.0;
         public double RuneSlotMultiplier { get; set; } = 100.0;
         public double FinalTargetBonus { get; set; } = 1000.0;
-        public double FinalRuneBonus { get; set; } = 100.0;
         public double UsefulBridgePenalty { get; set; } = 20.0; // Bridge ไปหาเป้าหมายได้ = -20
         public double EmptyBombPenalty { get; set; } = 150.0; // Bridge ที่ไม่ช่วยอะไร = -150
         public double TravelPenaltyMultiplier { get; set; } = 0.0;

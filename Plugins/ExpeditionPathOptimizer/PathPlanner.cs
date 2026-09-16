@@ -13,7 +13,7 @@ namespace ExpeditionPathOptimizer
             double ScoreDiff,
             List<ExpeditionRemnant> NewRemnants,
             List<ExpeditionChest> NewChests,
-            string? ActiveRune,
+            IReadOnlyList<string> AcquiredRunes,
             double RuneScore,
             bool IsUsefulBridge);
 
@@ -89,7 +89,7 @@ namespace ExpeditionPathOptimizer
             var hitChests = new HashSet<ExpeditionChest>();
             double accumulatedScore = 0.0;
             var prevPoint = env.StartingPoint;
-            string? activePropagatedRune = null;
+            var acquiredRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             List<PerPointScoreInfo>? detailedList = collectDetails ? new List<PerPointScoreInfo>(n) : null;
 
             for (int i = 0; i < n; i++)
@@ -134,19 +134,13 @@ namespace ExpeditionPathOptimizer
 
                 double localScore = 0.0;
                 double runeScore = 0.0;
-                string? currentBombActiveRune = activePropagatedRune;
                 var newHits = new List<ExpeditionRemnant>();
                 var newChestHits = new List<ExpeditionChest>();
 
-                // 1. Final Target Bonus and Final Rune Bonus on last bomb
+                // 1. Final Target Bonus on last bomb
                 if (i == n - 1)
                 {
                     localScore += this.settings.FinalTargetBonus;
-                    if (!string.IsNullOrEmpty(activePropagatedRune))
-                    {
-                        localScore += this.settings.FinalRuneBonus;
-                        runeScore += this.settings.FinalRuneBonus;
-                    }
                 }
 
                 // 2. Find newly covered remnants
@@ -164,6 +158,7 @@ namespace ExpeditionPathOptimizer
                             // Rune Base Weight scored ONCE upon discovery
                             if (!string.IsNullOrEmpty(r.PropagatedRune))
                             {
+                                acquiredRunes.Add(r.PropagatedRune);
                                 double w = this.settings.RuneWeights.GetValueOrDefault(r.PropagatedRune, 20.0);
                                 localScore += w;
                                 runeScore += w;
@@ -186,23 +181,6 @@ namespace ExpeditionPathOptimizer
                             }
                         }
                     }
-                }
-
-                // 3. Update Active Propagated Rune for subsequent bombs (with conflict check)
-                var newRunes = newHits
-                    .Select(x => x.PropagatedRune)
-                    .Where(x => !string.IsNullOrEmpty(x))
-                    .Distinct()
-                    .ToList();
-
-                if (newRunes.Count > 1)
-                {
-                    // Single bomb hits multiple conflicting runes in V1
-                    return false;
-                }
-                else if (newRunes.Count == 1)
-                {
-                    activePropagatedRune = newRunes[0];
                 }
 
                 // 4. Empty Bomb vs Useful Bridge Penalty & Short Bridge Penalty
@@ -301,7 +279,14 @@ namespace ExpeditionPathOptimizer
 
                 if (collectDetails && detailedList != null)
                 {
-                    detailedList.Add(new PerPointScoreInfo(curPoint, localScore, newHits, newChestHits, currentBombActiveRune, runeScore, isUsefulBridge));
+                    detailedList.Add(new PerPointScoreInfo(
+                        curPoint,
+                        localScore,
+                        newHits,
+                        newChestHits,
+                        acquiredRunes.ToList(),
+                        runeScore,
+                        isUsefulBridge));
                 }
 
                 prevPoint = curPoint;
