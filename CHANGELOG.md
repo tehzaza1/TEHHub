@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.87 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Removed Explosive Coverage "Green System"**:
+  - Completely removed the explosive blast radius detection / green border highlighting (`IsCoveredByExplosive` / `0xFF30F030u`) from Monolith badges (Large Map & 3D World Markers) and the Runeshape Window table header.
+  - Streamlined `GetActiveMonoliths()` scanning loop by eliminating redundant coverage checks, reducing CPU overhead and simplifying monolith rendering to clean neutral borders.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
+
 ## 1.8.86 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Adjustable Monolith Badge Background Opacity**:

@@ -237,8 +237,6 @@ namespace NinjaPricer
         private Vector2 runeshapeWinRectMax = Vector2.Zero;
         private bool runeshapeWinRectValid = false;
         private readonly Dictionary<string, MonolithData> trackedMonoliths = new();
-        private readonly HashSet<uint> coveredMonolithIds = new();
-        private readonly HashSet<IntPtr> coveredMonoliths = new();
         private string newProfileInput = string.Empty;
 
 
@@ -690,8 +688,6 @@ namespace NinjaPricer
                 this.lastGroundScanUtc = DateTime.MinValue;
                 this.lastInvScanUtc = DateTime.MinValue;
                 this.trackedMonoliths.Clear();
-                this.coveredMonolithIds.Clear();
-                this.coveredMonoliths.Clear();
                 this.expandedMonoliths.Clear();
             }
         }
@@ -3154,30 +3150,7 @@ namespace NinjaPricer
                     if (mData.IsCompleted)
                     {
                         this.trackedMonoliths.Remove(key);
-                        this.coveredMonolithIds.Remove(mData.EntityId);
-                        if (mData.EntityAddress != IntPtr.Zero) this.coveredMonoliths.Remove(mData.EntityAddress);
                         return;
-                    }
-
-                    // Live update coverage while in network bubble
-                    var cov = ExpeditionMechanics.CalculateCoverage(mData.WorldPos, area);
-                    if (cov.IsCovered)
-                    {
-                        this.coveredMonolithIds.Add(mData.EntityId);
-                        if (mData.EntityAddress != IntPtr.Zero) this.coveredMonoliths.Add(mData.EntityAddress);
-                        mData.IsCoveredByExplosive = true;
-                        mData.DistanceToExplosive = cov.DistanceWorld;
-                    }
-                    else if (mData.ActivatedState < 5) // Not detonated and no bomb in range -> update to un-covered
-                    {
-                        this.coveredMonolithIds.Remove(mData.EntityId);
-                        if (mData.EntityAddress != IntPtr.Zero) this.coveredMonoliths.Remove(mData.EntityAddress);
-                        mData.IsCoveredByExplosive = false;
-                        mData.DistanceToExplosive = cov.DistanceWorld;
-                    }
-                    else if (this.coveredMonolithIds.Contains(mData.EntityId) || (mData.EntityAddress != IntPtr.Zero && this.coveredMonoliths.Contains(mData.EntityAddress)))
-                    {
-                        mData.IsCoveredByExplosive = true;
                     }
 
                     this.trackedMonoliths[key] = mData;
@@ -3204,21 +3177,10 @@ namespace NinjaPricer
 
             if (this.trackedMonoliths.Count == 0) return new List<MonolithData>();
 
-            // 2. Build list: out-of-bubble monoliths retain their remembered coverage state
             var monoliths = new List<MonolithData>(this.trackedMonoliths.Count);
             foreach (var (key, mData) in this.trackedMonoliths)
             {
                 if (mData.IsCompleted) continue;
-
-                if (this.coveredMonolithIds.Contains(mData.EntityId) || (mData.EntityAddress != IntPtr.Zero && this.coveredMonoliths.Contains(mData.EntityAddress)))
-                {
-                    mData.IsCoveredByExplosive = true;
-                }
-                else
-                {
-                    mData.IsCoveredByExplosive = false;
-                }
-
                 monoliths.Add(mData);
             }
 
@@ -3562,9 +3524,8 @@ namespace NinjaPricer
                     ? ((Math.Min(bgAlpha, 0xC0u)) << 24) | 0x00202020u
                     : (bgAlpha << 24) | 0x00101010u;
                 dl.AddRectFilled(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), chipBg, 4f);
-                uint borderCol = m.IsCompleted ? 0x88787878u : (m.IsCoveredByExplosive ? 0xFF30F030u : 0x88404040u);
-                float borderThick = m.IsCoveredByExplosive && !m.IsCompleted ? 2.0f : 1.0f;
-                dl.AddRect(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), borderCol, 4f, ImDrawFlags.None, borderThick);
+                uint borderCol = m.IsCompleted ? 0x88787878u : 0x88404040u;
+                dl.AddRect(new Vector2(chipX0, chipY0), new Vector2(chipX1, chipY1), borderCol, 4f, ImDrawFlags.None, 1.0f);
 
                 float renderX = chipX0 + padX;
 
@@ -4003,10 +3964,6 @@ namespace NinjaPricer
                         ? ImGui.GetColorU32(ImGuiCol.HeaderHovered)
                         : (headerOpen ? ImGui.GetColorU32(ImGuiCol.Header) : ImGui.GetColorU32(ImGuiCol.FrameBg));
                     dl.AddRectFilled(hmin, hmax, bgCol, 3f);
-                    if (m.IsCoveredByExplosive && !m.IsCompleted)
-                    {
-                        dl.AddRect(hmin, hmax, 0xFF30F030u, 3f, ImDrawFlags.None, 1.5f);
-                    }
 
                     // Header decorations drawn with dl
                     float midY = (hmin.Y + hmax.Y) * 0.5f;
