@@ -23,6 +23,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private static readonly Regex WikiTagRegex = new(@"\[(?:[^\|\]]*\|)?([^\]]+)\]", RegexOptions.Compiled);
         private static readonly Regex FormattedTagRegex = new(@"<[^>]+>\{(.*?)\}", RegexOptions.Compiled);
         private static readonly Regex HtmlTagRegex = new(@"<[^>]+>", RegexOptions.Compiled);
+        private static readonly Regex WhitespaceRegex = new(@"[ \t]+", RegexOptions.Compiled);
 
         /// <summary>
         ///     Cleans raw PoE UI markup strings into clean, human-readable modifier text.
@@ -36,9 +37,26 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 return string.Empty;
             }
 
-            var text = FormattedTagRegex.Replace(raw, "");
-            text = WikiTagRegex.Replace(text, "");
+            var text = raw;
+
+            // 1. Recursively unpack formatted tags like <fire>{+25% to Fire Resistance} -> +25% to Fire Resistance
+            for (var pass = 0; pass < 3 && FormattedTagRegex.IsMatch(text); pass++)
+            {
+                text = FormattedTagRegex.Replace(text, "$1");
+            }
+
+            // 2. Recursively unpack wiki/bracket tags like [Cold Damage|Cold] or [Ignite] -> Cold / Ignite
+            for (var pass = 0; pass < 3 && WikiTagRegex.IsMatch(text); pass++)
+            {
+                text = WikiTagRegex.Replace(text, "$1");
+            }
+
+            // 3. Strip any leftover bare markup tags like <red>, </red>, <color=...>, etc.
             text = HtmlTagRegex.Replace(text, string.Empty);
+
+            // 4. Normalize multiple spaces/tabs into a single space
+            text = WhitespaceRegex.Replace(text, " ");
+
             return text.Trim();
         }
 
