@@ -216,15 +216,6 @@ namespace NinjaPricer
         private readonly Dictionary<long, MonolithData> cachedAreaMonoliths = new();
         private string newProfileInput = string.Empty;
 
-        private static bool IsIronRune(string? name)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return false;
-            return name.Contains("Iron Rune", StringComparison.OrdinalIgnoreCase) ||
-                   name.Equals("Lesser Iron Rune", StringComparison.OrdinalIgnoreCase) ||
-                   name.Equals("Iron Rune", StringComparison.OrdinalIgnoreCase) ||
-                   name.Equals("Greater Iron Rune", StringComparison.OrdinalIgnoreCase) ||
-                   name.Equals("Perfect Iron Rune", StringComparison.OrdinalIgnoreCase);
-        }
 
         // Ground tags cache
         private struct GroundTag
@@ -1743,14 +1734,6 @@ namespace NinjaPricer
             bool prioritizeWeight = this.Settings.RsPrioritizeWeight;
             if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_prioritize_weight", "Prioritize highest weight (+)", "RsPrioritizeWeightCheck"), ref prioritizeWeight)) { this.Settings.RsPrioritizeWeight = prioritizeWeight; this.SaveSettings(); }
 
-            bool hideIron = this.Settings.RsHideIronRunes;
-            if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_hide_iron_runes", "Hide Iron Runes (reduce clutter)", "RsHideIronCheck"), ref hideIron))
-            {
-                this.Settings.RsHideIronRunes = hideIron;
-                this.SaveSettings();
-            }
-            ImGuiHelper.ToolTip(this.PluginText.T("settings.runeshape_hide_iron_runes.tooltip", "Hides low-value Iron Rune recipes and price chips from the in-game selection panel and Runeshape overlay window."));
-
             bool compactRows = this.Settings.RsCompactRows;
             if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_compact_rows", "Compact layout (optimized for 1080p / FullHD)", "RsCompactRowsCheck"), ref compactRows))
             {
@@ -2827,8 +2810,6 @@ namespace NinjaPricer
                 NinjaRuneshapeHelper.ParseRuneforgeRowText(rawText, out var count, out var itemName);
                 if (string.IsNullOrWhiteSpace(itemName)) continue;
 
-                if (this.Settings.RsHideIronRunes && (IsIronRune(itemName) || IsIronRune(rawText))) continue;
-
                 if (!PluginUiElementReflection.TryGetAbsoluteRect(row, out var rowPos, out var rowSize)) continue;
                 if (rowSize.X <= 0f || rowSize.Y <= 0f) continue;
 
@@ -3058,8 +3039,6 @@ namespace NinjaPricer
                     }
 
                     string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
-                    if (this.Settings.RsHideIronRunes && (IsIronRune(rName) || IsIronRune(rec.Reward) || IsIronRune(rec.Description))) continue;
-
                     int count = Math.Max(1, rec.RewardCount);
                     float chaos = 0f;
                     float displayVal = 0f;
@@ -3615,8 +3594,6 @@ namespace NinjaPricer
                         }
 
                         string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
-                        if (this.Settings.RsHideIronRunes && (IsIronRune(rName) || IsIronRune(rec.Reward) || IsIronRune(rec.Description))) continue;
-
                         int count = Math.Max(1, rec.RewardCount);
                         bool isPriced = false;
                         float chaos = 0f;

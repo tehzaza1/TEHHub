@@ -123,8 +123,6 @@
   "ninjapricer.expedition.new_profile_hint": "ชื่อโปรไฟล์",
   "ninjapricer.runeshape.sort_weight": "น้ำหนัก",
   "ninjapricer.runeshape.sort_price": "ราคา",
-  "settings.runeshape_hide_iron_runes": "ซ่อนสูตร Iron Runes (ลดความรก)",
-  "settings.runeshape_hide_iron_runes.tooltip": "ซ่อนสูตรและป้ายราคาของ Iron Runes ทั้งในหน้าต่าง Runeshape และในแผงเลือกรูนในเกม",
   "settings.runeshape_compact_rows": "กระชับความสูงแถว (สำหรับจอ 1080p / FullHD)",
   "settings.runeshape_row_scale": "สเกลความสูงแถว"
 }

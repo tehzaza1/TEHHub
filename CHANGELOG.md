@@ -2,15 +2,19 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.65 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Revert Iron Rune Filter**:
+  - Removed Iron Rune recipe filter to restore full default recipe listings as intended (clarified user request regarding map icons vs. iron runes).
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.64 — 2026-09-16 [Plugin Update — NinjaPricer / Radar] & [SDK / Core Framework Update]
 
 - **`NinjaPricer` / `Radar` / Core UI Overlap Prevention & Clutter Reduction**:
   - **Auto-Hide Overlays When In-Game Rune Selection Panel Is Open**:
     - `ImportantUiElements.IsAnyLargePanelOpen` now incorporates `RuneshapeCombinationsPanel` visibility, causing Radar LargeMap drawings and full-screen map badges to suppress automatically while browsing recipes at a pillar.
     - `NinjaPricer` 3D world markers & LargeMap monolith badges now explicitly return early when `RuneshapeCombinationsPanel` is open, eliminating UI clutter and overlay stacking directly over the in-game pillar selection menu.
-  - **Hide Iron Runes Option**:
-    - Added `RsHideIronRunes` setting (enabled by default) with full English and Thai localization.
-    - Filters out low-value Iron Rune recipes ("Iron Rune", "Lesser Iron Rune", "Greater Iron Rune", "Perfect Iron Rune") from both the in-game `RuneshapeCombinationsPanel` price tags/highlights and the floating Runeshape overlay window.
   - **FullHD / 1080p Compact Runeshape Window Layout**:
     - Added `RsCompactRows` (default `true`) and `RsRowScale` (slider `0.5x` - `1.0x`, default `0.85x`) settings.
     - Compacts header heights, rune socket sizes, badge dimensions, and vertical item padding so all 15+ Expedition monolith rows fit cleanly on 1080p FullHD displays without overflowing or requiring excessive scrolling.
