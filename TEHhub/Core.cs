@@ -182,12 +182,12 @@ namespace TEHhub
         {
             if (ImGui.CollapsingHeader("GGPK String Data Cache"))
             {
-                GgpkStringCache.ToImGui();
+                GgpkStringCache.ToImGui("GgpkStringCache");
             }
 
             if (ImGui.CollapsingHeader("GGPK Object Cache"))
             {
-                GgpkObjectCache.ToImGui();
+                GgpkObjectCache.ToImGui("GgpkObjectCache");
             }
         }
 

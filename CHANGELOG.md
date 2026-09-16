@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.61 — 2026-09-16 [SDK / Core Framework Update]
+
+- **Core Framework: Fix ImGui Duplicate ID Conflict in GGPK Caches**:
+  - Added unique identifier parameter and `PushID`/`PopID` boundary to `GgpkAddresses.ToImGui()`.
+  - Resolved `Programmer error: 2 visible items with conflicting ID` warning when viewing both `GGPK String Data Cache` and `GGPK Object Cache` in Memory diagnostics.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; passed test suites.
+
 ## 1.8.60 — 2026-09-16 [SDK / Core Framework Update]
 
 - **Core Framework: Data Visualization 2.0 (12-Tab Inspector Suite)**:

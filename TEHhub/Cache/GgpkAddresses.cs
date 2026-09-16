@@ -47,12 +47,14 @@ namespace TEHhub.Cache
         /// <summary>
         ///     Draws a widget for this class.
         /// </summary>
-        public void ToImGui()
+        /// <param name="id">Unique identifier for the ImGui ID stack.</param>
+        public void ToImGui(string id = "GGPK Addresses")
         {
+            ImGui.PushID(id);
             ImGui.Text($"Total Size: {this.cache.Count}");
-            if (ImGui.TreeNode("GGPK Addresses"))
+            if (ImGui.TreeNode($"GGPK Addresses###{id}"))
             {
-                foreach(var (key, value) in this.cache)
+                foreach (var (key, value) in this.cache)
                 {
                     var addr = $"0x{key.ToInt64():X}";
                     ImGuiHelper.DisplayTextAndCopyOnClick($"{addr} - {value}", addr);
@@ -60,6 +62,8 @@ namespace TEHhub.Cache
 
                 ImGui.TreePop();
             }
+
+            ImGui.PopID();
         }
 
         private IEnumerable<Wait> OnGameClose()
