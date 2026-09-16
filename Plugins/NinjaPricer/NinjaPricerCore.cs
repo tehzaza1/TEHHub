@@ -3136,9 +3136,9 @@ namespace NinjaPricer
         private void DrawMonolithWorldMarkers(List<MonolithData> monoliths)
         {
             var gameUi = Core.States.InGameStateObject?.GameUi;
-            if (gameUi != null && gameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && gameUi.RuneshapeCombinationsPanel.IsVisible)
+            if (gameUi != null && (gameUi.IsAnyLargePanelOpen || (gameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && gameUi.RuneshapeCombinationsPanel.IsVisible)))
             {
-                return; // Hide world markers when in-game rune selection window is open
+                return; // Hide world markers when in-game rune selection window or any large panel/window is open
             }
 
             var world = Core.States.InGameStateObject?.CurrentWorldInstance;

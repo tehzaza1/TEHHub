@@ -369,6 +369,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.LeftPanel.IsVisible ||
             this.RightPanel.IsVisible ||
             this.WorldMapPanel.IsVisible ||
+            this.Atlas.IsVisible ||
             this.AtlasSkillsPanel.IsVisible ||
             this.TempleConsole.IsVisible ||
             this.CurrencyExchangePanel.IsVisible ||
