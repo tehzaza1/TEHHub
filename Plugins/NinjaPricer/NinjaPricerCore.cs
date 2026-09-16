@@ -3841,6 +3841,8 @@ namespace NinjaPricer
                 playerPos = new Vector3(wp.X, wp.Y, wp.Z);
             }
 
+            bool isDetonated = false;
+
             // 1. Scan AwakeEntities to update / remember newly placed or visible nodes
             var awake = area.AwakeEntities;
             if (awake != null)
@@ -3850,6 +3852,21 @@ namespace NinjaPricer
                     if (e == null || !e.IsValid || string.IsNullOrEmpty(e.Path)) continue;
                     var path = e.Path;
                     if (!path.Contains("Expedition", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    // Check if detonator/fuse/encounter has been activated (detonated: activated >= 1)
+                    if (e.TryGetComponent<StateMachine>(out var sm) && sm.States != null)
+                    {
+                        foreach (var s in sm.States)
+                        {
+                            if (string.Equals(s.Name, "activated", StringComparison.OrdinalIgnoreCase) && s.Value >= 1)
+                            {
+                                isDetonated = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isDetonated) break;
 
                     if (e.TryGetComponent<Render>(out var render, false) && render != null)
                     {
@@ -3861,7 +3878,7 @@ namespace NinjaPricer
                         {
                             this.rememberedDetonatorPos = pos;
                         }
-                        else if (path.Contains("ConnectorPole", StringComparison.OrdinalIgnoreCase))
+                        else if (path.Contains("Fuse", StringComparison.OrdinalIgnoreCase))
                         {
                             this.rememberedChainNodes[e.Id] = new CachedChainNode { Id = e.Id, WorldPos = pos, Type = RuneChainNodeType.ConnectorPole };
                         }
@@ -3871,6 +3888,14 @@ namespace NinjaPricer
                         }
                     }
                 }
+            }
+
+            // Once detonated (activated >= 1), immediately clear all chain lines and return
+            if (isDetonated)
+            {
+                this.rememberedChainNodes.Clear();
+                this.rememberedDetonatorPos = Vector3.Zero;
+                return;
             }
 
             // 2. Proximity-Based Invalidation:
@@ -3947,6 +3972,8 @@ namespace NinjaPricer
                 orderedChain[0].ExplosiveIndex = 1;
             }
 
+            const float MaxWireReachWorldSq = 1400f * 1400f; // Max placement reach threshold
+
             var currentPos = orderedChain.Count > 0 ? orderedChain[^1].WorldPos : Vector3.Zero;
             while (unvisited.Count > 0)
             {
@@ -3962,7 +3989,7 @@ namespace NinjaPricer
                     }
                 }
 
-                if (bestIdx >= 0)
+                if (bestIdx >= 0 && bestDistSq <= MaxWireReachWorldSq)
                 {
                     var chosen = unvisited[bestIdx];
                     var node = new RuneChainNode { WorldPos = chosen.Pos, Type = chosen.Type };
@@ -3977,7 +4004,7 @@ namespace NinjaPricer
                 }
                 else
                 {
-                    break;
+                    break; // Stop chaining: do not jump across the map to unconnected nodes
                 }
             }
 
