@@ -88,6 +88,9 @@ namespace NinjaPricer
         public bool RsShowRowPrice { get; set; } = true;
         public bool RsShowRowPropRunes { get; set; } = true;
         public bool RsPrioritizeWeight { get; set; } = true;
+        public bool RsHideIronRunes { get; set; } = true;
+        public bool RsCompactRows { get; set; } = true;
+        public float RsRowScale { get; set; } = 0.85f;
         public HashSet<uint> RuneshapeCollapsed { get; set; } = new();
 
         // Category Toggles

@@ -375,6 +375,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.GemcuttingPanel.IsVisible ||
             this.SupportGemcuttingPanel.IsVisible ||
             this.SekhemasTrialMapPanel.IsVisible ||
+            (this.RuneshapeCombinationsPanel.Address != IntPtr.Zero && this.RuneshapeCombinationsPanel.IsVisible) ||
             this.IsPassiveSkillTreeOpen;
 
         /// <summary>

@@ -213,7 +213,18 @@ namespace NinjaPricer
         private Vector2 runeshapeWinRectMax = Vector2.Zero;
         private bool runeshapeWinRectValid = false;
         private readonly HashSet<IntPtr> coveredMonoliths = new();
+        private readonly Dictionary<long, MonolithData> cachedAreaMonoliths = new();
         private string newProfileInput = string.Empty;
+
+        private static bool IsIronRune(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            return name.Contains("Iron Rune", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("Lesser Iron Rune", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("Iron Rune", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("Greater Iron Rune", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("Perfect Iron Rune", StringComparison.OrdinalIgnoreCase);
+        }
 
         // Ground tags cache
         private struct GroundTag
@@ -660,6 +671,7 @@ namespace NinjaPricer
                 this.lastGroundScanUtc = DateTime.MinValue;
                 this.lastInvScanUtc = DateTime.MinValue;
                 this.coveredMonoliths.Clear();
+                this.cachedAreaMonoliths.Clear();
             }
         }
 
@@ -1731,6 +1743,33 @@ namespace NinjaPricer
             bool prioritizeWeight = this.Settings.RsPrioritizeWeight;
             if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_prioritize_weight", "Prioritize highest weight (+)", "RsPrioritizeWeightCheck"), ref prioritizeWeight)) { this.Settings.RsPrioritizeWeight = prioritizeWeight; this.SaveSettings(); }
 
+            bool hideIron = this.Settings.RsHideIronRunes;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_hide_iron_runes", "Hide Iron Runes (reduce clutter)", "RsHideIronCheck"), ref hideIron))
+            {
+                this.Settings.RsHideIronRunes = hideIron;
+                this.SaveSettings();
+            }
+            ImGuiHelper.ToolTip(this.PluginText.T("settings.runeshape_hide_iron_runes.tooltip", "Hides low-value Iron Rune recipes and price chips from the in-game selection panel and Runeshape overlay window."));
+
+            bool compactRows = this.Settings.RsCompactRows;
+            if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_compact_rows", "Compact layout (optimized for 1080p / FullHD)", "RsCompactRowsCheck"), ref compactRows))
+            {
+                this.Settings.RsCompactRows = compactRows;
+                this.SaveSettings();
+            }
+
+            if (this.Settings.RsCompactRows)
+            {
+                ImGui.SameLine();
+                float rScale = this.Settings.RsRowScale;
+                ImGui.SetNextItemWidth(140f);
+                if (ImGui.SliderFloat(this.PluginText.Label("settings.runeshape_row_scale", "Row scale", "RsRowScaleSlider"), ref rScale, 0.5f, 1.2f, "%.2f"))
+                {
+                    this.Settings.RsRowScale = rScale;
+                    this.SaveSettings();
+                }
+            }
+
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
@@ -2788,6 +2827,8 @@ namespace NinjaPricer
                 NinjaRuneshapeHelper.ParseRuneforgeRowText(rawText, out var count, out var itemName);
                 if (string.IsNullOrWhiteSpace(itemName)) continue;
 
+                if (this.Settings.RsHideIronRunes && (IsIronRune(itemName) || IsIronRune(rawText))) continue;
+
                 if (!PluginUiElementReflection.TryGetAbsoluteRect(row, out var rowPos, out var rowSize)) continue;
                 if (rowSize.X <= 0f || rowSize.Y <= 0f) continue;
 
@@ -2926,26 +2967,34 @@ namespace NinjaPricer
         private List<MonolithData> GetActiveMonoliths()
         {
             var area = Core.States.InGameStateObject?.CurrentAreaInstance;
-            var monoliths = new List<MonolithData>();
-            if (area?.AwakeEntities != null)
-            {
-                var placedExplosives = ExpeditionMechanics.GetPlacedExplosives(area);
-                bool hasPlacedExplosives = placedExplosives.Count > 0;
+            if (area == null) return new List<MonolithData>();
 
+            var placedExplosives = ExpeditionMechanics.GetPlacedExplosives(area);
+            bool hasPlacedExplosives = placedExplosives.Count > 0;
+
+            if (area.AwakeEntities != null)
+            {
                 foreach (var e in area.AwakeEntities.Values)
                 {
                     if (e.Path != null && e.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase))
                     {
                         if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
                         {
+                            long mKey = e.Address.ToInt64();
+
                             // Completed monolith (looted / missed) — clear sticky coverage and skip rendering (disappear)
                             if (mData.IsCompleted)
                             {
                                 this.coveredMonoliths.Remove(e.Address);
+                                if (this.cachedAreaMonoliths.TryGetValue(mKey, out var existing))
+                                {
+                                    existing.IsCompleted = true;
+                                    existing.IsCoveredByExplosive = false;
+                                }
                                 continue;
                             }
 
-                            // Check live coverage from currently placed explosives
+                            // Check live coverage from currently placed explosives (via ExpeditionMechanics which checks both live and cached explosive positions)
                             var cov = e.GetExpeditionExplosiveCoverage();
                             if (cov.IsCovered)
                             {
@@ -2968,10 +3017,23 @@ namespace NinjaPricer
                                 mData.DistanceToExplosive = cov.DistanceWorld;
                             }
 
-                            monoliths.Add(mData);
+                            this.cachedAreaMonoliths[mKey] = mData;
                         }
                     }
                 }
+            }
+
+            var monoliths = new List<MonolithData>();
+            foreach (var kvp in this.cachedAreaMonoliths)
+            {
+                var m = kvp.Value;
+                if (m.IsCompleted) continue;
+
+                if (this.coveredMonoliths.Contains(m.EntityAddress))
+                {
+                    m.IsCoveredByExplosive = true;
+                }
+                monoliths.Add(m);
             }
 
             if (monoliths.Count == 0) return monoliths;
@@ -2996,6 +3058,8 @@ namespace NinjaPricer
                     }
 
                     string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+                    if (this.Settings.RsHideIronRunes && (IsIronRune(rName) || IsIronRune(rec.Reward) || IsIronRune(rec.Description))) continue;
+
                     int count = Math.Max(1, rec.RewardCount);
                     float chaos = 0f;
                     float displayVal = 0f;
@@ -3092,6 +3156,12 @@ namespace NinjaPricer
 
         private void DrawMonolithWorldMarkers(List<MonolithData> monoliths)
         {
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            if (gameUi != null && gameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && gameUi.RuneshapeCombinationsPanel.IsVisible)
+            {
+                return; // Hide world markers when in-game rune selection window is open
+            }
+
             var world = Core.States.InGameStateObject?.CurrentWorldInstance;
             if (world == null || monoliths.Count == 0) return;
 
@@ -3479,9 +3549,12 @@ namespace NinjaPricer
                 int areaLevel = area?.CurrentAreaLevel ?? 0;
                 float lineH = ImGui.GetTextLineHeight();
                 float uiScale = Math.Clamp(this.Settings.UiScale, 0.5f, 2.5f);
-                float kSquareSz = Math.Max(lineH * 0.75f, 13f) * uiScale;
-                float slotSz = lineH * uiScale;
-                float slotGap = 3.0f * uiScale;
+                float rowScale = this.Settings.RsCompactRows ? Math.Clamp(this.Settings.RsRowScale, 0.5f, 1.0f) : 1.0f;
+                float effectiveScale = uiScale * rowScale;
+
+                float kSquareSz = Math.Max(lineH * 0.75f, 12f) * effectiveScale;
+                float slotSz = (lineH * 0.90f) * effectiveScale;
+                float slotGap = 2.0f * effectiveScale;
                 var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
 
                 var bgReg = this.GetRuneUiTexture("RuneBgRegular.png", ref this.runeBgRegularTex, ref this.runeBgRegularTried);
@@ -3518,6 +3591,11 @@ namespace NinjaPricer
                     }
                 });
 
+                if (this.Settings.RsCompactRows)
+                {
+                    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4f * uiScale, 2f * rowScale));
+                }
+
                 for (int mIdx = 0; mIdx < displayMonoliths.Count; mIdx++)
                 {
                     var m = displayMonoliths[mIdx];
@@ -3537,6 +3615,8 @@ namespace NinjaPricer
                         }
 
                         string rName = !string.IsNullOrEmpty(rec.Reward) ? rec.Reward : rec.Description;
+                        if (this.Settings.RsHideIronRunes && (IsIronRune(rName) || IsIronRune(rec.Reward) || IsIronRune(rec.Description))) continue;
+
                         int count = Math.Max(1, rec.RewardCount);
                         bool isPriced = false;
                         float chaos = 0f;
@@ -3615,7 +3695,7 @@ namespace NinjaPricer
 
                     // Colored square / badge for monolith (clean color without number text)
                     var dl = ImGui.GetWindowDrawList();
-                    float baseFrameH = ImGui.GetFrameHeight();
+                    float baseFrameH = ImGui.GetFrameHeight() * rowScale;
                     if (this.Settings.RsShowHdrColor)
                     {
                         float sqYOff = (baseFrameH > kSquareSz) ? (baseFrameH - kSquareSz) * 0.5f : 0f;
@@ -3623,20 +3703,20 @@ namespace NinjaPricer
                         dl.AddRectFilled(new Vector2(cp.X, cp.Y + sqYOff), new Vector2(cp.X + kSquareSz, cp.Y + sqYOff + kSquareSz), m.IsCompleted ? 0xFF787878u : mColor, 3f);
 
                         ImGui.Dummy(new Vector2(kSquareSz, baseFrameH));
-                        ImGui.SameLine();
+                        ImGui.SameLine(0f, 4f * effectiveScale);
                     }
 
                     // Custom header row without triangle arrow (collapsed by default until clicked)
                     bool headerOpen = this.expandedMonoliths.Contains(m.EntityAddress.ToInt64());
-                    float headerH = Math.Max(baseFrameH, slotSz + 4f);
+                    float headerH = Math.Max(baseFrameH, slotSz + 2f);
                     float availW = ImGui.GetContentRegionAvail().X;
 
                     // Ensure window layout reserves enough width for runes, price, and weight text
-                    float requiredRowW = 6.0f * uiScale
+                    float requiredRowW = 4.0f * effectiveScale
                         + dotsW
-                        + (bestPriced ? 10f + priceW : 0f)
-                        + (!string.IsNullOrEmpty(hdrWBuf) ? 10f + hdrWW : 0f)
-                        + 12f * uiScale;
+                        + (bestPriced ? 8f + priceW : 0f)
+                        + (!string.IsNullOrEmpty(hdrWBuf) ? 8f + hdrWW : 0f)
+                        + 8f * effectiveScale;
                     float btnW = Math.Max(availW, requiredRowW);
 
                     var hmin = ImGui.GetCursorScreenPos();
@@ -3656,10 +3736,10 @@ namespace NinjaPricer
                     uint bgCol = isHovered
                         ? ImGui.GetColorU32(ImGuiCol.HeaderHovered)
                         : (headerOpen ? ImGui.GetColorU32(ImGuiCol.Header) : ImGui.GetColorU32(ImGuiCol.FrameBg));
-                    dl.AddRectFilled(hmin, hmax, bgCol, 4f);
+                    dl.AddRectFilled(hmin, hmax, bgCol, 3f);
                     if (m.IsCoveredByExplosive && !m.IsCompleted)
                     {
-                        dl.AddRect(hmin, hmax, 0xFF30F030u, 4f, ImDrawFlags.None, 1.5f);
+                        dl.AddRect(hmin, hmax, 0xFF30F030u, 3f, ImDrawFlags.None, 1.5f);
                     }
 
                     // Header decorations drawn with dl
@@ -3668,7 +3748,7 @@ namespace NinjaPricer
                     uint txtCol = m.IsCompleted ? 0xDC969696u : 0xFFFFFFFFu;
 
                     // Start runes forward (directly after left margin, no triangle arrow)
-                    float xl = hmin.X + 6.0f * uiScale;
+                    float xl = hmin.X + 4.0f * effectiveScale;
 
                     // 1) Rune sockets
                     if (this.Settings.RsShowHdrRunes)
@@ -3893,7 +3973,15 @@ namespace NinjaPricer
                         if (m.IsCompleted) ImGui.PopStyleVar();
                     }
 
-                    ImGui.Spacing();
+                    if (!this.Settings.RsCompactRows)
+                    {
+                        ImGui.Spacing();
+                    }
+                }
+
+                if (this.Settings.RsCompactRows)
+                {
+                    ImGui.PopStyleVar();
                 }
             }
 

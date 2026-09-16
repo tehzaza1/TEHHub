@@ -122,5 +122,9 @@
   "button.del_profile": "Del",
   "ninjapricer.expedition.new_profile_hint": "profile name",
   "ninjapricer.runeshape.sort_weight": "Weight",
-  "ninjapricer.runeshape.sort_price": "Price"
+  "ninjapricer.runeshape.sort_price": "Price",
+  "settings.runeshape_hide_iron_runes": "Hide Iron Runes (reduce clutter)",
+  "settings.runeshape_hide_iron_runes.tooltip": "Hides low-value Iron Rune recipes and price chips from the in-game selection panel and Runeshape overlay window.",
+  "settings.runeshape_compact_rows": "Compact row layout (optimized for 1080p / FullHD)",
+  "settings.runeshape_row_scale": "Row height scale"
 }

@@ -546,8 +546,9 @@ namespace Radar
 
             var isLargeMapVisible = largeMap.Address != IntPtr.Zero && largeMap.IsVisible;
             var isWorldMapOpen = Core.States.InGameStateObject.GameUi.WorldMapPanel.Address != IntPtr.Zero && Core.States.InGameStateObject.GameUi.WorldMapPanel.IsVisible;
+            var isRuneshapeOpen = Core.States.InGameStateObject.GameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && Core.States.InGameStateObject.GameUi.RuneshapeCombinationsPanel.IsVisible;
 
-            if (isLargeMapVisible && !isWorldMapOpen)
+            if (isLargeMapVisible && !isWorldMapOpen && !isRuneshapeOpen)
             {
                 if (this.largeMapDiagonalLength <= 0)
                 {
