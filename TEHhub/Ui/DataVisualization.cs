@@ -243,7 +243,14 @@ namespace TEHhub.Ui
                             ImGui.Text(se.RawStage.ToString());
 
                             ImGui.TableNextColumn();
-                            ImGui.Text($"{se.TimeLeft:F1}s");
+                            if (float.IsInfinity(se.TimeLeft) || float.IsNaN(se.TimeLeft) || se.TimeLeft >= 86400f)
+                            {
+                                ImGui.TextDisabled("inf");
+                            }
+                            else
+                            {
+                                ImGui.Text($"{se.TimeLeft:F1}s");
+                            }
 
                             ImGui.TableNextColumn();
                             if (ImGui.SmallButton($"Copy##{name}"))
