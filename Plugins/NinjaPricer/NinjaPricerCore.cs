@@ -1473,14 +1473,14 @@ namespace NinjaPricer
 
             ImGui.Spacing();
             float ts = this.Settings.TextScale;
-            if (ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Text size", "TextScaleSlider"), ref ts, 0.5f, 2.5f, "%.1f"))
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.font_size", "Text size (Ninja / Item prices)", "TextScaleSlider"), ref ts, 0.5f, 2.5f, "%.1f"))
             {
                 this.Settings.TextScale = ts;
                 this.SaveSettings();
             }
 
             float us = this.Settings.UiScale;
-            if (ImGui.SliderFloat(this.PluginText.Label("settings.ui_size", "UI size", "UiScaleSlider"), ref us, 0.5f, 2.5f, "%.1f"))
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.ui_size", "UI size (Ninja / Item prices)", "UiScaleSlider"), ref us, 0.5f, 2.5f, "%.1f"))
             {
                 this.Settings.UiScale = us;
                 this.SaveSettings();
@@ -1651,6 +1651,21 @@ namespace NinjaPricer
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.show_monolith_markers.tooltip", "Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world."));
+
+            ImGui.Spacing();
+            float expTs = this.Settings.ExpeditionTextScale;
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.expedition_font_size", "Text size (Expedition / Runeshape)", "ExpTextScaleSlider"), ref expTs, 0.5f, 2.5f, "%.1f"))
+            {
+                this.Settings.ExpeditionTextScale = expTs;
+                this.SaveSettings();
+            }
+
+            float expUs = this.Settings.ExpeditionUiScale;
+            if (ImGui.SliderFloat(this.PluginText.Label("settings.expedition_ui_size", "UI size (Expedition / LargeMap)", "ExpUiScaleSlider"), ref expUs, 0.5f, 2.5f, "%.1f"))
+            {
+                this.Settings.ExpeditionUiScale = expUs;
+                this.SaveSettings();
+            }
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -3239,8 +3254,8 @@ namespace NinjaPricer
                 bool isMinimal = this.Settings.RsMinimalMapBadges;
 
                 // 1) Sockets row sizing
-                float uiScale = Math.Clamp(this.Settings.UiScale, 0.5f, 2.5f);
-                float textScale = Math.Clamp(this.Settings.TextScale, 0.5f, 2.5f);
+                float uiScale = Math.Clamp(this.Settings.ExpeditionUiScale, 0.5f, 2.5f);
+                float textScale = Math.Clamp(this.Settings.ExpeditionTextScale, 0.5f, 2.5f);
                 float fontSize = ImGui.GetFontSize() * textScale;
 
                 float slotSz = 22f * uiScale;
@@ -3495,7 +3510,7 @@ namespace NinjaPricer
             bool open = ImGui.Begin(this.PluginText.Title("ninjapricer.runeshape.window_title", "Runeshape", "RuneshapeWindow"), ref keepOpen, flags);
             this.Settings.RuneshapeWinCollapsed = !open;
 
-            float fontScale = Math.Clamp(this.Settings.TextScale, 0.5f, 2.5f);
+            float fontScale = Math.Clamp(this.Settings.ExpeditionTextScale, 0.5f, 2.5f);
             ImGui.SetWindowFontScale(fontScale);
 
             var curPos = ImGui.GetWindowPos();
@@ -3527,7 +3542,7 @@ namespace NinjaPricer
             var wTex = this.GetRuneUiTexture("Weight.png", ref this.rsWeightIconTex, ref this.rsWeightIconTried);
             var pTex = this.GetRuneUiTexture("Price.png", ref this.rsPriceIconTex, ref this.rsPriceIconTried);
 
-            // Sort mode toggle bar (Unified Icon + Text single button) + Expand/Collapse All
+            // Sort mode toggle bar (Unified Icon + Text single button)
             {
                 bool byWeight = this.Settings.RsPrioritizeWeight;
                 string wText = this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight");
@@ -3547,41 +3562,6 @@ namespace NinjaPricer
                     this.SaveSettings();
                 }
 
-                ImGui.SameLine(0f, 6f);
-                float btnH = ImGui.GetTextLineHeight() + 6f;
-                if (ImGui.Button("+###rs_exp_all", new Vector2(btnH, btnH)))
-                {
-                    foreach (var m in monoliths)
-                    {
-                        long mAddr = m.EntityAddress != IntPtr.Zero ? m.EntityAddress.ToInt64() : (long)m.WorldPos.GetHashCode();
-                        this.expandedMonoliths.Add(mAddr);
-                    }
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Expand all");
-
-                ImGui.SameLine(0f, 2f);
-                if (ImGui.Button("-###rs_col_all", new Vector2(btnH, btnH)))
-                {
-                    this.expandedMonoliths.Clear();
-                }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Collapse all");
-
-                ImGui.SameLine(0f, 6f);
-                bool mini = this.Settings.RsMinimalMapBadges;
-                if (mini)
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.55f, 0.35f, 0.15f, 1f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.68f, 0.45f, 0.20f, 1f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.78f, 0.55f, 0.25f, 1f));
-                }
-                if (ImGui.Button(mini ? "Mini###rs_mini_toggle" : "Full###rs_mini_toggle", new Vector2(btnH * 1.8f, btnH)))
-                {
-                    this.Settings.RsMinimalMapBadges = !mini;
-                    this.SaveSettings();
-                }
-                if (mini) ImGui.PopStyleColor(3);
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(mini ? "Map Marker Mode: Minimal (Color + Price only). Click to switch to Full." : "Map Marker Mode: Full (Runes + Info). Click to switch to Minimal.");
-
                 ImGui.Separator();
             }
 
@@ -3593,20 +3573,21 @@ namespace NinjaPricer
             {
                 int areaLevel = area?.CurrentAreaLevel ?? 0;
                 float lineH = ImGui.GetTextLineHeight();
-                float uiScale = Math.Clamp(this.Settings.UiScale, 0.5f, 2.5f);
+                float uiScale = Math.Clamp(this.Settings.ExpeditionUiScale, 0.5f, 2.5f);
                 float rowScale = this.Settings.RsCompactRows ? Math.Clamp(this.Settings.RsRowScale, 0.5f, 1.0f) : 1.0f;
                 float effectiveScale = uiScale * rowScale;
 
                 float kSquareSz = Math.Max(lineH * 0.75f, 12f) * effectiveScale;
-                float slotSz = (lineH * 0.90f) * effectiveScale;
-                float slotGap = 2.0f * effectiveScale;
+                float slotSz = Math.Max(lineH * 0.65f, 10f) * effectiveScale;
+                float slotGap = 2f * effectiveScale;
                 var curTex = this.GetCurrencyTexture(this.Settings.DisplayCurrency);
 
                 var bgReg = this.GetRuneUiTexture("RuneBgRegular.png", ref this.runeBgRegularTex, ref this.runeBgRegularTried);
                 var bgPur = this.GetRuneUiTexture("RuneBgPurple.png", ref this.runeBgPurpleTex, ref this.runeBgPurpleTried);
                 var glow = this.GetRuneUiTexture("RunePropagation.png", ref this.runePropagationTex, ref this.runePropagationTried);
 
-                var displayMonoliths = monoliths.ToList();
+                // Sort monoliths
+                var displayMonoliths = new List<MonolithData>(monoliths);
                 displayMonoliths.Sort((a, b) =>
                 {
                     int compCmp = a.IsCompleted.CompareTo(b.IsCompleted);
@@ -3645,9 +3626,7 @@ namespace NinjaPricer
                     float lineHBtn = ImGui.GetTextLineHeight();
                     Vector2 wSz = ImGui.CalcTextSize(this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight"));
                     Vector2 pSz = ImGui.CalcTextSize(this.PluginText.T("ninjapricer.runeshape.sort_price", "Price"));
-                    float sbH = lineHBtn + 6f;
-                    float miniBtnW = sbH * 1.8f;
-                    float sortBarW = (padX * 2 + lineHBtn + 6f + wSz.X) + 4f + (padX * 2 + lineHBtn + 6f + pSz.X) + 6f + (sbH * 2 + 4f) + 6f + miniBtnW;
+                    float sortBarW = (padX * 2 + lineHBtn + 6f + wSz.X) + 4f + (padX * 2 + lineHBtn + 6f + pSz.X);
                     if (sortBarW > maxContentW) maxContentW = sortBarW;
                 }
 

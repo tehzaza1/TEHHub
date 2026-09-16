@@ -63,8 +63,8 @@
   "ninjapricer.display.style_icon": "ไอคอนเงินตรา",
   "ninjapricer.display.style_text": "ข้อความตัวอักษร",
   "ninjapricer.display.style_hint": "(ไอคอน = ค่าตัวเลข + รูปเหรียญเงินตรา)",
-  "settings.font_size": "ขนาดตัวอักษร (Text Size)",
-  "settings.ui_size": "ขนาด UI (UI Size)",
+  "settings.font_size": "ขนาดตัวอักษรราคาไอเทม (Text Size - Ninja)",
+  "settings.ui_size": "ขนาด UI และไอคอนราคาไอเทม (UI Size - Ninja)",
   "ninjapricer.display.ui_price_pos": "ตำแหน่งราคา (ใน Inventory / คลัง Stash)",
   "ninjapricer.display.gnd_price_pos": "ตำแหน่งราคา (ไอเทมตกบนพื้น)",
   "pos.top_left": "บนซ้าย",
@@ -130,5 +130,7 @@
   "ninjapricer.overlays.minimal_map_badges.tooltip": "ซ่อนแถบรูนและไอคอนของรางวัลบน LargeMap และในเกม แสดงเฉพาะสี่เหลี่ยมสีของเสา Monolith พร้อมราคาประเมินที่ดีที่สุด",
   "ninjapricer.expedition.window_header": "หน้าต่างลอยแสดงสูตร Runeshape (Movable Overlay Window)",
   "ninjapricer.expedition.header_elements": "องค์ประกอบหัวข้อแถวเสา (Header elements):",
-  "ninjapricer.expedition.expanded_elements": "องค์ประกอบแถวสูตรย่อยข้างในเมื่อคลิกกางออก (Expanded list elements):"
+  "ninjapricer.expedition.expanded_elements": "องค์ประกอบแถวสูตรย่อยข้างในเมื่อคลิกกางออก (Expanded list elements):",
+  "settings.expedition_font_size": "ขนาดตัวอักษร Expedition (Text Size - Expedition / Runeshape)",
+  "settings.expedition_ui_size": "ขนาด UI และป้าย Expedition (UI Size - LargeMap / 3D Markers)"
 }

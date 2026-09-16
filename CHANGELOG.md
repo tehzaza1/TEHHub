@@ -2,6 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.70 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Independent Text & UI Scaling for Ninja vs. Expedition + Clean Header Bar**:
+  - **Independent Scaling Sliders**:
+    - Separated `TextScale` & `UiScale` (for Ninja dropped items, inventory, stash, and ritual shop) from `ExpeditionTextScale` & `ExpeditionUiScale` (for LargeMap badges, 3D world markers, and Runeshape overlay).
+    - Added dedicated scaling sliders for Expedition right under the **Expedition** settings tab.
+  - **Removed `+`, `-`, and `Mini` / `Full` Buttons from Runeshape Sort Bar**:
+    - Cleaned up the Runeshape header bar to contain only the essential `Weight` and `Price` sort buttons, keeping the window compact and uncluttered.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; synced directly to installation directory.
+
 ## 1.8.69 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Expedition Tab UI Reorganization & LargeMap Settings Clarity**:
