@@ -141,6 +141,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private readonly List<AtlasMapNode> atlasMaps = new();
         private readonly List<AtlasRegionButton> atlasOceanButtons = new();
         private readonly List<PlayerMarker> atlasMarkers = new();
+        private readonly List<AreaMod> areaMods = new();
+        private readonly HashSet<string> areaModNames = new(StringComparer.OrdinalIgnoreCase);
+        private int areaModUpdateCounter = int.MaxValue;
         private readonly Dictionary<IntPtr, UiElementBaseOffset> pathOffsetCache = new(64);
         private readonly Dictionary<(IntPtr Address, int Index), IntPtr> childPathCache = new(128);
         private int atlasMapCacheFrameCounter = int.MaxValue;
@@ -285,6 +288,16 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
         /// <summary>Gets the Uncharted Waters region buttons currently materialized by the atlas panel.</summary>
         public IReadOnlyList<AtlasRegionButton> AtlasOceanButtons => this.atlasOceanButtons;
+
+        /// <summary>
+        ///     Gets the active area / map modifiers read from the game's UI hierarchy.
+        /// </summary>
+        public IReadOnlyList<AreaMod> AreaMods => this.areaMods;
+
+        /// <summary>
+        ///     Gets the set of active area / map modifier names read from the game's UI hierarchy.
+        /// </summary>
+        public HashSet<string> AreaModNames => this.areaModNames;
 
         /// <summary>
         ///     Gets the "you are here" marker children on the Atlas (fp 0x502EF3).
@@ -528,6 +541,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.RightPanel.Address = IntPtr.Zero;
             this.ChatParent.Address = IntPtr.Zero;
             this.atlasMaps.Clear();
+            this.areaMods.Clear();
+            this.areaModNames.Clear();
+            this.areaModUpdateCounter = int.MaxValue;
             this.atlasMapCacheFrameCounter = int.MaxValue;
             this.cachedAtlasMapCount = -1;
             this.SkillTreeNodesUiElements.Clear();
@@ -598,6 +614,29 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.SupportGemcuttingPanel.Address = ResolveChildAddress(this.Address, SupportGemcuttingPanelChildPath);
             this.RuneshapeCombinationsPanel.Address = this.ResolveRuneshapeCombinationsPanel();
             this.UpdateAtlasMapData();
+            this.UpdateAreaMods();
+        }
+
+        private void UpdateAreaMods()
+        {
+            if (++this.areaModUpdateCounter < 30 && this.areaMods.Count > 0)
+            {
+                return;
+            }
+
+            this.areaModUpdateCounter = 0;
+            var reader = Core.Process.Handle;
+            var mods = AreaModUiReader.ReadAreaMods(reader, this.Address);
+            if (mods.Count > 0)
+            {
+                this.areaMods.Clear();
+                this.areaModNames.Clear();
+                for (var i = 0; i < mods.Count; i++)
+                {
+                    this.areaMods.Add(mods[i]);
+                    this.areaModNames.Add(mods[i].RawName);
+                }
+            }
         }
 
         private void UpdateMapAddresses(ImportantUiElementsOffsets importantUi)

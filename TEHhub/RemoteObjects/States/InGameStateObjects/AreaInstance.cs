@@ -181,14 +181,28 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public float WorldToGridConvertor => TileStructure.TileToWorldConversion / TileStructure.TileToGridConversion;
 
         /// <summary>
-        ///     Gets the active area / map modifiers from ServerData.
+        ///     Gets the active area / map modifiers from UI or ServerData.
         /// </summary>
-        public IReadOnlyList<AreaMod> AreaMods => this.ServerDataObject.AreaMods;
+        public IReadOnlyList<AreaMod> AreaMods
+        {
+            get
+            {
+                var uiMods = Core.States.InGameStateObject.GameUi.AreaMods;
+                return uiMods.Count > 0 ? uiMods : this.ServerDataObject.AreaMods;
+            }
+        }
 
         /// <summary>
-        ///     Gets the set of active area / map modifier raw names from ServerData.
+        ///     Gets the set of active area / map modifier raw names from UI or ServerData.
         /// </summary>
-        public HashSet<string> AreaModNames => this.ServerDataObject.AreaModNames;
+        public HashSet<string> AreaModNames
+        {
+            get
+            {
+                var uiModNames = Core.States.InGameStateObject.GameUi.AreaModNames;
+                return uiModNames.Count > 0 ? uiModNames : this.ServerDataObject.AreaModNames;
+            }
+        }
 
         /// <summary>
         ///     Checks if an active area modifier exists with a name containing <paramref name="modNameFragment"/> (case-insensitive).
