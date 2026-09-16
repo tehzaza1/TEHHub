@@ -387,6 +387,15 @@ namespace TEHhub.Utils
         }
 
         /// <summary>
+        ///     Checks whether there are any placed explosives in the current area (live or persistently tracked).
+        /// </summary>
+        public static bool HasPlacedExplosives(AreaInstance? area = null)
+        {
+            var explosives = GetPlacedExplosives(area);
+            return explosives.Count > 0 || !TrackedExplosives.IsEmpty;
+        }
+
+        /// <summary>
         ///     Checks whether the entity path matches any known Expedition explosive path variants.
         ///     Explicitly excludes the detonator, fuse wire, connector poles, markers, and encounters.
         /// </summary>
