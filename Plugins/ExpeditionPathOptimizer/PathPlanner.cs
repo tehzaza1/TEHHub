@@ -8,123 +8,199 @@ namespace ExpeditionPathOptimizer
 
     public class PathPlanner
     {
-        public record PerPointLootScore(Vector2 Point, double ScoreDiff, int NewRelics, int Loot);
-        public record DetailedLootScore(List<PerPointLootScore> PerPointScore, double TotalScore, ExpeditionEnvironment Environment);
+        public record PerPointScoreInfo(Vector2 Point, double ScoreDiff, List<ExpeditionRemnant> NewRemnants, string? ActiveRune, double RuneScore);
+        public record DetailedLootScore(List<PerPointScoreInfo> PerPointScore, double TotalScore, ExpeditionEnvironment Environment);
 
-        private readonly Dictionary<object, double> lootValueTable = new(ReferenceEqualityComparer.Instance);
         private readonly ExpeditionPathOptimizerSettings settings;
-        private readonly int validatedPoints;
 
         public PathPlanner(ExpeditionPathOptimizerSettings settings)
         {
             this.settings = settings;
-            this.validatedPoints = this.settings.ValidatedIntermediatePoints + 1;
         }
 
         public void Init(ExpeditionEnvironment environment)
         {
-            this.lootValueTable.Clear();
-            foreach (var (_, loot) in environment.Loot)
+            foreach (var r in environment.Remnants)
             {
-                this.lootValueTable[loot] = loot switch
-                {
-                    RunicMonster => environment.IsLogbook ? this.settings.RunicMonsterLogbookWeight : this.settings.RunicMonsterWeight,
-                    Chest chest => this.settings.ChestWeights.GetValueOrDefault(chest.Type, 1.0f),
-                    NormalMonster => this.settings.NormalMonsterWeight,
-                    _ => 1.0
-                };
+                r.UpdateBaseRuneWeight(this.settings.RuneWeights);
             }
-            this.lootValueTable.TrimExcess();
         }
 
-        public double GetScore(List<Vector2> state, ExpeditionEnvironment environment)
+        public double GetScore(List<Vector2> path, ExpeditionEnvironment env)
         {
-            var relics = new HashSet<IExpeditionRelic>();
-            var lootList = new HashSet<IExpeditionLoot>();
-            double score = 0.0;
-
-            foreach (var explosionPoint in state)
+            if (path == null || path.Count == 0 || path.Count > env.MaxExplosions)
             {
-                foreach (var (_, relic) in environment.Relics.Where(x => Vector2.Distance(x.Pos, explosionPoint) <= environment.ExplosionRadius))
-                {
-                    relics.Add(relic);
-                }
-
-                double localScore = 0.0;
-                foreach (var (_, loot) in environment.Loot
-                             .Where(x => Vector2.Distance(x.Pos, explosionPoint) <= environment.ExplosionRadius)
-                             .Where(x => lootList.Add(x.Loot)))
-                {
-                    var (multiplier, sum) = relics
-                        .Select(x => x.GetScoreMultiplier(loot))
-                        .Aggregate((mult: 1.0, sum: 0.0), (a, b) => (a.mult * b.Multiplier, a.sum + b.Increase));
-
-                    if (this.lootValueTable.TryGetValue(loot, out var val))
-                    {
-                        localScore += val * multiplier * (1.0 + sum);
-                    }
-                    else
-                    {
-                        localScore += 1.0 * multiplier * (1.0 + sum);
-                    }
-                }
-
-                score += localScore;
+                return double.NegativeInfinity;
             }
 
-            return score;
+            int n = path.Count;
+            var finalTarget = env.FinalTarget;
+            if (finalTarget == null) return double.NegativeInfinity;
+
+            // Rule 1: Final bomb (path[n-1]) MUST hit finalTarget
+            var lastBomb = path[n - 1];
+            float distToFinal = Vector2.Distance(lastBomb, finalTarget.GridPos);
+            if (distToFinal > env.ExplosionRadius)
+            {
+                return double.NegativeInfinity;
+            }
+
+            var hitRemnants = new HashSet<ExpeditionRemnant>();
+            double totalScore = 0.0;
+            var prevPoint = env.StartingPoint;
+            string? activePropagatedRune = null;
+
+            for (int i = 0; i < n; i++)
+            {
+                var curPoint = path[i];
+                float stepDist = Vector2.Distance(prevPoint, curPoint);
+
+                // Rule 2: Step distance <= ExplosionRange
+                if (stepDist > env.ExplosionRange * 1.01f)
+                {
+                    return double.NegativeInfinity;
+                }
+
+                // Rule 3: Intermediate bombs (0 .. n-2) MUST NOT hit finalTarget
+                if (i < n - 1)
+                {
+                    if (Vector2.Distance(curPoint, finalTarget.GridPos) <= env.ExplosionRadius)
+                    {
+                        return double.NegativeInfinity;
+                    }
+
+                    // Rule 4: Reachability to final target in remaining steps
+                    int remainingSteps = n - 1 - i;
+                    float distRemaining = Vector2.Distance(curPoint, finalTarget.GridPos);
+                    if (distRemaining > (remainingSteps * env.ExplosionRange) + env.ExplosionRadius + 0.1f)
+                    {
+                        return double.NegativeInfinity;
+                    }
+                }
+
+                // Find newly covered remnants
+                int newRemnantsCount = 0;
+                foreach (var r in env.Remnants)
+                {
+                    if (Vector2.Distance(curPoint, r.GridPos) <= env.ExplosionRadius)
+                    {
+                        if (hitRemnants.Add(r))
+                        {
+                            newRemnantsCount++;
+                            // 1. Remnant Hit Base Score
+                            totalScore += this.settings.RemnantHitBaseScore;
+                            // 2. Slot Score
+                            totalScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
+                            // 3. Update Active Propagated Rune
+                            if (!string.IsNullOrEmpty(r.PropagatedRune))
+                            {
+                                activePropagatedRune = r.PropagatedRune;
+                            }
+                        }
+                    }
+                }
+
+                // 4. Rune Score (Base Weight, plus FinalRuneBonus on the last bomb entering Final)
+                if (!string.IsNullOrEmpty(activePropagatedRune))
+                {
+                    double baseW = this.settings.RuneWeights.GetValueOrDefault(activePropagatedRune, 20.0);
+                    double runeScore = (i == n - 1) ? (baseW + this.settings.FinalRuneBonus) : baseW;
+                    totalScore += runeScore;
+                }
+
+                // 5. Final Target Bonus on last bomb
+                if (i == n - 1)
+                {
+                    totalScore += this.settings.FinalTargetBonus;
+                }
+
+                // 6. Empty Bomb Penalty
+                if (newRemnantsCount == 0)
+                {
+                    totalScore -= this.settings.EmptyBombPenalty;
+                }
+
+                // 7. Travel Penalty
+                double travelPenalty = (stepDist / env.ExplosionRange) * this.settings.TravelPenaltyMultiplier;
+                totalScore -= travelPenalty;
+
+                prevPoint = curPoint;
+            }
+
+            return totalScore;
         }
 
-        public DetailedLootScore GetDetailedScore(List<Vector2> state, ExpeditionEnvironment environment)
+        public DetailedLootScore GetDetailedScore(List<Vector2> path, ExpeditionEnvironment env)
         {
-            var relics = new HashSet<IExpeditionRelic>();
-            var lootList = new HashSet<IExpeditionLoot>();
-            var scorePerPoint = new List<PerPointLootScore>();
-            double score = 0.0;
-
-            foreach (var explosionPoint in state)
+            var pointsScore = new List<PerPointScoreInfo>();
+            if (path == null || path.Count == 0 || env.FinalTarget == null)
             {
-                int newRelics = 0;
-                int newLoot = 0;
-
-                foreach (var (_, relic) in environment.Relics.Where(x => Vector2.Distance(x.Pos, explosionPoint) <= environment.ExplosionRadius))
-                {
-                    if (relics.Add(relic))
-                    {
-                        newRelics++;
-                    }
-                }
-
-                double localScore = 0.0;
-                foreach (var (_, loot) in environment.Loot
-                             .Where(x => Vector2.Distance(x.Pos, explosionPoint) <= environment.ExplosionRadius)
-                             .Where(x => lootList.Add(x.Loot)))
-                {
-                    newLoot++;
-                    var (multiplier, sum) = relics
-                        .Select(x => x.GetScoreMultiplier(loot))
-                        .Aggregate((mult: 1.0, sum: 0.0), (a, b) => (a.mult * b.Multiplier, a.sum + b.Increase));
-
-                    if (this.lootValueTable.TryGetValue(loot, out var val))
-                    {
-                        localScore += val * multiplier * (1.0 + sum);
-                    }
-                    else
-                    {
-                        localScore += 1.0 * multiplier * (1.0 + sum);
-                    }
-                }
-
-                scorePerPoint.Add(new PerPointLootScore(explosionPoint, localScore, newRelics, newLoot));
-                score += localScore;
+                return new DetailedLootScore(pointsScore, 0.0, env);
             }
 
-            return new DetailedLootScore(scorePerPoint, score, environment);
+            int n = path.Count;
+            var finalTarget = env.FinalTarget;
+            var hitRemnants = new HashSet<ExpeditionRemnant>();
+            double totalScore = 0.0;
+            var prevPoint = env.StartingPoint;
+            string? activePropagatedRune = null;
+
+            for (int i = 0; i < n; i++)
+            {
+                var curPoint = path[i];
+                float stepDist = Vector2.Distance(prevPoint, curPoint);
+                double localScore = 0.0;
+                var newHits = new List<ExpeditionRemnant>();
+
+                foreach (var r in env.Remnants)
+                {
+                    if (Vector2.Distance(curPoint, r.GridPos) <= env.ExplosionRadius)
+                    {
+                        if (hitRemnants.Add(r))
+                        {
+                            newHits.Add(r);
+                            localScore += this.settings.RemnantHitBaseScore;
+                            localScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
+                            if (!string.IsNullOrEmpty(r.PropagatedRune))
+                            {
+                                activePropagatedRune = r.PropagatedRune;
+                            }
+                        }
+                    }
+                }
+
+                double runeScore = 0.0;
+                if (!string.IsNullOrEmpty(activePropagatedRune))
+                {
+                    double baseW = this.settings.RuneWeights.GetValueOrDefault(activePropagatedRune, 20.0);
+                    runeScore = (i == n - 1) ? (baseW + this.settings.FinalRuneBonus) : baseW;
+                    localScore += runeScore;
+                }
+
+                if (i == n - 1)
+                {
+                    localScore += this.settings.FinalTargetBonus;
+                }
+
+                if (newHits.Count == 0)
+                {
+                    localScore -= this.settings.EmptyBombPenalty;
+                }
+
+                double travelPenalty = (stepDist / env.ExplosionRange) * this.settings.TravelPenaltyMultiplier;
+                localScore -= travelPenalty;
+
+                totalScore += localScore;
+                pointsScore.Add(new PerPointScoreInfo(curPoint, localScore, newHits, activePropagatedRune, runeScore));
+                prevPoint = curPoint;
+            }
+
+            return new DetailedLootScore(pointsScore, totalScore, env);
         }
 
         public IEnumerable<PathState> GetBestPathSeries(ExpeditionEnvironment environment)
         {
-            if (environment.MaxExplosions <= 0)
+            if (environment.MaxExplosions <= 0 || environment.FinalTarget == null)
             {
                 yield return new PathState(new List<Vector2>(), 0);
                 yield break;
@@ -132,12 +208,15 @@ namespace ExpeditionPathOptimizer
 
             var bestPath = this.BuildPath(environment);
             double bestScore = this.GetScore(bestPath, environment);
-            var batch = Enumerable.Range(0, Math.Max(20, this.settings.PathGenerationSize * 2)).Select(_ => this.BuildPath(environment)).ToList();
+            var batch = Enumerable.Range(0, Math.Max(20, this.settings.PathGenerationSize * 2))
+                .Select(_ => this.BuildPath(environment))
+                .ToList();
 
             while (true)
             {
                 var batchWithValues = batch
                     .Select(x => (Score: this.GetScore(x, environment), Path: x))
+                    .Where(x => !double.IsNegativeInfinity(x.Score))
                     .OrderByDescending(x => x.Score)
                     .Take(this.settings.PathGenerationSize)
                     .ToList();
@@ -153,240 +232,138 @@ namespace ExpeditionPathOptimizer
                     .Select(i => i.Path)
                     .Select(x => Random.Shared.NextDouble() > this.settings.PathMutateChance
                         ? x
-                        : this.MutatePath(environment.StartingPoint, environment.ExplosionRange, x, environment));
+                        : this.MutatePath(x, environment));
 
                 var newPaths = Enumerable.Range(0, (int)(this.settings.PathGenerationSize * this.settings.NewRandomPathInjectionRate))
                     .Select(_ => this.BuildPath(environment));
 
                 var newBatch = mixedAndMutated.Append(bestPath).Concat(newPaths).ToList();
 
-                yield return new PathState(bestPath, bestScore);
+                yield return new PathState(bestPath, Math.Max(0, bestScore));
                 batch = newBatch;
             }
         }
 
         private List<Vector2> BuildPath(ExpeditionEnvironment environment)
         {
-            var path = new List<Vector2>(environment.MaxExplosions);
+            int maxBombs = environment.MaxExplosions;
+            var finalTarget = environment.FinalTarget;
+            if (finalTarget == null || maxBombs <= 0) return new List<Vector2>();
+
+            var path = new List<Vector2>(maxBombs);
             var current = environment.StartingPoint;
+            var intermediateRemnants = environment.Remnants.Where(r => r != finalTarget).ToList();
 
-            var targets = new List<Vector2>();
-            foreach (var (pos, _) in environment.Relics) targets.Add(pos);
-            foreach (var (pos, _) in environment.Loot) targets.Add(pos);
+            float reach = environment.ExplosionRange;
+            float radius = environment.ExplosionRadius;
 
-            if (targets.Count > 0)
+            for (int i = 0; i < maxBombs - 1; i++)
             {
-                var target = targets[Random.Shared.Next(targets.Count)];
-                while (path.Count < environment.MaxExplosions && Vector2.Distance(current, target) > environment.ExplosionRadius)
+                int remainingSteps = maxBombs - 1 - i;
+                var validCandidates = new List<ExpeditionRemnant>();
+
+                foreach (var r in intermediateRemnants)
                 {
-                    var diff = target - current;
-                    float dist = diff.Length();
-                    Vector2 nextPoint;
-                    if (dist <= environment.ExplosionRange)
+                    float distToR = Vector2.Distance(current, r.GridPos);
+                    if (distToR <= reach + radius)
                     {
-                        nextPoint = RoundPoint(target);
-                    }
-                    else
-                    {
-                        float stepDist = environment.ExplosionRange * (0.80f + 0.18f * Random.Shared.NextSingle());
-                        nextPoint = RoundPoint(current + Vector2.Normalize(diff) * stepDist);
-                    }
-
-                    if (this.IsValidPlacement(current, environment, nextPoint))
-                    {
-                        path.Add(nextPoint);
-                        current = nextPoint;
-                    }
-                    else
-                    {
-                        nextPoint = this.GetNextPosition(current, current, environment.ExplosionRange, environment);
-                        path.Add(nextPoint);
-                        current = nextPoint;
-                    }
-                }
-            }
-
-            while (path.Count < environment.MaxExplosions)
-            {
-                if (targets.Count > 0 && Random.Shared.Next(2) == 0)
-                {
-                    var target = targets[Random.Shared.Next(targets.Count)];
-                    var diff = target - current;
-                    float dist = diff.Length();
-                    Vector2 nextPoint;
-                    if (dist > 0.1f && dist <= environment.ExplosionRange)
-                    {
-                        nextPoint = RoundPoint(target);
-                    }
-                    else if (dist > 0.1f)
-                    {
-                        nextPoint = RoundPoint(current + Vector2.Normalize(diff) * environment.ExplosionRange * (0.8f + 0.18f * Random.Shared.NextSingle()));
-                    }
-                    else
-                    {
-                        nextPoint = this.GetNextPosition(current, current, environment.ExplosionRange, environment);
-                    }
-
-                    if (this.IsValidPlacement(current, environment, nextPoint))
-                    {
-                        path.Add(nextPoint);
-                        current = nextPoint;
-                        continue;
+                        float distRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
+                        if (distRToFinal <= ((remainingSteps - 1) * reach) + radius)
+                        {
+                            validCandidates.Add(r);
+                        }
                     }
                 }
 
-                var randPoint = this.GetNextPosition(current, current, environment.ExplosionRange, environment);
-                path.Add(randPoint);
-                current = randPoint;
+                Vector2 nextPos;
+                if (validCandidates.Count > 0 && Random.Shared.NextDouble() < 0.8)
+                {
+                    var chosen = validCandidates[Random.Shared.Next(validCandidates.Count)];
+                    var diff = chosen.GridPos - current;
+                    float dist = diff.Length();
+                    if (dist <= reach)
+                    {
+                        nextPos = chosen.GridPos;
+                    }
+                    else
+                    {
+                        float scale = reach * (0.80f + 0.18f * Random.Shared.NextSingle());
+                        nextPos = current + Vector2.Normalize(diff) * scale;
+                    }
+                }
+                else
+                {
+                    var diff = finalTarget.GridPos - current;
+                    float dist = diff.Length();
+                    float maxStep = Math.Min(reach, dist - radius * 0.5f);
+                    float step = Math.Max(5f, maxStep * (0.70f + 0.28f * Random.Shared.NextSingle()));
+                    nextPos = current + (dist > 0.001f ? Vector2.Normalize(diff) * step : Vector2.Zero);
+                }
+
+                path.Add(RoundPoint(nextPos));
+                current = nextPos;
             }
 
+            // Final Bomb: step to final target
+            var finalDiff = finalTarget.GridPos - current;
+            float finalDist = finalDiff.Length();
+            Vector2 finalBombPos;
+            if (finalDist <= reach)
+            {
+                finalBombPos = finalTarget.GridPos;
+            }
+            else
+            {
+                float scale = Math.Min(reach, finalDist);
+                finalBombPos = current + (finalDist > 0.001f ? Vector2.Normalize(finalDiff) * scale : Vector2.Zero);
+            }
+
+            path.Add(RoundPoint(finalBombPos));
             return path;
         }
 
-        private List<Vector2> MutatePath(Vector2 startingPoint, float radius, List<Vector2> originalPath, ExpeditionEnvironment environment)
+        private List<Vector2> MutatePath(List<Vector2> path, ExpeditionEnvironment environment)
         {
-            int mutateTimes = Random.Shared.Next(1, 4);
-            var newPath = originalPath.ToList();
+            if (path.Count <= 1) return path;
+            var mutated = new List<Vector2>(path);
+            int n = mutated.Count;
+            var finalTarget = environment.FinalTarget;
+            if (finalTarget == null) return mutated;
 
-            for (int mutation = 0; mutation < mutateTimes; mutation++)
+            int idx = Random.Shared.Next(0, n - 1);
+            var prev = idx == 0 ? environment.StartingPoint : mutated[idx - 1];
+            float reach = environment.ExplosionRange;
+            float radius = environment.ExplosionRadius;
+            int remainingSteps = n - 1 - idx;
+
+            var candidates = environment.Remnants
+                .Where(r => r != finalTarget && Vector2.Distance(prev, r.GridPos) <= reach + radius)
+                .Where(r => Vector2.Distance(r.GridPos, finalTarget.GridPos) <= ((remainingSteps - 1) * reach) + radius)
+                .ToList();
+
+            Vector2 newPoint;
+            if (candidates.Count > 0 && Random.Shared.NextDouble() < 0.6)
             {
-                if (Random.Shared.Next(2) == 0 && this.TryApplySkipMutation(newPath, environment))
-                {
-                    continue;
-                }
-
-                if (Random.Shared.Next(2) == 0 && this.TryApplySwapMutation(newPath, environment))
-                {
-                    continue;
-                }
-
-                if (newPath.Count == 0) break;
-                int changeIndex = Random.Shared.Next(newPath.Count);
-                Vector2 changedPoint;
-                var previousPoint = changeIndex == 0 ? startingPoint : newPath[changeIndex - 1];
-                var changingPoint = newPath[changeIndex];
-                int tries = 0;
-                bool isValidChange;
-
-                do
-                {
-                    if (Random.Shared.Next(2) == 0)
-                    {
-                        changedPoint = this.GetNextPosition(previousPoint, previousPoint, radius, environment);
-                    }
-                    else
-                    {
-                        float allowedMoveRadius = Math.Max(radius - Vector2.Distance(previousPoint, changingPoint), radius / 5f);
-                        changedPoint = this.GetNextPosition(changingPoint, previousPoint, allowedMoveRadius, environment);
-                    }
-
-                    isValidChange = Vector2.Distance(previousPoint, changedPoint) <= radius &&
-                                    (changeIndex == newPath.Count - 1 ||
-                                     this.IsValidPlacement(changedPoint, environment, newPath[changeIndex + 1]));
-                } while (!isValidChange && tries++ < 10);
-
-                if (isValidChange)
-                {
-                    newPath[changeIndex] = changedPoint;
-                }
+                var chosen = candidates[Random.Shared.Next(candidates.Count)];
+                var diff = chosen.GridPos - prev;
+                float d = diff.Length();
+                newPoint = d <= reach ? chosen.GridPos : prev + Vector2.Normalize(diff) * reach * (0.85f + 0.14f * Random.Shared.NextSingle());
             }
-
-            return newPath;
-        }
-
-        private bool TryApplySkipMutation(List<Vector2> path, ExpeditionEnvironment environment)
-        {
-            int pathCount = path.Count - 2;
-            if (pathCount <= 0) return false;
-
-            int searchStartOffset = Random.Shared.Next(0, pathCount + 1);
-            if (searchStartOffset == pathCount)
-            {
-                int injectionIndex = Random.Shared.Next(0, pathCount);
-                var midpoint = RoundPoint((path[injectionIndex] + path[injectionIndex + 1]) / 2f);
-
-                if (this.IsValidPlacement(path[injectionIndex], environment, midpoint) &&
-                    this.IsValidPlacement(midpoint, environment, path[injectionIndex + 1]))
-                {
-                    path.RemoveAt(path.Count - 1);
-                    path.Insert(injectionIndex + 1, midpoint);
-                    return true;
-                }
-
-                searchStartOffset = 0;
-            }
-
-            for (int i = 0; i < pathCount; i++)
-            {
-                int checkIndex = 1 + (i + searchStartOffset) % pathCount;
-                if (this.IsValidPlacement(path[checkIndex - 1], environment, path[checkIndex + 1]))
-                {
-                    path.RemoveAt(checkIndex);
-                    path.Add(this.GetNextPosition(path.Last(), path.Last(), environment.ExplosionRange, environment));
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool TryApplySwapMutation(List<Vector2> path, ExpeditionEnvironment environment)
-        {
-            int pathCount = path.Count - 3;
-            if (pathCount <= 0) return false;
-
-            int searchStartOffset = Random.Shared.Next(0, pathCount);
-            for (int i = 0; i < pathCount; i++)
-            {
-                int checkIndex = 1 + (i + searchStartOffset) % pathCount;
-                if (this.IsValidPlacement(path[checkIndex - 1], environment, path[checkIndex + 1]) &&
-                    this.IsValidPlacement(path[checkIndex], environment, path[checkIndex + 2]))
-                {
-                    (path[checkIndex + 1], path[checkIndex]) = (path[checkIndex], path[checkIndex + 1]);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private Vector2 GetNextPosition(Vector2 position, Vector2 previousPosition, float radius, ExpeditionEnvironment environment)
-        {
-            radius = Math.Max(5f, radius);
-            for (int i = 0; i < 40; i++)
+            else
             {
                 float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
-                float length = (0.5f + 0.5f * Random.Shared.NextSingle()) * radius;
-                var (sin, cos) = MathF.SinCos(angle);
-                var pt = RoundPoint(position + new Vector2(cos * length, sin * length));
-                if (this.IsValidPlacement(previousPosition, environment, pt))
-                {
-                    return pt;
-                }
+                float rDist = reach * (0.5f + 0.49f * Random.Shared.NextSingle());
+                newPoint = prev + new Vector2(MathF.Cos(angle) * rDist, MathF.Sin(angle) * rDist);
             }
-            return position;
-        }
 
-        private bool IsValidPlacement(Vector2 previousPosition, ExpeditionEnvironment environment, Vector2 position)
-        {
-            if (Vector2.Distance(previousPosition, position) > environment.ExplosionRange)
-                return false;
-
-            if (environment.ExclusionArea.Min != environment.ExclusionArea.Max)
+            if (Vector2.Distance(newPoint, finalTarget.GridPos) <= (remainingSteps * reach) + radius)
             {
-                if (position.X >= environment.ExclusionArea.Min.X && position.X <= environment.ExclusionArea.Max.X &&
-                    position.Y >= environment.ExclusionArea.Min.Y && position.Y <= environment.ExclusionArea.Max.Y)
-                {
-                    return false;
-                }
+                mutated[idx] = RoundPoint(newPoint);
             }
 
-            return true;
+            return mutated;
         }
 
-        private static Vector2 RoundPoint(Vector2 rawPoint)
-        {
-            return new Vector2(MathF.Round(rawPoint.X), MathF.Round(rawPoint.Y));
-        }
+        private static Vector2 RoundPoint(Vector2 v) => new(MathF.Round(v.X, 1), MathF.Round(v.Y, 1));
     }
 }

@@ -11,6 +11,7 @@ namespace ExpeditionPathOptimizer
     using ImGuiNET;
     using TEHhub;
     using TEHhub.CoroutineEvents;
+    using TEHhub.Offsets.Natives;
     using TEHhub.Offsets.Objects.UiElement;
     using TEHhub.Plugin;
     using TEHhub.RemoteObjects.Components;
@@ -28,12 +29,22 @@ namespace ExpeditionPathOptimizer
 
         private Vector3 detonatorWorldPos = Vector3.Zero;
         private Vector2 detonatorGridPos = Vector2.Zero;
-        private readonly Dictionary<IntPtr, (Vector3 WorldPos, Vector2 GridPos, IExpeditionRelic Relic)> discoveredRelics = new();
-        private readonly Dictionary<IntPtr, (Vector3 WorldPos, Vector2 GridPos, IExpeditionLoot Loot)> discoveredLoot = new();
+        private readonly Dictionary<IntPtr, ExpeditionRemnant> discoveredRemnants = new();
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
+        private ExpeditionRemnant? selectedFinalTarget = null;
 
         private string lastAreaHash = string.Empty;
         private bool hasAutoSearchedThisArea = false;
+
+        public static readonly string[] RuneNames = new string[]
+        {
+            "Fire", "Cold", "Lightning", "Tempest", "Momentum", "Bloodletting",
+            "Stone", "Adaptive", "Arcane", "Toxic", "Electrocuting", "Protective",
+            "Cyclonic", "Vision", "Tidal", "Rebirth", "Prismatic", "Gasp",
+            "Moon", "Celestial", "Opulent", "Rage", "Wisdom", "Sky",
+            "Earth", "Life", "Bond", "Ward", "Soul", "Death",
+            "Oath", "Time", "Power", "Bait"
+        };
 
         public override void OnEnable(bool isAutoEnabling)
         {
@@ -56,9 +67,9 @@ namespace ExpeditionPathOptimizer
         {
             this.detonatorWorldPos = Vector3.Zero;
             this.detonatorGridPos = Vector2.Zero;
-            this.discoveredRelics.Clear();
-            this.discoveredLoot.Clear();
+            this.discoveredRemnants.Clear();
             this.placedExplosives.Clear();
+            this.selectedFinalTarget = null;
             this.hasAutoSearchedThisArea = false;
         }
 
@@ -93,13 +104,13 @@ namespace ExpeditionPathOptimizer
 
                 this.ScanEntities(area);
 
-                // Auto-start only ONCE per area when Expedition Detonator is detected
+                // Auto-start only ONCE per area when Expedition Detonator and Remnants are detected
                 if (!this.hasAutoSearchedThisArea &&
                     this.Settings.AutoStartOnAreaChange &&
                     !this.runner.IsRunning &&
                     this.runner.CurrentBestPath == null)
                 {
-                    if (this.detonatorWorldPos != Vector3.Zero && (this.discoveredRelics.Count > 0 || this.discoveredLoot.Count > 0))
+                    if (this.detonatorWorldPos != Vector3.Zero && this.discoveredRemnants.Count > 0)
                     {
                         this.hasAutoSearchedThisArea = true;
                         this.StartSearch(area);
@@ -141,7 +152,7 @@ namespace ExpeditionPathOptimizer
 
         public override void DrawSettings()
         {
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Expedition Path Optimizer (Genetic Algorithm / ExileApi)");
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Expedition Path Optimizer V1 (Rune & Remnant Strategy)");
             ImGui.Separator();
             ImGui.Spacing();
 
@@ -173,8 +184,11 @@ namespace ExpeditionPathOptimizer
                 ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Detonator Plunger: NOT FOUND (Please walk towards Detonator)");
             }
 
-            ImGui.Text($"Remnants / Relics Found: {this.discoveredRelics.Count}");
-            ImGui.Text($"Chests / Monsters Found: {this.discoveredLoot.Count}");
+            ImGui.Text($"Discovered Remnants / Monoliths: {this.discoveredRemnants.Count}");
+            if (this.selectedFinalTarget != null)
+            {
+                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {this.selectedFinalTarget.RuneSlots} Slots, Rune: {(string.IsNullOrEmpty(this.selectedFinalTarget.PropagatedRune) ? "None" : this.selectedFinalTarget.PropagatedRune)} (Base: {this.selectedFinalTarget.BaseRuneWeight:F0})");
+            }
             ImGui.Text($"Placed Explosives Detected: {this.placedExplosives.Count}");
 
             ImGui.Spacing();
@@ -296,6 +310,8 @@ namespace ExpeditionPathOptimizer
 
         public void ScanEntities(AreaInstance area)
         {
+            var reader = Core.Process.Handle;
+
             void ProcessEntity(Entity entity)
             {
                 if (entity == null || entity.Address == IntPtr.Zero) return;
@@ -342,46 +358,102 @@ namespace ExpeditionPathOptimizer
                          path.Contains("Expedition2Remnant", StringComparison.OrdinalIgnoreCase) ||
                          path.Contains("ExpeditionRemnant", StringComparison.OrdinalIgnoreCase))
                 {
-                    this.discoveredRelics[entity.Address] = (wPos, gPos, new ConfigurableRelic(1.5, 0.4, true));
-                }
-                else if (path.Contains("ExpeditionChest", StringComparison.OrdinalIgnoreCase) ||
-                         (path.Contains("ExpeditionMarker", StringComparison.OrdinalIgnoreCase) && path.Contains("Chest", StringComparison.OrdinalIgnoreCase)) ||
-                         path.Contains("ExpeditionCurrency", StringComparison.OrdinalIgnoreCase) ||
-                         path.Contains("ExpeditionArtifact", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (path.Contains("Currency", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot[entity.Address] = (wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Currency));
-                    else if (path.Contains("Artifact", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot[entity.Address] = (wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Artifact));
-                    else if (path.Contains("Map", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot[entity.Address] = (wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Map));
-                    else if (path.Contains("Fragment", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot[entity.Address] = (wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Fragment));
-                    else
-                        this.discoveredLoot[entity.Address] = (wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Generic));
-                }
-                else if (path.Contains("ExpeditionMonster", StringComparison.OrdinalIgnoreCase) ||
-                         path.Contains("Metadata/Monsters/Expedition", StringComparison.OrdinalIgnoreCase) ||
-                         (path.Contains("ExpeditionMarker", StringComparison.OrdinalIgnoreCase) && !path.Contains("Chest", StringComparison.OrdinalIgnoreCase)))
-                {
-                    this.discoveredLoot[entity.Address] = (wPos, gPos, new RunicMonster());
+                    int slots = 4;
+                    string propRune = string.Empty;
+
+                    // Read Remnant details from StateMachine & Station pointer
+                    if (entity.TryGetComponent<StateMachine>(out var sm) && sm.Address != IntPtr.Zero)
+                    {
+                        var listeners = reader.ReadMemory<StdVector>(sm.Address + 0x20);
+                        var totalNodes = (int)listeners.TotalElements(sizeof(long));
+                        if (totalNodes > 0 && totalNodes <= 256)
+                        {
+                            var nodes = reader.ReadMemoryArray<long>(listeners.First, totalNodes);
+                            if (nodes != null)
+                            {
+                                foreach (var nodeValue in nodes)
+                                {
+                                    if (nodeValue == 0) continue;
+                                    var sub = reader.ReadMemory<IntPtr>(new IntPtr(nodeValue));
+                                    if (sub == IntPtr.Zero) continue;
+
+                                    IntPtr station = IntPtr.Zero;
+                                    for (int off = 0x60; off <= 0x120; off += 8)
+                                    {
+                                        var cand = sub - off;
+                                        if (reader.ReadMemory<IntPtr>(cand + 0x10) == entity.Address)
+                                        {
+                                            station = cand;
+                                            break;
+                                        }
+                                    }
+
+                                    if (station != IntPtr.Zero)
+                                    {
+                                        var hCount = reader.ReadMemory<int>(station + 0x38);
+                                        if (hCount is > 0 and <= 16) slots = hCount;
+
+                                        var rowPtr = reader.ReadMemory<IntPtr>(station + 0x28);
+                                        var holder = reader.ReadMemory<IntPtr>(station + 0x30);
+                                        if (holder != IntPtr.Zero && rowPtr != IntPtr.Zero)
+                                        {
+                                            var p1 = reader.ReadMemory<IntPtr>(holder + 0x28);
+                                            if (p1 != IntPtr.Zero)
+                                            {
+                                                var tableBase = reader.ReadMemory<long>(p1);
+                                                if (tableBase != 0)
+                                                {
+                                                    var delta = rowPtr.ToInt64() - tableBase;
+                                                    int anchorIdx = -1;
+                                                    if (delta >= 0)
+                                                    {
+                                                        if (delta % 0x68 == 0) anchorIdx = (int)(delta / 0x68);
+                                                        else if (delta % 0x6C == 0) anchorIdx = (int)(delta / 0x6C);
+                                                    }
+
+                                                    if (anchorIdx >= 0 && anchorIdx < RuneNames.Length)
+                                                    {
+                                                        propRune = RuneNames[anchorIdx];
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    var remnant = new ExpeditionRemnant(entity.Id, entity.Address, wPos, gPos, slots, propRune);
+                    remnant.UpdateBaseRuneWeight(this.Settings.RuneWeights);
+                    this.discoveredRemnants[entity.Address] = remnant;
                 }
             }
 
             if (area.AwakeEntities != null)
             {
-                foreach (var e in area.AwakeEntities.Values)
-                {
-                    ProcessEntity(e);
-                }
+                foreach (var e in area.AwakeEntities.Values) ProcessEntity(e);
             }
 
             if (area.SleepingEntities != null)
             {
-                foreach (var e in area.SleepingEntities.Values)
-                {
-                    ProcessEntity(e);
-                }
+                foreach (var e in area.SleepingEntities.Values) ProcessEntity(e);
+            }
+
+            // Determine Final Target: Max Slots -> Highest Rune Weight -> Proximity
+            if (this.discoveredRemnants.Count > 0)
+            {
+                int maxSlots = this.discoveredRemnants.Values.Max(r => r.RuneSlots);
+                var candidates = this.discoveredRemnants.Values.Where(r => r.RuneSlots == maxSlots).ToList();
+                this.selectedFinalTarget = candidates
+                    .OrderByDescending(r => r.BaseRuneWeight)
+                    .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
+                    .First();
+            }
+            else
+            {
+                this.selectedFinalTarget = null;
             }
         }
 
@@ -393,9 +465,9 @@ namespace ExpeditionPathOptimizer
                 return;
             }
 
-            if (this.discoveredRelics.Count == 0 && this.discoveredLoot.Count == 0)
+            if (this.discoveredRemnants.Count == 0 || this.selectedFinalTarget == null)
             {
-                PluginLog.Warning("ExpeditionPathOptimizer", "No expedition relics or loot detected in area.");
+                PluginLog.Warning("ExpeditionPathOptimizer", "No expedition remnants/monoliths detected in area.");
                 return;
             }
 
@@ -414,18 +486,14 @@ namespace ExpeditionPathOptimizer
                 startGrid = new Vector2(lastExplosive.X / GridToWorldMultiplier, lastExplosive.Y / GridToWorldMultiplier);
             }
 
-            var envRelics = this.discoveredRelics.Values.Select(r => (r.GridPos, r.Relic)).ToList();
-            var envLoot = this.discoveredLoot.Values.Select(l => (l.GridPos, l.Loot)).ToList();
-
             var env = new ExpeditionEnvironment(
-                envRelics,
-                envLoot,
+                this.discoveredRemnants.Values.ToList(),
+                this.selectedFinalTarget,
                 rangeGrid,
                 radiusGrid,
                 Math.Max(1, maxExplosions - this.placedExplosives.Count),
                 startGrid,
                 p => true,
-                (Vector2.Zero, Vector2.Zero),
                 config.IsGrandExpedition);
 
             this.runner.Start(this.Settings, env);
@@ -601,9 +669,14 @@ namespace ExpeditionPathOptimizer
             // 4. Draw Planned Blast Circles & Badges
             for (int i = 0; i < points.Count; i++)
             {
-                var gridPt = points[i].Point;
+                var ptInfo = points[i];
+                var gridPt = ptInfo.Point;
                 var bombWorld = new Vector3(gridPt.X * GridToWorldMultiplier, gridPt.Y * GridToWorldMultiplier, zHeight);
                 int bombIndex = this.placedExplosives.Count + i + 1;
+                bool isFinalBomb = (i == points.Count - 1);
+
+                uint badgeBg = isFinalBomb ? this.Settings.FinalTargetBadgeBgColor : this.Settings.BadgeBgColor;
+                uint borderColor = isFinalBomb ? 0xFFFFD700u : 0xFFFFFFFFu;
 
                 if (canMapProject)
                 {
@@ -618,15 +691,21 @@ namespace ExpeditionPathOptimizer
                             uint fillAlpha = (uint)(Math.Clamp(this.Settings.BlastRadiusOpacity, 0f, 1f) * 255f);
                             uint fillColor = (fillAlpha << 24) | (this.Settings.ExplosiveColor & 0x00FFFFFFu);
                             dl.AddCircleFilled(mCenter, mapR, fillColor, 32);
-                            dl.AddCircle(mCenter, mapR, this.Settings.ExplosiveColor, 32, 2.0f);
+                            dl.AddCircle(mCenter, mapR, this.Settings.ExplosiveColor, 32, isFinalBomb ? 2.5f : 2.0f);
                         }
 
                         // Draw Number Badge
-                        dl.AddCircleFilled(mCenter, 10f, this.Settings.BadgeBgColor);
-                        dl.AddCircle(mCenter, 10f, 0xFFFFFFFFu, 0, 1.5f);
+                        dl.AddCircleFilled(mCenter, isFinalBomb ? 12f : 10f, badgeBg);
+                        dl.AddCircle(mCenter, isFinalBomb ? 12f : 10f, borderColor, 0, isFinalBomb ? 2.0f : 1.5f);
                         string numStr = bombIndex.ToString();
                         var tSz = ImGui.CalcTextSize(numStr);
                         dl.AddText(new Vector2(mCenter.X - tSz.X * 0.5f, mCenter.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, numStr);
+
+                        if (isFinalBomb)
+                        {
+                            var fSz = ImGui.CalcTextSize("★ FINAL");
+                            dl.AddText(new Vector2(mCenter.X - fSz.X * 0.5f, mCenter.Y - 24f), 0xFFFFD700u, "★ FINAL");
+                        }
                     }
                 }
                 else
@@ -656,23 +735,29 @@ namespace ExpeditionPathOptimizer
                             if (s == 0) firstRing = ringScreen;
                             if (prevRing != Vector2.Zero)
                             {
-                                dl.AddLine(prevRing, ringScreen, this.Settings.ExplosiveColor, 2.0f);
+                                dl.AddLine(prevRing, ringScreen, this.Settings.ExplosiveColor, isFinalBomb ? 2.5f : 2.0f);
                             }
                             prevRing = ringScreen;
                         }
 
                         if (prevRing != Vector2.Zero && firstRing != Vector2.Zero)
                         {
-                            dl.AddLine(prevRing, firstRing, this.Settings.ExplosiveColor, 2.0f);
+                            dl.AddLine(prevRing, firstRing, this.Settings.ExplosiveColor, isFinalBomb ? 2.5f : 2.0f);
                         }
                     }
 
                     // Draw Number Badge in World
-                    dl.AddCircleFilled(sPos, 14f, this.Settings.BadgeBgColor);
-                    dl.AddCircle(sPos, 14f, 0xFFFFFFFFu, 0, 2.0f);
+                    dl.AddCircleFilled(sPos, isFinalBomb ? 16f : 14f, badgeBg);
+                    dl.AddCircle(sPos, isFinalBomb ? 16f : 14f, borderColor, 0, isFinalBomb ? 2.5f : 2.0f);
                     string numStr = bombIndex.ToString();
                     var tSz = ImGui.CalcTextSize(numStr);
                     dl.AddText(new Vector2(sPos.X - tSz.X * 0.5f, sPos.Y - tSz.Y * 0.5f), 0xFFFFFFFFu, numStr);
+
+                    if (isFinalBomb)
+                    {
+                        var fSz = ImGui.CalcTextSize("★ FINAL");
+                        dl.AddText(new Vector2(sPos.X - fSz.X * 0.5f, sPos.Y - 30f), 0xFFFFD700u, "★ FINAL");
+                    }
                 }
             }
         }

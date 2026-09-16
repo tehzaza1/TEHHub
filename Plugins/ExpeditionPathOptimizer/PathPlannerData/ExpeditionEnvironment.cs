@@ -5,13 +5,12 @@ namespace ExpeditionPathOptimizer.PathPlannerData
     using System.Numerics;
 
     public record ExpeditionEnvironment(
-        List<(Vector2 Pos, IExpeditionRelic Relic)> Relics,
-        List<(Vector2 Pos, IExpeditionLoot Loot)> Loot,
+        List<ExpeditionRemnant> Remnants,
+        ExpeditionRemnant? FinalTarget,
         float ExplosionRange,
         float ExplosionRadius,
         int MaxExplosions,
         Vector2 StartingPoint,
         Func<Vector2, bool> IsValidPlacement,
-        (Vector2 Min, Vector2 Max) ExclusionArea,
         bool IsLogbook);
 }
