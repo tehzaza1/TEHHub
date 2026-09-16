@@ -71,6 +71,12 @@ namespace TEHhub.Settings
 
         /// <summary>
         ///     Gets or sets a value indicating whether to hide
+        ///     all plugin overlays when the game is in background / inactive.
+        /// </summary>
+        public bool HideOverlaysWhenGameInactive = true;
+
+        /// <summary>
+        ///     Gets or sets a value indicating whether to hide
         ///     the performance stats window when game is in background.
         /// </summary>
         public bool HidePerfStatsWhenBg = true;

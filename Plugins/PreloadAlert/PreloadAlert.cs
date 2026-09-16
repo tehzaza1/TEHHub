@@ -108,7 +108,7 @@ namespace PreloadAlert
         public override void DrawUI()
         {
             if (this.Settings.EnableHideUi && this.Settings.Locked &&
-                (!Core.Process.Foreground || Core.States.GameCurrentState != GameStateTypes.InGameState))
+                Core.States.GameCurrentState != GameStateTypes.InGameState)
             {
                 return;
             }

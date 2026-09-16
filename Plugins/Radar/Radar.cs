@@ -481,11 +481,6 @@ namespace Radar
 
             this.RefreshAreaIfIdentityChanged();
 
-            if (this.Settings.DrawWhenForeground && !Core.Process.Foreground)
-            {
-                return;
-            }
-
             if (this.Settings.DrawWhenNotInHideoutOrTown &&
                 (areaDetails.IsHideout || areaDetails.IsTown))
             {

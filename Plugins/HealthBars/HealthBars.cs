@@ -188,10 +188,6 @@ namespace HealthBars
                 return;
             }
 
-            if (!this.Settings.DrawWhenGameInBackground && !Core.Process.Foreground)
-            {
-                return;
-            }
 
             if (Core.States.InGameStateObject.GameUi.IsAnyLargePanelOpen)
             {

@@ -161,7 +161,7 @@ namespace AmanamuVoidAlert
             }
 
             if (this.Settings.HideWhenGameUnfocusedOrPaused &&
-                (!Core.Process.Foreground || Core.States.GameCurrentState != GameStateTypes.InGameState))
+                Core.States.GameCurrentState != GameStateTypes.InGameState)
             {
                 return;
             }

@@ -16,9 +16,6 @@ namespace myFarming
 
     public sealed partial class MyFarmingCore : PCore<MyFarmingSettings>
     {
-        [LibraryImport("user32.dll")]
-        private static partial IntPtr GetForegroundWindow();
-
         private PriceHelper priceHelper = null!;
         private LootDiffEngine diffEngine = null!;
         private KillTracker killTracker = null!;
@@ -179,19 +176,8 @@ namespace myFarming
             // Render HUD overlay
             if (this.Settings.ShowOverlay)
             {
-                if (!this.Settings.HideWhenGameNotFocused || this.IsGameOrOverlayForeground())
-                {
-                    this.DrawOverlay(inTownOrHideout, areaDetails?.Name ?? "None", isPaused);
-                }
+                this.DrawOverlay(inTownOrHideout, areaDetails?.Name ?? "None", isPaused);
             }
-        }
-
-        private bool IsGameOrOverlayForeground()
-        {
-            if (Core.Process.Foreground) return true;
-            var fg = GetForegroundWindow();
-            var mainHwnd = Process.GetCurrentProcess().MainWindowHandle;
-            return fg != IntPtr.Zero && fg == mainHwnd;
         }
 
         private void OnAreaChanged(string areaHash, string areaName, bool inTownOrHideout)

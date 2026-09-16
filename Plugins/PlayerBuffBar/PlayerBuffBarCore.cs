@@ -358,10 +358,6 @@ namespace PlayerBuffBar
                 return;
             }
 
-            if (this.Settings.HideWhenGameInBackground && !IsGameOrOverlayForeground())
-            {
-                return;
-            }
 
             var inGame = Core.States.InGameStateObject;
             var areaDetails = inGame.CurrentWorldInstance.AreaDetails;
@@ -1467,14 +1463,6 @@ namespace PlayerBuffBar
 
         /// <summary>HUD layer behind TEHhub management windows.</summary>
         private static ImDrawListPtr GetHudDrawList() => ImGui.GetBackgroundDrawList();
-
-        /// <summary>PoE or TEHhub overlay/settings focused â€” not e.g. Discord.</summary>
-        private static bool IsGameOrOverlayForeground() =>
-            Core.Process.Foreground ||
-            Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();
-
-        [LibraryImport("user32.dll")]
-        private static partial IntPtr GetForegroundWindow();
 
         private sealed class BuffDisplayEntry
         {

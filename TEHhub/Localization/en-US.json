@@ -132,6 +132,8 @@
   "settings.misc.enable_stale_cleanup": "Enable stale entity cleanup",
   "settings.misc.enable_stale_cleanup.tooltip": "Remove any entity that stays invalid for many consecutive frames,\nregardless of entity type. Catches NPCs and other entities that\nthe default cleanup misses.",
   "settings.misc.threshold_frames": "threshold (frames)",
+  "settings.misc.hide_when_inactive": "Hide all plugin overlays when game is inactive",
+  "settings.misc.hide_when_inactive.tooltip": "When enabled, all plugin overlay rendering is automatically paused and hidden when you switch away from the game, saving CPU and GPU resources.",
   "settings.reload.title": "Reload Plugin",
   "settings.reload.plugins": "Plugins",
   "settings.reload.unload": "Unload Plugin",

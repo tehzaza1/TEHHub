@@ -136,7 +136,7 @@ namespace RitualWispAlert
                 Core.States.GameCurrentState is not (GameStateTypes.InGameState or GameStateTypes.EscapeState)) return;
 
             if (this.Settings.HideWhenGameUnfocusedOrPaused &&
-                (!Core.Process.Foreground || Core.States.GameCurrentState != GameStateTypes.InGameState)) return;
+                Core.States.GameCurrentState != GameStateTypes.InGameState) return;
 
             var inGameState = Core.States.InGameStateObject;
             var areaInstance = inGameState.CurrentAreaInstance;

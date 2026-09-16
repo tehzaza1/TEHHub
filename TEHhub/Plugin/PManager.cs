@@ -637,7 +637,7 @@ namespace TEHhub.Plugin
                     disableRendering = !disableRendering;
                 }
 
-                if (disableRendering)
+                if (disableRendering || (Core.GHSettings.HideOverlaysWhenGameInactive && !Core.Process.Foreground))
                 {
                     continue;
                 }

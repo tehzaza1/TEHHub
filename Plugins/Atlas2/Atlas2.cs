@@ -469,10 +469,6 @@ namespace Atlas2
             using var memoryReadRegion = TEHhub.Ui.MemoryReadDiagnostics.MeasureRegion("Atlas2.DrawUI");
             var inventoryPanel = InventoryPanel();
 
-            var isTEHhubForeground = Process.GetCurrentProcess().MainWindowHandle == GetForegroundWindow();
-            if (!Core.Process.Foreground && !isTEHhubForeground)
-                return;
-
             var player = Core.States.InGameStateObject.CurrentAreaInstance.Player;
             if (!player.TryGetComponent<Render>(out _))
                 return;
@@ -1992,9 +1988,6 @@ namespace Atlas2
 
             return false;
         }
-
-        [LibraryImport("user32.dll")]
-        private static partial nint GetForegroundWindow();
 
     }
 }

@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.58 — 2026-09-16 [SDK / Core Framework Update]
+
+- **Core Framework: Centralized Master Switch for Inactive Overlay Hiding**:
+  - Moved overlay background/inactive visibility checking into Core (`PManager.DrawPluginUiRenderCoroutine`).
+  - Added global setting `HideOverlaysWhenGameInactive` (enabled by default) and configurable in Settings under Miscellaneous Config.
+  - When the user switches away from the game, plugin UI rendering (`DrawUI()`) is automatically bypassed across all plugins at the core level, saving CPU and GPU render cycles while preserving background data processing (`PerFrameDataUpdate`).
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors.
+
 ## 1.8.57 — 2026-09-16 [SDK / Core Framework Update]
 
 - **Core Framework: Robust Foreground Window & Focus Handling**:

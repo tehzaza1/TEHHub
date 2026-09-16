@@ -674,11 +674,6 @@ namespace NinjaPricer
             }
         }
 
-        private static bool IsGameWindowFocused()
-        {
-            return Core.Process.Foreground;
-        }
-
         private static string GetVkName(int vk)
         {
             if (vk == 0) return "None";
@@ -2053,8 +2048,7 @@ namespace NinjaPricer
                 this.runeshapeWinHotkeyWasDown = down;
             }
 
-            // Global overlay visibility gate (hide when unfocused or hold-to-hide hotkey active)
-            if (this.Settings.HideWhenUnfocused && !IsGameWindowFocused()) return;
+            // Global overlay visibility gate (hold-to-hide hotkey active)
             if (this.Settings.HideHotkey != 0 && (GetAsyncKeyState(this.Settings.HideHotkey) & 0x8000) != 0) return;
 
             // Runeshape Monoliths (in-world badges / large map markers & movable window)
