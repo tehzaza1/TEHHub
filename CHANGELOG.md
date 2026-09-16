@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.83 — 2026-09-16 [Plugin Update — myFarming]
+
+- **`myFarming` Restored Total Session Divine / Currency Count in HUD**:
+  - **Total Session Currency Display**: Line 2 now explicitly renders the total accumulated session loot/divine count (`Total: +{totalProfit}`) alongside hourly profit rate (`({rateProfit}/h)`) and completed map count (`[{maps} maps]`).
+  - **Graceful Currency & Gold Icon Fallbacks**: Added text fallback tags (`Div`, `Ex`, `c`, `Gold`) so currency amounts never break layout if image textures fail to load.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
+
 ## 1.8.82 — 2026-09-16 [Plugin Update — NinjaPricer, SDK / Core Framework Update]
 
 - **`NinjaPricer` Streamlined Network-Bubble Live Coverage & Permanent Memory Retention**:

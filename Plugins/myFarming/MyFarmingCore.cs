@@ -375,6 +375,12 @@ namespace myFarming
                 ImGui.SetCursorPosY(curY);
                 ImGui.SameLine(0, 4);
             }
+            else
+            {
+                string sym = c == DisplayCurrency.Divine ? "Div" : (c == DisplayCurrency.Exalted ? "Ex" : "c");
+                ImGui.Text(sym);
+                ImGui.SameLine(0, 4);
+            }
         }
 
         private void DrawGoldIcon(float sizeMultiplier = 1.25f)
@@ -404,6 +410,11 @@ namespace myFarming
                 ImGui.SetCursorPosY(curY + yOffset);
                 ImGui.Image(this.currencyTextures[3].Ptr, new Vector2(size, size));
                 ImGui.SetCursorPosY(curY);
+                ImGui.SameLine(0, 4);
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(1f, 0.85f, 0.3f, 1f), "Gold");
                 ImGui.SameLine(0, 4);
             }
         }
@@ -496,7 +507,7 @@ namespace myFarming
                     this.DrawColoredKills(kNorm, kMag, kRare, kUniq);
                 }
 
-                // Line 2: Session info & Profit per hour & maps count & Gold
+                // Line 2: Session info & Total Profit & Profit per hour & maps count & Gold
                 if (this.Settings.ShowSessionSummary)
                 {
                     int sHrs = liveSessionSec / 3600;
@@ -505,12 +516,21 @@ namespace myFarming
                     string sessionTimeStr = sHrs > 0 ? $"{sHrs:D2}:{sMin:D2}:{sSec:D2}" : $"{sMin:D2}:{sSec:D2}";
 
                     float sessionRateChaos = liveSessionSec > 5 ? (liveSessionChaos * 3600f / liveSessionSec) : 0f;
-                    string profitStr = this.FormatCurrencyValueOnly(sessionRateChaos);
+                    string totalProfitStr = this.FormatCurrencyValueOnly(liveSessionChaos);
+                    string rateProfitStr = this.FormatCurrencyValueOnly(sessionRateChaos);
 
-                    ImGui.Text($"Session: {sessionTimeStr} | Profit: {profitStr}");
+                    ImGui.Text($"Session: {sessionTimeStr} | Total: +{totalProfitStr}");
                     ImGui.SameLine(0, 3);
                     this.DrawCurrencyIcon(this.Settings.Currency, 1.15f);
-                    ImGui.Text($"/h [{liveSessionMaps} maps]");
+
+                    if (this.Settings.ShowProfitPerHour)
+                    {
+                        ImGui.Text($"({rateProfitStr}/h) [{liveSessionMaps} maps]");
+                    }
+                    else
+                    {
+                        ImGui.Text($"[{liveSessionMaps} maps]");
+                    }
 
                     if (this.Settings.ShowGold)
                     {
