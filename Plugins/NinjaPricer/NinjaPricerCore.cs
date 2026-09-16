@@ -1682,6 +1682,11 @@ namespace NinjaPricer
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.show_monolith_markers.tooltip", "Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world."));
 
+                bool rsMini = this.Settings.RsMinimalMapBadges;
+                if (ImGui.Checkbox("Minimal map/world markers (Color + Price only)", ref rsMini)) { this.Settings.RsMinimalMapBadges = rsMini; this.SaveSettings(); }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Hides rune sockets and item icons on LargeMap/World badges, showing only the monolith color square and price.");
+
                 float rwa = this.Settings.RuneshapeWinAlpha;
                 ImGui.SetNextItemWidth(200f);
                 if (ImGui.SliderFloat(this.PluginText.Label("settings.opacity", "Opacity", "RsWinAlphaSlider"), ref rwa, 0.1f, 1.0f, "%.2f"))
@@ -3211,6 +3216,8 @@ namespace NinjaPricer
 
                 if (screenPos == Vector2.Zero) continue;
 
+                bool isMinimal = this.Settings.RsMinimalMapBadges;
+
                 // 1) Sockets row sizing
                 float uiScale = Math.Clamp(this.Settings.UiScale, 0.5f, 2.5f);
                 float textScale = Math.Clamp(this.Settings.TextScale, 0.5f, 2.5f);
@@ -3219,20 +3226,20 @@ namespace NinjaPricer
                 float slotSz = 22f * uiScale;
                 float slotGap = 2f * uiScale;
                 int holes = Math.Clamp(m.HoleCount, 1, 16);
-                float socketsW = (holes * slotSz) + Math.Max(0, holes - 1) * slotGap;
-                float socketsH = slotSz;
+                float socketsW = isMinimal ? 0f : ((holes * slotSz) + Math.Max(0, holes - 1) * slotGap);
+                float socketsH = isMinimal ? 0f : slotSz;
 
                 // 2) Bottom info chip sizing
-                float chipH = 26f * uiScale;
-                float padX = 6f * uiScale;
-                float spacing = 5f * uiScale;
+                float chipH = (isMinimal ? 20f : 26f) * uiScale;
+                float padX = (isMinimal ? 5f : 6f) * uiScale;
+                float spacing = (isMinimal ? 4f : 5f) * uiScale;
 
-                float sqSz = 16f * uiScale;
+                float sqSz = (isMinimal ? 14f : 16f) * uiScale;
                 float curX = padX + sqSz;
 
                 CurrencyTex? itemTex = null;
                 float iconSz = 22f * uiScale;
-                if (m.BestOffer != null && !string.IsNullOrEmpty(m.BestOffer.ItemIcon))
+                if (!isMinimal && m.BestOffer != null && !string.IsNullOrEmpty(m.BestOffer.ItemIcon))
                 {
                     itemTex = this.GetItemTexture(m.BestOffer.ItemIcon);
                     if (itemTex != null && itemTex.Value.Valid)
@@ -3241,10 +3248,10 @@ namespace NinjaPricer
                     }
                 }
 
-                float curW = 18f * uiScale;
+                float curW = (isMinimal ? 15f : 18f) * uiScale;
                 if (curTex != null && curTex.Value.Valid)
                 {
-                    curW = (curTex.Value.H > 0) ? (18f * uiScale) * (float)curTex.Value.W / curTex.Value.H : 18f * uiScale;
+                    curW = (curTex.Value.H > 0) ? curW * (float)curTex.Value.W / curTex.Value.H : curW;
                     curX += spacing + curW;
                 }
 
@@ -3259,7 +3266,7 @@ namespace NinjaPricer
 
                 string weightText = string.Empty;
                 Vector2 weightSz = Vector2.Zero;
-                if (!m.IsCompleted && m.BestOffer != null && m.BestOffer.ComboWeight != 0)
+                if (!isMinimal && !m.IsCompleted && m.BestOffer != null && m.BestOffer.ComboWeight != 0)
                 {
                     weightText = m.BestOffer.ComboWeight > 0 ? $"+{m.BestOffer.ComboWeight}" : $"{m.BestOffer.ComboWeight}";
                     weightSz = ImGui.CalcTextSize(weightText) * textScale;
@@ -3276,74 +3283,77 @@ namespace NinjaPricer
                 curX += padX;
                 float chipW = curX;
 
-                float totalW = Math.Max(socketsW, chipW);
-                float totalH = socketsH + 4f + chipH;
+                float totalW = isMinimal ? chipW : Math.Max(socketsW, chipW);
+                float totalH = isMinimal ? chipH : (socketsH + 4f + chipH);
 
                 float bX0 = screenPos.X - totalW * 0.5f;
-                float bY0 = screenPos.Y - totalH;
+                float bY0 = screenPos.Y - (isMinimal ? chipH * 0.5f : totalH);
 
                 uint imgTint = m.IsCompleted ? 0xC8969696u : 0xFFFFFFFFu;
 
-                // Draw Top Sockets Row
-                float sockStartX = screenPos.X - socketsW * 0.5f;
-                float sockY = bY0;
-
-                for (int slot = 0; slot < holes; slot++)
+                // Draw Top Sockets Row (only if not minimal)
+                if (!isMinimal)
                 {
-                    bool prop = m.GoldenSlots.Contains(slot);
-                    int rIdx = -1;
-                    if (m.BestOffer?.RuneIdx != null && slot < m.BestOffer.RuneIdx.Count)
-                        rIdx = m.BestOffer.RuneIdx[slot];
-                    else if (slot == m.AnchorPos && m.AnchorIdx >= 0)
-                        rIdx = m.AnchorIdx;
+                    float sockStartX = screenPos.X - socketsW * 0.5f;
+                    float sockY = bY0;
 
-                    bool slotRare = rIdx >= 23 && rIdx <= 32;
-                    float sx0 = sockStartX + slot * (slotSz + slotGap);
-                    float sy0 = sockY;
-                    var p0 = new Vector2(sx0, sy0);
-                    var p1 = new Vector2(sx0 + slotSz, sy0 + slotSz);
+                    for (int slot = 0; slot < holes; slot++)
+                    {
+                        bool prop = m.GoldenSlots.Contains(slot);
+                        int rIdx = -1;
+                        if (m.BestOffer?.RuneIdx != null && slot < m.BestOffer.RuneIdx.Count)
+                            rIdx = m.BestOffer.RuneIdx[slot];
+                        else if (slot == m.AnchorPos && m.AnchorIdx >= 0)
+                            rIdx = m.AnchorIdx;
 
-                    var bg = (slotRare && bgPur != null) ? bgPur : bgReg;
-                    if (bg != null && bg.Value.Valid)
-                    {
-                        dl.AddImage(bg.Value.Ptr, p0, p1, Vector2.Zero, Vector2.One, imgTint);
-                    }
-                    else
-                    {
-                        float dr = slotSz * 0.5f;
-                        dl.AddCircleFilled(new Vector2(sx0 + dr, sy0 + dr), dr, 0xDD141414u);
-                        dl.AddCircle(new Vector2(sx0 + dr, sy0 + dr), dr, prop ? 0xFFFFD23Cu : 0xFF505050u, 0, 1.5f);
-                    }
+                        bool slotRare = rIdx >= 23 && rIdx <= 32;
+                        float sx0 = sockStartX + slot * (slotSz + slotGap);
+                        float sy0 = sockY;
+                        var p0 = new Vector2(sx0, sy0);
+                        var p1 = new Vector2(sx0 + slotSz, sy0 + slotSz);
 
-                    if (rIdx >= 0 && rIdx < 34)
-                    {
-                        var runeTex = this.GetRuneTexture(rIdx);
-                        if (runeTex != null && runeTex.Value.Valid)
+                        var bg = (slotRare && bgPur != null) ? bgPur : bgReg;
+                        if (bg != null && bg.Value.Valid)
                         {
-                            float inset = slotSz * 0.14f;
-                            dl.AddImage(runeTex.Value.Ptr, new Vector2(p0.X + inset, p0.Y + inset), new Vector2(p1.X - inset, p1.Y - inset), Vector2.Zero, Vector2.One, imgTint);
-                        }
-                    }
-
-                    if (prop && !m.IsCompleted)
-                    {
-                        if (glow != null && glow.Value.Valid)
-                        {
-                            float cx2 = sx0 + slotSz * 0.5f;
-                            float gw = slotSz * 1.10f;
-                            float gt = sy0 - slotSz * 0.40f;
-                            dl.AddImage(glow.Value.Ptr, new Vector2(cx2 - gw * 0.5f, gt), new Vector2(cx2 + gw * 0.5f, gt + slotSz * 1.5f));
+                            dl.AddImage(bg.Value.Ptr, p0, p1, Vector2.Zero, Vector2.One, imgTint);
                         }
                         else
                         {
-                            dl.AddCircle(new Vector2(sx0 + slotSz * 0.5f, sy0 + slotSz * 0.5f), slotSz * 0.55f, 0xFFFFD23Cu, 0, 1.8f);
+                            float dr = slotSz * 0.5f;
+                            dl.AddCircleFilled(new Vector2(sx0 + dr, sy0 + dr), dr, 0xDD141414u);
+                            dl.AddCircle(new Vector2(sx0 + dr, sy0 + dr), dr, prop ? 0xFFFFD23Cu : 0xFF505050u, 0, 1.5f);
+                        }
+
+                        if (rIdx >= 0 && rIdx < 34)
+                        {
+                            var runeTex = this.GetRuneTexture(rIdx);
+                            if (runeTex != null && runeTex.Value.Valid)
+                            {
+                                float inset = slotSz * 0.14f;
+                                dl.AddImage(runeTex.Value.Ptr, new Vector2(p0.X + inset, p0.Y + inset), new Vector2(p1.X - inset, p1.Y - inset), Vector2.Zero, Vector2.One, imgTint);
+                            }
+                        }
+
+                        if (prop && !m.IsCompleted)
+                        {
+                            if (glow != null && glow.Value.Valid)
+                            {
+                                float cx2 = sx0 + slotSz * 0.5f;
+                                float gw = slotSz * 1.10f;
+                                float gt = sy0 - slotSz * 0.40f;
+                                dl.AddImage(glow.Value.Ptr, new Vector2(cx2 - gw * 0.5f, gt), new Vector2(cx2 + gw * 0.5f, gt + slotSz * 1.5f));
+                            }
+                            else
+                            {
+                                dl.AddCircle(new Vector2(sx0 + slotSz * 0.5f, sy0 + slotSz * 0.5f), slotSz * 0.55f, 0xFFFFD23Cu, 0, 1.8f);
+                            }
                         }
                     }
                 }
 
                 // Draw Bottom Info Chip
                 float chipX0 = screenPos.X - chipW * 0.5f;
-                float chipY0 = bY0 + socketsH + 4f;
+                float chipY0 = isMinimal ? (screenPos.Y - chipH * 0.5f) : (bY0 + socketsH + 4f);
                 float chipX1 = chipX0 + chipW;
                 float chipY1 = chipY0 + chipH;
                 float midY = chipY0 + chipH * 0.5f;
@@ -3359,8 +3369,8 @@ namespace NinjaPricer
                 dl.AddRectFilled(new Vector2(renderX, midY - sqSz * 0.5f), new Vector2(renderX + sqSz, midY + sqSz * 0.5f), m.IsCompleted ? 0xFF787878u : m.Color, 3f);
                 renderX += sqSz + spacing;
 
-                // Reward icon
-                if (itemTex != null && itemTex.Value.Valid)
+                // Reward icon (only if not minimal)
+                if (!isMinimal && itemTex != null && itemTex.Value.Valid)
                 {
                     dl.AddImage(itemTex.Value.Ptr, new Vector2(renderX, midY - iconSz * 0.5f), new Vector2(renderX + iconSz, midY + iconSz * 0.5f), Vector2.Zero, Vector2.One, imgTint);
                     renderX += iconSz + spacing;
@@ -3369,7 +3379,7 @@ namespace NinjaPricer
                 // Currency icon
                 if (curTex != null && curTex.Value.Valid)
                 {
-                    dl.AddImage(curTex.Value.Ptr, new Vector2(renderX, midY - (18f * uiScale) * 0.5f), new Vector2(renderX + curW, midY + (18f * uiScale) * 0.5f), Vector2.Zero, Vector2.One, imgTint);
+                    dl.AddImage(curTex.Value.Ptr, new Vector2(renderX, midY - curW * 0.5f), new Vector2(renderX + curW, midY + curW * 0.5f), Vector2.Zero, Vector2.One, imgTint);
                     renderX += curW + 3f;
                 }
 
@@ -3381,8 +3391,8 @@ namespace NinjaPricer
                     renderX += priceSz.X + spacing;
                 }
 
-                // Weight text
-                if (!string.IsNullOrEmpty(weightText))
+                // Weight text (only if not minimal)
+                if (!isMinimal && !string.IsNullOrEmpty(weightText))
                 {
                     if (weightTex != null && weightTex.Value.Valid)
                     {
@@ -3536,6 +3546,22 @@ namespace NinjaPricer
                 }
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip("Collapse all");
 
+                ImGui.SameLine(0f, 6f);
+                bool mini = this.Settings.RsMinimalMapBadges;
+                if (mini)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.55f, 0.35f, 0.15f, 1f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.68f, 0.45f, 0.20f, 1f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.78f, 0.55f, 0.25f, 1f));
+                }
+                if (ImGui.Button(mini ? "Mini###rs_mini_toggle" : "Full###rs_mini_toggle", new Vector2(btnH * 1.8f, btnH)))
+                {
+                    this.Settings.RsMinimalMapBadges = !mini;
+                    this.SaveSettings();
+                }
+                if (mini) ImGui.PopStyleColor(3);
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(mini ? "Map Marker Mode: Minimal (Color + Price only). Click to switch to Full." : "Map Marker Mode: Full (Runes + Info). Click to switch to Minimal.");
+
                 ImGui.Separator();
             }
 
@@ -3600,7 +3626,8 @@ namespace NinjaPricer
                     Vector2 wSz = ImGui.CalcTextSize(this.PluginText.T("ninjapricer.runeshape.sort_weight", "Weight"));
                     Vector2 pSz = ImGui.CalcTextSize(this.PluginText.T("ninjapricer.runeshape.sort_price", "Price"));
                     float sbH = lineHBtn + 6f;
-                    float sortBarW = (padX * 2 + lineHBtn + 6f + wSz.X) + 4f + (padX * 2 + lineHBtn + 6f + pSz.X) + 6f + (sbH * 2 + 4f);
+                    float miniBtnW = sbH * 1.8f;
+                    float sortBarW = (padX * 2 + lineHBtn + 6f + wSz.X) + 4f + (padX * 2 + lineHBtn + 6f + pSz.X) + 6f + (sbH * 2 + 4f) + 6f + miniBtnW;
                     if (sortBarW > maxContentW) maxContentW = sortBarW;
                 }
 

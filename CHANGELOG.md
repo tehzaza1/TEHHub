@@ -2,6 +2,18 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.67 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Minimal Map/World Marker Mode & Row Isolation Fix**:
+  - **Minimal Map Badges Mode (`Mini` / `Full` Toggle)**:
+    - Added quick `Mini` / `Full` mode button on the Runeshape sort bar and in settings.
+    - When Minimal mode is enabled, LargeMap badges and 3D world markers hide the rune sockets row and reward item icons, rendering a clean, ultra-compact chip with **only the Monolith Color Square + Currency Icon + Best Price**.
+  - **Row Isolation & State Reset Fix**:
+    - Wrapped each monolith row in `ImGui.PushID(mIdx)` and unique widget IDs to eliminate any cross-talk between rows when clicking headers.
+    - Added `expandedMonoliths.Clear()` to `OnAreaChange` so every new area starts in a clean collapsed state.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; packaged to standalone zip artifact.
+
 ## 1.8.66 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Dynamic Auto-Sizing & Expand/Collapse All for Runeshape Overlay**:
