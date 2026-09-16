@@ -463,7 +463,6 @@ namespace ExpeditionPathOptimizer
                         }
                     }
 
-                    remainingRemnants.Remove(chosen.Remnant);
                     nextPos = chosen.Pos;
                 }
                 else if (chestCandidates.Count > 0)
@@ -486,7 +485,6 @@ namespace ExpeditionPathOptimizer
                         }
                     }
 
-                    remainingChests.Remove(chosen.Chest);
                     nextPos = chosen.Pos;
                 }
                 else
@@ -625,8 +623,18 @@ namespace ExpeditionPathOptimizer
                     nextPos = bestNext.Value;
                 }
 
-                path.Add(RoundPoint(nextPos));
-                current = nextPos;
+                var placedPoint = RoundPoint(nextPos);
+
+                // Bomb ลูกนี้ถือว่าเก็บทุก Remnant ที่อยู่ใน blast radius แล้ว
+                remainingRemnants.RemoveAll(r =>
+                    Vector2.Distance(placedPoint, r.GridPos) <= radius);
+
+                // และเก็บทุก Chest ที่อยู่ใน blast radius แล้ว
+                remainingChests.RemoveAll(c =>
+                    Vector2.Distance(placedPoint, c.GridPos) <= radius);
+
+                path.Add(placedPoint);
+                current = placedPoint;
             }
 
             // Final Bomb: step to a walkable candidate near final target
@@ -664,9 +672,25 @@ namespace ExpeditionPathOptimizer
                 var nxt = mutated[idx + 1];
                 int remainingStepsAfterThis = n - 1 - (idx + 1);
 
+                bool CoveredByOtherBomb(Vector2 targetPos)
+                {
+                    for (int j = 0; j < mutated.Count; j++)
+                    {
+                        if (j == idx)
+                            continue;
+
+                        if (Vector2.Distance(mutated[j], targetPos) <= radius)
+                            return true;
+                    }
+
+                    return false;
+                }
+
                 // Priority 1: Remnant candidates
                 var remnantCandidates = new List<Vector2>();
-                foreach (var r in environment.Remnants.Where(r => r != finalTarget))
+                foreach (var r in environment.Remnants.Where(r =>
+                    r != finalTarget &&
+                    !CoveredByOtherBomb(r.GridPos)))
                 {
                     var candPos = environment.FindWalkableCandidateNearRemnant(r, prev, radius);
                     if (Vector2.Distance(prev, candPos) <= reach && Vector2.Distance(candPos, nxt) <= reach)
@@ -686,7 +710,7 @@ namespace ExpeditionPathOptimizer
                 var chestCandidates = new List<Vector2>();
                 if (remnantCandidates.Count == 0 && environment.Chests != null)
                 {
-                    foreach (var c in environment.Chests)
+                    foreach (var c in environment.Chests.Where(c => !CoveredByOtherBomb(c.GridPos)))
                     {
                         var candPos = environment.FindWalkableCandidateNearChest(c, prev, radius);
                         if (Vector2.Distance(prev, candPos) <= reach && Vector2.Distance(candPos, nxt) <= reach)
