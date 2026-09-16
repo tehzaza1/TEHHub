@@ -24,6 +24,7 @@ namespace NinjaPricer
     using TEHhub.RemoteEnums.Entity;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.Utils;
 
     public sealed partial class NinjaPricerCore : PCore<NinjaPricerSettings>
     {
@@ -211,6 +212,7 @@ namespace NinjaPricer
         private Vector2 runeshapeWinRectMin = Vector2.Zero;
         private Vector2 runeshapeWinRectMax = Vector2.Zero;
         private bool runeshapeWinRectValid = false;
+        private readonly HashSet<IntPtr> coveredMonoliths = new();
         private string newProfileInput = string.Empty;
 
         // Ground tags cache
@@ -657,6 +659,7 @@ namespace NinjaPricer
                 lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
                 this.lastGroundScanUtc = DateTime.MinValue;
                 this.lastInvScanUtc = DateTime.MinValue;
+                this.coveredMonoliths.Clear();
             }
         }
 
@@ -2926,15 +2929,45 @@ namespace NinjaPricer
             var monoliths = new List<MonolithData>();
             if (area?.AwakeEntities != null)
             {
+                var placedExplosives = ExpeditionMechanics.GetPlacedExplosives(area);
+                bool hasPlacedExplosives = placedExplosives.Count > 0;
+
                 foreach (var e in area.AwakeEntities.Values)
                 {
                     if (e.Path != null && e.Path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase))
                     {
                         if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
                         {
+                            // Completed monolith (looted / missed) — clear sticky coverage and skip rendering (disappear)
+                            if (mData.IsCompleted)
+                            {
+                                this.coveredMonoliths.Remove(e.Address);
+                                continue;
+                            }
+
+                            // Check live coverage from currently placed explosives
                             var cov = e.GetExpeditionExplosiveCoverage();
-                            mData.IsCoveredByExplosive = cov.IsCovered;
-                            mData.DistanceToExplosive = cov.DistanceWorld;
+                            if (cov.IsCovered)
+                            {
+                                // Covered by a placed explosive — remember it
+                                this.coveredMonoliths.Add(e.Address);
+                                mData.IsCoveredByExplosive = true;
+                                mData.DistanceToExplosive = cov.DistanceWorld;
+                            }
+                            else if (hasPlacedExplosives)
+                            {
+                                // Explosives are on the ground, but none covers this monolith (e.g. moved away)
+                                this.coveredMonoliths.Remove(e.Address);
+                                mData.IsCoveredByExplosive = false;
+                                mData.DistanceToExplosive = cov.DistanceWorld;
+                            }
+                            else if (this.coveredMonoliths.Contains(e.Address))
+                            {
+                                // Was previously covered before detonation (explosives now gone) — keep green
+                                mData.IsCoveredByExplosive = true;
+                                mData.DistanceToExplosive = cov.DistanceWorld;
+                            }
+
                             monoliths.Add(mData);
                         }
                     }

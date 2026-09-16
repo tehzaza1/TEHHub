@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.63 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Expedition Monolith Sticky Coverage & Auto-Hide Lifecycle**:
+  - **Persistent Detonation Coverage**: Monoliths covered by placed explosives maintain their active green highlight (`IsCoveredByExplosive = true`) even after the detonator is activated and placed explosive entities are destroyed by the game engine.
+  - **Dynamic Undo/Repositioning Support**: If an explosive is picked up or moved away during the placement phase, the un-covered monolith cleanly clears its green coverage state.
+  - **Auto-Hide on Completion**: Completed/looted monoliths (`IsCompleted == true`, `activated >= 7` or bypassed `activated == 8`) are immediately removed from active tracking and hidden from both 3D world markers and the Runeshape window overlay.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; deployed cleanly to `C:\Games\Hy-v Tool\DXPEOE\TEHhub`.
+
 ## 1.8.62 — 2026-09-16 [SDK & Plugin Update]
 
 - **SDK / Core Framework: Authoritative Expedition Mechanics & Proximity Detection API**:
