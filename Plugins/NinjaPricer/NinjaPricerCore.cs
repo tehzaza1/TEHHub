@@ -663,6 +663,7 @@ namespace NinjaPricer
                 this.lastInvScanUtc = DateTime.MinValue;
                 this.coveredMonoliths.Clear();
                 this.cachedAreaMonoliths.Clear();
+                this.expandedMonoliths.Clear();
             }
         }
 
@@ -3520,7 +3521,11 @@ namespace NinjaPricer
                 float btnH = ImGui.GetTextLineHeight() + 6f;
                 if (ImGui.Button("+###rs_exp_all", new Vector2(btnH, btnH)))
                 {
-                    foreach (var m in monoliths) this.expandedMonoliths.Add(m.EntityAddress.ToInt64());
+                    foreach (var m in monoliths)
+                    {
+                        long mAddr = m.EntityAddress != IntPtr.Zero ? m.EntityAddress.ToInt64() : (long)m.WorldPos.GetHashCode();
+                        this.expandedMonoliths.Add(mAddr);
+                    }
                 }
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip("Expand all");
 
@@ -3628,7 +3633,8 @@ namespace NinjaPricer
                         + 8f * effectiveScale;
                     if (hdrW > maxContentW) maxContentW = hdrW;
 
-                    if (this.expandedMonoliths.Contains(m.EntityAddress.ToInt64()) && m.Offers != null)
+                    long mAddr = m.EntityAddress != IntPtr.Zero ? m.EntityAddress.ToInt64() : (long)m.WorldPos.GetHashCode();
+                    if (this.expandedMonoliths.Contains(mAddr) && m.Offers != null)
                     {
                         foreach (var offer in m.Offers)
                         {
@@ -3669,6 +3675,7 @@ namespace NinjaPricer
 
                 for (int mIdx = 0; mIdx < displayMonoliths.Count; mIdx++)
                 {
+                    ImGui.PushID(mIdx);
                     var m = displayMonoliths[mIdx];
                     uint mColor = m.Color != 0 ? m.Color : RsMonolithColors[mIdx % RsMonolithColors.Length];
 
@@ -3776,7 +3783,8 @@ namespace NinjaPricer
                     }
 
                     // Custom header row without triangle arrow (collapsed by default until clicked)
-                    bool headerOpen = this.expandedMonoliths.Contains(m.EntityAddress.ToInt64());
+                    long mAddr = m.EntityAddress != IntPtr.Zero ? m.EntityAddress.ToInt64() : (long)m.WorldPos.GetHashCode();
+                    bool headerOpen = this.expandedMonoliths.Contains(mAddr);
                     float headerH = Math.Max(baseFrameH, slotSz + 2f);
 
                     // Dynamically size button width to fit maxContentW
@@ -3785,11 +3793,10 @@ namespace NinjaPricer
                     var hmin = ImGui.GetCursorScreenPos();
                     var hmax = new Vector2(hmin.X + btnW, hmin.Y + headerH);
 
-                    bool clicked = ImGui.InvisibleButton($"###rscol_{m.EntityAddress.ToInt64():X}", new Vector2(btnW, headerH));
+                    bool clicked = ImGui.InvisibleButton($"###rscol_{mIdx}_{mAddr:X}", new Vector2(btnW, headerH));
                     bool isHovered = ImGui.IsItemHovered();
                     if (clicked)
                     {
-                        long mAddr = m.EntityAddress.ToInt64();
                         if (headerOpen) this.expandedMonoliths.Remove(mAddr);
                         else this.expandedMonoliths.Add(mAddr);
                         headerOpen = !headerOpen;
@@ -4040,6 +4047,7 @@ namespace NinjaPricer
                     {
                         ImGui.Spacing();
                     }
+                    ImGui.PopID();
                 }
 
                 if (this.Settings.RsCompactRows)
