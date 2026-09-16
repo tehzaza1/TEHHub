@@ -60,6 +60,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private static readonly int[] LeftPanelCoopPath = { 22 };
         private static readonly int[] RightPanelCoopPath = { 23 };
         private static readonly int[] TempleConsoleChildPath = { 64, 0 };
+        private static readonly int[] MapModifiersChildPath = { 6, 2, 3, 0, 1 };
 
         // Controller Mode Paths
         private static readonly int[] ControllerLargeMapViewportChildPath = { 0, 1 };
@@ -74,6 +75,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private static readonly int[] ControllerAtlasPanelChildPath = { 24, 2, 3, 0, 0, 6 };
         private static readonly int[] ControllerAtlasSkillsPanelChildPath = { 24, 2, 3, 4 };
         private static readonly int[] ControllerPassiveSkillTreeNodesChildPath = { 24, 2, 2, 0 };
+        private static readonly int[] ControllerMapModifiersChildPath = { 0, 3, 3, 0, 1 };
 
         // Controller Mode Relative Subpaths (under dynamic player container)
         private static readonly int[] ControllerWorldMapPanelSubPath = { 2, 3 };
@@ -85,6 +87,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private static readonly int[] ControllerAtlasPanelSubPath = { 2, 3, 0, 0, 6 };
         private static readonly int[] ControllerAtlasSkillsPanelSubPath = { 2, 3, 4 };
         private static readonly int[] ControllerPassiveSkillTreeNodesSubPath = { 2, 2, 0 };
+        private static readonly int[] MapModifiersSubPath = { 2, 3, 0, 1 };
+        private static readonly int[] ControllerMapModifiersSubPath = { 3, 3, 0, 1 };
         private const int AtlasMapCacheRefreshFrames = 20;
         private const int AtlasNodeBiomeIdOffset = 0x2BE;
         private const int AtlasNodeStatusByteOffset = 0x2BF;
@@ -92,6 +96,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         // node's atlas-passive row, producing generated-looking ids or an empty name.
         private const int AtlasNodeMapDataOffset = 0x290;
         private const int AtlasNodeGridPositionOffset = 0x310;
+        private const int ModifierTextWStringOffset = 0x360;
 
         // Atlas layout notes and offsets in this block are adapted from yokkenUA's Atlas plugin
         // reverse engineering (dfb52db through afecda4), based on live-memory inspection and
@@ -204,6 +209,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.LeftPanel = new(IntPtr.Zero, this.rootCache);
             this.RightPanel = new(IntPtr.Zero, this.rootCache);
             this.ChatParent = new(IntPtr.Zero, this.rootCache);
+            this.MapModifiersPanel = new(IntPtr.Zero, this.rootCache);
 
             this.SkillTreeNodesUiElements = new();
             Core.CoroutinesRegistrar.Add(CoroutineHandler.Start(
@@ -340,6 +346,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         ///     GameUi -> child 54 -> child 3. Child 54 itself remains visible while the panel is closed.
         /// </summary>
         public UiElementBase SupportGemcuttingPanel { get; }
+
+        /// <summary>
+        ///     Gets the active area / map modifiers container UI element.
+        ///     GameUi -> child 6 -> child 2 -> child 3 -> child 0 -> child 1.
+        /// </summary>
+        public UiElementBase MapModifiersPanel { get; }
 
         /// <summary>
         ///     Gets the Runeshape Combinations panel root. Its child tree contains recipe rows
@@ -540,6 +552,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.LeftPanel.Address = IntPtr.Zero;
             this.RightPanel.Address = IntPtr.Zero;
             this.ChatParent.Address = IntPtr.Zero;
+            this.MapModifiersPanel.Address = IntPtr.Zero;
             this.atlasMaps.Clear();
             this.areaMods.Clear();
             this.areaModNames.Clear();
@@ -613,8 +626,41 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.GemcuttingPanel.Address = ResolveChildAddress(this.Address, GemcuttingPanelChildPath);
             this.SupportGemcuttingPanel.Address = ResolveChildAddress(this.Address, SupportGemcuttingPanelChildPath);
             this.RuneshapeCombinationsPanel.Address = this.ResolveRuneshapeCombinationsPanel();
+            this.MapModifiersPanel.Address = this.ResolveMapModifiersContainer();
             this.UpdateAtlasMapData();
             this.UpdateAreaMods();
+        }
+
+        private IntPtr ResolveMapModifiersContainer()
+        {
+            var reader = Core.Process.Handle;
+
+            // 1. Primary: Parent-Climbing from LargeMap (Immune to UiRoot index shifts across patches!)
+            if (this.LargeMap.Address != IntPtr.Zero && SafeMemoryHandle.IsValidAddress(this.LargeMap.Address))
+            {
+                if (reader.TryReadMemory<UiElementBaseOffset>(this.LargeMap.Address, out var largeMapOff) &&
+                    largeMapOff.ParentPtr != IntPtr.Zero && SafeMemoryHandle.IsValidAddress(largeMapOff.ParentPtr))
+                {
+                    var containerFromParent = ResolveChildAddress(
+                        largeMapOff.ParentPtr,
+                        Core.GHSettings.EnableControllerMode ? ControllerMapModifiersSubPath : MapModifiersSubPath);
+
+                    if (containerFromParent == IntPtr.Zero && Core.GHSettings.EnableControllerMode)
+                    {
+                        containerFromParent = ResolveChildAddress(largeMapOff.ParentPtr, MapModifiersSubPath);
+                    }
+
+                    if (containerFromParent != IntPtr.Zero)
+                    {
+                        return containerFromParent;
+                    }
+                }
+            }
+
+            // 2. Fallback: Absolute path from UiRoot
+            return ResolveChildAddress(
+                this.Address,
+                Core.GHSettings.EnableControllerMode ? ControllerMapModifiersChildPath : MapModifiersChildPath);
         }
 
         private void UpdateAreaMods()
@@ -625,16 +671,49 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             }
 
             this.areaModUpdateCounter = 0;
+            if (this.MapModifiersPanel.Address == IntPtr.Zero)
+            {
+                this.MapModifiersPanel.Address = this.ResolveMapModifiersContainer();
+            }
+
+            var totalMods = this.MapModifiersPanel.TotalChildrens;
+            if (totalMods <= 0 || totalMods > 100)
+            {
+                return;
+            }
+
             var reader = Core.Process.Handle;
-            var mods = AreaModUiReader.ReadAreaMods(reader, this.Address);
-            if (mods.Count > 0)
+            var newMods = new List<AreaMod>(totalMods);
+            for (var i = 0; i < totalMods; i++)
+            {
+                var child = this.MapModifiersPanel[i];
+                if (child == null || child.Address == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                if (reader.TryReadMemory<StdWString>(child.Address + ModifierTextWStringOffset, out var wstr))
+                {
+                    var raw = reader.ReadStdWString(wstr);
+                    if (!string.IsNullOrWhiteSpace(raw))
+                    {
+                        var clean = AreaModUiReader.CleanModifierText(raw);
+                        if (!string.IsNullOrWhiteSpace(clean))
+                        {
+                            newMods.Add(new AreaMod(clean, clean, (float.NaN, float.NaN), child.Address));
+                        }
+                    }
+                }
+            }
+
+            if (newMods.Count > 0)
             {
                 this.areaMods.Clear();
                 this.areaModNames.Clear();
-                for (var i = 0; i < mods.Count; i++)
+                for (var i = 0; i < newMods.Count; i++)
                 {
-                    this.areaMods.Add(mods[i]);
-                    this.areaModNames.Add(mods[i].RawName);
+                    this.areaMods.Add(newMods[i]);
+                    this.areaModNames.Add(newMods[i].RawName);
                 }
             }
         }
