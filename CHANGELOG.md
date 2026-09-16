@@ -2,6 +2,25 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.60 — 2026-09-16 [SDK / Core Framework Update]
+
+- **Core Framework: Data Visualization 2.0 (12-Tab Inspector Suite)**:
+  - Completely redesigned `DataVisualization` from a legacy vertical list into an intuitive 12-tab inspector suite.
+  - **`Area & Vitals`**: Current world area metadata, level, hash, active area/map modifiers, player HP/MP/ES progress bars, and coordinates.
+  - **`Buffs`**: Interactive, searchable table of all active player buffs (charges, stage, time left, one-click copy).
+  - **`Entities`**: Filterable Awake and Sleeping entity lists by ID/Path/Rarity with one-click JSON dump and sleeping scanner.
+  - **`Inventories`**: ComboBox selector for all player inventories with item grid details and modifiers.
+  - **`Flasks & Charms`**: Dedicated 5-slot flask inspector and charms overview.
+  - **`Memory`**: Base address, static addresses, GGPK caches, and memory settings.
+  - **`UI Explorer`**: GameUi hierarchy inspector with controller mode status and visibility flags.
+  - **`Components`**: Deep component inspector for local player and mouse-hovered entity.
+  - **`Render`**: Resolution, black-bar cull sizes, camera 4x4 matrix, and interactive WorldToScreen coordinate tester.
+  - **`Terrain`**: Tile metadata, walkable grid bytes, heightmap, and Tgt landmarks.
+  - **`Events`**: Core lifecycle ticks and memory diagnostic status.
+  - **`Skills & Timing`**: Player actor active skills, usability flags, use stages, and cast types.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; passed test suites.
+
 ## 1.8.59 — 2026-09-16 [SDK / Core Framework Update]
 
 - **Core Framework: Map & Area Modifiers SDK**:
