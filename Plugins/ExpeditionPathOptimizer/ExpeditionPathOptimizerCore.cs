@@ -307,6 +307,31 @@ namespace ExpeditionPathOptimizer
                 this.Settings.PathGenerationSize = popSize;
                 this.SaveSettings();
             }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Scoring & Penalty Parameters");
+
+            float usefulBridge = (float)this.Settings.UsefulBridgePenalty;
+            if (ImGui.SliderFloat("Useful Bridge Penalty (-)", ref usefulBridge, 0.0f, 100.0f, "%.0f"))
+            {
+                this.Settings.UsefulBridgePenalty = usefulBridge;
+                this.SaveSettings();
+            }
+
+            float uselessBridge = (float)this.Settings.EmptyBombPenalty;
+            if (ImGui.SliderFloat("Useless Empty Bomb Penalty (-)", ref uselessBridge, 50.0f, 300.0f, "%.0f"))
+            {
+                this.Settings.EmptyBombPenalty = uselessBridge;
+                this.SaveSettings();
+            }
+
+            float futurePot = (float)this.Settings.FuturePotentialBonusMultiplier;
+            if (ImGui.SliderFloat("Future Potential Multiplier (%)", ref futurePot, 0.0f, 50.0f, "%.0f%%"))
+            {
+                this.Settings.FuturePotentialBonusMultiplier = futurePot;
+                this.SaveSettings();
+            }
         }
 
         public void ScanEntities(AreaInstance area)

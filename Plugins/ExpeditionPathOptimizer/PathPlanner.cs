@@ -8,7 +8,15 @@ namespace ExpeditionPathOptimizer
 
     public class PathPlanner
     {
-        public record PerPointScoreInfo(Vector2 Point, double ScoreDiff, List<ExpeditionRemnant> NewRemnants, string? ActiveRune, double RuneScore);
+        public record PerPointScoreInfo(
+            Vector2 Point,
+            double ScoreDiff,
+            List<ExpeditionRemnant> NewRemnants,
+            string? ActiveRune,
+            double RuneScore,
+            bool IsUsefulBridge,
+            double FuturePotential);
+
         public record DetailedLootScore(List<PerPointScoreInfo> PerPointScore, double TotalScore, ExpeditionEnvironment Environment);
 
         private readonly ExpeditionPathOptimizerSettings settings;
@@ -72,6 +80,8 @@ namespace ExpeditionPathOptimizer
                     return double.NegativeInfinity;
                 }
 
+                int remainingSteps = n - 1 - i;
+
                 // Rule 3: Intermediate bombs (0 .. n-2) MUST NOT hit finalTarget
                 if (i < n - 1)
                 {
@@ -81,7 +91,6 @@ namespace ExpeditionPathOptimizer
                     }
 
                     // Rule 4: Reachability to final target in remaining steps
-                    int remainingSteps = n - 1 - i;
                     float distRemaining = Vector2.Distance(curPoint, finalTarget.GridPos);
                     if (distRemaining > (remainingSteps * env.ExplosionRange) + env.ExplosionRadius + 0.1f)
                     {
@@ -125,13 +134,79 @@ namespace ExpeditionPathOptimizer
                     totalScore += this.settings.FinalTargetBonus;
                 }
 
-                // 6. Empty Bomb Penalty
+                // 6. Empty Bomb vs Useful Bridge Penalty
                 if (newRemnantsCount == 0)
                 {
-                    totalScore -= this.settings.EmptyBombPenalty;
+                    bool isUsefulBridge = false;
+
+                    // 6a. Check if actively bridging towards an unvisited reachable remnant
+                    foreach (var r in env.Remnants)
+                    {
+                        if (!hitRemnants.Contains(r) && r != finalTarget)
+                        {
+                            float distCurToR = Vector2.Distance(curPoint, r.GridPos);
+                            float distPrevToR = Vector2.Distance(prevPoint, r.GridPos);
+                            if (remainingSteps >= 2)
+                            {
+                                if (distCurToR <= ((remainingSteps - 1) * env.ExplosionRange) + env.ExplosionRadius)
+                                {
+                                    float distRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
+                                    if (distRToFinal <= ((remainingSteps - 2) * env.ExplosionRange) + env.ExplosionRadius)
+                                    {
+                                        if (distCurToR < distPrevToR - 3.0f)
+                                        {
+                                            isUsefulBridge = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 6b. Check if actively bridging towards Final Target
+                    if (!isUsefulBridge)
+                    {
+                        float distCurToFinal = Vector2.Distance(curPoint, finalTarget.GridPos);
+                        float distPrevToFinal = Vector2.Distance(prevPoint, finalTarget.GridPos);
+                        if (distCurToFinal < distPrevToFinal - 3.0f && distCurToFinal <= (remainingSteps * env.ExplosionRange) + env.ExplosionRadius)
+                        {
+                            isUsefulBridge = true;
+                        }
+                    }
+
+                    if (isUsefulBridge)
+                    {
+                        totalScore -= this.settings.UsefulBridgePenalty; // Bridge ไปหาเป้าหมายได้ = -20
+                    }
+                    else
+                    {
+                        totalScore -= this.settings.EmptyBombPenalty; // Bridge ที่ไม่ช่วยอะไร = -150
+                    }
                 }
 
-                // 7. Travel Penalty
+                // 7. Future Potential Bonus: ระเบิดยังเหลือเยอะ + มี Remnant ที่ยัง Reachable
+                if (i < n - 1 && remainingSteps >= 2)
+                {
+                    double stepPotential = 0.0;
+                    foreach (var r in env.Remnants)
+                    {
+                        if (!hitRemnants.Contains(r) && r != finalTarget)
+                        {
+                            float distCurToR = Vector2.Distance(curPoint, r.GridPos);
+                            float distRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
+                            if (distCurToR <= ((remainingSteps - 1) * env.ExplosionRange) + env.ExplosionRadius &&
+                                distRToFinal <= ((remainingSteps - 2) * env.ExplosionRange) + env.ExplosionRadius)
+                            {
+                                double rValue = r.BaseRuneWeight + (r.RuneSlots * 10.0);
+                                stepPotential += rValue * (this.settings.FuturePotentialBonusMultiplier / 100.0);
+                            }
+                        }
+                    }
+                    totalScore += stepPotential;
+                }
+
+                // 8. Travel Penalty
                 double travelPenalty = (stepDist / env.ExplosionRange) * this.settings.TravelPenaltyMultiplier;
                 totalScore -= travelPenalty;
 
@@ -162,6 +237,7 @@ namespace ExpeditionPathOptimizer
                 float stepDist = Vector2.Distance(prevPoint, curPoint);
                 double localScore = 0.0;
                 var newHits = new List<ExpeditionRemnant>();
+                int remainingSteps = n - 1 - i;
 
                 foreach (var r in env.Remnants)
                 {
@@ -193,16 +269,80 @@ namespace ExpeditionPathOptimizer
                     localScore += this.settings.FinalTargetBonus;
                 }
 
+                bool isUsefulBridge = false;
                 if (newHits.Count == 0)
                 {
-                    localScore -= this.settings.EmptyBombPenalty;
+                    // 6a. Check if actively bridging towards an unvisited reachable remnant
+                    foreach (var r in env.Remnants)
+                    {
+                        if (!hitRemnants.Contains(r) && r != finalTarget)
+                        {
+                            float distCurToR = Vector2.Distance(curPoint, r.GridPos);
+                            float distPrevToR = Vector2.Distance(prevPoint, r.GridPos);
+                            if (remainingSteps >= 2)
+                            {
+                                if (distCurToR <= ((remainingSteps - 1) * env.ExplosionRange) + env.ExplosionRadius)
+                                {
+                                    float distRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
+                                    if (distRToFinal <= ((remainingSteps - 2) * env.ExplosionRange) + env.ExplosionRadius)
+                                    {
+                                        if (distCurToR < distPrevToR - 3.0f)
+                                        {
+                                            isUsefulBridge = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 6b. Check if actively bridging towards Final Target
+                    if (!isUsefulBridge)
+                    {
+                        float distCurToFinal = Vector2.Distance(curPoint, finalTarget.GridPos);
+                        float distPrevToFinal = Vector2.Distance(prevPoint, finalTarget.GridPos);
+                        if (distCurToFinal < distPrevToFinal - 3.0f && distCurToFinal <= (remainingSteps * env.ExplosionRange) + env.ExplosionRadius)
+                        {
+                            isUsefulBridge = true;
+                        }
+                    }
+
+                    if (isUsefulBridge)
+                    {
+                        localScore -= this.settings.UsefulBridgePenalty; // -20
+                    }
+                    else
+                    {
+                        localScore -= this.settings.EmptyBombPenalty; // -150
+                    }
+                }
+
+                double stepPotential = 0.0;
+                if (i < n - 1 && remainingSteps >= 2)
+                {
+                    foreach (var r in env.Remnants)
+                    {
+                        if (!hitRemnants.Contains(r) && r != finalTarget)
+                        {
+                            float distCurToR = Vector2.Distance(curPoint, r.GridPos);
+                            float distRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
+                            if (distCurToR <= ((remainingSteps - 1) * env.ExplosionRange) + env.ExplosionRadius &&
+                                distRToFinal <= ((remainingSteps - 2) * env.ExplosionRange) + env.ExplosionRadius)
+                            {
+                                double rValue = r.BaseRuneWeight + (r.RuneSlots * 10.0);
+                                stepPotential += rValue * (this.settings.FuturePotentialBonusMultiplier / 100.0);
+                            }
+                        }
+                    }
+                    localScore += stepPotential;
                 }
 
                 double travelPenalty = (stepDist / env.ExplosionRange) * this.settings.TravelPenaltyMultiplier;
                 localScore -= travelPenalty;
 
                 totalScore += localScore;
-                pointsScore.Add(new PerPointScoreInfo(curPoint, localScore, newHits, activePropagatedRune, runeScore));
+                pointsScore.Add(new PerPointScoreInfo(curPoint, localScore, newHits, activePropagatedRune, runeScore, isUsefulBridge, stepPotential));
                 prevPoint = curPoint;
             }
 
