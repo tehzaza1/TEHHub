@@ -133,7 +133,6 @@ namespace TEHhub.Ui
                 }
                 else
                 {
-                    ImGui.BeginChild("AreaModsScroll", new Vector2(0, 110), ImGuiChildFlags.Borders);
                     for (var i = 0; i < area.AreaMods.Count; i++)
                     {
                         var mod = area.AreaMods[i];
@@ -146,7 +145,6 @@ namespace TEHhub.Ui
                         ImGuiHelper.DisplayTextAndCopyOnClick($"• {mod.DisplayName}{valStr}", mod.DisplayName);
                         ImGui.PopID();
                     }
-                    ImGui.EndChild();
                 }
 
                 ImGui.Columns(1);
@@ -217,7 +215,7 @@ namespace TEHhub.Ui
                     ImGui.SameLine();
                     ImGui.TextColored(new Vector4(0.4f, 1.0f, 0.4f, 1.0f), $"Total Active: {statusEffects.Count}");
 
-                    if (ImGui.BeginTable("BuffsTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY, new Vector2(0, 160)))
+                    if (ImGui.BeginTable("BuffsTable", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
                     {
                         ImGui.TableSetupColumn("Buff Name", ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableSetupColumn("Stacks", ImGuiTableColumnFlags.WidthFixed, 70);
@@ -270,7 +268,7 @@ namespace TEHhub.Ui
                 {
                     ImGui.Text($"Current Animation: {actor.Animation} | Total Active Skills: {actor.ActiveSkills.Count}");
 
-                    if (ImGui.BeginTable("SkillsTable", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY, new Vector2(0, 160)))
+                    if (ImGui.BeginTable("SkillsTable", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
                     {
                         ImGui.TableSetupColumn("Skill Name", ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableSetupColumn("Usable?", ImGuiTableColumnFlags.WidthFixed, 75);
@@ -600,7 +598,6 @@ namespace TEHhub.Ui
                 }
                 else
                 {
-                    ImGui.BeginChild("TgtScroll", new Vector2(0, 160), ImGuiChildFlags.Borders);
                     foreach (var kv in area.TgtTilesLocations)
                     {
                         if (ImGui.TreeNode($"{kv.Key} ({kv.Value.Count} instances)"))
@@ -613,7 +610,6 @@ namespace TEHhub.Ui
                             ImGui.TreePop();
                         }
                     }
-                    ImGui.EndChild();
                 }
             }
 
