@@ -37,8 +37,7 @@ namespace TEHhub.Ui
         private static Vector3 testWorldCoords = Vector3.Zero;
         private static string componentSearchFilter = string.Empty;
         private static int selectedUiChildIndex = 0;
-        private static bool showInWorldLabels = true;
-        private static float inWorldLabelMaxDistance = 2500f;
+        private static float inWorldLabelMaxDistance = 3000f;
 
         /// <summary>
         ///     Initializes the co-routines.
@@ -57,14 +56,14 @@ namespace TEHhub.Ui
             while (true)
             {
                 yield return new Wait(TEHhubEvents.OnRender);
-                if (Core.States.GameCurrentState == GameStateTypes.InGameState)
-                {
-                    DrawInWorldEntityLabels();
-                }
-
                 if (!Core.GHSettings.ShowDataVisualization)
                 {
                     continue;
+                }
+
+                if (Core.States.GameCurrentState == GameStateTypes.InGameState)
+                {
+                    DrawInWorldEntityLabels();
                 }
 
                 ImGui.SetNextWindowSize(new Vector2(980, 680), ImGuiCond.FirstUseEver);
@@ -353,14 +352,6 @@ namespace TEHhub.Ui
             }
 
             // Entity Controls
-            ImGui.Checkbox("Show In-World 3D Entity Labels (ID + Name on Screen)", ref showInWorldLabels);
-            if (showInWorldLabels)
-            {
-                ImGui.SameLine();
-                ImGui.SetNextItemWidth(150);
-                ImGui.SliderFloat("Max Range##InWorldRange", ref inWorldLabelMaxDistance, 300f, 6000f, "%.0f");
-            }
-
             ImGui.Text($"Awake: {area.AwakeEntities.Count} | Sleeping: {area.SleepingEntities.Count} | Network Bubble: {area.NetworkBubbleEntityCount}");
 
             if (ImGui.RadioButton("Filter ID", entityFilterMode == 0)) entityFilterMode = 0;
@@ -782,11 +773,6 @@ namespace TEHhub.Ui
 
         private static void DrawInWorldEntityLabels()
         {
-            if (!showInWorldLabels)
-            {
-                return;
-            }
-
             var inGame = Core.States.InGameStateObject;
             var area = inGame?.CurrentAreaInstance;
             var world = inGame?.CurrentWorldInstance;
