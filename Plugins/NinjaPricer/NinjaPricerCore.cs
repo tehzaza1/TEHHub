@@ -3273,7 +3273,7 @@ namespace NinjaPricer
                 }
             }
 
-            // 1. Live update from AwakeEntities
+            // Live update only from AwakeEntities
             if (area.AwakeEntities != null)
             {
                 foreach (var e in area.AwakeEntities.Values)
@@ -3282,19 +3282,7 @@ namespace NinjaPricer
                 }
             }
 
-            // 2. Discover distant monoliths from SleepingEntities in normal maps (only if not already awake)
-            if (area.SleepingEntities != null)
-            {
-                foreach (var e in area.SleepingEntities.Values)
-                {
-                    if (!currentMonolithIds.Contains(e.Id))
-                    {
-                        ProcessMonolithEntity(e);
-                    }
-                }
-            }
-
-            // Evict monoliths that no longer exist in Awake or Sleeping
+            // Evict monoliths that no longer exist in AwakeEntities
             if (this.trackedMonoliths.Count > 0)
             {
                 var toRemove = new List<uint>();
