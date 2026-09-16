@@ -3532,7 +3532,7 @@ namespace NinjaPricer
                         ImGuiWindowFlags.NoFocusOnAppearing |
                         ImGuiWindowFlags.NoScrollbar;
 
-            bool open = ImGui.Begin(this.PluginText.Title("ninjapricer.runeshape.window_title", "Runeshape", "RuneshapeWindow"), ref keepOpen, flags);
+            bool open = ImGui.Begin("Runeshape###RuneshapeWindow", ref keepOpen, flags);
             this.Settings.RuneshapeWinCollapsed = !open;
 
             float fontScale = Math.Clamp(this.Settings.ExpeditionTextScale, 0.5f, 2.5f);

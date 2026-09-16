@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.73 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Runeshape Window Title & Localization Asset Synchronization**:
+  - Replaced dynamic title with direct `Runeshape###RuneshapeWindow` in `ImGui.Begin` to guarantee the title displays strictly as `"Runeshape"` across all window states.
+  - Fully synchronized all 11 localization JSON dictionaries (`th-TH.json`, `en-US.json`, etc.) and plugin binary assets to `C:\Games\Hy-v Tool\DXPEOE\TEHhub`.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; fully deployed and verified all localization and binary timestamps.
+
 ## 1.8.72 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Runeshape Window Title Simplification**:
