@@ -2,6 +2,14 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.91 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Universal Real-Item Hover Suppression across All Stash Tabs**:
+  - **Comprehensive Real-Item Tracking (`cachedRealItemRects`)**: Scans and tracks all valid item slot bounding boxes (`Metadata/Items/`) across Inventory and Stash tabs (including unpriced gear, gems, and fragments) while strictly filtering out UI backgrounds and empty placeholder containers.
+  - **Universal Hover Hiding**: Hovering over *any* real item in any stash tab immediately hides all price overlays across the screen so tooltips and loot details are fully legible, while hovering over empty spaces consistently leaves all prices visible.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and ready for deployment.
+
 ## 1.8.90 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Real-Item Hover Complete Price Hiding**:

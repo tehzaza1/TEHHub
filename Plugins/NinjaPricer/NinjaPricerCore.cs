@@ -261,6 +261,7 @@ namespace NinjaPricer
         }
         private List<SlotTag> cachedInvSlots = new();
         private List<SlotTag> cachedStashSlots = new();
+        private List<Vector4> cachedRealItemRects = new();
         private volatile bool isInvScanRunning = false;
 
         private sealed class CachedSlotItem
@@ -648,6 +649,7 @@ namespace NinjaPricer
             this.cachedGroundTags.Clear();
             this.cachedInvSlots.Clear();
             this.cachedStashSlots.Clear();
+            this.cachedRealItemRects.Clear();
             this.alertedEntityIds.Clear();
             this.activeAlertDrops.Clear();
             lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
@@ -678,6 +680,7 @@ namespace NinjaPricer
                 this.cachedGroundTags.Clear();
                 this.cachedInvSlots.Clear();
                 this.cachedStashSlots.Clear();
+                this.cachedRealItemRects.Clear();
                 this.itemSlotCache.Clear();
                 this.alertedEntityIds.Clear();
                 this.activeAlertDrops.Clear();
@@ -2670,6 +2673,7 @@ namespace NinjaPricer
 
             var newInv = new List<SlotTag>();
             var newStash = new List<SlotTag>();
+            var newRealItemRects = new List<Vector4>();
             double totalScanMs = 0;
             double totalGetMs = 0;
             int totalFound = 0;
@@ -2678,7 +2682,7 @@ namespace NinjaPricer
 
             if (rightAddress != IntPtr.Zero)
             {
-                this.ScanPanelSlots(rightAddress, newInv, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
+                this.ScanPanelSlots(rightAddress, newInv, newRealItemRects, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
                 totalScanMs += sMs;
                 totalGetMs += gMs;
                 totalFound += fCount;
@@ -2688,7 +2692,7 @@ namespace NinjaPricer
 
             if (leftAddress != IntPtr.Zero)
             {
-                this.ScanPanelSlots(leftAddress, newStash, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
+                this.ScanPanelSlots(leftAddress, newStash, newRealItemRects, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
                 totalScanMs += sMs;
                 totalGetMs += gMs;
                 totalFound += fCount;
@@ -2709,11 +2713,13 @@ namespace NinjaPricer
 
             this.cachedInvSlots = newInv;
             this.cachedStashSlots = newStash;
+            this.cachedRealItemRects = newRealItemRects;
         }
 
         private void ScanPanelSlots(
             IntPtr panelAddress,
             List<SlotTag> output,
+            List<Vector4> realItemRects,
             out double scanUiMs,
             out double getSlotsMs,
             out int exactFound,
@@ -2859,6 +2865,12 @@ namespace NinjaPricer
                     };
                 }
 
+                // Record real item slot rect for hover suppression (only valid slot dimensions)
+                if (slotSize.X >= 15f && slotSize.Y >= 15f && slotSize.X <= 250f && slotSize.Y <= 300f)
+                {
+                    realItemRects.Add(new Vector4(slotPos.X, slotPos.Y, slotPos.X + slotSize.X, slotPos.Y + slotSize.Y));
+                }
+
                 if (isPriced)
                 {
                     exactFound++;
@@ -2897,37 +2909,20 @@ namespace NinjaPricer
                 Vector2 mousePos = ImGui.GetMousePos();
                 bool isHoveringRealItem = false;
 
-                if (this.Settings.ShowInventoryPrices)
+                for (int i = 0; i < this.cachedRealItemRects.Count; i++)
                 {
-                    for (int i = 0; i < this.cachedInvSlots.Count; i++)
+                    var r = this.cachedRealItemRects[i];
+                    if (mousePos.X >= r.X && mousePos.X <= r.Z &&
+                        mousePos.Y >= r.Y && mousePos.Y <= r.W)
                     {
-                        var s = this.cachedInvSlots[i];
-                        if (mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
-                            mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
-                        {
-                            isHoveringRealItem = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!isHoveringRealItem && this.Settings.ShowOtherInventoryPrices)
-                {
-                    for (int i = 0; i < this.cachedStashSlots.Count; i++)
-                    {
-                        var s = this.cachedStashSlots[i];
-                        if (mousePos.X >= s.Pos.X && mousePos.X <= s.Pos.X + s.Size.X &&
-                            mousePos.Y >= s.Pos.Y && mousePos.Y <= s.Pos.Y + s.Size.Y)
-                        {
-                            isHoveringRealItem = true;
-                            break;
-                        }
+                        isHoveringRealItem = true;
+                        break;
                     }
                 }
 
                 if (isHoveringRealItem)
                 {
-                    return; // Hide ALL slot prices when mouse hovers over an actual item slot so loot/tooltips can be viewed cleanly
+                    return; // Hide ALL slot prices when mouse hovers over ANY real item so loot/tooltips can be viewed cleanly
                 }
             }
 
