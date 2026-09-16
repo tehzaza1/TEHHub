@@ -63,6 +63,10 @@ namespace ExpeditionPathOptimizer
                     {
                         localScore += val * multiplier * (1.0 + sum);
                     }
+                    else
+                    {
+                        localScore += 1.0 * multiplier * (1.0 + sum);
+                    }
                 }
 
                 score += localScore;
@@ -105,6 +109,10 @@ namespace ExpeditionPathOptimizer
                     {
                         localScore += val * multiplier * (1.0 + sum);
                     }
+                    else
+                    {
+                        localScore += 1.0 * multiplier * (1.0 + sum);
+                    }
                 }
 
                 scorePerPoint.Add(new PerPointLootScore(explosionPoint, localScore, newRelics, newLoot));
@@ -122,8 +130,9 @@ namespace ExpeditionPathOptimizer
                 yield break;
             }
 
-            var bestPath = Enumerable.Repeat(Vector2.Zero, environment.MaxExplosions).ToList();
-            var batch = Enumerable.Range(0, this.settings.PathGenerationSize * 2).Select(_ => this.BuildPath(environment)).ToList();
+            var bestPath = this.BuildPath(environment);
+            double bestScore = this.GetScore(bestPath, environment);
+            var batch = Enumerable.Range(0, Math.Max(20, this.settings.PathGenerationSize * 2)).Select(_ => this.BuildPath(environment)).ToList();
 
             while (true)
             {
@@ -132,6 +141,12 @@ namespace ExpeditionPathOptimizer
                     .OrderByDescending(x => x.Score)
                     .Take(this.settings.PathGenerationSize)
                     .ToList();
+
+                if (batchWithValues.Count > 0 && batchWithValues[0].Score > bestScore)
+                {
+                    bestScore = batchWithValues[0].Score;
+                    bestPath = batchWithValues[0].Path;
+                }
 
                 var mixedAndMutated = batchWithValues
                     .Concat(batchWithValues)
@@ -145,12 +160,7 @@ namespace ExpeditionPathOptimizer
 
                 var newBatch = mixedAndMutated.Append(bestPath).Concat(newPaths).ToList();
 
-                if (batchWithValues[0].Score > this.GetScore(bestPath, environment))
-                {
-                    bestPath = batchWithValues[0].Path;
-                }
-
-                yield return new PathState(bestPath, this.GetScore(bestPath, environment));
+                yield return new PathState(bestPath, bestScore);
                 batch = newBatch;
             }
         }
@@ -158,38 +168,76 @@ namespace ExpeditionPathOptimizer
         private List<Vector2> BuildPath(ExpeditionEnvironment environment)
         {
             var path = new List<Vector2>(environment.MaxExplosions);
-            if (Random.Shared.Next(2) != 0 && environment.Relics.Count > 0)
-            {
-                float environmentExplosionRange = environment.ExplosionRange * 0.9f;
-                var relic = environment.Relics[Random.Shared.Next(environment.Relics.Count)];
-                var current = environment.StartingPoint;
+            var current = environment.StartingPoint;
 
-                do
+            var targets = new List<Vector2>();
+            foreach (var (pos, _) in environment.Relics) targets.Add(pos);
+            foreach (var (pos, _) in environment.Loot) targets.Add(pos);
+
+            if (targets.Count > 0)
+            {
+                var target = targets[Random.Shared.Next(targets.Count)];
+                while (path.Count < environment.MaxExplosions && Vector2.Distance(current, target) > environment.ExplosionRadius)
                 {
-                    var diff = relic.Pos - current;
-                    if (diff.Length() < environmentExplosionRange)
+                    var diff = target - current;
+                    float dist = diff.Length();
+                    Vector2 nextPoint;
+                    if (dist <= environment.ExplosionRange)
                     {
-                        path.Add(RoundPoint(relic.Pos));
+                        nextPoint = RoundPoint(target);
                     }
                     else
                     {
-                        current += diff * (environmentExplosionRange / diff.Length());
-                        path.Add(RoundPoint(current));
+                        float stepDist = environment.ExplosionRange * (0.80f + 0.18f * Random.Shared.NextSingle());
+                        nextPoint = RoundPoint(current + Vector2.Normalize(diff) * stepDist);
                     }
 
-                    if (!this.IsValidPlacement(path.SkipLast(1).LastOrDefault(environment.StartingPoint), environment, path.Last()))
+                    if (this.IsValidPlacement(current, environment, nextPoint))
                     {
-                        path.RemoveAt(path.Count - 1);
-                        break;
+                        path.Add(nextPoint);
+                        current = nextPoint;
                     }
-                } while (Vector2.Distance(current, relic.Pos) > environment.ExplosionRadius &&
-                         path.Count < environment.MaxExplosions);
+                    else
+                    {
+                        nextPoint = this.GetNextPosition(current, current, environment.ExplosionRange, environment);
+                        path.Add(nextPoint);
+                        current = nextPoint;
+                    }
+                }
             }
 
-            var point = path.LastOrDefault(environment.StartingPoint);
             while (path.Count < environment.MaxExplosions)
             {
-                path.Add(point = this.GetNextPosition(point, point, environment.ExplosionRange, environment));
+                if (targets.Count > 0 && Random.Shared.Next(2) == 0)
+                {
+                    var target = targets[Random.Shared.Next(targets.Count)];
+                    var diff = target - current;
+                    float dist = diff.Length();
+                    Vector2 nextPoint;
+                    if (dist > 0.1f && dist <= environment.ExplosionRange)
+                    {
+                        nextPoint = RoundPoint(target);
+                    }
+                    else if (dist > 0.1f)
+                    {
+                        nextPoint = RoundPoint(current + Vector2.Normalize(diff) * environment.ExplosionRange * (0.8f + 0.18f * Random.Shared.NextSingle()));
+                    }
+                    else
+                    {
+                        nextPoint = this.GetNextPosition(current, current, environment.ExplosionRange, environment);
+                    }
+
+                    if (this.IsValidPlacement(current, environment, nextPoint))
+                    {
+                        path.Add(nextPoint);
+                        current = nextPoint;
+                        continue;
+                    }
+                }
+
+                var randPoint = this.GetNextPosition(current, current, environment.ExplosionRange, environment);
+                path.Add(randPoint);
+                current = randPoint;
             }
 
             return path;
@@ -212,6 +260,7 @@ namespace ExpeditionPathOptimizer
                     continue;
                 }
 
+                if (newPath.Count == 0) break;
                 int changeIndex = Random.Shared.Next(newPath.Count);
                 Vector2 changedPoint;
                 var previousPoint = changeIndex == 0 ? startingPoint : newPath[changeIndex - 1];
@@ -236,12 +285,10 @@ namespace ExpeditionPathOptimizer
                                      this.IsValidPlacement(changedPoint, environment, newPath[changeIndex + 1]));
                 } while (!isValidChange && tries++ < 10);
 
-                if (!isValidChange)
+                if (isValidChange)
                 {
-                    continue;
+                    newPath[changeIndex] = changedPoint;
                 }
-
-                newPath[changeIndex] = changedPoint;
             }
 
             return newPath;
@@ -305,49 +352,41 @@ namespace ExpeditionPathOptimizer
 
         private Vector2 GetNextPosition(Vector2 position, Vector2 previousPosition, float radius, ExpeditionEnvironment environment)
         {
-            var positionEnumerable = Enumerable.Range(1, 1000).Select(i => GetNextMaybeInvalidPosition(position, radius * MathF.Pow(0.99f, i)));
-            return positionEnumerable.FirstOrDefault(x => this.IsValidPlacement(previousPosition, environment, x), position);
+            radius = Math.Max(5f, radius);
+            for (int i = 0; i < 40; i++)
+            {
+                float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
+                float length = (0.5f + 0.5f * Random.Shared.NextSingle()) * radius;
+                var (sin, cos) = MathF.SinCos(angle);
+                var pt = RoundPoint(position + new Vector2(cos * length, sin * length));
+                if (this.IsValidPlacement(previousPosition, environment, pt))
+                {
+                    return pt;
+                }
+            }
+            return position;
         }
 
         private bool IsValidPlacement(Vector2 previousPosition, ExpeditionEnvironment environment, Vector2 position)
         {
-            return Vector2.Distance(previousPosition, position) <= environment.ExplosionRange &&
-                   Vector2.Clamp(position, environment.ExclusionArea.Min, environment.ExclusionArea.Max) != position &&
-                   Enumerable.Range(1, this.validatedPoints)
-                       .Select(i => i / (float)this.validatedPoints)
-                       .Select(l => Vector2.Lerp(previousPosition, position, l))
-                       .All(environment.IsValidPlacement);
-        }
+            if (Vector2.Distance(previousPosition, position) > environment.ExplosionRange)
+                return false;
 
-        private static Vector2 GetNextMaybeInvalidPosition(Vector2 position, float radius)
-        {
-            radius = Math.Max(1f, radius);
-            float length = Math.Max(1f, Random.Shared.Next(2) == 0 ? radius : GetWeightedLength(radius));
-            float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
-            var (sin, cos) = MathF.SinCos(angle);
-            var rawPoint = position + new Vector2(cos * length, sin * length);
-            var roundedPoint = RoundPoint(rawPoint);
-
-            while (Vector2.Distance(roundedPoint, position) > radius)
+            if (environment.ExclusionArea.Min != environment.ExclusionArea.Max)
             {
-                var diff = roundedPoint - position;
-                var maxDiffComponent = Math.Abs(diff.X) > Math.Abs(diff.Y)
-                    ? new Vector2(Math.Sign(diff.X), 0)
-                    : new Vector2(0, Math.Sign(diff.Y));
-                roundedPoint -= maxDiffComponent;
+                if (position.X >= environment.ExclusionArea.Min.X && position.X <= environment.ExclusionArea.Max.X &&
+                    position.Y >= environment.ExclusionArea.Min.Y && position.Y <= environment.ExclusionArea.Max.Y)
+                {
+                    return false;
+                }
             }
 
-            return roundedPoint;
+            return true;
         }
 
         private static Vector2 RoundPoint(Vector2 rawPoint)
         {
             return new Vector2(MathF.Round(rawPoint.X), MathF.Round(rawPoint.Y));
-        }
-
-        private static float GetWeightedLength(float radius)
-        {
-            return Math.Max(Random.Shared.NextSingle(), Random.Shared.NextSingle()) * radius;
         }
     }
 }

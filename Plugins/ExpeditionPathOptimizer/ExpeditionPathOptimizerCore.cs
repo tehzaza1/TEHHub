@@ -20,28 +20,46 @@ namespace ExpeditionPathOptimizer
 
     public sealed class ExpeditionPathOptimizerCore : PCore<ExpeditionPathOptimizerSettings>
     {
+        private const float GridToWorldMultiplier = 250f / 23f; // 10.869565f
         private string SettingPathname => this.PluginConfigPath("settings.json");
         private readonly PathPlannerRunner runner = new();
         private ActiveCoroutine? onAreaChangeCoroutine;
+        private ActiveCoroutine? periodicScanCoroutine;
 
-        private Vector3 detonatorPos = Vector3.Zero;
-        private readonly List<(Vector3 WorldPos, IExpeditionRelic Relic)> discoveredRelics = new();
-        private readonly List<(Vector3 WorldPos, IExpeditionLoot Loot)> discoveredLoot = new();
+        private Vector3 detonatorWorldPos = Vector3.Zero;
+        private Vector2 detonatorGridPos = Vector2.Zero;
+        private readonly List<(Vector3 WorldPos, Vector2 GridPos, IExpeditionRelic Relic)> discoveredRelics = new();
+        private readonly List<(Vector3 WorldPos, Vector2 GridPos, IExpeditionLoot Loot)> discoveredLoot = new();
+        private readonly List<Vector3> placedExplosives = new();
+
+        private string lastAreaHash = string.Empty;
+        private int lastTargetSignature = 0;
 
         public override void OnEnable(bool isAutoEnabling)
         {
             this.LoadSettings();
             this.onAreaChangeCoroutine = CoroutineHandler.Start(this.OnAreaChange(), "[ExpeditionPathOptimizer] Area Change");
+            this.periodicScanCoroutine = CoroutineHandler.Start(this.PeriodicScan(), "[ExpeditionPathOptimizer] Periodic Scan");
         }
 
         public override void OnDisable()
         {
             this.onAreaChangeCoroutine?.Cancel();
             this.onAreaChangeCoroutine = null;
+            this.periodicScanCoroutine?.Cancel();
+            this.periodicScanCoroutine = null;
             this.runner.Stop();
+            this.ClearState();
+        }
+
+        private void ClearState()
+        {
+            this.detonatorWorldPos = Vector3.Zero;
+            this.detonatorGridPos = Vector2.Zero;
             this.discoveredRelics.Clear();
             this.discoveredLoot.Clear();
-            this.detonatorPos = Vector3.Zero;
+            this.placedExplosives.Clear();
+            this.lastTargetSignature = 0;
         }
 
         private IEnumerator<Wait> OnAreaChange()
@@ -50,14 +68,35 @@ namespace ExpeditionPathOptimizer
             {
                 yield return new Wait(RemoteEvents.AreaChanged);
                 this.runner.Stop();
-                this.discoveredRelics.Clear();
-                this.discoveredLoot.Clear();
-                this.detonatorPos = Vector3.Zero;
+                this.ClearState();
+                var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                this.lastAreaHash = area?.AreaHash ?? string.Empty;
+            }
+        }
 
-                if (this.Settings.Enable && this.Settings.AutoStartOnAreaChange)
+        private IEnumerator<Wait> PeriodicScan()
+        {
+            while (true)
+            {
+                yield return new Wait(0.5f);
+                if (!this.Settings.Enable) continue;
+                var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                if (area == null || area.Address == IntPtr.Zero) continue;
+
+                var areaHash = area.AreaHash ?? string.Empty;
+                if (areaHash != this.lastAreaHash)
                 {
-                    yield return new Wait(1.5f);
-                    this.ScanAndStartSearch();
+                    this.lastAreaHash = areaHash;
+                    this.ClearState();
+                }
+
+                this.ScanEntities(area);
+
+                int currentSig = (this.detonatorWorldPos != Vector3.Zero ? 1 : 0) + (this.discoveredRelics.Count * 1000) + this.discoveredLoot.Count;
+                if (this.Settings.AutoStartOnAreaChange && currentSig > 0 && currentSig != this.lastTargetSignature)
+                {
+                    this.lastTargetSignature = currentSig;
+                    this.StartSearch(area);
                 }
             }
         }
@@ -95,7 +134,7 @@ namespace ExpeditionPathOptimizer
 
         public override void DrawSettings()
         {
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Expedition Path Optimizer Settings (ExileApi Port)");
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Expedition Path Optimizer (Genetic Algorithm / ExileApi)");
             ImGui.Separator();
             ImGui.Spacing();
 
@@ -107,7 +146,7 @@ namespace ExpeditionPathOptimizer
             }
 
             bool autoStart = this.Settings.AutoStartOnAreaChange;
-            if (ImGui.Checkbox("Auto-Start Optimization On Area Load", ref autoStart))
+            if (ImGui.Checkbox("Auto-Start When Expedition Detected", ref autoStart))
             {
                 this.Settings.AutoStartOnAreaChange = autoStart;
                 this.SaveSettings();
@@ -115,11 +154,18 @@ namespace ExpeditionPathOptimizer
 
             ImGui.Spacing();
             ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Optimization Controls");
+            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Live Encounter Detection Status");
 
+            bool hasDetonator = this.detonatorWorldPos != Vector3.Zero;
+            ImGui.Text($"Detonator Found: {(hasDetonator ? "Yes" : "No")}");
+            ImGui.Text($"Remnants / Relics Found: {this.discoveredRelics.Count}");
+            ImGui.Text($"Chests / Monsters Found: {this.discoveredLoot.Count}");
+            ImGui.Text($"Placed Explosives Detected: {this.placedExplosives.Count}");
+
+            ImGui.Spacing();
             if (this.runner.IsRunning)
             {
-                if (ImGui.Button("Stop Search", new Vector2(150, 30)))
+                if (ImGui.Button("Stop Search", new Vector2(160, 30)))
                 {
                     this.runner.Stop();
                 }
@@ -128,18 +174,23 @@ namespace ExpeditionPathOptimizer
             }
             else
             {
-                if (ImGui.Button("Start Search", new Vector2(150, 30)))
+                if (ImGui.Button("Scan & Start Search", new Vector2(160, 30)))
                 {
-                    this.ScanAndStartSearch();
+                    var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                    if (area != null)
+                    {
+                        this.ScanEntities(area);
+                        this.StartSearch(area);
+                    }
                 }
                 ImGui.SameLine();
-                if (this.runner.CurrentBestPath != null)
+                if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
                 {
                     ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"Best Score: {this.runner.CurrentBestScore:F1} ({this.runner.CurrentBestPath.PerPointScore.Count} bombs)");
                 }
                 else
                 {
-                    ImGui.TextDisabled("Idle");
+                    ImGui.TextDisabled("Idle (No path calculated)");
                 }
             }
 
@@ -162,7 +213,7 @@ namespace ExpeditionPathOptimizer
             }
 
             bool showRad = this.Settings.ShowBlastRadius;
-            if (ImGui.Checkbox("Show Suggested Blast Radius Circles", ref showRad))
+            if (ImGui.Checkbox("Show Blast Radius Circles", ref showRad))
             {
                 this.Settings.ShowBlastRadius = showRad;
                 this.SaveSettings();
@@ -191,7 +242,7 @@ namespace ExpeditionPathOptimizer
 
             ImGui.Spacing();
             ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Genetic Algorithm Parameters");
+            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Algorithm Parameters");
 
             int threads = this.Settings.SearchThreads;
             if (ImGui.SliderInt("Search Threads", ref threads, 1, 12))
@@ -215,75 +266,125 @@ namespace ExpeditionPathOptimizer
             }
         }
 
-        public void ScanAndStartSearch()
+        public void ScanEntities(AreaInstance area)
         {
-            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
-            if (area == null) return;
-
+            var seen = new HashSet<IntPtr>();
             this.discoveredRelics.Clear();
             this.discoveredLoot.Clear();
-            this.detonatorPos = Vector3.Zero;
+            this.placedExplosives.Clear();
+            this.detonatorWorldPos = Vector3.Zero;
+            this.detonatorGridPos = Vector2.Zero;
 
-            foreach (var kvp in area.AwakeEntities)
+            void ProcessEntity(Entity entity)
             {
-                var entity = kvp.Value;
-                if (entity == null || string.IsNullOrEmpty(entity.Path)) continue;
-
-                if (!entity.TryGetComponent<Render>(out var render) || render == null) continue;
-                var pos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.TerrainHeight);
+                if (entity == null || entity.Address == IntPtr.Zero || !seen.Add(entity.Address)) return;
                 var path = entity.Path;
+                if (string.IsNullOrEmpty(path)) return;
+
+                if (!entity.TryGetComponent<Render>(out var render, false) || render == null) return;
+                var wPos = new Vector3(render.WorldPosition.X, render.WorldPosition.Y, render.TerrainHeight);
+                var gPos = new Vector2(render.GridPosition.X, render.GridPosition.Y);
 
                 if (path.Contains("ExpeditionDetonator", StringComparison.OrdinalIgnoreCase))
                 {
-                    this.detonatorPos = pos;
+                    this.detonatorWorldPos = wPos;
+                    this.detonatorGridPos = gPos;
                 }
-                else if (path.Contains("ExpeditionRelic", StringComparison.OrdinalIgnoreCase))
+                else if (path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase) &&
+                         !path.Contains("Fuse", StringComparison.OrdinalIgnoreCase) &&
+                         !path.Contains("Connector", StringComparison.OrdinalIgnoreCase) &&
+                         !path.Contains("Indicator", StringComparison.OrdinalIgnoreCase))
                 {
-                    this.discoveredRelics.Add((pos, new ConfigurableRelic(1.5, 0.4, true)));
+                    this.placedExplosives.Add(wPos);
                 }
-                else if (path.Contains("ExpeditionMarker", StringComparison.OrdinalIgnoreCase) || path.Contains("ExpeditionChest", StringComparison.OrdinalIgnoreCase))
+                else if (path.Contains("ExpeditionRelic", StringComparison.OrdinalIgnoreCase) ||
+                         path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase) ||
+                         path.Contains("ExpeditionEncounter", StringComparison.OrdinalIgnoreCase) ||
+                         path.Contains("Expedition2Remnant", StringComparison.OrdinalIgnoreCase))
+                {
+                    this.discoveredRelics.Add((wPos, gPos, new ConfigurableRelic(1.5, 0.4, true)));
+                }
+                else if (path.Contains("ExpeditionChest", StringComparison.OrdinalIgnoreCase) ||
+                         (path.Contains("ExpeditionMarker", StringComparison.OrdinalIgnoreCase) && path.Contains("Chest", StringComparison.OrdinalIgnoreCase)) ||
+                         path.Contains("ExpeditionCurrency", StringComparison.OrdinalIgnoreCase) ||
+                         path.Contains("ExpeditionArtifact", StringComparison.OrdinalIgnoreCase))
                 {
                     if (path.Contains("Currency", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot.Add((pos, new PathPlannerData.Chest(ExpeditionChestType.Currency)));
+                        this.discoveredLoot.Add((wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Currency)));
                     else if (path.Contains("Artifact", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot.Add((pos, new PathPlannerData.Chest(ExpeditionChestType.Artifact)));
+                        this.discoveredLoot.Add((wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Artifact)));
                     else if (path.Contains("Map", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot.Add((pos, new PathPlannerData.Chest(ExpeditionChestType.Map)));
+                        this.discoveredLoot.Add((wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Map)));
                     else if (path.Contains("Fragment", StringComparison.OrdinalIgnoreCase))
-                        this.discoveredLoot.Add((pos, new PathPlannerData.Chest(ExpeditionChestType.Fragment)));
+                        this.discoveredLoot.Add((wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Fragment)));
                     else
-                        this.discoveredLoot.Add((pos, new PathPlannerData.Chest(ExpeditionChestType.Generic)));
+                        this.discoveredLoot.Add((wPos, gPos, new PathPlannerData.Chest(ExpeditionChestType.Generic)));
                 }
-                else if (path.Contains("ExpeditionMonster", StringComparison.OrdinalIgnoreCase) || path.Contains("Runic", StringComparison.OrdinalIgnoreCase))
+                else if (path.Contains("ExpeditionMonster", StringComparison.OrdinalIgnoreCase) ||
+                         path.Contains("Metadata/Monsters/Expedition", StringComparison.OrdinalIgnoreCase) ||
+                         (path.Contains("ExpeditionMarker", StringComparison.OrdinalIgnoreCase) && !path.Contains("Chest", StringComparison.OrdinalIgnoreCase)))
                 {
-                    this.discoveredLoot.Add((pos, new RunicMonster()));
+                    this.discoveredLoot.Add((wPos, gPos, new RunicMonster()));
                 }
             }
 
-            if (this.detonatorPos == Vector3.Zero && this.discoveredRelics.Count > 0)
+            if (area.AwakeEntities != null)
             {
-                this.detonatorPos = this.discoveredRelics[0].WorldPos;
+                foreach (var e in area.AwakeEntities.Values)
+                {
+                    ProcessEntity(e);
+                }
             }
 
-            if (this.detonatorPos == Vector3.Zero) return;
+            if (area.SleepingEntities != null)
+            {
+                foreach (var e in area.SleepingEntities.Values)
+                {
+                    ProcessEntity(e);
+                }
+            }
+
+            if (this.detonatorWorldPos == Vector3.Zero && this.discoveredRelics.Count > 0)
+            {
+                this.detonatorWorldPos = this.discoveredRelics[0].WorldPos;
+                this.detonatorGridPos = this.discoveredRelics[0].GridPos;
+            }
+        }
+
+        public void StartSearch(AreaInstance area)
+        {
+            if (this.detonatorWorldPos == Vector3.Zero && this.discoveredRelics.Count == 0 && this.discoveredLoot.Count == 0)
+            {
+                return;
+            }
 
             var config = area.ExpeditionConfig;
             float radiusWorld = config.ExplosionRadiusWorld > 0 ? config.ExplosionRadiusWorld : 300f;
             float rangeWorld = config.PlacementReachWorld > 0 ? config.PlacementReachWorld : 1000f;
             int maxExplosions = config.ExplosiveCount > 0 ? config.ExplosiveCount : 5;
 
-            var envRelics = this.discoveredRelics.Select(r => (new Vector2(r.WorldPos.X, r.WorldPos.Y), r.Relic)).ToList();
-            var envLoot = this.discoveredLoot.Select(l => (new Vector2(l.WorldPos.X, l.WorldPos.Y), l.Loot)).ToList();
+            float radiusGrid = radiusWorld / GridToWorldMultiplier;
+            float rangeGrid = rangeWorld / GridToWorldMultiplier;
+
+            Vector2 startGrid = this.detonatorGridPos;
+            if (this.placedExplosives.Count > 0)
+            {
+                var lastExplosive = this.placedExplosives.Last();
+                startGrid = new Vector2(lastExplosive.X / GridToWorldMultiplier, lastExplosive.Y / GridToWorldMultiplier);
+            }
+
+            var envRelics = this.discoveredRelics.Select(r => (r.GridPos, r.Relic)).ToList();
+            var envLoot = this.discoveredLoot.Select(l => (l.GridPos, l.Loot)).ToList();
 
             var env = new ExpeditionEnvironment(
                 envRelics,
                 envLoot,
-                rangeWorld,
-                radiusWorld,
-                maxExplosions,
-                new Vector2(this.detonatorPos.X, this.detonatorPos.Y),
-                p => true, // Walkable
-                (new Vector2(-100000, -100000), new Vector2(100000, 100000)),
+                rangeGrid,
+                radiusGrid,
+                Math.Max(1, maxExplosions - this.placedExplosives.Count),
+                startGrid,
+                p => true,
+                (Vector2.Zero, Vector2.Zero),
                 config.IsGrandExpedition);
 
             this.runner.Start(this.Settings, env);
@@ -343,31 +444,38 @@ namespace ExpeditionPathOptimizer
             Vector2 ToMap(Vector3 worldPos)
             {
                 if (!canMapProject || playerRender == null) return Vector2.Zero;
-                var gridX = worldPos.X / 10.86957f;
-                var gridY = worldPos.Y / 10.86957f;
+                var gridX = worldPos.X / GridToWorldMultiplier;
+                var gridY = worldPos.Y / GridToWorldMultiplier;
                 var delta = new Vector2(gridX - playerRender.GridPosition.X, gridY - playerRender.GridPosition.Y);
-                float deltaZ = (worldPos.Z - playerRender.TerrainHeight) / 10.86957f;
+                float deltaZ = (worldPos.Z - playerRender.TerrainHeight) / GridToWorldMultiplier;
                 return mapCenter + new Vector2((delta.X - delta.Y) * cos, (deltaZ - (delta.X + delta.Y)) * sin);
             }
 
             var dl = ImGui.GetBackgroundDrawList();
             var points = bestDetailed.PerPointScore;
-            float radiusWorld = bestDetailed.Environment.ExplosionRadius;
-            float zHeight = this.detonatorPos.Z;
+            float radiusWorld = bestDetailed.Environment.ExplosionRadius * GridToWorldMultiplier;
+            float zHeight = this.detonatorWorldPos.Z;
+
+            Vector3 startWorld = this.detonatorWorldPos;
+            if (this.placedExplosives.Count > 0)
+            {
+                startWorld = this.placedExplosives.Last();
+            }
 
             // 1. Draw Connecting Lines
             if (this.Settings.ShowPathLines)
             {
                 Vector2 prevScreen = canMapProject
-                    ? ToMap(this.detonatorPos)
-                    : world.WorldToScreen(new Vector2(this.detonatorPos.X, this.detonatorPos.Y), zHeight);
+                    ? ToMap(startWorld)
+                    : world.WorldToScreen(new Vector2(startWorld.X, startWorld.Y), zHeight);
 
                 for (int i = 0; i < points.Count; i++)
                 {
-                    var pt = points[i].Point;
+                    var gridPt = points[i].Point;
+                    var bombWorld = new Vector3(gridPt.X * GridToWorldMultiplier, gridPt.Y * GridToWorldMultiplier, zHeight);
                     var curScreen = canMapProject
-                        ? ToMap(new Vector3(pt.X, pt.Y, zHeight))
-                        : world.WorldToScreen(pt, zHeight);
+                        ? ToMap(bombWorld)
+                        : world.WorldToScreen(new Vector2(bombWorld.X, bombWorld.Y), zHeight);
 
                     if (curScreen != Vector2.Zero && prevScreen != Vector2.Zero)
                     {
@@ -380,13 +488,14 @@ namespace ExpeditionPathOptimizer
             // 2. Draw Blast Circles & Badges
             for (int i = 0; i < points.Count; i++)
             {
-                var pt = points[i].Point;
-                int bombIndex = i + 1;
+                var gridPt = points[i].Point;
+                var bombWorld = new Vector3(gridPt.X * GridToWorldMultiplier, gridPt.Y * GridToWorldMultiplier, zHeight);
+                int bombIndex = this.placedExplosives.Count + i + 1;
 
                 if (canMapProject)
                 {
-                    var mCenter = ToMap(new Vector3(pt.X, pt.Y, zHeight));
-                    var mEdge = ToMap(new Vector3(pt.X + radiusWorld, pt.Y, zHeight));
+                    var mCenter = ToMap(bombWorld);
+                    var mEdge = ToMap(new Vector3(bombWorld.X + radiusWorld, bombWorld.Y, zHeight));
                     float mapR = Vector2.Distance(mCenter, mEdge);
 
                     if (mCenter != Vector2.Zero && mapR > 1f)
@@ -409,7 +518,7 @@ namespace ExpeditionPathOptimizer
                 }
                 else
                 {
-                    var sPos = world.WorldToScreen(pt, zHeight);
+                    var sPos = world.WorldToScreen(new Vector2(bombWorld.X, bombWorld.Y), zHeight);
                     if (sPos == Vector2.Zero) continue;
 
                     if (this.Settings.ShowBlastRadius)
@@ -421,8 +530,8 @@ namespace ExpeditionPathOptimizer
                         for (int s = 0; s <= segments; s++)
                         {
                             float angle = (s % segments) * (MathF.PI * 2f / segments);
-                            float px = pt.X + MathF.Cos(angle) * radiusWorld;
-                            float py = pt.Y + MathF.Sin(angle) * radiusWorld;
+                            float px = bombWorld.X + MathF.Cos(angle) * radiusWorld;
+                            float py = bombWorld.Y + MathF.Sin(angle) * radiusWorld;
                             var ringScreen = world.WorldToScreen(new Vector2(px, py), zHeight);
 
                             if (ringScreen == Vector2.Zero)
