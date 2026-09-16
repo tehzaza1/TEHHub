@@ -650,6 +650,7 @@ namespace NinjaPricer
             this.cachedInvSlots.Clear();
             this.cachedStashSlots.Clear();
             this.cachedRealItemRects.Clear();
+            this.rememberedChainNodes.Clear();
             this.alertedEntityIds.Clear();
             this.activeAlertDrops.Clear();
             lock (this.activeAlertBanners) this.activeAlertBanners.Clear();
@@ -681,6 +682,7 @@ namespace NinjaPricer
                 this.cachedInvSlots.Clear();
                 this.cachedStashSlots.Clear();
                 this.cachedRealItemRects.Clear();
+                this.rememberedChainNodes.Clear();
                 this.itemSlotCache.Clear();
                 this.alertedEntityIds.Clear();
                 this.activeAlertDrops.Clear();
@@ -3642,6 +3644,16 @@ namespace NinjaPricer
             public int ExplosiveIndex;
         }
 
+        private sealed class RememberedChainNode
+        {
+            public uint EntityId;
+            public Vector3 WorldPos;
+            public RuneChainNodeType Type;
+        }
+
+        private readonly Dictionary<uint, RememberedChainNode> rememberedChainNodes = new();
+        private string lastRuneChainAreaHash = string.Empty;
+
         private static bool IsExpeditionExplosiveEntity(string? path)
         {
             if (string.IsNullOrEmpty(path)) return false;
@@ -3675,51 +3687,109 @@ namespace NinjaPricer
                 return;
             }
 
+            if (area.AreaHash != this.lastRuneChainAreaHash)
+            {
+                this.lastRuneChainAreaHash = area.AreaHash;
+                this.rememberedChainNodes.Clear();
+            }
+
+            // 1. Ingest newly placed / currently active entities from AwakeEntities into smart memory
+            if (area.AwakeEntities != null)
+            {
+                foreach (var (key, e) in area.AwakeEntities)
+                {
+                    if (e == null || !e.IsValid || string.IsNullOrEmpty(e.Path)) continue;
+                    var path = e.Path;
+
+                    if (!path.Contains("Expedition", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    if (e.TryGetComponent<Render>(out var render, false) && render != null)
+                    {
+                        var wp = render.WorldPosition;
+                        var pos = new Vector3(wp.X, wp.Y, wp.Z);
+                        if (pos == Vector3.Zero) continue;
+
+                        if (path.Contains("Detonator", StringComparison.OrdinalIgnoreCase))
+                        {
+                            this.rememberedChainNodes[key.id] = new RememberedChainNode
+                            {
+                                EntityId = key.id,
+                                WorldPos = pos,
+                                Type = RuneChainNodeType.Detonator
+                            };
+                        }
+                        else if (path.Contains("ConnectorPole", StringComparison.OrdinalIgnoreCase))
+                        {
+                            this.rememberedChainNodes[key.id] = new RememberedChainNode
+                            {
+                                EntityId = key.id,
+                                WorldPos = pos,
+                                Type = RuneChainNodeType.ConnectorPole
+                            };
+                        }
+                        else if (IsExpeditionExplosiveEntity(path))
+                        {
+                            this.rememberedChainNodes[key.id] = new RememberedChainNode
+                            {
+                                EntityId = key.id,
+                                WorldPos = pos,
+                                Type = RuneChainNodeType.Explosive
+                            };
+                        }
+                    }
+                }
+            }
+
+            // 2. Proximity Sweep: If player is near a remembered node (< 550 world units),
+            // but it is no longer in AwakeEntities, it was detonated / exploded or picked up -> prune it!
+            var player = area.Player;
+            if (player != null && player.TryGetComponent<Render>(out var pRender, false) && pRender != null)
+            {
+                var pPos = new Vector3(pRender.WorldPosition.X, pRender.WorldPosition.Y, pRender.WorldPosition.Z);
+                var toPrune = new List<uint>();
+
+                foreach (var node in this.rememberedChainNodes.Values)
+                {
+                    // If node is Detonator, keep it as long as area is active (unless picked up/destroyed)
+                    float dist = Vector3.Distance(pPos, node.WorldPos);
+                    if (dist < 550f)
+                    {
+                        var k = new EntityNodeKey { id = node.EntityId };
+                        if (area.AwakeEntities == null || !area.AwakeEntities.TryGetValue(k, out var liveEntity) || liveEntity == null || !liveEntity.IsValid)
+                        {
+                            toPrune.Add(node.EntityId);
+                        }
+                    }
+                }
+
+                for (int i = 0; i < toPrune.Count; i++)
+                {
+                    this.rememberedChainNodes.Remove(toPrune[i]);
+                }
+            }
+
+            if (this.rememberedChainNodes.Count == 0)
+            {
+                return;
+            }
+
             Vector3 detonatorPos = Vector3.Zero;
             var poles = new List<Vector3>();
             var explosives = new List<Vector3>();
 
-            void ProcessChainEntity(Entity e)
+            foreach (var node in this.rememberedChainNodes.Values)
             {
-                if (e == null || string.IsNullOrEmpty(e.Path)) return;
-                var path = e.Path;
-
-                if (!path.Contains("Expedition", StringComparison.OrdinalIgnoreCase)) return;
-
-                if (e.TryGetComponent<Render>(out var render, false) && render != null)
+                switch (node.Type)
                 {
-                    var wp = render.WorldPosition;
-                    var pos = new Vector3(wp.X, wp.Y, wp.Z);
-                    if (pos == Vector3.Zero) return;
-
-                    if (path.Contains("Detonator", StringComparison.OrdinalIgnoreCase))
-                    {
-                        detonatorPos = pos;
-                    }
-                    else if (path.Contains("ConnectorPole", StringComparison.OrdinalIgnoreCase))
-                    {
-                        poles.Add(pos);
-                    }
-                    else if (IsExpeditionExplosiveEntity(path))
-                    {
-                        explosives.Add(pos);
-                    }
-                }
-            }
-
-            if (area.AwakeEntities != null)
-            {
-                foreach (var e in area.AwakeEntities.Values)
-                {
-                    ProcessChainEntity(e);
-                }
-            }
-
-            if (area.SleepingEntities != null)
-            {
-                foreach (var e in area.SleepingEntities.Values)
-                {
-                    ProcessChainEntity(e);
+                    case RuneChainNodeType.Detonator:
+                        detonatorPos = node.WorldPos;
+                        break;
+                    case RuneChainNodeType.ConnectorPole:
+                        poles.Add(node.WorldPos);
+                        break;
+                    case RuneChainNodeType.Explosive:
+                        explosives.Add(node.WorldPos);
+                        break;
                 }
             }
 
@@ -3788,7 +3858,7 @@ namespace NinjaPricer
             var game = Core.States.InGameStateObject;
             var largeMap = game?.GameUi?.LargeMap;
             bool isLargeMapVisible = largeMap != null && largeMap.Address != IntPtr.Zero && largeMap.IsVisible;
-            var player = game?.CurrentAreaInstance?.Player;
+            player = game?.CurrentAreaInstance?.Player;
             Render? playerRender = null;
             bool canMapProject = isLargeMapVisible && player != null && player.TryGetComponent<Render>(out playerRender, false) && playerRender != null;
 

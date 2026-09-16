@@ -2,6 +2,15 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.92 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Smart Proximity Memory System for Rune Chain (เชนรูน)**:
+  - **Active Placement Ingestion & Spatial Retention (`rememberedChainNodes`)**: Ingests Detonators, Connector Poles, and Explosives into local area memory upon placement in `AwakeEntities`, persistently retaining their positions even when the player walks far away and entities leave the network bubble.
+  - **Dynamic Proximity Sweep Cleanup**: Automatically prunes detonated, exploded, or picked-up explosives and poles when the player approaches within proximity (< 550 world units) if the server has despawned the live entity.
+  - **Clean Area Session Lifecycle**: Automatically clears remembered chain memory upon area/map transition.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; deployed to live installation.
+
 ## 1.8.91 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Universal Real-Item Hover Suppression across All Stash Tabs**:
