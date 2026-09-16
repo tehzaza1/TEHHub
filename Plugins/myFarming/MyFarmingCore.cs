@@ -29,6 +29,7 @@ namespace myFarming
         private DateTime runStartTimeUtc = DateTime.MinValue;
         private DateTime lastTickUtc = DateTime.MinValue;
         private string lastAreaHash = string.Empty;
+        private bool lastAreaWasTownOrHideout = true;
         private List<LootEntry> currentLoot = new();
         private float currentTotalChaos = 0f;
 
@@ -119,6 +120,7 @@ namespace myFarming
                     this.FinalizeRun();
                 }
                 this.lastAreaHash = string.Empty;
+                this.lastAreaWasTownOrHideout = true;
                 this.lastTickUtc = DateTime.UtcNow;
                 return;
             }
@@ -189,23 +191,28 @@ namespace myFarming
         {
             if (inTownOrHideout)
             {
-                // In town or hideout -> auto pause timers and save state
+                // In town or hideout -> auto pause timers
                 if (this.isRunActive && this.Settings.AutoPauseInTownOrHideout)
                 {
                     this.isRunPaused = true;
                 }
 
-                this.sessionStore?.Save();
-                this.historyStore?.Save();
+                // Map -> Hideout/Town transition: save session & history
+                // Hideout -> Town transition (e.g. Hideout -> Tower): do NOT save
+                if (!this.lastAreaWasTownOrHideout)
+                {
+                    this.sessionStore?.Save();
+                    this.historyStore?.Save();
+                }
             }
             else
             {
-                // In combat map
+                // Entering a combat map
                 if (this.isRunActive && this.currentRun != null)
                 {
                     if (this.currentRun.AreaHash == areaHash)
                     {
-                        // Returning to same map
+                        // Returning to same map portal
                         this.isRunPaused = false;
                         this.diffEngine.ResumeMap(areaHash, this.currentLoot);
                     }
@@ -220,10 +227,9 @@ namespace myFarming
                 {
                     this.StartNewRun(areaHash, areaName);
                 }
-
-                this.sessionStore?.Save();
-                this.historyStore?.Save();
             }
+
+            this.lastAreaWasTownOrHideout = inTownOrHideout;
         }
 
         private void StartNewRun(string areaHash, string areaName)
