@@ -3781,6 +3781,7 @@ namespace NinjaPricer
             public Vector3 WorldPos;
             public RuneChainNodeType Type;
             public int ExplosiveIndex;
+            public bool IsActivated;
         }
 
         private sealed class CachedChainNode
@@ -3788,6 +3789,7 @@ namespace NinjaPricer
             public uint Id;
             public Vector3 WorldPos;
             public RuneChainNodeType Type;
+            public bool IsActivated;
         }
 
         private static bool IsExpeditionExplosiveEntity(string? path)
@@ -3841,7 +3843,7 @@ namespace NinjaPricer
                 playerPos = new Vector3(wp.X, wp.Y, wp.Z);
             }
 
-            bool isDetonated = false;
+            bool isDetonatorActivated = false;
 
             // 1. Scan AwakeEntities to update / remember newly placed or visible nodes
             var awake = area.AwakeEntities;
@@ -3853,20 +3855,19 @@ namespace NinjaPricer
                     var path = e.Path;
                     if (!path.Contains("Expedition", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    // Check if detonator/fuse/encounter has been activated (detonated: activated >= 1)
+                    // Check if node has been activated (detonated: activated >= 1)
+                    bool isNodeActivated = false;
                     if (e.TryGetComponent<StateMachine>(out var sm) && sm.States != null)
                     {
                         foreach (var s in sm.States)
                         {
                             if (string.Equals(s.Name, "activated", StringComparison.OrdinalIgnoreCase) && s.Value >= 1)
                             {
-                                isDetonated = true;
+                                isNodeActivated = true;
                                 break;
                             }
                         }
                     }
-
-                    if (isDetonated) break;
 
                     if (e.TryGetComponent<Render>(out var render, false) && render != null)
                     {
@@ -3877,25 +3878,18 @@ namespace NinjaPricer
                         if (path.Contains("Detonator", StringComparison.OrdinalIgnoreCase))
                         {
                             this.rememberedDetonatorPos = pos;
+                            if (isNodeActivated) isDetonatorActivated = true;
                         }
                         else if (path.Contains("Fuse", StringComparison.OrdinalIgnoreCase))
                         {
-                            this.rememberedChainNodes[e.Id] = new CachedChainNode { Id = e.Id, WorldPos = pos, Type = RuneChainNodeType.ConnectorPole };
+                            this.rememberedChainNodes[e.Id] = new CachedChainNode { Id = e.Id, WorldPos = pos, Type = RuneChainNodeType.ConnectorPole, IsActivated = isNodeActivated };
                         }
                         else if (IsExpeditionExplosiveEntity(path))
                         {
-                            this.rememberedChainNodes[e.Id] = new CachedChainNode { Id = e.Id, WorldPos = pos, Type = RuneChainNodeType.Explosive };
+                            this.rememberedChainNodes[e.Id] = new CachedChainNode { Id = e.Id, WorldPos = pos, Type = RuneChainNodeType.Explosive, IsActivated = isNodeActivated };
                         }
                     }
                 }
-            }
-
-            // Once detonated (activated >= 1), immediately clear all chain lines and return
-            if (isDetonated)
-            {
-                this.rememberedChainNodes.Clear();
-                this.rememberedDetonatorPos = Vector3.Zero;
-                return;
             }
 
             // 2. Proximity-Based Invalidation:
@@ -3930,18 +3924,18 @@ namespace NinjaPricer
             }
 
             Vector3 detonatorPos = this.rememberedDetonatorPos;
-            var poles = new List<Vector3>();
-            var explosives = new List<Vector3>();
+            var poles = new List<(Vector3 Pos, bool IsAct)>();
+            var explosives = new List<(Vector3 Pos, bool IsAct)>();
 
             foreach (var node in this.rememberedChainNodes.Values)
             {
                 if (node.Type == RuneChainNodeType.ConnectorPole)
                 {
-                    poles.Add(node.WorldPos);
+                    poles.Add((node.WorldPos, node.IsActivated));
                 }
                 else if (node.Type == RuneChainNodeType.Explosive)
                 {
-                    explosives.Add(node.WorldPos);
+                    explosives.Add((node.WorldPos, node.IsActivated));
                 }
             }
 
@@ -3951,18 +3945,18 @@ namespace NinjaPricer
             }
 
             // Build ordered chain from Detonator outward through all poles and explosives
-            var unvisited = new List<(Vector3 Pos, RuneChainNodeType Type)>();
-            foreach (var p in poles) unvisited.Add((p, RuneChainNodeType.ConnectorPole));
-            foreach (var ex in explosives) unvisited.Add((ex, RuneChainNodeType.Explosive));
+            var unvisited = new List<(Vector3 Pos, RuneChainNodeType Type, bool IsAct)>();
+            foreach (var p in poles) unvisited.Add((p.Pos, RuneChainNodeType.ConnectorPole, p.IsAct));
+            foreach (var ex in explosives) unvisited.Add((ex.Pos, RuneChainNodeType.Explosive, ex.IsAct));
 
             var orderedChain = new List<RuneChainNode>();
             if (detonatorPos != Vector3.Zero)
             {
-                orderedChain.Add(new RuneChainNode { WorldPos = detonatorPos, Type = RuneChainNodeType.Detonator });
+                orderedChain.Add(new RuneChainNode { WorldPos = detonatorPos, Type = RuneChainNodeType.Detonator, IsActivated = isDetonatorActivated });
             }
             else if (unvisited.Count > 0)
             {
-                orderedChain.Add(new RuneChainNode { WorldPos = unvisited[0].Pos, Type = unvisited[0].Type });
+                orderedChain.Add(new RuneChainNode { WorldPos = unvisited[0].Pos, Type = unvisited[0].Type, IsActivated = unvisited[0].IsAct });
                 unvisited.RemoveAt(0);
             }
 
@@ -3992,7 +3986,7 @@ namespace NinjaPricer
                 if (bestIdx >= 0 && bestDistSq <= MaxWireReachWorldSq)
                 {
                     var chosen = unvisited[bestIdx];
-                    var node = new RuneChainNode { WorldPos = chosen.Pos, Type = chosen.Type };
+                    var node = new RuneChainNode { WorldPos = chosen.Pos, Type = chosen.Type, IsActivated = chosen.IsAct };
                     if (node.Type == RuneChainNodeType.Explosive)
                     {
                         bombCounter++;
@@ -4051,9 +4045,10 @@ namespace NinjaPricer
 
             var dl = ImGui.GetBackgroundDrawList();
             float lineThick = Math.Clamp(this.Settings.RuneChainLineWidth, 1.0f, 6.0f);
-            uint pathCol = 0xFF00D7FFu; // Vibrant Amber / Gold
-            uint poleCol = 0xFFFFCC00u; // Bright Yellow-Cyan
-            uint detonatorCol = 0xFF00FF7Fu; // Bright Spring Green
+            uint pathCol = 0xFF00D7FFu; // Vibrant Amber / Gold (Ready)
+            uint poleCol = 0xFFFFCC00u; // Bright Yellow-Cyan (Ready)
+            uint detonatorCol = 0xFF00FF7Fu; // Bright Spring Green (Ready)
+            uint ignitedCol = 0xFF0030FFu; // Fiery Crimson Red (Activated / Detonating)
 
             float blastRadiusWorld = area.ExpeditionConfig.ExplosionRadiusWorld;
             if (blastRadiusWorld <= 0f) blastRadiusWorld = 300f; // Default 300 World Units
@@ -4070,6 +4065,10 @@ namespace NinjaPricer
                 {
                     if (node.Type != RuneChainNodeType.Explosive) continue;
 
+                    bool isAct = node.IsActivated || isDetonatorActivated;
+                    uint cBorder = isAct ? 0xFF0022FFu : circleBorder;
+                    uint cFill = isAct ? ((fillAlphaByte << 24) | 0x000022FFu) : circleFill;
+
                     // LargeMap Radius
                     if (canMapProject)
                     {
@@ -4078,8 +4077,8 @@ namespace NinjaPricer
                         float mapR = Vector2.Distance(mCenter, mEdge);
                         if (mapR > 1f)
                         {
-                            if (fillAlphaByte > 0) dl.AddCircleFilled(mCenter, mapR, circleFill, 48);
-                            dl.AddCircle(mCenter, mapR, circleBorder, 48, 2.0f);
+                            if (fillAlphaByte > 0) dl.AddCircleFilled(mCenter, mapR, cFill, 48);
+                            dl.AddCircle(mCenter, mapR, cBorder, 48, 2.0f);
                         }
                     }
                     else
@@ -4106,14 +4105,14 @@ namespace NinjaPricer
 
                             if (prevScreen != Vector2.Zero)
                             {
-                                dl.AddLine(prevScreen, sPos, circleBorder, 2.0f);
+                                dl.AddLine(prevScreen, sPos, cBorder, 2.0f);
                             }
                             prevScreen = sPos;
                         }
 
                         if (prevScreen != Vector2.Zero && firstScreen != Vector2.Zero)
                         {
-                            dl.AddLine(prevScreen, firstScreen, circleBorder, 2.0f);
+                            dl.AddLine(prevScreen, firstScreen, cBorder, 2.0f);
                         }
                     }
                 }
@@ -4127,11 +4126,21 @@ namespace NinjaPricer
                     var a = orderedChain[i];
                     var b = orderedChain[i + 1];
 
+                    // Guard against accidental long-distance teleport lines
+                    if (Vector3.DistanceSquared(a.WorldPos, b.WorldPos) > MaxWireReachWorldSq)
+                    {
+                        continue;
+                    }
+
+                    bool isSegAct = a.IsActivated || b.IsActivated || isDetonatorActivated;
+                    uint segCol = isSegAct ? ignitedCol : pathCol;
+                    float thick = isSegAct ? lineThick + 1.0f : lineThick;
+
                     if (canMapProject)
                     {
                         var pa = ToMap(a.WorldPos);
                         var pb = ToMap(b.WorldPos);
-                        dl.AddLine(pa, pb, pathCol, lineThick);
+                        dl.AddLine(pa, pb, segCol, thick);
                     }
                     else
                     {
@@ -4139,7 +4148,7 @@ namespace NinjaPricer
                         var pb = world.WorldToScreen(new Vector2(b.WorldPos.X, b.WorldPos.Y), b.WorldPos.Z + 5f);
                         if (pa != Vector2.Zero && pb != Vector2.Zero)
                         {
-                            dl.AddLine(pa, pb, pathCol, lineThick);
+                            dl.AddLine(pa, pb, segCol, thick);
                         }
                     }
                 }
@@ -4148,22 +4157,26 @@ namespace NinjaPricer
                 for (int i = 0; i < orderedChain.Count; i++)
                 {
                     var node = orderedChain[i];
+                    bool isNodeAct = node.IsActivated || isDetonatorActivated;
                     Vector2 sPos = canMapProject ? ToMap(node.WorldPos) : world.WorldToScreen(new Vector2(node.WorldPos.X, node.WorldPos.Y), node.WorldPos.Z + 5f);
                     if (sPos == Vector2.Zero) continue;
 
                     if (node.Type == RuneChainNodeType.Detonator)
                     {
-                        dl.AddCircleFilled(sPos, 6f, detonatorCol);
+                        uint dCol = isNodeAct ? 0xFF0022FFu : detonatorCol;
+                        dl.AddCircleFilled(sPos, 6f, dCol);
                         dl.AddCircle(sPos, 8f, 0xFFFFFFFFu, 0, 1.5f);
                     }
                     else if (node.Type == RuneChainNodeType.ConnectorPole)
                     {
-                        dl.AddCircleFilled(sPos, 3.5f, poleCol);
+                        uint pCol = isNodeAct ? 0xFF0044FFu : poleCol;
+                        dl.AddCircleFilled(sPos, 3.5f, pCol);
                         dl.AddCircle(sPos, 5f, 0xFF000000u, 0, 1.0f);
                     }
                     else if (node.Type == RuneChainNodeType.Explosive)
                     {
-                        dl.AddCircleFilled(sPos, 7f, 0xFFFF8000u);
+                        uint eCol = isNodeAct ? 0xFF0010FFu : 0xFFFF8000u;
+                        dl.AddCircleFilled(sPos, 7f, eCol);
                         dl.AddCircle(sPos, 9f, 0xFFFFFFFFu, 0, 1.5f);
                         if (node.ExplosiveIndex > 0)
                         {
