@@ -2,6 +2,16 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.8.69 — 2026-09-16 [Plugin Update — NinjaPricer]
+
+- **`NinjaPricer` Expedition Tab UI Reorganization & LargeMap Settings Clarity**:
+  - **Prominent LargeMap & World Markers Section**:
+    - Placed the **LargeMap & World Markers** section right at the top of the **Expedition** tab.
+    - Moved the `Minimal LargeMap/World badges (Color + Price only)` toggle out of the sub-tree dropdown so it is immediately visible and easily accessible.
+    - Added full Thai localization and descriptive tooltips for LargeMap minimal badges, header elements, and expanded recipe rows.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; synced directly to installation directory.
+
 ## 1.8.68 — 2026-09-16 [Plugin Update — NinjaPricer]
 
 - **`NinjaPricer` Expanded Recipe List Visual Toggles Fix**:

@@ -1628,14 +1628,43 @@ namespace NinjaPricer
             ImGui.Spacing();
 
             // ================================================================
-            // 1. General Runeshape & Monolith Settings
+            // 1. LargeMap & World Markers (Map Badges & 3D World Markers)
             // ================================================================
-            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), this.PluginText.T("ninjapricer.expedition.general_header", "Runeshape & Monolith Settings"));
+            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), this.PluginText.T("ninjapricer.expedition.map_markers_header", "LargeMap & World Markers"));
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            bool rsMini = this.Settings.RsMinimalMapBadges;
+            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.minimal_map_badges", "Minimal LargeMap/World badges (Color + Price only)", "RsMinimalMapCheck"), ref rsMini))
+            {
+                this.Settings.RsMinimalMapBadges = rsMini;
+                this.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.minimal_map_badges.tooltip", "Hides rune sockets and item icons on LargeMap/World badges, showing only the monolith color square and price."));
+
+            bool rsmk = this.Settings.ShowRuneshapeWorldMarkers;
+            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.show_monolith_markers", "Show monolith markers in 3D world", "ShowMonolithMarkersCheck"), ref rsmk))
+            {
+                this.Settings.ShowRuneshapeWorldMarkers = rsmk;
+                this.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.show_monolith_markers.tooltip", "Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world."));
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // ================================================================
+            // 2. Runeshape Overlay & Movable Window
+            // ================================================================
+            ImGui.TextColored(new Vector4(0.4f, 0.85f, 1.0f, 1.0f), this.PluginText.T("ninjapricer.expedition.window_header", "Runeshape Overlay Window"));
             ImGui.Separator();
             ImGui.Spacing();
 
             bool showRs = this.Settings.ShowRuneshapePrices;
-            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.runeshape", "Runeshape", "ShowRsCheck"), ref showRs)) { this.Settings.ShowRuneshapePrices = showRs; this.SaveSettings(); }
+            if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.runeshape", "Runeshape (in-game combination panel)", "ShowRsCheck"), ref showRs)) { this.Settings.ShowRuneshapePrices = showRs; this.SaveSettings(); }
             ImGui.SameLine();
             ImGui.TextDisabled(this.PluginText.T("ninjapricer.overlays.runeshape_hint", "(price rewards in the Runeshape Combinations panel)"));
 
@@ -1677,16 +1706,6 @@ namespace NinjaPricer
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.hide_on_hover.tooltip", "The overlay disappears while the mouse cursor is over it and reappears when cursor leaves."));
 
-                bool rsmk = this.Settings.ShowRuneshapeWorldMarkers;
-                if (ImGui.Checkbox(this.PluginText.Label("ninjapricer.overlays.show_monolith_markers", "Show monolith markers in 3D world", "ShowMonolithMarkersCheck"), ref rsmk)) { this.Settings.ShowRuneshapeWorldMarkers = rsmk; this.SaveSettings(); }
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip(this.PluginText.T("ninjapricer.overlays.show_monolith_markers.tooltip", "Draws numbered (#1, #2...) colored badges floating over monolith pillars in the game world."));
-
-                bool rsMini = this.Settings.RsMinimalMapBadges;
-                if (ImGui.Checkbox("Minimal map/world markers (Color + Price only)", ref rsMini)) { this.Settings.RsMinimalMapBadges = rsMini; this.SaveSettings(); }
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Hides rune sockets and item icons on LargeMap/World badges, showing only the monolith color square and price.");
-
                 float rwa = this.Settings.RuneshapeWinAlpha;
                 ImGui.SetNextItemWidth(200f);
                 if (ImGui.SliderFloat(this.PluginText.Label("settings.opacity", "Opacity", "RsWinAlphaSlider"), ref rwa, 0.1f, 1.0f, "%.2f"))
@@ -1704,7 +1723,7 @@ namespace NinjaPricer
                 if (ImGui.RadioButton("Text##rswin", ref rsps, 1)) { this.Settings.RuneshapeWinPriceStyle = PriceDisplayStyle.Text; this.SaveSettings(); }
 
                 ImGui.Spacing();
-                ImGui.TextDisabled("Header elements:");
+                ImGui.TextDisabled(this.PluginText.T("ninjapricer.expedition.header_elements", "Header elements:"));
                 bool hc = this.Settings.RsShowHdrColor;
                 if (ImGui.Checkbox("Color square", ref hc)) { this.Settings.RsShowHdrColor = hc; this.SaveSettings(); }
                 ImGui.SameLine();
@@ -1714,7 +1733,7 @@ namespace NinjaPricer
                 bool hb = this.Settings.RsShowHdrBest;
                 if (ImGui.Checkbox("Best reward price", ref hb)) { this.Settings.RsShowHdrBest = hb; this.SaveSettings(); }
 
-                ImGui.TextDisabled("Expanded list elements:");
+                ImGui.TextDisabled(this.PluginText.T("ninjapricer.expedition.expanded_elements", "Expanded list elements:"));
                 bool ri = this.Settings.RsShowRowIcon;
                 if (ImGui.Checkbox("Reward icon", ref ri)) { this.Settings.RsShowRowIcon = ri; this.SaveSettings(); }
                 ImGui.SameLine();
@@ -1730,6 +1749,26 @@ namespace NinjaPricer
                 if (ImGui.Checkbox("Propagating runes (yellow glow)", ref rpr)) { this.Settings.RsShowRowPropRunes = rpr; this.SaveSettings(); }
 
                 ImGui.Spacing();
+                bool compactRows = this.Settings.RsCompactRows;
+                if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_compact_rows", "Compact layout (optimized for 1080p / FullHD)", "RsCompactRowsCheck"), ref compactRows))
+                {
+                    this.Settings.RsCompactRows = compactRows;
+                    this.SaveSettings();
+                }
+
+                if (this.Settings.RsCompactRows)
+                {
+                    ImGui.SameLine();
+                    float rScale = this.Settings.RsRowScale;
+                    ImGui.SetNextItemWidth(140f);
+                    if (ImGui.SliderFloat(this.PluginText.Label("settings.runeshape_row_scale", "Row scale", "RsRowScaleSlider"), ref rScale, 0.5f, 1.2f, "%.2f"))
+                    {
+                        this.Settings.RsRowScale = rScale;
+                        this.SaveSettings();
+                    }
+                }
+
+                ImGui.Spacing();
                 ImGui.TreePop();
             }
             ImGui.Unindent();
@@ -1739,25 +1778,6 @@ namespace NinjaPricer
 
             bool prioritizeWeight = this.Settings.RsPrioritizeWeight;
             if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_prioritize_weight", "Prioritize highest weight (+)", "RsPrioritizeWeightCheck"), ref prioritizeWeight)) { this.Settings.RsPrioritizeWeight = prioritizeWeight; this.SaveSettings(); }
-
-            bool compactRows = this.Settings.RsCompactRows;
-            if (ImGui.Checkbox(this.PluginText.Label("settings.runeshape_compact_rows", "Compact layout (optimized for 1080p / FullHD)", "RsCompactRowsCheck"), ref compactRows))
-            {
-                this.Settings.RsCompactRows = compactRows;
-                this.SaveSettings();
-            }
-
-            if (this.Settings.RsCompactRows)
-            {
-                ImGui.SameLine();
-                float rScale = this.Settings.RsRowScale;
-                ImGui.SetNextItemWidth(140f);
-                if (ImGui.SliderFloat(this.PluginText.Label("settings.runeshape_row_scale", "Row scale", "RsRowScaleSlider"), ref rScale, 0.5f, 1.2f, "%.2f"))
-                {
-                    this.Settings.RsRowScale = rScale;
-                    this.SaveSettings();
-                }
-            }
 
             ImGui.Spacing();
             ImGui.Separator();

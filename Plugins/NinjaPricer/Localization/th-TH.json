@@ -124,5 +124,11 @@
   "ninjapricer.runeshape.sort_weight": "น้ำหนัก",
   "ninjapricer.runeshape.sort_price": "ราคา",
   "settings.runeshape_compact_rows": "กระชับความสูงแถว (สำหรับจอ 1080p / FullHD)",
-  "settings.runeshape_row_scale": "สเกลความสูงแถว"
+  "settings.runeshape_row_scale": "สเกลความสูงแถว",
+  "ninjapricer.expedition.map_markers_header": "ป้ายบนแผนที่ LargeMap และในเกม 3D (Map & World Markers)",
+  "ninjapricer.overlays.minimal_map_badges": "โหมดมินิมอลบนแผนที่ LargeMap / โลก 3D (แสดงเฉพาะ สีเสา + ราคา)",
+  "ninjapricer.overlays.minimal_map_badges.tooltip": "ซ่อนแถบรูนและไอคอนของรางวัลบน LargeMap และในเกม แสดงเฉพาะสี่เหลี่ยมสีของเสา Monolith พร้อมราคาประเมินที่ดีที่สุด",
+  "ninjapricer.expedition.window_header": "หน้าต่างลอยแสดงสูตร Runeshape (Movable Overlay Window)",
+  "ninjapricer.expedition.header_elements": "องค์ประกอบหัวข้อแถวเสา (Header elements):",
+  "ninjapricer.expedition.expanded_elements": "องค์ประกอบแถวสูตรย่อยข้างในเมื่อคลิกกางออก (Expanded list elements):"
 }
