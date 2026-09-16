@@ -3113,13 +3113,13 @@ namespace NinjaPricer
                     {
                         if (NinjaRuneshapeHelper.TryReadMonolith(e, out var mData))
                         {
-                            // Find existing monolith by proximity (< 100 World Units) to avoid duplicate entity entries
+                            // Find existing monolith by exact proximity (< 25 World Units / 0.25m) to merge twin entity handles
                             long matchKey = -1;
                             foreach (var (key, existing) in this.cachedAreaMonoliths)
                             {
                                 if (existing.EntityAddress == e.Address ||
                                     (existing.WorldPos != Vector3.Zero && mData.WorldPos != Vector3.Zero &&
-                                     Vector3.Distance(existing.WorldPos, mData.WorldPos) < 100f))
+                                     Vector3.Distance(existing.WorldPos, mData.WorldPos) < 25f))
                                 {
                                     matchKey = key;
                                     break;
@@ -3213,13 +3213,13 @@ namespace NinjaPricer
                 var m = kvp.Value;
                 if (m.IsCompleted) continue;
 
-                // Ensure spatial deduplication in final output list
+                // Ensure spatial deduplication in final output list (< 25 World Units)
                 if (m.WorldPos != Vector3.Zero)
                 {
                     bool isDuplicate = false;
                     foreach (var pos in seenPositions)
                     {
-                        if (Vector3.Distance(pos, m.WorldPos) < 100f)
+                        if (Vector3.Distance(pos, m.WorldPos) < 25f)
                         {
                             isDuplicate = true;
                             break;
