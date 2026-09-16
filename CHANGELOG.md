@@ -2,7 +2,17 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
-## 1.8.81 — 2026-09-16 [Plugin Update — NinjaPricer, SDK / Core Framework Update]
+## 1.8.82 — 2026-09-16 [Plugin Update — NinjaPricer, SDK / Core Framework Update]
+
+- **`NinjaPricer` Streamlined Network-Bubble Live Coverage & Permanent Memory Retention**:
+  - Simplified monolith tracking architecture to a direct two-phase model:
+    - **Within Network Range (`AwakeEntities`)**: Continuously updates live monolith status and checks live explosive coverage (`CalculateCoverage`). If a bomb is placed, it is instantly marked covered (`coveredMonolithIds`). If picked up/removed while in range, it updates to un-covered immediately.
+    - **Outside Network Range**: Retains the last known coverage state permanently in cache so distant monoliths never lose their green status or disappear when moving far away.
+    - **Completion & Transition Cleanup**: Completed/looted monoliths (`ActivatedState >= 7`) are removed from tracking; area transitions clear all cached state.
+- **`ExpeditionMechanics` Architecture Simplification**:
+  - Removed complex distance-pruning heuristics and static explosive tracking in favor of clean live/sleeping entity scanning directly paired with coverage calculation math.
+- Compatibility: Fully compatible with all TEHhub plugins.
+- Validation: Built `TEHhub.sln` in Release configuration with 0 warnings and 0 errors; verified and deployed to game directory.
 
 - **`NinjaPricer` Persistent Spatial Monolith Registry**:
   - Implemented `trackedMonoliths` persistent spatial registry: Monoliths discovered across the entire zone remain tracked and visible in both the Runeshape Combination UI window and Large Map (`Tab`) world markers, preventing distant monoliths from vanishing when moving away.

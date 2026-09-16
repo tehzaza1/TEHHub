@@ -320,20 +320,8 @@ namespace TEHhub.Utils
         /// </summary>
         public const string EncounterPath = "Metadata/MiscellaneousObjects/Expedition2/Expedition2Encounter";
 
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<uint, (System.Numerics.Vector3 Pos, Entity? EntityRef)> TrackedExplosives = new();
-        private static string lastTrackedAreaHash = string.Empty;
-
-        /// <summary>
-        ///     Clears cached explosive positions. Called on area transitions.
-        /// </summary>
-        public static void ClearTrackedExplosives()
-        {
-            TrackedExplosives.Clear();
-        }
-
         /// <summary>
         ///     Finds all placed Expedition explosive entities currently in the area.
-        ///     Persists explosive locations so distant explosives remain tracked when out of proximity bubble.
         /// </summary>
         /// <param name="area">AreaInstance to inspect, or null to query the current area.</param>
         /// <returns>A list of placed explosive entities.</returns>
@@ -344,13 +332,6 @@ namespace TEHhub.Utils
                 area = Core.States.InGameStateObject?.CurrentAreaInstance;
             }
 
-            var currentHash = area?.AreaHash ?? string.Empty;
-            if (!string.Equals(currentHash, lastTrackedAreaHash, StringComparison.Ordinal))
-            {
-                lastTrackedAreaHash = currentHash;
-                TrackedExplosives.Clear();
-            }
-
             var results = new List<Entity>();
             if (area?.AwakeEntities != null)
             {
@@ -359,10 +340,6 @@ namespace TEHhub.Utils
                     if (entity != null && entity.IsValid && IsExplosiveEntity(entity.Path))
                     {
                         results.Add(entity);
-                        if (entity.TryGetComponent<Render>(out var r, false) && r != null)
-                        {
-                            TrackedExplosives[entity.Id] = (new System.Numerics.Vector3(r.WorldPosition.X, r.WorldPosition.Y, r.TerrainHeight), entity);
-                        }
                     }
                 }
             }
@@ -375,36 +352,6 @@ namespace TEHhub.Utils
                     if (entity != null && entity.IsValid && IsExplosiveEntity(entity.Path))
                     {
                         results.Add(entity);
-                        if (entity.TryGetComponent<Render>(out var r, false) && r != null)
-                        {
-                            TrackedExplosives[entity.Id] = (new System.Numerics.Vector3(r.WorldPosition.X, r.WorldPosition.Y, r.TerrainHeight), entity);
-                        }
-                    }
-                }
-            }
-
-            // Synchronize TrackedExplosives: only prune explosives that are within the player's wake bubble (~1200 W)
-            // and genuinely missing (undone/removed by player). Keep distant explosives tracked across the area.
-            if (!TrackedExplosives.IsEmpty)
-            {
-                var liveIds = new HashSet<uint>(results.Select(e => e.Id));
-                var playerRender = area?.Player?.TryGetComponent<Render>(out var pr, false) == true ? pr : null;
-                var playerPos = playerRender != null ? new System.Numerics.Vector3(playerRender.WorldPosition.X, playerRender.WorldPosition.Y, playerRender.TerrainHeight) : (System.Numerics.Vector3?)null;
-
-                foreach (var (id, (ePos, _)) in TrackedExplosives)
-                {
-                    if (!liveIds.Contains(id))
-                    {
-                        if (playerPos.HasValue)
-                        {
-                            var dx = playerPos.Value.X - ePos.X;
-                            var dy = playerPos.Value.Y - ePos.Y;
-                            var distToPlayer = MathF.Sqrt(dx * dx + dy * dy);
-                            if (distToPlayer < 1200f)
-                            {
-                                TrackedExplosives.TryRemove(id, out _);
-                            }
-                        }
                     }
                 }
             }
@@ -413,12 +360,12 @@ namespace TEHhub.Utils
         }
 
         /// <summary>
-        ///     Checks whether there are any placed explosives in the current area (live or persistently tracked).
+        ///     Checks whether there are any placed explosives in the current area.
         /// </summary>
         public static bool HasPlacedExplosives(AreaInstance? area = null)
         {
             var explosives = GetPlacedExplosives(area);
-            return explosives.Count > 0 || !TrackedExplosives.IsEmpty;
+            return explosives.Count > 0;
         }
 
         /// <summary>
@@ -454,7 +401,6 @@ namespace TEHhub.Utils
         /// <summary>
         ///     Calculates the explosive coverage for a target world position.
         ///     Uses the dynamic blast radius calculated from map modifiers.
-        ///     Evaluates against both active explosive entities and persistently tracked explosive locations.
         /// </summary>
         /// <param name="targetPos">The target world position to test.</param>
         /// <param name="area">The active AreaInstance, or null to use the current area.</param>
@@ -484,7 +430,7 @@ namespace TEHhub.Utils
             var effectiveRadius = radiusWorld * CoverageToleranceFactor;
 
             var explosives = GetPlacedExplosives(area);
-            if (explosives.Count == 0 && TrackedExplosives.IsEmpty)
+            if (explosives.Count == 0)
             {
                 return ExpeditionExplosiveCoverage.None(radiusWorld, radiusGrid);
             }
@@ -498,14 +444,10 @@ namespace TEHhub.Utils
             Entity? bestCoveringEntity = null;
             uint bestCoveringId = 0;
 
-            var checkedIds = new HashSet<uint>();
-
-            // 1. Check live explosive entities
             for (int i = 0; i < explosives.Count; i++)
             {
                 var exp = explosives[i];
                 if (exp == null) continue;
-                checkedIds.Add(exp.Id);
 
                 if (!exp.TryGetComponent<Render>(out var expRender, false) || expRender == null) continue;
                 var dx = targetPos.X - expRender.WorldPosition.X;
@@ -531,37 +473,8 @@ namespace TEHhub.Utils
                 }
             }
 
-            // 2. Check persistently tracked explosive locations (handles explosives that fell out of proximity bubble)
-            foreach (var (expId, (ePos, eRef)) in TrackedExplosives)
-            {
-                if (checkedIds.Contains(expId)) continue;
-
-                var dx = targetPos.X - ePos.X;
-                var dy = targetPos.Y - ePos.Y;
-                var dist = MathF.Sqrt(dx * dx + dy * dy);
-
-                if (dist < closestDist)
-                {
-                    closestDist = dist;
-                    closestEntity = eRef;
-                    closestId = expId;
-                }
-
-                if (dist <= effectiveRadius)
-                {
-                    coveringCount++;
-                    if (dist < bestCoveringDist)
-                    {
-                        bestCoveringDist = dist;
-                        bestCoveringEntity = eRef;
-                        bestCoveringId = expId;
-                    }
-                }
-            }
-
             bool isCovered = coveringCount > 0;
             var finalDist = isCovered ? bestCoveringDist : closestDist;
-            int totalExplosiveCount = Math.Max(explosives.Count, TrackedExplosives.Count);
 
             return new ExpeditionExplosiveCoverage(
                 isCovered,
@@ -572,11 +485,12 @@ namespace TEHhub.Utils
                 radiusWorld,
                 radiusGrid,
                 coveringCount,
-                totalExplosiveCount,
+                explosives.Count,
                 closestDist,
                 closestId,
                 closestEntity);
         }
+
 
         /// <summary>
         ///     Calculates the explosive coverage for a specific target entity (e.g. Expedition2Encounter).
