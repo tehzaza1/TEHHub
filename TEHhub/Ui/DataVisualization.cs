@@ -826,28 +826,29 @@ namespace TEHhub.Ui
                     continue;
                 }
 
-                string labelText;
+                // Determine entity rarity and colors
+                Rarity entityRarity = Rarity.Normal;
                 uint textColor = 0xFFFFFFFF; // White
                 uint borderColor = 0xFF888888;
+                string friendlyName = string.Empty;
+                string countStr = string.Empty;
                 bool isTargetedType = false;
 
                 if (entity.TryGetComponent<WorldItem>(out var wi))
                 {
                     isTargetedType = true;
                     var itemName = !string.IsNullOrWhiteSpace(wi.ItemName) ? wi.ItemName : (!string.IsNullOrWhiteSpace(wi.ItemPath) ? wi.ItemPath : "Item");
-                    var countStr = string.Empty;
                     if (wi.Item != null && wi.Item.TryGetComponent<TEHhub.RemoteObjects.Components.Stack>(out var st) && st.Count > 1)
                     {
                         countStr = $" x{st.Count}";
                     }
 
-                    Rarity rarity = Rarity.Normal;
                     if (wi.Item != null && wi.Item.TryGetComponent<Mods>(out var m))
                     {
-                        rarity = m.Rarity;
+                        entityRarity = m.Rarity;
                     }
 
-                    switch (rarity)
+                    switch (entityRarity)
                     {
                         case Rarity.Unique:
                             textColor = 0xFF3090F0; // Orange / Brown
@@ -867,7 +868,7 @@ namespace TEHhub.Ui
                             break;
                     }
 
-                    labelText = $"[{entity.Id}] {itemName}{countStr}";
+                    friendlyName = $"{itemName}{countStr}";
                 }
                 else if (entity.Path.StartsWith("Metadata/Monsters", StringComparison.OrdinalIgnoreCase))
                 {
@@ -877,13 +878,12 @@ namespace TEHhub.Ui
                         continue;
                     }
 
-                    Rarity rarity = Rarity.Normal;
                     if (entity.TryGetComponent<ObjectMagicProperties>(out var omp))
                     {
-                        rarity = omp.Rarity;
+                        entityRarity = omp.Rarity;
                     }
 
-                    switch (rarity)
+                    switch (entityRarity)
                     {
                         case Rarity.Unique:
                             textColor = 0xFF3090F0;
@@ -904,8 +904,7 @@ namespace TEHhub.Ui
                     }
 
                     var nameParts = entity.Path.Split('/');
-                    var shortName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
-                    labelText = $"[{entity.Id}] {shortName}";
+                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
                 }
                 else if (entity.TryGetComponent<Chest>(out _) || entity.Path.StartsWith("Metadata/Chests", StringComparison.OrdinalIgnoreCase))
                 {
@@ -913,8 +912,7 @@ namespace TEHhub.Ui
                     textColor = 0xFF80E0FF; // Soft Cyan
                     borderColor = 0xFF40A0C0;
                     var nameParts = entity.Path.Split('/');
-                    var shortName = nameParts.Length > 0 ? nameParts[^1] : "Chest";
-                    labelText = $"[{entity.Id}] {shortName}";
+                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : "Chest";
                 }
                 else if (entity.Path.Contains("Expedition", StringComparison.OrdinalIgnoreCase) ||
                          entity.Path.Contains("Delve", StringComparison.OrdinalIgnoreCase) ||
@@ -927,35 +925,59 @@ namespace TEHhub.Ui
                     textColor = 0xFF50FF80; // Greenish
                     borderColor = 0xFF20A040;
                     var nameParts = entity.Path.Split('/');
-                    var shortName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
-                    labelText = $"[{entity.Id}] {shortName}";
+                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
                 }
                 else if (!string.IsNullOrEmpty(entitySearchFilter))
                 {
                     isTargetedType = true;
                     var nameParts = entity.Path.Split('/');
-                    var shortName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
-                    labelText = $"[{entity.Id}] {shortName}";
+                    friendlyName = nameParts.Length > 0 ? nameParts[^1] : entity.Path;
                 }
                 else
                 {
                     continue;
                 }
 
-                // Apply active search filter if specified
-                if (!string.IsNullOrEmpty(entitySearchFilter))
+                // Filtering logic based on active Filter mode
+                switch (entityFilterMode)
                 {
-                    if (entityFilterMode == 0 && !$"{entity.Id}".Contains(entitySearchFilter))
-                    {
-                        continue;
-                    }
-                    else if (entityFilterMode == 1 && !entity.Path.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase) && !labelText.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
+                    case 0: // Filter ID
+                        if (!string.IsNullOrEmpty(entitySearchFilter) && !$"{entity.Id}".Contains(entitySearchFilter))
+                        {
+                            continue;
+                        }
+                        break;
+                    case 1: // Filter Path
+                        if (!string.IsNullOrEmpty(entitySearchFilter) && !entity.Path.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase) && !friendlyName.Contains(entitySearchFilter, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                        break;
+                    case 2: // Filter Rarity
+                        if (entityRarity != entityRarityFilter)
+                        {
+                            continue;
+                        }
+                        break;
                 }
 
-                if (!isTargetedType || string.IsNullOrEmpty(labelText))
+                if (!isTargetedType)
+                {
+                    continue;
+                }
+
+                // Format label text according to mode:
+                // 0 (Filter ID): show only the ID number
+                // 1 (Filter Path): show [ID] + full path
+                // 2 (Filter Rarity): show [ID] + friendly name/item name
+                string labelText = entityFilterMode switch
+                {
+                    0 => $"{entity.Id}",
+                    1 => $"[{entity.Id}] {entity.Path}",
+                    _ => $"[{entity.Id}] {friendlyName}"
+                };
+
+                if (string.IsNullOrEmpty(labelText))
                 {
                     continue;
                 }
