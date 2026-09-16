@@ -105,7 +105,7 @@
   "button.set_hotkey": "ตั้งปุ่มลัด",
   "button.clear": "ล้างค่า",
   "ninjapricer.overlays.fps_warning": "(อาจส่งผลต่อ FPS เล็กน้อย)",
-  "ninjapricer.runeshape.window_title": "สูตรและราคา Runeshape",
+  "ninjapricer.runeshape.window_title": "Runeshape",
   "ninjapricer.runeshape.search_hint": "ค้นหาสูตร...",
   "ninjapricer.runeshape.all_catalog": "แคตตาล็อกสูตรทั้งหมด",
   "ninjapricer.runeshape.monolith": "เสา Monolith {0}",

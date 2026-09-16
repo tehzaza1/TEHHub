@@ -103,7 +103,7 @@
   "button.set_hotkey": "Set Hotkey",
   "button.clear": "Clear",
   "ninjapricer.overlays.fps_warning": "(may affect FPS)",
-  "ninjapricer.runeshape.window_title": "Runeshape Recipes & Prices",
+  "ninjapricer.runeshape.window_title": "Runeshape",
   "ninjapricer.runeshape.search_hint": "Search recipe...",
   "ninjapricer.runeshape.all_catalog": "All Recipes Catalog",
   "ninjapricer.runeshape.monolith": "Monolith {0}",
