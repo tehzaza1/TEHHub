@@ -13,8 +13,22 @@ namespace TEHhub.Offsets.Objects.Components
         [FieldOffset(0x248)] public VitalStruct EnergyShield;
         [FieldOffset(0x2E8)] public VitalStruct Ward;
         [FieldOffset(0x338)] public VitalStruct Divinity;
-        [FieldOffset(0x380)] public VitalStruct Spirit;
+        [FieldOffset(0x380)] public StdVector SpiritList;
     }
+
+    [StructLayout(LayoutKind.Explicit, Pack = 1)]
+    public struct SpiritEntry
+    {
+        [FieldOffset(0x00)] public IntPtr VtablePtr;
+        [FieldOffset(0x08)] public int UnknownId1;
+        [FieldOffset(0x0C)] public int UnknownId2;
+        [FieldOffset(0x10)] public IntPtr PtrToLifeComponent;
+        [FieldOffset(0x18)] public int ReservedFlat;
+        [FieldOffset(0x1C)] public int ReservedPercent;
+        [FieldOffset(0x20)] public int Total;
+        [FieldOffset(0x24)] public int Flags;
+    }
+
 
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
     public struct VitalStruct

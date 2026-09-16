@@ -6,7 +6,12 @@ using System.Text.Json;
 using TEHhub;
 using TEHhub.Ui;
 using TEHhub.Utils;
+using TEHhub.Offsets;
+using TEHhub.Offsets.Natives;
+using TEHhub.Offsets.Objects;
 using TEHhub.Offsets.Objects.Components;
+using TEHhub.Offsets.Objects.States;
+using TEHhub.Offsets.Objects.States.InGameState;
 
 // Exercises the real read-only process-memory reader against allocations in this test process.
 // No game process is opened or modified. No external test packages are needed.
@@ -31,6 +36,84 @@ if (args.Length == 1 && args[0] == "--ai-review-smoke")
     Console.WriteLine($"{review.Decision.Decision} {review.Decision.CandidateId}: {review.Decision.NextProbe}; {review.Decision.Reason}");
     return;
 }
+
+if (args.Length >= 1 && args[0] == "--scan-spirit")
+{
+    var targetValue = args.Length >= 2 ? int.Parse(args[1]) : 433;
+    var proc = Process.GetProcessesByName("PathOfExile").Concat(Process.GetProcessesByName("PathOfExileSteam")).FirstOrDefault();
+    if (proc == null) { Console.WriteLine("Game process not found!"); return; }
+    Console.WriteLine($"Found PoE Process: {proc.ProcessName} (PID {proc.Id})");
+    var baseAddress = proc.MainModule?.BaseAddress ?? IntPtr.Zero;
+    var procSize = proc.MainModule?.ModuleMemorySize ?? 0;
+    using var handle = new SafeMemoryHandle(proc.Id);
+    var patterns = PatternFinder.Find(handle, baseAddress, procSize);
+    if (!patterns.TryGetValue("Game States", out var gsOffset))
+    {
+        Console.WriteLine("Could not find Game States pattern!");
+        return;
+    }
+    var offsetDataValue = handle.ReadMemory<int>(baseAddress + gsOffset);
+    var gameStatesAddr = baseAddress + gsOffset + offsetDataValue + 0x04;
+    Console.WriteLine($"Game States Addr: 0x{gameStatesAddr.ToInt64():X}");
+    
+    var staticObj = handle.ReadMemory<GameStateStaticOffset>(gameStatesAddr);
+    Console.WriteLine($"StaticObj GameState: 0x{staticObj.GameState.ToInt64():X}");
+    var gameStateData = handle.ReadMemory<GameStateOffset>(staticObj.GameState);
+    var inGameStatePtr = gameStateData.States[4].X;
+    Console.WriteLine($"InGameStatePtr: 0x{inGameStatePtr.ToInt64():X}");
+    
+    var inGameData = handle.ReadMemory<InGameStateOffset>(inGameStatePtr);
+    var areaInstancePtr = inGameData.AreaInstanceData;
+    Console.WriteLine($"AreaInstancePtr: 0x{areaInstancePtr.ToInt64():X}");
+    
+    var areaData = handle.ReadMemory<AreaInstanceOffsets>(areaInstancePtr);
+    var playerPtr = areaData.PlayerInfo.LocalPlayerPtr;
+    Console.WriteLine($"LocalPlayerPtr: 0x{playerPtr.ToInt64():X}");
+    
+    var entityData = handle.ReadMemory<EntityOffsets>(playerPtr);
+    var compMap = handle.ReadStdVector<IntPtr>(entityData.ItemBase.ComponentListPtr);
+    Console.WriteLine($"Components in Player: {compMap.Length}");
+    
+    IntPtr lifeCompAddress = IntPtr.Zero;
+    for (int i = 0; i < compMap.Length; i++)
+    {
+        var compPtr = compMap[i];
+        if (compPtr != IntPtr.Zero && SafeMemoryHandle.IsValidAddress(compPtr))
+        {
+            var header = handle.ReadMemory<ComponentHeader>(compPtr);
+            if (header.EntityPtr == playerPtr)
+            {
+                // check if it's life component by health at 0x1b0
+                var h = handle.ReadMemory<VitalStruct>(compPtr + 0x1b0);
+                if (h.PtrToLifeComponent == compPtr)
+                {
+                    lifeCompAddress = compPtr;
+                    Console.WriteLine($"Found Life Component at 0x{lifeCompAddress.ToInt64():X} (Comp #{i})!");
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (lifeCompAddress == IntPtr.Zero)
+    {
+        Console.WriteLine("Could not find Life component!");
+        return;
+    }
+    
+    Console.WriteLine($"\n--- Testing SpiritEntry Vector Reading ---");
+    var lifeOffset = handle.ReadMemory<LifeOffset>(lifeCompAddress);
+    var spiritEntries = handle.ReadStdVector<SpiritEntry>(lifeOffset.SpiritList);
+    Console.WriteLine($"Found {spiritEntries.Length} Spirit entries:");
+    for (int i = 0; i < spiritEntries.Length; i++)
+    {
+        var e = spiritEntries[i];
+        var unreserved = e.Total - e.ReservedFlat;
+        Console.WriteLine($"  Entry [{i}]: Total={e.Total}, ReservedFlat={e.ReservedFlat}, ReservedPercent={e.ReservedPercent}, Unreserved={unreserved}, PtrToLife=0x{e.PtrToLifeComponent.ToInt64():X}");
+    }
+    return;
+}
+
 
 if (args.Length == 2 && args[0] == "--research-live")
 {
@@ -70,9 +153,12 @@ typeof(GameProcess).GetProperty("Information", BindingFlags.Instance | BindingFl
 RootSearchArena.TestPe(reader, process.MainModule!.BaseAddress.ToInt64(), process.MainModule.ModuleMemorySize, Check);
 Core.GHSettings.EnableNewMemoryRead = false;
 Core.GHSettings.EnableOffsetTryFix = true;
+#if DEBUG
 BottleneckTests.Run(Check);
+#endif
 var clock = new ManualTime();
 OffsetTryFix.Time = clock;
+
 OffsetTryFix.ShouldPoll(new IntPtr(0x100000));
 clock.Advance(11);
 
@@ -209,3 +295,5 @@ sealed class ManualTime : TimeProvider
     public override DateTimeOffset GetUtcNow() => value;
     public void Advance(int seconds) => value = value.AddSeconds(seconds);
 }
+
+

@@ -1,9 +1,11 @@
+#if DEBUG
 using System.Diagnostics;
 using System.Text.Json;
 using TEHhub;
 using TEHhub.Ui;
 
 internal static class BottleneckTests
+
 {
     internal static void Run(Action<bool, string> check)
     {
@@ -51,3 +53,5 @@ internal static class BottleneckTests
         check(BottleneckCapture.Snapshot.CaptureId != firstCaptureId, "new capture receives distinct identity so monitors cannot mix rounds");
     }
 }
+#endif
+

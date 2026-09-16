@@ -111,9 +111,38 @@ namespace TEHhub.RemoteObjects.Components
             this.Mana = data.Mana;
             this.Ward = data.Ward;
             this.Divinity = data.Divinity;
-            this.Spirit = data.Spirit;
+
+            if (data.SpiritList.First != IntPtr.Zero && data.SpiritList.Last != IntPtr.Zero)
+            {
+                var spiritEntries = reader.ReadStdVector<SpiritEntry>(data.SpiritList);
+                if (spiritEntries.Length > 0)
+                {
+                    var entry = spiritEntries[0];
+                    var reservedTotal = (int)Math.Ceiling(entry.ReservedPercent / 10000f * entry.Total) + entry.ReservedFlat;
+                    this.Spirit = new VitalStruct
+                    {
+                        VtablePtr = entry.VtablePtr,
+                        PtrToLifeComponent = entry.PtrToLifeComponent,
+                        ReservedFlat = entry.ReservedFlat,
+                        ReservedPercent = entry.ReservedPercent,
+                        Total = entry.Total,
+                        Current = Math.Max(0, entry.Total - reservedTotal),
+                        Regeneration = 0f,
+                    };
+                }
+                else
+                {
+                    this.Spirit = default;
+                }
+            }
+            else
+            {
+                this.Spirit = default;
+            }
+
             this.IsAlive = data.Health.Current > 0;
         }
+
 
         private void VitalToImGui(VitalStruct data)
         {
