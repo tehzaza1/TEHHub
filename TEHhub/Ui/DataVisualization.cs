@@ -349,7 +349,7 @@ namespace TEHhub.Ui
 
                 if (ImGui.BeginPopup("HoveredEntityModal"))
                 {
-                    DrawEntityComponents(mouseOver);
+                    mouseOver.ToImGui();
                     if (ImGui.Button("Close")) ImGui.CloseCurrentPopup();
                     ImGui.EndPopup();
                 }
@@ -498,63 +498,12 @@ namespace TEHhub.Ui
 
                 if (opened)
                 {
-                    DrawEntityComponents(entity);
+                    entity.ToImGui();
                     ImGui.TreePop();
                 }
                 ImGui.PopID();
             }
             ImGui.EndChild();
-        }
-
-        private static void DrawEntityComponents(Entity entity)
-        {
-            var componentNames = entity.GetComponentNames();
-            if (componentNames == null) return;
-
-            foreach (var name in componentNames)
-            {
-                if (!string.IsNullOrEmpty(componentSearchFilter) &&
-                    !name.Contains(componentSearchFilter, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (ImGui.TreeNode(name))
-                {
-                    switch (name)
-                    {
-                        case "Life":
-                            if (entity.TryGetComponent<Life>(out var life)) life.ToImGui();
-                            break;
-                        case "Render":
-                            if (entity.TryGetComponent<Render>(out var render)) render.ToImGui();
-                            break;
-                        case "Actor":
-                            if (entity.TryGetComponent<Actor>(out var actor)) actor.ToImGui();
-                            break;
-                        case "Buffs":
-                            if (entity.TryGetComponent<Buffs>(out var buffs)) buffs.ToImGui();
-                            break;
-                        case "Stats":
-                            if (entity.TryGetComponent<Stats>(out var stats)) stats.ToImGui();
-                            break;
-                        case "Positioned":
-                            if (entity.TryGetComponent<Positioned>(out var pos)) pos.ToImGui();
-                            break;
-                        case "ObjectMagicProperties":
-                            if (entity.TryGetComponent<ObjectMagicProperties>(out var omp)) omp.ToImGui();
-                            break;
-                        case "StateMachine":
-                            if (entity.TryGetComponent<StateMachine>(out var sm)) sm.ToImGui();
-                            break;
-                        default:
-                            ImGui.TextDisabled($"No custom ImGui widget implemented for {name}.");
-                            break;
-                    }
-
-                    ImGui.TreePop();
-                }
-            }
         }
 
         private static void DumpEntityJson(EntityNodeKey key, Entity entity)

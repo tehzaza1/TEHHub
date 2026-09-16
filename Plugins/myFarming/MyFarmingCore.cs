@@ -260,16 +260,16 @@ namespace myFarming
             {
                 this.currentRun.Loot = new List<LootEntry>(this.currentLoot);
                 this.currentRun.TotalChaos = this.currentTotalChaos;
+                this.currentRun.KillsNormal = this.killTracker.KillsNormal;
+                this.currentRun.KillsMagic = this.killTracker.KillsMagic;
+                this.currentRun.KillsRare = this.killTracker.KillsRare;
+                this.currentRun.KillsUnique = this.killTracker.KillsUnique;
                 this.historyStore.AddRun(this.currentRun);
 
                 // Accumulate run into persistent session totals
                 this.sessionStore.Current.TotalDurationSec += this.currentRun.DurationSec;
                 this.sessionStore.Current.TotalChaos += this.currentRun.TotalChaos;
                 this.sessionStore.Current.TotalMaps++;
-                this.sessionStore.Current.KillsNormal += this.currentRun.KillsNormal;
-                this.sessionStore.Current.KillsMagic += this.currentRun.KillsMagic;
-                this.sessionStore.Current.KillsRare += this.currentRun.KillsRare;
-                this.sessionStore.Current.KillsUnique += this.currentRun.KillsUnique;
                 this.sessionStore.Save();
             }
 
@@ -396,10 +396,6 @@ namespace myFarming
                 int liveSessionSec = this.sessionStore.Current.TotalDurationSec + (this.currentRun?.DurationSec ?? 0);
                 float liveSessionChaos = this.sessionStore.Current.TotalChaos + this.currentTotalChaos;
                 int liveSessionMaps = this.sessionStore.Current.TotalMaps + (this.isRunActive ? 1 : 0);
-                int liveKillsNormal = this.sessionStore.Current.KillsNormal + this.killTracker.KillsNormal;
-                int liveKillsMagic = this.sessionStore.Current.KillsMagic + this.killTracker.KillsMagic;
-                int liveKillsRare = this.sessionStore.Current.KillsRare + this.killTracker.KillsRare;
-                int liveKillsUnique = this.sessionStore.Current.KillsUnique + this.killTracker.KillsUnique;
 
                 // Status line
                 string statusText = this.isRunActive
@@ -439,11 +435,6 @@ namespace myFarming
                         ImGui.SameLine(0, 2);
                         this.DrawCurrencyIcon(this.Settings.Currency, 1.25f);
                         ImGui.TextDisabled($"{this.FormatCurrency(sessionRate)}/hr");
-                    }
-
-                    if (this.Settings.ShowKills && (liveSessionMaps > 0 || (liveKillsNormal + liveKillsMagic + liveKillsRare + liveKillsUnique) > 0))
-                    {
-                        this.DrawColoredKills(liveKillsNormal, liveKillsMagic, liveKillsRare, liveKillsUnique);
                     }
                 }
 
