@@ -289,6 +289,31 @@ try
         "SafeMemoryHandle must read using the compiled layout only.");
     Check(!reader.TryReadMemory<ChestOffsets>(IntPtr.Zero, out _),
         "Invalid read must fail.");
+
+    var text8 = "ABCDEFGH";
+    var bytes8 = System.Text.Encoding.Unicode.GetBytes(text8);
+    var inlineWString8 = new StdWString
+    {
+        Buffer = new IntPtr(BitConverter.ToInt64(bytes8, 0)),
+        ReservedBytes = new IntPtr(BitConverter.ToInt64(bytes8, 8)),
+        Length = 8,
+        Capacity = 8,
+    };
+    Check(
+        reader.ReadStdWString(inlineWString8) == text8,
+        "Inline StdWString at full 8-character capacity must decode correctly.");
+
+    var inlineWString7 = new StdWString
+    {
+        Buffer = new IntPtr(BitConverter.ToInt64(bytes8, 0)),
+        ReservedBytes = new IntPtr(BitConverter.ToInt64(bytes8, 8)),
+        Length = 7,
+        Capacity = 8,
+    };
+    Check(
+        reader.ReadStdWString(inlineWString7) == "ABCDEFG",
+        "Inline StdWString shorter than 8 characters must decode correctly.");
+
     Console.WriteLine($"PASS: {assertions} assertions; read-only offset scanner and memory verification intact.");
 }
 finally
