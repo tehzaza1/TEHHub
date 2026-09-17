@@ -2,12 +2,14 @@ namespace ExpeditionPathOptimizer
 {
     using System;
     using System.Collections.Generic;
+    using ClickableTransparentOverlay.Win32;
     using TEHhub.Plugin;
 
     public sealed class ExpeditionPathOptimizerSettings : IPSettings
     {
         public bool Enable { get; set; } = true;
         public bool AutoStartOnAreaChange { get; set; } = true;
+        public VK ScanAndStartHotkey { get; set; } = (VK)0;
 
         // Price Service Settings
         public string League { get; set; } = "Forbidden Rites";

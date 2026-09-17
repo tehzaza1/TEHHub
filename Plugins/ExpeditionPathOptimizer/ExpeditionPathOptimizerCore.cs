@@ -6,6 +6,7 @@ namespace ExpeditionPathOptimizer
     using System.Linq;
     using System.Numerics;
     using System.Text.Json;
+    using ClickableTransparentOverlay.Win32;
     using Coroutine;
     using ExpeditionPathOptimizer.PathPlannerData;
     using ImGuiNET;
@@ -322,6 +323,23 @@ namespace ExpeditionPathOptimizer
                 this.SaveSettings();
             }
 
+            var scanHotkey = this.Settings.ScanAndStartHotkey;
+            if (ImGuiHelper.NonContinuousEnumComboBox("Scan & Start Hotkey", ref scanHotkey))
+            {
+                this.Settings.ScanAndStartHotkey = scanHotkey;
+                this.SaveSettings();
+            }
+
+            if (this.Settings.ScanAndStartHotkey != (VK)0)
+            {
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Clear##clear_scan_hotkey"))
+                {
+                    this.Settings.ScanAndStartHotkey = (VK)0;
+                    this.SaveSettings();
+                }
+            }
+
             ImGui.Spacing();
             if (this.runner.IsRunning)
             {
@@ -337,31 +355,7 @@ namespace ExpeditionPathOptimizer
             {
                 if (ImGui.Button("Scan & Start Search", new Vector2(160, 30)))
                 {
-                    if (IsExpeditionSubArea(currentAreaId))
-                    {
-                        this.manualSearchWarningMessage = $"Expedition Path Optimizer is disabled in Expedition sub-areas ({currentAreaId}).";
-                        this.manualSearchWarningTimeUtc = DateTime.UtcNow;
-                        PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
-                    }
-                    else if (!this.IsPriceServiceReadyForSearch())
-                    {
-                        this.manualSearchWarningMessage = "Price data is still loading; optimization was not started. Try again when price data is ready.";
-                        this.manualSearchWarningTimeUtc = DateTime.UtcNow;
-                        PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
-                    }
-                    else
-                    {
-                        this.manualSearchWarningMessage = string.Empty;
-                        var area = Core.States.InGameStateObject?.CurrentAreaInstance;
-                        if (area != null)
-                        {
-                            this.ScanEntities(area);
-                            if (this.StartSearch(area))
-                            {
-                                this.hasAutoSearchedThisArea = true;
-                            }
-                        }
-                    }
+                    this.TryManualScanAndStart();
                 }
                 ImGui.SameLine();
                 if (ImGui.Button("Clear Path", new Vector2(110, 30)))
@@ -1491,6 +1485,45 @@ namespace ExpeditionPathOptimizer
             return true;
         }
 
+        public bool TryManualScanAndStart()
+        {
+            if (this.runner.IsRunning)
+            {
+                return false;
+            }
+
+            var currentAreaId = GetCurrentAreaId();
+            if (IsExpeditionSubArea(currentAreaId))
+            {
+                this.manualSearchWarningMessage = $"Expedition Path Optimizer is disabled in Expedition sub-areas ({currentAreaId}).";
+                this.manualSearchWarningTimeUtc = DateTime.UtcNow;
+                PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
+                return false;
+            }
+
+            if (!this.IsPriceServiceReadyForSearch())
+            {
+                this.manualSearchWarningMessage = "Price data is still loading; optimization was not started. Try again when price data is ready.";
+                this.manualSearchWarningTimeUtc = DateTime.UtcNow;
+                PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
+                return false;
+            }
+
+            this.manualSearchWarningMessage = string.Empty;
+            var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+            if (area != null && area.Address != IntPtr.Zero)
+            {
+                this.ScanEntities(area);
+                if (this.StartSearch(area))
+                {
+                    this.hasAutoSearchedThisArea = true;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public bool StartSearch(AreaInstance area)
         {
             var areaId = GetCurrentAreaId();
@@ -1601,6 +1634,17 @@ namespace ExpeditionPathOptimizer
         public override void DrawUI()
         {
             if (!this.Settings.Enable) return;
+
+            if (this.Settings.ScanAndStartHotkey != (VK)0 && (int)this.Settings.ScanAndStartHotkey > 0)
+            {
+                if (Utils.IsKeyPressedAndNotTimeout(this.Settings.ScanAndStartHotkey))
+                {
+                    if (!this.runner.IsRunning)
+                    {
+                        this.TryManualScanAndStart();
+                    }
+                }
+            }
 
             var game = Core.States.InGameStateObject;
             var area = game?.CurrentAreaInstance;
