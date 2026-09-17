@@ -142,6 +142,8 @@ namespace ExpeditionPathOptimizer
                     this.ClearState();
                 }
 
+                bool priceReadyAtScanStart = this.IsPriceServiceReadyForSearch();
+
                 this.ScanEntities(area);
 
                 // Auto-start only ONCE per area when Expedition Detonator and Remnants are detected
@@ -152,7 +154,7 @@ namespace ExpeditionPathOptimizer
                 {
                     if (this.detonatorWorldPos != Vector3.Zero && this.discoveredRemnants.Count > 0)
                     {
-                        if (!this.IsPriceServiceReadyForSearch())
+                        if (!priceReadyAtScanStart)
                         {
                             this.isAutoStartWaitingForPrice = true;
                         }
