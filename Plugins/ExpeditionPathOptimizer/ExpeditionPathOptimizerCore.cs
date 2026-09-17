@@ -646,11 +646,6 @@ namespace ExpeditionPathOptimizer
                     for (int bIdx = 0; bIdx < bestPlan.PerPointScore.Count; bIdx++)
                     {
                         var pt = bestPlan.PerPointScore[bIdx];
-                        if (pt.PlannedRecipes == null || pt.PlannedRecipes.Count == 0)
-                        {
-                            continue;
-                        }
-
                         int bombNum = bIdx + 1;
                         string newlyActivatedStr = pt.NewlyActivatedRunes != null && pt.NewlyActivatedRunes.Count > 0
                             ? string.Join(", ", pt.NewlyActivatedRunes)
@@ -661,33 +656,40 @@ namespace ExpeditionPathOptimizer
 
                         ImGui.TextColored(new Vector4(0.4f, 0.8f, 1.0f, 1.0f), $"Bomb {bombNum} (Step ScoreDiff: {pt.ScoreDiff:F1}) | Newly Activated: [{newlyActivatedStr}]{bombOathAcqStr}{bombOathExpStr}");
 
-                        for (int pIdx = 0; pIdx < pt.PlannedRecipes.Count; pIdx++)
+                        if (pt.PlannedRecipes != null && pt.PlannedRecipes.Count > 0)
                         {
-                            var plan = pt.PlannedRecipes[pIdx];
-                            int slots = plan.Remnant.RuneSlots;
-                            string recId = plan.Recipe.RecipeId ?? "Unknown";
-                            string rewStr = $"{plan.Recipe.Reward} x{plan.Recipe.RewardCount} | {plan.Recipe.PriceChaos:F1}c";
-                            string runesStr = plan.Recipe.Runes != null ? $"[{string.Join(", ", plan.Recipe.Runes)}]" : "[]";
-
-                            var goldenList = new List<string>();
-                            if (plan.Remnant.GoldenSlots != null && plan.Recipe.Runes != null)
+                            for (int pIdx = 0; pIdx < pt.PlannedRecipes.Count; pIdx++)
                             {
-                                for (int g = 0; g < plan.Remnant.GoldenSlots.Count; g++)
+                                var plan = pt.PlannedRecipes[pIdx];
+                                int slots = plan.Remnant.RuneSlots;
+                                string recId = plan.Recipe.RecipeId ?? "Unknown";
+                                string rewStr = $"{plan.Recipe.Reward} x{plan.Recipe.RewardCount} | {plan.Recipe.PriceChaos:F1}c";
+                                string runesStr = plan.Recipe.Runes != null ? $"[{string.Join(", ", plan.Recipe.Runes)}]" : "[]";
+
+                                var goldenList = new List<string>();
+                                if (plan.Remnant.GoldenSlots != null && plan.Recipe.Runes != null)
                                 {
-                                    int gSlot = plan.Remnant.GoldenSlots[g];
-                                    if (gSlot >= 0 && gSlot < plan.Recipe.Runes.Count)
+                                    for (int g = 0; g < plan.Remnant.GoldenSlots.Count; g++)
                                     {
-                                        goldenList.Add($"{gSlot}={plan.Recipe.Runes[gSlot]}");
+                                        int gSlot = plan.Remnant.GoldenSlots[g];
+                                        if (gSlot >= 0 && gSlot < plan.Recipe.Runes.Count)
+                                        {
+                                            goldenList.Add($"{gSlot}={plan.Recipe.Runes[gSlot]}");
+                                        }
                                     }
                                 }
-                            }
-                            string goldenMapStr = goldenList.Count > 0 ? $"[{string.Join(", ", goldenList)}]" : "None";
-                            string goldenOutStr = plan.GoldenOutputRunes != null && plan.GoldenOutputRunes.Count > 0 ? string.Join(", ", plan.GoldenOutputRunes) : "None";
+                                string goldenMapStr = goldenList.Count > 0 ? $"[{string.Join(", ", goldenList)}]" : "None";
+                                string goldenOutStr = plan.GoldenOutputRunes != null && plan.GoldenOutputRunes.Count > 0 ? string.Join(", ", plan.GoldenOutputRunes) : "None";
 
-                            ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), $"  Remnant #{plan.Remnant.EntityId} ({slots} slots) -> {recId}");
-                            ImGui.TextDisabled($"     Runes: {runesStr} | Reward: {rewStr}");
-                            ImGui.TextDisabled($"     Golden Mapping: {goldenMapStr} | Golden Output: [{goldenOutStr}]");
-                            ImGui.Text($"     Recipe Rune: +{plan.RecipeRuneScore:F0} | Inherited Prop: +{plan.InheritedPropagationScore:F0} | Econ: +{plan.EconomicScore:F0}");
+                                ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), $"  Remnant #{plan.Remnant.EntityId} ({slots} slots) -> {recId}");
+                                ImGui.TextDisabled($"     Runes: {runesStr} | Reward: {rewStr}");
+                                ImGui.TextDisabled($"     Golden Mapping: {goldenMapStr} | Golden Output: [{goldenOutStr}]");
+                                ImGui.Text($"     Recipe Rune: +{plan.RecipeRuneScore:F0} | Inherited Prop: +{plan.InheritedPropagationScore:F0} | Econ: +{plan.EconomicScore:F0}");
+                            }
+                        }
+                        else
+                        {
+                            ImGui.TextDisabled("  No selected recipe on this bomb");
                         }
                     }
 
