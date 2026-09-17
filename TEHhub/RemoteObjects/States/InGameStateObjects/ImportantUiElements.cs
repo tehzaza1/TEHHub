@@ -559,6 +559,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.areaMods.Clear();
             this.areaModNames.Clear();
             this.areaModUpdateCounter = int.MaxValue;
+            this.lastAreaHash = string.Empty;
             this.atlasMapCacheFrameCounter = int.MaxValue;
             this.cachedAtlasMapCount = -1;
             this.SkillTreeNodesUiElements.Clear();
@@ -667,6 +668,14 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
         private void UpdateAreaMods()
         {
+            var currentAreaHash = Core.States.InGameStateObject.CurrentAreaInstance.AreaHash;
+            if (!string.IsNullOrEmpty(currentAreaHash) && currentAreaHash != this.lastAreaHash)
+            {
+                this.lastAreaHash = currentAreaHash;
+                this.areaMods.Clear();
+                this.areaModNames.Clear();
+            }
+
             if (++this.areaModUpdateCounter < 30 && this.areaMods.Count > 0)
             {
                 return;
