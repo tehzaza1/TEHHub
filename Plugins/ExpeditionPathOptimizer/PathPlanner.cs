@@ -12,7 +12,8 @@ namespace ExpeditionPathOptimizer
             ExpeditionRemnant Remnant,
             RuneshapeRecipeOffer Recipe,
             IReadOnlyList<string> NewlyAcquiredRunes,
-            double PropagatedRuneScore);
+            double PropagatedRuneScore,
+            double EconomicScore);
 
         public record PerPointScoreInfo(
             Vector2 Point,
@@ -22,9 +23,18 @@ namespace ExpeditionPathOptimizer
             IReadOnlyList<string> AcquiredRunes,
             double RuneScore,
             bool IsUsefulBridge,
-            IReadOnlyList<PlannedRecipeSelection> PlannedRecipes);
+            IReadOnlyList<PlannedRecipeSelection> PlannedRecipes,
+            double RecipeEconomicScore = 0.0,
+            double OathExposurePenalty = 0.0,
+            double BacktrackPenalty = 0.0);
 
-        public record DetailedLootScore(List<PerPointScoreInfo> PerPointScore, double TotalScore, ExpeditionEnvironment Environment);
+        public record DetailedLootScore(
+            List<PerPointScoreInfo> PerPointScore,
+            double TotalScore,
+            ExpeditionEnvironment Environment,
+            bool WasPruned = false);
+
+        private const int MaxRouteStatesSafetyCap = 256;
 
         private readonly ExpeditionPathOptimizerSettings settings;
 
@@ -39,7 +49,7 @@ namespace ExpeditionPathOptimizer
 
         public double GetScore(List<Vector2> path, ExpeditionEnvironment env)
         {
-            if (this.TryEvaluatePath(path, env, collectDetails: false, out double totalScore, out _))
+            if (this.TryEvaluatePath(path, env, collectDetails: false, out double totalScore, out _, out _))
             {
                 return totalScore;
             }
@@ -49,12 +59,12 @@ namespace ExpeditionPathOptimizer
 
         public DetailedLootScore GetDetailedScore(List<Vector2> path, ExpeditionEnvironment env)
         {
-            if (this.TryEvaluatePath(path, env, collectDetails: true, out double totalScore, out var pointsScore) && pointsScore != null)
+            if (this.TryEvaluatePath(path, env, collectDetails: true, out double totalScore, out var pointsScore, out bool wasPruned) && pointsScore != null)
             {
-                return new DetailedLootScore(pointsScore, totalScore, env);
+                return new DetailedLootScore(pointsScore, totalScore, env, wasPruned);
             }
 
-            return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env);
+            return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false);
         }
 
         public bool TryEvaluatePath(
@@ -64,8 +74,20 @@ namespace ExpeditionPathOptimizer
             out double totalScore,
             out List<PerPointScoreInfo>? pointsScore)
         {
+            return this.TryEvaluatePath(path, env, collectDetails, out totalScore, out pointsScore, out _);
+        }
+
+        public bool TryEvaluatePath(
+            List<Vector2> path,
+            ExpeditionEnvironment env,
+            bool collectDetails,
+            out double totalScore,
+            out List<PerPointScoreInfo>? pointsScore,
+            out bool wasPruned)
+        {
             totalScore = double.NegativeInfinity;
             pointsScore = null;
+            wasPruned = false;
 
             if (path == null || path.Count == 0 || path.Count > env.MaxExplosions)
             {
@@ -91,10 +113,12 @@ namespace ExpeditionPathOptimizer
             var hitRemnants = new HashSet<ExpeditionRemnant>();
             var hitChests = new HashSet<ExpeditionChest>();
             var prevPoint = env.StartingPoint;
+            var prevPrevPoint = env.StartingPoint;
 
             var bombNewHits = new List<List<ExpeditionRemnant>>(n);
             var bombNewChestHits = new List<List<ExpeditionChest>>(n);
             var bombBaseScores = new double[n];
+            var bombBacktrackPenalties = new double[n];
             var bombIsUsefulBridge = new bool[n];
 
             for (int i = 0; i < n; i++)
@@ -270,16 +294,37 @@ namespace ExpeditionPathOptimizer
                     localBaseScore -= travelPenalty;
                 }
 
+                // 6. Dedicated Backtrack / Reversal Penalty
+                double stepBacktrackPenalty = 0.0;
+                if (i > 0)
+                {
+                    var vPrev = prevPoint - prevPrevPoint;
+                    var vCurrent = curPoint - prevPoint;
+                    float prevLen = vPrev.Length();
+                    float currentLen = vCurrent.Length();
+                    if (prevLen > 0.001f && currentLen > 0.001f)
+                    {
+                        float dot = Vector2.Dot(vPrev / prevLen, vCurrent / currentLen);
+                        double reversalFactor = Math.Max(0.0, (double)-dot);
+                        stepBacktrackPenalty = this.settings.BacktrackPenaltyPerGrid * (double)currentLen * reversalFactor;
+                    }
+                }
+
+                localBaseScore -= stepBacktrackPenalty;
+
                 bombNewHits.Add(newHits);
                 bombNewChestHits.Add(newChestHits);
                 bombBaseScores[i] = localBaseScore;
+                bombBacktrackPenalties[i] = stepBacktrackPenalty;
                 bombIsUsefulBridge[i] = isUsefulBridge;
+                prevPrevPoint = prevPoint;
                 prevPoint = curPoint;
             }
 
             // Route-wide Recipe Optimizer DP across bomb sequence
-            var currentStates = new List<RouteRecipeState> { new(0UL, 0.0, 0, 0, -1, null) };
+            var currentStates = new List<RouteRecipeState> { new(0UL, 0.0, 0, 0, -1, 0.0, null) };
             var stepHistory = collectDetails ? new List<List<RouteRecipeState>>(n) : null;
+            int oathRuneIndex = RuneshapeRecipePredictor.GetRuneIndex("Oath");
 
             for (int i = 0; i < n; i++)
             {
@@ -297,17 +342,32 @@ namespace ExpeditionPathOptimizer
                     }
                 }
 
+                int totalNewlyHitRuneSlots = 0;
+                for (int rIdx = 0; rIdx < newlyHit.Count; rIdx++)
+                {
+                    totalNewlyHitRuneSlots += newlyHit[rIdx].RuneSlots;
+                }
+
                 if (remnantsWithOffers.Count == 0)
                 {
+                    var nextPassStates = new List<RouteRecipeState>(currentStates.Count);
+                    for (int s = 0; s < currentStates.Count; s++)
+                    {
+                        var curSt = currentStates[s];
+                        bool oathWasActiveBeforeBomb = oathRuneIndex >= 0 && (curSt.Mask & (1UL << oathRuneIndex)) != 0;
+                        double oathExposurePenalty = oathWasActiveBeforeBomb ? (totalNewlyHitRuneSlots * this.settings.OathPerSlotExposurePenalty) : 0.0;
+                        nextPassStates.Add(new RouteRecipeState(
+                            curSt.Mask,
+                            curSt.Score - oathExposurePenalty,
+                            curSt.ComboWeight,
+                            curSt.RewardCount,
+                            s,
+                            oathExposurePenalty,
+                            Array.Empty<PlannedRecipeSelection>()));
+                    }
+                    currentStates = nextPassStates;
                     if (collectDetails)
                     {
-                        var nextPassStates = new List<RouteRecipeState>(currentStates.Count);
-                        for (int s = 0; s < currentStates.Count; s++)
-                        {
-                            var curSt = currentStates[s];
-                            nextPassStates.Add(new RouteRecipeState(curSt.Mask, curSt.Score, curSt.ComboWeight, curSt.RewardCount, s, Array.Empty<PlannedRecipeSelection>()));
-                        }
-                        currentStates = nextPassStates;
                         stepHistory!.Add(currentStates);
                     }
                 }
@@ -328,13 +388,16 @@ namespace ExpeditionPathOptimizer
                     for (int sIdx = 0; sIdx < currentStates.Count; sIdx++)
                     {
                         var st = currentStates[sIdx];
+                        bool oathWasActiveBeforeBomb = oathRuneIndex >= 0 && (st.Mask & (1UL << oathRuneIndex)) != 0;
+                        double oathExposurePenalty = oathWasActiveBeforeBomb ? (totalNewlyHitRuneSlots * this.settings.OathPerSlotExposurePenalty) : 0.0;
 
                         void SearchCombinations(int remIdx, RuneshapeRecipeOffer[] currentOffers)
                         {
                             if (remIdx == remnantsWithOffers.Count)
                             {
                                 ulong curMask = st.Mask;
-                                double addScore = 0.0;
+                                double addPropagatedScore = 0.0;
+                                double addEconomicScore = 0.0;
                                 int addCombo = 0;
                                 int addReward = 0;
                                 List<PlannedRecipeSelection>? plannedList = collectDetails ? new List<PlannedRecipeSelection>(remnantsWithOffers.Count) : null;
@@ -342,10 +405,12 @@ namespace ExpeditionPathOptimizer
                                 for (int k = 0; k < remnantsWithOffers.Count; k++)
                                 {
                                     var off = currentOffers[k];
+                                    double economicScore = (off.PriceChaos > 0f) ? (off.PriceChaos * this.settings.RecipePriceScoreMultiplier) : 0.0;
+                                    addEconomicScore += economicScore;
                                     addCombo += off.ComboWeight;
                                     addReward += off.RewardCount;
                                     var rem = remnantsWithOffers[k];
-                                    double remScore = 0.0;
+                                    double remPropagatedScore = 0.0;
                                     List<string>? newRunes = collectDetails ? new List<string>() : null;
 
                                     if (off.PropagatedRunes != null)
@@ -358,24 +423,24 @@ namespace ExpeditionPathOptimizer
                                             {
                                                 curMask |= (1UL << rIndex);
                                                 double rScore = this.settings.GetPropagatedRuneScore(rune);
-                                                remScore += rScore;
-                                                addScore += rScore;
+                                                remPropagatedScore += rScore;
+                                                addPropagatedScore += rScore;
                                                 newRunes?.Add(rune);
                                             }
                                         }
                                     }
 
-                                    plannedList?.Add(new PlannedRecipeSelection(rem, off, newRunes ?? (IReadOnlyList<string>)Array.Empty<string>(), remScore));
+                                    plannedList?.Add(new PlannedRecipeSelection(rem, off, newRunes ?? (IReadOnlyList<string>)Array.Empty<string>(), remPropagatedScore, economicScore));
                                 }
 
                                 ulong candMask = curMask;
-                                double candScore = st.Score + addScore;
+                                double candScore = st.Score + addPropagatedScore + addEconomicScore - oathExposurePenalty;
                                 int candCombo = st.ComboWeight + addCombo;
                                 int candReward = st.RewardCount + addReward;
 
                                 if (!nextByMask.TryGetValue(candMask, out var existing))
                                 {
-                                    nextByMask[candMask] = new RouteRecipeState(candMask, candScore, candCombo, candReward, sIdx, plannedList);
+                                    nextByMask[candMask] = new RouteRecipeState(candMask, candScore, candCombo, candReward, sIdx, oathExposurePenalty, plannedList);
                                 }
                                 else
                                 {
@@ -401,7 +466,7 @@ namespace ExpeditionPathOptimizer
 
                                     if (isBetter)
                                     {
-                                        nextByMask[candMask] = new RouteRecipeState(candMask, candScore, candCombo, candReward, sIdx, plannedList);
+                                        nextByMask[candMask] = new RouteRecipeState(candMask, candScore, candCombo, candReward, sIdx, oathExposurePenalty, plannedList);
                                     }
                                 }
                                 return;
@@ -419,13 +484,14 @@ namespace ExpeditionPathOptimizer
                     }
 
                     var nextList = nextByMask.Values.ToList();
-                    if (nextList.Count > 128)
+                    if (nextList.Count > MaxRouteStatesSafetyCap)
                     {
+                        wasPruned = true;
                         nextList = nextList
                             .OrderByDescending(s => s.Score)
                             .ThenByDescending(s => s.ComboWeight)
                             .ThenByDescending(s => s.RewardCount)
-                            .Take(128)
+                            .Take(MaxRouteStatesSafetyCap)
                             .ToList();
                     }
 
@@ -469,6 +535,7 @@ namespace ExpeditionPathOptimizer
             if (collectDetails && stepHistory != null)
             {
                 var bombPlannedPerStep = new IReadOnlyList<PlannedRecipeSelection>[n];
+                var bombOathExposurePerStep = new double[n];
                 int traceStateIdx = stepHistory[n - 1].IndexOf(bestState);
 
                 for (int step = n - 1; step >= 0; step--)
@@ -477,11 +544,13 @@ namespace ExpeditionPathOptimizer
                     {
                         var st = stepHistory[step][traceStateIdx];
                         bombPlannedPerStep[step] = st.BombPlanned ?? Array.Empty<PlannedRecipeSelection>();
+                        bombOathExposurePerStep[step] = st.StepOathExposure;
                         traceStateIdx = st.ParentIndex;
                     }
                     else
                     {
                         bombPlannedPerStep[step] = Array.Empty<PlannedRecipeSelection>();
+                        bombOathExposurePerStep[step] = 0.0;
                     }
                 }
 
@@ -491,18 +560,23 @@ namespace ExpeditionPathOptimizer
                 for (int step = 0; step < n; step++)
                 {
                     double stepRuneScore = 0.0;
+                    double stepEconomicScore = 0.0;
                     var stepPlans = bombPlannedPerStep[step];
                     for (int pIdx = 0; pIdx < stepPlans.Count; pIdx++)
                     {
                         var plan = stepPlans[pIdx];
                         stepRuneScore += plan.PropagatedRuneScore;
+                        stepEconomicScore += plan.EconomicScore;
                         for (int rIdx = 0; rIdx < plan.NewlyAcquiredRunes.Count; rIdx++)
                         {
                             cumulativeRunes.Add(plan.NewlyAcquiredRunes[rIdx]);
                         }
                     }
 
-                    double stepTotalScore = bombBaseScores[step] + stepRuneScore;
+                    double stepOathPenalty = bombOathExposurePerStep[step];
+                    double stepBacktrack = bombBacktrackPenalties[step];
+                    double stepTotalScore = bombBaseScores[step] + stepRuneScore + stepEconomicScore - stepOathPenalty;
+
                     detailedList.Add(new PerPointScoreInfo(
                         path[step],
                         stepTotalScore,
@@ -511,7 +585,10 @@ namespace ExpeditionPathOptimizer
                         cumulativeRunes.ToList(),
                         stepRuneScore,
                         bombIsUsefulBridge[step],
-                        stepPlans));
+                        stepPlans,
+                        stepEconomicScore,
+                        stepOathPenalty,
+                        stepBacktrack));
                 }
 
                 pointsScore = detailedList;
@@ -527,6 +604,7 @@ namespace ExpeditionPathOptimizer
             public readonly int ComboWeight;
             public readonly int RewardCount;
             public readonly int ParentIndex;
+            public readonly double StepOathExposure;
             public readonly IReadOnlyList<PlannedRecipeSelection>? BombPlanned;
 
             public RouteRecipeState(
@@ -535,6 +613,7 @@ namespace ExpeditionPathOptimizer
                 int comboWeight,
                 int rewardCount,
                 int parentIndex = -1,
+                double stepOathExposure = 0.0,
                 IReadOnlyList<PlannedRecipeSelection>? bombPlanned = null)
             {
                 this.Mask = mask;
@@ -542,6 +621,7 @@ namespace ExpeditionPathOptimizer
                 this.ComboWeight = comboWeight;
                 this.RewardCount = rewardCount;
                 this.ParentIndex = parentIndex;
+                this.StepOathExposure = stepOathExposure;
                 this.BombPlanned = bombPlanned;
             }
         }

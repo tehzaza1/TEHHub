@@ -44,6 +44,11 @@ namespace ExpeditionPathOptimizer
         public double TravelPenaltyMultiplier { get; set; } = 0.0;
         public double ShortBridgePenaltyThreshold { get; set; } = 0.60; // ลงโทษเฉพาะ bridge ที่สั้นกว่า 60% ของ ExplosionRange
         public double ShortBridgePenaltyMultiplier { get; set; } = 100.0;
+        public double BacktrackPenaltyPerGrid { get; set; } = 6.0;
+
+        // Route Recipe Economics & Persistent Oath Parameters
+        public double RecipePriceScoreMultiplier { get; set; } = 1.0;
+        public double OathPerSlotExposurePenalty { get; set; } = 20.0;
 
         // Chest Scoring Parameters (V2 Phase 1)
         public double ChestHitBaseScore { get; set; } = 40.0;
