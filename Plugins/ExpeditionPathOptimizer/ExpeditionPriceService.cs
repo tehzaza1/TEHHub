@@ -46,6 +46,10 @@ namespace ExpeditionPathOptimizer
         private readonly string cacheFilePath;
         private readonly ConcurrentDictionary<string, PriceResult> priceDb = new(StringComparer.OrdinalIgnoreCase);
 
+        private string activeLeague = string.Empty;
+        private int activeSource = -1;
+        private int refreshGeneration = 0;
+
         private float divineInChaos = 9.43f;
         private float exaltedInChaos = 1.0f;
         private int catsOk = 0;
@@ -55,12 +59,14 @@ namespace ExpeditionPathOptimizer
         private bool isLoaded = false;
         private CancellationTokenSource? fetchCts;
 
-        public ExpeditionPriceService(string configDirectory)
+        public ExpeditionPriceService(string configDirectory, string initialLeague = "Forbidden Rites", int initialSource = 1)
         {
             this.cacheFilePath = Path.Combine(configDirectory, "expedition_prices.json");
-            this.LoadCache();
+            this.LoadCache(initialLeague, initialSource);
         }
 
+        public string ActiveLeague => this.activeLeague;
+        public int ActiveSource => this.activeSource;
         public float DivineInChaos => this.divineInChaos;
         public float ExaltedInChaos => this.exaltedInChaos;
         public bool IsLoaded => this.isLoaded;
@@ -143,6 +149,7 @@ namespace ExpeditionPathOptimizer
             this.fetchCts?.Cancel();
             this.fetchCts = new CancellationTokenSource();
             var token = this.fetchCts.Token;
+            int gen = Interlocked.Increment(ref this.refreshGeneration);
 
             Task.Run(async () =>
             {
@@ -156,14 +163,16 @@ namespace ExpeditionPathOptimizer
 
                     if (source == 0)
                     {
-                        this.statusMessage = "Fetching PoE2 prices from poe2scout...";
+                        this.statusMessage = $"Fetching PoE2 prices from poe2scout for '{league}'...";
                         await this.FetchPoe2ScoutAsync(league, enabledCategories, tempDb, token).ConfigureAwait(false);
                     }
                     else
                     {
-                        this.statusMessage = "Fetching PoE2 prices from poe.ninja...";
+                        this.statusMessage = $"Fetching PoE2 prices from poe.ninja for '{league}'...";
                         await this.FetchPoeNinjaAsync(league, enabledCategories, tempDb, token).ConfigureAwait(false);
                     }
+
+                    if (token.IsCancellationRequested || this.refreshGeneration != gen) return;
 
                     if (tempDb.Count > 0)
                     {
@@ -172,22 +181,56 @@ namespace ExpeditionPathOptimizer
                         {
                             this.priceDb[kvp.Key] = kvp.Value;
                         }
-                    }
+                        this.activeLeague = league;
+                        this.activeSource = source;
+                        this.isLoaded = true;
 
-                    this.isLoaded = this.priceDb.Count > 0;
-                    var srcName = source == 0 ? "poe2scout" : "poe.ninja";
-                    this.statusMessage = $"Loaded {this.priceDb.Count} items via {srcName} (1D={this.divineInChaos:F1}c, 1E={this.exaltedInChaos:F2}c)";
-                    PluginLog.Info("ExpeditionPathOptimizer", $"[ExpeditionPathOptimizer] Successfully loaded {this.priceDb.Count} PoE2 prices via {srcName} for league '{league}'");
-                    this.SaveCache(league, source);
+                        var srcName = source == 0 ? "poe2scout" : "poe.ninja";
+                        this.statusMessage = $"Loaded {this.priceDb.Count} items via {srcName} for {league} (1D={this.divineInChaos:F1}c, 1E={this.exaltedInChaos:F2}c)";
+                        PluginLog.Info("ExpeditionPathOptimizer", $"[ExpeditionPathOptimizer] Successfully loaded {this.priceDb.Count} PoE2 prices via {srcName} for league '{league}'");
+                        this.SaveCache(league, source);
+                    }
+                    else
+                    {
+                        if (string.Equals(this.activeLeague, league, StringComparison.OrdinalIgnoreCase) && this.activeSource == source)
+                        {
+                            this.statusMessage = $"Refresh returned 0 items, keeping cached prices for '{league}'";
+                        }
+                        else
+                        {
+                            this.priceDb.Clear();
+                            this.activeLeague = string.Empty;
+                            this.activeSource = -1;
+                            this.isLoaded = false;
+                            this.statusMessage = $"Refresh failed for '{league}' (no items returned)";
+                        }
+                    }
                 }
                 catch (OperationCanceledException)
                 {
-                    this.statusMessage = "Fetch canceled";
+                    if (this.refreshGeneration == gen)
+                    {
+                        this.statusMessage = "Fetch canceled";
+                    }
                 }
                 catch (Exception ex)
                 {
-                    this.statusMessage = $"Fetch error: {ex.Message}";
-                    PluginLog.Error("ExpeditionPathOptimizer", $"[ExpeditionPathOptimizer] Price fetch failed: {ex}");
+                    if (this.refreshGeneration == gen)
+                    {
+                        if (string.Equals(this.activeLeague, league, StringComparison.OrdinalIgnoreCase) && this.activeSource == source)
+                        {
+                            this.statusMessage = $"Fetch error ({ex.Message}), keeping cached prices for '{league}'";
+                        }
+                        else
+                        {
+                            this.priceDb.Clear();
+                            this.activeLeague = string.Empty;
+                            this.activeSource = -1;
+                            this.isLoaded = false;
+                            this.statusMessage = $"Fetch error for '{league}': {ex.Message}";
+                        }
+                        PluginLog.Error("ExpeditionPathOptimizer", $"[ExpeditionPathOptimizer] Price fetch failed for league '{league}': {ex}");
+                    }
                 }
             }, token);
         }
@@ -262,7 +305,6 @@ namespace ExpeditionPathOptimizer
                         var json = await res.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                         using var doc = JsonDocument.Parse(json);
                         var root = doc.RootElement;
-
                         // Parse rates
                         if (root.TryGetProperty("core", out var core))
                         {
@@ -700,7 +742,7 @@ namespace ExpeditionPathOptimizer
             }
         }
 
-        private void LoadCache()
+        public void LoadCache(string league, int source)
         {
             if (!File.Exists(this.cacheFilePath)) return;
 
@@ -710,14 +752,20 @@ namespace ExpeditionPathOptimizer
                 var snapshot = JsonSerializer.Deserialize<PriceCacheFile>(json);
                 if (snapshot != null && snapshot.Prices != null && snapshot.Prices.Count > 0)
                 {
-                    this.divineInChaos = snapshot.DivineInChaos > 0 ? snapshot.DivineInChaos : 9.43f;
-                    this.exaltedInChaos = snapshot.ExaltedInChaos > 0 ? snapshot.ExaltedInChaos : 1.0f;
-                    foreach (var kvp in snapshot.Prices)
+                    if (string.Equals(snapshot.League, league, StringComparison.OrdinalIgnoreCase) && snapshot.Source == source)
                     {
-                        this.priceDb[kvp.Key] = kvp.Value;
+                        this.divineInChaos = snapshot.DivineInChaos > 0 ? snapshot.DivineInChaos : 9.43f;
+                        this.exaltedInChaos = snapshot.ExaltedInChaos > 0 ? snapshot.ExaltedInChaos : 1.0f;
+                        this.priceDb.Clear();
+                        foreach (var kvp in snapshot.Prices)
+                        {
+                            this.priceDb[kvp.Key] = kvp.Value;
+                        }
+                        this.activeLeague = league;
+                        this.activeSource = source;
+                        this.isLoaded = true;
+                        this.statusMessage = $"Loaded {this.priceDb.Count} items from cache ({league})";
                     }
-                    this.isLoaded = true;
-                    this.statusMessage = $"Loaded {this.priceDb.Count} items from cache";
                 }
             }
             catch

@@ -137,8 +137,10 @@ namespace ExpeditionPathOptimizer
                 {
                     if (this.detonatorWorldPos != Vector3.Zero && this.discoveredRemnants.Count > 0)
                     {
-                        this.hasAutoSearchedThisArea = true;
-                        this.StartSearch(area);
+                        if (this.StartSearch(area))
+                        {
+                            this.hasAutoSearchedThisArea = true;
+                        }
                     }
                 }
             }
@@ -266,9 +268,11 @@ namespace ExpeditionPathOptimizer
                     var area = Core.States.InGameStateObject?.CurrentAreaInstance;
                     if (area != null)
                     {
-                        this.hasAutoSearchedThisArea = true;
                         this.ScanEntities(area);
-                        this.StartSearch(area);
+                        if (this.StartSearch(area))
+                        {
+                            this.hasAutoSearchedThisArea = true;
+                        }
                     }
                 }
                 ImGui.SameLine();
@@ -548,7 +552,7 @@ namespace ExpeditionPathOptimizer
 
                                 var goldenVec = reader.ReadMemory<StdVector>(station + 0x40);
                                 var goldenCount = goldenVec.TotalElements(sizeof(int));
-                                if (goldenCount > 0 && goldenCount <= 16)
+                                if (goldenCount > 0 && goldenCount <= 2)
                                 {
                                     var gSlots = reader.ReadMemoryArray<int>(goldenVec.First, (int)goldenCount);
                                     if (gSlots != null)
@@ -561,8 +565,13 @@ namespace ExpeditionPathOptimizer
                                             }
                                         }
                                     }
+                                    goldenSlots.Sort();
                                 }
-                                goldenSlots.Sort();
+                                else if (goldenCount > 2)
+                                {
+                                    // A monolith has at most TWO GoldenSlots; >2 indicates invalid/suspicious data
+                                    goldenSlots.Clear();
+                                }
                             }
                         }
                     }
@@ -585,7 +594,7 @@ namespace ExpeditionPathOptimizer
                             this.Settings.RuneWeights);
 
                         bestPriceRecipe = this.recipePredictor.SelectBestPriceRecipe(offers);
-                        bestRuneRecipe = this.recipePredictor.SelectBestRuneRecipe(offers, this.Settings.RuneWeights);
+                        bestRuneRecipe = this.recipePredictor.SelectBestRuneRecipe(offers, this.Settings);
                     }
                     else
                     {
@@ -637,7 +646,7 @@ namespace ExpeditionPathOptimizer
                 int maxSlots = validRemnants.Max(r => r.RuneSlots);
                 var candidates = validRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
                 this.selectedFinalTarget = candidates
-                    .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings.RuneWeights))
+                    .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
                     .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
                     .First();
             }
@@ -654,18 +663,18 @@ namespace ExpeditionPathOptimizer
             }
         }
 
-        public void StartSearch(AreaInstance area)
+        public bool StartSearch(AreaInstance area)
         {
             if (this.detonatorWorldPos == Vector3.Zero)
             {
                 PluginLog.Warning("ExpeditionPathOptimizer", "Cannot start optimization: Detonator Plunger not detected yet. Please walk towards the Detonator.");
-                return;
+                return false;
             }
 
             if (this.discoveredRemnants.Count == 0 || this.selectedFinalTarget == null)
             {
                 PluginLog.Warning("ExpeditionPathOptimizer", "No valid expedition remnants/monoliths with known slot count detected in area.");
-                return;
+                return false;
             }
 
             var config = area.ExpeditionConfig;
@@ -691,6 +700,7 @@ namespace ExpeditionPathOptimizer
                 config.IsGrandExpedition);
 
             this.runner.Start(this.Settings, env);
+            return true;
         }
 
         public override void DrawUI()

@@ -15,6 +15,7 @@ namespace ExpeditionPathOptimizer
 
     public class PathPlannerRunner
     {
+        private int currentGeneration = 0;
         private CancellationTokenSource? cts;
         private Task? searchTask;
         private PathPlanner? pathPlanner;
@@ -60,20 +61,29 @@ namespace ExpeditionPathOptimizer
 
         public void Start(ExpeditionPathOptimizerSettings settings, ExpeditionEnvironment env)
         {
+            int gen = Interlocked.Increment(ref this.currentGeneration);
             this.Stop();
             this.finalBestPath = null;
+            this.bestValues = null;
             this.cts = new CancellationTokenSource();
-            this.searchTask = this.RunAsync(settings, env, this.cts.Token);
+            this.searchTask = this.RunAsync(settings, env, gen, this.cts.Token);
         }
 
-        private async Task RunAsync(ExpeditionPathOptimizerSettings settings, ExpeditionEnvironment env, CancellationToken token)
+        private async Task RunAsync(ExpeditionPathOptimizerSettings settings, ExpeditionEnvironment env, int generationId, CancellationToken token)
         {
-            this.environment = env;
-            this.pathPlanner = new PathPlanner(settings);
-            this.pathPlanner.Init(env);
+            var localPlanner = new PathPlanner(settings);
+            localPlanner.Init(env);
 
             int threadCount = Math.Clamp(settings.SearchThreads, 1, 16);
-            this.bestValues = new BestValue?[threadCount];
+            var localBestValues = new BestValue?[threadCount];
+
+            if (this.currentGeneration == generationId)
+            {
+                this.environment = env;
+                this.pathPlanner = localPlanner;
+                this.bestValues = localBestValues;
+            }
+
             var tasks = new List<Task>();
 
             for (int i = 0; i < threadCount; i++)
@@ -90,10 +100,10 @@ namespace ExpeditionPathOptimizer
 
                         foreach (var bestPath in p.GetBestPathSeries(env))
                         {
-                            if (token.IsCancellationRequested) return;
+                            if (token.IsCancellationRequested || this.currentGeneration != generationId) return;
 
-                            int iter = (this.bestValues[threadIndex]?.Iteration ?? 0) + 1;
-                            this.bestValues[threadIndex] = new BestValue(bestPath.Points, bestPath.Score, iter, iterationSw.Elapsed.TotalMilliseconds);
+                            int iter = (localBestValues[threadIndex]?.Iteration ?? 0) + 1;
+                            localBestValues[threadIndex] = new BestValue(bestPath.Points, bestPath.Score, iter, iterationSw.Elapsed.TotalMilliseconds);
                             iterationSw.Restart();
 
                             if (sw.Elapsed.TotalSeconds >= settings.MaximumGenerationTimeSeconds)
@@ -119,15 +129,15 @@ namespace ExpeditionPathOptimizer
             }
             finally
             {
-                if (!token.IsCancellationRequested && this.bestValues != null && this.pathPlanner != null && this.environment != null)
+                if (!token.IsCancellationRequested && this.currentGeneration == generationId)
                 {
-                    var absoluteBest = this.bestValues.Where(x => x != null).MaxBy(x => x!.Score);
+                    var absoluteBest = localBestValues.Where(x => x != null).MaxBy(x => x!.Score);
                     if (absoluteBest?.Path is { } bPath)
                     {
-                        this.finalBestPath = this.pathPlanner.GetDetailedScore(bPath, this.environment);
+                        this.finalBestPath = localPlanner.GetDetailedScore(bPath, env);
                     }
+                    PluginLog.Info("ExpeditionPathOptimizer", "Path search completed and locked.");
                 }
-                PluginLog.Info("ExpeditionPathOptimizer", "Path search completed and locked.");
             }
         }
 
@@ -140,6 +150,7 @@ namespace ExpeditionPathOptimizer
 
         public void Clear()
         {
+            Interlocked.Increment(ref this.currentGeneration);
             this.Stop();
             this.finalBestPath = null;
             this.bestValues = null;

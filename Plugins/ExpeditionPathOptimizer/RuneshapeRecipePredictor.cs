@@ -22,6 +22,8 @@ namespace ExpeditionPathOptimizer
         public int MaxLevel { get; set; }
     }
 
+    public record GoldenRuneSelection(int SlotIndex, string Rune);
+
     public class RuneshapeRecipeOffer
     {
         public string RecipeId { get; set; } = string.Empty;
@@ -30,6 +32,7 @@ namespace ExpeditionPathOptimizer
         public int RewardCount { get; set; } = 1;
         public IReadOnlyList<string> Runes { get; set; } = Array.Empty<string>();
         public IReadOnlyList<int> RuneIdx { get; set; } = Array.Empty<int>();
+        public IReadOnlyList<GoldenRuneSelection> GoldenRunes { get; set; } = Array.Empty<GoldenRuneSelection>();
         public IReadOnlyList<string> PropagatedRunes { get; set; } = Array.Empty<string>();
         public float PriceChaos { get; set; }
         public float PriceDivine { get; set; }
@@ -52,32 +55,28 @@ namespace ExpeditionPathOptimizer
             "Oath", "Time", "Power", "Bait"
         };
 
-        /// <summary>
-        /// Explicit game data definition of Runes that are eligible to propagate modifiers via GoldenSlots.
-        /// EXACTLY the S + A tiers: Opulent, Bond, Oath, Power, Death, Time, Rebirth.
-        /// Tier B (Arcane, Prismatic, Soul, Vision, Celestial, Rage, Wisdom) and all white/Tier C runes CANNOT propagate.
-        /// </summary>
-        public static readonly HashSet<string> PropagatingRuneNames = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly Dictionary<string, int> RuneIndexByName = new(StringComparer.OrdinalIgnoreCase)
         {
-            "Opulent",
-            "Bond",
-            "Oath",
-            "Power",
-            "Death",
-            "Time",
-            "Rebirth"
+            { "Fire", 0 }, { "Cold", 1 }, { "Lightning", 2 }, { "Tempest", 3 }, { "Momentum", 4 }, { "Bloodletting", 5 },
+            { "Stone", 6 }, { "Adaptive", 7 }, { "Arcane", 8 }, { "Toxic", 9 }, { "Electrocuting", 10 }, { "Protective", 11 },
+            { "Cyclonic", 12 }, { "Vision", 13 }, { "Tidal", 14 }, { "Rebirth", 15 }, { "Prismatic", 16 }, { "Gasp", 17 },
+            { "Moon", 18 }, { "Celestial", 19 }, { "Opulent", 20 }, { "Rage", 21 }, { "Wisdom", 22 }, { "Sky", 23 },
+            { "Earth", 24 }, { "Life", 25 }, { "Bond", 26 }, { "Ward", 27 }, { "Soul", 28 }, { "Death", 29 },
+            { "Oath", 30 }, { "Time", 31 }, { "Power", 32 }, { "Bait", 33 }
         };
 
+        /// <summary>
+        /// Any valid known rune in a GoldenSlot is eligible to propagate.
+        /// </summary>
         public static bool CanPropagateRune(int runeIdx)
         {
-            if (runeIdx < 0 || runeIdx >= RuneNames.Length) return false;
-            return CanPropagateRune(RuneNames[runeIdx]);
+            return runeIdx >= 0 && runeIdx < RuneNames.Length;
         }
 
         public static bool CanPropagateRune(string? runeName)
         {
             if (string.IsNullOrEmpty(runeName)) return false;
-            return PropagatingRuneNames.Contains(runeName);
+            return RuneIndexByName.ContainsKey(runeName);
         }
 
         public static int CalculateRecipeWeight(IEnumerable<string>? runes, IReadOnlyDictionary<string, double>? runeWeights)
@@ -247,18 +246,31 @@ namespace ExpeditionPathOptimizer
                     if (rec.Size != holeCount && !this.IsPartialAllowed(anchorIdx, anchorPos, rec.Size, areaLevel)) continue;
                 }
 
-                // Propagated Runes come from GoldenSlots AND must be propagation-eligible (S + A tier only)
+                // GoldenSlots handling (at most 2 valid golden slots)
+                var goldenSelections = new List<GoldenRuneSelection>();
                 var propRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 if (goldenSlots != null && rec.RuneIdx != null)
                 {
-                    foreach (var goldenSlot in goldenSlots)
+                    var validGoldenSlots = goldenSlots
+                        .Where(s => s >= 0 && s < holeCount)
+                        .Distinct()
+                        .OrderBy(s => s)
+                        .ToList();
+
+                    if (validGoldenSlots.Count <= 2)
                     {
-                        if (goldenSlot >= 0 && goldenSlot < rec.RuneIdx.Count)
+                        foreach (var goldenSlot in validGoldenSlots)
                         {
-                            int rIdx = rec.RuneIdx[goldenSlot];
-                            if (CanPropagateRune(rIdx))
+                            if (goldenSlot < rec.RuneIdx.Count)
                             {
-                                propRunes.Add(RuneNames[rIdx]);
+                                int rIdx = rec.RuneIdx[goldenSlot];
+                                if (CanPropagateRune(rIdx))
+                                {
+                                    string rName = RuneNames[rIdx];
+                                    goldenSelections.Add(new GoldenRuneSelection(goldenSlot, rName));
+                                    propRunes.Add(rName);
+                                }
                             }
                         }
                     }
@@ -289,6 +301,7 @@ namespace ExpeditionPathOptimizer
                     RewardCount = count,
                     Runes = rec.Runes?.ToArray() ?? Array.Empty<string>(),
                     RuneIdx = rec.RuneIdx?.ToArray() ?? Array.Empty<int>(),
+                    GoldenRunes = goldenSelections.ToArray(),
                     PropagatedRunes = propRunes.ToArray(),
                     PriceChaos = priceChaos,
                     PriceDivine = priceDivine,
@@ -307,19 +320,48 @@ namespace ExpeditionPathOptimizer
         {
             if (offers == null || offers.Count == 0) return null;
 
-            bool anyPriced = offers.Any(o => o.IsPriced);
-            if (anyPriced)
+            var pricedOffers = offers.Where(o => o.IsPriced).ToList();
+            if (pricedOffers.Count > 0)
             {
-                return offers
+                return pricedOffers
                     .OrderByDescending(o => o.PriceChaos)
                     .ThenByDescending(o => o.ComboWeight)
                     .ThenByDescending(o => o.RewardCount)
+                    .ThenBy(o => o.RecipeId, StringComparer.Ordinal)
                     .First();
             }
 
             return offers
                 .OrderByDescending(o => o.ComboWeight)
                 .ThenByDescending(o => o.RewardCount)
+                .ThenBy(o => o.RecipeId, StringComparer.Ordinal)
+                .First();
+        }
+
+        public RuneshapeRecipeOffer? SelectBestRuneRecipe(IReadOnlyList<RuneshapeRecipeOffer>? offers, ExpeditionPathOptimizerSettings? settings)
+        {
+            if (offers == null || offers.Count == 0) return null;
+
+            double GetDistinctPropagatedScore(RuneshapeRecipeOffer offer)
+            {
+                if (offer.PropagatedRunes == null || offer.PropagatedRunes.Count == 0) return 0.0;
+                double sum = 0.0;
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var r in offer.PropagatedRunes)
+                {
+                    if (seen.Add(r))
+                    {
+                        sum += settings != null ? settings.GetPropagatedRuneScore(r) : 20.0;
+                    }
+                }
+                return sum;
+            }
+
+            return offers
+                .OrderByDescending(o => GetDistinctPropagatedScore(o))
+                .ThenByDescending(o => o.ComboWeight)
+                .ThenByDescending(o => o.RewardCount)
+                .ThenBy(o => o.RecipeId, StringComparer.Ordinal)
                 .First();
         }
 
@@ -346,6 +388,7 @@ namespace ExpeditionPathOptimizer
                 .OrderByDescending(o => GetDistinctPropagatedRuneWeight(o))
                 .ThenByDescending(o => o.ComboWeight)
                 .ThenByDescending(o => o.RewardCount)
+                .ThenBy(o => o.RecipeId, StringComparer.Ordinal)
                 .First();
         }
     }

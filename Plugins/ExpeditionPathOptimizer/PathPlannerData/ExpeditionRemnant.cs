@@ -54,7 +54,7 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             this.BestRuneRecipe = bestRuneRecipe;
         }
 
-        public double CalculateBaseRuneWeight(IReadOnlyDictionary<string, double> weights)
+        public double CalculateBaseRuneWeight(ExpeditionPathOptimizerSettings? settings)
         {
             if (this.BestRuneRecipe?.PropagatedRunes == null || this.BestRuneRecipe.PropagatedRunes.Count == 0)
                 return 0.0;
@@ -65,7 +65,24 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             {
                 if (seen.Add(r))
                 {
-                    sum += weights.GetValueOrDefault(r, 20.0);
+                    sum += settings != null ? settings.GetPropagatedRuneScore(r) : 20.0;
+                }
+            }
+            return sum;
+        }
+
+        public double CalculateBaseRuneWeight(IReadOnlyDictionary<string, double>? weights)
+        {
+            if (this.BestRuneRecipe?.PropagatedRunes == null || this.BestRuneRecipe.PropagatedRunes.Count == 0)
+                return 0.0;
+
+            double sum = 0.0;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in this.BestRuneRecipe.PropagatedRunes)
+            {
+                if (seen.Add(r))
+                {
+                    sum += weights?.GetValueOrDefault(r, 20.0) ?? 20.0;
                 }
             }
             return sum;

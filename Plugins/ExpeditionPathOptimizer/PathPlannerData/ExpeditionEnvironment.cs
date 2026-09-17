@@ -23,7 +23,8 @@ namespace ExpeditionPathOptimizer.PathPlannerData
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetCellValue(int x, int y)
         {
-            if (this.WalkableData == null || this.BytesPerRow <= 0 || x < 0 || y < 0) return 3;
+            if (this.WalkableData == null || this.BytesPerRow <= 0) return 3;
+            if (x < 0 || y < 0 || x >= this.GridCols || y >= this.GridRows) return 0;
             int byteIndex = (y * this.BytesPerRow) + (x / 2);
             if ((uint)byteIndex >= (uint)this.WalkableData.Length) return 0;
             int shift = ((x & 1) == 0) ? 0 : 4;
@@ -34,6 +35,7 @@ namespace ExpeditionPathOptimizer.PathPlannerData
         public bool IsCellWalkable(int gx, int gy, int minWalkable = 2)
         {
             if (this.WalkableData == null || this.BytesPerRow <= 0) return true;
+            if (gx < 0 || gy < 0 || gx >= this.GridCols || gy >= this.GridRows) return false;
             return this.GetCellValue(gx, gy) >= minWalkable;
         }
 

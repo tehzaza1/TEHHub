@@ -8,6 +8,12 @@ namespace ExpeditionPathOptimizer
 
     public class PathPlanner
     {
+        public record PlannedRecipeSelection(
+            ExpeditionRemnant Remnant,
+            RuneshapeRecipeOffer Recipe,
+            IReadOnlyList<string> NewlyAcquiredRunes,
+            double PropagatedRuneScore);
+
         public record PerPointScoreInfo(
             Vector2 Point,
             double ScoreDiff,
@@ -15,7 +21,8 @@ namespace ExpeditionPathOptimizer
             List<ExpeditionChest> NewChests,
             IReadOnlyList<string> AcquiredRunes,
             double RuneScore,
-            bool IsUsefulBridge);
+            bool IsUsefulBridge,
+            IReadOnlyList<PlannedRecipeSelection> PlannedRecipes);
 
         public record DetailedLootScore(List<PerPointScoreInfo> PerPointScore, double TotalScore, ExpeditionEnvironment Environment);
 
@@ -50,7 +57,7 @@ namespace ExpeditionPathOptimizer
             return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env);
         }
 
-        private bool TryEvaluatePath(
+        public bool TryEvaluatePath(
             List<Vector2> path,
             ExpeditionEnvironment env,
             bool collectDetails,
@@ -132,6 +139,7 @@ namespace ExpeditionPathOptimizer
                 double runeScore = 0.0;
                 var newHits = new List<ExpeditionRemnant>();
                 var newChestHits = new List<ExpeditionChest>();
+                var pointPlannedRecipes = new List<PlannedRecipeSelection>();
 
                 // 1. Final Target Bonus on last bomb
                 if (i == n - 1)
@@ -150,19 +158,176 @@ namespace ExpeditionPathOptimizer
                             // Remnant Hit Base Score + Slot Score
                             localScore += this.settings.RemnantHitBaseScore;
                             localScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
+                        }
+                    }
+                }
 
-                            // Rune Base Weight scored ONLY when newly added to acquiredRunes
-                            if (r.BestRuneRecipe?.PropagatedRunes != null)
+                // 2a. Joint recipe selection for newly covered remnants with RecipeOffers
+                if (newHits.Count > 0)
+                {
+                    var remnantsWithOffers = new List<ExpeditionRemnant>();
+                    foreach (var r in newHits)
+                    {
+                        if (r.RecipeOffers != null && r.RecipeOffers.Count > 0)
+                        {
+                            remnantsWithOffers.Add(r);
+                        }
+                    }
+
+                    if (remnantsWithOffers.Count == 1)
+                    {
+                        var r = remnantsWithOffers[0];
+                        RuneshapeRecipeOffer? bestOffer = null;
+                        double bestOfferScore = double.NegativeInfinity;
+                        int bestCombo = int.MinValue;
+                        int bestRewardCount = int.MinValue;
+                        List<string>? bestNewRunes = null;
+
+                        foreach (var offer in r.RecipeOffers)
+                        {
+                            double offerScore = 0.0;
+                            var newRunes = new List<string>();
+                            if (offer.PropagatedRunes != null)
                             {
-                                foreach (var rune in r.BestRuneRecipe.PropagatedRunes)
+                                foreach (var rune in offer.PropagatedRunes)
                                 {
-                                    if (acquiredRunes.Add(rune))
+                                    if (!acquiredRunes.Contains(rune))
                                     {
-                                        double w = this.settings.RuneWeights.GetValueOrDefault(rune, 20.0);
-                                        localScore += w;
-                                        runeScore += w;
+                                        offerScore += this.settings.GetPropagatedRuneScore(rune);
+                                        newRunes.Add(rune);
                                     }
                                 }
+                            }
+
+                            bool isBetter = false;
+                            if (bestOffer == null) isBetter = true;
+                            else if (offerScore > bestOfferScore) isBetter = true;
+                            else if (Math.Abs(offerScore - bestOfferScore) < 0.0001)
+                            {
+                                if (offer.ComboWeight > bestCombo) isBetter = true;
+                                else if (offer.ComboWeight == bestCombo)
+                                {
+                                    if (offer.RewardCount > bestRewardCount) isBetter = true;
+                                    else if (offer.RewardCount == bestRewardCount)
+                                    {
+                                        if (string.CompareOrdinal(offer.RecipeId, bestOffer.RecipeId) < 0) isBetter = true;
+                                    }
+                                }
+                            }
+
+                            if (isBetter)
+                            {
+                                bestOffer = offer;
+                                bestOfferScore = offerScore;
+                                bestCombo = offer.ComboWeight;
+                                bestRewardCount = offer.RewardCount;
+                                bestNewRunes = newRunes;
+                            }
+                        }
+
+                        if (bestOffer != null)
+                        {
+                            if (bestNewRunes != null)
+                            {
+                                foreach (var rune in bestNewRunes)
+                                {
+                                    acquiredRunes.Add(rune);
+                                }
+                            }
+                            localScore += bestOfferScore;
+                            runeScore += bestOfferScore;
+                            pointPlannedRecipes.Add(new PlannedRecipeSelection(r, bestOffer, bestNewRunes ?? (IReadOnlyList<string>)Array.Empty<string>(), bestOfferScore));
+                        }
+                    }
+                    else if (remnantsWithOffers.Count > 1)
+                    {
+                        // Joint search across combinations of offers for newly hit remnants
+                        RuneshapeRecipeOffer[]? bestComboOffers = null;
+                        double bestComboScore = double.NegativeInfinity;
+                        int bestTotalComboWeight = int.MinValue;
+                        int bestTotalRewardCount = int.MinValue;
+                        List<List<string>>? bestComboNewRunes = null;
+
+                        void SearchJointOffers(int remIdx, RuneshapeRecipeOffer[] currentOffers)
+                        {
+                            if (remIdx == remnantsWithOffers.Count)
+                            {
+                                double comboScore = 0.0;
+                                int totalComboWeight = 0;
+                                int totalRewardCount = 0;
+                                var localAcquired = new HashSet<string>(acquiredRunes, StringComparer.OrdinalIgnoreCase);
+                                var perRemnantNewRunes = new List<List<string>>(remnantsWithOffers.Count);
+
+                                for (int k = 0; k < remnantsWithOffers.Count; k++)
+                                {
+                                    var off = currentOffers[k];
+                                    totalComboWeight += off.ComboWeight;
+                                    totalRewardCount += off.RewardCount;
+                                    var newR = new List<string>();
+
+                                    if (off.PropagatedRunes != null)
+                                    {
+                                        foreach (var rune in off.PropagatedRunes)
+                                        {
+                                            if (localAcquired.Add(rune))
+                                            {
+                                                comboScore += this.settings.GetPropagatedRuneScore(rune);
+                                                newR.Add(rune);
+                                            }
+                                        }
+                                    }
+                                    perRemnantNewRunes.Add(newR);
+                                }
+
+                                bool isBetter = false;
+                                if (bestComboOffers == null) isBetter = true;
+                                else if (comboScore > bestComboScore) isBetter = true;
+                                else if (Math.Abs(comboScore - bestComboScore) < 0.0001)
+                                {
+                                    if (totalComboWeight > bestTotalComboWeight) isBetter = true;
+                                    else if (totalComboWeight == bestTotalComboWeight)
+                                    {
+                                        if (totalRewardCount > bestTotalRewardCount) isBetter = true;
+                                    }
+                                }
+
+                                if (isBetter)
+                                {
+                                    bestComboOffers = (RuneshapeRecipeOffer[])currentOffers.Clone();
+                                    bestComboScore = comboScore;
+                                    bestTotalComboWeight = totalComboWeight;
+                                    bestTotalRewardCount = totalRewardCount;
+                                    bestComboNewRunes = perRemnantNewRunes;
+                                }
+                                return;
+                            }
+
+                            var rem = remnantsWithOffers[remIdx];
+                            foreach (var offer in rem.RecipeOffers)
+                            {
+                                currentOffers[remIdx] = offer;
+                                SearchJointOffers(remIdx + 1, currentOffers);
+                            }
+                        }
+
+                        SearchJointOffers(0, new RuneshapeRecipeOffer[remnantsWithOffers.Count]);
+
+                        if (bestComboOffers != null && bestComboNewRunes != null)
+                        {
+                            for (int k = 0; k < remnantsWithOffers.Count; k++)
+                            {
+                                var rem = remnantsWithOffers[k];
+                                var off = bestComboOffers[k];
+                                var newR = bestComboNewRunes[k];
+                                double remScore = 0.0;
+                                foreach (var rune in newR)
+                                {
+                                    acquiredRunes.Add(rune);
+                                    remScore += this.settings.GetPropagatedRuneScore(rune);
+                                }
+                                localScore += remScore;
+                                runeScore += remScore;
+                                pointPlannedRecipes.Add(new PlannedRecipeSelection(rem, off, newR, remScore));
                             }
                         }
                     }
@@ -287,7 +452,8 @@ namespace ExpeditionPathOptimizer
                         newChestHits,
                         acquiredRunes.ToList(),
                         runeScore,
-                        isUsefulBridge));
+                        isUsefulBridge,
+                        pointPlannedRecipes));
                 }
 
                 prevPoint = curPoint;
@@ -383,7 +549,7 @@ namespace ExpeditionPathOptimizer
                         {
                             score += this.settings.RemnantHitBaseScore +
                                      (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                     r.CalculateBaseRuneWeight(this.settings.RuneWeights);
+                                     r.CalculateBaseRuneWeight(this.settings);
                         }
                     }
 
@@ -494,7 +660,7 @@ namespace ExpeditionPathOptimizer
                             double targetVal =
                                 this.settings.RemnantHitBaseScore +
                                 (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                r.CalculateBaseRuneWeight(this.settings.RuneWeights) -
+                                r.CalculateBaseRuneWeight(this.settings) -
                                 (estBridges * this.settings.UsefulBridgePenalty);
                             reachableRemnants.Add((r.GridPos, targetVal));
                         }
@@ -691,7 +857,7 @@ namespace ExpeditionPathOptimizer
                         {
                             score += this.settings.RemnantHitBaseScore +
                                      (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                     r.CalculateBaseRuneWeight(this.settings.RuneWeights);
+                                     r.CalculateBaseRuneWeight(this.settings);
                         }
                     }
                     foreach (var c in uncoveredChests)

@@ -95,5 +95,19 @@ namespace ExpeditionPathOptimizer
             { "Momentum", 25.0 },
             { "Electrocuting", 25.0 }
         };
+
+        // Propagated Rune Score Overrides (e.g. Oath has -150 penalty only when in GoldenSlot)
+        public Dictionary<string, double> PropagationScoreOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Oath", -150.0 }
+        };
+
+        public double GetPropagatedRuneScore(string? runeName)
+        {
+            if (string.IsNullOrEmpty(runeName)) return 0.0;
+            if (this.PropagationScoreOverrides != null && this.PropagationScoreOverrides.TryGetValue(runeName, out var ov))
+                return ov;
+            return this.RuneWeights.GetValueOrDefault(runeName, 20.0);
+        }
     }
 }
