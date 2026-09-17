@@ -55,22 +55,82 @@ namespace myFarming
             }
         }
 
+        private static bool TryReadVector<T>(TEHhub.Utils.SafeMemoryHandle reader, StdVector vec, out T[] result) where T : unmanaged
+        {
+            result = Array.Empty<T>();
+            if (reader == null || reader.IsInvalid) return false;
+
+            long first = vec.First.ToInt64();
+            long last = vec.Last.ToInt64();
+            long length = last - first;
+
+            // Valid empty vector: First == Last
+            if (first == last)
+            {
+                result = Array.Empty<T>();
+                return true;
+            }
+
+            // Reject negative length, not divisible by sizeof(T), unreasonable length, or null/invalid First pointer
+            int size = Unsafe.SizeOf<T>();
+            if (length < 0 || length % size != 0 || length > 50_000_000 || vec.First == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            try
+            {
+                int count = (int)(length / size);
+                var buffer = new T[count];
+                if (reader.TryReadMemoryArray(vec.First, buffer, out _))
+                {
+                    result = buffer;
+                    return true;
+                }
+
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static T[] ReadVector<T>(TEHhub.Utils.SafeMemoryHandle reader, StdVector vec) where T : unmanaged
         {
-            int size = Unsafe.SizeOf<T>();
-            long length = vec.Last.ToInt64() - vec.First.ToInt64();
-            if (length <= 0 || length % size != 0 || length > 50_000_000)
+            return TryReadVector<T>(reader, vec, out var result) ? result : Array.Empty<T>();
+        }
+
+        private static Dictionary<string, InvSnapshot> CloneSnapshot(Dictionary<string, InvSnapshot> source)
+        {
+            var clone = new Dictionary<string, InvSnapshot>(source.Count, StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in source)
             {
-                return Array.Empty<T>();
+                var s = kvp.Value;
+                clone[kvp.Key] = new InvSnapshot
+                {
+                    Name = s.Name,
+                    UniqueName = s.UniqueName,
+                    BaseTypeName = s.BaseTypeName,
+                    StackCount = s.StackCount,
+                    ChaosEach = s.ChaosEach,
+                    Rarity = s.Rarity,
+                    IconPath = s.IconPath,
+                };
             }
-            return reader.ReadMemoryArray<T>(vec.First, (int)(length / size));
+            return clone;
         }
 
         private Dictionary<string, InvSnapshot> baselineSnapshot = new(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, InvSnapshot> previousCandidate = new(StringComparer.OrdinalIgnoreCase);
+        private bool hasPreviousCandidate = false;
         private List<LootEntry> carryoverLoot = new();
+        private List<LootEntry> lastCalculatedLoot = new();
+        private float lastTotalChaos = 0f;
 
         public bool BaselineLocked { get; private set; } = false;
+        public bool HasPreviousCandidate => this.hasPreviousCandidate;
+        public IReadOnlyDictionary<string, InvSnapshot> BaselineSnapshot => this.baselineSnapshot;
         public string CurrentAreaHash { get; private set; } = string.Empty;
         public string CurrentMapName { get; private set; } = string.Empty;
         public DateTime ZoneEnteredUtc { get; private set; } = DateTime.MinValue;
@@ -82,7 +142,10 @@ namespace myFarming
             this.ZoneEnteredUtc = DateTime.UtcNow;
             this.baselineSnapshot.Clear();
             this.previousCandidate.Clear();
+            this.hasPreviousCandidate = false;
             this.carryoverLoot.Clear();
+            this.lastCalculatedLoot.Clear();
+            this.lastTotalChaos = 0f;
             this.BaselineLocked = false;
         }
 
@@ -92,7 +155,10 @@ namespace myFarming
             this.ZoneEnteredUtc = DateTime.UtcNow;
             this.baselineSnapshot.Clear();
             this.previousCandidate.Clear();
+            this.hasPreviousCandidate = false;
             this.carryoverLoot = new List<LootEntry>(previousLoot);
+            this.lastCalculatedLoot = new List<LootEntry>(previousLoot);
+            this.lastTotalChaos = previousLoot.Sum(l => l.TotalChaos);
             this.BaselineLocked = false;
         }
 
@@ -101,29 +167,36 @@ namespace myFarming
             // Retain state if needed
         }
 
-        public Dictionary<string, InvSnapshot> ReadCurrentBackpack(PriceHelper priceHelper)
+        public bool TryReadCurrentBackpack(PriceHelper? priceHelper, out Dictionary<string, InvSnapshot> result)
         {
-            var result = new Dictionary<string, InvSnapshot>(StringComparer.OrdinalIgnoreCase);
+            result = new Dictionary<string, InvSnapshot>(StringComparer.OrdinalIgnoreCase);
             var inGame = Core.States.InGameStateObject;
-            if (inGame == null) return result;
+            if (inGame == null) return false;
 
             var area = inGame.CurrentAreaInstance;
-            if (area == null) return result;
+            if (area == null) return false;
 
             var serverData = area.ServerDataObject;
-            if (serverData == null || serverData.Address == IntPtr.Zero) return result;
+            if (serverData == null || serverData.Address == IntPtr.Zero) return false;
 
             var reader = Core.Process.Handle;
-            if (reader == null) return result;
+            if (reader == null || reader.IsInvalid) return false;
 
             try
             {
                 var sData = reader.ReadMemory<ServerDataOffsets>(serverData.Address);
-                var playerDataArray = ReadVector<IntPtr>(reader, sData.PlayerServerDataPtr);
-                if (playerDataArray.Length == 0 || playerDataArray[0] == IntPtr.Zero) return result;
+                if (!TryReadVector<IntPtr>(reader, sData.PlayerServerDataPtr, out var playerDataArray))
+                    return false;
+
+                if (playerDataArray.Length == 0 || playerDataArray[0] == IntPtr.Zero)
+                    return false;
 
                 var playerData = reader.ReadMemory<ServerDataStructure>(playerDataArray[0]);
-                var inventoryData = ReadVector<InventoryArrayStruct>(reader, playerData.PlayerInventories);
+                if (!TryReadVector<InventoryArrayStruct>(reader, playerData.PlayerInventories, out var inventoryData))
+                    return false;
+
+                if (inventoryData.Length == 0)
+                    return false;
 
                 IntPtr backpackAddr = IntPtr.Zero;
                 for (int i = 0; i < inventoryData.Length; i++)
@@ -135,11 +208,17 @@ namespace myFarming
                     }
                 }
 
-                if (backpackAddr == IntPtr.Zero) return result;
+                if (backpackAddr == IntPtr.Zero) return false;
 
                 var invInfo = reader.ReadMemory<InventoryStruct>(backpackAddr);
-                var itemSlotPtrs = ReadVector<IntPtr>(reader, invInfo.ItemList);
-                if (itemSlotPtrs.Length == 0) return result;
+                if (!TryReadVector<IntPtr>(reader, invInfo.ItemList, out var itemSlotPtrs))
+                    return false;
+
+                // Structurally valid inventory reached. If ItemList is empty, snapshot is valid with 0 items.
+                if (itemSlotPtrs.Length == 0)
+                {
+                    return true;
+                }
 
                 var distinctSlots = itemSlotPtrs.Distinct();
                 foreach (var slotPtr in distinctSlots)
@@ -180,7 +259,14 @@ namespace myFarming
 
                     if (!result.TryGetValue(itemName, out var snap))
                     {
-                        float chaos = priceHelper.LookupPrice(itemName, out var icon);
+                        float chaos = 0f;
+                        string iconStr = string.Empty;
+                        if (priceHelper != null)
+                        {
+                            chaos = priceHelper.LookupPrice(itemName, out var icon);
+                            iconStr = icon ?? string.Empty;
+                        }
+
                         snap = new InvSnapshot
                         {
                             Name = itemName,
@@ -188,7 +274,7 @@ namespace myFarming
                             StackCount = stack,
                             ChaosEach = chaos,
                             Rarity = rarity,
-                            IconPath = icon,
+                            IconPath = iconStr,
                         };
                         result[itemName] = snap;
                     }
@@ -197,38 +283,69 @@ namespace myFarming
                         snap.StackCount += stack;
                     }
                 }
+
+                return true;
             }
             catch
             {
-                // Memory read safety
+                return false;
             }
+        }
 
-            return result;
+        public Dictionary<string, InvSnapshot> ReadCurrentBackpack(PriceHelper priceHelper)
+        {
+            return this.TryReadCurrentBackpack(priceHelper, out var result)
+                ? result
+                : new Dictionary<string, InvSnapshot>(StringComparer.OrdinalIgnoreCase);
         }
 
         public List<LootEntry> Tick(PriceHelper priceHelper, out float totalChaos)
         {
-            totalChaos = 0f;
-            var current = this.ReadCurrentBackpack(priceHelper);
-            if (current.Count == 0)
+            bool readSuccess = this.TryReadCurrentBackpack(priceHelper, out var current);
+            return this.ProcessTick(readSuccess, current, priceHelper, out totalChaos);
+        }
+
+        public List<LootEntry> ProcessTick(
+            bool readSuccess,
+            Dictionary<string, InvSnapshot>? current,
+            PriceHelper? priceHelper,
+            out float totalChaos)
+        {
+            if (!readSuccess || current == null)
             {
-                return this.carryoverLoot;
+                // Transient read failure: preserve trusted state without mutating baseline/candidate
+                totalChaos = this.lastTotalChaos;
+                return this.lastCalculatedLoot;
             }
 
-            // Stability gate: wait until two consecutive scans match before locking baseline
+            // Stability gate: wait until valid baseline is established
             if (!this.BaselineLocked)
             {
-                if (this.previousCandidate.Count > 0 && AreSnapshotsEqual(this.previousCandidate, current))
+                if (current.Count == 0)
                 {
-                    this.baselineSnapshot = new Dictionary<string, InvSnapshot>(current, StringComparer.OrdinalIgnoreCase);
+                    // Case 2: First successful snapshot is empty -> lock immediately to avoid swallowing future loot
+                    this.baselineSnapshot.Clear();
+                    this.previousCandidate.Clear();
+                    this.hasPreviousCandidate = false;
+                    this.BaselineLocked = true;
+                }
+                else if (this.hasPreviousCandidate && AreSnapshotsEqual(this.previousCandidate, current))
+                {
+                    // Case 1: First successful snapshot is non-empty -> require 2 identical consecutive scans
+                    this.baselineSnapshot = CloneSnapshot(current);
+                    this.previousCandidate.Clear();
+                    this.hasPreviousCandidate = false;
                     this.BaselineLocked = true;
                 }
                 else
                 {
-                    this.previousCandidate = new Dictionary<string, InvSnapshot>(current, StringComparer.OrdinalIgnoreCase);
+                    this.previousCandidate = CloneSnapshot(current);
+                    this.hasPreviousCandidate = true;
                 }
 
                 totalChaos = this.carryoverLoot.Sum(l => l.TotalChaos);
+                this.lastTotalChaos = totalChaos;
+                this.lastCalculatedLoot = new List<LootEntry>(this.carryoverLoot);
                 return this.carryoverLoot;
             }
 
@@ -253,7 +370,7 @@ namespace myFarming
                 int baseCount = this.baselineSnapshot.TryGetValue(name, out var bs) ? bs.StackCount : 0;
                 int diff = curCount - baseCount;
 
-                float chaosEach = cs?.ChaosEach ?? bs?.ChaosEach ?? priceHelper.LookupPrice(name, out _);
+                float chaosEach = cs?.ChaosEach ?? bs?.ChaosEach ?? (priceHelper != null ? priceHelper.LookupPrice(name, out _) : 0f);
                 string iconPath = cs?.IconPath ?? bs?.IconPath ?? string.Empty;
                 int rarity = cs?.Rarity ?? bs?.Rarity ?? 0;
 
@@ -283,6 +400,8 @@ namespace myFarming
 
             var outList = merged.Values.Where(v => v.StackCount > 0).OrderByDescending(v => v.TotalChaos).ToList();
             totalChaos = outList.Sum(v => v.TotalChaos);
+            this.lastTotalChaos = totalChaos;
+            this.lastCalculatedLoot = outList;
             return outList;
         }
 
