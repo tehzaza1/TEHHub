@@ -32,9 +32,14 @@ namespace ExpeditionPathOptimizer
             List<PerPointScoreInfo> PerPointScore,
             double TotalScore,
             ExpeditionEnvironment Environment,
-            bool WasPruned = false);
+            bool WasPruned = false,
+            int DpStateCapUsed = SearchRecipeDpStateCap,
+            int FinalistsReRanked = 1);
 
-        private const int MaxRouteStatesSafetyCap = 256;
+        public const int SearchRecipeDpStateCap = 256;
+        public static readonly int[] FinalRefinementDpCapStages = new[] { 1024, 4096, 16384, 65536 };
+        public const int FinalHardCeilingDpStateCap = 65536;
+        public const int FinalistCount = 8;
 
         private readonly ExpeditionPathOptimizerSettings settings;
 
@@ -47,9 +52,23 @@ namespace ExpeditionPathOptimizer
         {
         }
 
-        public double GetScore(List<Vector2> path, ExpeditionEnvironment env)
+        public static string GetPathSignature(IReadOnlyList<Vector2>? path)
         {
-            if (this.TryEvaluatePath(path, env, collectDetails: false, out double totalScore, out _, out _))
+            if (path == null || path.Count == 0) return string.Empty;
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < path.Count; i++)
+            {
+                if (i > 0) sb.Append(';');
+                sb.Append(MathF.Round(path[i].X, 1).ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+                sb.Append(',');
+                sb.Append(MathF.Round(path[i].Y, 1).ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            return sb.ToString();
+        }
+
+        public double GetScore(List<Vector2> path, ExpeditionEnvironment env, int recipeDpStateCap = SearchRecipeDpStateCap)
+        {
+            if (this.TryEvaluatePath(path, env, collectDetails: false, out double totalScore, out _, out _, recipeDpStateCap))
             {
                 return totalScore;
             }
@@ -57,24 +76,108 @@ namespace ExpeditionPathOptimizer
             return double.NegativeInfinity;
         }
 
-        public DetailedLootScore GetDetailedScore(List<Vector2> path, ExpeditionEnvironment env)
+        public DetailedLootScore GetDetailedScore(List<Vector2> path, ExpeditionEnvironment env, int recipeDpStateCap = SearchRecipeDpStateCap, int finalistsReRanked = 1)
         {
-            if (this.TryEvaluatePath(path, env, collectDetails: true, out double totalScore, out var pointsScore, out bool wasPruned) && pointsScore != null)
+            if (this.TryEvaluatePath(path, env, collectDetails: true, out double totalScore, out var pointsScore, out bool wasPruned, recipeDpStateCap) && pointsScore != null)
             {
-                return new DetailedLootScore(pointsScore, totalScore, env, wasPruned);
+                return new DetailedLootScore(pointsScore, totalScore, env, wasPruned, recipeDpStateCap, finalistsReRanked);
             }
 
-            return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false);
+            return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, recipeDpStateCap, finalistsReRanked);
         }
 
-        public bool TryEvaluatePath(
-            List<Vector2> path,
+        public DetailedLootScore RefineAndSelectBestPath(
+            IEnumerable<List<Vector2>> candidatePaths,
             ExpeditionEnvironment env,
-            bool collectDetails,
-            out double totalScore,
-            out List<PerPointScoreInfo>? pointsScore)
+            CancellationToken token = default,
+            Func<bool>? isCancelledCheck = null)
         {
-            return this.TryEvaluatePath(path, env, collectDetails, out totalScore, out pointsScore, out _);
+            if (candidatePaths == null || env == null)
+            {
+                return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env!, false, SearchRecipeDpStateCap, 0);
+            }
+
+            var uniqueCandidates = new Dictionary<string, List<Vector2>>(StringComparer.Ordinal);
+            foreach (var path in candidatePaths)
+            {
+                if (path == null || path.Count == 0) continue;
+                string sig = GetPathSignature(path);
+                if (!uniqueCandidates.ContainsKey(sig))
+                {
+                    uniqueCandidates[sig] = path;
+                }
+            }
+
+            if (uniqueCandidates.Count == 0)
+            {
+                return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
+            }
+
+            var initialRanked = new List<(List<Vector2> Path, double SearchScore, string Sig)>();
+            foreach (var kvp in uniqueCandidates)
+            {
+                if (token.IsCancellationRequested || (isCancelledCheck != null && isCancelledCheck()))
+                {
+                    return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
+                }
+
+                double score = this.GetScore(kvp.Value, env, SearchRecipeDpStateCap);
+                if (!double.IsNegativeInfinity(score))
+                {
+                    initialRanked.Add((kvp.Value, score, kvp.Key));
+                }
+            }
+
+            if (initialRanked.Count == 0)
+            {
+                return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
+            }
+
+            var finalists = initialRanked
+                .OrderByDescending(x => x.SearchScore)
+                .ThenBy(x => x.Sig, StringComparer.Ordinal)
+                .Take(FinalistCount)
+                .ToList();
+
+            int finalistCount = finalists.Count;
+            var refinedResults = new List<DetailedLootScore>(finalistCount);
+
+            foreach (var f in finalists)
+            {
+                if (token.IsCancellationRequested || (isCancelledCheck != null && isCancelledCheck()))
+                {
+                    return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
+                }
+
+                DetailedLootScore detailed = this.GetDetailedScore(f.Path, env, FinalRefinementDpCapStages[0], finalistCount);
+
+                if (detailed.WasPruned)
+                {
+                    for (int stage = 1; stage < FinalRefinementDpCapStages.Length; stage++)
+                    {
+                        if (token.IsCancellationRequested || (isCancelledCheck != null && isCancelledCheck()))
+                        {
+                            return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
+                        }
+
+                        int cap = FinalRefinementDpCapStages[stage];
+                        detailed = this.GetDetailedScore(f.Path, env, cap, finalistCount);
+                        if (!detailed.WasPruned)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                refinedResults.Add(detailed);
+            }
+
+            var winner = refinedResults
+                .OrderByDescending(d => d.TotalScore)
+                .ThenBy(d => GetPathSignature(d.PerPointScore?.Select(p => p.Point).ToList()), StringComparer.Ordinal)
+                .FirstOrDefault();
+
+            return winner ?? new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, finalistCount);
         }
 
         public bool TryEvaluatePath(
@@ -83,7 +186,19 @@ namespace ExpeditionPathOptimizer
             bool collectDetails,
             out double totalScore,
             out List<PerPointScoreInfo>? pointsScore,
-            out bool wasPruned)
+            int recipeDpStateCap = SearchRecipeDpStateCap)
+        {
+            return this.TryEvaluatePath(path, env, collectDetails, out totalScore, out pointsScore, out _, recipeDpStateCap);
+        }
+
+        public bool TryEvaluatePath(
+            List<Vector2> path,
+            ExpeditionEnvironment env,
+            bool collectDetails,
+            out double totalScore,
+            out List<PerPointScoreInfo>? pointsScore,
+            out bool wasPruned,
+            int recipeDpStateCap = SearchRecipeDpStateCap)
         {
             totalScore = double.NegativeInfinity;
             pointsScore = null;
@@ -484,7 +599,7 @@ namespace ExpeditionPathOptimizer
                     }
 
                     var nextList = nextByMask.Values.ToList();
-                    if (nextList.Count > MaxRouteStatesSafetyCap)
+                    if (nextList.Count > recipeDpStateCap)
                     {
                         wasPruned = true;
                         nextList = nextList
@@ -492,7 +607,7 @@ namespace ExpeditionPathOptimizer
                             .ThenByDescending(s => s.ComboWeight)
                             .ThenByDescending(s => s.RewardCount)
                             .ThenBy(s => s.Mask)
-                            .Take(MaxRouteStatesSafetyCap)
+                            .Take(recipeDpStateCap)
                             .ToList();
                     }
 

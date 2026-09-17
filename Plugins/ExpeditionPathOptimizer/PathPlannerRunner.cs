@@ -76,6 +76,11 @@ namespace ExpeditionPathOptimizer
 
             int threadCount = Math.Clamp(settings.SearchThreads, 1, 16);
             var localBestValues = new BestValue?[threadCount];
+            var threadFinalists = new List<List<Vector2>>[threadCount];
+            for (int i = 0; i < threadCount; i++)
+            {
+                threadFinalists[i] = new List<List<Vector2>>();
+            }
 
             if (this.currentGeneration == generationId)
             {
@@ -98,6 +103,8 @@ namespace ExpeditionPathOptimizer
                         var iterationSw = Stopwatch.StartNew();
                         p.Init(env);
 
+                        var localFinalistMap = new Dictionary<string, (List<Vector2> Path, double Score)>(StringComparer.Ordinal);
+
                         foreach (var bestPath in p.GetBestPathSeries(env))
                         {
                             if (token.IsCancellationRequested || this.currentGeneration != generationId) return;
@@ -106,11 +113,26 @@ namespace ExpeditionPathOptimizer
                             localBestValues[threadIndex] = new BestValue(bestPath.Points, bestPath.Score, iter, iterationSw.Elapsed.TotalMilliseconds);
                             iterationSw.Restart();
 
+                            string sig = PathPlanner.GetPathSignature(bestPath.Points);
+                            if (!string.IsNullOrEmpty(sig))
+                            {
+                                if (!localFinalistMap.TryGetValue(sig, out var existing) || bestPath.Score > existing.Score)
+                                {
+                                    localFinalistMap[sig] = (bestPath.Points, bestPath.Score);
+                                }
+                            }
+
                             if (sw.Elapsed.TotalSeconds >= settings.MaximumGenerationTimeSeconds)
                             {
-                                return;
+                                break;
                             }
                         }
+
+                        threadFinalists[threadIndex] = localFinalistMap.Values
+                            .OrderByDescending(x => x.Score)
+                            .Take(PathPlanner.FinalistCount)
+                            .Select(x => x.Path)
+                            .ToList();
                     }
                     catch (Exception ex)
                     {
@@ -131,28 +153,46 @@ namespace ExpeditionPathOptimizer
             {
                 if (!token.IsCancellationRequested && this.currentGeneration == generationId)
                 {
-                    var absoluteBest = localBestValues.Where(x => x != null).MaxBy(x => x!.Score);
-                    if (absoluteBest?.Path is { } bPath)
+                    var allCandidates = new List<List<Vector2>>();
+                    for (int t = 0; t < threadCount; t++)
                     {
-                        this.finalBestPath = localPlanner.GetDetailedScore(bPath, env);
+                        if (threadFinalists[t] != null)
+                        {
+                            allCandidates.AddRange(threadFinalists[t]);
+                        }
+                    }
+                    foreach (var bv in localBestValues)
+                    {
+                        if (bv?.Path != null)
+                        {
+                            allCandidates.Add(bv.Path);
+                        }
+                    }
+
+                    var refinedScore = localPlanner.RefineAndSelectBestPath(
+                        allCandidates,
+                        env,
+                        token,
+                        () => this.currentGeneration != generationId);
+
+                    if (!token.IsCancellationRequested && this.currentGeneration == generationId)
+                    {
+                        this.finalBestPath = refinedScore;
                         if (this.finalBestPath != null && this.finalBestPath.PerPointScore.Count > 0)
                         {
                             double econTotal = this.finalBestPath.PerPointScore.Sum(p => p.RecipeEconomicScore);
                             double runeTotal = this.finalBestPath.PerPointScore.Sum(p => p.RuneScore);
                             double oathTotal = this.finalBestPath.PerPointScore.Sum(p => p.OathExposurePenalty);
                             double backtrackTotal = this.finalBestPath.PerPointScore.Sum(p => p.BacktrackPenalty);
+                            string exactStr = this.finalBestPath.WasPruned ? "Approximate" : "Exact";
                             PluginLog.Info(
                                 "ExpeditionPathOptimizer",
-                                $"Path search locked: Score={this.finalBestPath.TotalScore:F1}, Bombs={this.finalBestPath.PerPointScore.Count}, Pruned={this.finalBestPath.WasPruned}, Econ=+{econTotal:F0}c, Runes=+{runeTotal:F0}, Oath=-{oathTotal:F0}, Backtrack=-{backtrackTotal:F0}");
+                                $"Path search completed and locked. Finalists={this.finalBestPath.FinalistsReRanked}, FinalDP={exactStr}, Cap={this.finalBestPath.DpStateCapUsed}, Score={this.finalBestPath.TotalScore:F1}, Bombs={this.finalBestPath.PerPointScore.Count}, Econ=+{econTotal:F0}c, Runes=+{runeTotal:F0}, Oath=-{oathTotal:F0}, Backtrack=-{backtrackTotal:F0}");
                         }
                         else
                         {
                             PluginLog.Info("ExpeditionPathOptimizer", "Path search completed (no valid path).");
                         }
-                    }
-                    else
-                    {
-                        PluginLog.Info("ExpeditionPathOptimizer", "Path search completed (no candidate found).");
                     }
                 }
             }

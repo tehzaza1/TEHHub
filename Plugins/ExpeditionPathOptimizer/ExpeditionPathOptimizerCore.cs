@@ -315,6 +315,9 @@ namespace ExpeditionPathOptimizer
                 {
                     ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), "Recipe DP: Exact");
                 }
+                ImGui.TextDisabled($"  Final DP State Cap Used: {bestPlan.DpStateCapUsed}");
+                ImGui.TextDisabled($"  GA Search DP Cap: {PathPlanner.SearchRecipeDpStateCap}");
+                ImGui.TextDisabled($"  Finalists Re-ranked: {bestPlan.FinalistsReRanked}");
 
                 double econTotal = bestPlan.PerPointScore.Sum(p => p.RecipeEconomicScore);
                 double runeTotal = bestPlan.PerPointScore.Sum(p => p.RuneScore);
