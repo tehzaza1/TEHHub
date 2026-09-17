@@ -29,6 +29,7 @@ namespace myFarming
         private MapRun? currentRun = null;
         private DateTime runStartTimeUtc = DateTime.MinValue;
         private DateTime lastTickUtc = DateTime.MinValue;
+        private double activeRunDurationSec = 0.0;
         private string lastAreaHash = string.Empty;
         private bool lastAreaWasTownOrHideout = true;
         private List<LootEntry> currentLoot = new();
@@ -137,11 +138,9 @@ namespace myFarming
                 return;
             }
 
-            // Hide HUD overlay when blocking UI panels (Stash, Inventory, Passives, etc.) are open, but NOT when LargeMap is open
-            if (this.Settings.HideWhenUiPanelsOpen && inGame.GameUi != null && inGame.GameUi.IsAnyLargePanelOpen)
-            {
-                return;
-            }
+            bool shouldHideOverlayForPanels = this.Settings.HideWhenUiPanelsOpen &&
+                                              inGame.GameUi != null &&
+                                              inGame.GameUi.IsAnyLargePanelOpen;
 
             var areaDetails = inGame.CurrentWorldInstance?.AreaDetails;
             var area = inGame.CurrentAreaInstance;
@@ -164,7 +163,8 @@ namespace myFarming
                 double deltaSec = (now - this.lastTickUtc).TotalSeconds;
                 if (deltaSec >= 0.5)
                 {
-                    this.currentRun.DurationSec = (int)(now - this.runStartTimeUtc).TotalSeconds;
+                    this.activeRunDurationSec += deltaSec;
+                    this.currentRun.DurationSec = (int)this.activeRunDurationSec;
                     this.lastTickUtc = now;
 
                     // Periodic price refresh check
@@ -193,7 +193,7 @@ namespace myFarming
             }
 
             // Render HUD overlay
-            if (this.Settings.ShowOverlay)
+            if (this.Settings.ShowOverlay && !shouldHideOverlayForPanels)
             {
                 this.DrawOverlay(inTownOrHideout, areaDetails?.Name ?? "None", isPaused);
             }
@@ -257,6 +257,7 @@ namespace myFarming
 
             this.isRunActive = true;
             this.isRunPaused = false;
+            this.activeRunDurationSec = 0.0;
             this.runStartTimeUtc = DateTime.UtcNow;
             this.lastTickUtc = DateTime.UtcNow;
             this.currentTotalChaos = 0f;
@@ -299,6 +300,7 @@ namespace myFarming
             this.isRunActive = false;
             this.isRunPaused = false;
             this.currentRun = null;
+            this.activeRunDurationSec = 0.0;
             this.currentLoot.Clear();
             this.currentTotalChaos = 0f;
             this.goldTracker.Reset();
