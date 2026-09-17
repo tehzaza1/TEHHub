@@ -749,9 +749,9 @@ namespace ExpeditionPathOptimizer
                                         ImGui.TextDisabled($"      Golden Mapping: {goldenMap}");
 
                                         // Check strict dominance warning against SELECTED offer
-                                        if (!isSelected && RuneshapeRecipePredictor.CheckStrictDominance(plan.Recipe, cand, out float deltaPrice))
+                                        if (!isSelected && RuneshapeRecipePredictor.CheckStrictDominance(plan.Recipe, cand, liveMultiplier, out float deltaPrice))
                                         {
-                                            ImGui.TextColored(new Vector4(1.0f, 0.3f, 0.3f, 1.0f), $"      [STRICT DOMINANCE WARNING] Same propagation mask as selected, but higher PriceChaos!");
+                                            ImGui.TextColored(new Vector4(1.0f, 0.3f, 0.3f, 1.0f), $"      [STRICT DOMINANCE WARNING] Same propagation mask & runes as selected, but higher PriceChaos!");
                                             ImGui.TextColored(new Vector4(1.0f, 0.6f, 0.3f, 1.0f), $"      Selected: {plan.Recipe.PriceChaos:F1}c | Alternative: {cand.PriceChaos:F1}c | Delta: +{deltaPrice:F1}c");
                                         }
                                     }

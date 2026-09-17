@@ -99,21 +99,72 @@ namespace ExpeditionPathOptimizer
             return mask;
         }
 
+        public static bool AreRuneSequencesEqual(IReadOnlyList<string>? runesA, IReadOnlyList<string>? runesB)
+        {
+            if (ReferenceEquals(runesA, runesB)) return true;
+            if (runesA == null || runesB == null)
+            {
+                return (runesA == null || runesA.Count == 0) && (runesB == null || runesB.Count == 0);
+            }
+            if (runesA.Count != runesB.Count) return false;
+            for (int i = 0; i < runesA.Count; i++)
+            {
+                if (!string.Equals(runesA[i], runesB[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private readonly struct OfferEquivalenceKey : IEquatable<OfferEquivalenceKey>
+        {
+            public readonly ulong PropagatedMask;
+            public readonly IReadOnlyList<string> Runes;
+
+            public OfferEquivalenceKey(ulong mask, IReadOnlyList<string>? runes)
+            {
+                this.PropagatedMask = mask;
+                this.Runes = runes ?? Array.Empty<string>();
+            }
+
+            public bool Equals(OfferEquivalenceKey other)
+            {
+                if (this.PropagatedMask != other.PropagatedMask) return false;
+                return AreRuneSequencesEqual(this.Runes, other.Runes);
+            }
+
+            public override bool Equals(object? obj) => obj is OfferEquivalenceKey other && this.Equals(other);
+
+            public override int GetHashCode()
+            {
+                var hash = new HashCode();
+                hash.Add(this.PropagatedMask);
+                hash.Add(this.Runes.Count);
+                for (int i = 0; i < this.Runes.Count; i++)
+                {
+                    hash.Add(this.Runes[i], StringComparer.OrdinalIgnoreCase);
+                }
+                return hash.ToHashCode();
+            }
+        }
+
         /// <summary>
         /// Reduces recipe offers for a remnant by grouping equivalent offers with the exact same
-        /// propagated rune mask and selecting the single economically/baseline-best offer.
+        /// propagated rune mask AND exact Recipe.Runes sequence, and selecting the single economically/baseline-best offer.
         /// </summary>
         public static IReadOnlyList<RuneshapeRecipeOffer> ReduceEquivalentOffers(IEnumerable<RuneshapeRecipeOffer>? offers)
         {
             if (offers == null) return Array.Empty<RuneshapeRecipeOffer>();
 
-            var bestByMask = new Dictionary<ulong, RuneshapeRecipeOffer>();
+            var bestByKey = new Dictionary<OfferEquivalenceKey, RuneshapeRecipeOffer>();
             foreach (var offer in offers)
             {
                 ulong mask = GetPropagatedRuneMask(offer.PropagatedRunes);
-                if (!bestByMask.TryGetValue(mask, out var existing))
+                var key = new OfferEquivalenceKey(mask, offer.Runes);
+                if (!bestByKey.TryGetValue(key, out var existing))
                 {
-                    bestByMask[mask] = offer;
+                    bestByKey[key] = offer;
                 }
                 else
                 {
@@ -153,12 +204,12 @@ namespace ExpeditionPathOptimizer
 
                     if (isBetter)
                     {
-                        bestByMask[mask] = offer;
+                        bestByKey[key] = offer;
                     }
                 }
             }
 
-            return bestByMask.Values.OrderBy(o => o.RecipeId).ToList();
+            return bestByKey.Values.OrderBy(o => o.RecipeId).ToList();
         }
 
         public static int CalculateRecipeWeight(IEnumerable<string>? runes, IReadOnlyDictionary<string, double>? runeWeights)
@@ -518,9 +569,13 @@ namespace ExpeditionPathOptimizer
 
         /// <summary>
         /// Diagnostic check: checks if a candidate offer strictly dominates the selected offer
-        /// (same normalized propagation mask, but higher PriceChaos).
+        /// (exact same normalized propagation mask, exact same Recipe.Runes sequence, multiplier > 0, and candidate PriceChaos > selected PriceChaos).
         /// </summary>
-        public static bool CheckStrictDominance(RuneshapeRecipeOffer selectedOffer, RuneshapeRecipeOffer candidateOffer, out float priceDelta)
+        public static bool CheckStrictDominance(
+            RuneshapeRecipeOffer selectedOffer,
+            RuneshapeRecipeOffer candidateOffer,
+            double recipePriceScoreMultiplier,
+            out float priceDelta)
         {
             priceDelta = 0.0f;
             if (selectedOffer == null || candidateOffer == null)
@@ -528,9 +583,15 @@ namespace ExpeditionPathOptimizer
                 return false;
             }
 
+            if (recipePriceScoreMultiplier <= 0.0)
+            {
+                return false;
+            }
+
             if (candidateOffer.PriceChaos > selectedOffer.PriceChaos)
             {
-                if (ArePropagationMasksEqual(selectedOffer.PropagatedRunes, candidateOffer.PropagatedRunes))
+                if (ArePropagationMasksEqual(selectedOffer.PropagatedRunes, candidateOffer.PropagatedRunes)
+                    && AreRuneSequencesEqual(selectedOffer.Runes, candidateOffer.Runes))
                 {
                     priceDelta = candidateOffer.PriceChaos - selectedOffer.PriceChaos;
                     return true;
@@ -538,6 +599,14 @@ namespace ExpeditionPathOptimizer
             }
 
             return false;
+        }
+
+        public static bool CheckStrictDominance(
+            RuneshapeRecipeOffer selectedOffer,
+            RuneshapeRecipeOffer candidateOffer,
+            out float priceDelta)
+        {
+            return CheckStrictDominance(selectedOffer, candidateOffer, 1.0, out priceDelta);
         }
 
         /// <summary>
