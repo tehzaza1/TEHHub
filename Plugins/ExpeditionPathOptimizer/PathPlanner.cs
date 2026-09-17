@@ -490,6 +490,7 @@ namespace ExpeditionPathOptimizer
                     return false;
                 }
 
+                bool isFinalBomb = (i == n - 1);
                 var newlyHit = bombNewHits[i];
                 var remnantsWithOffers = new List<ExpeditionRemnant>();
                 for (int rIdx = 0; rIdx < newlyHit.Count; rIdx++)
@@ -591,7 +592,7 @@ namespace ExpeditionPathOptimizer
                                     double remPropagatedScore = 0.0;
                                     List<string>? newRunes = collectDetails ? new List<string>() : null;
 
-                                    if (off.PropagatedRunes != null)
+                                    if (!isFinalBomb && off.PropagatedRunes != null)
                                     {
                                         for (int pIdx = 0; pIdx < off.PropagatedRunes.Count; pIdx++)
                                         {
