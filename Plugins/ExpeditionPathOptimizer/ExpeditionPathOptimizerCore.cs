@@ -183,6 +183,9 @@ namespace ExpeditionPathOptimizer
             ImGui.Separator();
             ImGui.Spacing();
 
+            // ==========================================
+            // 1. MAIN / NORMAL UI CONTROLS & STATUS
+            // ==========================================
             bool enable = this.Settings.Enable;
             if (ImGui.Checkbox("Enable Optimizer", ref enable))
             {
@@ -196,60 +199,6 @@ namespace ExpeditionPathOptimizer
                 this.Settings.AutoStartOnAreaChange = autoStart;
                 this.SaveSettings();
             }
-
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Runeshape & Live Price Status");
-
-            ImGui.Text($"Recipes Loaded: {this.recipePredictor.RecipeCount} | Partial Weights: {this.recipePredictor.RuneWeightsCount}");
-            if (this.priceService != null)
-            {
-                var pStat = this.priceService.GetStatus();
-                ImGui.TextColored(pStat.Loaded ? new Vector4(0.2f, 1.0f, 0.4f, 1.0f) : new Vector4(0.9f, 0.9f, 0.2f, 1.0f), $"Price Status: {pStat.Message}");
-                ImGui.Text($"Cached Rates: 1 Divine = {pStat.DivineInChaos:F1}c | 1 Exalt = {pStat.ExaltedInChaos:F2}c ({pStat.TotalItems} items)");
-
-                if (ImGui.Button("Refresh Prices Now", new Vector2(160, 24)))
-                {
-                    this.priceService.TriggerRefresh(this.Settings.League, this.Settings.PriceSource);
-                    this.lastPriceRefreshUtc = DateTime.UtcNow;
-                }
-            }
-
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Live Encounter Detection Status");
-
-            bool hasDetonator = this.detonatorWorldPos != Vector3.Zero;
-            if (hasDetonator)
-            {
-                ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"Detonator Plunger: FOUND at ({this.detonatorWorldPos.X:F0}, {this.detonatorWorldPos.Y:F0})");
-            }
-            else
-            {
-                ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Detonator Plunger: NOT FOUND (Please walk towards Detonator)");
-            }
-
-            ImGui.Text($"Discovered Remnants / Monoliths: {this.discoveredRemnants.Count}");
-            ImGui.Text($"Discovered Reward Chests: {this.discoveredChests.Count}");
-            if (this.discoveredChests.Count > 0)
-            {
-                var chestGroups = this.discoveredChests.Values.GroupBy(c => c.IconName).Select(g => $"{g.Key}: {g.Count()}");
-                ImGui.TextDisabled($"  ({string.Join(", ", chestGroups)})");
-            }
-            if (this.selectedFinalTarget != null)
-            {
-                var target = this.selectedFinalTarget;
-                string anchorStr = target.IsUnique ? "Unique" : (target.AnchorRune ?? "None");
-                string propStr = target.BestRuneRecipe?.PropagatedRunes != null && target.BestRuneRecipe.PropagatedRunes.Count > 0
-                    ? string.Join(", ", target.BestRuneRecipe.PropagatedRunes)
-                    : "None";
-                string priceBestStr = target.BestPriceRecipe != null
-                    ? $" | Price Best: {target.BestPriceRecipe.Reward} x{target.BestPriceRecipe.RewardCount} ({(target.BestPriceRecipe.IsPriced ? $"{target.BestPriceRecipe.PriceChaos:F0}c / {target.BestPriceRecipe.PriceDivine:F2}d" : "No price")})"
-                    : "";
-
-                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {target.RuneSlots} Slots (Anchor: {anchorStr}), Rune Best Propagated: [{propStr}]{priceBestStr}");
-            }
-            ImGui.Text($"Placed Explosives Detected: {this.placedExplosives.Count}");
 
             ImGui.Spacing();
             if (this.runner.IsRunning)
@@ -288,11 +237,11 @@ namespace ExpeditionPathOptimizer
                     bool wasPruned = bestPlan.WasPruned;
                     if (!wasPruned)
                     {
-                        ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"Path Locked (Exact Recipe DP) - Score: {this.runner.CurrentBestScore:F1}, {bestPlan.PerPointScore.Count} bombs");
+                        ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"Path Locked: Score {this.runner.CurrentBestScore:F1} ({bestPlan.PerPointScore.Count} bombs)");
                     }
                     else
                     {
-                        ImGui.TextColored(new Vector4(1.0f, 0.6f, 0.2f, 1.0f), $"Path Locked (Recipe DP Approximate) - Score: {this.runner.CurrentBestScore:F1}, {bestPlan.PerPointScore.Count} bombs");
+                        ImGui.TextColored(new Vector4(1.0f, 0.6f, 0.2f, 1.0f), $"Path Locked: Score {this.runner.CurrentBestScore:F1} ({bestPlan.PerPointScore.Count} bombs)");
                     }
                 }
                 else
@@ -304,10 +253,6 @@ namespace ExpeditionPathOptimizer
             if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
             {
                 var bestPlan = this.runner.CurrentBestPath;
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Locked Route Score Breakdown");
-
                 if (bestPlan.WasPruned)
                 {
                     ImGui.TextColored(new Vector4(1.0f, 0.35f, 0.2f, 1.0f), "Recipe DP: PRUNED / APPROXIMATE (state cap reached)");
@@ -316,72 +261,9 @@ namespace ExpeditionPathOptimizer
                 {
                     ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), "Recipe DP: Exact");
                 }
-                ImGui.TextDisabled($"  Final DP State Cap Used: {bestPlan.DpStateCapUsed}");
-                ImGui.TextDisabled($"  GA Search DP Cap: {PathPlanner.SearchRecipeDpStateCap}");
-                ImGui.TextDisabled($"  Finalists Re-ranked: {bestPlan.FinalistsReRanked}");
-
-                double econTotal = bestPlan.PerPointScore.Sum(p => p.RecipeEconomicScore);
-                double runeTotal = bestPlan.PerPointScore.Sum(p => p.RuneScore);
-                double oathTotal = bestPlan.PerPointScore.Sum(p => p.OathExposurePenalty);
-                double backtrackTotal = bestPlan.PerPointScore.Sum(p => p.BacktrackPenalty);
-                double totalScore = bestPlan.TotalScore;
-
-                ImGui.Text($"  Recipe Economics: +{econTotal:F0}c");
-                ImGui.Text($"  New Propagated Rune Value: +{runeTotal:F0}");
-                if (oathTotal > 0.0)
-                {
-                    ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"  Oath Exposure: -{oathTotal:F0}");
-                }
-                else
-                {
-                    ImGui.Text($"  Oath Exposure: -0");
-                }
-                ImGui.Text($"  Backtrack: -{backtrackTotal:F1}");
-                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"  Total Route Score: {totalScore:F1}");
-
-                ImGui.Spacing();
-                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Planned Recipes (Debug)");
-                for (int bIdx = 0; bIdx < bestPlan.PerPointScore.Count; bIdx++)
-                {
-                    var pt = bestPlan.PerPointScore[bIdx];
-                    if (pt.PlannedRecipes == null || pt.PlannedRecipes.Count == 0)
-                    {
-                        continue;
-                    }
-
-                    int bombNum = bIdx + 1;
-                    for (int pIdx = 0; pIdx < pt.PlannedRecipes.Count; pIdx++)
-                    {
-                        var plan = pt.PlannedRecipes[pIdx];
-                        int slots = plan.Remnant.RuneSlots;
-                        string recId = plan.Recipe.RecipeId ?? "Unknown";
-                        string rewStr = $"{plan.Recipe.Reward} x{plan.Recipe.RewardCount} | {plan.Recipe.PriceChaos:F1}c";
-
-                        var goldenList = new List<string>();
-                        if (plan.Remnant.GoldenSlots != null && plan.Recipe.Runes != null)
-                        {
-                            for (int g = 0; g < plan.Remnant.GoldenSlots.Count; g++)
-                            {
-                                int gSlot = plan.Remnant.GoldenSlots[g];
-                                if (gSlot >= 0 && gSlot < plan.Recipe.Runes.Count)
-                                {
-                                    goldenList.Add($"{gSlot}={plan.Recipe.Runes[gSlot]}");
-                                }
-                            }
-                        }
-                        string goldenStr = goldenList.Count > 0 ? $"[{string.Join(", ", goldenList)}]" : "None";
-                        string newRunesStr = plan.NewlyAcquiredRunes.Count > 0 ? string.Join(", ", plan.NewlyAcquiredRunes) : "None";
-                        string oathMarker = plan.NewlyAcquiredRunes.Contains("Oath", StringComparer.OrdinalIgnoreCase) ? " [OATH ACTIVATED]" : "";
-                        string oathExpStr = pt.OathExposurePenalty > 0.0 ? $" | Oath Exposure: -{pt.OathExposurePenalty:F0}" : "";
-
-                        ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), $"B{bombNum} | {slots} slots | {recId}{oathMarker}");
-                        ImGui.TextDisabled($"   Reward: {rewStr}");
-                        ImGui.TextDisabled($"   Golden: {goldenStr}");
-                        ImGui.TextDisabled($"   New: {newRunesStr}");
-                        ImGui.Text($"   Rune: +{plan.PropagatedRuneScore:F0} | Econ: +{plan.EconomicScore:F0}{oathExpStr}");
-                    }
-                }
             }
+
+            ImGui.Text($"Placed Explosives Detected: {this.placedExplosives.Count}");
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -438,87 +320,270 @@ namespace ExpeditionPathOptimizer
 
             ImGui.Spacing();
             ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Algorithm Parameters");
 
-            int threads = this.Settings.SearchThreads;
-            if (ImGui.SliderInt("Search Threads", ref threads, 1, 12))
+            // ==========================================
+            // 2. ADVANCED TUNING SECTION
+            // ==========================================
+            if (ImGui.CollapsingHeader("Advanced Tuning"))
             {
-                this.Settings.SearchThreads = threads;
-                this.SaveSettings();
+                ImGui.Indent();
+
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Algorithm Parameters");
+                int threads = this.Settings.SearchThreads;
+                if (ImGui.SliderInt("Search Threads", ref threads, 1, 12))
+                {
+                    this.Settings.SearchThreads = threads;
+                    this.SaveSettings();
+                }
+
+                float maxTime = this.Settings.MaximumGenerationTimeSeconds;
+                if (ImGui.SliderFloat("Search Duration (sec)", ref maxTime, 1.0f, 10.0f, "%.1f"))
+                {
+                    this.Settings.MaximumGenerationTimeSeconds = maxTime;
+                    this.SaveSettings();
+                }
+
+                int popSize = this.Settings.PathGenerationSize;
+                if (ImGui.SliderInt("Population Size", ref popSize, 20, 500))
+                {
+                    this.Settings.PathGenerationSize = popSize;
+                    this.SaveSettings();
+                }
+
+                float mutateChance = this.Settings.PathMutateChance;
+                if (ImGui.SliderFloat("Path Mutate Chance", ref mutateChance, 0.0f, 1.0f, "%.2f"))
+                {
+                    this.Settings.PathMutateChance = mutateChance;
+                    this.SaveSettings();
+                }
+
+                float injectRate = this.Settings.NewRandomPathInjectionRate;
+                if (ImGui.SliderFloat("New Path Injection Rate", ref injectRate, 0.0f, 2.0f, "%.2f"))
+                {
+                    this.Settings.NewRandomPathInjectionRate = injectRate;
+                    this.SaveSettings();
+                }
+
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Scoring & Penalty Parameters");
+
+                float priceMult = (float)this.Settings.RecipePriceScoreMultiplier;
+                if (ImGui.SliderFloat("Recipe Price Multiplier", ref priceMult, 0.0f, 5.0f, "%.2f"))
+                {
+                    this.Settings.RecipePriceScoreMultiplier = priceMult;
+                    this.SaveSettings();
+                }
+
+                float oathPen = (float)this.Settings.OathPerSlotExposurePenalty;
+                if (ImGui.SliderFloat("Oath Exposure Penalty / Slot", ref oathPen, 0.0f, 100.0f, "%.0f"))
+                {
+                    this.Settings.OathPerSlotExposurePenalty = oathPen;
+                    this.SaveSettings();
+                }
+
+                float backtrackPen = (float)this.Settings.BacktrackPenaltyPerGrid;
+                if (ImGui.SliderFloat("Backtrack Penalty / Grid", ref backtrackPen, 0.0f, 20.0f, "%.1f"))
+                {
+                    this.Settings.BacktrackPenaltyPerGrid = backtrackPen;
+                    this.SaveSettings();
+                }
+
+                float chestScore = (float)this.Settings.ChestHitBaseScore;
+                if (ImGui.SliderFloat("Chest Hit Score (+)", ref chestScore, 0.0f, 150.0f, "%.0f"))
+                {
+                    this.Settings.ChestHitBaseScore = chestScore;
+                    this.SaveSettings();
+                }
+
+                float usefulBridge = (float)this.Settings.UsefulBridgePenalty;
+                if (ImGui.SliderFloat("Useful Bridge Penalty (-)", ref usefulBridge, 0.0f, 100.0f, "%.0f"))
+                {
+                    this.Settings.UsefulBridgePenalty = usefulBridge;
+                    this.SaveSettings();
+                }
+
+                float uselessBridge = (float)this.Settings.EmptyBombPenalty;
+                if (ImGui.SliderFloat("Useless Empty Bomb Penalty (-)", ref uselessBridge, 50.0f, 300.0f, "%.0f"))
+                {
+                    this.Settings.EmptyBombPenalty = uselessBridge;
+                    this.SaveSettings();
+                }
+
+                float shortBridgePct = (float)(this.Settings.ShortBridgePenaltyThreshold * 100.0);
+                if (ImGui.SliderFloat("Short Bridge Min Reach (%)", ref shortBridgePct, 20.0f, 90.0f, "%.0f%%"))
+                {
+                    this.Settings.ShortBridgePenaltyThreshold = shortBridgePct / 100.0;
+                    this.SaveSettings();
+                }
+
+                float travelPen = (float)this.Settings.TravelPenaltyMultiplier;
+                if (ImGui.SliderFloat("Travel Penalty Multiplier", ref travelPen, 0.0f, 100.0f, "%.0f"))
+                {
+                    this.Settings.TravelPenaltyMultiplier = travelPen;
+                    this.SaveSettings();
+                }
+
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Price Service Configuration");
+
+                string league = this.Settings.League ?? string.Empty;
+                if (ImGui.InputText("League", ref league, 64))
+                {
+                    this.Settings.League = league;
+                    this.SaveSettings();
+                }
+
+                int priceSource = this.Settings.PriceSource;
+                if (ImGui.Combo("Price Source", ref priceSource, "poe2scout\0poe.ninja\0\0"))
+                {
+                    this.Settings.PriceSource = priceSource;
+                    this.SaveSettings();
+                }
+
+                int refreshMins = this.Settings.AutoRefreshMinutes;
+                if (ImGui.SliderInt("Auto Refresh (mins)", ref refreshMins, 5, 120))
+                {
+                    this.Settings.AutoRefreshMinutes = refreshMins;
+                    this.SaveSettings();
+                }
+
+                if (this.priceService != null)
+                {
+                    if (ImGui.Button("Refresh Prices Now", new Vector2(160, 24)))
+                    {
+                        this.priceService.TriggerRefresh(this.Settings.League ?? "Standard", this.Settings.PriceSource);
+                        this.lastPriceRefreshUtc = DateTime.UtcNow;
+                    }
+                }
+
+                ImGui.Unindent();
+                ImGui.Spacing();
             }
 
-            float maxTime = this.Settings.MaximumGenerationTimeSeconds;
-            if (ImGui.SliderFloat("Search Duration (sec)", ref maxTime, 1.0f, 10.0f, "%.1f"))
+            // ==========================================
+            // 3. DEBUG DIAGNOSTICS SECTION
+            // ==========================================
+            if (ImGui.CollapsingHeader("Debug Diagnostics"))
             {
-                this.Settings.MaximumGenerationTimeSeconds = maxTime;
-                this.SaveSettings();
-            }
+                ImGui.Indent();
 
-            int popSize = this.Settings.PathGenerationSize;
-            if (ImGui.SliderInt("Population Size", ref popSize, 20, 500))
-            {
-                this.Settings.PathGenerationSize = popSize;
-                this.SaveSettings();
-            }
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Live Encounter Detection Diagnostics");
+                bool hasDetonator = this.detonatorWorldPos != Vector3.Zero;
+                if (hasDetonator)
+                {
+                    ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"Detonator Plunger: FOUND at ({this.detonatorWorldPos.X:F0}, {this.detonatorWorldPos.Y:F0})");
+                }
+                else
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Detonator Plunger: NOT FOUND (Please walk towards Detonator)");
+                }
 
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Scoring & Penalty Parameters");
+                ImGui.Text($"Discovered Remnants / Monoliths: {this.discoveredRemnants.Count}");
+                ImGui.Text($"Discovered Reward Chests: {this.discoveredChests.Count}");
+                if (this.discoveredChests.Count > 0)
+                {
+                    var chestGroups = this.discoveredChests.Values.GroupBy(c => c.IconName).Select(g => $"{g.Key}: {g.Count()}");
+                    ImGui.TextDisabled($"  ({string.Join(", ", chestGroups)})");
+                }
+                if (this.selectedFinalTarget != null)
+                {
+                    var target = this.selectedFinalTarget;
+                    string anchorStr = target.IsUnique ? "Unique" : (target.AnchorRune ?? "None");
+                    string propStr = target.BestRuneRecipe?.PropagatedRunes != null && target.BestRuneRecipe.PropagatedRunes.Count > 0
+                        ? string.Join(", ", target.BestRuneRecipe.PropagatedRunes)
+                        : "None";
+                    string priceBestStr = target.BestPriceRecipe != null
+                        ? $" | Price Best: {target.BestPriceRecipe.Reward} x{target.BestPriceRecipe.RewardCount} ({(target.BestPriceRecipe.IsPriced ? $"{target.BestPriceRecipe.PriceChaos:F0}c / {target.BestPriceRecipe.PriceDivine:F2}d" : "No price")})"
+                        : "";
 
-            float priceMult = (float)this.Settings.RecipePriceScoreMultiplier;
-            if (ImGui.SliderFloat("Recipe Price Multiplier", ref priceMult, 0.0f, 5.0f, "%.2f"))
-            {
-                this.Settings.RecipePriceScoreMultiplier = priceMult;
-                this.SaveSettings();
-            }
+                    ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {target.RuneSlots} Slots (Anchor: {anchorStr}), Rune Best Propagated: [{propStr}]{priceBestStr}");
+                }
 
-            float oathPen = (float)this.Settings.OathPerSlotExposurePenalty;
-            if (ImGui.SliderFloat("Oath Exposure Penalty / Slot", ref oathPen, 0.0f, 100.0f, "%.0f"))
-            {
-                this.Settings.OathPerSlotExposurePenalty = oathPen;
-                this.SaveSettings();
-            }
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Runeshape Database & Price Diagnostics");
+                ImGui.Text($"Recipes Loaded: {this.recipePredictor.RecipeCount} | Partial Weights: {this.recipePredictor.RuneWeightsCount}");
+                if (this.priceService != null)
+                {
+                    var pStat = this.priceService.GetStatus();
+                    ImGui.TextColored(pStat.Loaded ? new Vector4(0.2f, 1.0f, 0.4f, 1.0f) : new Vector4(0.9f, 0.9f, 0.2f, 1.0f), $"Price Status: {pStat.Message}");
+                    ImGui.Text($"Cached Rates: 1 Divine = {pStat.DivineInChaos:F1}c | 1 Exalt = {pStat.ExaltedInChaos:F2}c ({pStat.TotalItems} items)");
+                }
 
-            float backtrackPen = (float)this.Settings.BacktrackPenaltyPerGrid;
-            if (ImGui.SliderFloat("Backtrack Penalty / Grid", ref backtrackPen, 0.0f, 20.0f, "%.1f"))
-            {
-                this.Settings.BacktrackPenaltyPerGrid = backtrackPen;
-                this.SaveSettings();
-            }
+                if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
+                {
+                    var bestPlan = this.runner.CurrentBestPath;
+                    ImGui.Spacing();
+                    ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Locked Route Technical Diagnostics");
 
-            float chestScore = (float)this.Settings.ChestHitBaseScore;
-            if (ImGui.SliderFloat("Chest Hit Score (+)", ref chestScore, 0.0f, 150.0f, "%.0f"))
-            {
-                this.Settings.ChestHitBaseScore = chestScore;
-                this.SaveSettings();
-            }
+                    ImGui.TextDisabled($"  Final DP State Cap Used: {bestPlan.DpStateCapUsed}");
+                    ImGui.TextDisabled($"  GA Search DP Cap: {PathPlanner.SearchRecipeDpStateCap}");
+                    ImGui.TextDisabled($"  Finalists Re-ranked: {bestPlan.FinalistsReRanked}");
 
-            float usefulBridge = (float)this.Settings.UsefulBridgePenalty;
-            if (ImGui.SliderFloat("Useful Bridge Penalty (-)", ref usefulBridge, 0.0f, 100.0f, "%.0f"))
-            {
-                this.Settings.UsefulBridgePenalty = usefulBridge;
-                this.SaveSettings();
-            }
+                    double econTotal = bestPlan.PerPointScore.Sum(p => p.RecipeEconomicScore);
+                    double runeTotal = bestPlan.PerPointScore.Sum(p => p.RuneScore);
+                    double oathTotal = bestPlan.PerPointScore.Sum(p => p.OathExposurePenalty);
+                    double backtrackTotal = bestPlan.PerPointScore.Sum(p => p.BacktrackPenalty);
+                    double totalScore = bestPlan.TotalScore;
 
-            float uselessBridge = (float)this.Settings.EmptyBombPenalty;
-            if (ImGui.SliderFloat("Useless Empty Bomb Penalty (-)", ref uselessBridge, 50.0f, 300.0f, "%.0f"))
-            {
-                this.Settings.EmptyBombPenalty = uselessBridge;
-                this.SaveSettings();
-            }
+                    ImGui.Text($"  Recipe Economics: +{econTotal:F0}c");
+                    ImGui.Text($"  New Propagated Rune Value: +{runeTotal:F0}");
+                    if (oathTotal > 0.0)
+                    {
+                        ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"  Oath Exposure: -{oathTotal:F0}");
+                    }
+                    else
+                    {
+                        ImGui.Text($"  Oath Exposure: -0");
+                    }
+                    ImGui.Text($"  Backtrack: -{backtrackTotal:F1}");
+                    ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"  Total Route Score: {totalScore:F1}");
 
-            float shortBridgePct = (float)(this.Settings.ShortBridgePenaltyThreshold * 100.0);
-            if (ImGui.SliderFloat("Short Bridge Min Reach (%)", ref shortBridgePct, 20.0f, 90.0f, "%.0f%%"))
-            {
-                this.Settings.ShortBridgePenaltyThreshold = shortBridgePct / 100.0;
-                this.SaveSettings();
-            }
+                    ImGui.Spacing();
+                    ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Planned Recipes (Debug)");
+                    for (int bIdx = 0; bIdx < bestPlan.PerPointScore.Count; bIdx++)
+                    {
+                        var pt = bestPlan.PerPointScore[bIdx];
+                        if (pt.PlannedRecipes == null || pt.PlannedRecipes.Count == 0)
+                        {
+                            continue;
+                        }
 
-            float travelPen = (float)this.Settings.TravelPenaltyMultiplier;
-            if (ImGui.SliderFloat("Travel Penalty Multiplier", ref travelPen, 0.0f, 100.0f, "%.0f"))
-            {
-                this.Settings.TravelPenaltyMultiplier = travelPen;
-                this.SaveSettings();
+                        int bombNum = bIdx + 1;
+                        for (int pIdx = 0; pIdx < pt.PlannedRecipes.Count; pIdx++)
+                        {
+                            var plan = pt.PlannedRecipes[pIdx];
+                            int slots = plan.Remnant.RuneSlots;
+                            string recId = plan.Recipe.RecipeId ?? "Unknown";
+                            string rewStr = $"{plan.Recipe.Reward} x{plan.Recipe.RewardCount} | {plan.Recipe.PriceChaos:F1}c";
+
+                            var goldenList = new List<string>();
+                            if (plan.Remnant.GoldenSlots != null && plan.Recipe.Runes != null)
+                            {
+                                for (int g = 0; g < plan.Remnant.GoldenSlots.Count; g++)
+                                {
+                                    int gSlot = plan.Remnant.GoldenSlots[g];
+                                    if (gSlot >= 0 && gSlot < plan.Recipe.Runes.Count)
+                                    {
+                                        goldenList.Add($"{gSlot}={plan.Recipe.Runes[gSlot]}");
+                                    }
+                                }
+                            }
+                            string goldenStr = goldenList.Count > 0 ? $"[{string.Join(", ", goldenList)}]" : "None";
+                            string newRunesStr = plan.NewlyAcquiredRunes.Count > 0 ? string.Join(", ", plan.NewlyAcquiredRunes) : "None";
+                            string oathMarker = plan.NewlyAcquiredRunes.Contains("Oath", StringComparer.OrdinalIgnoreCase) ? " [OATH ACTIVATED]" : "";
+                            string oathExpStr = pt.OathExposurePenalty > 0.0 ? $" | Oath Exposure: -{pt.OathExposurePenalty:F0}" : "";
+
+                            ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), $"B{bombNum} | {slots} slots | {recId}{oathMarker}");
+                            ImGui.TextDisabled($"   Reward: {rewStr}");
+                            ImGui.TextDisabled($"   Golden: {goldenStr}");
+                            ImGui.TextDisabled($"   New: {newRunesStr}");
+                            ImGui.Text($"   Rune: +{plan.PropagatedRuneScore:F0} | Econ: +{plan.EconomicScore:F0}{oathExpStr}");
+                        }
+                    }
+                }
+
+                ImGui.Unindent();
+                ImGui.Spacing();
             }
         }
 
