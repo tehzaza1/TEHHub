@@ -58,6 +58,7 @@ namespace ExpeditionPathOptimizer
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
         private SelectedEncounterState? selectedNormalMapEncounter = null;
         private ExpeditionRemnant? selectedFinalTarget = null;
+        private bool detectedDetonatorDistancesHaveValidPlayerPosition = false;
 
         private static readonly HashSet<string> ExpeditionRewardChestIcons =
             new(StringComparer.OrdinalIgnoreCase)
@@ -143,6 +144,7 @@ namespace ExpeditionPathOptimizer
             this.placedExplosives.Clear();
             this.selectedNormalMapEncounter = null;
             this.selectedFinalTarget = null;
+            this.detectedDetonatorDistancesHaveValidPlayerPosition = false;
             this.hasAutoSearchedThisArea = false;
             this.isAutoStartWaitingForPrice = false;
             this.manualSearchWarningMessage = string.Empty;
@@ -698,6 +700,7 @@ namespace ExpeditionPathOptimizer
 
                         int detCount = this.detectedDetonators.Count;
                         ImGui.Text($"Detonators Detected This Scan: {detCount}");
+                        ImGui.TextDisabled($"  Player Position For Detonator Distance: {(this.detectedDetonatorDistancesHaveValidPlayerPosition ? "VALID" : "INVALID")}");
 
                         if (detCount > 0)
                         {
@@ -1057,10 +1060,12 @@ namespace ExpeditionPathOptimizer
             var detectedDetonatorsThisScan = new List<DetonatorDiagnosticInfo>();
 
             var player = area.Player;
+            bool hasPlayerGridPos = false;
             Vector2 playerGridPos = Vector2.Zero;
             if (player != null && player.TryGetComponent<Render>(out var pRender, false) && pRender != null)
             {
                 playerGridPos = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
+                hasPlayerGridPos = true;
             }
 
             void ProcessEntity(Entity entity)
@@ -1099,7 +1104,7 @@ namespace ExpeditionPathOptimizer
                     // Phase 1 diagnostic snapshot only.
                     if (!detectedDetonatorsThisScan.Any(d => d.Address == entity.Address))
                     {
-                        float distToPlayer = playerGridPos != Vector2.Zero ? Vector2.Distance(playerGridPos, gPos) : 0f;
+                        float distToPlayer = hasPlayerGridPos ? Vector2.Distance(playerGridPos, gPos) : float.PositiveInfinity;
                         detectedDetonatorsThisScan.Add(new DetonatorDiagnosticInfo(entity.Id, entity.Address, gPos, wPos, distToPlayer));
                     }
                 }
@@ -1298,6 +1303,7 @@ namespace ExpeditionPathOptimizer
 
             // Synchronize diagnostic detonators (Diagnostic snapshot only - does NOT mutate production detonator fields)
             this.detectedDetonators.Clear();
+            this.detectedDetonatorDistancesHaveValidPlayerPosition = hasPlayerGridPos;
             if (detectedDetonatorsThisScan.Count > 0)
             {
                 var sortedDetonators = detectedDetonatorsThisScan
@@ -1496,6 +1502,14 @@ namespace ExpeditionPathOptimizer
                 if (this.detectedDetonators.Count == 0)
                 {
                     this.manualSearchWarningMessage = "Cannot start optimization: No Detonator detected in scan. Please walk towards the desired Detonator.";
+                    this.manualSearchWarningTimeUtc = DateTime.UtcNow;
+                    PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
+                    return false;
+                }
+
+                if (!this.detectedDetonatorDistancesHaveValidPlayerPosition)
+                {
+                    this.manualSearchWarningMessage = "Cannot start optimization: Player grid position could not be read during this scan. Try again.";
                     this.manualSearchWarningTimeUtc = DateTime.UtcNow;
                     PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
                     return false;
