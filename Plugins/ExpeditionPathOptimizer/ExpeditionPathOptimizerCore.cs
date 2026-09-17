@@ -77,6 +77,52 @@ namespace ExpeditionPathOptimizer
         private DateTime manualSearchWarningTimeUtc = DateTime.MinValue;
         private bool scanAndStartHotkeyWasDown = false;
         private VK lastConfiguredHotkey = (VK)0;
+        private bool isCapturingHotkey = false;
+        private int lastDrawSettingsFrame = -1;
+        private readonly HashSet<VK> keysDownAtCaptureStart = new();
+
+        private static readonly VK[] CaptureCandidateKeys = Enum.GetValues<VK>()
+            .Where(k => (int)k >= 0x08)
+            .Distinct()
+            .ToArray();
+
+        private static string GetFriendlyKeyName(VK key)
+        {
+            if (key == (VK)0)
+            {
+                return "Unbound";
+            }
+
+            return key switch
+            {
+                VK.RETURN => "Enter",
+                VK.ESCAPE => "Esc",
+                VK.BACK => "Backspace",
+                VK.TAB => "Tab",
+                VK.SPACE => "Space",
+                VK.PRIOR => "PageUp",
+                VK.NEXT => "PageDown",
+                VK.CAPITAL => "CapsLock",
+                VK.SNAPSHOT => "PrintScreen",
+                VK.NUMLOCK => "NumLock",
+                VK.SCROLL => "ScrollLock",
+                _ => key.ToString()
+            };
+        }
+
+        private void StartHotkeyCapture()
+        {
+            this.isCapturingHotkey = true;
+            this.lastDrawSettingsFrame = ImGui.GetFrameCount();
+            this.keysDownAtCaptureStart.Clear();
+            foreach (var key in CaptureCandidateKeys)
+            {
+                if (Utils.IsKeyPressed(key))
+                {
+                    this.keysDownAtCaptureStart.Add(key);
+                }
+            }
+        }
 
         public static string[] RuneNames => RuneshapeRecipePredictor.RuneNames;
 
@@ -325,20 +371,79 @@ namespace ExpeditionPathOptimizer
                 this.SaveSettings();
             }
 
-            var scanHotkey = this.Settings.ScanAndStartHotkey;
-            if (ImGuiHelper.NonContinuousEnumComboBox("Scan & Start Hotkey", ref scanHotkey))
-            {
-                this.Settings.ScanAndStartHotkey = scanHotkey;
-                this.SaveSettings();
-            }
+            ImGui.Text("Scan & Start Hotkey:");
+            ImGui.SameLine();
 
-            if (this.Settings.ScanAndStartHotkey != (VK)0)
+            if (this.isCapturingHotkey)
             {
+                this.lastDrawSettingsFrame = ImGui.GetFrameCount();
+
+                ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.2f, 1.0f), "Press a key... (Esc to cancel)");
                 ImGui.SameLine();
-                if (ImGui.SmallButton("Clear##clear_scan_hotkey"))
+                if (ImGui.SmallButton("Cancel##ScanHotkey"))
                 {
-                    this.Settings.ScanAndStartHotkey = (VK)0;
-                    this.SaveSettings();
+                    this.isCapturingHotkey = false;
+                    this.keysDownAtCaptureStart.Clear();
+                }
+
+                if (Utils.IsKeyPressed(VK.ESCAPE))
+                {
+                    this.isCapturingHotkey = false;
+                    this.keysDownAtCaptureStart.Clear();
+                }
+                else
+                {
+                    foreach (var key in CaptureCandidateKeys)
+                    {
+                        bool isKeyDown = Utils.IsKeyPressed(key);
+                        if (isKeyDown)
+                        {
+                            if (!this.keysDownAtCaptureStart.Contains(key))
+                            {
+                                this.Settings.ScanAndStartHotkey = key;
+                                this.isCapturingHotkey = false;
+                                this.keysDownAtCaptureStart.Clear();
+                                this.SaveSettings();
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            this.keysDownAtCaptureStart.Remove(key);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                string keyDisplay = this.Settings.ScanAndStartHotkey == (VK)0
+                    ? "Unbound"
+                    : GetFriendlyKeyName(this.Settings.ScanAndStartHotkey);
+
+                ImGui.TextColored(
+                    this.Settings.ScanAndStartHotkey == (VK)0 ? new Vector4(0.7f, 0.7f, 0.7f, 1.0f) : new Vector4(0.2f, 0.9f, 1.0f, 1.0f),
+                    $"[ {keyDisplay} ]");
+                ImGui.SameLine();
+
+                if (this.Settings.ScanAndStartHotkey == (VK)0)
+                {
+                    if (ImGui.SmallButton("Bind##ScanHotkey"))
+                    {
+                        this.StartHotkeyCapture();
+                    }
+                }
+                else
+                {
+                    if (ImGui.SmallButton("Rebind##ScanHotkey"))
+                    {
+                        this.StartHotkeyCapture();
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton("Clear##ScanHotkey"))
+                    {
+                        this.Settings.ScanAndStartHotkey = (VK)0;
+                        this.SaveSettings();
+                    }
                 }
             }
 
@@ -1635,6 +1740,12 @@ namespace ExpeditionPathOptimizer
 
         public override void DrawUI()
         {
+            if (this.isCapturingHotkey && ImGui.GetFrameCount() - this.lastDrawSettingsFrame > 2)
+            {
+                this.isCapturingHotkey = false;
+                this.keysDownAtCaptureStart.Clear();
+            }
+
             var configuredHotkey = this.Settings.ScanAndStartHotkey;
             bool isBound = configuredHotkey != (VK)0 && (int)configuredHotkey > 0;
             bool isDown = isBound && Utils.IsKeyPressed(configuredHotkey);
@@ -1654,7 +1765,7 @@ namespace ExpeditionPathOptimizer
                 return;
             }
 
-            if (pressedThisFrame && !this.runner.IsRunning)
+            if (pressedThisFrame && !this.runner.IsRunning && !this.isCapturingHotkey)
             {
                 this.TryManualScanAndStart();
             }
