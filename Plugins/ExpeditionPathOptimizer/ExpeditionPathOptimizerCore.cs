@@ -151,7 +151,6 @@ namespace ExpeditionPathOptimizer
             this.hasAutoSearchedThisArea = false;
             this.isAutoStartWaitingForPrice = false;
             this.manualSearchWarningMessage = string.Empty;
-            this.scanAndStartHotkeyWasDown = false;
         }
 
         public static bool IsPriceReady(double recipePriceScoreMultiplier, bool isPriceServiceLoaded)
@@ -1636,33 +1635,28 @@ namespace ExpeditionPathOptimizer
 
         public override void DrawUI()
         {
+            var configuredHotkey = this.Settings.ScanAndStartHotkey;
+            bool isBound = configuredHotkey != (VK)0 && (int)configuredHotkey > 0;
+            bool isDown = isBound && Utils.IsKeyPressed(configuredHotkey);
+
+            bool bindingChanged = configuredHotkey != this.lastConfiguredHotkey;
+            if (bindingChanged)
+            {
+                this.lastConfiguredHotkey = configuredHotkey;
+                this.scanAndStartHotkeyWasDown = isDown;
+            }
+
+            bool pressedThisFrame = !bindingChanged && isDown && !this.scanAndStartHotkeyWasDown;
+            this.scanAndStartHotkeyWasDown = isDown;
+
             if (!this.Settings.Enable)
             {
-                this.scanAndStartHotkeyWasDown = false;
                 return;
             }
 
-            var configuredHotkey = this.Settings.ScanAndStartHotkey;
-            if (configuredHotkey != this.lastConfiguredHotkey)
+            if (pressedThisFrame && !this.runner.IsRunning)
             {
-                this.lastConfiguredHotkey = configuredHotkey;
-                this.scanAndStartHotkeyWasDown = false;
-            }
-
-            if (configuredHotkey != (VK)0 && (int)configuredHotkey > 0)
-            {
-                bool isDown = Utils.IsKeyPressed(configuredHotkey);
-                bool pressedThisFrame = isDown && !this.scanAndStartHotkeyWasDown;
-                this.scanAndStartHotkeyWasDown = isDown;
-
-                if (pressedThisFrame && !this.runner.IsRunning)
-                {
-                    this.TryManualScanAndStart();
-                }
-            }
-            else
-            {
-                this.scanAndStartHotkeyWasDown = false;
+                this.TryManualScanAndStart();
             }
 
             var game = Core.States.InGameStateObject;
