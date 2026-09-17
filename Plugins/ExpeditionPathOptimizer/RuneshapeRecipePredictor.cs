@@ -473,5 +473,98 @@ namespace ExpeditionPathOptimizer
                 .ThenBy(o => o.RecipeId, StringComparer.Ordinal)
                 .First();
         }
+
+        /// <summary>
+        /// Normalizes a list of propagated rune names: case-insensitive, distinct, deterministic sorted order.
+        /// </summary>
+        public static List<string> NormalizePropagationMask(IReadOnlyList<string>? propagatedRunes)
+        {
+            if (propagatedRunes == null || propagatedRunes.Count == 0)
+            {
+                return new List<string>();
+            }
+
+            return propagatedRunes
+                .Where(r => !string.IsNullOrWhiteSpace(r))
+                .Select(r => r.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(r => r, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Compares two lists of propagated runes for equivalence under normalized mask rules.
+        /// </summary>
+        public static bool ArePropagationMasksEqual(IReadOnlyList<string>? runesA, IReadOnlyList<string>? runesB)
+        {
+            var normA = NormalizePropagationMask(runesA);
+            var normB = NormalizePropagationMask(runesB);
+
+            if (normA.Count != normB.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < normA.Count; i++)
+            {
+                if (!string.Equals(normA[i], normB[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Diagnostic check: checks if a candidate offer strictly dominates the selected offer
+        /// (same normalized propagation mask, but higher PriceChaos).
+        /// </summary>
+        public static bool CheckStrictDominance(RuneshapeRecipeOffer selectedOffer, RuneshapeRecipeOffer candidateOffer, out float priceDelta)
+        {
+            priceDelta = 0.0f;
+            if (selectedOffer == null || candidateOffer == null)
+            {
+                return false;
+            }
+
+            if (candidateOffer.PriceChaos > selectedOffer.PriceChaos)
+            {
+                if (ArePropagationMasksEqual(selectedOffer.PropagatedRunes, candidateOffer.PropagatedRunes))
+                {
+                    priceDelta = candidateOffer.PriceChaos - selectedOffer.PriceChaos;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Derives the positional Golden rune mapping for a remnant's GoldenSlots and an offer's Runes.
+        /// Handles invalid positions defensively without throwing.
+        /// </summary>
+        public static string FormatGoldenSlotMapping(IReadOnlyList<int>? goldenSlots, IReadOnlyList<string>? runes)
+        {
+            if (goldenSlots == null || goldenSlots.Count == 0)
+            {
+                return "None";
+            }
+
+            var list = new List<string>();
+            foreach (int slot in goldenSlots)
+            {
+                if (runes != null && slot >= 0 && slot < runes.Count)
+                {
+                    list.Add($"{slot}={runes[slot]}");
+                }
+                else
+                {
+                    list.Add($"{slot}=INVALID GOLDEN INDEX");
+                }
+            }
+
+            return list.Count > 0 ? $"[{string.Join(", ", list)}]" : "None";
+        }
     }
 }

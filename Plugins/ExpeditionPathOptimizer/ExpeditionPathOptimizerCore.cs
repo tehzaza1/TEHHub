@@ -676,6 +676,93 @@ namespace ExpeditionPathOptimizer
                             ImGui.Text($"   Rune: +{plan.PropagatedRuneScore:F0} | Econ: +{plan.EconomicScore:F0}{oathExpStr}");
                         }
                     }
+
+                    ImGui.Spacing();
+                    if (ImGui.TreeNode("Recipe Candidate Audit"))
+                    {
+                        ImGui.TextDisabled("Raw candidate offers captured in the locked route snapshot (sorted by PriceChaos desc, RecipeId asc).");
+                        for (int bIdx = 0; bIdx < bestPlan.PerPointScore.Count; bIdx++)
+                        {
+                            var pt = bestPlan.PerPointScore[bIdx];
+                            if (pt.PlannedRecipes == null || pt.PlannedRecipes.Count == 0)
+                            {
+                                continue;
+                            }
+
+                            int bombNum = bIdx + 1;
+                            for (int pIdx = 0; pIdx < pt.PlannedRecipes.Count; pIdx++)
+                            {
+                                var plan = pt.PlannedRecipes[pIdx];
+                                var remnant = plan.Remnant;
+                                var offers = remnant.RecipeOffers ?? Array.Empty<RuneshapeRecipeOffer>();
+                                int candidateCount = offers.Count;
+
+                                string anchorInfo = remnant.IsUnique ? "Unique" : (remnant.AnchorRune != null ? $"Anchor: {remnant.AnchorRune}" : "No Anchor");
+                                string goldenInfo = remnant.GoldenSlots != null && remnant.GoldenSlots.Count > 0
+                                    ? $"GoldenSlots: [{string.Join(", ", remnant.GoldenSlots)}]"
+                                    : "GoldenSlots: None";
+
+                                string headerLabel = $"B{bombNum}: Remnant #{remnant.EntityId} ({remnant.RuneSlots} slots, {anchorInfo}) - Candidates: {candidateCount}###Audit_B{bombNum}_R{pIdx}";
+
+                                if (ImGui.TreeNode(headerLabel))
+                                {
+                                    ImGui.TextColored(new Vector4(0.4f, 0.8f, 1.0f, 1.0f), $"EntityId: {remnant.EntityId} | RuneSlots: {remnant.RuneSlots} | {anchorInfo} | {goldenInfo}");
+                                    ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"Selected RecipeId: {plan.Recipe.RecipeId} | Locked DP Econ Score: +{plan.EconomicScore:F1}");
+
+                                    // Find highest price among captured offers on this remnant for BEST PRICE badge
+                                    float maxCapturedPrice = candidateCount > 0 ? offers.Max(o => o.PriceChaos) : 0.0f;
+
+                                    // Sort candidates deterministically for UI display: PriceChaos descending, then RecipeId ascending
+                                    var sortedCandidates = offers
+                                        .OrderByDescending(o => o.PriceChaos)
+                                        .ThenBy(o => o.RecipeId, StringComparer.OrdinalIgnoreCase)
+                                        .ToList();
+
+                                    for (int cIdx = 0; cIdx < sortedCandidates.Count; cIdx++)
+                                    {
+                                        var cand = sortedCandidates[cIdx];
+                                        bool isSelected = string.Equals(cand.RecipeId, plan.Recipe.RecipeId, StringComparison.OrdinalIgnoreCase);
+                                        bool isBestPrice = maxCapturedPrice > 0.0f && cand.PriceChaos == maxCapturedPrice;
+
+                                        string badges = "";
+                                        if (isSelected) badges += "[SELECTED] ";
+                                        if (isBestPrice) badges += "[BEST PRICE] ";
+
+                                        Vector4 rowColor = isSelected
+                                            ? new Vector4(0.2f, 1.0f, 0.4f, 1.0f)
+                                            : (isBestPrice ? new Vector4(1.0f, 0.84f, 0.0f, 1.0f) : new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
+
+                                        string goldenMap = RuneshapeRecipePredictor.FormatGoldenSlotMapping(remnant.GoldenSlots, cand.Runes);
+                                        string runesStr = cand.Runes != null && cand.Runes.Count > 0 ? string.Join(", ", cand.Runes) : "None";
+                                        string propStr = cand.PropagatedRunes != null && cand.PropagatedRunes.Count > 0 ? string.Join(", ", cand.PropagatedRunes) : "None";
+                                        string pricedStatus = cand.IsPriced ? "Priced" : "Unpriced";
+
+                                        // Diagnostic current-settings economic math
+                                        double liveMultiplier = this.Settings.RecipePriceScoreMultiplier;
+                                        double diagEconScore = cand.PriceChaos * liveMultiplier;
+
+                                        ImGui.Separator();
+                                        ImGui.TextColored(rowColor, $"  #{cIdx + 1}: {badges}{cand.RecipeId} - {cand.Reward} x{cand.RewardCount}");
+                                        ImGui.TextDisabled($"      Price: {cand.PriceChaos:F1}c ({pricedStatus}) | Current Mult: {liveMultiplier:F2} | Est Econ: {diagEconScore:F1} (diagnostic)");
+                                        ImGui.TextDisabled($"      Runes: [{runesStr}]");
+                                        ImGui.TextDisabled($"      PropagatedRunes: [{propStr}]");
+                                        ImGui.TextDisabled($"      Golden Mapping: {goldenMap}");
+
+                                        // Check strict dominance warning against SELECTED offer
+                                        if (!isSelected && RuneshapeRecipePredictor.CheckStrictDominance(plan.Recipe, cand, out float deltaPrice))
+                                        {
+                                            ImGui.TextColored(new Vector4(1.0f, 0.3f, 0.3f, 1.0f), $"      [STRICT DOMINANCE WARNING] Same propagation mask as selected, but higher PriceChaos!");
+                                            ImGui.TextColored(new Vector4(1.0f, 0.6f, 0.3f, 1.0f), $"      Selected: {plan.Recipe.PriceChaos:F1}c | Alternative: {cand.PriceChaos:F1}c | Delta: +{deltaPrice:F1}c");
+                                        }
+                                    }
+
+                                    ImGui.TreePop();
+                                }
+                            }
+                        }
+
+                        ImGui.TreePop();
+                    }
                 }
 
                 ImGui.Unindent();
