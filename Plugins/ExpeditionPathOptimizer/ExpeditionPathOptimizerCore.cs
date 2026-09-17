@@ -37,12 +37,26 @@ namespace ExpeditionPathOptimizer
             Vector3 WorldPos,
             float DistanceFromPlayer);
 
+        private sealed class SelectedEncounterState
+        {
+            public DetonatorDiagnosticInfo Detonator { get; set; }
+            public float ReachGrid { get; set; }
+            public float RadiusGrid { get; set; }
+            public float SeedThreshold { get; set; }
+            public float LinkThreshold { get; set; }
+            public List<ExpeditionRemnant> SeedRemnants { get; set; } = new();
+            public List<ExpeditionRemnant> ComponentRemnants { get; set; } = new();
+            public List<ExpeditionRemnant> ExcludedValidRemnants { get; set; } = new();
+            public ExpeditionRemnant? FinalTarget { get; set; }
+        }
+
         private Vector3 detonatorWorldPos = Vector3.Zero;
         private Vector2 detonatorGridPos = Vector2.Zero;
         private readonly List<DetonatorDiagnosticInfo> detectedDetonators = new();
         private readonly Dictionary<IntPtr, ExpeditionRemnant> discoveredRemnants = new();
         private readonly Dictionary<IntPtr, ExpeditionChest> discoveredChests = new();
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
+        private SelectedEncounterState? selectedNormalMapEncounter = null;
         private ExpeditionRemnant? selectedFinalTarget = null;
 
         private static readonly HashSet<string> ExpeditionRewardChestIcons =
@@ -127,6 +141,7 @@ namespace ExpeditionPathOptimizer
             this.discoveredRemnants.Clear();
             this.discoveredChests.Clear();
             this.placedExplosives.Clear();
+            this.selectedNormalMapEncounter = null;
             this.selectedFinalTarget = null;
             this.hasAutoSearchedThisArea = false;
             this.isAutoStartWaitingForPrice = false;
@@ -221,8 +236,10 @@ namespace ExpeditionPathOptimizer
 
                 this.ScanEntities(area);
 
-                // Auto-start only ONCE per area when Expedition Detonator and Remnants are detected
-                if (!this.hasAutoSearchedThisArea &&
+                // Auto-start only ONCE per area when Expedition Detonator and Remnants are detected (Grand Expedition / Logbook only; normal maps require manual search)
+                bool isNormalMap = IsNormalMap(areaId) && !IsGrandExpeditionOrLogbook(area, areaId);
+                if (!isNormalMap &&
+                    !this.hasAutoSearchedThisArea &&
                     this.Settings.AutoStartOnAreaChange &&
                     !this.runner.IsRunning &&
                     this.runner.CurrentBestPath == null)
@@ -348,6 +365,8 @@ namespace ExpeditionPathOptimizer
                 if (ImGui.Button("Clear Path", new Vector2(110, 30)))
                 {
                     this.runner.Clear();
+                    this.selectedNormalMapEncounter = null;
+                    this.selectedFinalTarget = null;
                 }
                 ImGui.SameLine();
                 if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
@@ -369,7 +388,15 @@ namespace ExpeditionPathOptimizer
                 }
                 else
                 {
-                    ImGui.TextDisabled("Idle (No path calculated)");
+                    bool isNorm = IsNormalMap(currentAreaId) && !IsGrandExpeditionOrLogbook(Core.States.InGameStateObject?.CurrentAreaInstance, currentAreaId);
+                    if (isNorm)
+                    {
+                        ImGui.TextDisabled("Idle (Normal-map multi-Expedition selection is manual)");
+                    }
+                    else
+                    {
+                        ImGui.TextDisabled("Idle (No path calculated)");
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(this.manualSearchWarningMessage) && (DateTime.UtcNow - this.manualSearchWarningTimeUtc).TotalSeconds < 6.0)
@@ -765,6 +792,58 @@ namespace ExpeditionPathOptimizer
                             var validRemnantsList = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
                             ImGui.TextDisabled($"Total discovered valid Remnants in area: {validRemnantsList.Count}");
                             ImGui.TextDisabled("Distance sorting and gap diagnostics require at least one detected Detonator.");
+                        }
+
+                        ImGui.Spacing();
+                        ImGui.Separator();
+                        ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.6f, 1.0f), "Selected Normal-Map Encounter (Locked Route)");
+                        if (this.selectedNormalMapEncounter != null)
+                        {
+                            var enc = this.selectedNormalMapEncounter;
+                            ImGui.Text($"  Selected Detonator: EntityId={enc.Detonator.EntityId} Address=0x{enc.Detonator.Address.ToInt64():X} Grid=({enc.Detonator.GridPos.X:F1}, {enc.Detonator.GridPos.Y:F1})");
+                            ImGui.TextDisabled($"  ReachGrid={enc.ReachGrid:F1} | RadiusGrid={enc.RadiusGrid:F1}");
+                            ImGui.TextDisabled($"  SeedThreshold (Reach+Radius)={enc.SeedThreshold:F1} | LinkThreshold (Reach+2R)={enc.LinkThreshold:F1}");
+
+                            ImGui.Spacing();
+                            ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"  Seed Remnants ({enc.SeedRemnants.Count}):");
+                            foreach (var s in enc.SeedRemnants)
+                            {
+                                string aStr = s.IsUnique ? "Unique" : (s.AnchorRune ?? "None");
+                                ImGui.TextDisabled($"    #{s.EntityId} Grid=({s.GridPos.X:F1}, {s.GridPos.Y:F1}) Slots={s.RuneSlots} Anchor={aStr}");
+                            }
+
+                            ImGui.Spacing();
+                            ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"  Selected Component Remnants ({enc.ComponentRemnants.Count}):");
+                            foreach (var c in enc.ComponentRemnants)
+                            {
+                                string aStr = c.IsUnique ? "Unique" : (c.AnchorRune ?? "None");
+                                ImGui.TextDisabled($"    #{c.EntityId} Grid=({c.GridPos.X:F1}, {c.GridPos.Y:F1}) Slots={c.RuneSlots} Anchor={aStr}");
+                            }
+
+                            if (enc.ExcludedValidRemnants.Count > 0)
+                            {
+                                ImGui.Spacing();
+                                ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.5f, 1.0f), $"  Excluded Valid Remnants ({enc.ExcludedValidRemnants.Count}):");
+                                foreach (var ex in enc.ExcludedValidRemnants)
+                                {
+                                    string aStr = ex.IsUnique ? "Unique" : (ex.AnchorRune ?? "None");
+                                    ImGui.TextDisabled($"    #{ex.EntityId} Grid=({ex.GridPos.X:F1}, {ex.GridPos.Y:F1}) Slots={ex.RuneSlots} Anchor={aStr}");
+                                }
+                            }
+
+                            if (enc.FinalTarget != null)
+                            {
+                                var ft = enc.FinalTarget;
+                                string aStr = ft.IsUnique ? "Unique" : (ft.AnchorRune ?? "None");
+                                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"  Selected FinalTarget: #{ft.EntityId} ({ft.RuneSlots} Slots, Anchor: {aStr})");
+                            }
+
+                            ImGui.TextDisabled($"  Chest Ownership: Phase 2 unchanged / area-global ({this.discoveredChests.Count} chests)");
+                        }
+                        else
+                        {
+                            ImGui.TextDisabled("  Selected Encounter: None (Walk near desired Detonator and click 'Scan & Start Search')");
+                            ImGui.TextDisabled($"  Chest Ownership: Phase 2 unchanged / area-global ({this.discoveredChests.Count} chests)");
                         }
                     }
                 }
@@ -1229,20 +1308,35 @@ namespace ExpeditionPathOptimizer
                 this.detectedDetonators.AddRange(sortedDetonators);
             }
 
-            // 1. Determine Final Target BEFORE starting search: Max Slots -> Highest Rune Weight -> Proximity (only consider remnants with RuneSlots > 0)
-            var validRemnants = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
-            if (validRemnants.Count > 0)
+            // 1. Determine Final Target BEFORE starting search (Grand Expedition / Logbook uses global area remnants; normal map uses manual encounter selection)
+            bool isNormalMap = IsNormalMap(areaId) && !IsGrandExpeditionOrLogbook(area, areaId);
+            if (isNormalMap)
             {
-                int maxSlots = validRemnants.Max(r => r.RuneSlots);
-                var candidates = validRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
-                this.selectedFinalTarget = candidates
-                    .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
-                    .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
-                    .First();
+                if (this.selectedNormalMapEncounter != null)
+                {
+                    this.selectedFinalTarget = this.selectedNormalMapEncounter.FinalTarget;
+                }
+                else
+                {
+                    this.selectedFinalTarget = null;
+                }
             }
             else
             {
-                this.selectedFinalTarget = null;
+                var validRemnants = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
+                if (validRemnants.Count > 0)
+                {
+                    int maxSlots = validRemnants.Max(r => r.RuneSlots);
+                    var candidates = validRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
+                    this.selectedFinalTarget = candidates
+                        .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
+                        .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
+                        .First();
+                }
+                else
+                {
+                    this.selectedFinalTarget = null;
+                }
             }
 
             // 2. Synchronize placed explosives positions for grey marker detection
@@ -1251,6 +1345,125 @@ namespace ExpeditionPathOptimizer
             {
                 this.placedExplosives[k] = v;
             }
+        }
+
+        private bool TryBuildNormalMapEncounterSelection(
+            AreaInstance area,
+            DetonatorDiagnosticInfo selectedDetonator,
+            out SelectedEncounterState? encounter,
+            out string failureReason)
+        {
+            encounter = null;
+            failureReason = string.Empty;
+
+            if (selectedDetonator.Address == IntPtr.Zero)
+            {
+                failureReason = "No valid Detonator selected.";
+                return false;
+            }
+
+            var config = area.ExpeditionConfig;
+            float radiusWorld = config.ExplosionRadiusWorld > 0 ? config.ExplosionRadiusWorld : 300f;
+            float rangeWorld = config.PlacementReachWorld > 0 ? config.PlacementReachWorld : 1000f;
+
+            float radiusGrid = radiusWorld / GridToWorldMultiplier;
+            float reachGrid = rangeWorld / GridToWorldMultiplier;
+
+            float seedThreshold = reachGrid + radiusGrid;
+            float linkThreshold = reachGrid + (2.0f * radiusGrid);
+
+            var validRemnants = this.discoveredRemnants.Values
+                .Where(r => r.RuneSlots > 0)
+                .OrderBy(r => r.EntityId)
+                .ToList();
+
+            if (validRemnants.Count == 0)
+            {
+                failureReason = "No valid Remnants with known slot count detected in area.";
+                return false;
+            }
+
+            var seedRemnants = validRemnants
+                .Where(r => Vector2.Distance(selectedDetonator.GridPos, r.GridPos) <= seedThreshold)
+                .OrderBy(r => r.EntityId)
+                .ToList();
+
+            if (seedRemnants.Count == 0)
+            {
+                failureReason = $"No seed Remnants found within seed reach ({seedThreshold:F1} grid) of selected Detonator #{selectedDetonator.EntityId}.";
+                return false;
+            }
+
+            var componentSet = new HashSet<IntPtr>();
+            var queue = new Queue<ExpeditionRemnant>();
+
+            foreach (var seed in seedRemnants)
+            {
+                if (componentSet.Add(seed.EntityAddress))
+                {
+                    queue.Enqueue(seed);
+                }
+            }
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                foreach (var cand in validRemnants)
+                {
+                    if (!componentSet.Contains(cand.EntityAddress))
+                    {
+                        if (Vector2.Distance(current.GridPos, cand.GridPos) <= linkThreshold)
+                        {
+                            componentSet.Add(cand.EntityAddress);
+                            queue.Enqueue(cand);
+                        }
+                    }
+                }
+            }
+
+            var componentRemnants = validRemnants
+                .Where(r => componentSet.Contains(r.EntityAddress))
+                .OrderBy(r => r.EntityId)
+                .ToList();
+
+            var excludedRemnants = validRemnants
+                .Where(r => !componentSet.Contains(r.EntityAddress))
+                .OrderBy(r => r.EntityId)
+                .ToList();
+
+            if (componentRemnants.Count == 0)
+            {
+                failureReason = "Detonator-rooted Remnant component is empty.";
+                return false;
+            }
+
+            int maxSlots = componentRemnants.Max(r => r.RuneSlots);
+            var ftCandidates = componentRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
+            var finalTarget = ftCandidates
+                .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
+                .ThenBy(r => Vector2.Distance(selectedDetonator.GridPos, r.GridPos))
+                .FirstOrDefault();
+
+            if (finalTarget == null)
+            {
+                failureReason = "Failed to determine Final Target for selected Remnant component.";
+                return false;
+            }
+
+            encounter = new SelectedEncounterState
+            {
+                Detonator = selectedDetonator,
+                ReachGrid = reachGrid,
+                RadiusGrid = radiusGrid,
+                SeedThreshold = seedThreshold,
+                LinkThreshold = linkThreshold,
+                SeedRemnants = seedRemnants,
+                ComponentRemnants = componentRemnants,
+                ExcludedValidRemnants = excludedRemnants,
+                FinalTarget = finalTarget
+            };
+
+            return true;
         }
 
         public bool StartSearch(AreaInstance area)
@@ -1268,18 +1481,6 @@ namespace ExpeditionPathOptimizer
                 return false;
             }
 
-            if (this.detonatorWorldPos == Vector3.Zero)
-            {
-                PluginLog.Warning("ExpeditionPathOptimizer", "Cannot start optimization: Detonator Plunger not detected yet. Please walk towards the Detonator.");
-                return false;
-            }
-
-            if (this.discoveredRemnants.Count == 0 || this.selectedFinalTarget == null)
-            {
-                PluginLog.Warning("ExpeditionPathOptimizer", "No valid expedition remnants/monoliths with known slot count detected in area.");
-                return false;
-            }
-
             var config = area.ExpeditionConfig;
             float radiusWorld = config.ExplosionRadiusWorld > 0 ? config.ExplosionRadiusWorld : 300f;
             float rangeWorld = config.PlacementReachWorld > 0 ? config.PlacementReachWorld : 1000f;
@@ -1288,22 +1489,80 @@ namespace ExpeditionPathOptimizer
             float radiusGrid = radiusWorld / GridToWorldMultiplier;
             float rangeGrid = rangeWorld / GridToWorldMultiplier;
 
-            Vector2 startGrid = this.detonatorGridPos;
+            bool isNormalMap = IsNormalMap(areaId) && !IsGrandExpeditionOrLogbook(area, areaId);
 
-            var env = new ExpeditionEnvironment(
-                this.discoveredRemnants.Values.ToList(),
-                this.discoveredChests.Values.ToList(),
-                this.selectedFinalTarget,
-                rangeGrid,
-                radiusGrid,
-                maxExplosions,
-                startGrid,
-                area.GridWalkableData,
-                area.TerrainMetadata.BytesPerRow,
-                config.IsGrandExpedition);
+            if (isNormalMap)
+            {
+                if (this.detectedDetonators.Count == 0)
+                {
+                    this.manualSearchWarningMessage = "Cannot start optimization: No Detonator detected in scan. Please walk towards the desired Detonator.";
+                    this.manualSearchWarningTimeUtc = DateTime.UtcNow;
+                    PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
+                    return false;
+                }
 
-            this.runner.Start(this.Settings, env);
-            return true;
+                var selectedDet = this.detectedDetonators[0]; // Nearest detected Detonator to player
+
+                if (!this.TryBuildNormalMapEncounterSelection(area, selectedDet, out var encounter, out string failureReason))
+                {
+                    this.manualSearchWarningMessage = $"Cannot start optimization: {failureReason}";
+                    this.manualSearchWarningTimeUtc = DateTime.UtcNow;
+                    PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
+                    return false;
+                }
+
+                this.selectedNormalMapEncounter = encounter;
+                this.selectedFinalTarget = encounter!.FinalTarget;
+                this.manualSearchWarningMessage = string.Empty;
+
+                Vector2 startGrid = encounter.Detonator.GridPos;
+
+                var env = new ExpeditionEnvironment(
+                    encounter.ComponentRemnants,
+                    this.discoveredChests.Values.ToList(),
+                    encounter.FinalTarget!,
+                    rangeGrid,
+                    radiusGrid,
+                    maxExplosions,
+                    startGrid,
+                    area.GridWalkableData,
+                    area.TerrainMetadata.BytesPerRow,
+                    config.IsGrandExpedition);
+
+                this.runner.Start(this.Settings, env);
+                return true;
+            }
+            else
+            {
+                if (this.detonatorWorldPos == Vector3.Zero)
+                {
+                    PluginLog.Warning("ExpeditionPathOptimizer", "Cannot start optimization: Detonator Plunger not detected yet. Please walk towards the Detonator.");
+                    return false;
+                }
+
+                if (this.discoveredRemnants.Count == 0 || this.selectedFinalTarget == null)
+                {
+                    PluginLog.Warning("ExpeditionPathOptimizer", "No valid expedition remnants/monoliths with known slot count detected in area.");
+                    return false;
+                }
+
+                Vector2 startGrid = this.detonatorGridPos;
+
+                var env = new ExpeditionEnvironment(
+                    this.discoveredRemnants.Values.ToList(),
+                    this.discoveredChests.Values.ToList(),
+                    this.selectedFinalTarget,
+                    rangeGrid,
+                    radiusGrid,
+                    maxExplosions,
+                    startGrid,
+                    area.GridWalkableData,
+                    area.TerrainMetadata.BytesPerRow,
+                    config.IsGrandExpedition);
+
+                this.runner.Start(this.Settings, env);
+                return true;
+            }
         }
 
         public override void DrawUI()
@@ -1370,11 +1629,15 @@ namespace ExpeditionPathOptimizer
             var dl = ImGui.GetBackgroundDrawList();
 
             // 1. Draw Detonator "0" / START Anchor Badge
-            if (this.detonatorWorldPos != Vector3.Zero && this.Settings.ShowDetonatorMarker)
+            Vector3 detonatorDrawWorldPos = this.selectedNormalMapEncounter != null && this.selectedNormalMapEncounter.Detonator.WorldPos != Vector3.Zero
+                ? this.selectedNormalMapEncounter.Detonator.WorldPos
+                : this.detonatorWorldPos;
+
+            if (detonatorDrawWorldPos != Vector3.Zero && this.Settings.ShowDetonatorMarker)
             {
                 if (canMapProject)
                 {
-                    var dMapPos = ToMap(this.detonatorWorldPos);
+                    var dMapPos = ToMap(detonatorDrawWorldPos);
                     if (dMapPos != Vector2.Zero)
                     {
                         dl.AddCircleFilled(dMapPos, 12f, this.Settings.DetonatorBadgeBgColor);
@@ -1389,7 +1652,7 @@ namespace ExpeditionPathOptimizer
                 }
                 else
                 {
-                    var dScreenPos = world.WorldToScreen(new Vector2(this.detonatorWorldPos.X, this.detonatorWorldPos.Y), this.detonatorWorldPos.Z);
+                    var dScreenPos = world.WorldToScreen(new Vector2(detonatorDrawWorldPos.X, detonatorDrawWorldPos.Y), detonatorDrawWorldPos.Z);
                     if (dScreenPos != Vector2.Zero)
                     {
                         dl.AddCircleFilled(dScreenPos, 16f, this.Settings.DetonatorBadgeBgColor);
@@ -1409,7 +1672,7 @@ namespace ExpeditionPathOptimizer
 
             var points = bestDetailed.PerPointScore;
             float radiusWorld = bestDetailed.Environment.ExplosionRadius * GridToWorldMultiplier;
-            float zHeight = this.detonatorWorldPos != Vector3.Zero ? this.detonatorWorldPos.Z : (playerRender?.TerrainHeight ?? 0f);
+            float zHeight = detonatorDrawWorldPos != Vector3.Zero ? detonatorDrawWorldPos.Z : (playerRender?.TerrainHeight ?? 0f);
 
             // 2. Match placed explosives with planned bomb locations
             const float matchTolerance = 4.0f;
@@ -1448,9 +1711,9 @@ namespace ExpeditionPathOptimizer
             if (this.Settings.ShowPathLines)
             {
                 var wirePoints = new List<Vector3>();
-                if (this.detonatorWorldPos != Vector3.Zero)
+                if (detonatorDrawWorldPos != Vector3.Zero)
                 {
-                    wirePoints.Add(this.detonatorWorldPos);
+                    wirePoints.Add(detonatorDrawWorldPos);
                 }
 
                 foreach (var pt in points)
