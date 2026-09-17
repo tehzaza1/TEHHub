@@ -135,8 +135,25 @@ namespace ExpeditionPathOptimizer
                     if (absoluteBest?.Path is { } bPath)
                     {
                         this.finalBestPath = localPlanner.GetDetailedScore(bPath, env);
+                        if (this.finalBestPath != null && this.finalBestPath.PerPointScore.Count > 0)
+                        {
+                            double econTotal = this.finalBestPath.PerPointScore.Sum(p => p.RecipeEconomicScore);
+                            double runeTotal = this.finalBestPath.PerPointScore.Sum(p => p.RuneScore);
+                            double oathTotal = this.finalBestPath.PerPointScore.Sum(p => p.OathExposurePenalty);
+                            double backtrackTotal = this.finalBestPath.PerPointScore.Sum(p => p.BacktrackPenalty);
+                            PluginLog.Info(
+                                "ExpeditionPathOptimizer",
+                                $"Path search locked: Score={this.finalBestPath.TotalScore:F1}, Bombs={this.finalBestPath.PerPointScore.Count}, Pruned={this.finalBestPath.WasPruned}, Econ=+{econTotal:F0}c, Runes=+{runeTotal:F0}, Oath=-{oathTotal:F0}, Backtrack=-{backtrackTotal:F0}");
+                        }
+                        else
+                        {
+                            PluginLog.Info("ExpeditionPathOptimizer", "Path search completed (no valid path).");
+                        }
                     }
-                    PluginLog.Info("ExpeditionPathOptimizer", "Path search completed and locked.");
+                    else
+                    {
+                        PluginLog.Info("ExpeditionPathOptimizer", "Path search completed (no candidate found).");
+                    }
                 }
             }
         }

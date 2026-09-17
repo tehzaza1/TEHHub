@@ -491,6 +491,7 @@ namespace ExpeditionPathOptimizer
                             .OrderByDescending(s => s.Score)
                             .ThenByDescending(s => s.ComboWeight)
                             .ThenByDescending(s => s.RewardCount)
+                            .ThenBy(s => s.Mask)
                             .Take(MaxRouteStatesSafetyCap)
                             .ToList();
                     }
@@ -503,7 +504,7 @@ namespace ExpeditionPathOptimizer
                 }
             }
 
-            // Select optimal route-wide recipe combination
+            // Select optimal route-wide recipe combination with fully deterministic tie-breaking
             var bestState = currentStates[0];
             for (int s = 1; s < currentStates.Count; s++)
             {
@@ -523,6 +524,13 @@ namespace ExpeditionPathOptimizer
                         if (cand.RewardCount > bestState.RewardCount)
                         {
                             bestState = cand;
+                        }
+                        else if (cand.RewardCount == bestState.RewardCount)
+                        {
+                            if (cand.Mask < bestState.Mask)
+                            {
+                                bestState = cand;
+                            }
                         }
                     }
                 }

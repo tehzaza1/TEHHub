@@ -283,11 +283,99 @@ namespace ExpeditionPathOptimizer
                 ImGui.SameLine();
                 if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
                 {
-                    ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"Optimal Path Locked (Score: {this.runner.CurrentBestScore:F1}, {this.runner.CurrentBestPath.PerPointScore.Count} bombs)");
+                    var bestPlan = this.runner.CurrentBestPath;
+                    bool wasPruned = bestPlan.WasPruned;
+                    if (!wasPruned)
+                    {
+                        ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"Path Locked (Exact Recipe DP) - Score: {this.runner.CurrentBestScore:F1}, {bestPlan.PerPointScore.Count} bombs");
+                    }
+                    else
+                    {
+                        ImGui.TextColored(new Vector4(1.0f, 0.6f, 0.2f, 1.0f), $"Path Locked (Recipe DP Approximate) - Score: {this.runner.CurrentBestScore:F1}, {bestPlan.PerPointScore.Count} bombs");
+                    }
                 }
                 else
                 {
                     ImGui.TextDisabled("Idle (No path calculated)");
+                }
+            }
+
+            if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
+            {
+                var bestPlan = this.runner.CurrentBestPath;
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Locked Route Score Breakdown");
+
+                if (bestPlan.WasPruned)
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.35f, 0.2f, 1.0f), "Recipe DP: PRUNED / APPROXIMATE (state cap reached)");
+                }
+                else
+                {
+                    ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), "Recipe DP: Exact");
+                }
+
+                double econTotal = bestPlan.PerPointScore.Sum(p => p.RecipeEconomicScore);
+                double runeTotal = bestPlan.PerPointScore.Sum(p => p.RuneScore);
+                double oathTotal = bestPlan.PerPointScore.Sum(p => p.OathExposurePenalty);
+                double backtrackTotal = bestPlan.PerPointScore.Sum(p => p.BacktrackPenalty);
+                double totalScore = bestPlan.TotalScore;
+
+                ImGui.Text($"  Recipe Economics: +{econTotal:F0}c");
+                ImGui.Text($"  New Propagated Rune Value: +{runeTotal:F0}");
+                if (oathTotal > 0.0)
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"  Oath Exposure: -{oathTotal:F0}");
+                }
+                else
+                {
+                    ImGui.Text($"  Oath Exposure: -0");
+                }
+                ImGui.Text($"  Backtrack: -{backtrackTotal:F1}");
+                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"  Total Route Score: {totalScore:F1}");
+
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Planned Recipes (Debug)");
+                for (int bIdx = 0; bIdx < bestPlan.PerPointScore.Count; bIdx++)
+                {
+                    var pt = bestPlan.PerPointScore[bIdx];
+                    if (pt.PlannedRecipes == null || pt.PlannedRecipes.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    int bombNum = bIdx + 1;
+                    for (int pIdx = 0; pIdx < pt.PlannedRecipes.Count; pIdx++)
+                    {
+                        var plan = pt.PlannedRecipes[pIdx];
+                        int slots = plan.Remnant.RuneSlots;
+                        string recId = plan.Recipe.RecipeId ?? "Unknown";
+                        string rewStr = $"{plan.Recipe.Reward} x{plan.Recipe.RewardCount} | {plan.Recipe.PriceChaos:F1}c";
+
+                        var goldenList = new List<string>();
+                        if (plan.Remnant.GoldenSlots != null && plan.Recipe.Runes != null)
+                        {
+                            for (int g = 0; g < plan.Remnant.GoldenSlots.Count; g++)
+                            {
+                                int gSlot = plan.Remnant.GoldenSlots[g];
+                                if (gSlot >= 0 && gSlot < plan.Recipe.Runes.Count)
+                                {
+                                    goldenList.Add($"{gSlot}={plan.Recipe.Runes[gSlot]}");
+                                }
+                            }
+                        }
+                        string goldenStr = goldenList.Count > 0 ? $"[{string.Join(", ", goldenList)}]" : "None";
+                        string newRunesStr = plan.NewlyAcquiredRunes.Count > 0 ? string.Join(", ", plan.NewlyAcquiredRunes) : "None";
+                        string oathMarker = plan.NewlyAcquiredRunes.Contains("Oath", StringComparer.OrdinalIgnoreCase) ? " [OATH ACTIVATED]" : "";
+                        string oathExpStr = pt.OathExposurePenalty > 0.0 ? $" | Oath Exposure: -{pt.OathExposurePenalty:F0}" : "";
+
+                        ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), $"B{bombNum} | {slots} slots | {recId}{oathMarker}");
+                        ImGui.TextDisabled($"   Reward: {rewStr}");
+                        ImGui.TextDisabled($"   Golden: {goldenStr}");
+                        ImGui.TextDisabled($"   New: {newRunesStr}");
+                        ImGui.Text($"   Rune: +{plan.PropagatedRuneScore:F0} | Econ: +{plan.EconomicScore:F0}{oathExpStr}");
+                    }
                 }
             }
 
@@ -372,6 +460,27 @@ namespace ExpeditionPathOptimizer
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Scoring & Penalty Parameters");
+
+            float priceMult = (float)this.Settings.RecipePriceScoreMultiplier;
+            if (ImGui.SliderFloat("Recipe Price Multiplier", ref priceMult, 0.0f, 5.0f, "%.2f"))
+            {
+                this.Settings.RecipePriceScoreMultiplier = priceMult;
+                this.SaveSettings();
+            }
+
+            float oathPen = (float)this.Settings.OathPerSlotExposurePenalty;
+            if (ImGui.SliderFloat("Oath Exposure Penalty / Slot", ref oathPen, 0.0f, 100.0f, "%.0f"))
+            {
+                this.Settings.OathPerSlotExposurePenalty = oathPen;
+                this.SaveSettings();
+            }
+
+            float backtrackPen = (float)this.Settings.BacktrackPenaltyPerGrid;
+            if (ImGui.SliderFloat("Backtrack Penalty / Grid", ref backtrackPen, 0.0f, 20.0f, "%.1f"))
+            {
+                this.Settings.BacktrackPenaltyPerGrid = backtrackPen;
+                this.SaveSettings();
+            }
 
             float chestScore = (float)this.Settings.ChestHitBaseScore;
             if (ImGui.SliderFloat("Chest Hit Score (+)", ref chestScore, 0.0f, 150.0f, "%.0f"))
