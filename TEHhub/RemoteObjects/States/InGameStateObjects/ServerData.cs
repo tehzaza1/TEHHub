@@ -196,24 +196,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.AreaMods.Clear();
             this.AreaModNames.Clear();
 
-            // 1. Try reading live modifier strings from the Map UI container (100% accurate human-readable text in PoE 2)
-            var uiManager = Core.States.InGameStateObject.GameUi.Address;
-            if (uiManager != IntPtr.Zero)
-            {
-                var uiMods = AreaModUiReader.ReadAreaMods(reader, uiManager);
-                if (uiMods.Count > 0)
-                {
-                    foreach (var mod in uiMods)
-                    {
-                        this.AreaMods.Add(mod);
-                        this.AreaModNames.Add(mod.RawName);
-                    }
-
-                    return;
-                }
-            }
-
-            // 2. Try known/cached offset first
+            // 1. Try known/cached offset first
             if (this.lastDiscoveredModsOffset >= 0)
             {
                 var cachedVec = reader.ReadMemory<StdVector>(playerServerDataAddress + this.lastDiscoveredModsOffset);
@@ -225,7 +208,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 this.lastDiscoveredModsOffset = -1;
             }
 
-            // 3. Try default struct offset (0x8A8)
+            // 2. Try default struct offset (0x8A8)
             if (this.TryReadModsFromVector(reader, playerData.WorldAreaMods))
             {
                 this.lastDiscoveredModsOffset = 0x8A8;
