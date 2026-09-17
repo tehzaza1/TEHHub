@@ -622,7 +622,7 @@ namespace ExpeditionPathOptimizer
                     double totalScore = bestPlan.TotalScore;
 
                     ImGui.Text($"  Recipe Economic Score: +{econTotal:F0}");
-                    ImGui.Text($"  New Propagated Rune Value: +{runeTotal:F0}");
+                    ImGui.Text($"  Recipe & Propagated Rune Value: +{runeTotal:F0}");
                     if (oathTotal > 0.0)
                     {
                         ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"  Oath Exposure: -{oathTotal:F0}");

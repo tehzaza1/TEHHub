@@ -13,7 +13,12 @@ namespace ExpeditionPathOptimizer
             RuneshapeRecipeOffer Recipe,
             IReadOnlyList<string> NewlyAcquiredRunes,
             double PropagatedRuneScore,
-            double EconomicScore);
+            double EconomicScore,
+            double RecipeRuneScore = 0.0,
+            double InheritedPropagationScore = 0.0)
+        {
+            public double RuneScore => this.PropagatedRuneScore;
+        }
 
         public record PerPointScoreInfo(
             Vector2 Point,
@@ -496,9 +501,9 @@ namespace ExpeditionPathOptimizer
                 for (int rIdx = 0; rIdx < newlyHit.Count; rIdx++)
                 {
                     var rem = newlyHit[rIdx];
-                    var offers = (rem.ReducedRecipeOffers != null && rem.ReducedRecipeOffers.Count > 0)
-                        ? rem.ReducedRecipeOffers
-                        : rem.RecipeOffers;
+                    var offers = (rem.RecipeOffers != null && rem.RecipeOffers.Count > 0)
+                        ? rem.RecipeOffers
+                        : rem.ReducedRecipeOffers;
                     if (offers != null && offers.Count > 0)
                     {
                         remnantsWithOffers.Add(rem);
@@ -540,9 +545,9 @@ namespace ExpeditionPathOptimizer
                     for (int rIdx = 0; rIdx < remnantsWithOffers.Count; rIdx++)
                     {
                         var rem = remnantsWithOffers[rIdx];
-                        var offers = (rem.ReducedRecipeOffers != null && rem.ReducedRecipeOffers.Count > 0)
-                            ? rem.ReducedRecipeOffers
-                            : rem.RecipeOffers;
+                        var offers = (rem.RecipeOffers != null && rem.RecipeOffers.Count > 0)
+                            ? rem.RecipeOffers
+                            : rem.ReducedRecipeOffers;
                         offersLists.Add(offers!);
                     }
 
@@ -574,22 +579,73 @@ namespace ExpeditionPathOptimizer
 
                             if (remIdx == remnantsWithOffers.Count)
                             {
-                                ulong curMask = st.Mask;
-                                double addPropagatedScore = 0.0;
+                                ulong incomingMask = st.Mask;
+                                double stepRecipeRuneScore = 0.0;
+                                double stepInheritedPropScore = 0.0;
+                                double stepNewOathPenalty = 0.0;
                                 double addEconomicScore = 0.0;
                                 int addCombo = 0;
                                 int addReward = 0;
+                                ulong stepNewlyPropagatedMask = 0UL;
                                 List<PlannedRecipeSelection>? plannedList = collectDetails ? new List<PlannedRecipeSelection>(remnantsWithOffers.Count) : null;
 
                                 for (int k = 0; k < remnantsWithOffers.Count; k++)
                                 {
                                     var off = currentOffers[k];
+                                    var rem = remnantsWithOffers[k];
+
+                                    // 1. Recipe.Runes: ordinary rune score per occurrence (duplicate runes count per occurrence)
+                                    double remRecipeRuneScore = 0.0;
+                                    if (off.Runes != null)
+                                    {
+                                        for (int r = 0; r < off.Runes.Count; r++)
+                                        {
+                                            remRecipeRuneScore += this.settings.GetRuneWeight(off.Runes[r]);
+                                        }
+                                    }
+                                    stepRecipeRuneScore += remRecipeRuneScore;
+
+                                    // 2. Active propagated runes from incomingMask (inherited value for missing runes)
+                                    double remInheritedPropScore = 0.0;
+                                    if (incomingMask != 0UL)
+                                    {
+                                        for (int b = 0; b < RuneshapeRecipePredictor.RuneNames.Length; b++)
+                                        {
+                                            if (b == oathRuneIndex) continue; // Oath is harmful exposure, not positive inheritance
+
+                                            if ((incomingMask & (1UL << b)) != 0)
+                                            {
+                                                string activeRune = RuneshapeRecipePredictor.RuneNames[b];
+                                                bool alreadyInRecipe = false;
+                                                if (off.Runes != null)
+                                                {
+                                                    for (int r = 0; r < off.Runes.Count; r++)
+                                                    {
+                                                        if (string.Equals(off.Runes[r], activeRune, StringComparison.OrdinalIgnoreCase))
+                                                        {
+                                                            alreadyInRecipe = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+
+                                                if (!alreadyInRecipe)
+                                                {
+                                                    remInheritedPropScore += this.settings.GetRuneWeight(activeRune);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    stepInheritedPropScore += remInheritedPropScore;
+
+                                    // 3. Economic score & combo stats
                                     double economicScore = (off.PriceChaos > 0f) ? (off.PriceChaos * this.settings.RecipePriceScoreMultiplier) : 0.0;
                                     addEconomicScore += economicScore;
                                     addCombo += off.ComboWeight;
                                     addReward += off.RewardCount;
-                                    var rem = remnantsWithOffers[k];
-                                    double remPropagatedScore = 0.0;
+
+                                    // 4. New Golden propagation (Future bombs N+1+)
+                                    double remNewOathPenalty = 0.0;
                                     List<string>? newRunes = collectDetails ? new List<string>() : null;
 
                                     if (!isFinalBomb && off.PropagatedRunes != null)
@@ -598,22 +654,39 @@ namespace ExpeditionPathOptimizer
                                         {
                                             var rune = off.PropagatedRunes[pIdx];
                                             int rIndex = RuneshapeRecipePredictor.GetRuneIndex(rune);
-                                            if (rIndex >= 0 && (curMask & (1UL << rIndex)) == 0)
+                                            if (rIndex >= 0)
                                             {
-                                                curMask |= (1UL << rIndex);
-                                                double rScore = this.settings.GetPropagatedRuneScore(rune);
-                                                remPropagatedScore += rScore;
-                                                addPropagatedScore += rScore;
-                                                newRunes?.Add(rune);
+                                                ulong runeBit = 1UL << rIndex;
+                                                if ((incomingMask & runeBit) == 0 && (stepNewlyPropagatedMask & runeBit) == 0)
+                                                {
+                                                    stepNewlyPropagatedMask |= runeBit;
+                                                    newRunes?.Add(rune);
+
+                                                    if (rIndex == oathRuneIndex)
+                                                    {
+                                                        double oathAcq = this.settings.GetPropagatedRuneScore("Oath"); // -150.0
+                                                        remNewOathPenalty += oathAcq;
+                                                        stepNewOathPenalty += oathAcq;
+                                                    }
+                                                }
                                             }
                                         }
                                     }
 
-                                    plannedList?.Add(new PlannedRecipeSelection(rem, off, newRunes ?? (IReadOnlyList<string>)Array.Empty<string>(), remPropagatedScore, economicScore));
+                                    double remTotalRuneScore = remRecipeRuneScore + remInheritedPropScore + remNewOathPenalty;
+
+                                    plannedList?.Add(new PlannedRecipeSelection(
+                                        rem,
+                                        off,
+                                        newRunes ?? (IReadOnlyList<string>)Array.Empty<string>(),
+                                        remTotalRuneScore,
+                                        economicScore,
+                                        remRecipeRuneScore,
+                                        remInheritedPropScore));
                                 }
 
-                                ulong candMask = curMask;
-                                double candScore = st.Score + addPropagatedScore + addEconomicScore - oathExposurePenalty;
+                                ulong candMask = isFinalBomb ? incomingMask : (incomingMask | stepNewlyPropagatedMask);
+                                double candScore = st.Score + stepRecipeRuneScore + stepInheritedPropScore + stepNewOathPenalty + addEconomicScore - oathExposurePenalty;
                                 int candCombo = st.ComboWeight + addCombo;
                                 int candReward = st.RewardCount + addReward;
 
