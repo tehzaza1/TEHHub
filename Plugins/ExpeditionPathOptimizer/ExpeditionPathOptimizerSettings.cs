@@ -171,12 +171,25 @@ namespace ExpeditionPathOptimizer
         public const float ShortBridgeReachPctMin = 20.0f;
         public const float ShortBridgeReachPctMax = 90.0f;
 
+        public const float ShortBridgePenaltyMin = 0.0f;
+        public const float ShortBridgePenaltyMax = 300.0f;
+
         public const float TravelPenaltyMin = 0.0f;
         public const float TravelPenaltyMax = 100.0f;
+
+        // Rune Weights Ranges & Visual Groupings
+        public const float RuneWeightMin = 0.0f;
+        public const float RuneWeightMax = 500.0f;
+
+        public static readonly string[] TierSRunes = new[] { "Opulent", "Bond", "Power", "Death" };
+        public static readonly string[] TierARunes = new[] { "Time", "Rebirth" };
+        public static readonly string[] TierBRunes = new[] { "Arcane", "Prismatic", "Soul", "Vision", "Celestial", "Rage", "Wisdom", "Momentum", "Electrocuting" };
+        public static readonly string[] TierCRunes = new[] { "Oath", "Earth", "Sky", "Life", "Ward", "Fire", "Cold", "Lightning", "Tempest", "Bloodletting", "Stone", "Adaptive", "Toxic", "Protective", "Cyclonic", "Tidal", "Gasp", "Moon", "Bait" };
 
         // Price Service Ranges
         public const int AutoRefreshMinutesMin = 5;
         public const int AutoRefreshMinutesMax = 120;
     }
 }
+
 

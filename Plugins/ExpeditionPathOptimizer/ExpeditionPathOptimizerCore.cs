@@ -416,11 +416,40 @@ namespace ExpeditionPathOptimizer
                     this.SaveSettings();
                 }
 
+                float shortBridgePen = (float)this.Settings.ShortBridgePenaltyMultiplier;
+                if (ImGui.SliderFloat("Short Bridge Penalty (-)", ref shortBridgePen, ExpeditionUiConstants.ShortBridgePenaltyMin, ExpeditionUiConstants.ShortBridgePenaltyMax, "%.0f"))
+                {
+                    this.Settings.ShortBridgePenaltyMultiplier = shortBridgePen;
+                    this.SaveSettings();
+                }
+
                 float travelPen = (float)this.Settings.TravelPenaltyMultiplier;
                 if (ImGui.SliderFloat("Travel Penalty Multiplier", ref travelPen, ExpeditionUiConstants.TravelPenaltyMin, ExpeditionUiConstants.TravelPenaltyMax, "%.0f"))
                 {
                     this.Settings.TravelPenaltyMultiplier = travelPen;
                     this.SaveSettings();
+                }
+
+                ImGui.Spacing();
+                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Rune Weights");
+                if (ImGui.TreeNode("Rune Weights Configuration"))
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), "Tier S (High Value / Key Runes)");
+                    this.DrawRuneWeightSliders(ExpeditionUiConstants.TierSRunes);
+
+                    ImGui.Spacing();
+                    ImGui.TextColored(new Vector4(0.8f, 0.4f, 1.0f, 1.0f), "Tier A (Strong Runes)");
+                    this.DrawRuneWeightSliders(ExpeditionUiConstants.TierARunes);
+
+                    ImGui.Spacing();
+                    ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Tier B (Utility / Support Runes)");
+                    this.DrawRuneWeightSliders(ExpeditionUiConstants.TierBRunes);
+
+                    ImGui.Spacing();
+                    ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "Tier C (Common Runes)");
+                    this.DrawRuneWeightSliders(ExpeditionUiConstants.TierCRunes);
+
+                    ImGui.TreePop();
                 }
 
                 ImGui.Spacing();
@@ -525,7 +554,7 @@ namespace ExpeditionPathOptimizer
                     double backtrackTotal = bestPlan.PerPointScore.Sum(p => p.BacktrackPenalty);
                     double totalScore = bestPlan.TotalScore;
 
-                    ImGui.Text($"  Recipe Economics: +{econTotal:F0}c");
+                    ImGui.Text($"  Recipe Economic Score: +{econTotal:F0}");
                     ImGui.Text($"  New Propagated Rune Value: +{runeTotal:F0}");
                     if (oathTotal > 0.0)
                     {
@@ -1154,5 +1183,21 @@ namespace ExpeditionPathOptimizer
                 }
             }
         }
+
+        private void DrawRuneWeightSliders(string[] runeNames)
+        {
+            if (this.Settings.RuneWeights == null) return;
+
+            foreach (var rName in runeNames)
+            {
+                float val = (float)this.Settings.RuneWeights.GetValueOrDefault(rName, 20.0);
+                if (ImGui.SliderFloat($"{rName}##rw_{rName}", ref val, ExpeditionUiConstants.RuneWeightMin, ExpeditionUiConstants.RuneWeightMax, "%.0f"))
+                {
+                    this.Settings.RuneWeights[rName] = val;
+                    this.SaveSettings();
+                }
+            }
+        }
     }
 }
+
