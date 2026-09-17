@@ -332,13 +332,19 @@ namespace ExpeditionPathOptimizer
                 var newHits = new List<ExpeditionRemnant>();
                 var newChestHits = new List<ExpeditionChest>();
 
+                // Pillar-mode effective-zero overrides (do NOT mutate settings fields)
+                bool isPillar = this.settings.OptimizationMode == OptimizationMode.PillarLootOnly;
+                double effectiveFinalTargetBonus  = isPillar ? 0.0 : this.settings.FinalTargetBonus;
+                double effectiveRemnantHitBase    = isPillar ? 0.0 : this.settings.RemnantHitBaseScore;
+                double effectiveRuneSlotMult      = isPillar ? 0.0 : this.settings.RuneSlotMultiplier;
+
                 // 1. Final Target Bonus on last bomb
                 if (i == n - 1)
                 {
-                    localBaseScore += this.settings.FinalTargetBonus;
+                    localBaseScore += effectiveFinalTargetBonus;
                 }
 
-                // 2. Find newly covered remnants
+                // 2. Find newly covered remnants (physical hit tracking is unconditional — Oath exposure needs it)
                 foreach (var r in env.Remnants)
                 {
                     if (Vector2.Distance(curPoint, r.GridPos) <= env.ExplosionRadius)
@@ -346,15 +352,15 @@ namespace ExpeditionPathOptimizer
                         if (hitRemnants.Add(r))
                         {
                             newHits.Add(r);
-                            // Remnant Hit Base Score + Slot Score
-                            localBaseScore += this.settings.RemnantHitBaseScore;
-                            localBaseScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
+                            // Remnant Hit Base Score + Slot Score (zero in Pillar mode)
+                            localBaseScore += effectiveRemnantHitBase;
+                            localBaseScore += r.RuneSlots * effectiveRuneSlotMult;
                         }
                     }
                 }
 
-                // 2b. Find newly covered reward chests
-                if (env.Chests != null)
+                // 2b. Find newly covered reward chests (skip entirely in Pillar mode — env.Chests already empty, but guard)
+                if (!isPillar && env.Chests != null)
                 {
                     foreach (var c in env.Chests)
                     {
@@ -370,8 +376,14 @@ namespace ExpeditionPathOptimizer
                 }
 
                 // 4. Empty Bomb vs Useful Bridge Penalty & Short Bridge Penalty
+                //    In PillarLootOnly: only offer-bearing remnant hits count as pillar content.
+                //    A bomb that hits only no-offer remnants still triggers bridge/empty penalties.
+                bool hasNewPillarContent = isPillar
+                    ? newHits.Any(r => r.RecipeOffers != null && r.RecipeOffers.Count > 0)
+                    : (newHits.Count > 0 || newChestHits.Count > 0);
+
                 bool isUsefulBridge = false;
-                if (newHits.Count == 0 && newChestHits.Count == 0)
+                if (!hasNewPillarContent)
                 {
                     // Short Bridge Penalty: penalize empty bombs that waste reach (< 60% of reach)
                     double usage = stepDist / env.ExplosionRange;
@@ -381,10 +393,15 @@ namespace ExpeditionPathOptimizer
                     }
 
                     // 4a. Check if actively bridging towards an unvisited reachable remnant
+                    //     In PillarLootOnly: only offer-bearing remnants qualify as bridge targets
                     foreach (var r in env.Remnants)
                     {
                         if (!hitRemnants.Contains(r) && r != finalTarget)
                         {
+                            // In Pillar mode, skip no-offer remnants as bridge targets
+                            if (isPillar && (r.RecipeOffers == null || r.RecipeOffers.Count == 0))
+                                continue;
+
                             float distCurToR = Vector2.Distance(curPoint, r.GridPos);
                             float distPrevToR = Vector2.Distance(prevPoint, r.GridPos);
                             if (remainingSteps >= 2)
@@ -405,8 +422,8 @@ namespace ExpeditionPathOptimizer
                         }
                     }
 
-                    // 4b. Check if actively bridging towards an unvisited reachable chest
-                    if (!isUsefulBridge && env.Chests != null)
+                    // 4b. Check if actively bridging towards an unvisited reachable chest (Balanced only)
+                    if (!isUsefulBridge && !isPillar && env.Chests != null)
                     {
                         foreach (var c in env.Chests)
                         {

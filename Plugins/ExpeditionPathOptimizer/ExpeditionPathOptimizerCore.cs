@@ -371,6 +371,18 @@ namespace ExpeditionPathOptimizer
                 this.SaveSettings();
             }
 
+            int modeIdx = (int)this.Settings.OptimizationMode;
+            if (ImGui.Combo("Optimization Mode", ref modeIdx, ExpeditionUiConstants.OptimizationModeComboString))
+            {
+                this.Settings.OptimizationMode = (OptimizationMode)modeIdx;
+                this.SaveSettings();
+            }
+
+            if (this.Settings.OptimizationMode == OptimizationMode.PillarLootOnly)
+            {
+                ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), "  ★ Pillar Loot Only: optimizing by recipe value — ignoring generic farming bonuses & chests.");
+            }
+
             ImGui.Text("Scan & Start Hotkey:");
             ImGui.SameLine();
 
@@ -1690,9 +1702,14 @@ namespace ExpeditionPathOptimizer
 
                 Vector2 startGrid = encounter.Detonator.GridPos;
 
+                bool isPillarMode = this.Settings.OptimizationMode == OptimizationMode.PillarLootOnly;
+                var chestsForSearch = isPillarMode
+                    ? new List<ExpeditionChest>()
+                    : this.discoveredChests.Values.ToList();
+
                 var env = new ExpeditionEnvironment(
                     encounter.ComponentRemnants,
-                    this.discoveredChests.Values.ToList(),
+                    chestsForSearch,
                     encounter.FinalTarget!,
                     rangeGrid,
                     radiusGrid,
@@ -1721,9 +1738,14 @@ namespace ExpeditionPathOptimizer
 
                 Vector2 startGrid = this.detonatorGridPos;
 
+                bool isPillarModeGrand = this.Settings.OptimizationMode == OptimizationMode.PillarLootOnly;
+                var chestsForSearchGrand = isPillarModeGrand
+                    ? new List<ExpeditionChest>()
+                    : this.discoveredChests.Values.ToList();
+
                 var env = new ExpeditionEnvironment(
                     this.discoveredRemnants.Values.ToList(),
-                    this.discoveredChests.Values.ToList(),
+                    chestsForSearchGrand,
                     this.selectedFinalTarget,
                     rangeGrid,
                     radiusGrid,

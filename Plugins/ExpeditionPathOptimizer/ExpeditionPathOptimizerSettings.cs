@@ -5,11 +5,29 @@ namespace ExpeditionPathOptimizer
     using ClickableTransparentOverlay.Win32;
     using TEHhub.Plugin;
 
+    public enum OptimizationMode
+    {
+        /// <summary>
+        /// Balanced: current behavior — optimizes remnant hits, rune slots, recipes, and chests.
+        /// </summary>
+        Balanced = 0,
+
+        /// <summary>
+        /// Pillar Loot Only: optimizes actual pillar recipe value only.
+        /// Suppresses generic farming incentives (RemnantHitBaseScore, RuneSlotMultiplier,
+        /// FinalTargetBonus, ChestHitBaseScore). Zeros chest influence entirely.
+        /// </summary>
+        PillarLootOnly = 1,
+    }
+
     public sealed class ExpeditionPathOptimizerSettings : IPSettings
     {
         public bool Enable { get; set; } = true;
         public bool AutoStartOnAreaChange { get; set; } = true;
         public VK ScanAndStartHotkey { get; set; } = (VK)0;
+
+        // Optimization Mode (default = Balanced; old JSON without this key deserializes to Balanced = 0)
+        public OptimizationMode OptimizationMode { get; set; } = OptimizationMode.Balanced;
 
         // Price Service Settings
         public string League { get; set; } = "Forbidden Rites";
@@ -140,6 +158,10 @@ namespace ExpeditionPathOptimizer
     {
         public static readonly string[] PriceSourceLabels = new[] { "poe2scout", "poe.ninja" };
         public const string PriceSourceComboString = "poe2scout\0poe.ninja\0\0";
+
+        // Optimization Mode
+        public static readonly string[] OptimizationModeLabels = new[] { "Balanced", "Pillar Loot Only" };
+        public const string OptimizationModeComboString = "Balanced\0Pillar Loot Only\0\0";
 
         // Search Algorithm Ranges
         public const int SearchThreadsMin = 1;
