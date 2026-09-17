@@ -944,6 +944,107 @@ namespace ExpeditionPathOptimizer
             }
         }
 
+        // ======================================================================
+        // Pillar Loot Only — Static Value Helpers
+        // All methods evaluate ONE real offer at a time.
+        // BestRuneRecipe and BestPriceRecipe are NEVER mixed across helpers.
+        // ======================================================================
+
+        /// <summary>
+        /// Static value of one concrete offer for Pillar Loot Only FinalTarget selection.
+        ///   = sum(GetRuneWeight(rune)) for every rune occurrence in offer.Runes
+        ///   + max(0, offer.PriceChaos) * RecipePriceScoreMultiplier
+        /// NO golden bonus, NO future propagation, NO RewardCount multiply.
+        /// </summary>
+        private static double StaticFinalOfferValue(RuneshapeRecipeOffer offer, ExpeditionPathOptimizerSettings settings)
+        {
+            double runeValue = 0.0;
+            if (offer.Runes != null)
+            {
+                for (int r = 0; r < offer.Runes.Count; r++)
+                {
+                    runeValue += settings.GetRuneWeight(offer.Runes[r]);
+                }
+            }
+
+            double econValue = offer.PriceChaos > 0f ? (offer.PriceChaos * settings.RecipePriceScoreMultiplier) : 0.0;
+            return runeValue + econValue;
+        }
+
+        /// <summary>
+        /// Best static offer value for a remnant across all its recipe offers.
+        /// Returns 0 if the remnant has no recipe offers.
+        /// </summary>
+        public static double StaticFinalPillarValue(ExpeditionRemnant remnant, ExpeditionPathOptimizerSettings settings)
+        {
+            var offers = remnant.RecipeOffers;
+            if (offers == null || offers.Count == 0) return 0.0;
+
+            double best = double.NegativeInfinity;
+            for (int i = 0; i < offers.Count; i++)
+            {
+                double v = StaticFinalOfferValue(offers[i], settings);
+                if (v > best) best = v;
+            }
+
+            return double.IsNegativeInfinity(best) ? 0.0 : best;
+        }
+
+        /// <summary>
+        /// Heuristic value of one concrete offer for GA seeding in Pillar Loot Only.
+        ///   = localRuneValue + econValue + goldenPotential
+        /// goldenPotential = sum of GetPropagatedRuneScore for UNIQUE propagated rune types
+        /// from the SAME offer (no cross-offer mixing).
+        /// </summary>
+        private static double StaticSearchOfferHeuristic(RuneshapeRecipeOffer offer, ExpeditionPathOptimizerSettings settings)
+        {
+            double localRuneValue = 0.0;
+            if (offer.Runes != null)
+            {
+                for (int r = 0; r < offer.Runes.Count; r++)
+                {
+                    localRuneValue += settings.GetRuneWeight(offer.Runes[r]);
+                }
+            }
+
+            double econValue = offer.PriceChaos > 0f ? (offer.PriceChaos * settings.RecipePriceScoreMultiplier) : 0.0;
+
+            double goldenPotential = 0.0;
+            if (offer.PropagatedRunes != null && offer.PropagatedRunes.Count > 0)
+            {
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (int p = 0; p < offer.PropagatedRunes.Count; p++)
+                {
+                    var rune = offer.PropagatedRunes[p];
+                    if (seen.Add(rune))
+                    {
+                        goldenPotential += settings.GetPropagatedRuneScore(rune);
+                    }
+                }
+            }
+
+            return localRuneValue + econValue + goldenPotential;
+        }
+
+        /// <summary>
+        /// Best GA search heuristic for a remnant across all its recipe offers.
+        /// Returns 0 if the remnant has no recipe offers.
+        /// </summary>
+        public static double StaticPillarSearchHeuristic(ExpeditionRemnant remnant, ExpeditionPathOptimizerSettings settings)
+        {
+            var offers = remnant.RecipeOffers;
+            if (offers == null || offers.Count == 0) return 0.0;
+
+            double best = double.NegativeInfinity;
+            for (int i = 0; i < offers.Count; i++)
+            {
+                double v = StaticSearchOfferHeuristic(offers[i], settings);
+                if (v > best) best = v;
+            }
+
+            return double.IsNegativeInfinity(best) ? 0.0 : best;
+        }
+
         public IEnumerable<PathState> GetBestPathSeries(
             ExpeditionEnvironment environment,
             Action<IReadOnlyList<(double Score, List<Vector2> Path)>>? onGenerationScored = null)
@@ -1016,6 +1117,8 @@ namespace ExpeditionPathOptimizer
             var remainingRemnants = environment.Remnants.Where(r => r != finalTarget).ToList();
             var remainingChests = environment.Chests != null ? environment.Chests.ToList() : new List<ExpeditionChest>();
 
+            bool isPillar = this.settings.OptimizationMode == OptimizationMode.PillarLootOnly;
+
             for (int i = 0; i < bombCount - 1; i++)
             {
                 int remainingStepsAfterThis = bombCount - 1 - (i + 1);
@@ -1034,17 +1137,29 @@ namespace ExpeditionPathOptimizer
                     {
                         if (Vector2.Distance(candPos, r.GridPos) <= radius)
                         {
-                            score += this.settings.RemnantHitBaseScore +
-                                     (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                     r.CalculateBaseRuneWeight(this.settings);
+                            if (isPillar)
+                            {
+                                // Pillar mode: score by StaticPillarSearchHeuristic (no-offer remnants contribute 0)
+                                score += StaticPillarSearchHeuristic(r, this.settings);
+                            }
+                            else
+                            {
+                                score += this.settings.RemnantHitBaseScore +
+                                         (r.RuneSlots * this.settings.RuneSlotMultiplier) +
+                                         r.CalculateBaseRuneWeight(this.settings);
+                            }
                         }
                     }
 
-                    foreach (var c in uncovChests)
+                    // Chest scoring only in Balanced mode (env.Chests already empty in Pillar, but guard)
+                    if (!isPillar)
                     {
-                        if (Vector2.Distance(candPos, c.GridPos) <= radius)
+                        foreach (var c in uncovChests)
                         {
-                            score += this.settings.ChestHitBaseScore;
+                            if (Vector2.Distance(candPos, c.GridPos) <= radius)
+                            {
+                                score += this.settings.ChestHitBaseScore;
+                            }
                         }
                     }
 
@@ -1052,14 +1167,21 @@ namespace ExpeditionPathOptimizer
                 }
 
                 // 1. Unified Blast-Coverage Candidate Pool (Remnants + Chests)
+                //    Pillar mode: only offer-bearing remnants; no chests
                 var rawCandidatePositions = new List<Vector2>();
                 foreach (var r in remainingRemnants)
                 {
+                    // Skip no-offer remnants as intentional targets in Pillar mode
+                    if (isPillar && (r.RecipeOffers == null || r.RecipeOffers.Count == 0))
+                        continue;
                     rawCandidatePositions.AddRange(environment.GetWalkableCandidatesNearRemnant(r, current, radius));
                 }
-                foreach (var c in remainingChests)
+                if (!isPillar)
                 {
-                    rawCandidatePositions.AddRange(environment.GetWalkableCandidatesNearChest(c, current, radius));
+                    foreach (var c in remainingChests)
+                    {
+                        rawCandidatePositions.AddRange(environment.GetWalkableCandidatesNearChest(c, current, radius));
+                    }
                 }
 
                 // Deduplicate candidate positions before scoring
@@ -1134,9 +1256,15 @@ namespace ExpeditionPathOptimizer
                     var targetPos = finalTarget.GridPos;
                     int bombsAvailable = bombCount - i;
 
+                    // Fallback: aim for reachable remnant with value
+                    // Pillar mode: only offer-bearing remnants; scored by StaticPillarSearchHeuristic
                     var reachableRemnants = new List<(Vector2 Pos, double Value)>();
                     foreach (var r in remainingRemnants)
                     {
+                        // Pillar mode: no-offer remnants cannot be intentional targets
+                        if (isPillar && (r.RecipeOffers == null || r.RecipeOffers.Count == 0))
+                            continue;
+
                         float dToR = Vector2.Distance(current, r.GridPos);
                         float dRToFinal = Vector2.Distance(r.GridPos, finalTarget.GridPos);
                         int bToR = Math.Max(1, (int)MathF.Ceiling(Math.Max(0f, dToR - radius) / reach));
@@ -1144,11 +1272,12 @@ namespace ExpeditionPathOptimizer
                         if (bToR + bRToFinal <= bombsAvailable)
                         {
                             int estBridges = Math.Max(0, (int)MathF.Ceiling(Math.Max(0f, dToR - radius) / reach));
-                            double targetVal =
-                                this.settings.RemnantHitBaseScore +
-                                (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                r.CalculateBaseRuneWeight(this.settings) -
-                                (estBridges * this.settings.UsefulBridgePenalty);
+                            double targetVal = isPillar
+                                ? StaticPillarSearchHeuristic(r, this.settings) - (estBridges * this.settings.UsefulBridgePenalty)
+                                : this.settings.RemnantHitBaseScore +
+                                  (r.RuneSlots * this.settings.RuneSlotMultiplier) +
+                                  r.CalculateBaseRuneWeight(this.settings) -
+                                  (estBridges * this.settings.UsefulBridgePenalty);
                             reachableRemnants.Add((r.GridPos, targetVal));
                         }
                     }
@@ -1174,9 +1303,9 @@ namespace ExpeditionPathOptimizer
 
                         targetPos = chosenTarget.Pos;
                     }
-                    else
+                    else if (!isPillar)
                     {
-                        // Else check reachable Chests
+                        // Balanced only: check reachable Chests (env.Chests empty in Pillar, guard anyway)
                         var reachableChests = new List<(Vector2 Pos, double Value)>();
                         foreach (var c in remainingChests)
                         {
@@ -1331,9 +1460,12 @@ namespace ExpeditionPathOptimizer
                     .Where(r => r != finalTarget && !CoveredByOtherBomb(r.GridPos))
                     .ToList();
 
+                // env.Chests is already empty in Pillar mode; guard for safety
                 var uncoveredChests = environment.Chests != null
                     ? environment.Chests.Where(c => !CoveredByOtherBomb(c.GridPos)).ToList()
                     : new List<ExpeditionChest>();
+
+                bool isPillar = this.settings.OptimizationMode == OptimizationMode.PillarLootOnly;
 
                 double CalculateMutationCoverageScore(Vector2 candPos)
                 {
@@ -1342,30 +1474,51 @@ namespace ExpeditionPathOptimizer
                     {
                         if (Vector2.Distance(candPos, r.GridPos) <= radius)
                         {
-                            score += this.settings.RemnantHitBaseScore +
-                                     (r.RuneSlots * this.settings.RuneSlotMultiplier) +
-                                     r.CalculateBaseRuneWeight(this.settings);
+                            if (isPillar)
+                            {
+                                // Pillar mode: use StaticPillarSearchHeuristic (no-offer remnants contribute 0)
+                                score += StaticPillarSearchHeuristic(r, this.settings);
+                            }
+                            else
+                            {
+                                score += this.settings.RemnantHitBaseScore +
+                                         (r.RuneSlots * this.settings.RuneSlotMultiplier) +
+                                         r.CalculateBaseRuneWeight(this.settings);
+                            }
                         }
                     }
-                    foreach (var c in uncoveredChests)
+
+                    // Chest scoring only in Balanced mode (uncoveredChests already empty in Pillar)
+                    if (!isPillar)
                     {
-                        if (Vector2.Distance(candPos, c.GridPos) <= radius)
+                        foreach (var c in uncoveredChests)
                         {
-                            score += this.settings.ChestHitBaseScore;
+                            if (Vector2.Distance(candPos, c.GridPos) <= radius)
+                            {
+                                score += this.settings.ChestHitBaseScore;
+                            }
                         }
                     }
+
                     return score;
                 }
 
                 // Unified Blast-Coverage Candidate Pool for Mutation
+                // Pillar mode: only offer-bearing remnants as intentional targets; no chests
                 var rawCandidatePositions = new List<Vector2>();
                 foreach (var r in uncoveredRemnants)
                 {
+                    // Skip no-offer remnants as mutation targets in Pillar mode
+                    if (isPillar && (r.RecipeOffers == null || r.RecipeOffers.Count == 0))
+                        continue;
                     rawCandidatePositions.AddRange(environment.GetWalkableCandidatesNearRemnant(r, prev, radius));
                 }
-                foreach (var c in uncoveredChests)
+                if (!isPillar)
                 {
-                    rawCandidatePositions.AddRange(environment.GetWalkableCandidatesNearChest(c, prev, radius));
+                    foreach (var c in uncoveredChests)
+                    {
+                        rawCandidatePositions.AddRange(environment.GetWalkableCandidatesNearChest(c, prev, radius));
+                    }
                 }
 
                 // Deduplicate candidate positions before scoring

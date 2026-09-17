@@ -1006,6 +1006,12 @@ namespace ExpeditionPathOptimizer
                     double backtrackTotal = bestPlan.PerPointScore.Sum(p => p.BacktrackPenalty);
                     double totalScore = bestPlan.TotalScore;
 
+                    double projectedRawPillarRewardsChaos = bestPlan.PerPointScore
+                        .Where(p => p.PlannedRecipes != null)
+                        .SelectMany(p => p.PlannedRecipes)
+                        .Sum(plan => (double)plan.Recipe.PriceChaos);
+
+                    ImGui.Text($"  Projected Pillar Rewards: {projectedRawPillarRewardsChaos:F1}c");
                     ImGui.Text($"  Recipe Economic Score: +{econTotal:F0}");
                     ImGui.Text($"  Recipe Rune Score: +{recipeRuneTotal:F0}");
                     ImGui.Text($"  Inherited Propagation Score: +{inheritedPropTotal:F0}");
@@ -1460,12 +1466,36 @@ namespace ExpeditionPathOptimizer
                 var validRemnants = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
                 if (validRemnants.Count > 0)
                 {
-                    int maxSlots = validRemnants.Max(r => r.RuneSlots);
-                    var candidates = validRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
-                    this.selectedFinalTarget = candidates
-                        .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
-                        .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
-                        .First();
+                    if (this.Settings.OptimizationMode == OptimizationMode.PillarLootOnly)
+                    {
+                        // Pillar mode: RuneSlots is tie-break only — NOT a filter gate
+                        // Candidate universe: all RuneSlots > 0 remnants with at least one recipe offer
+                        var pillarCandidates = validRemnants
+                            .Where(r => r.RecipeOffers != null && r.RecipeOffers.Count > 0)
+                            .OrderByDescending(r => PathPlanner.StaticFinalPillarValue(r, this.Settings))
+                            .ThenByDescending(r => r.RecipeOffers.Max(o => o.PriceChaos))
+                            .ThenByDescending(r => r.RuneSlots)
+                            .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
+                            .ThenBy(r => r.EntityId)
+                            .FirstOrDefault();
+
+                        this.selectedFinalTarget = pillarCandidates;
+
+                        if (this.selectedFinalTarget == null)
+                        {
+                            PluginLog.Warning("ExpeditionPathOptimizer", "[PillarLootOnly] No offer-bearing remnants found — cannot select FinalTarget for Grand/Logbook.");
+                        }
+                    }
+                    else
+                    {
+                        // Balanced: max RuneSlots -> CalculateBaseRuneWeight -> nearest Detonator
+                        int maxSlots = validRemnants.Max(r => r.RuneSlots);
+                        var candidates = validRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
+                        this.selectedFinalTarget = candidates
+                            .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
+                            .ThenBy(r => Vector2.Distance(this.detonatorGridPos, r.GridPos))
+                            .First();
+                    }
                 }
                 else
                 {
@@ -1577,12 +1607,30 @@ namespace ExpeditionPathOptimizer
                 .OrderBy(r => r.EntityId)
                 .ToList();
 
-            int maxSlots = componentRemnants.Max(r => r.RuneSlots);
-            var ftCandidates = componentRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
-            var finalTarget = ftCandidates
-                .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
-                .ThenBy(r => Vector2.Distance(selectedDetonator.GridPos, r.GridPos))
-                .FirstOrDefault();
+            ExpeditionRemnant? finalTarget;
+            if (this.Settings.OptimizationMode == OptimizationMode.PillarLootOnly)
+            {
+                // Pillar mode: RuneSlots is tie-break only — NOT a filter gate
+                // Candidate universe: all batch remnants with RuneSlots > 0 AND at least one recipe offer
+                finalTarget = componentRemnants
+                    .Where(r => r.RuneSlots > 0 && r.RecipeOffers != null && r.RecipeOffers.Count > 0)
+                    .OrderByDescending(r => PathPlanner.StaticFinalPillarValue(r, this.Settings))
+                    .ThenByDescending(r => r.RecipeOffers.Max(o => o.PriceChaos))
+                    .ThenByDescending(r => r.RuneSlots)
+                    .ThenBy(r => Vector2.Distance(selectedDetonator.GridPos, r.GridPos))
+                    .ThenBy(r => r.EntityId)
+                    .FirstOrDefault();
+            }
+            else
+            {
+                // Balanced: max RuneSlots -> CalculateBaseRuneWeight -> nearest Detonator
+                int maxSlots = componentRemnants.Max(r => r.RuneSlots);
+                var ftCandidates = componentRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
+                finalTarget = ftCandidates
+                    .OrderByDescending(r => r.CalculateBaseRuneWeight(this.Settings))
+                    .ThenBy(r => Vector2.Distance(selectedDetonator.GridPos, r.GridPos))
+                    .FirstOrDefault();
+            }
 
             if (finalTarget == null)
             {
