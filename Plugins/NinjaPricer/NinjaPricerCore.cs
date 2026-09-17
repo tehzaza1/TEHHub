@@ -2862,43 +2862,65 @@ namespace NinjaPricer
         private static bool IsStashTabDropdownOpen(IntPtr leftAddress, IntPtr gameUiAddress)
         {
             var handle = Core.Process?.Handle;
-            if (handle == null) return false;
+            if (handle == null || leftAddress == IntPtr.Zero) return false;
 
-            if (leftAddress != IntPtr.Zero && handle.TryReadMemory<UiElementBaseOffset>(leftAddress, out var leftOff) && UiElementBaseFuncs.IsVisibleChecker(leftOff.Flags))
+            if (!handle.TryReadMemory<UiElementBaseOffset>(leftAddress, out var leftOff) || !UiElementBaseFuncs.IsVisibleChecker(leftOff.Flags))
+                return false;
+
+            var children = handle.ReadStdVector<IntPtr>(leftOff.ChildrensPtr);
+            if (children == null || children.Length == 0) return false;
+
+            // Check if dropdown button (Child 0) has open popup children
+            if (children.Length > 0 && children[0] != IntPtr.Zero && handle.TryReadMemory<UiElementBaseOffset>(children[0], out var btnOff) && UiElementBaseFuncs.IsVisibleChecker(btnOff.Flags))
             {
-                var children = handle.ReadStdVector<IntPtr>(leftOff.ChildrensPtr);
-                if (children != null && children.Length > 0)
+                var btnKids = handle.ReadStdVector<IntPtr>(btnOff.ChildrensPtr);
+                if (btnKids != null && btnKids.Length > 0)
                 {
-                    foreach (var child in children)
+                    foreach (var bk in btnKids)
                     {
-                        if (child == IntPtr.Zero) continue;
-                        if (!handle.TryReadMemory<UiElementBaseOffset>(child, out var cOff) || !UiElementBaseFuncs.IsVisibleChecker(cOff.Flags))
+                        if (bk == IntPtr.Zero) continue;
+                        if (!handle.TryReadMemory<UiElementBaseOffset>(bk, out var bkOff) || !UiElementBaseFuncs.IsVisibleChecker(bkOff.Flags))
                             continue;
 
-                        var subKids = handle.ReadStdVector<IntPtr>(cOff.ChildrensPtr);
-                        if (subKids != null && subKids.Length >= 2)
+                        if (PluginUiElementReflection.TryGetAbsoluteRect(bk, out _, out var bkSize))
                         {
-                            if (PluginUiElementReflection.TryGetAbsoluteRect(child, out var cPos, out var cSize))
-                            {
-                                if (cSize.X > 120 && cSize.Y > 120)
-                                {
-                                    int visibleSubCount = 0;
-                                    for (int k = 0; k < Math.Min(subKids.Length, 20); k++)
-                                    {
-                                        if (subKids[k] != IntPtr.Zero &&
-                                            handle.TryReadMemory<UiElementBaseOffset>(subKids[k], out var kOff) &&
-                                            UiElementBaseFuncs.IsVisibleChecker(kOff.Flags))
-                                        {
-                                            visibleSubCount++;
-                                        }
-                                    }
-                                    if (visibleSubCount >= 2)
-                                    {
-                                        return true;
-                                    }
-                                }
-                            }
+                            if (bkSize.X > 100 && bkSize.Y > 100) return true;
                         }
+                    }
+                }
+            }
+
+            // Check children of LeftPanel (skip index 2 and any main viewport > 600x600 which is the active stash tab itself)
+            for (int i = 0; i < children.Length; i++)
+            {
+                if (i == 2) continue; // Child 2 is always the main active stash tab container, NOT a dropdown list
+
+                var child = children[i];
+                if (child == IntPtr.Zero) continue;
+                if (!handle.TryReadMemory<UiElementBaseOffset>(child, out var cOff) || !UiElementBaseFuncs.IsVisibleChecker(cOff.Flags))
+                    continue;
+
+                var subKids = handle.ReadStdVector<IntPtr>(cOff.ChildrensPtr);
+                if (subKids == null || subKids.Length < 2) continue;
+
+                if (!PluginUiElementReflection.TryGetAbsoluteRect(child, out var cPos, out var cSize)) continue;
+
+                // Dropdown menu is a popup list (width typically 150-400), not the full stash tab viewport (> 600x600)
+                if (cSize.X >= 100 && cSize.Y >= 100 && !(cSize.X > 600 && cSize.Y > 600))
+                {
+                    int visibleSubCount = 0;
+                    for (int k = 0; k < Math.Min(subKids.Length, 20); k++)
+                    {
+                        if (subKids[k] != IntPtr.Zero &&
+                            handle.TryReadMemory<UiElementBaseOffset>(subKids[k], out var kOff) &&
+                            UiElementBaseFuncs.IsVisibleChecker(kOff.Flags))
+                        {
+                            visibleSubCount++;
+                        }
+                    }
+                    if (visibleSubCount >= 2)
+                    {
+                        return true;
                     }
                 }
             }
