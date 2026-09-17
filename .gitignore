@@ -8,6 +8,9 @@
 *.zip
 **/bin/
 **/obj/
+*.log
+logs/
+**/logs/
 
 configs/
 docs/
