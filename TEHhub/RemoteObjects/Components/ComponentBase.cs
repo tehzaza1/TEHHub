@@ -42,8 +42,6 @@ namespace TEHhub.RemoteObjects.Components
         /// </summary>
         internal virtual bool RequiresPerFrameRefresh => true;
 
-        internal int OffsetRecoveryGeneration { get; } = RuntimeOffsetRegistry.Generation;
-
         /// <inheritdoc />
         protected override void CleanUpData()
         {
@@ -64,8 +62,7 @@ namespace TEHhub.RemoteObjects.Components
         /// <inheritdoc />
         protected override void UpdateData(bool hasAddressChanged)
         {
-            var headerAddress = RuntimeOffsetRegistry.ComponentHeaderAddress(this.GetType().Name, this.Address);
-            var data = Core.Process.Handle.ReadMemory<ComponentHeader>(headerAddress);
+            var data = Core.Process.Handle.ReadMemory<ComponentHeader>(this.Address);
             this.OwnerEntityAddress = data.EntityPtr;
         }
 

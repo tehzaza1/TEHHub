@@ -198,9 +198,6 @@ namespace TEHhub.Settings
         /// </summary>
         public bool ShowOffsetHelper = false;
 
-        /// <summary>Try verified session-only offset recoveries and dump their evidence.</summary>
-        public bool EnableOffsetTryFix = true;
-
         /// <summary>
         ///     Gets or sets a value indicating what big nearby means to the user.
         /// </summary>

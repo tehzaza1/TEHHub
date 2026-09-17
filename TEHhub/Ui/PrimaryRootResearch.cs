@@ -16,6 +16,7 @@ namespace TEHhub.Ui
 
     internal static class PrimaryRootResearch
     {
+        internal static string DumpDirectory => Path.Join(AppContext.BaseDirectory, "configs", "offset-recovery");
         private static CancellationTokenSource? cancellation;
         private static Task<PrimaryRootResearchReport>? running;
         private static SafeMemoryHandle? attached;
@@ -31,7 +32,7 @@ namespace TEHhub.Ui
         internal static void Tick()
         {
             if (running == null) return;
-            if (!Core.GHSettings.EnableOffsetTryFix || !ReferenceEquals(attached, Core.Process.Handle) || attached.IsClosed)
+            if (!ReferenceEquals(attached, Core.Process.Handle) || attached.IsClosed)
                 cancellation?.Cancel();
             if (!running.IsCompleted) return;
             try { status = running.GetAwaiter().GetResult().Status; }
@@ -48,7 +49,7 @@ namespace TEHhub.Ui
             {
                 if (ImGui.Button("Cancel primary-root research")) cancellation?.Cancel();
             }
-            else if (Core.GHSettings.EnableOffsetTryFix && DrawStartButtons())
+            else if (DrawStartButtons())
             {
                 try
                 {
@@ -153,9 +154,9 @@ namespace TEHhub.Ui
             catch (Exception ex) { report.Confirmed = false; report.Status = "research failed; abstained: " + ex.Message; }
             finally { if (lease) reader.DangerousRelease(); }
             report.ElapsedMs = watch.ElapsedMilliseconds;
-            Directory.CreateDirectory(OffsetTryFix.DumpDirectory);
+            Directory.CreateDirectory(DumpDirectory);
             var json = JsonSerializer.Serialize(report, PrimaryRootResearchJsonContext.Default.PrimaryRootResearchReport);
-            var path = Path.Join(OffsetTryFix.DumpDirectory, $"primary-root.{DateTime.UtcNow:yyyyMMddTHHmmssfffffffZ}.{Guid.NewGuid():N}.json");
+            var path = Path.Join(DumpDirectory, $"primary-root.{DateTime.UtcNow:yyyyMMddTHHmmssfffffffZ}.{Guid.NewGuid():N}.json");
             File.WriteAllText(path, json);
             var notes = new StringBuilder("// Primary-root research; review against the matching game SHA-256.\n");
             notes.AppendLine("// " + report.Status);
@@ -168,10 +169,10 @@ namespace TEHhub.Ui
             }
             else notes.AppendLine("// NOT CONFIRMED: do not apply structural hypotheses as recovered offsets.");
             File.WriteAllText(Path.ChangeExtension(path, ".cs.txt"), notes.ToString());
-            var latest = Path.Join(OffsetTryFix.DumpDirectory, "primary-root.latest.json");
+            var latest = Path.Join(DumpDirectory, "primary-root.latest.json");
             File.WriteAllText(latest + ".tmp", json);
             File.Move(latest + ".tmp", latest, overwrite: true);
-            File.WriteAllText(Path.Join(OffsetTryFix.DumpDirectory, "primary-root.latest.cs.txt"), notes.ToString());
+            File.WriteAllText(Path.Join(DumpDirectory, "primary-root.latest.cs.txt"), notes.ToString());
             return report;
         }
 

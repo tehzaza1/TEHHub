@@ -425,7 +425,6 @@ namespace TEHhub.Ui
         /// <param name="owner">owner address for the owner/self anchor (or Zero).</param>
         /// <param name="ownerAnchorField">leaf field name that must equal <paramref name="owner" />.</param>
         /// <param name="hints">optional user-supplied values for semantic field validation.</param>
-        /// <param name="patch">optional candidate projection, without installing it in the reader.</param>
         /// <returns>the per-root result.</returns>
         internal static RootResult VerifyRoot(
             Type structType,
@@ -433,8 +432,7 @@ namespace TEHhub.Ui
             IntPtr addr,
             IntPtr owner,
             string ownerAnchorField,
-            OffsetRecoveryHints? hints = null,
-            RuntimeOffsetPatch? patch = null)
+            OffsetRecoveryHints? hints = null)
         {
             var r = new RootResult { Label = label, Address = addr, Owner = owner, Fields = new List<FieldRow>() };
             if (addr == IntPtr.Zero || !SafeMemoryHandle.IsValidAddress(addr))
@@ -446,8 +444,8 @@ namespace TEHhub.Ui
             }
 
             var size = SizeOf(structType);
-            var buf = Core.Process.Handle.ReadMemoryArray<byte>(addr, patch?.ReadSize ?? size);
-            if (buf.Length < (patch?.ReadSize ?? size))
+            var buf = Core.Process.Handle.ReadMemoryArray<byte>(addr, size);
+            if (buf.Length < size)
             {
                 r.ReadOk = false;
                 r.Verdict = ProbeVerdict.Degraded;
@@ -458,15 +456,6 @@ namespace TEHhub.Ui
             r.ReadOk = true;
             try
             {
-                if (patch != null)
-                {
-                    var source = (byte[])buf.Clone();
-                    foreach (var field in patch.Fields)
-                    {
-                        source.AsSpan(field.RecoveredOffset, field.Size)
-                            .CopyTo(buf.AsSpan(field.OriginalOffset, field.Size));
-                    }
-                }
                 WalkStruct(structType, buf, 0, owner.ToInt64(), ownerAnchorField, string.Empty, 0, r.Fields, hints);
             }
             catch (Exception ex)
@@ -476,101 +465,6 @@ namespace TEHhub.Ui
 
             r.Verdict = VerdictForFields(r.Fields);
             return r;
-        }
-
-        internal static RuntimeOffsetPatch? CreateRuntimePatch(ProbeResult probe)
-        {
-            var controller = probe.StructType == typeof(ImportantUiElementsOffsets);
-            if (probe.StructType == null || probe.Unmapped || probe.Recoveries.Count == 0 ||
-                probe.Recoveries.Any(r => r.AlternativeOffsets.Count != 0 || r.VerifiedRoots < (controller ? 1 : 2)))
-            {
-                return null;
-            }
-
-            // Initially auto-apply only entity components: they have independent owner anchors.
-            // Root pointers, native arrays and weak numeric layouts need their own contracts.
-            if ((!controller && (!ComponentOffsetTypes.Values.Contains(probe.StructType) || probe.StructType == typeof(ComponentHeader))) ||
-                RuntimeOffsetRegistry.WasReadAsArray(probe.StructType))
-            {
-                return null;
-            }
-
-            var fields = new List<RuntimeOffsetField>();
-            var size = SizeOf(probe.StructType);
-            var readSize = size;
-            foreach (var recovery in probe.Recoveries)
-            {
-                var member = LayoutFields(probe.StructType).FirstOrDefault(f => f.Field.Name == recovery.FieldName);
-                if (member.Field == null || member.Offset != recovery.ConfiguredOffset)
-                {
-                    return null;
-                }
-
-                var length = SizeOf(member.Field.FieldType);
-                if (recovery.CandidateOffset < 0 || recovery.CandidateOffset > 65536 - length ||
-                    member.Offset < 0 || member.Offset > size - length)
-                {
-                    return null;
-                }
-
-                fields.Add(new RuntimeOffsetField(member.Field.Name, member.Offset, recovery.CandidateOffset, length));
-                readSize = Math.Max(readSize, recovery.CandidateOffset + length);
-            }
-
-            return new RuntimeOffsetPatch(probe.StructType, fields.ToArray(), readSize,
-                ComponentOffsetTypes.Where(c => c.Value == probe.StructType).Select(c => c.Key).ToArray());
-        }
-
-        internal static bool ValidateRuntimePatch(ProbeResult probe, RuntimeOffsetPatch patch, OffsetRecoveryHints hints)
-        {
-            if (patch.StructType == typeof(ImportantUiElementsOffsets))
-            {
-                var ui = Core.States.InGameStateObject.GameUi;
-                return Core.GHSettings.EnableControllerMode && patch.Fields.Length == 1 &&
-                    patch.Fields[0].Name == nameof(ImportantUiElementsOffsets.ControllerModeMapParentPtr) &&
-                    probe.Roots.Count == 1 &&
-                    Core.Process.Handle.TryReadMemory<IntPtr>(probe.Roots[0].Address + patch.Fields[0].RecoveredOffset, out var parent) &&
-                    TryValidateControllerMapParent(parent, out var large, out var mini, out var largeOk, out var miniOk) &&
-                    largeOk && miniOk && large != mini &&
-                    large == ui.LargeMap.Address && mini == ui.MiniMap.Address;
-            }
-
-            if (RuntimeOffsetRegistry.WasReadAsArray(patch.StructType) || probe.Roots.Select(r => r.Owner).Distinct().Count() < 2)
-            {
-                return false;
-            }
-
-            foreach (var root in probe.Roots)
-            {
-                if (root.Owner == IntPtr.Zero)
-                {
-                    return false;
-                }
-
-                var rootHints = root.UseRecoveryHints ? hints : null;
-                var verified = VerifyRoot(patch.StructType, root.Label, root.Address, root.Owner, "EntityPtr", rootHints, patch);
-                if (!verified.ReadOk || verified.Note.Length != 0 || verified.Verdict != ProbeVerdict.Intact ||
-                    verified.Fields.Any(f => f.Status == FieldStatus.Fail) ||
-                    !verified.Fields.Any(f => f.Kind == FieldKind.OwnerPtr && f.Status == FieldStatus.Pass))
-                {
-                    return false;
-                }
-
-                // Every moved field needs a decisive non-empty semantic anchor of its own.
-                foreach (var field in patch.Fields)
-                {
-                    // Container shape alone cannot establish container identity. For auto-apply,
-                    // require exact owner identity or a user-supplied exact vital total.
-                    if (!verified.Fields.Any(f => (f.Name == field.Name || f.Name.StartsWith(field.Name + ".", StringComparison.Ordinal)) &&
-                        (f.Kind == FieldKind.OwnerPtr ||
-                         (f.Kind == FieldKind.Vital && (rootHints?.ExpectedVitalTotal(f.Name) ?? 0) > 0)) && IsRecoveryEvidence(f)))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
         }
 
         private const int UiMaxNodes = 100000;

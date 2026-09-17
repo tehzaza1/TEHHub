@@ -272,21 +272,10 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         {
             component = null;
             var componenName = typeof(T).Name;
-            if (RuntimeOffsetRegistry.IsComponentBlocked(componenName))
-            {
-                return false;
-            }
-
             if (this.componentCache.TryGetValue(componenName, out var comp))
             {
-                if (comp.OffsetRecoveryGeneration == RuntimeOffsetRegistry.Generation)
-                {
-                    component = (T)comp;
-                    return true;
-                }
-
-                this.componentCache.TryRemove(componenName, out _);
-                this.perFrameRefreshComponents = null;
+                component = (T)comp;
+                return true;
             }
 
             if (this.componentAddresses.TryGetValue(componenName, out var compAddr))

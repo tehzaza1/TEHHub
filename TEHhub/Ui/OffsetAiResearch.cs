@@ -122,11 +122,11 @@ namespace TEHhub.Ui
             catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
             catch (Exception ex) { review.Status = "AI unavailable or rejected: " + ex.Message; }
             token.ThrowIfCancellationRequested();
-            Directory.CreateDirectory(OffsetTryFix.DumpDirectory);
+            Directory.CreateDirectory(PrimaryRootResearch.DumpDirectory);
             var json = JsonSerializer.Serialize(review, OffsetAiJsonContext.Default.OffsetAiReview);
-            var eventPath = Path.Join(OffsetTryFix.DumpDirectory, $"primary-root.ai.{DateTime.UtcNow:yyyyMMddTHHmmssfffffffZ}.{Guid.NewGuid():N}.json");
+            var eventPath = Path.Join(PrimaryRootResearch.DumpDirectory, $"primary-root.ai.{DateTime.UtcNow:yyyyMMddTHHmmssfffffffZ}.{Guid.NewGuid():N}.json");
             File.WriteAllText(eventPath, json);
-            var latest = Path.Join(OffsetTryFix.DumpDirectory, "primary-root.ai.latest.json");
+            var latest = Path.Join(PrimaryRootResearch.DumpDirectory, "primary-root.ai.latest.json");
             var temporary = latest + "." + Guid.NewGuid().ToString("N") + ".tmp";
             File.WriteAllText(temporary, json);
             File.Move(temporary, latest, overwrite: true);

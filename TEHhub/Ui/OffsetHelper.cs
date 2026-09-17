@@ -188,10 +188,6 @@ namespace TEHhub.Ui
                 }
 
                 PrimaryRootResearch.Tick();
-                if (OffsetTryFix.ShouldPoll(currentArea))
-                {
-                    SafeSweep();
-                }
 
                 if (!Core.GHSettings.ShowOffsetHelper)
                 {
@@ -215,18 +211,11 @@ namespace TEHhub.Ui
                     DrawToolbar();
                     ImGui.Separator();
                     DrawSummary();
-                    if (ImGui.Checkbox("Enable offset TryFix", ref Core.GHSettings.EnableOffsetTryFix) && !Core.GHSettings.EnableOffsetTryFix)
+                    if (ImGui.CollapsingHeader("Read-only offset research"))
                     {
-                        OffsetTryFix.Disable();
-                    }
-
-                    if (ImGui.CollapsingHeader("Offset TryFix status / saved recoveries"))
-                    {
-                        ImGui.TextWrapped("Session-only recovery; three spaced confirmations across independent component owners. Unsupported/ambiguous layouts use existing behavior or fallback.");
-                        ImGui.TextWrapped(OffsetTryFix.DumpDirectory);
-                        if (OffsetTryFix.LastDumpError.Length != 0) ImGui.TextWrapped("Dump error: " + OffsetTryFix.LastDumpError);
+                        ImGui.TextWrapped("Advisory memory research and root discovery.");
+                        ImGui.TextWrapped(PrimaryRootResearch.DumpDirectory);
                         PrimaryRootResearch.Draw();
-                        foreach (var status in OffsetTryFix.Status) ImGui.TextWrapped(status);
                     }
                     DrawRecoveryHints();
                     ImGui.Separator();
@@ -1678,12 +1667,10 @@ namespace TEHhub.Ui
                     MaxEnergyShield = expectedMaxEnergyShield,
                 };
                 lastSweep = Eng.RunSweep(hints);
-                OffsetTryFix.Process(lastSweep, hints);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[OffsetHelper.SafeSweep] {ex}");
-                OffsetTryFix.Disable("monitor-error");
             }
         }
 

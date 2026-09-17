@@ -43,15 +43,12 @@ internal static class ToolHub
                     ["visible"] = panel.IsVisible.ToString(), ["children"] = panel.TotalChildrens.ToString() };
             }
             var windows = Core.GHSettings.GetType().GetFields().Where(f => f.FieldType == typeof(bool) &&
-                (f.Name.StartsWith("Show", StringComparison.Ordinal) || f.Name == "EnableOffsetTryFix"))
+                f.Name.StartsWith("Show", StringComparison.Ordinal))
                 .ToDictionary(f => f.Name, f => (bool)f.GetValue(Core.GHSettings)!);
             PluginContainer[] containers;
             lock (PManager.Plugins) containers = PManager.Plugins.ToArray();
             var plugins = containers.Select(p => new PluginDiagnostic(p.Name, p.Metadata.Enable,
                 p.Plugin.GetType().Assembly.GetName().Version?.ToString() ?? "unknown")).ToArray();
-            ToolDiagnostics.Publish("offset-try-fix", new Dictionary<string, string> {
-                ["enabled"] = Core.GHSettings.EnableOffsetTryFix.ToString(),
-                ["results"] = string.Join("\n", OffsetTryFix.Status.Take(30)) });
             var area = Core.States.InGameStateObject.CurrentAreaInstance;
             ToolDiagnostics.Publish("element-finder", ElementFinder.GetToolStatus());
             ToolDiagnostics.Publish("game-ui-explorer", GameUiExplorer.GetToolStatus());

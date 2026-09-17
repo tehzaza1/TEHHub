@@ -67,7 +67,6 @@ namespace TEHhub.Utils
         internal SafeMemoryHandle(int processId)
             : base(true)
         {
-            RuntimeOffsetRegistry.Reset();
             var handle = NativeProcessMemory.OpenForRead(processId);
             if (handle == IntPtr.Zero)
             {
@@ -135,11 +134,6 @@ namespace TEHhub.Utils
                     RecordDiagnosticFailure(typeof(T).Name, address);
                 }
                 return false;
-            }
-
-            if (RuntimeOffsetRegistry.HasPatch<T>())
-            {
-                return RuntimeOffsetRegistry.TryReadPatched(this, address, out result);
             }
 
             if (TryReadFromCurrentCache(address, out result))
@@ -306,12 +300,6 @@ namespace TEHhub.Utils
             if (elementCount == 0)
             {
                 return true;
-            }
-
-            if (!RuntimeOffsetRegistry.NoteArrayRead<T>())
-            {
-                RecordDiagnosticFailure($"{typeof(T).Name}[] (recovered scalar layout cannot prove native stride)", address);
-                return false;
             }
 
             if (this.IsInvalid || !IsValidAddress(address))
