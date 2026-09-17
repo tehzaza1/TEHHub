@@ -40,11 +40,9 @@ namespace ExpeditionPathOptimizer
         private sealed class SelectedEncounterState
         {
             public DetonatorDiagnosticInfo Detonator { get; set; }
-            public float ReachGrid { get; set; }
-            public float RadiusGrid { get; set; }
-            public float SeedThreshold { get; set; }
-            public float LinkThreshold { get; set; }
-            public List<ExpeditionRemnant> SeedRemnants { get; set; } = new();
+            public List<List<ExpeditionRemnant>> AllBatches { get; set; } = new();
+            public List<ExpeditionRemnant> SelectedBatch { get; set; } = new();
+            public float SelectedBatchNearestDistance { get; set; }
             public List<ExpeditionRemnant> ComponentRemnants { get; set; } = new();
             public List<ExpeditionRemnant> ExcludedValidRemnants { get; set; } = new();
             public ExpeditionRemnant? FinalTarget { get; set; }
@@ -56,6 +54,7 @@ namespace ExpeditionPathOptimizer
         private readonly Dictionary<IntPtr, ExpeditionRemnant> discoveredRemnants = new();
         private readonly Dictionary<IntPtr, ExpeditionChest> discoveredChests = new();
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
+        private readonly HashSet<IntPtr> expedition2EncounterAddresses = new();
         private SelectedEncounterState? selectedNormalMapEncounter = null;
         private ExpeditionRemnant? selectedFinalTarget = null;
         private bool detectedDetonatorDistancesHaveValidPlayerPosition = false;
@@ -142,6 +141,7 @@ namespace ExpeditionPathOptimizer
             this.discoveredRemnants.Clear();
             this.discoveredChests.Clear();
             this.placedExplosives.Clear();
+            this.expedition2EncounterAddresses.Clear();
             this.selectedNormalMapEncounter = null;
             this.selectedFinalTarget = null;
             this.detectedDetonatorDistancesHaveValidPlayerPosition = false;
@@ -803,17 +803,26 @@ namespace ExpeditionPathOptimizer
                         if (this.selectedNormalMapEncounter != null)
                         {
                             var enc = this.selectedNormalMapEncounter;
+                            ImGui.TextDisabled("  Ownership Mode: Expedition2Encounter EntityId +2 batch");
                             ImGui.Text($"  Selected Detonator: EntityId={enc.Detonator.EntityId} Address=0x{enc.Detonator.Address.ToInt64():X} Grid=({enc.Detonator.GridPos.X:F1}, {enc.Detonator.GridPos.Y:F1})");
-                            ImGui.TextDisabled($"  ReachGrid={enc.ReachGrid:F1} | RadiusGrid={enc.RadiusGrid:F1}");
-                            ImGui.TextDisabled($"  SeedThreshold (Reach+Radius)={enc.SeedThreshold:F1} | LinkThreshold (Reach+2R)={enc.LinkThreshold:F1}");
 
-                            ImGui.Spacing();
-                            ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"  Seed Remnants ({enc.SeedRemnants.Count}):");
-                            foreach (var s in enc.SeedRemnants)
+                            if (enc.AllBatches.Count > 0)
                             {
-                                string aStr = s.IsUnique ? "Unique" : (s.AnchorRune ?? "None");
-                                ImGui.TextDisabled($"    #{s.EntityId} Grid=({s.GridPos.X:F1}, {s.GridPos.Y:F1}) Slots={s.RuneSlots} Anchor={aStr}");
+                                ImGui.Spacing();
+                                ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), $"  Spawn Batches ({enc.AllBatches.Count}):");
+                                for (int b = 0; b < enc.AllBatches.Count; b++)
+                                {
+                                    var batch = enc.AllBatches[b];
+                                    string idsStr = string.Join(",", batch.Select(r => r.EntityId));
+                                    float dNear = batch.Min(m => Vector2.Distance(enc.Detonator.GridPos, m.GridPos));
+                                    bool isSel = batch.Count == enc.SelectedBatch.Count && batch.Count > 0 && batch[0].EntityId == enc.SelectedBatch[0].EntityId;
+                                    string selTag = isSel ? " [SELECTED]" : "";
+                                    ImGui.TextDisabled($"    Batch [{b}]: [{idsStr}] | NearestDist={dNear:F1}{selTag}");
+                                }
                             }
+
+                            string selIdsStr = string.Join(",", enc.SelectedBatch.Select(r => r.EntityId));
+                            ImGui.Text($"  Selected Batch: IDs=[{selIdsStr}] (NearestDist={enc.SelectedBatchNearestDistance:F1})");
 
                             ImGui.Spacing();
                             ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"  Selected Component Remnants ({enc.ComponentRemnants.Count}):");
@@ -845,6 +854,7 @@ namespace ExpeditionPathOptimizer
                         }
                         else
                         {
+                            ImGui.TextDisabled("  Ownership Mode: Expedition2Encounter EntityId +2 batch");
                             ImGui.TextDisabled("  Selected Encounter: None (Walk near desired Detonator and click 'Scan & Start Search')");
                             ImGui.TextDisabled($"  Chest Ownership: Phase 2 unchanged / area-global ({this.discoveredChests.Count} chests)");
                         }
@@ -1122,6 +1132,11 @@ namespace ExpeditionPathOptimizer
                          path.Contains("Expedition2Remnant", StringComparison.OrdinalIgnoreCase) ||
                          path.Contains("ExpeditionRemnant", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (path.Contains("Expedition2Encounter", StringComparison.OrdinalIgnoreCase))
+                    {
+                        this.expedition2EncounterAddresses.Add(entity.Address);
+                    }
+
                     int slots = 0;
                     int anchorPos = 0;
                     int anchorIdx = -1;
@@ -1353,6 +1368,38 @@ namespace ExpeditionPathOptimizer
             }
         }
 
+        private static List<List<ExpeditionRemnant>> BuildExpedition2Batches(IEnumerable<ExpeditionRemnant> remnants)
+        {
+            var sorted = remnants.OrderBy(r => r.EntityId).ToList();
+            var batches = new List<List<ExpeditionRemnant>>();
+            List<ExpeditionRemnant>? currentBatch = null;
+
+            for (int i = 0; i < sorted.Count; i++)
+            {
+                var rem = sorted[i];
+                if (currentBatch == null)
+                {
+                    currentBatch = new List<ExpeditionRemnant> { rem };
+                    batches.Add(currentBatch);
+                }
+                else
+                {
+                    var prev = currentBatch[currentBatch.Count - 1];
+                    if (rem.EntityId - prev.EntityId == 2)
+                    {
+                        currentBatch.Add(rem);
+                    }
+                    else
+                    {
+                        currentBatch = new List<ExpeditionRemnant> { rem };
+                        batches.Add(currentBatch);
+                    }
+                }
+            }
+
+            return batches;
+        }
+
         private bool TryBuildNormalMapEncounterSelection(
             AreaInstance area,
             DetonatorDiagnosticInfo selectedDetonator,
@@ -1368,80 +1415,54 @@ namespace ExpeditionPathOptimizer
                 return false;
             }
 
-            var config = area.ExpeditionConfig;
-            float radiusWorld = config.ExplosionRadiusWorld > 0 ? config.ExplosionRadiusWorld : 300f;
-            float rangeWorld = config.PlacementReachWorld > 0 ? config.PlacementReachWorld : 1000f;
+            var validExpedition2Remnants = this.discoveredRemnants.Values
+                .Where(r => r.RuneSlots > 0 && this.expedition2EncounterAddresses.Contains(r.EntityAddress))
+                .OrderBy(r => r.EntityId)
+                .ToList();
 
-            float radiusGrid = radiusWorld / GridToWorldMultiplier;
-            float reachGrid = rangeWorld / GridToWorldMultiplier;
+            if (validExpedition2Remnants.Count == 0)
+            {
+                failureReason = "No valid Expedition2Encounter Remnants with known slot count detected in area.";
+                return false;
+            }
 
-            float seedThreshold = reachGrid + radiusGrid;
-            float linkThreshold = reachGrid + (2.0f * radiusGrid);
+            var allBatches = BuildExpedition2Batches(validExpedition2Remnants);
+            if (allBatches.Count == 0)
+            {
+                failureReason = "No valid Expedition2Encounter spawn batches could be formed.";
+                return false;
+            }
 
-            var validRemnants = this.discoveredRemnants.Values
+            var rankedBatches = allBatches
+                .Select(b => new
+                {
+                    Batch = b,
+                    NearestDistance = b.Min(m => Vector2.Distance(selectedDetonator.GridPos, m.GridPos)),
+                    MinEntityId = b.Min(m => m.EntityId)
+                })
+                .OrderBy(x => x.NearestDistance)
+                .ThenBy(x => x.MinEntityId)
+                .ToList();
+
+            var selectedBatchInfo = rankedBatches[0];
+            var componentRemnants = selectedBatchInfo.Batch;
+
+            if (componentRemnants.Count == 0)
+            {
+                failureReason = "Selected Remnant batch is empty.";
+                return false;
+            }
+
+            var selectedSet = new HashSet<IntPtr>(componentRemnants.Select(r => r.EntityAddress));
+            var allValidRemnants = this.discoveredRemnants.Values
                 .Where(r => r.RuneSlots > 0)
                 .OrderBy(r => r.EntityId)
                 .ToList();
 
-            if (validRemnants.Count == 0)
-            {
-                failureReason = "No valid Remnants with known slot count detected in area.";
-                return false;
-            }
-
-            var seedRemnants = validRemnants
-                .Where(r => Vector2.Distance(selectedDetonator.GridPos, r.GridPos) <= seedThreshold)
+            var excludedRemnants = allValidRemnants
+                .Where(r => !selectedSet.Contains(r.EntityAddress))
                 .OrderBy(r => r.EntityId)
                 .ToList();
-
-            if (seedRemnants.Count == 0)
-            {
-                failureReason = $"No seed Remnants found within seed reach ({seedThreshold:F1} grid) of selected Detonator #{selectedDetonator.EntityId}.";
-                return false;
-            }
-
-            var componentSet = new HashSet<IntPtr>();
-            var queue = new Queue<ExpeditionRemnant>();
-
-            foreach (var seed in seedRemnants)
-            {
-                if (componentSet.Add(seed.EntityAddress))
-                {
-                    queue.Enqueue(seed);
-                }
-            }
-
-            while (queue.Count > 0)
-            {
-                var current = queue.Dequeue();
-                foreach (var cand in validRemnants)
-                {
-                    if (!componentSet.Contains(cand.EntityAddress))
-                    {
-                        if (Vector2.Distance(current.GridPos, cand.GridPos) <= linkThreshold)
-                        {
-                            componentSet.Add(cand.EntityAddress);
-                            queue.Enqueue(cand);
-                        }
-                    }
-                }
-            }
-
-            var componentRemnants = validRemnants
-                .Where(r => componentSet.Contains(r.EntityAddress))
-                .OrderBy(r => r.EntityId)
-                .ToList();
-
-            var excludedRemnants = validRemnants
-                .Where(r => !componentSet.Contains(r.EntityAddress))
-                .OrderBy(r => r.EntityId)
-                .ToList();
-
-            if (componentRemnants.Count == 0)
-            {
-                failureReason = "Detonator-rooted Remnant component is empty.";
-                return false;
-            }
 
             int maxSlots = componentRemnants.Max(r => r.RuneSlots);
             var ftCandidates = componentRemnants.Where(r => r.RuneSlots == maxSlots).ToList();
@@ -1452,18 +1473,16 @@ namespace ExpeditionPathOptimizer
 
             if (finalTarget == null)
             {
-                failureReason = "Failed to determine Final Target for selected Remnant component.";
+                failureReason = "Failed to determine Final Target for selected Remnant batch.";
                 return false;
             }
 
             encounter = new SelectedEncounterState
             {
                 Detonator = selectedDetonator,
-                ReachGrid = reachGrid,
-                RadiusGrid = radiusGrid,
-                SeedThreshold = seedThreshold,
-                LinkThreshold = linkThreshold,
-                SeedRemnants = seedRemnants,
+                AllBatches = allBatches,
+                SelectedBatch = componentRemnants,
+                SelectedBatchNearestDistance = selectedBatchInfo.NearestDistance,
                 ComponentRemnants = componentRemnants,
                 ExcludedValidRemnants = excludedRemnants,
                 FinalTarget = finalTarget
