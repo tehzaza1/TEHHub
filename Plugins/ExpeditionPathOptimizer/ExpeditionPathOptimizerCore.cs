@@ -92,14 +92,37 @@ namespace ExpeditionPathOptimizer
             this.manualSearchWarningMessage = string.Empty;
         }
 
-        public bool IsPriceServiceReadyForSearch()
+        public static bool IsPriceReady(double recipePriceScoreMultiplier, bool isPriceServiceLoaded)
         {
-            if (this.Settings.RecipePriceScoreMultiplier <= 0.0)
+            if (recipePriceScoreMultiplier <= 0.0)
             {
                 return true;
             }
 
-            return this.priceService != null && this.priceService.IsLoaded;
+            return isPriceServiceLoaded;
+        }
+
+        public static bool EvaluateAutoStartReadiness(bool hasDetonator, int remnantCount, bool priceReadyAtScanStart, out bool waitingForPrice)
+        {
+            if (hasDetonator && remnantCount > 0)
+            {
+                if (!priceReadyAtScanStart)
+                {
+                    waitingForPrice = true;
+                    return false;
+                }
+
+                waitingForPrice = false;
+                return true;
+            }
+
+            waitingForPrice = false;
+            return false;
+        }
+
+        public bool IsPriceServiceReadyForSearch()
+        {
+            return IsPriceReady(this.Settings.RecipePriceScoreMultiplier, this.priceService != null && this.priceService.IsLoaded);
         }
 
         private IEnumerator<Wait> OnAreaChange()
@@ -152,24 +175,12 @@ namespace ExpeditionPathOptimizer
                     !this.runner.IsRunning &&
                     this.runner.CurrentBestPath == null)
                 {
-                    if (this.detonatorWorldPos != Vector3.Zero && this.discoveredRemnants.Count > 0)
+                    if (EvaluateAutoStartReadiness(this.detonatorWorldPos != Vector3.Zero, this.discoveredRemnants.Count, priceReadyAtScanStart, out this.isAutoStartWaitingForPrice))
                     {
-                        if (!priceReadyAtScanStart)
+                        if (this.StartSearch(area))
                         {
-                            this.isAutoStartWaitingForPrice = true;
+                            this.hasAutoSearchedThisArea = true;
                         }
-                        else
-                        {
-                            this.isAutoStartWaitingForPrice = false;
-                            if (this.StartSearch(area))
-                            {
-                                this.hasAutoSearchedThisArea = true;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        this.isAutoStartWaitingForPrice = false;
                     }
                 }
                 else
