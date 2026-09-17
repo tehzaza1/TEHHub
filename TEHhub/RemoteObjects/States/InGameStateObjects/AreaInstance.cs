@@ -221,7 +221,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            var mods = this.AreaMods;
+            var mods = this.ServerDataObject.AreaMods;
             for (var i = 0; i < mods.Count; i++)
             {
                 if (mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
@@ -248,7 +248,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            var mods = this.AreaMods;
+            var mods = this.ServerDataObject.AreaMods;
             for (var i = 0; i < mods.Count; i++)
             {
                 if (mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
