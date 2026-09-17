@@ -103,9 +103,43 @@ namespace ExpeditionPathOptimizer
                         var iterationSw = Stopwatch.StartNew();
                         p.Init(env);
 
+                        const int maxPoolSize = PathPlanner.MaxThreadCandidatePoolSize;
                         var localFinalistMap = new Dictionary<string, (List<Vector2> Path, double Score)>(StringComparer.Ordinal);
 
-                        foreach (var bestPath in p.GetBestPathSeries(env))
+                        void RecordCandidate(List<Vector2>? path, double score)
+                        {
+                            if (path == null || path.Count == 0 || double.IsNegativeInfinity(score)) return;
+                            string sig = PathPlanner.GetPathSignature(path);
+                            if (string.IsNullOrEmpty(sig)) return;
+
+                            if (!localFinalistMap.TryGetValue(sig, out var existing) || score > existing.Score)
+                            {
+                                localFinalistMap[sig] = (path, score);
+                            }
+                        }
+
+                        void PrunePool()
+                        {
+                            if (localFinalistMap.Count > maxPoolSize)
+                            {
+                                var kept = localFinalistMap
+                                    .OrderByDescending(kvp => kvp.Value.Score)
+                                    .ThenBy(kvp => kvp.Key, StringComparer.Ordinal)
+                                    .Take(maxPoolSize)
+                                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+                                localFinalistMap = kept;
+                            }
+                        }
+
+                        foreach (var bestPath in p.GetBestPathSeries(env, batchScored =>
+                        {
+                            int takeCount = Math.Min(batchScored.Count, PathPlanner.FinalistCount);
+                            for (int k = 0; k < takeCount; k++)
+                            {
+                                RecordCandidate(batchScored[k].Path, batchScored[k].Score);
+                            }
+                            PrunePool();
+                        }))
                         {
                             if (token.IsCancellationRequested || this.currentGeneration != generationId) return;
 
@@ -113,14 +147,8 @@ namespace ExpeditionPathOptimizer
                             localBestValues[threadIndex] = new BestValue(bestPath.Points, bestPath.Score, iter, iterationSw.Elapsed.TotalMilliseconds);
                             iterationSw.Restart();
 
-                            string sig = PathPlanner.GetPathSignature(bestPath.Points);
-                            if (!string.IsNullOrEmpty(sig))
-                            {
-                                if (!localFinalistMap.TryGetValue(sig, out var existing) || bestPath.Score > existing.Score)
-                                {
-                                    localFinalistMap[sig] = (bestPath.Points, bestPath.Score);
-                                }
-                            }
+                            RecordCandidate(bestPath.Points, bestPath.Score);
+                            PrunePool();
 
                             if (sw.Elapsed.TotalSeconds >= settings.MaximumGenerationTimeSeconds)
                             {
@@ -128,11 +156,8 @@ namespace ExpeditionPathOptimizer
                             }
                         }
 
-                        threadFinalists[threadIndex] = localFinalistMap.Values
-                            .OrderByDescending(x => x.Score)
-                            .Take(PathPlanner.FinalistCount)
-                            .Select(x => x.Path)
-                            .ToList();
+                        PrunePool();
+                        threadFinalists[threadIndex] = localFinalistMap.Values.Select(x => x.Path).ToList();
                     }
                     catch (Exception ex)
                     {
@@ -175,7 +200,7 @@ namespace ExpeditionPathOptimizer
                         token,
                         () => this.currentGeneration != generationId);
 
-                    if (!token.IsCancellationRequested && this.currentGeneration == generationId)
+                    if (!token.IsCancellationRequested && this.currentGeneration == generationId && !double.IsNegativeInfinity(refinedScore.TotalScore))
                     {
                         this.finalBestPath = refinedScore;
                         if (this.finalBestPath != null && this.finalBestPath.PerPointScore.Count > 0)

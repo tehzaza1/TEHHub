@@ -40,6 +40,7 @@ namespace ExpeditionPathOptimizer
         public static readonly int[] FinalRefinementDpCapStages = new[] { 1024, 4096, 16384, 65536 };
         public const int FinalHardCeilingDpStateCap = 65536;
         public const int FinalistCount = 8;
+        public const int MaxThreadCandidatePoolSize = FinalistCount * 4;
 
         private readonly ExpeditionPathOptimizerSettings settings;
 
@@ -66,9 +67,14 @@ namespace ExpeditionPathOptimizer
             return sb.ToString();
         }
 
-        public double GetScore(List<Vector2> path, ExpeditionEnvironment env, int recipeDpStateCap = SearchRecipeDpStateCap)
+        public double GetScore(
+            List<Vector2> path,
+            ExpeditionEnvironment env,
+            int recipeDpStateCap = SearchRecipeDpStateCap,
+            CancellationToken token = default,
+            Func<bool>? isCancelledCheck = null)
         {
-            if (this.TryEvaluatePath(path, env, collectDetails: false, out double totalScore, out _, out _, recipeDpStateCap))
+            if (this.TryEvaluatePath(path, env, collectDetails: false, out double totalScore, out _, out _, recipeDpStateCap, token, isCancelledCheck))
             {
                 return totalScore;
             }
@@ -76,9 +82,15 @@ namespace ExpeditionPathOptimizer
             return double.NegativeInfinity;
         }
 
-        public DetailedLootScore GetDetailedScore(List<Vector2> path, ExpeditionEnvironment env, int recipeDpStateCap = SearchRecipeDpStateCap, int finalistsReRanked = 1)
+        public DetailedLootScore GetDetailedScore(
+            List<Vector2> path,
+            ExpeditionEnvironment env,
+            int recipeDpStateCap = SearchRecipeDpStateCap,
+            int finalistsReRanked = 1,
+            CancellationToken token = default,
+            Func<bool>? isCancelledCheck = null)
         {
-            if (this.TryEvaluatePath(path, env, collectDetails: true, out double totalScore, out var pointsScore, out bool wasPruned, recipeDpStateCap) && pointsScore != null)
+            if (this.TryEvaluatePath(path, env, collectDetails: true, out double totalScore, out var pointsScore, out bool wasPruned, recipeDpStateCap, token, isCancelledCheck) && pointsScore != null)
             {
                 return new DetailedLootScore(pointsScore, totalScore, env, wasPruned, recipeDpStateCap, finalistsReRanked);
             }
@@ -121,14 +133,14 @@ namespace ExpeditionPathOptimizer
                     return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
                 }
 
-                double score = this.GetScore(kvp.Value, env, SearchRecipeDpStateCap);
+                double score = this.GetScore(kvp.Value, env, SearchRecipeDpStateCap, token, isCancelledCheck);
                 if (!double.IsNegativeInfinity(score))
                 {
                     initialRanked.Add((kvp.Value, score, kvp.Key));
                 }
             }
 
-            if (initialRanked.Count == 0)
+            if (token.IsCancellationRequested || (isCancelledCheck != null && isCancelledCheck()) || initialRanked.Count == 0)
             {
                 return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
             }
@@ -149,7 +161,11 @@ namespace ExpeditionPathOptimizer
                     return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
                 }
 
-                DetailedLootScore detailed = this.GetDetailedScore(f.Path, env, FinalRefinementDpCapStages[0], finalistCount);
+                DetailedLootScore detailed = this.GetDetailedScore(f.Path, env, FinalRefinementDpCapStages[0], finalistCount, token, isCancelledCheck);
+                if (token.IsCancellationRequested || (isCancelledCheck != null && isCancelledCheck()))
+                {
+                    return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
+                }
 
                 if (detailed.WasPruned)
                 {
@@ -161,7 +177,12 @@ namespace ExpeditionPathOptimizer
                         }
 
                         int cap = FinalRefinementDpCapStages[stage];
-                        detailed = this.GetDetailedScore(f.Path, env, cap, finalistCount);
+                        detailed = this.GetDetailedScore(f.Path, env, cap, finalistCount, token, isCancelledCheck);
+                        if (token.IsCancellationRequested || (isCancelledCheck != null && isCancelledCheck()))
+                        {
+                            return new DetailedLootScore(new List<PerPointScoreInfo>(), double.NegativeInfinity, env, false, SearchRecipeDpStateCap, 0);
+                        }
+
                         if (!detailed.WasPruned)
                         {
                             break;
@@ -188,7 +209,7 @@ namespace ExpeditionPathOptimizer
             out List<PerPointScoreInfo>? pointsScore,
             int recipeDpStateCap = SearchRecipeDpStateCap)
         {
-            return this.TryEvaluatePath(path, env, collectDetails, out totalScore, out pointsScore, out _, recipeDpStateCap);
+            return this.TryEvaluatePath(path, env, collectDetails, out totalScore, out pointsScore, out _, recipeDpStateCap, default, null);
         }
 
         public bool TryEvaluatePath(
@@ -198,11 +219,21 @@ namespace ExpeditionPathOptimizer
             out double totalScore,
             out List<PerPointScoreInfo>? pointsScore,
             out bool wasPruned,
-            int recipeDpStateCap = SearchRecipeDpStateCap)
+            int recipeDpStateCap = SearchRecipeDpStateCap,
+            CancellationToken token = default,
+            Func<bool>? isCancelledCheck = null)
         {
             totalScore = double.NegativeInfinity;
             pointsScore = null;
             wasPruned = false;
+
+            bool hasCancelCheck = token.CanBeCanceled || isCancelledCheck != null;
+            bool IsCancelled() => (token.CanBeCanceled && token.IsCancellationRequested) || (isCancelledCheck != null && isCancelledCheck());
+
+            if (hasCancelCheck && IsCancelled())
+            {
+                return false;
+            }
 
             if (path == null || path.Count == 0 || path.Count > env.MaxExplosions)
             {
@@ -238,6 +269,14 @@ namespace ExpeditionPathOptimizer
 
             for (int i = 0; i < n; i++)
             {
+                if (hasCancelCheck && IsCancelled())
+                {
+                    totalScore = double.NegativeInfinity;
+                    pointsScore = null;
+                    wasPruned = false;
+                    return false;
+                }
+
                 var curPoint = path[i];
                 float stepDist = Vector2.Distance(prevPoint, curPoint);
 
@@ -443,6 +482,14 @@ namespace ExpeditionPathOptimizer
 
             for (int i = 0; i < n; i++)
             {
+                if (hasCancelCheck && IsCancelled())
+                {
+                    totalScore = double.NegativeInfinity;
+                    pointsScore = null;
+                    wasPruned = false;
+                    return false;
+                }
+
                 var newlyHit = bombNewHits[i];
                 var remnantsWithOffers = new List<ExpeditionRemnant>();
                 for (int rIdx = 0; rIdx < newlyHit.Count; rIdx++)
@@ -499,15 +546,31 @@ namespace ExpeditionPathOptimizer
                     }
 
                     var nextByMask = new Dictionary<ulong, RouteRecipeState>();
+                    bool cancelledDuringSearch = false;
+                    int combinationNodeCounter = 0;
 
                     for (int sIdx = 0; sIdx < currentStates.Count; sIdx++)
                     {
+                        if (hasCancelCheck && (sIdx & 31) == 0 && IsCancelled())
+                        {
+                            cancelledDuringSearch = true;
+                            break;
+                        }
+
                         var st = currentStates[sIdx];
                         bool oathWasActiveBeforeBomb = oathRuneIndex >= 0 && (st.Mask & (1UL << oathRuneIndex)) != 0;
                         double oathExposurePenalty = oathWasActiveBeforeBomb ? (totalNewlyHitRuneSlots * this.settings.OathPerSlotExposurePenalty) : 0.0;
 
                         void SearchCombinations(int remIdx, RuneshapeRecipeOffer[] currentOffers)
                         {
+                            if (cancelledDuringSearch) return;
+
+                            if (hasCancelCheck && ((++combinationNodeCounter & 127) == 0) && IsCancelled())
+                            {
+                                cancelledDuringSearch = true;
+                                return;
+                            }
+
                             if (remIdx == remnantsWithOffers.Count)
                             {
                                 ulong curMask = st.Mask;
@@ -592,16 +655,34 @@ namespace ExpeditionPathOptimizer
                             {
                                 currentOffers[remIdx] = list[oIdx];
                                 SearchCombinations(remIdx + 1, currentOffers);
+                                if (cancelledDuringSearch) return;
                             }
                         }
 
                         SearchCombinations(0, new RuneshapeRecipeOffer[remnantsWithOffers.Count]);
+                        if (cancelledDuringSearch) break;
+                    }
+
+                    if (cancelledDuringSearch || (hasCancelCheck && IsCancelled()))
+                    {
+                        totalScore = double.NegativeInfinity;
+                        pointsScore = null;
+                        wasPruned = false;
+                        return false;
                     }
 
                     var nextList = nextByMask.Values.ToList();
                     if (nextList.Count > recipeDpStateCap)
                     {
                         wasPruned = true;
+                        if (hasCancelCheck && IsCancelled())
+                        {
+                            totalScore = double.NegativeInfinity;
+                            pointsScore = null;
+                            wasPruned = false;
+                            return false;
+                        }
+
                         nextList = nextList
                             .OrderByDescending(s => s.Score)
                             .ThenByDescending(s => s.ComboWeight)
@@ -749,7 +830,9 @@ namespace ExpeditionPathOptimizer
             }
         }
 
-        public IEnumerable<PathState> GetBestPathSeries(ExpeditionEnvironment environment)
+        public IEnumerable<PathState> GetBestPathSeries(
+            ExpeditionEnvironment environment,
+            Action<IReadOnlyList<(double Score, List<Vector2> Path)>>? onGenerationScored = null)
         {
             if (environment.MaxExplosions <= 0 || environment.FinalTarget == null)
             {
@@ -772,10 +855,15 @@ namespace ExpeditionPathOptimizer
                     .Take(this.settings.PathGenerationSize)
                     .ToList();
 
-                if (batchWithValues.Count > 0 && batchWithValues[0].Score > bestScore)
+                if (batchWithValues.Count > 0)
                 {
-                    bestScore = batchWithValues[0].Score;
-                    bestPath = batchWithValues[0].Path;
+                    onGenerationScored?.Invoke(batchWithValues);
+
+                    if (batchWithValues[0].Score > bestScore)
+                    {
+                        bestScore = batchWithValues[0].Score;
+                        bestPath = batchWithValues[0].Path;
+                    }
                 }
 
                 var mixedAndMutated = batchWithValues
