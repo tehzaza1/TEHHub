@@ -20,8 +20,40 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
     /// </summary>
     public class ServerData : RemoteObjectBase
     {
+        /// <summary>
+        ///     Represents the source of the most recent successful native AreaMods read.
+        /// </summary>
+        public enum NativeAreaModSource
+        {
+            /// <summary>
+            ///     No native source has succeeded yet.
+            /// </summary>
+            None,
+
+            /// <summary>
+            ///     Successfully read using previously discovered/cached offset.
+            /// </summary>
+            Cached,
+
+            /// <summary>
+            ///     Successfully read using default struct offset (0x8A8).
+            /// </summary>
+            Default0x8A8,
+
+            /// <summary>
+            ///     Successfully read using adaptive probing scan.
+            /// </summary>
+            Adaptive,
+        }
+
         private InventoryName selectedInvName = InventoryName.NoInvSelected;
         private int lastDiscoveredModsOffset = -1;
+        private NativeAreaModSource lastModSource = NativeAreaModSource.None;
+        private int lastModOffset = -1;
+        private int lastVectorElementCount = 0;
+        private int lastParsedModCount = 0;
+        private int lastAdaptiveCandidatesTested = 0;
+        private StdVector lastSuccessfulVector = default;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ServerData" /> class.
@@ -93,6 +125,24 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     }
                 }
 
+                ImGui.Separator();
+                ImGui.TextDisabled("Diagnostic Probe Info:");
+                ImGui.Text($"  Native source: {this.lastModSource}");
+                ImGui.Text(this.lastModOffset >= 0 ? $"  Native offset: 0x{this.lastModOffset:X}" : "  Native offset: N/A");
+                ImGui.Text($"  Vector elements: {this.lastVectorElementCount}");
+                ImGui.Text($"  Parsed mods: {this.lastParsedModCount}");
+                if (this.lastAdaptiveCandidatesTested > 0)
+                {
+                    ImGui.Text($"  Adaptive candidates tested: {this.lastAdaptiveCandidatesTested}");
+                }
+
+                if (this.lastModSource != NativeAreaModSource.None)
+                {
+                    ImGui.Text($"  Vector First/Last/End: 0x{this.lastSuccessfulVector.First.ToInt64():X} / 0x{this.lastSuccessfulVector.Last.ToInt64():X} / 0x{this.lastSuccessfulVector.End.ToInt64():X}");
+                }
+
+                ImGui.Separator();
+
                 if (ImGui.Button("Force Rescan Area Mod Offsets"))
                 {
                     this.lastDiscoveredModsOffset = -1;
@@ -141,6 +191,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.FlaskInventory.Address = IntPtr.Zero;
             this.AreaMods.Clear();
             this.AreaModNames.Clear();
+            this.lastModSource = NativeAreaModSource.None;
+            this.lastModOffset = -1;
+            this.lastVectorElementCount = 0;
+            this.lastParsedModCount = 0;
+            this.lastAdaptiveCandidatesTested = 0;
+            this.lastSuccessfulVector = default;
         }
 
         /// <inheritdoc />
@@ -152,6 +208,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 this.ClearCurrentlySelectedInventory();
                 this.AreaMods.Clear();
                 this.AreaModNames.Clear();
+                this.lastModSource = NativeAreaModSource.None;
+                this.lastModOffset = -1;
+                this.lastVectorElementCount = 0;
+                this.lastParsedModCount = 0;
+                this.lastAdaptiveCandidatesTested = 0;
+                this.lastSuccessfulVector = default;
             }
 
             var reader = Core.Process.Handle;
@@ -195,6 +257,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         {
             this.AreaMods.Clear();
             this.AreaModNames.Clear();
+            this.lastModSource = NativeAreaModSource.None;
+            this.lastModOffset = -1;
+            this.lastVectorElementCount = 0;
+            this.lastParsedModCount = 0;
+            this.lastAdaptiveCandidatesTested = 0;
+            this.lastSuccessfulVector = default;
 
             // 1. Try known/cached offset first
             if (this.lastDiscoveredModsOffset >= 0)
@@ -202,6 +270,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 var cachedVec = reader.ReadMemory<StdVector>(playerServerDataAddress + this.lastDiscoveredModsOffset);
                 if (this.TryReadModsFromVector(reader, cachedVec))
                 {
+                    this.lastModSource = NativeAreaModSource.Cached;
+                    this.lastModOffset = this.lastDiscoveredModsOffset;
+                    this.lastVectorElementCount = (int)cachedVec.TotalElements(0x40);
+                    this.lastParsedModCount = this.AreaMods.Count;
+                    this.lastSuccessfulVector = cachedVec;
                     return;
                 }
 
@@ -212,6 +285,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             if (this.TryReadModsFromVector(reader, playerData.WorldAreaMods))
             {
                 this.lastDiscoveredModsOffset = 0x8A8;
+                this.lastModSource = NativeAreaModSource.Default0x8A8;
+                this.lastModOffset = 0x8A8;
+                this.lastVectorElementCount = (int)playerData.WorldAreaMods.TotalElements(0x40);
+                this.lastParsedModCount = this.AreaMods.Count;
+                this.lastSuccessfulVector = playerData.WorldAreaMods;
                 return;
             }
 
@@ -222,9 +300,15 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 var elemCount = candidateVec.TotalElements(0x40);
                 if (elemCount is > 0 and < 150)
                 {
+                    this.lastAdaptiveCandidatesTested++;
                     if (this.TryReadModsFromVector(reader, candidateVec))
                     {
                         this.lastDiscoveredModsOffset = offset;
+                        this.lastModSource = NativeAreaModSource.Adaptive;
+                        this.lastModOffset = offset;
+                        this.lastVectorElementCount = (int)elemCount;
+                        this.lastParsedModCount = this.AreaMods.Count;
+                        this.lastSuccessfulVector = candidateVec;
                         return;
                     }
                 }
