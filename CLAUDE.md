@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-GameHelper2 is a Windows x64 .NET 10 overlay for Path of Exile 2. It attaches to the running game process, reads game state out of its memory, and renders an ImGui overlay (via `ClickableTransparentOverlay`). Functionality is delivered through dynamically-loaded plugins. There are no automated tests in this repo.
+TEHHub is a Windows x64 .NET 10 overlay for Path of Exile 2. It attaches to the running game process, reads game state out of its memory, and renders an ImGui overlay (via `ClickableTransparentOverlay`). Functionality is delivered through dynamically-loaded plugins. There are no automated tests in this repo.
 
 ## Build & run
 
