@@ -52,7 +52,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private int lastModOffset = -1;
         private int lastVectorElementCount = 0;
         private int lastParsedModCount = 0;
-        private int lastAdaptiveCandidatesTested = 0;
+        private int lastAdaptiveCandidatesTested = -1;
         private StdVector lastSuccessfulVector = default;
 
         /// <summary>
@@ -131,7 +131,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 ImGui.Text(this.lastModOffset >= 0 ? $"  Native offset: 0x{this.lastModOffset:X}" : "  Native offset: N/A");
                 ImGui.Text($"  Vector elements: {this.lastVectorElementCount}");
                 ImGui.Text($"  Parsed mods: {this.lastParsedModCount}");
-                if (this.lastAdaptiveCandidatesTested > 0)
+                if (this.lastAdaptiveCandidatesTested < 0)
+                {
+                    ImGui.Text("  Adaptive candidates tested: N/A");
+                }
+                else
                 {
                     ImGui.Text($"  Adaptive candidates tested: {this.lastAdaptiveCandidatesTested}");
                 }
@@ -195,7 +199,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.lastModOffset = -1;
             this.lastVectorElementCount = 0;
             this.lastParsedModCount = 0;
-            this.lastAdaptiveCandidatesTested = 0;
+            this.lastAdaptiveCandidatesTested = -1;
             this.lastSuccessfulVector = default;
         }
 
@@ -212,7 +216,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 this.lastModOffset = -1;
                 this.lastVectorElementCount = 0;
                 this.lastParsedModCount = 0;
-                this.lastAdaptiveCandidatesTested = 0;
+                this.lastAdaptiveCandidatesTested = -1;
                 this.lastSuccessfulVector = default;
             }
 
@@ -261,7 +265,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.lastModOffset = -1;
             this.lastVectorElementCount = 0;
             this.lastParsedModCount = 0;
-            this.lastAdaptiveCandidatesTested = 0;
+            this.lastAdaptiveCandidatesTested = -1;
             this.lastSuccessfulVector = default;
 
             // 1. Try known/cached offset first
@@ -294,6 +298,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             }
 
             // 3. Adaptive Probing: scan ServerDataStructure memory for candidate StdVector containing ModArrayStruct
+            this.lastAdaptiveCandidatesTested = 0;
             for (var offset = 0x0; offset <= 0xC00; offset += 8)
             {
                 var candidateVec = reader.ReadMemory<StdVector>(playerServerDataAddress + offset);
