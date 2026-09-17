@@ -127,4 +127,56 @@ namespace ExpeditionPathOptimizer
             return clone;
         }
     }
+
+    public static class ExpeditionUiConstants
+    {
+        public static readonly string[] PriceSourceLabels = new[] { "poe2scout", "poe.ninja" };
+        public const string PriceSourceComboString = "poe2scout\0poe.ninja\0\0";
+
+        // Search Algorithm Ranges
+        public const int SearchThreadsMin = 1;
+        public const int SearchThreadsMax = 12;
+
+        public const float SearchDurationMinSec = 1.0f;
+        public const float SearchDurationMaxSec = 10.0f;
+
+        public const int PopulationSizeMin = 20;
+        public const int PopulationSizeMax = 500;
+
+        public const float MutateChanceMin = 0.0f;
+        public const float MutateChanceMax = 1.0f;
+
+        public const float RandomPathInjectionMin = 0.0f;
+        public const float RandomPathInjectionMax = 2.0f;
+
+        // Scoring & Penalties Ranges
+        public const float RecipePriceMultiplierMin = 0.0f;
+        public const float RecipePriceMultiplierMax = 5.0f;
+
+        public const float OathPerSlotPenaltyMin = 0.0f;
+        public const float OathPerSlotPenaltyMax = 100.0f;
+
+        public const float BacktrackPenaltyMin = 0.0f;
+        public const float BacktrackPenaltyMax = 20.0f;
+
+        public const float ChestScoreMin = 0.0f;
+        public const float ChestScoreMax = 150.0f;
+
+        public const float UsefulBridgePenaltyMin = 0.0f;
+        public const float UsefulBridgePenaltyMax = 100.0f;
+
+        public const float EmptyBombPenaltyMin = 50.0f;
+        public const float EmptyBombPenaltyMax = 300.0f;
+
+        public const float ShortBridgeReachPctMin = 20.0f;
+        public const float ShortBridgeReachPctMax = 90.0f;
+
+        public const float TravelPenaltyMin = 0.0f;
+        public const float TravelPenaltyMax = 100.0f;
+
+        // Price Service Ranges
+        public const int AutoRefreshMinutesMin = 5;
+        public const int AutoRefreshMinutesMax = 120;
+    }
 }
+

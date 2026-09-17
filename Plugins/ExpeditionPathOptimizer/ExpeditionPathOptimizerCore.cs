@@ -330,35 +330,35 @@ namespace ExpeditionPathOptimizer
 
                 ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Algorithm Parameters");
                 int threads = this.Settings.SearchThreads;
-                if (ImGui.SliderInt("Search Threads", ref threads, 1, 12))
+                if (ImGui.SliderInt("Search Threads", ref threads, ExpeditionUiConstants.SearchThreadsMin, ExpeditionUiConstants.SearchThreadsMax))
                 {
                     this.Settings.SearchThreads = threads;
                     this.SaveSettings();
                 }
 
                 float maxTime = this.Settings.MaximumGenerationTimeSeconds;
-                if (ImGui.SliderFloat("Search Duration (sec)", ref maxTime, 1.0f, 10.0f, "%.1f"))
+                if (ImGui.SliderFloat("Search Duration (sec)", ref maxTime, ExpeditionUiConstants.SearchDurationMinSec, ExpeditionUiConstants.SearchDurationMaxSec, "%.1f"))
                 {
                     this.Settings.MaximumGenerationTimeSeconds = maxTime;
                     this.SaveSettings();
                 }
 
                 int popSize = this.Settings.PathGenerationSize;
-                if (ImGui.SliderInt("Population Size", ref popSize, 20, 500))
+                if (ImGui.SliderInt("Population Size", ref popSize, ExpeditionUiConstants.PopulationSizeMin, ExpeditionUiConstants.PopulationSizeMax))
                 {
                     this.Settings.PathGenerationSize = popSize;
                     this.SaveSettings();
                 }
 
                 float mutateChance = this.Settings.PathMutateChance;
-                if (ImGui.SliderFloat("Path Mutate Chance", ref mutateChance, 0.0f, 1.0f, "%.2f"))
+                if (ImGui.SliderFloat("Path Mutate Chance", ref mutateChance, ExpeditionUiConstants.MutateChanceMin, ExpeditionUiConstants.MutateChanceMax, "%.2f"))
                 {
                     this.Settings.PathMutateChance = mutateChance;
                     this.SaveSettings();
                 }
 
                 float injectRate = this.Settings.NewRandomPathInjectionRate;
-                if (ImGui.SliderFloat("New Path Injection Rate", ref injectRate, 0.0f, 2.0f, "%.2f"))
+                if (ImGui.SliderFloat("New Path Injection Rate", ref injectRate, ExpeditionUiConstants.RandomPathInjectionMin, ExpeditionUiConstants.RandomPathInjectionMax, "%.2f"))
                 {
                     this.Settings.NewRandomPathInjectionRate = injectRate;
                     this.SaveSettings();
@@ -368,56 +368,56 @@ namespace ExpeditionPathOptimizer
                 ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Scoring & Penalty Parameters");
 
                 float priceMult = (float)this.Settings.RecipePriceScoreMultiplier;
-                if (ImGui.SliderFloat("Recipe Price Multiplier", ref priceMult, 0.0f, 5.0f, "%.2f"))
+                if (ImGui.SliderFloat("Recipe Price Multiplier", ref priceMult, ExpeditionUiConstants.RecipePriceMultiplierMin, ExpeditionUiConstants.RecipePriceMultiplierMax, "%.2f"))
                 {
                     this.Settings.RecipePriceScoreMultiplier = priceMult;
                     this.SaveSettings();
                 }
 
                 float oathPen = (float)this.Settings.OathPerSlotExposurePenalty;
-                if (ImGui.SliderFloat("Oath Exposure Penalty / Slot", ref oathPen, 0.0f, 100.0f, "%.0f"))
+                if (ImGui.SliderFloat("Oath Exposure Penalty / Slot", ref oathPen, ExpeditionUiConstants.OathPerSlotPenaltyMin, ExpeditionUiConstants.OathPerSlotPenaltyMax, "%.0f"))
                 {
                     this.Settings.OathPerSlotExposurePenalty = oathPen;
                     this.SaveSettings();
                 }
 
                 float backtrackPen = (float)this.Settings.BacktrackPenaltyPerGrid;
-                if (ImGui.SliderFloat("Backtrack Penalty / Grid", ref backtrackPen, 0.0f, 20.0f, "%.1f"))
+                if (ImGui.SliderFloat("Backtrack Penalty / Grid", ref backtrackPen, ExpeditionUiConstants.BacktrackPenaltyMin, ExpeditionUiConstants.BacktrackPenaltyMax, "%.1f"))
                 {
                     this.Settings.BacktrackPenaltyPerGrid = backtrackPen;
                     this.SaveSettings();
                 }
 
                 float chestScore = (float)this.Settings.ChestHitBaseScore;
-                if (ImGui.SliderFloat("Chest Hit Score (+)", ref chestScore, 0.0f, 150.0f, "%.0f"))
+                if (ImGui.SliderFloat("Chest Hit Score (+)", ref chestScore, ExpeditionUiConstants.ChestScoreMin, ExpeditionUiConstants.ChestScoreMax, "%.0f"))
                 {
                     this.Settings.ChestHitBaseScore = chestScore;
                     this.SaveSettings();
                 }
 
                 float usefulBridge = (float)this.Settings.UsefulBridgePenalty;
-                if (ImGui.SliderFloat("Useful Bridge Penalty (-)", ref usefulBridge, 0.0f, 100.0f, "%.0f"))
+                if (ImGui.SliderFloat("Useful Bridge Penalty (-)", ref usefulBridge, ExpeditionUiConstants.UsefulBridgePenaltyMin, ExpeditionUiConstants.UsefulBridgePenaltyMax, "%.0f"))
                 {
                     this.Settings.UsefulBridgePenalty = usefulBridge;
                     this.SaveSettings();
                 }
 
                 float uselessBridge = (float)this.Settings.EmptyBombPenalty;
-                if (ImGui.SliderFloat("Useless Empty Bomb Penalty (-)", ref uselessBridge, 50.0f, 300.0f, "%.0f"))
+                if (ImGui.SliderFloat("Useless Empty Bomb Penalty (-)", ref uselessBridge, ExpeditionUiConstants.EmptyBombPenaltyMin, ExpeditionUiConstants.EmptyBombPenaltyMax, "%.0f"))
                 {
                     this.Settings.EmptyBombPenalty = uselessBridge;
                     this.SaveSettings();
                 }
 
                 float shortBridgePct = (float)(this.Settings.ShortBridgePenaltyThreshold * 100.0);
-                if (ImGui.SliderFloat("Short Bridge Min Reach (%)", ref shortBridgePct, 20.0f, 90.0f, "%.0f%%"))
+                if (ImGui.SliderFloat("Short Bridge Threshold (% Reach)", ref shortBridgePct, ExpeditionUiConstants.ShortBridgeReachPctMin, ExpeditionUiConstants.ShortBridgeReachPctMax, "%.0f%%"))
                 {
                     this.Settings.ShortBridgePenaltyThreshold = shortBridgePct / 100.0;
                     this.SaveSettings();
                 }
 
                 float travelPen = (float)this.Settings.TravelPenaltyMultiplier;
-                if (ImGui.SliderFloat("Travel Penalty Multiplier", ref travelPen, 0.0f, 100.0f, "%.0f"))
+                if (ImGui.SliderFloat("Travel Penalty Multiplier", ref travelPen, ExpeditionUiConstants.TravelPenaltyMin, ExpeditionUiConstants.TravelPenaltyMax, "%.0f"))
                 {
                     this.Settings.TravelPenaltyMultiplier = travelPen;
                     this.SaveSettings();
@@ -434,14 +434,14 @@ namespace ExpeditionPathOptimizer
                 }
 
                 int priceSource = this.Settings.PriceSource;
-                if (ImGui.Combo("Price Source", ref priceSource, "poe2scout\0poe.ninja\0\0"))
+                if (ImGui.Combo("Price Source", ref priceSource, ExpeditionUiConstants.PriceSourceComboString))
                 {
                     this.Settings.PriceSource = priceSource;
                     this.SaveSettings();
                 }
 
                 int refreshMins = this.Settings.AutoRefreshMinutes;
-                if (ImGui.SliderInt("Auto Refresh (mins)", ref refreshMins, 5, 120))
+                if (ImGui.SliderInt("Auto Refresh (mins)", ref refreshMins, ExpeditionUiConstants.AutoRefreshMinutesMin, ExpeditionUiConstants.AutoRefreshMinutesMax))
                 {
                     this.Settings.AutoRefreshMinutes = refreshMins;
                     this.SaveSettings();
