@@ -114,5 +114,17 @@ namespace ExpeditionPathOptimizer
                 return ov;
             return this.RuneWeights.GetValueOrDefault(runeName, 20.0);
         }
+
+        public ExpeditionPathOptimizerSettings CloneForSearch()
+        {
+            var clone = (ExpeditionPathOptimizerSettings)this.MemberwiseClone();
+            clone.RuneWeights = this.RuneWeights != null
+                ? new Dictionary<string, double>(this.RuneWeights, StringComparer.OrdinalIgnoreCase)
+                : new(StringComparer.OrdinalIgnoreCase);
+            clone.PropagationScoreOverrides = this.PropagationScoreOverrides != null
+                ? new Dictionary<string, double>(this.PropagationScoreOverrides, StringComparer.OrdinalIgnoreCase)
+                : new(StringComparer.OrdinalIgnoreCase);
+            return clone;
+        }
     }
 }

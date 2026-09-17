@@ -260,6 +260,7 @@ namespace ExpeditionPathOptimizer
                 }
                 ImGui.SameLine();
                 ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.2f, 1.0f), "Optimizing in background...");
+                ImGui.TextDisabled("Search settings are locked for this run; changes apply to the next search.");
             }
             else
             {

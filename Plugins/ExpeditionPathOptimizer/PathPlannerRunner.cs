@@ -66,7 +66,8 @@ namespace ExpeditionPathOptimizer
             this.finalBestPath = null;
             this.bestValues = null;
             this.cts = new CancellationTokenSource();
-            this.searchTask = this.RunAsync(settings, env, gen, this.cts.Token);
+            var searchSettings = settings.CloneForSearch();
+            this.searchTask = this.RunAsync(searchSettings, env, gen, this.cts.Token);
         }
 
         private async Task RunAsync(ExpeditionPathOptimizerSettings settings, ExpeditionEnvironment env, int generationId, CancellationToken token)
