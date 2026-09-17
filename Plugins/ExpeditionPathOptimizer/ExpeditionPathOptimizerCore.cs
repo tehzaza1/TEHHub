@@ -616,16 +616,23 @@ namespace ExpeditionPathOptimizer
                     ImGui.TextDisabled($"  Finalists Re-ranked: {bestPlan.FinalistsReRanked}");
 
                     double econTotal = bestPlan.PerPointScore.Sum(p => p.RecipeEconomicScore);
-                    double runeTotal = bestPlan.PerPointScore.Sum(p => p.RuneScore);
-                    double oathTotal = bestPlan.PerPointScore.Sum(p => p.OathExposurePenalty);
+                    double recipeRuneTotal = bestPlan.PerPointScore.Sum(p => p.RecipeRuneScore);
+                    double inheritedPropTotal = bestPlan.PerPointScore.Sum(p => p.InheritedPropagationScore);
+                    double oathAcqTotal = bestPlan.PerPointScore.Sum(p => p.OathAcquisitionScore);
+                    double oathExpTotal = bestPlan.PerPointScore.Sum(p => p.OathExposurePenalty);
                     double backtrackTotal = bestPlan.PerPointScore.Sum(p => p.BacktrackPenalty);
                     double totalScore = bestPlan.TotalScore;
 
                     ImGui.Text($"  Recipe Economic Score: +{econTotal:F0}");
-                    ImGui.Text($"  Recipe & Propagated Rune Value: +{runeTotal:F0}");
-                    if (oathTotal > 0.0)
+                    ImGui.Text($"  Recipe Rune Score: +{recipeRuneTotal:F0}");
+                    ImGui.Text($"  Inherited Propagation Score: +{inheritedPropTotal:F0}");
+                    if (oathAcqTotal < 0.0)
                     {
-                        ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"  Oath Exposure: -{oathTotal:F0}");
+                        ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"  Oath Acquisition Score: {oathAcqTotal:F0}");
+                    }
+                    if (oathExpTotal > 0.0)
+                    {
+                        ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"  Oath Exposure: -{oathExpTotal:F0}");
                     }
                     else
                     {
@@ -645,12 +652,22 @@ namespace ExpeditionPathOptimizer
                         }
 
                         int bombNum = bIdx + 1;
+                        string newlyActivatedStr = pt.NewlyActivatedRunes != null && pt.NewlyActivatedRunes.Count > 0
+                            ? string.Join(", ", pt.NewlyActivatedRunes)
+                            : "None";
+
+                        string bombOathAcqStr = pt.OathAcquisitionScore < 0.0 ? $" | Oath Acquisition: {pt.OathAcquisitionScore:F0}" : "";
+                        string bombOathExpStr = pt.OathExposurePenalty > 0.0 ? $" | Oath Exposure: -{pt.OathExposurePenalty:F0}" : "";
+
+                        ImGui.TextColored(new Vector4(0.4f, 0.8f, 1.0f, 1.0f), $"Bomb {bombNum} (Step ScoreDiff: {pt.ScoreDiff:F1}) | Newly Activated: [{newlyActivatedStr}]{bombOathAcqStr}{bombOathExpStr}");
+
                         for (int pIdx = 0; pIdx < pt.PlannedRecipes.Count; pIdx++)
                         {
                             var plan = pt.PlannedRecipes[pIdx];
                             int slots = plan.Remnant.RuneSlots;
                             string recId = plan.Recipe.RecipeId ?? "Unknown";
                             string rewStr = $"{plan.Recipe.Reward} x{plan.Recipe.RewardCount} | {plan.Recipe.PriceChaos:F1}c";
+                            string runesStr = plan.Recipe.Runes != null ? $"[{string.Join(", ", plan.Recipe.Runes)}]" : "[]";
 
                             var goldenList = new List<string>();
                             if (plan.Remnant.GoldenSlots != null && plan.Recipe.Runes != null)
@@ -664,16 +681,13 @@ namespace ExpeditionPathOptimizer
                                     }
                                 }
                             }
-                            string goldenStr = goldenList.Count > 0 ? $"[{string.Join(", ", goldenList)}]" : "None";
-                            string newRunesStr = plan.NewlyAcquiredRunes.Count > 0 ? string.Join(", ", plan.NewlyAcquiredRunes) : "None";
-                            string oathMarker = plan.NewlyAcquiredRunes.Contains("Oath", StringComparer.OrdinalIgnoreCase) ? " [OATH ACTIVATED]" : "";
-                            string oathExpStr = pt.OathExposurePenalty > 0.0 ? $" | Oath Exposure: -{pt.OathExposurePenalty:F0}" : "";
+                            string goldenMapStr = goldenList.Count > 0 ? $"[{string.Join(", ", goldenList)}]" : "None";
+                            string goldenOutStr = plan.GoldenOutputRunes != null && plan.GoldenOutputRunes.Count > 0 ? string.Join(", ", plan.GoldenOutputRunes) : "None";
 
-                            ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), $"B{bombNum} | {slots} slots | {recId}{oathMarker}");
-                            ImGui.TextDisabled($"   Reward: {rewStr}");
-                            ImGui.TextDisabled($"   Golden: {goldenStr}");
-                            ImGui.TextDisabled($"   New: {newRunesStr}");
-                            ImGui.Text($"   Rune: +{plan.PropagatedRuneScore:F0} | Econ: +{plan.EconomicScore:F0}{oathExpStr}");
+                            ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), $"  Remnant #{plan.Remnant.EntityId} ({slots} slots) -> {recId}");
+                            ImGui.TextDisabled($"     Runes: {runesStr} | Reward: {rewStr}");
+                            ImGui.TextDisabled($"     Golden Mapping: {goldenMapStr} | Golden Output: [{goldenOutStr}]");
+                            ImGui.Text($"     Recipe Rune: +{plan.RecipeRuneScore:F0} | Inherited Prop: +{plan.InheritedPropagationScore:F0} | Econ: +{plan.EconomicScore:F0}");
                         }
                     }
 
