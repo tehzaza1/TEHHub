@@ -39,7 +39,7 @@ namespace ExpeditionPathOptimizer
 
         private Vector3 detonatorWorldPos = Vector3.Zero;
         private Vector2 detonatorGridPos = Vector2.Zero;
-        private readonly List<DetonatorDiagnosticInfo> visibleDetonators = new();
+        private readonly List<DetonatorDiagnosticInfo> detectedDetonators = new();
         private readonly Dictionary<IntPtr, ExpeditionRemnant> discoveredRemnants = new();
         private readonly Dictionary<IntPtr, ExpeditionChest> discoveredChests = new();
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
@@ -73,18 +73,21 @@ namespace ExpeditionPathOptimizer
             return areaId.StartsWith("ExpeditionSubArea_", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool IsExpeditionLogBook(string areaId)
+        private static bool IsGrandExpeditionOrLogbook(AreaInstance? area, string areaId)
         {
-            return areaId.StartsWith("ExpeditionLogBook_", StringComparison.OrdinalIgnoreCase);
+            bool configSaysGrand = area?.ExpeditionConfig.IsGrandExpedition == true;
+            bool idSaysInternalLogbook = areaId.StartsWith("ExpeditionLogBook_", StringComparison.OrdinalIgnoreCase);
+            return configSaysGrand || idSaysInternalLogbook;
         }
 
         private bool IsEligibleForNormalMapDiagnostics(AreaInstance? area, string areaId)
         {
             if (area == null) return false;
             if (IsExpeditionSubArea(areaId)) return false;
-            if (IsExpeditionLogBook(areaId)) return false;
-            if (area.ExpeditionConfig.IsGrandExpedition) return false;
-            return true;
+            if (IsGrandExpeditionOrLogbook(area, areaId)) return false;
+
+            // Fail-Closed: Current TEHhub SDK/API does not provide an authoritative positive normal-map test.
+            return false;
         }
 
         public override void OnEnable(bool isAutoEnabling)
@@ -115,7 +118,7 @@ namespace ExpeditionPathOptimizer
         {
             this.detonatorWorldPos = Vector3.Zero;
             this.detonatorGridPos = Vector2.Zero;
-            this.visibleDetonators.Clear();
+            this.detectedDetonators.Clear();
             this.discoveredRemnants.Clear();
             this.discoveredChests.Clear();
             this.placedExplosives.Clear();
@@ -661,22 +664,22 @@ namespace ExpeditionPathOptimizer
                         ImGui.Separator();
                         ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Regular Map Multi-Expedition Diagnostics");
 
-                        int detCount = this.visibleDetonators.Count;
-                        ImGui.Text($"Visible Detonators: {detCount}");
+                        int detCount = this.detectedDetonators.Count;
+                        ImGui.Text($"Detonators Detected This Scan: {detCount}");
 
                         if (detCount > 0)
                         {
-                            var primaryDet = this.visibleDetonators[0];
-                            ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), "Primary Detonator:");
+                            var primaryDet = this.detectedDetonators[0];
+                            ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), "Primary Diagnostic Detonator (Nearest to Player):");
                             ImGui.TextDisabled($"  EntityId={primaryDet.EntityId} Address=0x{primaryDet.Address.ToInt64():X} Grid=({primaryDet.GridPos.X:F1}, {primaryDet.GridPos.Y:F1}) DistFromPlayer={primaryDet.DistanceFromPlayer:F1}");
 
                             if (detCount > 1)
                             {
-                                ImGui.TextDisabled("All Visible Detonators:");
-                                for (int d = 0; d < this.visibleDetonators.Count; d++)
+                                ImGui.TextDisabled("All Detected Detonators This Scan:");
+                                for (int d = 0; d < this.detectedDetonators.Count; d++)
                                 {
-                                    var det = this.visibleDetonators[d];
-                                    string tag = d == 0 ? " (PRIMARY)" : "";
+                                    var det = this.detectedDetonators[d];
+                                    string tag = d == 0 ? " (PRIMARY DIAGNOSTIC)" : "";
                                     ImGui.TextDisabled($"  [{d}] EntityId={det.EntityId} Address=0x{det.Address.ToInt64():X} Grid=({det.GridPos.X:F1}, {det.GridPos.Y:F1}) DistFromPlayer={det.DistanceFromPlayer:F1}{tag}");
                                 }
                             }
@@ -716,12 +719,12 @@ namespace ExpeditionPathOptimizer
 
                                 if (sortedByDetDist.Count >= 2)
                                 {
-                                    float maxGap = 0f;
-                                    int splitIndex = -1;
-                                    float beforeDist = 0f;
-                                    float afterDist = 0f;
+                                    int splitIndex = 1;
+                                    float beforeDist = sortedByDetDist[0].Distance;
+                                    float afterDist = sortedByDetDist[1].Distance;
+                                    float maxGap = afterDist - beforeDist;
 
-                                    for (int i = 1; i < sortedByDetDist.Count; i++)
+                                    for (int i = 2; i < sortedByDetDist.Count; i++)
                                     {
                                         float dPrev = sortedByDetDist[i - 1].Distance;
                                         float dCurr = sortedByDetDist[i].Distance;
@@ -736,18 +739,15 @@ namespace ExpeditionPathOptimizer
                                     }
 
                                     ImGui.Spacing();
-                                    if (splitIndex >= 0)
-                                    {
-                                        int nearCount = splitIndex;
-                                        int farCount = sortedByDetDist.Count - splitIndex;
-                                        ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.8f, 1.0f), "Largest Distance Gap:");
-                                        ImGui.Text($"  before={beforeDist:F1}");
-                                        ImGui.Text($"  after={afterDist:F1}");
-                                        ImGui.Text($"  gap={maxGap:F1}");
-                                        ImGui.Text($"  splitIndex={splitIndex}");
-                                        ImGui.Text($"  candidateNearCount={nearCount}");
-                                        ImGui.Text($"  candidateFarCount={farCount}");
-                                    }
+                                    int nearCount = splitIndex;
+                                    int farCount = sortedByDetDist.Count - splitIndex;
+                                    ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.8f, 1.0f), "Largest Distance Gap:");
+                                    ImGui.Text($"  before={beforeDist:F1}");
+                                    ImGui.Text($"  after={afterDist:F1}");
+                                    ImGui.Text($"  gap={maxGap:F1}");
+                                    ImGui.Text($"  splitIndex={splitIndex}");
+                                    ImGui.Text($"  candidateNearCount={nearCount}");
+                                    ImGui.Text($"  candidateFarCount={farCount}");
                                 }
                                 else
                                 {
@@ -759,7 +759,7 @@ namespace ExpeditionPathOptimizer
                         {
                             var validRemnantsList = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
                             ImGui.TextDisabled($"Total discovered valid Remnants in area: {validRemnantsList.Count}");
-                            ImGui.TextDisabled("Distance sorting and gap diagnostics require a visible Detonator.");
+                            ImGui.TextDisabled("Distance sorting and gap diagnostics require at least one detected Detonator.");
                         }
                     }
                 }
@@ -970,7 +970,7 @@ namespace ExpeditionPathOptimizer
 
             var reader = Core.Process.Handle;
             var currentLiveExplosives = new Dictionary<IntPtr, Vector3>();
-            var currentDetonators = new List<DetonatorDiagnosticInfo>();
+            var detectedDetonatorsThisScan = new List<DetonatorDiagnosticInfo>();
 
             var player = area.Player;
             Vector2 playerGridPos = Vector2.Zero;
@@ -1008,10 +1008,15 @@ namespace ExpeditionPathOptimizer
 
                 if (isDetonator)
                 {
-                    if (!currentDetonators.Any(d => d.Address == entity.Address))
+                    // Existing production behavior — preserve exactly.
+                    this.detonatorWorldPos = wPos;
+                    this.detonatorGridPos = gPos;
+
+                    // Phase 1 diagnostic snapshot only.
+                    if (!detectedDetonatorsThisScan.Any(d => d.Address == entity.Address))
                     {
                         float distToPlayer = playerGridPos != Vector2.Zero ? Vector2.Distance(playerGridPos, gPos) : 0f;
-                        currentDetonators.Add(new DetonatorDiagnosticInfo(entity.Id, entity.Address, gPos, wPos, distToPlayer));
+                        detectedDetonatorsThisScan.Add(new DetonatorDiagnosticInfo(entity.Id, entity.Address, gPos, wPos, distToPlayer));
                     }
                 }
                 else if (path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase) &&
@@ -1207,24 +1212,16 @@ namespace ExpeditionPathOptimizer
                 foreach (var e in area.SleepingEntities.Values) ProcessEntity(e);
             }
 
-            // Synchronize visible detonators (Primary = nearest to player)
-            this.visibleDetonators.Clear();
-            if (currentDetonators.Count > 0)
+            // Synchronize diagnostic detonators (Diagnostic snapshot only - does NOT mutate production detonator fields)
+            this.detectedDetonators.Clear();
+            if (detectedDetonatorsThisScan.Count > 0)
             {
-                var sortedDetonators = currentDetonators
+                var sortedDetonators = detectedDetonatorsThisScan
                     .OrderBy(d => d.DistanceFromPlayer)
                     .ThenBy(d => d.EntityId)
                     .ToList();
 
-                this.visibleDetonators.AddRange(sortedDetonators);
-                var primary = sortedDetonators[0];
-                this.detonatorWorldPos = primary.WorldPos;
-                this.detonatorGridPos = primary.GridPos;
-            }
-            else
-            {
-                this.detonatorWorldPos = Vector3.Zero;
-                this.detonatorGridPos = Vector2.Zero;
+                this.detectedDetonators.AddRange(sortedDetonators);
             }
 
             // 1. Determine Final Target BEFORE starting search: Max Slots -> Highest Rune Weight -> Proximity (only consider remnants with RuneSlots > 0)
