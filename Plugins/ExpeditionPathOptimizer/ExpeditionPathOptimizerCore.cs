@@ -80,14 +80,19 @@ namespace ExpeditionPathOptimizer
             return configSaysGrand || idSaysInternalLogbook;
         }
 
+        private static bool IsNormalMap(string areaId)
+        {
+            return areaId.StartsWith("Map", StringComparison.OrdinalIgnoreCase);
+        }
+
         private bool IsEligibleForNormalMapDiagnostics(AreaInstance? area, string areaId)
         {
             if (area == null) return false;
             if (IsExpeditionSubArea(areaId)) return false;
             if (IsGrandExpeditionOrLogbook(area, areaId)) return false;
+            if (!IsNormalMap(areaId)) return false;
 
-            // Fail-Closed: Current TEHhub SDK/API does not provide an authoritative positive normal-map test.
-            return false;
+            return true;
         }
 
         public override void OnEnable(bool isAutoEnabling)
