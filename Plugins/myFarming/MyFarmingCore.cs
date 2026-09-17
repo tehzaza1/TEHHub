@@ -27,7 +27,6 @@ namespace myFarming
         private bool isRunActive = false;
         private bool isRunPaused = false;
         private MapRun? currentRun = null;
-        private DateTime runStartTimeUtc = DateTime.MinValue;
         private DateTime lastTickUtc = DateTime.MinValue;
         private double activeRunDurationSec = 0.0;
         private string lastAreaHash = string.Empty;
@@ -258,7 +257,6 @@ namespace myFarming
             this.isRunActive = true;
             this.isRunPaused = false;
             this.activeRunDurationSec = 0.0;
-            this.runStartTimeUtc = DateTime.UtcNow;
             this.lastTickUtc = DateTime.UtcNow;
             this.currentTotalChaos = 0f;
             this.currentLoot.Clear();
@@ -607,10 +605,9 @@ namespace myFarming
                         shown++;
                     }
                 }
-
-                ImGui.End();
             }
 
+            ImGui.End();
             ImGui.PopStyleColor(2);
         }
 
