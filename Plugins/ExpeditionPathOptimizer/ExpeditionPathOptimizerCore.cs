@@ -49,6 +49,9 @@ namespace ExpeditionPathOptimizer
 
         private string lastAreaHash = string.Empty;
         private bool hasAutoSearchedThisArea = false;
+        private bool isAutoStartWaitingForPrice = false;
+        private string manualSearchWarningMessage = string.Empty;
+        private DateTime manualSearchWarningTimeUtc = DateTime.MinValue;
 
         public static string[] RuneNames => RuneshapeRecipePredictor.RuneNames;
 
@@ -85,6 +88,18 @@ namespace ExpeditionPathOptimizer
             this.placedExplosives.Clear();
             this.selectedFinalTarget = null;
             this.hasAutoSearchedThisArea = false;
+            this.isAutoStartWaitingForPrice = false;
+            this.manualSearchWarningMessage = string.Empty;
+        }
+
+        public bool IsPriceServiceReadyForSearch()
+        {
+            if (this.Settings.RecipePriceScoreMultiplier <= 0.0)
+            {
+                return true;
+            }
+
+            return this.priceService != null && this.priceService.IsLoaded;
         }
 
         private IEnumerator<Wait> OnAreaChange()
@@ -137,11 +152,27 @@ namespace ExpeditionPathOptimizer
                 {
                     if (this.detonatorWorldPos != Vector3.Zero && this.discoveredRemnants.Count > 0)
                     {
-                        if (this.StartSearch(area))
+                        if (!this.IsPriceServiceReadyForSearch())
                         {
-                            this.hasAutoSearchedThisArea = true;
+                            this.isAutoStartWaitingForPrice = true;
+                        }
+                        else
+                        {
+                            this.isAutoStartWaitingForPrice = false;
+                            if (this.StartSearch(area))
+                            {
+                                this.hasAutoSearchedThisArea = true;
+                            }
                         }
                     }
+                    else
+                    {
+                        this.isAutoStartWaitingForPrice = false;
+                    }
+                }
+                else
+                {
+                    this.isAutoStartWaitingForPrice = false;
                 }
             }
         }
@@ -215,13 +246,23 @@ namespace ExpeditionPathOptimizer
             {
                 if (ImGui.Button("Scan & Start Search", new Vector2(160, 30)))
                 {
-                    var area = Core.States.InGameStateObject?.CurrentAreaInstance;
-                    if (area != null)
+                    if (!this.IsPriceServiceReadyForSearch())
                     {
-                        this.ScanEntities(area);
-                        if (this.StartSearch(area))
+                        this.manualSearchWarningMessage = "Price data is still loading; optimization was not started. Try again when price data is ready.";
+                        this.manualSearchWarningTimeUtc = DateTime.UtcNow;
+                        PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
+                    }
+                    else
+                    {
+                        this.manualSearchWarningMessage = string.Empty;
+                        var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                        if (area != null)
                         {
-                            this.hasAutoSearchedThisArea = true;
+                            this.ScanEntities(area);
+                            if (this.StartSearch(area))
+                            {
+                                this.hasAutoSearchedThisArea = true;
+                            }
                         }
                     }
                 }
@@ -244,9 +285,18 @@ namespace ExpeditionPathOptimizer
                         ImGui.TextColored(new Vector4(1.0f, 0.6f, 0.2f, 1.0f), $"Path Locked: Score {this.runner.CurrentBestScore:F1} ({bestPlan.PerPointScore.Count} bombs)");
                     }
                 }
+                else if (this.isAutoStartWaitingForPrice)
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), "Auto-Start waiting for initial price data...");
+                }
                 else
                 {
                     ImGui.TextDisabled("Idle (No path calculated)");
+                }
+
+                if (!string.IsNullOrEmpty(this.manualSearchWarningMessage) && (DateTime.UtcNow - this.manualSearchWarningTimeUtc).TotalSeconds < 6.0)
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.2f, 1.0f), this.manualSearchWarningMessage);
                 }
             }
 
@@ -536,6 +586,10 @@ namespace ExpeditionPathOptimizer
                     var pStat = this.priceService.GetStatus();
                     ImGui.TextColored(pStat.Loaded ? new Vector4(0.2f, 1.0f, 0.4f, 1.0f) : new Vector4(0.9f, 0.9f, 0.2f, 1.0f), $"Price Status: {pStat.Message}");
                     ImGui.Text($"Cached Rates: 1 Divine = {pStat.DivineInChaos:F1}c | 1 Exalt = {pStat.ExaltedInChaos:F2}c ({pStat.TotalItems} items)");
+                }
+                if (this.isAutoStartWaitingForPrice)
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.75f, 0.2f, 1.0f), "  [Status] Auto-Start waiting for initial price data...");
                 }
 
                 if (this.runner.CurrentBestPath != null && this.runner.CurrentBestPath.PerPointScore.Count > 0)
@@ -872,6 +926,12 @@ namespace ExpeditionPathOptimizer
 
         public bool StartSearch(AreaInstance area)
         {
+            if (!this.IsPriceServiceReadyForSearch())
+            {
+                PluginLog.Warning("ExpeditionPathOptimizer", "Price data is still loading; optimization was not started. Try again when price data is ready.");
+                return false;
+            }
+
             if (this.detonatorWorldPos == Vector3.Zero)
             {
                 PluginLog.Warning("ExpeditionPathOptimizer", "Cannot start optimization: Detonator Plunger not detected yet. Please walk towards the Detonator.");
