@@ -90,10 +90,12 @@ namespace ExpeditionPathOptimizer
 
             var hitRemnants = new HashSet<ExpeditionRemnant>();
             var hitChests = new HashSet<ExpeditionChest>();
-            double accumulatedScore = 0.0;
             var prevPoint = env.StartingPoint;
-            var acquiredRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            List<PerPointScoreInfo>? detailedList = collectDetails ? new List<PerPointScoreInfo>(n) : null;
+
+            var bombNewHits = new List<List<ExpeditionRemnant>>(n);
+            var bombNewChestHits = new List<List<ExpeditionChest>>(n);
+            var bombBaseScores = new double[n];
+            var bombIsUsefulBridge = new bool[n];
 
             for (int i = 0; i < n; i++)
             {
@@ -135,16 +137,14 @@ namespace ExpeditionPathOptimizer
                     }
                 }
 
-                double localScore = 0.0;
-                double runeScore = 0.0;
+                double localBaseScore = 0.0;
                 var newHits = new List<ExpeditionRemnant>();
                 var newChestHits = new List<ExpeditionChest>();
-                var pointPlannedRecipes = new List<PlannedRecipeSelection>();
 
                 // 1. Final Target Bonus on last bomb
                 if (i == n - 1)
                 {
-                    localScore += this.settings.FinalTargetBonus;
+                    localBaseScore += this.settings.FinalTargetBonus;
                 }
 
                 // 2. Find newly covered remnants
@@ -156,179 +156,8 @@ namespace ExpeditionPathOptimizer
                         {
                             newHits.Add(r);
                             // Remnant Hit Base Score + Slot Score
-                            localScore += this.settings.RemnantHitBaseScore;
-                            localScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
-                        }
-                    }
-                }
-
-                // 2a. Joint recipe selection for newly covered remnants with RecipeOffers
-                if (newHits.Count > 0)
-                {
-                    var remnantsWithOffers = new List<ExpeditionRemnant>();
-                    foreach (var r in newHits)
-                    {
-                        if (r.RecipeOffers != null && r.RecipeOffers.Count > 0)
-                        {
-                            remnantsWithOffers.Add(r);
-                        }
-                    }
-
-                    if (remnantsWithOffers.Count == 1)
-                    {
-                        var r = remnantsWithOffers[0];
-                        RuneshapeRecipeOffer? bestOffer = null;
-                        double bestOfferScore = double.NegativeInfinity;
-                        int bestCombo = int.MinValue;
-                        int bestRewardCount = int.MinValue;
-                        List<string>? bestNewRunes = null;
-
-                        foreach (var offer in r.RecipeOffers)
-                        {
-                            double offerScore = 0.0;
-                            var newRunes = new List<string>();
-                            if (offer.PropagatedRunes != null)
-                            {
-                                foreach (var rune in offer.PropagatedRunes)
-                                {
-                                    if (!acquiredRunes.Contains(rune))
-                                    {
-                                        offerScore += this.settings.GetPropagatedRuneScore(rune);
-                                        newRunes.Add(rune);
-                                    }
-                                }
-                            }
-
-                            bool isBetter = false;
-                            if (bestOffer == null) isBetter = true;
-                            else if (offerScore > bestOfferScore) isBetter = true;
-                            else if (Math.Abs(offerScore - bestOfferScore) < 0.0001)
-                            {
-                                if (offer.ComboWeight > bestCombo) isBetter = true;
-                                else if (offer.ComboWeight == bestCombo)
-                                {
-                                    if (offer.RewardCount > bestRewardCount) isBetter = true;
-                                    else if (offer.RewardCount == bestRewardCount)
-                                    {
-                                        if (string.CompareOrdinal(offer.RecipeId, bestOffer.RecipeId) < 0) isBetter = true;
-                                    }
-                                }
-                            }
-
-                            if (isBetter)
-                            {
-                                bestOffer = offer;
-                                bestOfferScore = offerScore;
-                                bestCombo = offer.ComboWeight;
-                                bestRewardCount = offer.RewardCount;
-                                bestNewRunes = newRunes;
-                            }
-                        }
-
-                        if (bestOffer != null)
-                        {
-                            if (bestNewRunes != null)
-                            {
-                                foreach (var rune in bestNewRunes)
-                                {
-                                    acquiredRunes.Add(rune);
-                                }
-                            }
-                            localScore += bestOfferScore;
-                            runeScore += bestOfferScore;
-                            pointPlannedRecipes.Add(new PlannedRecipeSelection(r, bestOffer, bestNewRunes ?? (IReadOnlyList<string>)Array.Empty<string>(), bestOfferScore));
-                        }
-                    }
-                    else if (remnantsWithOffers.Count > 1)
-                    {
-                        // Joint search across combinations of offers for newly hit remnants
-                        RuneshapeRecipeOffer[]? bestComboOffers = null;
-                        double bestComboScore = double.NegativeInfinity;
-                        int bestTotalComboWeight = int.MinValue;
-                        int bestTotalRewardCount = int.MinValue;
-                        List<List<string>>? bestComboNewRunes = null;
-
-                        void SearchJointOffers(int remIdx, RuneshapeRecipeOffer[] currentOffers)
-                        {
-                            if (remIdx == remnantsWithOffers.Count)
-                            {
-                                double comboScore = 0.0;
-                                int totalComboWeight = 0;
-                                int totalRewardCount = 0;
-                                var localAcquired = new HashSet<string>(acquiredRunes, StringComparer.OrdinalIgnoreCase);
-                                var perRemnantNewRunes = new List<List<string>>(remnantsWithOffers.Count);
-
-                                for (int k = 0; k < remnantsWithOffers.Count; k++)
-                                {
-                                    var off = currentOffers[k];
-                                    totalComboWeight += off.ComboWeight;
-                                    totalRewardCount += off.RewardCount;
-                                    var newR = new List<string>();
-
-                                    if (off.PropagatedRunes != null)
-                                    {
-                                        foreach (var rune in off.PropagatedRunes)
-                                        {
-                                            if (localAcquired.Add(rune))
-                                            {
-                                                comboScore += this.settings.GetPropagatedRuneScore(rune);
-                                                newR.Add(rune);
-                                            }
-                                        }
-                                    }
-                                    perRemnantNewRunes.Add(newR);
-                                }
-
-                                bool isBetter = false;
-                                if (bestComboOffers == null) isBetter = true;
-                                else if (comboScore > bestComboScore) isBetter = true;
-                                else if (Math.Abs(comboScore - bestComboScore) < 0.0001)
-                                {
-                                    if (totalComboWeight > bestTotalComboWeight) isBetter = true;
-                                    else if (totalComboWeight == bestTotalComboWeight)
-                                    {
-                                        if (totalRewardCount > bestTotalRewardCount) isBetter = true;
-                                    }
-                                }
-
-                                if (isBetter)
-                                {
-                                    bestComboOffers = (RuneshapeRecipeOffer[])currentOffers.Clone();
-                                    bestComboScore = comboScore;
-                                    bestTotalComboWeight = totalComboWeight;
-                                    bestTotalRewardCount = totalRewardCount;
-                                    bestComboNewRunes = perRemnantNewRunes;
-                                }
-                                return;
-                            }
-
-                            var rem = remnantsWithOffers[remIdx];
-                            foreach (var offer in rem.RecipeOffers)
-                            {
-                                currentOffers[remIdx] = offer;
-                                SearchJointOffers(remIdx + 1, currentOffers);
-                            }
-                        }
-
-                        SearchJointOffers(0, new RuneshapeRecipeOffer[remnantsWithOffers.Count]);
-
-                        if (bestComboOffers != null && bestComboNewRunes != null)
-                        {
-                            for (int k = 0; k < remnantsWithOffers.Count; k++)
-                            {
-                                var rem = remnantsWithOffers[k];
-                                var off = bestComboOffers[k];
-                                var newR = bestComboNewRunes[k];
-                                double remScore = 0.0;
-                                foreach (var rune in newR)
-                                {
-                                    acquiredRunes.Add(rune);
-                                    remScore += this.settings.GetPropagatedRuneScore(rune);
-                                }
-                                localScore += remScore;
-                                runeScore += remScore;
-                                pointPlannedRecipes.Add(new PlannedRecipeSelection(rem, off, newR, remScore));
-                            }
+                            localBaseScore += this.settings.RemnantHitBaseScore;
+                            localBaseScore += r.RuneSlots * this.settings.RuneSlotMultiplier;
                         }
                     }
                 }
@@ -343,7 +172,7 @@ namespace ExpeditionPathOptimizer
                             if (hitChests.Add(c))
                             {
                                 newChestHits.Add(c);
-                                localScore += this.settings.ChestHitBaseScore;
+                                localBaseScore += this.settings.ChestHitBaseScore;
                             }
                         }
                     }
@@ -357,7 +186,7 @@ namespace ExpeditionPathOptimizer
                     double usage = stepDist / env.ExplosionRange;
                     if (usage < this.settings.ShortBridgePenaltyThreshold)
                     {
-                        localScore -= (this.settings.ShortBridgePenaltyThreshold - usage) * this.settings.ShortBridgePenaltyMultiplier;
+                        localBaseScore -= (this.settings.ShortBridgePenaltyThreshold - usage) * this.settings.ShortBridgePenaltyMultiplier;
                     }
 
                     // 4a. Check if actively bridging towards an unvisited reachable remnant
@@ -426,11 +255,11 @@ namespace ExpeditionPathOptimizer
 
                     if (isUsefulBridge)
                     {
-                        localScore -= this.settings.UsefulBridgePenalty; // Bridge ไปหาเป้าหมายได้ = -20
+                        localBaseScore -= this.settings.UsefulBridgePenalty; // Bridge ไปหาเป้าหมายได้ = -20
                     }
                     else
                     {
-                        localScore -= this.settings.EmptyBombPenalty; // Bridge ที่ไม่ช่วยอะไร = -150
+                        localBaseScore -= this.settings.EmptyBombPenalty; // Bridge ที่ไม่ช่วยอะไร = -150
                     }
                 }
 
@@ -438,30 +267,283 @@ namespace ExpeditionPathOptimizer
                 if (this.settings.TravelPenaltyMultiplier > 0.0)
                 {
                     double travelPenalty = (stepDist / env.ExplosionRange) * this.settings.TravelPenaltyMultiplier;
-                    localScore -= travelPenalty;
+                    localBaseScore -= travelPenalty;
                 }
 
-                accumulatedScore += localScore;
-
-                if (collectDetails && detailedList != null)
-                {
-                    detailedList.Add(new PerPointScoreInfo(
-                        curPoint,
-                        localScore,
-                        newHits,
-                        newChestHits,
-                        acquiredRunes.ToList(),
-                        runeScore,
-                        isUsefulBridge,
-                        pointPlannedRecipes));
-                }
-
+                bombNewHits.Add(newHits);
+                bombNewChestHits.Add(newChestHits);
+                bombBaseScores[i] = localBaseScore;
+                bombIsUsefulBridge[i] = isUsefulBridge;
                 prevPoint = curPoint;
             }
 
-            totalScore = accumulatedScore;
-            pointsScore = detailedList;
+            // Route-wide Recipe Optimizer DP across bomb sequence
+            var currentStates = new List<RouteRecipeState> { new(0UL, 0.0, 0, 0, -1, null) };
+            var stepHistory = collectDetails ? new List<List<RouteRecipeState>>(n) : null;
+
+            for (int i = 0; i < n; i++)
+            {
+                var newlyHit = bombNewHits[i];
+                var remnantsWithOffers = new List<ExpeditionRemnant>();
+                for (int rIdx = 0; rIdx < newlyHit.Count; rIdx++)
+                {
+                    var rem = newlyHit[rIdx];
+                    var offers = (rem.ReducedRecipeOffers != null && rem.ReducedRecipeOffers.Count > 0)
+                        ? rem.ReducedRecipeOffers
+                        : rem.RecipeOffers;
+                    if (offers != null && offers.Count > 0)
+                    {
+                        remnantsWithOffers.Add(rem);
+                    }
+                }
+
+                if (remnantsWithOffers.Count == 0)
+                {
+                    if (collectDetails)
+                    {
+                        var nextPassStates = new List<RouteRecipeState>(currentStates.Count);
+                        for (int s = 0; s < currentStates.Count; s++)
+                        {
+                            var curSt = currentStates[s];
+                            nextPassStates.Add(new RouteRecipeState(curSt.Mask, curSt.Score, curSt.ComboWeight, curSt.RewardCount, s, Array.Empty<PlannedRecipeSelection>()));
+                        }
+                        currentStates = nextPassStates;
+                        stepHistory!.Add(currentStates);
+                    }
+                }
+                else
+                {
+                    var offersLists = new List<IReadOnlyList<RuneshapeRecipeOffer>>(remnantsWithOffers.Count);
+                    for (int rIdx = 0; rIdx < remnantsWithOffers.Count; rIdx++)
+                    {
+                        var rem = remnantsWithOffers[rIdx];
+                        var offers = (rem.ReducedRecipeOffers != null && rem.ReducedRecipeOffers.Count > 0)
+                            ? rem.ReducedRecipeOffers
+                            : rem.RecipeOffers;
+                        offersLists.Add(offers!);
+                    }
+
+                    var nextByMask = new Dictionary<ulong, RouteRecipeState>();
+
+                    for (int sIdx = 0; sIdx < currentStates.Count; sIdx++)
+                    {
+                        var st = currentStates[sIdx];
+
+                        void SearchCombinations(int remIdx, RuneshapeRecipeOffer[] currentOffers)
+                        {
+                            if (remIdx == remnantsWithOffers.Count)
+                            {
+                                ulong curMask = st.Mask;
+                                double addScore = 0.0;
+                                int addCombo = 0;
+                                int addReward = 0;
+                                List<PlannedRecipeSelection>? plannedList = collectDetails ? new List<PlannedRecipeSelection>(remnantsWithOffers.Count) : null;
+
+                                for (int k = 0; k < remnantsWithOffers.Count; k++)
+                                {
+                                    var off = currentOffers[k];
+                                    addCombo += off.ComboWeight;
+                                    addReward += off.RewardCount;
+                                    var rem = remnantsWithOffers[k];
+                                    double remScore = 0.0;
+                                    List<string>? newRunes = collectDetails ? new List<string>() : null;
+
+                                    if (off.PropagatedRunes != null)
+                                    {
+                                        for (int pIdx = 0; pIdx < off.PropagatedRunes.Count; pIdx++)
+                                        {
+                                            var rune = off.PropagatedRunes[pIdx];
+                                            int rIndex = RuneshapeRecipePredictor.GetRuneIndex(rune);
+                                            if (rIndex >= 0 && (curMask & (1UL << rIndex)) == 0)
+                                            {
+                                                curMask |= (1UL << rIndex);
+                                                double rScore = this.settings.GetPropagatedRuneScore(rune);
+                                                remScore += rScore;
+                                                addScore += rScore;
+                                                newRunes?.Add(rune);
+                                            }
+                                        }
+                                    }
+
+                                    plannedList?.Add(new PlannedRecipeSelection(rem, off, newRunes ?? (IReadOnlyList<string>)Array.Empty<string>(), remScore));
+                                }
+
+                                ulong candMask = curMask;
+                                double candScore = st.Score + addScore;
+                                int candCombo = st.ComboWeight + addCombo;
+                                int candReward = st.RewardCount + addReward;
+
+                                if (!nextByMask.TryGetValue(candMask, out var existing))
+                                {
+                                    nextByMask[candMask] = new RouteRecipeState(candMask, candScore, candCombo, candReward, sIdx, plannedList);
+                                }
+                                else
+                                {
+                                    bool isBetter = false;
+                                    if (candScore > existing.Score + 1e-6)
+                                    {
+                                        isBetter = true;
+                                    }
+                                    else if (Math.Abs(candScore - existing.Score) <= 1e-6)
+                                    {
+                                        if (candCombo > existing.ComboWeight)
+                                        {
+                                            isBetter = true;
+                                        }
+                                        else if (candCombo == existing.ComboWeight)
+                                        {
+                                            if (candReward > existing.RewardCount)
+                                            {
+                                                isBetter = true;
+                                            }
+                                        }
+                                    }
+
+                                    if (isBetter)
+                                    {
+                                        nextByMask[candMask] = new RouteRecipeState(candMask, candScore, candCombo, candReward, sIdx, plannedList);
+                                    }
+                                }
+                                return;
+                            }
+
+                            var list = offersLists[remIdx];
+                            for (int oIdx = 0; oIdx < list.Count; oIdx++)
+                            {
+                                currentOffers[remIdx] = list[oIdx];
+                                SearchCombinations(remIdx + 1, currentOffers);
+                            }
+                        }
+
+                        SearchCombinations(0, new RuneshapeRecipeOffer[remnantsWithOffers.Count]);
+                    }
+
+                    var nextList = nextByMask.Values.ToList();
+                    if (nextList.Count > 128)
+                    {
+                        nextList = nextList
+                            .OrderByDescending(s => s.Score)
+                            .ThenByDescending(s => s.ComboWeight)
+                            .ThenByDescending(s => s.RewardCount)
+                            .Take(128)
+                            .ToList();
+                    }
+
+                    currentStates = nextList;
+                    if (collectDetails)
+                    {
+                        stepHistory!.Add(currentStates);
+                    }
+                }
+            }
+
+            // Select optimal route-wide recipe combination
+            var bestState = currentStates[0];
+            for (int s = 1; s < currentStates.Count; s++)
+            {
+                var cand = currentStates[s];
+                if (cand.Score > bestState.Score + 1e-6)
+                {
+                    bestState = cand;
+                }
+                else if (Math.Abs(cand.Score - bestState.Score) <= 1e-6)
+                {
+                    if (cand.ComboWeight > bestState.ComboWeight)
+                    {
+                        bestState = cand;
+                    }
+                    else if (cand.ComboWeight == bestState.ComboWeight)
+                    {
+                        if (cand.RewardCount > bestState.RewardCount)
+                        {
+                            bestState = cand;
+                        }
+                    }
+                }
+            }
+
+            double baseSum = 0.0;
+            for (int i = 0; i < n; i++) baseSum += bombBaseScores[i];
+            totalScore = baseSum + bestState.Score;
+
+            if (collectDetails && stepHistory != null)
+            {
+                var bombPlannedPerStep = new IReadOnlyList<PlannedRecipeSelection>[n];
+                int traceStateIdx = stepHistory[n - 1].IndexOf(bestState);
+
+                for (int step = n - 1; step >= 0; step--)
+                {
+                    if (traceStateIdx >= 0 && traceStateIdx < stepHistory[step].Count)
+                    {
+                        var st = stepHistory[step][traceStateIdx];
+                        bombPlannedPerStep[step] = st.BombPlanned ?? Array.Empty<PlannedRecipeSelection>();
+                        traceStateIdx = st.ParentIndex;
+                    }
+                    else
+                    {
+                        bombPlannedPerStep[step] = Array.Empty<PlannedRecipeSelection>();
+                    }
+                }
+
+                var detailedList = new List<PerPointScoreInfo>(n);
+                var cumulativeRunes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                for (int step = 0; step < n; step++)
+                {
+                    double stepRuneScore = 0.0;
+                    var stepPlans = bombPlannedPerStep[step];
+                    for (int pIdx = 0; pIdx < stepPlans.Count; pIdx++)
+                    {
+                        var plan = stepPlans[pIdx];
+                        stepRuneScore += plan.PropagatedRuneScore;
+                        for (int rIdx = 0; rIdx < plan.NewlyAcquiredRunes.Count; rIdx++)
+                        {
+                            cumulativeRunes.Add(plan.NewlyAcquiredRunes[rIdx]);
+                        }
+                    }
+
+                    double stepTotalScore = bombBaseScores[step] + stepRuneScore;
+                    detailedList.Add(new PerPointScoreInfo(
+                        path[step],
+                        stepTotalScore,
+                        bombNewHits[step],
+                        bombNewChestHits[step],
+                        cumulativeRunes.ToList(),
+                        stepRuneScore,
+                        bombIsUsefulBridge[step],
+                        stepPlans));
+                }
+
+                pointsScore = detailedList;
+            }
+
             return true;
+        }
+
+        private readonly struct RouteRecipeState
+        {
+            public readonly ulong Mask;
+            public readonly double Score;
+            public readonly int ComboWeight;
+            public readonly int RewardCount;
+            public readonly int ParentIndex;
+            public readonly IReadOnlyList<PlannedRecipeSelection>? BombPlanned;
+
+            public RouteRecipeState(
+                ulong mask,
+                double score,
+                int comboWeight,
+                int rewardCount,
+                int parentIndex = -1,
+                IReadOnlyList<PlannedRecipeSelection>? bombPlanned = null)
+            {
+                this.Mask = mask;
+                this.Score = score;
+                this.ComboWeight = comboWeight;
+                this.RewardCount = rewardCount;
+                this.ParentIndex = parentIndex;
+                this.BombPlanned = bombPlanned;
+            }
         }
 
         public IEnumerable<PathState> GetBestPathSeries(ExpeditionEnvironment environment)

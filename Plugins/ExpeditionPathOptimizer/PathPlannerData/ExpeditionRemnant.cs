@@ -17,6 +17,7 @@ namespace ExpeditionPathOptimizer.PathPlannerData
         public bool IsUnique { get; set; }
         public List<int> GoldenSlots { get; set; } = new();
         public IReadOnlyList<RuneshapeRecipeOffer> RecipeOffers { get; set; } = Array.Empty<RuneshapeRecipeOffer>();
+        public IReadOnlyList<RuneshapeRecipeOffer> ReducedRecipeOffers { get; set; } = Array.Empty<RuneshapeRecipeOffer>();
         public RuneshapeRecipeOffer? BestPriceRecipe { get; set; }
         public RuneshapeRecipeOffer? BestRuneRecipe { get; set; }
 
@@ -50,6 +51,7 @@ namespace ExpeditionPathOptimizer.PathPlannerData
             this.IsUnique = isUnique;
             this.GoldenSlots = goldenSlots ?? new List<int>();
             this.RecipeOffers = recipeOffers ?? Array.Empty<RuneshapeRecipeOffer>();
+            this.ReducedRecipeOffers = RuneshapeRecipePredictor.ReduceEquivalentOffers(this.RecipeOffers);
             this.BestPriceRecipe = bestPriceRecipe;
             this.BestRuneRecipe = bestRuneRecipe;
         }

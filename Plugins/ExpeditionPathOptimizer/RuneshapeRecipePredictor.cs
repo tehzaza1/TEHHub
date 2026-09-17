@@ -79,6 +79,88 @@ namespace ExpeditionPathOptimizer
             return RuneIndexByName.ContainsKey(runeName);
         }
 
+        public static int GetRuneIndex(string? runeName)
+        {
+            if (string.IsNullOrEmpty(runeName)) return -1;
+            return RuneIndexByName.TryGetValue(runeName, out int idx) ? idx : -1;
+        }
+
+        public static ulong GetPropagatedRuneMask(IEnumerable<string>? runes)
+        {
+            if (runes == null) return 0UL;
+            ulong mask = 0UL;
+            foreach (var r in runes)
+            {
+                if (RuneIndexByName.TryGetValue(r, out int idx))
+                {
+                    mask |= (1UL << idx);
+                }
+            }
+            return mask;
+        }
+
+        /// <summary>
+        /// Reduces recipe offers for a remnant by grouping equivalent offers with the exact same
+        /// propagated rune mask and selecting the single economically/baseline-best offer.
+        /// </summary>
+        public static IReadOnlyList<RuneshapeRecipeOffer> ReduceEquivalentOffers(IEnumerable<RuneshapeRecipeOffer>? offers)
+        {
+            if (offers == null) return Array.Empty<RuneshapeRecipeOffer>();
+
+            var bestByMask = new Dictionary<ulong, RuneshapeRecipeOffer>();
+            foreach (var offer in offers)
+            {
+                ulong mask = GetPropagatedRuneMask(offer.PropagatedRunes);
+                if (!bestByMask.TryGetValue(mask, out var existing))
+                {
+                    bestByMask[mask] = offer;
+                }
+                else
+                {
+                    bool isBetter = false;
+                    if (offer.IsPriced && !existing.IsPriced)
+                    {
+                        isBetter = true;
+                    }
+                    else if (offer.IsPriced && existing.IsPriced)
+                    {
+                        if (offer.PriceChaos > existing.PriceChaos) isBetter = true;
+                        else if (Math.Abs(offer.PriceChaos - existing.PriceChaos) < 0.001f)
+                        {
+                            if (offer.ComboWeight > existing.ComboWeight) isBetter = true;
+                            else if (offer.ComboWeight == existing.ComboWeight)
+                            {
+                                if (offer.RewardCount > existing.RewardCount) isBetter = true;
+                                else if (offer.RewardCount == existing.RewardCount)
+                                {
+                                    if (string.CompareOrdinal(offer.RecipeId, existing.RecipeId) < 0) isBetter = true;
+                                }
+                            }
+                        }
+                    }
+                    else if (!offer.IsPriced && !existing.IsPriced)
+                    {
+                        if (offer.ComboWeight > existing.ComboWeight) isBetter = true;
+                        else if (offer.ComboWeight == existing.ComboWeight)
+                        {
+                            if (offer.RewardCount > existing.RewardCount) isBetter = true;
+                            else if (offer.RewardCount == existing.RewardCount)
+                            {
+                                if (string.CompareOrdinal(offer.RecipeId, existing.RecipeId) < 0) isBetter = true;
+                            }
+                        }
+                    }
+
+                    if (isBetter)
+                    {
+                        bestByMask[mask] = offer;
+                    }
+                }
+            }
+
+            return bestByMask.Values.OrderBy(o => o.RecipeId).ToList();
+        }
+
         public static int CalculateRecipeWeight(IEnumerable<string>? runes, IReadOnlyDictionary<string, double>? runeWeights)
         {
             if (runes == null) return 0;
