@@ -70,7 +70,7 @@ namespace TEHhub.Utils
             Dictionary<string, int> result = new();
 
             var totalPatterns = Patterns.Length;
-            var isPatternFound = new bool[totalPatterns];
+            var isPatternFound = new int[totalPatterns];
             var patternOffsets = new int[totalPatterns];
             var totalPatternsFound = 0;
 
@@ -109,7 +109,7 @@ namespace TEHhub.Utils
 
                     for (var k = 0; k < totalPatterns; k++)
                     {
-                        if (isPatternFound[k])
+                        if (Volatile.Read(ref isPatternFound[k]) != 0)
                         {
                             continue;
                         }
@@ -152,17 +152,19 @@ namespace TEHhub.Utils
 
                         if (!isAnyByteDifferent)
                         {
-                            Interlocked.Increment(ref totalPatternsFound);
-                            isPatternFound[k] = true;
-                            patternOffsets[k] = currentOffset + j;
+                            if (TryClaimPattern(isPatternFound, k))
+                            {
+                                patternOffsets[k] = currentOffset + j;
+                                Interlocked.Increment(ref totalPatternsFound);
+                            }
                         }
                     }
 
-                    if (totalPatternsFound >= totalPatterns)
+                    if (Volatile.Read(ref totalPatternsFound) >= totalPatterns)
                     {
                         state2.Break();
                         state1.Break();
-                        if (!isPatternFound.All(k => k))
+                        if (isPatternFound.Any(found => found == 0))
                         {
                             throw new Exception(
                                 "There is a non-unique pattern. Kindly fix the patterns.");
@@ -174,7 +176,7 @@ namespace TEHhub.Utils
             if (totalPatternsFound < totalPatterns)
             {
                 var missingPatterns = Patterns
-                    .Where((_, index) => !isPatternFound[index])
+                    .Where((_, index) => isPatternFound[index] == 0)
                     .ToArray();
                 var missingPatternNames = string.Join(", ", missingPatterns.Select(pattern => pattern.Name));
 
@@ -197,6 +199,17 @@ namespace TEHhub.Utils
             }
 
             return result;
+        }
+
+        /// <summary>
+        ///     Atomically attempts to claim a pattern index across concurrent workers.
+        /// </summary>
+        /// <param name="isPatternFound">Integer flag array representing pattern claim status.</param>
+        /// <param name="index">Pattern index to claim.</param>
+        /// <returns>True if the pattern was claimed by this caller; otherwise false.</returns>
+        internal static bool TryClaimPattern(int[] isPatternFound, int index)
+        {
+            return Interlocked.CompareExchange(ref isPatternFound[index], 1, 0) == 0;
         }
 
         /// <summary>

@@ -314,6 +314,108 @@ try
         reader.ReadStdWString(inlineWString7) == "ABCDEFG",
         "Inline StdWString shorter than 8 characters must decode correctly.");
 
+    // Deterministic concurrent atomic pattern claim tests
+    for (var round = 0; round < 20; round++)
+    {
+        var singleFlag = new int[1];
+        var singleWinners = 0;
+
+        Parallel.For(0, 10000, _ =>
+        {
+            if (PatternFinder.TryClaimPattern(singleFlag, 0))
+            {
+                Interlocked.Increment(ref singleWinners);
+            }
+        });
+
+        Check(singleWinners == 1, "Exactly one worker must win the atomic claim for a single pattern index.");
+        Check(singleFlag[0] == 1, "Claimed pattern flag must be 1.");
+    }
+
+    for (var round = 0; round < 20; round++)
+    {
+        var patternCount = 6;
+        var multiFlags = new int[patternCount];
+        var multiWinners = new int[patternCount];
+
+        Parallel.For(0, 20000, i =>
+        {
+            var targetIndex = i % patternCount;
+            if (PatternFinder.TryClaimPattern(multiFlags, targetIndex))
+            {
+                Interlocked.Increment(ref multiWinners[targetIndex]);
+            }
+        });
+
+        for (var p = 0; p < patternCount; p++)
+        {
+            Check(multiWinners[p] == 1, $"Pattern {p} must be claimed exactly once across concurrent workers.");
+            Check(multiFlags[p] == 1, $"Pattern {p} flag must be 1.");
+        }
+    }
+
+    // End-to-end synthetic multi-chunk scan with boundary straddling
+    var synthSize = 200_000;
+    var synthMemory = Marshal.AllocHGlobal(synthSize);
+    try
+    {
+        var synthBytes = new byte[synthSize];
+        Array.Fill(synthBytes, (byte)0x90);
+
+        var patterns = StaticOffsetsPatterns.Patterns;
+        // Terrain Rotation Selector is a 21-byte prefix of Terrain Rotator Helper, so the
+        // synthetic buffer intentionally contains two valid selector match sites (at offset 90000
+        // and offset 120000). Parallel first-claim scheduling may legitimately select either one.
+        var placedOffsets = new Dictionary<string, int>
+        {
+            ["Game States"] = 100,
+            ["File Root"] = 2000,
+            ["AreaChangeCounter"] = 83996, // straddles chunk boundary (MaxBytesObject = 84000)
+            ["Terrain Rotator Helper"] = 120000,
+            ["Terrain Rotation Selector"] = 90000,
+            ["GameCullSize"] = 150000,
+        };
+        Check(placedOffsets.Count == patterns.Length, "Must have placed offsets for all patterns.");
+
+        for (var p = 0; p < patterns.Length; p++)
+        {
+            var pat = patterns[p];
+            var baseOff = placedOffsets[pat.Name];
+            for (var b = 0; b < pat.Data.Length; b++)
+            {
+                synthBytes[baseOff + b] = pat.Mask[b] ? pat.Data[b] : (byte)0x77;
+            }
+        }
+
+        Marshal.Copy(synthBytes, 0, synthMemory, synthSize);
+
+        var discovered = PatternFinder.Find(reader, synthMemory, synthSize);
+        Check(discovered.Count == patterns.Length, "All synthetic patterns must be discovered.");
+        for (var p = 0; p < patterns.Length; p++)
+        {
+            var pat = patterns[p];
+            Check(discovered.TryGetValue(pat.Name, out var foundOffset), $"Discovered map must contain {pat.Name}.");
+
+            if (pat.Name == "Terrain Rotation Selector")
+            {
+                var standaloneExpected = placedOffsets["Terrain Rotation Selector"] + pat.BytesToSkip;
+                var helperPrefixExpected = placedOffsets["Terrain Rotator Helper"] + pat.BytesToSkip;
+                Check(
+                    foundOffset == standaloneExpected || foundOffset == helperPrefixExpected,
+                    $"Terrain Rotation Selector offset {foundOffset} must resolve to one of its two valid synthetic byte matches ({standaloneExpected} or {helperPrefixExpected}).");
+            }
+            else
+            {
+                var expectedOffset = placedOffsets[pat.Name] + pat.BytesToSkip;
+                Check(foundOffset == expectedOffset, $"Pattern {pat.Name} offset {foundOffset} must equal expected {expectedOffset}.");
+            }
+        }
+    }
+    finally
+    {
+        Marshal.FreeHGlobal(synthMemory);
+    }
+
     Console.WriteLine($"PASS: {assertions} assertions; read-only offset scanner and memory verification intact.");
 }
 finally
