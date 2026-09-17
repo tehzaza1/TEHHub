@@ -30,8 +30,16 @@ namespace ExpeditionPathOptimizer
         private ActiveCoroutine? onAreaChangeCoroutine;
         private ActiveCoroutine? periodicScanCoroutine;
 
+        private readonly record struct DetonatorDiagnosticInfo(
+            uint EntityId,
+            IntPtr Address,
+            Vector2 GridPos,
+            Vector3 WorldPos,
+            float DistanceFromPlayer);
+
         private Vector3 detonatorWorldPos = Vector3.Zero;
         private Vector2 detonatorGridPos = Vector2.Zero;
+        private readonly List<DetonatorDiagnosticInfo> visibleDetonators = new();
         private readonly Dictionary<IntPtr, ExpeditionRemnant> discoveredRemnants = new();
         private readonly Dictionary<IntPtr, ExpeditionChest> discoveredChests = new();
         private readonly Dictionary<IntPtr, Vector3> placedExplosives = new();
@@ -54,6 +62,30 @@ namespace ExpeditionPathOptimizer
         private DateTime manualSearchWarningTimeUtc = DateTime.MinValue;
 
         public static string[] RuneNames => RuneshapeRecipePredictor.RuneNames;
+
+        private static string GetCurrentAreaId()
+        {
+            return Core.States.InGameStateObject?.CurrentWorldInstance?.AreaDetails?.Id ?? string.Empty;
+        }
+
+        private static bool IsExpeditionSubArea(string areaId)
+        {
+            return areaId.StartsWith("ExpeditionSubArea_", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsExpeditionLogBook(string areaId)
+        {
+            return areaId.StartsWith("ExpeditionLogBook_", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool IsEligibleForNormalMapDiagnostics(AreaInstance? area, string areaId)
+        {
+            if (area == null) return false;
+            if (IsExpeditionSubArea(areaId)) return false;
+            if (IsExpeditionLogBook(areaId)) return false;
+            if (area.ExpeditionConfig.IsGrandExpedition) return false;
+            return true;
+        }
 
         public override void OnEnable(bool isAutoEnabling)
         {
@@ -83,6 +115,7 @@ namespace ExpeditionPathOptimizer
         {
             this.detonatorWorldPos = Vector3.Zero;
             this.detonatorGridPos = Vector2.Zero;
+            this.visibleDetonators.Clear();
             this.discoveredRemnants.Clear();
             this.discoveredChests.Clear();
             this.placedExplosives.Clear();
@@ -144,6 +177,20 @@ namespace ExpeditionPathOptimizer
                 yield return new Wait(0.5f);
                 if (!this.Settings.Enable) continue;
 
+                var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                if (area == null || area.Address == IntPtr.Zero) continue;
+
+                var areaId = GetCurrentAreaId();
+                if (IsExpeditionSubArea(areaId))
+                {
+                    if (this.runner.IsRunning || this.runner.CurrentBestPath != null || this.discoveredRemnants.Count > 0)
+                    {
+                        this.runner.Clear();
+                        this.ClearState();
+                    }
+                    continue;
+                }
+
                 // Check background price auto-refresh
                 if (this.priceService != null && this.Settings.AutoRefreshMinutes > 0)
                 {
@@ -153,9 +200,6 @@ namespace ExpeditionPathOptimizer
                         this.priceService.TriggerRefresh(this.Settings.League, this.Settings.PriceSource);
                     }
                 }
-
-                var area = Core.States.InGameStateObject?.CurrentAreaInstance;
-                if (area == null || area.Address == IntPtr.Zero) continue;
 
                 var areaHash = area.AreaHash ?? string.Empty;
                 if (areaHash != this.lastAreaHash)
@@ -223,7 +267,14 @@ namespace ExpeditionPathOptimizer
 
         public override void DrawSettings()
         {
+            var currentAreaId = GetCurrentAreaId();
+            bool isSubArea = IsExpeditionSubArea(currentAreaId);
+
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Expedition Path Optimizer (Runeshape Recipe & Path Strategy)");
+            if (isSubArea)
+            {
+                ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"[SAFETY GATE] Expedition Path Optimizer is DISABLED in Expedition Sub-Area ({currentAreaId}).");
+            }
             ImGui.Separator();
             ImGui.Spacing();
 
@@ -259,7 +310,13 @@ namespace ExpeditionPathOptimizer
             {
                 if (ImGui.Button("Scan & Start Search", new Vector2(160, 30)))
                 {
-                    if (!this.IsPriceServiceReadyForSearch())
+                    if (IsExpeditionSubArea(currentAreaId))
+                    {
+                        this.manualSearchWarningMessage = $"Expedition Path Optimizer is disabled in Expedition sub-areas ({currentAreaId}).";
+                        this.manualSearchWarningTimeUtc = DateTime.UtcNow;
+                        PluginLog.Warning("ExpeditionPathOptimizer", this.manualSearchWarningMessage);
+                    }
+                    else if (!this.IsPriceServiceReadyForSearch())
                     {
                         this.manualSearchWarningMessage = "Price data is still loading; optimization was not started. Try again when price data is ready.";
                         this.manualSearchWarningTimeUtc = DateTime.UtcNow;
@@ -559,36 +616,152 @@ namespace ExpeditionPathOptimizer
             {
                 ImGui.Indent();
 
-                ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Live Encounter Detection Diagnostics");
-                bool hasDetonator = this.detonatorWorldPos != Vector3.Zero;
-                if (hasDetonator)
+                var area = Core.States.InGameStateObject?.CurrentAreaInstance;
+                if (isSubArea)
                 {
-                    ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"Detonator Plunger: FOUND at ({this.detonatorWorldPos.X:F0}, {this.detonatorWorldPos.Y:F0})");
+                    ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), $"Expedition Path Optimizer is disabled in Expedition Sub-Area ({currentAreaId}).");
                 }
                 else
                 {
-                    ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Detonator Plunger: NOT FOUND (Please walk towards Detonator)");
-                }
+                    ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Live Encounter Detection Diagnostics");
+                    bool hasDetonator = this.detonatorWorldPos != Vector3.Zero;
+                    if (hasDetonator)
+                    {
+                        ImGui.TextColored(new Vector4(0.2f, 1.0f, 0.4f, 1.0f), $"Detonator Plunger: FOUND at ({this.detonatorWorldPos.X:F0}, {this.detonatorWorldPos.Y:F0})");
+                    }
+                    else
+                    {
+                        ImGui.TextColored(new Vector4(1.0f, 0.4f, 0.4f, 1.0f), "Detonator Plunger: NOT FOUND (Please walk towards Detonator)");
+                    }
 
-                ImGui.Text($"Discovered Remnants / Monoliths: {this.discoveredRemnants.Count}");
-                ImGui.Text($"Discovered Reward Chests: {this.discoveredChests.Count}");
-                if (this.discoveredChests.Count > 0)
-                {
-                    var chestGroups = this.discoveredChests.Values.GroupBy(c => c.IconName).Select(g => $"{g.Key}: {g.Count()}");
-                    ImGui.TextDisabled($"  ({string.Join(", ", chestGroups)})");
-                }
-                if (this.selectedFinalTarget != null)
-                {
-                    var target = this.selectedFinalTarget;
-                    string anchorStr = target.IsUnique ? "Unique" : (target.AnchorRune ?? "None");
-                    string propStr = target.BestRuneRecipe?.PropagatedRunes != null && target.BestRuneRecipe.PropagatedRunes.Count > 0
-                        ? string.Join(", ", target.BestRuneRecipe.PropagatedRunes)
-                        : "None";
-                    string priceBestStr = target.BestPriceRecipe != null
-                        ? $" | Price Best: {target.BestPriceRecipe.Reward} x{target.BestPriceRecipe.RewardCount} ({(target.BestPriceRecipe.IsPriced ? $"{target.BestPriceRecipe.PriceChaos:F0}c / {target.BestPriceRecipe.PriceDivine:F2}d" : "No price")})"
-                        : "";
+                    ImGui.Text($"Discovered Remnants / Monoliths: {this.discoveredRemnants.Count}");
+                    ImGui.Text($"Discovered Reward Chests: {this.discoveredChests.Count}");
+                    if (this.discoveredChests.Count > 0)
+                    {
+                        var chestGroups = this.discoveredChests.Values.GroupBy(c => c.IconName).Select(g => $"{g.Key}: {g.Count()}");
+                        ImGui.TextDisabled($"  ({string.Join(", ", chestGroups)})");
+                    }
+                    if (this.selectedFinalTarget != null)
+                    {
+                        var target = this.selectedFinalTarget;
+                        string anchorStr = target.IsUnique ? "Unique" : (target.AnchorRune ?? "None");
+                        string propStr = target.BestRuneRecipe?.PropagatedRunes != null && target.BestRuneRecipe.PropagatedRunes.Count > 0
+                            ? string.Join(", ", target.BestRuneRecipe.PropagatedRunes)
+                            : "None";
+                        string priceBestStr = target.BestPriceRecipe != null
+                            ? $" | Price Best: {target.BestPriceRecipe.Reward} x{target.BestPriceRecipe.RewardCount} ({(target.BestPriceRecipe.IsPriced ? $"{target.BestPriceRecipe.PriceChaos:F0}c / {target.BestPriceRecipe.PriceDivine:F2}d" : "No price")})"
+                            : "";
 
-                    ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {target.RuneSlots} Slots (Anchor: {anchorStr}), Rune Best Propagated: [{propStr}]{priceBestStr}");
+                        ImGui.TextColored(new Vector4(1.0f, 0.84f, 0.0f, 1.0f), $"★ Final Target: {target.RuneSlots} Slots (Anchor: {anchorStr}), Rune Best Propagated: [{propStr}]{priceBestStr}");
+                    }
+
+                    if (this.IsEligibleForNormalMapDiagnostics(area, currentAreaId))
+                    {
+                        ImGui.Spacing();
+                        ImGui.Separator();
+                        ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "Regular Map Multi-Expedition Diagnostics");
+
+                        int detCount = this.visibleDetonators.Count;
+                        ImGui.Text($"Visible Detonators: {detCount}");
+
+                        if (detCount > 0)
+                        {
+                            var primaryDet = this.visibleDetonators[0];
+                            ImGui.TextColored(new Vector4(0.4f, 0.9f, 1.0f, 1.0f), "Primary Detonator:");
+                            ImGui.TextDisabled($"  EntityId={primaryDet.EntityId} Address=0x{primaryDet.Address.ToInt64():X} Grid=({primaryDet.GridPos.X:F1}, {primaryDet.GridPos.Y:F1}) DistFromPlayer={primaryDet.DistanceFromPlayer:F1}");
+
+                            if (detCount > 1)
+                            {
+                                ImGui.TextDisabled("All Visible Detonators:");
+                                for (int d = 0; d < this.visibleDetonators.Count; d++)
+                                {
+                                    var det = this.visibleDetonators[d];
+                                    string tag = d == 0 ? " (PRIMARY)" : "";
+                                    ImGui.TextDisabled($"  [{d}] EntityId={det.EntityId} Address=0x{det.Address.ToInt64():X} Grid=({det.GridPos.X:F1}, {det.GridPos.Y:F1}) DistFromPlayer={det.DistanceFromPlayer:F1}{tag}");
+                                }
+                            }
+
+                            var validRemnantsList = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
+                            ImGui.Text($"Total discovered valid Remnants in area: {validRemnantsList.Count}");
+
+                            if (validRemnantsList.Count > 0)
+                            {
+                                var sortedByDetDist = validRemnantsList
+                                    .Select(r => new
+                                    {
+                                        Remnant = r,
+                                        Distance = Vector2.Distance(primaryDet.GridPos, r.GridPos)
+                                    })
+                                    .OrderBy(x => x.Distance)
+                                    .ThenBy(x => x.Remnant.EntityId)
+                                    .ToList();
+
+                                for (int i = 0; i < sortedByDetDist.Count; i++)
+                                {
+                                    var item = sortedByDetDist[i];
+                                    var r = item.Remnant;
+                                    string anchorInfo = r.IsUnique ? "Unique" : (r.AnchorRune ?? "None");
+
+                                    float nearestOther = float.MaxValue;
+                                    for (int j = 0; j < sortedByDetDist.Count; j++)
+                                    {
+                                        if (i == j) continue;
+                                        float dOther = Vector2.Distance(r.GridPos, sortedByDetDist[j].Remnant.GridPos);
+                                        if (dOther < nearestOther) nearestOther = dOther;
+                                    }
+                                    string nearestStr = sortedByDetDist.Count > 1 ? $" NearestOther={nearestOther:F1}" : "";
+
+                                    ImGui.Text($"  [{i}] Entity={r.EntityId} Grid=({r.GridPos.X:F1}, {r.GridPos.Y:F1}) Slots={r.RuneSlots} Anchor={anchorInfo} Dist={item.Distance:F1}{nearestStr}");
+                                }
+
+                                if (sortedByDetDist.Count >= 2)
+                                {
+                                    float maxGap = 0f;
+                                    int splitIndex = -1;
+                                    float beforeDist = 0f;
+                                    float afterDist = 0f;
+
+                                    for (int i = 1; i < sortedByDetDist.Count; i++)
+                                    {
+                                        float dPrev = sortedByDetDist[i - 1].Distance;
+                                        float dCurr = sortedByDetDist[i].Distance;
+                                        float gap = dCurr - dPrev;
+                                        if (gap > maxGap)
+                                        {
+                                            maxGap = gap;
+                                            splitIndex = i;
+                                            beforeDist = dPrev;
+                                            afterDist = dCurr;
+                                        }
+                                    }
+
+                                    ImGui.Spacing();
+                                    if (splitIndex >= 0)
+                                    {
+                                        int nearCount = splitIndex;
+                                        int farCount = sortedByDetDist.Count - splitIndex;
+                                        ImGui.TextColored(new Vector4(0.3f, 1.0f, 0.8f, 1.0f), "Largest Distance Gap:");
+                                        ImGui.Text($"  before={beforeDist:F1}");
+                                        ImGui.Text($"  after={afterDist:F1}");
+                                        ImGui.Text($"  gap={maxGap:F1}");
+                                        ImGui.Text($"  splitIndex={splitIndex}");
+                                        ImGui.Text($"  candidateNearCount={nearCount}");
+                                        ImGui.Text($"  candidateFarCount={farCount}");
+                                    }
+                                }
+                                else
+                                {
+                                    ImGui.TextDisabled("Largest Distance Gap: N/A (< 2 remnants)");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            var validRemnantsList = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
+                            ImGui.TextDisabled($"Total discovered valid Remnants in area: {validRemnantsList.Count}");
+                            ImGui.TextDisabled("Distance sorting and gap diagnostics require a visible Detonator.");
+                        }
+                    }
                 }
 
                 ImGui.Spacing();
@@ -788,8 +961,23 @@ namespace ExpeditionPathOptimizer
 
         public void ScanEntities(AreaInstance area)
         {
+            var areaId = GetCurrentAreaId();
+            if (IsExpeditionSubArea(areaId))
+            {
+                this.ClearState();
+                return;
+            }
+
             var reader = Core.Process.Handle;
             var currentLiveExplosives = new Dictionary<IntPtr, Vector3>();
+            var currentDetonators = new List<DetonatorDiagnosticInfo>();
+
+            var player = area.Player;
+            Vector2 playerGridPos = Vector2.Zero;
+            if (player != null && player.TryGetComponent<Render>(out var pRender, false) && pRender != null)
+            {
+                playerGridPos = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
+            }
 
             void ProcessEntity(Entity entity)
             {
@@ -820,8 +1008,11 @@ namespace ExpeditionPathOptimizer
 
                 if (isDetonator)
                 {
-                    this.detonatorWorldPos = wPos;
-                    this.detonatorGridPos = gPos;
+                    if (!currentDetonators.Any(d => d.Address == entity.Address))
+                    {
+                        float distToPlayer = playerGridPos != Vector2.Zero ? Vector2.Distance(playerGridPos, gPos) : 0f;
+                        currentDetonators.Add(new DetonatorDiagnosticInfo(entity.Id, entity.Address, gPos, wPos, distToPlayer));
+                    }
                 }
                 else if (path.Contains("ExpeditionExplosive", StringComparison.OrdinalIgnoreCase) &&
                          !path.Contains("Fuse", StringComparison.OrdinalIgnoreCase) &&
@@ -1016,6 +1207,26 @@ namespace ExpeditionPathOptimizer
                 foreach (var e in area.SleepingEntities.Values) ProcessEntity(e);
             }
 
+            // Synchronize visible detonators (Primary = nearest to player)
+            this.visibleDetonators.Clear();
+            if (currentDetonators.Count > 0)
+            {
+                var sortedDetonators = currentDetonators
+                    .OrderBy(d => d.DistanceFromPlayer)
+                    .ThenBy(d => d.EntityId)
+                    .ToList();
+
+                this.visibleDetonators.AddRange(sortedDetonators);
+                var primary = sortedDetonators[0];
+                this.detonatorWorldPos = primary.WorldPos;
+                this.detonatorGridPos = primary.GridPos;
+            }
+            else
+            {
+                this.detonatorWorldPos = Vector3.Zero;
+                this.detonatorGridPos = Vector2.Zero;
+            }
+
             // 1. Determine Final Target BEFORE starting search: Max Slots -> Highest Rune Weight -> Proximity (only consider remnants with RuneSlots > 0)
             var validRemnants = this.discoveredRemnants.Values.Where(r => r.RuneSlots > 0).ToList();
             if (validRemnants.Count > 0)
@@ -1042,6 +1253,13 @@ namespace ExpeditionPathOptimizer
 
         public bool StartSearch(AreaInstance area)
         {
+            var areaId = GetCurrentAreaId();
+            if (IsExpeditionSubArea(areaId))
+            {
+                PluginLog.Warning("ExpeditionPathOptimizer", $"Expedition Path Optimizer is disabled in Expedition sub-areas ({areaId}).");
+                return false;
+            }
+
             if (!this.IsPriceServiceReadyForSearch())
             {
                 PluginLog.Warning("ExpeditionPathOptimizer", "Price data is still loading; optimization was not started. Try again when price data is ready.");
@@ -1095,6 +1313,9 @@ namespace ExpeditionPathOptimizer
             var world = game?.CurrentWorldInstance;
             var gameUi = game?.GameUi;
             if (area == null || world == null) return;
+
+            var areaId = world.AreaDetails?.Id ?? string.Empty;
+            if (IsExpeditionSubArea(areaId)) return;
 
             if (gameUi != null && (gameUi.IsAnyLargePanelOpen || (gameUi.RuneshapeCombinationsPanel.Address != IntPtr.Zero && gameUi.RuneshapeCombinationsPanel.IsVisible)))
             {
