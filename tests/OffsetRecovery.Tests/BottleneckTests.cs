@@ -1,5 +1,6 @@
 #if DEBUG
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using TEHhub;
@@ -57,6 +58,7 @@ internal static class BottleneckTests
         // =========================================================================
         // Hybrid Memory Reader: PageLocalityTracker Lazy Bitmap Unit Tests
         // =========================================================================
+        check(typeof(SafeMemoryHandle.ReadCachePlan.PageLocalityTracker).IsValueType, "0: PageLocalityTracker is a mutable value type (struct)");
 
         // 1. < 6 accesses: no promotion qualification, bitmap remains unmaterialized
         var t1 = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
@@ -161,6 +163,30 @@ internal static class BottleneckTests
             }
         }
         check(allEquivalencePassed, "6: PageLocalityTracker matches ReferencePageTracker across 200 pseudo-random deterministic sequences");
+
+        // 7. Direct dictionary in-place ref mutation semantics
+        var dictTest = new Dictionary<long, SafeMemoryHandle.ReadCachePlan.PageLocalityTracker>();
+        ref var initRef = ref CollectionsMarshal.GetValueRefOrAddDefault(dictTest, 0x1000, out var initExists);
+        check(!initExists && dictTest.Count == 1, "7a: GetValueRefOrAddDefault creates 1 entry");
+        initRef.RecordAccess(0, 64);
+        check(dictTest[0x1000].AccessCount == 1 && dictTest[0x1000].DistinctMediumRegions == 1, "7b: in-place ref mutation updates dictionary value without writeback");
+        ref var existingRef = ref CollectionsMarshal.GetValueRefOrNullRef(dictTest, 0x1000);
+        check(!Unsafe.IsNullRef(ref existingRef), "7c: GetValueRefOrNullRef finds existing entry");
+        existingRef.RecordAccess(600, 64);
+        check(dictTest[0x1000].AccessCount == 2 && dictTest[0x1000].DistinctMediumRegions == 2, "7d: second ref access mutates same dictionary entry in place");
+
+        // 8. 7th+ access without prior materialization and subsequent overlapping access accounting
+        var t8 = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
+        for (var i = 0; i < 6; i++)
+        {
+            t8.RecordAccess(i * 10, 10);
+        }
+        check(t8.AccessCount == 6 && !t8.IsBitmapMaterialized, "8a: 6 small accesses keep bitmap unmaterialized");
+        t8.RecordAccess(100, 50); // 7th access triggers materialization so no range is lost
+        check(t8.AccessCount == 7 && t8.IsBitmapMaterialized, "8b: 7th access materializes bitmap");
+        check(t8.GetUniqueByteCount() == 110, "8c: unique byte count accurately preserves all 7 ranges (60 + 50 = 110)");
+        t8.RecordAccess(120, 50); // 8th access overlaps partly [120..170) vs [100..150)
+        check(t8.AccessCount == 8 && t8.GetUniqueByteCount() == 130, "8d: 8th access with overlap updates unique bytes accurately (110 + 20 = 130)");
 
         // =========================================================================
         // Hybrid Memory Reader: Exact & Hot-Page Promotion Tests (13 Invariants)
@@ -327,8 +353,9 @@ internal static class BottleneckTests
                     var snap2048 = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                     check(snap2048.ExactReads == 2048 &&
                           snap2048.PagePromotions == 0 &&
-                          snap2048.EntriesCreated == 2048,
-                          "10a: exactly 2048 dynamic exact entries created without any page promotions");
+                          snap2048.EntriesCreated == 2048 &&
+                          snap2048.PageTrackersCreated == 2048,
+                          "10a: exactly 2048 dynamic exact entries and 2048 page trackers created without promotions");
 
                     // Read from the 2049th distinct page (page index 2048)
                     var ok2049 = procHandle.TryReadMemory<int>(maxPageAlignedAddr + (2048 * 4096) + 16, out var val2049);
@@ -337,8 +364,16 @@ internal static class BottleneckTests
                     var snap2049 = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                     check(snap2049.EntriesCreated == 2048 &&
                           snap2049.ExactReads == 2048 &&
-                          snap2049.PagePromotions == 0,
-                          "10b: 2049th page does not create a new dynamic entry when MaxDynamicWindows (2048) is reached");
+                          snap2049.PagePromotions == 0 &&
+                          snap2049.PageTrackersCreated == 2048,
+                          "10b: 2049th page does not create a new dynamic entry or tracker when limit (2048) is reached");
+
+                    // Re-read an existing tracked page (page index 0)
+                    var okExisting = procHandle.TryReadMemory<int>(maxPageAlignedAddr + 16, out var valExisting);
+                    check(okExisting && valExisting == 0x55000000, "10c: existing tracked page remains readable at capacity");
+                    var snapExisting = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
+                    check(snapExisting.PageTrackersCreated == 2048 && snapExisting.ExactHits == 1,
+                          "10d: re-reading existing tracked page hits exact cache and does not create new tracker entry");
                 }
             }
             finally

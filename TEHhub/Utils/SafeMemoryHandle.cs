@@ -725,32 +725,33 @@ namespace TEHhub.Utils
                 var totalDynamicWindows = this.pageWindows.Count + this.exactWindows.Count;
 
                 // 3. Update locality / hotness tracking on cache miss
-                PageLocalityTracker? pageTracker = null;
+                var pageQualifies = false;
                 if (fitsInPage && IsValidAddress(new IntPtr(pageStart)))
                 {
-                    if (this.pageTrackers.TryGetValue(pageStart, out pageTracker))
+                    ref var trackerRef = ref CollectionsMarshal.GetValueRefOrNullRef(this.pageTrackers, pageStart);
+                    if (!Unsafe.IsNullRef(ref trackerRef))
                     {
-                        pageTracker.RecordAccess((int)offsetInPage, size);
+                        trackerRef.RecordAccess((int)offsetInPage, size);
+                        pageQualifies = trackerRef.AccessCount >= PagePromotionAccessThreshold &&
+                            trackerRef.DistinctMediumRegions >= PagePromotionMinimumDistinctMediumRegions &&
+                            trackerRef.GetUniqueByteCount() >= PagePromotionMinimumUniqueBytes;
                     }
                     else if (this.pageTrackers.Count < MaxTrackedBlocks)
                     {
-                        pageTracker = new PageLocalityTracker();
-                        if (measure)
+                        trackerRef = ref CollectionsMarshal.GetValueRefOrAddDefault(this.pageTrackers, pageStart, out var exists);
+                        if (!exists && measure)
                         {
                             Ui.MemoryReadDiagnostics.RecordHybridPageTrackerCreated();
                         }
 
-                        pageTracker.RecordAccess((int)offsetInPage, size);
-                        this.pageTrackers.Add(pageStart, pageTracker);
+                        trackerRef.RecordAccess((int)offsetInPage, size);
+                        pageQualifies = trackerRef.AccessCount >= PagePromotionAccessThreshold &&
+                            trackerRef.DistinctMediumRegions >= PagePromotionMinimumDistinctMediumRegions &&
+                            trackerRef.GetUniqueByteCount() >= PagePromotionMinimumUniqueBytes;
                     }
                 }
 
                 // 4. Adaptive 4KB Page Promotion
-                var pageQualifies = pageTracker is not null &&
-                    pageTracker.AccessCount >= PagePromotionAccessThreshold &&
-                    pageTracker.DistinctMediumRegions >= PagePromotionMinimumDistinctMediumRegions &&
-                    pageTracker.GetUniqueByteCount() >= PagePromotionMinimumUniqueBytes;
-
                 if (fitsInPage &&
                     pageQualifies &&
                     totalDynamicWindows < MaxDynamicWindows &&
@@ -874,7 +875,7 @@ namespace TEHhub.Utils
                 this.pageTrackers?.Clear();
             }
 
-            internal sealed class PageLocalityTracker
+            internal struct PageLocalityTracker
             {
                 private const int MaxInlineAccesses = PagePromotionAccessThreshold;
 
@@ -892,9 +893,9 @@ namespace TEHhub.Utils
 
                 internal int AccessCount { get; private set; }
 
-                internal int DistinctMediumRegions => System.Numerics.BitOperations.PopCount((uint)this.mediumRegionMask);
+                internal readonly int DistinctMediumRegions => System.Numerics.BitOperations.PopCount((uint)this.mediumRegionMask);
 
-                internal bool IsBitmapMaterialized => this.byteMask is not null;
+                internal readonly bool IsBitmapMaterialized => this.byteMask is not null;
 
                 internal void RecordAccess(int offsetInPage, int size)
                 {
@@ -1001,7 +1002,7 @@ namespace TEHhub.Utils
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                private void GetInlineAccess(int index, out ushort offset, out ushort size)
+                private readonly void GetInlineAccess(int index, out ushort offset, out ushort size)
                 {
                     switch (index)
                     {

@@ -493,7 +493,7 @@ public static class MemoryReadDiagnostics
                     ImGui.Text($"Native Fetches: {totalNativeReads:N0} (Hybrid Dynamic Fetched: {hybrid.FetchedBytes / 1024.0:F1} KiB)  |  Hybrid Dynamic Fetched/Logical: {hybrid.FetchedToRequestedRatio:F2}x");
                     ImGui.TextDisabled($"  Fetches Breakdown: 4KB Prom {hybrid.PagePromotions:N0} (Fail {hybrid.PagePromotionFailures:N0})  |  Exact {hybrid.ExactReads:N0}");
                     ImGui.TextDisabled($"  Fetched Breakdown: 4KB {hybrid.PageFetchedBytes / 1024.0:F1} KiB  |  Exact {hybrid.ExactFetchedBytes / 1024.0:F1} KiB");
-                    ImGui.TextDisabled($"  Dynamics: Dynamic Entries Created {hybrid.EntriesCreated:N0}  |  Page Trackers Created {hybrid.PageTrackersCreated:N0} (Bitmaps Materialized {hybrid.PageBitmapsMaterialized:N0})  |  Peak Tracked Pages/Frame {hybrid.MaxPageTrackersPerFrame:N0}");
+                    ImGui.TextDisabled($"  Dynamics: Dynamic Entries Created {hybrid.EntriesCreated:N0}  |  Page Tracker Entries Created {hybrid.PageTrackersCreated:N0} (Bitmaps Materialized {hybrid.PageBitmapsMaterialized:N0})  |  Peak Tracked Pages/Frame {hybrid.MaxPageTrackersPerFrame:N0}");
                 }
 
                 if (ImGui.BeginTable("memDiagTable", 6,
