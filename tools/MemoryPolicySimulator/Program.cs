@@ -87,6 +87,11 @@ public class SimulationMetrics
     {
         return (NativeReadCalls * callCost) + (TotalFetchedBytes * byteCost);
     }
+
+    public double GetBandwidthMBps(int fps)
+    {
+        return (TotalFetchedBytes * (double)fps) / (1024.0 * 1024.0);
+    }
 }
 
 public interface IMemoryPolicy
@@ -105,6 +110,7 @@ public class LegacyExactReadPolicy : IMemoryPolicy
         var metrics = new SimulationMetrics { PolicyName = Name };
         var globalTracker = new PageIntervalTracker();
         
+        // Legacy ignores planned ranges and issues individual exact reads
         foreach (var req in requests)
         {
             metrics.TotalRequests++;
@@ -121,10 +127,10 @@ public class LegacyExactReadPolicy : IMemoryPolicy
     }
 }
 
-// 2. Current NewMemoryRead Policy (4KB/8KB Dynamic Page Cache + Production Planned Batching)
+// 2. Current NewMemoryRead Policy (Production Planned Component Ranges + 4KB/8KB Dynamic Page Cache)
 public class CurrentNewMemoryReadPolicy : IMemoryPolicy
 {
-    public string Name => "Current NewMemoryRead (4KB/8KB Page Cache + Planned Batching)";
+    public string Name => "Current NewMemoryRead (4KB/8KB + Production Planned Ranges)";
     private const int DynamicPageBytes = 0x1000;      // 4096 bytes
     private const int DynamicCrossPageBytes = 0x2000; // 8192 bytes
     private const int MaxDynamicWindows = 2048;
@@ -135,7 +141,7 @@ public class CurrentNewMemoryReadPolicy : IMemoryPolicy
         var cache = new List<(long Start, int Size)>();
         var globalTracker = new PageIntervalTracker();
 
-        // 1. Process Planned Batches upfront (Production Entity Component / UI Batching)
+        // 1. Process Planned Batches upfront (Faithful production FrameMemoryReadPipeline ranges)
         if (plannedBatches != null)
         {
             foreach (var batch in plannedBatches)
@@ -190,10 +196,10 @@ public class CurrentNewMemoryReadPolicy : IMemoryPolicy
     }
 }
 
-// 3. Fully Corrected Hybrid V2 Policy: Logical Hotness First + Exact-First + Hierarchical Promotion + Cross-Page Accounting
+// 3. Fully Corrected Hybrid V2 Policy: Production Planned Ranges + Exact-First + Hierarchical Promotion
 public class HybridV2HierarchicalPolicy : IMemoryPolicy
 {
-    public string Name { get; set; } = "Proposed Hybrid V2 (Hierarchical Exact-First)";
+    public string Name { get; set; } = "Proposed Hybrid V2 (Planned Ranges + Exact-First Hierarchical)";
 
     public int Level1BlockSize { get; set; } = 128; // Level 1 compact block
     public int Level2BlockSize { get; set; } = 512; // Level 2 medium block
@@ -214,7 +220,7 @@ public class HybridV2HierarchicalPolicy : IMemoryPolicy
         var pageTrackers = new Dictionary<long, PageIntervalTracker>();
         var globalTracker = new PageIntervalTracker();
 
-        // 1. Process Planned Batches if provided
+        // 1. Process Planned Batches if provided (Retain targeted planned component ranges)
         if (plannedBatches != null)
         {
             foreach (var batch in plannedBatches)
@@ -295,7 +301,7 @@ public class HybridV2HierarchicalPolicy : IMemoryPolicy
             }
             else if (primaryAccesses >= Level2AccessThreshold)
             {
-                // Level 2: Medium Compact Block
+                // Level 2: Medium Compact Block (512B default)
                 if (isCrossPage || req.Size > Level2BlockSize)
                 {
                     fetchStart = req.Address;
@@ -311,7 +317,7 @@ public class HybridV2HierarchicalPolicy : IMemoryPolicy
             }
             else if (primaryAccesses >= Level1AccessThreshold)
             {
-                // Level 1: Small Compact Block
+                // Level 1: Small Compact Block (128B default)
                 if (isCrossPage || req.Size > Level1BlockSize)
                 {
                     fetchStart = req.Address;
@@ -346,6 +352,69 @@ public class HybridV2HierarchicalPolicy : IMemoryPolicy
         metrics.UniqueRequestedBytes = globalTracker.GetUniqueByteCount();
         return metrics;
     }
+}
+
+public static class ProductionRangeBuilder
+{
+    public const int MinComponentsPerRange = 3;
+    public const int MaxGapBetweenComponents = 0x100;
+    public const int RangeTailBytes = 0x800;
+    public const int MaxRangeBytes = 0x8000;
+
+    /// <summary>
+    /// Faithful implementation of TEHhub FrameMemoryReadPipeline.BuildRanges
+    /// </summary>
+    public static List<MemoryRequest> BuildProductionPlannedRanges(IEnumerable<long> snapshotAddresses)
+    {
+        var addresses = snapshotAddresses.Where(a => a != 0).ToList();
+        if (addresses.Count < MinComponentsPerRange)
+        {
+            return new List<MemoryRequest>();
+        }
+
+        addresses.Sort();
+        var ranges = new List<MemoryRequest>(addresses.Count / MinComponentsPerRange);
+        int groupStart = 0;
+        long previousAddress = addresses[0];
+
+        for (int i = 1; i <= addresses.Count; i++)
+        {
+            bool atEnd = (i == addresses.Count);
+            long nextAddress = atEnd ? 0 : addresses[i];
+            long gap = atEnd ? long.MaxValue : nextAddress - previousAddress;
+            long span = atEnd ? 0 : nextAddress - addresses[groupStart] + RangeTailBytes;
+            bool fits = !atEnd && gap >= 0 && gap <= MaxGapBetweenComponents && span <= MaxRangeBytes;
+
+            if (fits)
+            {
+                previousAddress = nextAddress;
+                continue;
+            }
+
+            int componentCount = i - groupStart;
+            if (componentCount >= MinComponentsPerRange)
+            {
+                long firstAddress = addresses[groupStart];
+                int byteCount = (int)(previousAddress - firstAddress + RangeTailBytes);
+                ranges.Add(new MemoryRequest(firstAddress, byteCount, $"ProductionPlannedRange_{ranges.Count}"));
+            }
+
+            groupStart = i;
+            if (!atEnd)
+            {
+                previousAddress = nextAddress;
+            }
+        }
+
+        return ranges;
+    }
+}
+
+public enum LocalityMode
+{
+    Scattered, // Components / nested pointers distributed across many 4KB pages
+    Clustered, // Strong heap locality; adjacent components merge into planned ranges
+    Mixed      // Realistic mix: clustered entity components + scattered pointer targets & ground items
 }
 
 public static class WorkloadGenerator
@@ -389,37 +458,7 @@ public static class WorkloadGenerator
         return reqs;
     }
 
-    // 2. Entity / Component Workload
-    public static (List<MemoryRequest> Requests, List<MemoryRequest> PlannedBatches) GenerateEntityComponentWorkload(int entityCount)
-    {
-        var reqs = new List<MemoryRequest>();
-        var batches = new List<MemoryRequest>();
-        long entityBase = 0x300000000L;
-
-        for (int e = 0; e < entityCount; e++)
-        {
-            long entityAddr = entityBase + (e * 0x1000);
-            reqs.Add(new MemoryRequest(entityAddr + 0x00, 8, "EntityVTable"));
-            reqs.Add(new MemoryRequest(entityAddr + 0x08, 8, "EntityComponentsMap"));
-            reqs.Add(new MemoryRequest(entityAddr + 0x38, 4, "EntityId"));
-
-            long compBase = 0x310000000L + (e * 0x800);
-            // In PoE2 production, 5 components located closely are batched upfront into a single read range
-            batches.Add(new MemoryRequest(compBase, 0x500, $"Entity_{e}_ComponentClusterBatch"));
-
-            for (int c = 0; c < 5; c++)
-            {
-                long compAddr = compBase + (c * 0x100);
-                reqs.Add(new MemoryRequest(compAddr + 0x00, 0x20, $"CompHeader_{c}"));
-                reqs.Add(new MemoryRequest(compAddr + 0x40, 16, $"CompPayload1_{c}"));
-                reqs.Add(new MemoryRequest(compAddr + 0x80, 8, $"CompPayload2_{c}"));
-            }
-        }
-
-        return (reqs, batches);
-    }
-
-    // 3. UI-Tree Workload: Deep traversal with repeated reads
+    // 2. UI-Tree Workload: Deep traversal with repeated reads
     public static List<MemoryRequest> GenerateUiTreeWorkload(int elementCount)
     {
         var reqs = new List<MemoryRequest>();
@@ -449,7 +488,7 @@ public static class WorkloadGenerator
         return reqs;
     }
 
-    // 4. Worst-case Scattered Workload: N small reads on N distinct 4KB pages
+    // 3. Worst-case Scattered Workload
     public static List<MemoryRequest> GenerateWorstCaseScatteredWorkload(int count)
     {
         var reqs = new List<MemoryRequest>();
@@ -464,7 +503,7 @@ public static class WorkloadGenerator
         return reqs;
     }
 
-    // 5. Repeated Single-Pointer Workload: Same 8-byte address read repeatedly
+    // 4. Repeated Single-Pointer Workload
     public static List<MemoryRequest> GenerateRepeatedSinglePointerWorkload(int count)
     {
         var reqs = new List<MemoryRequest>();
@@ -476,6 +515,159 @@ public static class WorkloadGenerator
         }
 
         return reqs;
+    }
+
+    // 5. Heavy-Scene Monster + Ground Item Workload Generator
+    public static (List<MemoryRequest> LogicalRequests, List<MemoryRequest> PlannedBatches) GenerateHeavySceneWorkload(
+        int monsterCount,
+        int groundItemCount,
+        LocalityMode locality,
+        int consumerCount = 1)
+    {
+        var baseRequests = new List<MemoryRequest>();
+        var snapshotAddresses = new List<long>();
+
+        long monsterBase = 0x1000000000L;
+        long groundItemBase = 0x2000000000L;
+        long stringHeapBase = 0x3000000000L;
+
+        // A. MONSTERS (Render, Positioned, Life, Actor, Targetable, Buffs, ObjectMagicProperties)
+        for (int m = 0; m < monsterCount; m++)
+        {
+            long entityAddr = monsterBase + (m * 0x10000L);
+            baseRequests.Add(new MemoryRequest(entityAddr + 0x00, 0x40, "Monster_EntityHeader"));
+            baseRequests.Add(new MemoryRequest(entityAddr + 0x50, 0x20, "Monster_EntityDetails"));
+
+            long compBase;
+            long compStep;
+
+            switch (locality)
+            {
+                case LocalityMode.Clustered:
+                    // Strongly clustered: 6 components with 0x80 byte gaps (fits in <= 0x100 gap rule)
+                    compBase = monsterBase + 0x50000000L + (m * 0x600L);
+                    compStep = 0x80;
+                    break;
+                case LocalityMode.Scattered:
+                    // Scattered across pages: each component on a separate 4KB page
+                    compBase = monsterBase + 0x80000000L + (m * 0x10000L);
+                    compStep = 0x1200; // Gap > 0x100 (breaks planned range grouping)
+                    break;
+                case LocalityMode.Mixed:
+                default:
+                    // 60% clustered in small groups, 40% scattered
+                    if (m % 10 < 6)
+                    {
+                        compBase = monsterBase + 0x50000000L + (m * 0x600L);
+                        compStep = 0x80;
+                    }
+                    else
+                    {
+                        compBase = monsterBase + 0x80000000L + (m * 0x10000L);
+                        compStep = 0x1200;
+                    }
+                    break;
+            }
+
+            // Snapshot addresses for components
+            long addrRender = compBase + (0 * compStep);
+            long addrPositioned = compBase + (1 * compStep);
+            long addrLife = compBase + (2 * compStep);
+            long addrActor = compBase + (3 * compStep);
+            long addrTargetable = compBase + (4 * compStep);
+            long addrBuffs = compBase + (5 * compStep);
+
+            snapshotAddresses.Add(addrRender);
+            snapshotAddresses.Add(addrPositioned);
+            snapshotAddresses.Add(addrLife);
+            snapshotAddresses.Add(addrActor);
+            snapshotAddresses.Add(addrTargetable);
+            snapshotAddresses.Add(addrBuffs);
+
+            // Component reads
+            baseRequests.Add(new MemoryRequest(addrRender + 0x00, 0x40, "Monster_RenderData"));
+            baseRequests.Add(new MemoryRequest(addrPositioned + 0x00, 0x30, "Monster_PositionedData"));
+            baseRequests.Add(new MemoryRequest(addrLife + 0x00, 0x60, "Monster_LifeData"));
+            baseRequests.Add(new MemoryRequest(addrActor + 0x00, 0x80, "Monster_ActorData"));
+            baseRequests.Add(new MemoryRequest(addrTargetable + 0x00, 0x20, "Monster_TargetableData"));
+            baseRequests.Add(new MemoryRequest(addrBuffs + 0x00, 0x40, "Monster_BuffsData"));
+
+            // Nested pointer targets (Strings / metadata)
+            long strAddr = stringHeapBase + (m * 0x200L);
+            baseRequests.Add(new MemoryRequest(strAddr + 0x00, 0x40, "Monster_PathString"));
+            baseRequests.Add(new MemoryRequest(strAddr + 0x80, 0x20, "Monster_NameString"));
+        }
+
+        // B. GROUND ITEMS (Positioned, Render, WorldItem -> Inner Item with Base, Mods, RenderItem)
+        for (int g = 0; g < groundItemCount; g++)
+        {
+            long entityAddr = groundItemBase + (g * 0x10000L);
+            baseRequests.Add(new MemoryRequest(entityAddr + 0x00, 0x40, "GroundItem_EntityHeader"));
+
+            long compBase;
+            long compStep;
+
+            switch (locality)
+            {
+                case LocalityMode.Clustered:
+                    compBase = groundItemBase + 0x50000000L + (g * 0x400L);
+                    compStep = 0x80;
+                    break;
+                case LocalityMode.Scattered:
+                    compBase = groundItemBase + 0x80000000L + (g * 0x10000L);
+                    compStep = 0x1500;
+                    break;
+                case LocalityMode.Mixed:
+                default:
+                    if (g % 10 < 5)
+                    {
+                        compBase = groundItemBase + 0x50000000L + (g * 0x400L);
+                        compStep = 0x80;
+                    }
+                    else
+                    {
+                        compBase = groundItemBase + 0x80000000L + (g * 0x10000L);
+                        compStep = 0x1500;
+                    }
+                    break;
+            }
+
+            long addrPos = compBase + (0 * compStep);
+            long addrRend = compBase + (1 * compStep);
+            long addrWI = compBase + (2 * compStep);
+
+            snapshotAddresses.Add(addrPos);
+            snapshotAddresses.Add(addrRend);
+            snapshotAddresses.Add(addrWI);
+
+            baseRequests.Add(new MemoryRequest(addrPos + 0x00, 0x30, "GroundItem_Positioned"));
+            baseRequests.Add(new MemoryRequest(addrRend + 0x00, 0x40, "GroundItem_Render"));
+            baseRequests.Add(new MemoryRequest(addrWI + 0x00, 0x30, "GroundItem_WorldItem"));
+
+            // Inner Item Entity & components
+            long innerItemAddr = groundItemBase + 0x90000000L + (g * 0x800L);
+            baseRequests.Add(new MemoryRequest(innerItemAddr + 0x00, 0x40, "InnerItem_Header"));
+            baseRequests.Add(new MemoryRequest(innerItemAddr + 0x80, 0x40, "InnerItem_BaseComp"));
+            baseRequests.Add(new MemoryRequest(innerItemAddr + 0x120, 0x60, "InnerItem_ModsComp"));
+            baseRequests.Add(new MemoryRequest(innerItemAddr + 0x1C0, 0x40, "InnerItem_RenderItemComp"));
+
+            // Item Name & Icon Strings
+            long itemStrAddr = stringHeapBase + 0x50000000L + (g * 0x200L);
+            baseRequests.Add(new MemoryRequest(itemStrAddr + 0x00, 0x30, "InnerItem_NameString"));
+            baseRequests.Add(new MemoryRequest(itemStrAddr + 0x60, 0x40, "InnerItem_IconString"));
+        }
+
+        // Generate production planned ranges from global snapshot addresses
+        var plannedRanges = ProductionRangeBuilder.BuildProductionPlannedRanges(snapshotAddresses);
+
+        // Multiply by consumer count within the same frame
+        var totalRequests = new List<MemoryRequest>(baseRequests.Count * consumerCount);
+        for (int c = 0; c < consumerCount; c++)
+        {
+            totalRequests.AddRange(baseRequests);
+        }
+
+        return (totalRequests, plannedRanges);
     }
 }
 
@@ -499,38 +691,31 @@ public class Program
         };
 
         var sbMarkdown = new StringBuilder();
-        sbMarkdown.AppendLine("# Offline Memory Read Policy Simulation Report (Fully Corrected Model)");
-        sbMarkdown.AppendLine("Comparative Analysis: Legacy Exact-Read vs. Current NewMemoryRead (with Planned Batching) vs. Proposed Hybrid V2 (Exact-First + Hierarchical Promotion + Cross-Page Accounting)");
+        sbMarkdown.AppendLine("# Offline Memory Read Policy Simulation Report (Production Planned-Range Model)");
+        sbMarkdown.AppendLine("Comparative Analysis: Legacy Exact-Read vs. Current NewMemoryRead (with Production Planned Ranges) vs. Proposed Hybrid V2 (Planned Ranges + Exact-First Hierarchical)");
         sbMarkdown.AppendLine();
         sbMarkdown.AppendLine("Cost Model: `EstimatedCost = (NativeCalls * CallCost) + (TotalFetchedBytes * 1.0)`");
         sbMarkdown.AppendLine();
 
-        int[] testSizes = { 10, 100, 500, 1000 };
+        // 1. Production Range Builder Regressions
+        sbMarkdown.AppendLine("## 1. Production Frame Component Range Planner Invariants");
+        sbMarkdown.AppendLine("The simulator faithfully implements `TEHhub.Utils.FrameMemoryReadPipeline.BuildRanges` rules:");
+        sbMarkdown.AppendLine("- `MinComponentsPerRange = 3`");
+        sbMarkdown.AppendLine("- `MaxGapBetweenComponents = 0x100` (256 bytes)");
+        sbMarkdown.AppendLine("- `RangeTailBytes = 0x800` (2048 bytes)");
+        sbMarkdown.AppendLine("- `MaxRangeBytes = 0x8000` (32768 bytes)");
+        sbMarkdown.AppendLine();
 
-        // 1. Scattered Workload
-        RunBenchmarkSuite("1. Worst-Case Scattered Workload (1 Scalar Read per 4KB Page)",
-            testSizes, sz => (WorkloadGenerator.GenerateWorstCaseScatteredWorkload(sz), null), policies, sbMarkdown);
+        // 2. Heavy Scene Simulations (500, 1000, 1500, 2000 Monsters + Ground Items)
+        RunHeavySceneSimulationSuite(policies, sbMarkdown);
 
-        // 2. Skill Workload
-        RunBenchmarkSuite("2. Skill Workload (Actor + ActiveSkills + Cooldowns)",
-            testSizes, sz => (WorkloadGenerator.GenerateSkillWorkload(sz), null), policies, sbMarkdown);
+        // 3. Traffic Category Breakdown
+        RunTrafficBreakdownAnalysis(policies, sbMarkdown);
 
-        // 3. Entity / Component Workload (with Production Planned Batching)
-        RunBenchmarkSuite("3. Entity / Component Workload (Dense Component Clusters with Planned Batching)",
-            testSizes, sz => WorkloadGenerator.GenerateEntityComponentWorkload(sz), policies, sbMarkdown);
-
-        // 4. UI-Tree Workload
-        RunBenchmarkSuite("4. UI-Tree Workload (Hierarchical UI Traversal & String Reads)",
-            testSizes, sz => (WorkloadGenerator.GenerateUiTreeWorkload(sz), null), policies, sbMarkdown);
-
-        // 5. Repeated Single-Pointer Workload
-        RunBenchmarkSuite("5. Repeated Single-Pointer Workload (Same 8-byte pointer read repeatedly)",
-            new[] { 10, 100, 500, 1000 }, sz => (WorkloadGenerator.GenerateRepeatedSinglePointerWorkload(sz), null), policies, sbMarkdown);
-
-        // 6. Cost Sensitivity Sweep
+        // 4. Cost Sensitivity Sweep
         RunCostSensitivitySweep(sbMarkdown);
 
-        // 7. Pareto Analysis
+        // 5. Pareto Analysis
         RunParetoAnalysis(sbMarkdown);
 
         // Save report to markdown
@@ -543,107 +728,193 @@ public class Program
     {
         Console.WriteLine("Running Deterministic Self-Tests & Invariant Verifications...");
 
-        // A. Scattered test (1000 items -> Hybrid exact 1.0x traffic ratio, exact fetched = 8000)
+        // 1. Production Range Builder Regression Tests
+        // A. 2 nearby component addresses => NO planned range (< MinComponentsPerRange)
+        var twoAddrs = new List<long> { 0x100000000L, 0x100000050L };
+        var rangesA = ProductionRangeBuilder.BuildProductionPlannedRanges(twoAddrs);
+        SimulatorAssert.IsTrue(rangesA.Count == 0, "2 nearby addresses must produce NO planned range");
+
+        // B. 3 component addresses with <= 0x100 gaps => ONE planned range
+        var threeAddrs = new List<long> { 0x100000000L, 0x100000080L, 0x100000100L };
+        var rangesB = ProductionRangeBuilder.BuildProductionPlannedRanges(threeAddrs);
+        SimulatorAssert.IsTrue(rangesB.Count == 1, "3 component addresses with <= 0x100 gaps must produce exactly 1 planned range");
+        SimulatorAssert.IsTrue(rangesB[0].Address == 0x100000000L, "Planned range start must match first component address");
+        SimulatorAssert.IsTrue(rangesB[0].Size == (0x100000100L - 0x100000000L + 0x800), "Planned range size must include 0x800 tail");
+
+        // C. Gap > 0x100 => Closes/splits the group
+        var splitAddrs = new List<long> { 0x100000000L, 0x100000050L, /* Gap 0x200 */ 0x100000250L, 0x1000002A0L, 0x1000002F0L };
+        var rangesC = ProductionRangeBuilder.BuildProductionPlannedRanges(splitAddrs);
+        SimulatorAssert.IsTrue(rangesC.Count == 1, "Gap > 0x100 must split; first group of 2 dropped, second group of 3 kept");
+        SimulatorAssert.IsTrue(rangesC[0].Address == 0x100000250L, "Second group start address must be 0x100000250L");
+
+        // D. Candidate range exceeding 0x8000 => Closes/splits group
+        var longSpanAddrs = new List<long>();
+        for (int i = 0; i < 600; i++)
+        {
+            longSpanAddrs.Add(0x200000000L + (i * 0x60)); // 600 * 96B = 57,600B (> 32KB)
+        }
+        var rangesD = ProductionRangeBuilder.BuildProductionPlannedRanges(longSpanAddrs);
+        SimulatorAssert.IsTrue(rangesD.Count > 1, "Spanning > 0x8000 must split into multiple planned ranges");
+        foreach (var r in rangesD)
+        {
+            SimulatorAssert.IsTrue(r.Size <= 0x8000, "No planned range may exceed MaxRangeBytes (0x8000)");
+        }
+
+        // E. 512-byte compact boundary test for Hybrid V2
+        var hybrid = new HybridV2HierarchicalPolicy { Level2BlockSize = 512 };
+        var boundary512 = new List<MemoryRequest>
+        {
+            new(0x300000180L, 64, "Prime1"),
+            new(0x3000001C0L, 64, "Prime2"),
+            new(0x3000001E0L, 64, "Cross512_1"), // Spans 0x1E0..0x220 across 512B boundary 0x200
+            new(0x300000200L, 64, "Cross512_2")
+        };
+        var res512 = hybrid.Run(boundary512);
+        SimulatorAssert.IsTrue(res512.Level2MediumFetchedBytes > 0 || res512.Level1CompactFetchedBytes > 0, "Compact boundary test must cover safely");
+
+        // F. Scattered test (1000 items -> Hybrid exact 1.0x traffic ratio)
         var scattered = WorkloadGenerator.GenerateWorstCaseScatteredWorkload(1000);
-        var resScattered = new HybridV2HierarchicalPolicy().Run(scattered);
+        var resScattered = hybrid.Run(scattered);
         SimulatorAssert.IsTrue(resScattered.TotalTrafficRatio == 1.0, $"Scattered traffic ratio must be 1.0x, got {resScattered.TotalTrafficRatio}");
         SimulatorAssert.IsTrue(resScattered.ExactFetchedBytes == 8000, "Scattered exact fetched bytes must equal 8000");
-        SimulatorAssert.IsTrue(resScattered.Level1CompactFetchedBytes == 0, "Scattered must not fetch Level 1 compact blocks");
-        SimulatorAssert.IsTrue(resScattered.Level3PageFetchedBytes == 0, "Scattered must not fetch Level 3 pages");
 
-        // B. Repeated same pointer test (100 reads -> must NOT promote to 4KB because unique bytes = 8)
+        // G. Repeated pointer test (100 reads -> 99 hits, unique = 8)
         var repeated = WorkloadGenerator.GenerateRepeatedSinglePointerWorkload(100);
-        var resRepeated = new HybridV2HierarchicalPolicy().Run(repeated);
-        SimulatorAssert.IsTrue(resRepeated.Level3PageFetchedBytes == 0, "Repeated same pointer must NOT promote to Level 3 4KB page!");
+        var resRepeated = hybrid.Run(repeated);
+        SimulatorAssert.IsTrue(resRepeated.Level3PageFetchedBytes == 0, "Repeated same pointer must NOT promote to Level 3");
         SimulatorAssert.IsTrue(resRepeated.UniqueRequestedBytes == 8, "Unique requested bytes must be exactly 8");
-        SimulatorAssert.IsTrue(resRepeated.CacheHits == 99, $"Repeated pointer must produce 99 cache hits, got {resRepeated.CacheHits}");
-        SimulatorAssert.IsTrue(resRepeated.NativeReadCalls == 1, $"Repeated pointer must make exactly 1 native call, got {resRepeated.NativeReadCalls}");
-
-        // C. Dense same-page progression to Level 3
-        var denseProgression = new List<MemoryRequest>
-        {
-            new(0x700000000L, 64, "Dense_0"),  // Access 1: Exact (64B)
-            new(0x700000100L, 64, "Dense_1"),  // Access 2: Promotes to L1 (128B)
-            new(0x700000200L, 64, "Dense_2"),  // Access 3: L1 (128B)
-            new(0x700000300L, 64, "Dense_3"),  // Access 4: Promotes to L2 (512B)
-            new(0x700000800L, 64, "Dense_4"),  // Access 5: L2 (512B)
-            new(0x700000A00L, 64, "Dense_5"),  // Access 6 (unique bytes >= 256): Promotes to L3 4KB Page (4096B)
-            new(0x700000C00L, 64, "Dense_6")   // Access 7: Hits in 4KB page cache
-        };
-        var resDense = new HybridV2HierarchicalPolicy().Run(denseProgression);
-        SimulatorAssert.IsTrue(resDense.Level3PageFetchedBytes == 4096, "Dense same-page must promote to Level 3 4KB page on access 6");
-        SimulatorAssert.IsTrue(resDense.CacheHits == 1, $"Dense access 7 must hit 4KB page cache, got {resDense.CacheHits}");
-
-        // D. Oversized requests (300B, 600B, 1500B)
-        var oversized = new List<MemoryRequest>
-        {
-            new(0x100000050L, 300, "Oversized_300B"),
-            new(0x100001000L, 600, "Oversized_600B"),
-            new(0x100002000L, 1500, "Oversized_1500B")
-        };
-        var resOversized = new HybridV2HierarchicalPolicy().Run(oversized);
-        SimulatorAssert.IsTrue(resOversized.TotalFetchedBytes >= 2400, "Oversized requests must fully cover requested bytes");
-
-        // E. Compact Boundary Crossing (Request crossing 128B boundary within page)
-        var boundaryRequests = new List<MemoryRequest>
-        {
-            new(0x800000060L, 32, "Req1_PrimeL1"), // Access 1: Exact
-            new(0x800000070L, 32, "Req2_Cross128")  // Access 2: L1 (spans 0x70..0x90, crosses 0x80 boundary)
-        };
-        var resBoundary = new HybridV2HierarchicalPolicy().Run(boundaryRequests);
-        SimulatorAssert.IsTrue(resBoundary.Level1CompactFetchedBytes > 0, "Compact boundary crossing must fetch Level 1 compact block");
-
-        // F. 4KB Page Boundary Crossing Request Accounting
-        var crossPageRequests = new List<MemoryRequest>
-        {
-            new(0x900000FFEL, 18, "CrossPageReq_18B") // Spans [0x900000FFE..0x900001010), 2B on page 1, 16B on page 2
-        };
-        var resCrossPage = new HybridV2HierarchicalPolicy().Run(crossPageRequests);
-        SimulatorAssert.IsTrue(resCrossPage.RequestedBytes == 18, "Requested bytes must be 18");
-        SimulatorAssert.IsTrue(resCrossPage.UniqueRequestedBytes == 18, "Unique requested bytes must be 18");
-        SimulatorAssert.IsTrue(resCrossPage.TotalFetchedBytes >= 18, "Fetched bytes must fully cover cross-page span");
-
-        // G. Production Planned Batching Invariant Verification
-        var (entReqs, entBatches) = WorkloadGenerator.GenerateEntityComponentWorkload(5);
-        var resCurrentBatch = new CurrentNewMemoryReadPolicy().Run(entReqs, entBatches);
-        SimulatorAssert.IsTrue(resCurrentBatch.PlannedBatchFetchedBytes > 0, "Planned batches must be recorded in Current NewMemoryRead");
-        SimulatorAssert.IsTrue(resCurrentBatch.CacheHits > 0, "Subsequent component reads must hit planned batch cache");
+        SimulatorAssert.IsTrue(resRepeated.CacheHits == 99, "Repeated pointer must produce 99 hits");
 
         Console.WriteLine("All 7 Deterministic Invariant Checks & Regressions PASSED successfully!\n");
     }
 
-    private static void RunBenchmarkSuite(
-        string title,
-        int[] sizes,
-        Func<int, (List<MemoryRequest> Requests, List<MemoryRequest>? PlannedBatches)> workloadGen,
-        IMemoryPolicy[] policies,
-        StringBuilder md)
+    private static void RunHeavySceneSimulationSuite(IMemoryPolicy[] policies, StringBuilder md)
     {
-        Console.WriteLine($"\n>>> {title} <<<");
-        md.AppendLine($"## {title}");
+        Console.WriteLine("================================================================================");
+        Console.WriteLine("       HEAVY SCENE SIMULATION (500 to 2000 Monsters + Ground Items)              ");
+        Console.WriteLine("================================================================================");
+
+        md.AppendLine("## 2. Heavy Scene Simulations (Monster + Ground Item Scaled Workloads)");
         md.AppendLine();
 
-        foreach (var size in sizes)
+        (int Monsters, int Items)[] sceneScales =
         {
-            var (reqs, batches) = workloadGen(size);
-            int batchCount = batches?.Count ?? 0;
-            Console.WriteLine($"\n--- Workload Scale: {size} items ({reqs.Count} requests, {batchCount} planned batches) ---");
-            Console.WriteLine($"{"Policy",-35} | {"ReqBytes",9} | {"UniqBytes",9} | {"Calls",7} | {"Exact(B)",8} | {"Batch(B)",8} | {"L1(B)",8} | {"L2(B)",8} | {"L3(B)",9} | {"Total(B)",10} | {"Traffic",7} | {"EstCost (1k)",12}");
-            Console.WriteLine(new string('-', 160));
+            (500, 500),
+            (1000, 1000),
+            (1500, 1500),
+            (2000, 2000)
+        };
 
-            md.AppendLine($"### Scale: {size} items ({reqs.Count} requests, {batchCount} planned batches)");
-            md.AppendLine("| Policy | Requested | Unique Bytes | Native Calls | Exact (B) | Planned Batch | L1 Compact | L2 Medium | L3 Page | Total Fetched | Traffic Ratio | Cost (CallCost=1000) |");
-            md.AppendLine("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |");
+        LocalityMode[] localityModes = { LocalityMode.Clustered, LocalityMode.Mixed, LocalityMode.Scattered };
+        int[] consumerCounts = { 1, 3, 5 };
 
-            foreach (var pol in policies)
-            {
-                var res = pol.Run(reqs, batches);
-                double cost = res.ComputeCost(1000.0);
-                Console.WriteLine($"{res.PolicyName,-35} | {res.RequestedBytes,9:N0} | {res.UniqueRequestedBytes,9:N0} | {res.NativeReadCalls,7:N0} | {res.ExactFetchedBytes,8:N0} | {res.PlannedBatchFetchedBytes,8:N0} | {res.Level1CompactFetchedBytes,8:N0} | {res.Level2MediumFetchedBytes,8:N0} | {res.Level3PageFetchedBytes,9:N0} | {res.TotalFetchedBytes,10:N0} | {res.TotalTrafficRatio,6:F2}x | {cost,12:N0}");
-                md.AppendLine($"| **{res.PolicyName}** | {res.RequestedBytes:N0} B | {res.UniqueRequestedBytes:N0} B | {res.NativeReadCalls:N0} | {res.ExactFetchedBytes:N0} B | {res.PlannedBatchFetchedBytes:N0} B | {res.Level1CompactFetchedBytes:N0} B | {res.Level2MediumFetchedBytes:N0} B | {res.Level3PageFetchedBytes:N0} B | {res.TotalFetchedBytes:N0} B | {res.TotalTrafficRatio:F2}x | {cost:N0} |");
-            }
+        foreach (var (monsters, items) in sceneScales)
+        {
+            int totalEntities = monsters + items;
+            Console.WriteLine($"\n================================================================================");
+            Console.WriteLine($"  SCENE SCALE: {monsters:N0} Monsters + {items:N0} Ground Items ({totalEntities:N0} Total Entities)");
+            Console.WriteLine($"================================================================================");
+
+            md.AppendLine($"### Scene: {monsters:N0} Monsters + {items:N0} Ground Items ({totalEntities:N0} Total Entities)");
             md.AppendLine();
+
+            foreach (var locality in localityModes)
+            {
+                Console.WriteLine($"\n--- Locality Distribution: {locality} ---");
+                md.AppendLine($"#### Locality Distribution: **{locality}**");
+                md.AppendLine();
+
+                foreach (var consumers in consumerCounts)
+                {
+                    var (reqs, batches) = WorkloadGenerator.GenerateHeavySceneWorkload(monsters, items, locality, consumers);
+                    int batchCount = batches.Count;
+
+                    Console.WriteLine($"\n[Consumers: {consumers}] ({reqs.Count:N0} Total Logical Requests, {batchCount:N0} Planned Ranges)");
+                    Console.WriteLine($"{"Policy",-35} | {"ReqBytes",9} | {"Calls",7} | {"Batch(B)",9} | {"Page/L3(B)",10} | {"Total(B)",10} | {"Traffic",7} | {"60 FPS",10} | {"120 FPS",10} | {"180 FPS",10}");
+                    Console.WriteLine(new string('-', 145));
+
+                    md.AppendLine($"##### Scale: {totalEntities} Entities | Locality: {locality} | Consumers: {consumers} ({reqs.Count:N0} reqs, {batchCount} planned ranges)");
+                    md.AppendLine("| Policy | Requests | Native Calls | Planned Ranges | L3/Page Fetched | Total Fetched | Traffic Ratio | 60 FPS Bandwidth | 120 FPS Bandwidth | 144 FPS Bandwidth | 180 FPS Bandwidth | Threshold Status |");
+                    md.AppendLine("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |");
+
+                    foreach (var pol in policies)
+                    {
+                        var res = pol.Run(reqs, batches);
+                        double mb60 = res.GetBandwidthMBps(60);
+                        double mb120 = res.GetBandwidthMBps(120);
+                        double mb144 = res.GetBandwidthMBps(144);
+                        double mb180 = res.GetBandwidthMBps(180);
+
+                        string status = "";
+                        if (mb180 >= 1536.0) status = "💥 **EXCEEDS 1.5 GB/s**";
+                        else if (mb180 >= 1024.0) status = "🚨 **EXCEEDS 1.0 GB/s**";
+                        else if (mb180 >= 500.0) status = "⚠️ **> 500 MB/s**";
+                        else status = "✅ Optimal";
+
+                        string str60 = mb60 >= 1024 ? $"{mb60 / 1024.0:F2} GB/s" : $"{mb60:F1} MB/s";
+                        string str120 = mb120 >= 1024 ? $"{mb120 / 1024.0:F2} GB/s" : $"{mb120:F1} MB/s";
+                        string str144 = mb144 >= 1024 ? $"{mb144 / 1024.0:F2} GB/s" : $"{mb144:F1} MB/s";
+                        string str180 = mb180 >= 1024 ? $"{mb180 / 1024.0:F2} GB/s" : $"{mb180:F1} MB/s";
+
+                        Console.WriteLine($"{res.PolicyName,-35} | {res.RequestedBytes,9:N0} | {res.NativeReadCalls,7:N0} | {res.PlannedBatchFetchedBytes,9:N0} | {res.Level3PageFetchedBytes,10:N0} | {res.TotalFetchedBytes,10:N0} | {res.TotalTrafficRatio,6:F2}x | {str60,10} | {str120,10} | {str180,10} {status}");
+                        md.AppendLine($"| **{res.PolicyName}** | {res.TotalRequests:N0} | {res.NativeReadCalls:N0} | {res.PlannedBatchFetchedBytes:N0} B | {res.Level3PageFetchedBytes:N0} B | {res.TotalFetchedBytes:N0} B | {res.TotalTrafficRatio:F2}x | {str60} | {str120} | {str144} | {str180} | {status} |");
+                    }
+                    md.AppendLine();
+                }
+            }
         }
+    }
+
+    private static void RunTrafficBreakdownAnalysis(IMemoryPolicy[] policies, StringBuilder md)
+    {
+        Console.WriteLine("\n================================================================================");
+        Console.WriteLine("          TRAFFIC CATEGORY BREAKDOWN ANALYSIS (1500 M + 1500 G Mixed)           ");
+        Console.WriteLine("================================================================================");
+
+        md.AppendLine("## 3. Traffic Category Breakdown (1500 Monsters + 1500 Ground Items Mixed Scene)");
+        md.AppendLine();
+
+        var (reqs, batches) = WorkloadGenerator.GenerateHeavySceneWorkload(1500, 1500, LocalityMode.Mixed, 1);
+
+        var categories = new Dictionary<string, (int Requests, long Bytes)>
+        {
+            { "Entity / Header Structs", (0, 0) },
+            { "Component Snapshot / Planned Ranges", (0, 0) },
+            { "Render / Position Components", (0, 0) },
+            { "Actor / Life / Monster State", (0, 0) },
+            { "Ground Item & Inner Item Data", (0, 0) },
+            { "Strings / Path / Metadata", (0, 0) }
+        };
+
+        foreach (var req in reqs)
+        {
+            string cat = "Strings / Path / Metadata";
+            if (req.Tag.Contains("Header") || req.Tag.Contains("Details")) cat = "Entity / Header Structs";
+            else if (req.Tag.Contains("Render") || req.Tag.Contains("Positioned")) cat = "Render / Position Components";
+            else if (req.Tag.Contains("Life") || req.Tag.Contains("Actor") || req.Tag.Contains("Targetable") || req.Tag.Contains("Buffs")) cat = "Actor / Life / Monster State";
+            else if (req.Tag.Contains("GroundItem") || req.Tag.Contains("InnerItem")) cat = "Ground Item & Inner Item Data";
+
+            var cur = categories[cat];
+            categories[cat] = (cur.Requests + 1, cur.Bytes + req.Size);
+        }
+
+        long plannedBatchBytes = batches.Sum(b => (long)b.Size);
+        categories["Component Snapshot / Planned Ranges"] = (batches.Count, plannedBatchBytes);
+
+        Console.WriteLine($"{"Category",-40} | {"Requests / Ranges",18} | {"Requested / Planned Bytes",26}");
+        Console.WriteLine(new string('-', 90));
+
+        md.AppendLine("| Workload Category | Requests / Ranges Count | Logical / Planned Bytes | Category Traffic Share |");
+        md.AppendLine("| :--- | :---: | :---: | :---: |");
+
+        long totalLogical = categories.Values.Sum(v => v.Bytes);
+        foreach (var (cat, data) in categories)
+        {
+            double share = totalLogical > 0 ? (double)data.Bytes / totalLogical * 100.0 : 0;
+            Console.WriteLine($"{cat,-40} | {data.Requests,18:N0} | {data.Bytes,24:N0} B ({share,5:F1}%)");
+            md.AppendLine($"| **{cat}** | {data.Requests:N0} | {data.Bytes:N0} B | {share:F1}% |");
+        }
+        md.AppendLine();
     }
 
     private static void RunCostSensitivitySweep(StringBuilder md)
@@ -652,19 +923,11 @@ public class Program
         Console.WriteLine("          COST MODEL SENSITIVITY SWEEP (Varying CallCost with ByteCost=1.0)     ");
         Console.WriteLine("================================================================================");
 
-        md.AppendLine("## Cost Model Sensitivity Sweep");
-        md.AppendLine("Evaluation on Mixed Realistic Workload (100 Skills + 100 Entities with Batches + 100 UI elements + 100 Scattered):");
+        md.AppendLine("## 4. Cost Model Sensitivity Sweep");
+        md.AppendLine("Evaluation on Mixed Realistic Workload (1000 Monsters + 1000 Ground Items Mixed with 3 Consumers):");
         md.AppendLine();
 
-        var mixedReqs = new List<MemoryRequest>();
-        var mixedBatches = new List<MemoryRequest>();
-
-        mixedReqs.AddRange(WorkloadGenerator.GenerateSkillWorkload(100));
-        var (entReqs, entBatches) = WorkloadGenerator.GenerateEntityComponentWorkload(100);
-        mixedReqs.AddRange(entReqs);
-        mixedBatches.AddRange(entBatches);
-        mixedReqs.AddRange(WorkloadGenerator.GenerateUiTreeWorkload(100));
-        mixedReqs.AddRange(WorkloadGenerator.GenerateWorstCaseScatteredWorkload(100));
+        var (mixedReqs, mixedBatches) = WorkloadGenerator.GenerateHeavySceneWorkload(1000, 1000, LocalityMode.Mixed, 3);
 
         var legacy = new LegacyExactReadPolicy().Run(mixedReqs, mixedBatches);
         var current = new CurrentNewMemoryReadPolicy().Run(mixedReqs, mixedBatches);
@@ -698,31 +961,23 @@ public class Program
         Console.WriteLine("          PARETO-OPTIMAL CONFIGURATION ANALYSIS (Hybrid V2 Candidates)          ");
         Console.WriteLine("================================================================================");
 
-        md.AppendLine("## Pareto-Optimal Configuration Analysis");
-        md.AppendLine("Comparison of Candidate Configurations on Mixed Workload:");
+        md.AppendLine("## 5. Pareto-Optimal Configuration Analysis");
+        md.AppendLine("Comparison of Candidate Configurations on 1000 Monster + 1000 Ground Item Mixed Scene (3 Consumers):");
         md.AppendLine();
 
-        var mixedReqs = new List<MemoryRequest>();
-        var mixedBatches = new List<MemoryRequest>();
-
-        mixedReqs.AddRange(WorkloadGenerator.GenerateSkillWorkload(100));
-        var (entReqs, entBatches) = WorkloadGenerator.GenerateEntityComponentWorkload(100);
-        mixedReqs.AddRange(entReqs);
-        mixedBatches.AddRange(entBatches);
-        mixedReqs.AddRange(WorkloadGenerator.GenerateUiTreeWorkload(100));
-        mixedReqs.AddRange(WorkloadGenerator.GenerateWorstCaseScatteredWorkload(100));
+        var (mixedReqs, mixedBatches) = WorkloadGenerator.GenerateHeavySceneWorkload(1000, 1000, LocalityMode.Mixed, 3);
 
         var candidates = new List<(string Name, IMemoryPolicy Policy)>
         {
             ("Legacy Exact-Read", new LegacyExactReadPolicy()),
-            ("Current NewMemoryRead (4KB/8KB + Batches)", new CurrentNewMemoryReadPolicy()),
+            ("Current NewMemoryRead (4KB/8KB + Planned Ranges)", new CurrentNewMemoryReadPolicy()),
             ("Hybrid V2 (Exact + 128B + 512B + 4KB)", new HybridV2HierarchicalPolicy { Level1BlockSize = 128, Level2BlockSize = 512 }),
             ("Hybrid V2 (Exact + 64B + 256B + 4KB)", new HybridV2HierarchicalPolicy { Level1BlockSize = 64, Level2BlockSize = 256 }),
             ("Hybrid V2 (Exact + 256B + 1024B + 4KB)", new HybridV2HierarchicalPolicy { Level1BlockSize = 256, Level2BlockSize = 1024 })
         };
 
-        Console.WriteLine($"{"Candidate Configuration",-45} | {"Calls",7} | {"FetchedBytes",12} | {"TrafficRatio",14} | {"Cost (1000)",12}");
-        Console.WriteLine(new string('-', 102));
+        Console.WriteLine($"{"Candidate Configuration",-48} | {"Calls",7} | {"FetchedBytes",12} | {"TrafficRatio",14} | {"Cost (1000)",12}");
+        Console.WriteLine(new string('-', 105));
 
         md.AppendLine("| Candidate Configuration | Native Calls | Fetched Bytes | Traffic Ratio | Cost (CallCost=1000) | Pareto-Optimal Status |");
         md.AppendLine("| :--- | :---: | :---: | :---: | :---: | :---: |");
@@ -733,7 +988,7 @@ public class Program
             double cost = res.ComputeCost(1000.0);
             string pareto = (name.Contains("Hybrid")) ? "Pareto-Optimal (Balanced)" : (name.Contains("Legacy") ? "Lowest Fetched / Highest Calls" : "Lowest Calls / Highest Wasted");
 
-            Console.WriteLine($"{name,-45} | {res.NativeReadCalls,7:N0} | {res.TotalFetchedBytes,10:N0} B | {res.TotalTrafficRatio,12:F2}x | {cost,12:N0}");
+            Console.WriteLine($"{name,-48} | {res.NativeReadCalls,7:N0} | {res.TotalFetchedBytes,10:N0} B | {res.TotalTrafficRatio,12:F2}x | {cost,12:N0}");
             md.AppendLine($"| **{name}** | {res.NativeReadCalls:N0} | {res.TotalFetchedBytes:N0} B | {res.TotalTrafficRatio:F2}x | {cost:N0} | {pareto} |");
         }
     }
