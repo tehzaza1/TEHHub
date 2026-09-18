@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.8.11904.113
@@ -50,6 +50,12 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "myFarming", "Plugins\myFarming\myFarming.csproj", "{0774B44C-822D-40DB-B30F-C8BBBCCC3D3B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpeditionPathOptimizer", "Plugins\ExpeditionPathOptimizer\ExpeditionPathOptimizer.csproj", "{3DF45F9B-4E60-47AD-AA9B-E429E11DBD0A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TEHhub.OffsetDoctor", "tools\TEHhub.OffsetDoctor\TEHhub.OffsetDoctor.csproj", "{1E0A8B21-864A-4B73-A9BC-DE57264921AA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TEHhub.OffsetDoctor.Tests", "tools\TEHhub.OffsetDoctor.Tests\TEHhub.OffsetDoctor.Tests.csproj", "{BA901E7E-435A-4668-A860-74103CDD019F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -253,6 +259,30 @@ Global
 		{3DF45F9B-4E60-47AD-AA9B-E429E11DBD0A}.Release|x64.Build.0 = Release|Any CPU
 		{3DF45F9B-4E60-47AD-AA9B-E429E11DBD0A}.Release|x86.ActiveCfg = Release|Any CPU
 		{3DF45F9B-4E60-47AD-AA9B-E429E11DBD0A}.Release|x86.Build.0 = Release|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Debug|x64.Build.0 = Debug|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Debug|x86.Build.0 = Debug|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Release|x64.ActiveCfg = Release|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Release|x64.Build.0 = Release|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Release|x86.ActiveCfg = Release|Any CPU
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA}.Release|x86.Build.0 = Release|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Debug|x64.Build.0 = Debug|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Debug|x86.Build.0 = Debug|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Release|x64.ActiveCfg = Release|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Release|x64.Build.0 = Release|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Release|x86.ActiveCfg = Release|Any CPU
+		{BA901E7E-435A-4668-A860-74103CDD019F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -271,6 +301,8 @@ Global
 		{25F2EB07-0316-4213-B0BB-761D57A14E2F} = {9FA3D6BD-1EC1-3BA5-80CB-CE02773A58D5}
 		{0774B44C-822D-40DB-B30F-C8BBBCCC3D3B} = {9FA3D6BD-1EC1-3BA5-80CB-CE02773A58D5}
 		{3DF45F9B-4E60-47AD-AA9B-E429E11DBD0A} = {9FA3D6BD-1EC1-3BA5-80CB-CE02773A58D5}
+		{1E0A8B21-864A-4B73-A9BC-DE57264921AA} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{BA901E7E-435A-4668-A860-74103CDD019F} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6CB26318-014D-4959-8116-07FD055D941A}
