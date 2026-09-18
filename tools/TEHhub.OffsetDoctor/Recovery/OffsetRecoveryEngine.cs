@@ -12,12 +12,13 @@ public sealed class OffsetRecoveryEngine
 
     public OffsetDoctorReport RunValidation(IProcessMemoryReader reader, int? expectedGold = null)
     {
+        return RunValidation(reader, new ValidationGroundTruth { ExpectedGold = expectedGold });
+    }
+
+    public OffsetDoctorReport RunValidation(IProcessMemoryReader reader, ValidationGroundTruth? groundTruth)
+    {
         var manifestNodes = OffsetManifest.CreateFullRepositoryManifest();
-        var context = new RecoveryContext
-        {
-            ExpectedGoldAmount = expectedGold,
-            AllNodes = manifestNodes
-        };
+        var context = RecoveryContext.FromGroundTruth(groundTruth, manifestNodes);
 
         // Strict validate mode: allowRecovery = false
         var results = _validator.ValidateChain(reader, manifestNodes, context, allowRecovery: false);

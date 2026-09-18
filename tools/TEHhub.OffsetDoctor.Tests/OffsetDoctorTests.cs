@@ -1,5 +1,7 @@
 namespace TEHhub.OffsetDoctor.Tests;
 
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using TEHhub.OffsetDoctor.Evidence;
 using TEHhub.OffsetDoctor.Manifest;
@@ -9,14 +11,17 @@ using TEHhub.OffsetDoctor.Reporting;
 using TEHhub.OffsetDoctor.Strategies;
 using TEHhub.OffsetDoctor.Validation;
 using TEHhub.Offsets;
+using TEHhub.Offsets.Natives;
 using TEHhub.Offsets.Objects;
 using TEHhub.Offsets.Objects.Components;
+using TEHhub.Offsets.Objects.States;
+using TEHhub.Offsets.Objects.States.InGameState;
 
 public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 25 Validator-Only Health Scanner Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 28 Rigorous Semantic Validation Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -43,11 +48,14 @@ public static class OffsetDoctorTests
         Test23_VitalStructValidatesHealthManaEs(check);
         Test24_ComponentLookupValidatesHeader(check);
         Test25_SummaryCountsAreAccurate(check);
+        Test26_DistinctComponentsResolvedIndependently(check);
+        Test27_EmptyVectorAndMapReportUnverified(check);
+        Test28_ManifestOffsetsMatchStructReflection(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 25 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 28 Test Scenarios Passed Successfully!\n");
     }
 
-    private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList) SetupSyntheticEnvironment(
+    private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
         int areaInstanceOffset = 0x290,
         int serverDataOffset = 0x5B0,
         int psdVectorOffset = 0x48,
@@ -66,8 +74,7 @@ public static class OffsetDoctorTests
         var psd = reader.AllocateBlock(0x2000);
         var goldRecord = reader.AllocateBlock(0x1000);
         var localPlayer = reader.AllocateBlock(0x1000);
-        var compList = reader.AllocateBlock(0x100);
-        var lifeComp = reader.AllocateBlock(0x1000);
+        var compList = reader.AllocateBlock(0x200);
         var dummyVtable = reader.AllocateBlock(0x100);
 
         // 1. Plant Game States Pattern in module memory
@@ -101,7 +108,8 @@ public static class OffsetDoctorTests
 
         // CurrentStatePtr on gameState (+0x10)
         var stateBuf = reader.AllocateBlock(0x80);
-        reader.WriteStdVector(gameState + 0x10, stateBuf, stateBuf + 0x10, stateBuf + 0x10);
+        reader.WritePointer(stateBuf, gameState);
+        reader.WriteStdVector(gameState + 0x10, stateBuf, stateBuf + 8, stateBuf + 8);
 
         // AreaInstance: inGameState + areaInstanceOffset -> areaInstance
         reader.WritePointer(inGameState + areaInstanceOffset, areaInstance);
@@ -116,17 +124,108 @@ public static class OffsetDoctorTests
         reader.WritePointer(areaInstance + serverDataOffset, serverData); // ServerData
         reader.WritePointer(areaInstance + 0x5D0, localPlayer); // LocalPlayer
 
-        // LocalPlayer subfields
-        var entityDetails = reader.AllocateBlock(0x100);
-        reader.WritePointer(localPlayer + 0x08, entityDetails); // EntityDetailsPtr
-        reader.WriteStdVector(localPlayer + 0x10, compList, compList + 8, compList + 8); // ComponentListPtr
-        reader.WritePointer(compList, lifeComp); // First component is LifeComp
+        // LocalPlayer subfields: ItemStruct
+        var entityDetails = reader.AllocateBlock(0x200);
+        var componentLookup = reader.AllocateBlock(0x200);
+        var bucketData = reader.AllocateBlock(0x400);
 
-        // LifeComponent Header & Vitals
-        reader.Write(lifeComp, new ComponentHeader { StaticPtr = dummyVtable });
+        reader.WritePointer(localPlayer + 0x08, entityDetails); // ItemStruct.EntityDetailsPtr
+        reader.WritePointer(entityDetails + 0x28, componentLookup); // EntityDetails.ComponentLookUpPtr
+
+        // Entity path name: "Metadata/Characters/Str/Str"
+        var pathStr = "Metadata/Characters/Str/Str";
+        var pathBytes = Encoding.Unicode.GetBytes(pathStr);
+        var pathBuf = reader.AllocateBlock(0x100);
+        reader.WriteBytes(pathBuf, pathBytes);
+        reader.Write(entityDetails + 0x08, new StdWString
+        {
+            Buffer = pathBuf,
+            Length = pathStr.Length,
+            Capacity = pathStr.Length + 10
+        });
+
+        // Setup Component Lookup Bucket and Distinct Component Blocks
+        var compNames = new[] { "Life", "Render", "Positioned", "Actor", "Stats", "Buffs", "Player" };
+        var compMap = new Dictionary<string, IntPtr>();
+
+        for (int i = 0; i < compNames.Length; i++)
+        {
+            var compAddr = reader.AllocateBlock(0x1000);
+            compMap[compNames[i]] = compAddr;
+
+            // Write ComponentHeader
+            reader.Write(compAddr, new ComponentHeader { StaticPtr = dummyVtable });
+
+            // Write entry to ComponentListPtr
+            reader.WritePointer(compList + (i * 8), compAddr);
+
+            // Write name string
+            var nameBytesAscii = Encoding.ASCII.GetBytes(compNames[i] + "\0");
+            var namePtr = reader.AllocateBlock(0x40);
+            reader.WriteBytes(namePtr, nameBytesAscii);
+
+            // Write ComponentNameAndIndexStruct to bucket
+            int entrySize = Marshal.SizeOf<ComponentNameAndIndexStruct>();
+            reader.Write(bucketData + (i * entrySize), new ComponentNameAndIndexStruct
+            {
+                NamePtr = namePtr,
+                Index = i,
+                PAD_0xC = 0
+            });
+        }
+
+        // Set ComponentListPtr StdVector on LocalPlayer
+        reader.WriteStdVector(localPlayer + 0x10, compList, compList + (compNames.Length * 8), compList + (compNames.Length * 8));
+
+        // Set ComponentLookupStruct.ComponentsNameAndIndex
+        int totalBucketBytes = compNames.Length * Marshal.SizeOf<ComponentNameAndIndexStruct>();
+        reader.Write(componentLookup + 0x28, new StdBucket
+        {
+            Data = new StdVector
+            {
+                First = bucketData,
+                Last = bucketData + totalBucketBytes,
+                End = bucketData + totalBucketBytes
+            },
+            Capacity = compNames.Length
+        });
+
+        // Life Component subfields
+        var lifeComp = compMap["Life"];
         reader.Write(lifeComp + 0x1B0, new VitalStruct { VtablePtr = dummyVtable, Total = 5000, Current = 4800 }); // Health
         reader.Write(lifeComp + 0x208, new VitalStruct { VtablePtr = dummyVtable, Total = 1200, Current = 1200 }); // Mana
         reader.Write(lifeComp + 0x248, new VitalStruct { VtablePtr = dummyVtable, Total = 300, Current = 300 });   // ES
+
+        // Render Component subfields
+        var renderComp = compMap["Render"];
+        reader.Write(renderComp + 0x138, new StdTuple3D<float> { X = 1250.5f, Y = -340.2f, Z = 50.0f });
+        reader.Write(renderComp + 0x1B0, 50.0f); // TerrainHeight
+
+        // Positioned Component subfields
+        var positionedComp = compMap["Positioned"];
+        reader.Write(positionedComp + 0x1E0, (byte)1); // Reaction = 1
+
+        // Actor Component subfields
+        var actorComp = compMap["Actor"];
+        reader.Write(actorComp + 0x8B0, 105); // AnimationId = 105
+
+        // Stats Component subfields
+        var statsComp = compMap["Stats"];
+        reader.Write(statsComp + 0x168, 0); // CurrentWeaponIndex = 0
+
+        // Player Component subfields
+        var playerComp = compMap["Player"];
+        var playerName = "ExileHero";
+        var playerNameBytes = Encoding.Unicode.GetBytes(playerName);
+        var playerNameBuf = reader.AllocateBlock(0x80);
+        reader.WriteBytes(playerNameBuf, playerNameBytes);
+        reader.Write(playerComp + 0x1B0, new StdWString
+        {
+            Buffer = playerNameBuf,
+            Length = playerName.Length,
+            Capacity = playerName.Length + 4
+        });
+        reader.Write(playerComp + 0x204, (byte)88); // Level = 88
 
         // ServerData -> PSD Vector
         reader.WritePointer(psdVectorBuf, psd);
@@ -136,7 +235,7 @@ public static class OffsetDoctorTests
         reader.WritePointer(psd + goldRecordSlotOffset, goldRecord);
         reader.Write(goldRecord + goldFieldOffset, goldValue);
 
-        return (reader, gameState, inGameState, areaInstance, serverData, psd, goldRecord, localPlayer, compList);
+        return (reader, gameState, inGameState, areaInstance, serverData, psd, goldRecord, localPlayer, compList, compMap);
     }
 
     // 1. Healthy root/core chain -> VALID
@@ -167,7 +266,6 @@ public static class OffsetDoctorTests
     private static void Test2_BrokenStaticRootBlocksAllDescendants(Action<bool, string> check)
     {
         using var reader = new SyntheticMemoryReader();
-        // Allocate empty buffer without planting pattern
         reader.AllocateBlockAt((ulong)reader.MainModuleBase.ToInt64(), 0x1000);
 
         var engine = new OffsetRecoveryEngine();
@@ -188,7 +286,6 @@ public static class OffsetDoctorTests
     private static void Test3_BrokenInGameStateBlocksDescendants(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment().reader;
-        // Zero out InGameState pointer (+0x90) in GameState
         setup.WritePointer(new IntPtr(0x10000000 + 0x90), IntPtr.Zero);
 
         var engine = new OffsetRecoveryEngine();
@@ -207,7 +304,6 @@ public static class OffsetDoctorTests
     private static void Test4_BrokenAreaInstanceBlocksDescendants(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment().reader;
-        // Zero out AreaInstance pointer (+0x290) in InGameState
         setup.WritePointer(new IntPtr(0x10000000 + 0x1000 + 0x290), IntPtr.Zero);
 
         var engine = new OffsetRecoveryEngine();
@@ -226,7 +322,6 @@ public static class OffsetDoctorTests
     private static void Test5_BrokenServerDataBlocksChildren(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment().reader;
-        // Zero out ServerData pointer (+0x5B0) in AreaInstance
         setup.WritePointer(new IntPtr(0x10000000 + 0x2000 + 0x5B0), IntPtr.Zero);
 
         var engine = new OffsetRecoveryEngine();
@@ -245,7 +340,6 @@ public static class OffsetDoctorTests
     private static void Test6_BrokenStdVectorStructureReportsBroken(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment().reader;
-        // Invalidate PSD vector in ServerData (+0x48): set end < begin
         var sdAddr = new IntPtr(0x10000000 + 0x3000);
         setup.WriteStdVector(sdAddr + 0x48, new IntPtr(0x5000), new IntPtr(0x4000), new IntPtr(0x5000));
 
@@ -262,12 +356,8 @@ public static class OffsetDoctorTests
     // 7. User-range but unreadable pointer -> BROKEN
     private static void Test7_UserRangeUnreadablePointerReportsBroken(Action<bool, string> check)
     {
-        using var baseReader = new SyntheticMemoryReader();
+        var (reader, _, inGameState, _, _, _, _, _, _, _) = SetupSyntheticEnvironment();
         var unreadableAddr = new IntPtr(0x20000000);
-        var mockReader = new RangeOnlyUnreadableMemoryReader(baseReader, unreadableAddr);
-
-        var (reader, _, inGameState, _, _, _, _, _, _) = SetupSyntheticEnvironment();
-        // Point AreaInstance (+0x290) to unreadable address
         reader.WritePointer(inGameState + 0x290, unreadableAddr);
 
         var engine = new OffsetRecoveryEngine();
@@ -333,7 +423,6 @@ public static class OffsetDoctorTests
     // 12. Shift a tested field in synthetic memory: configured old offset must report BROKEN, no recovery search occurs
     private static void Test12_ShiftedFieldReportsBrokenZeroRecovery(Action<bool, string> check)
     {
-        // Shift AreaInstance from +0x290 to +0x2B0
         using var setup = SetupSyntheticEnvironment(areaInstanceOffset: 0x2B0).reader;
         var engine = new OffsetRecoveryEngine();
         var report = engine.RunValidation(setup, expectedGold: 50_000_000);
@@ -351,7 +440,6 @@ public static class OffsetDoctorTests
         var engine = new OffsetRecoveryEngine();
         var report = engine.RunValidation(setup, expectedGold: 50_000_000);
 
-        // If recovery was invoked, candidates would be populated
         check(report.Results.All(r => r.Candidates.Count == 0), "T13: Zero recovery candidate lists generated across all nodes.");
     }
 
@@ -373,7 +461,6 @@ public static class OffsetDoctorTests
         var engine = new OffsetRecoveryEngine();
         var report = engine.RunValidation(setup, expectedGold: 50_000_000);
 
-        // Reads should only access exact configured offsets, not wide scan radii
         check(report.Results.First(r => r.NodeId == "in_game_area_instance").Status == ValidationStatus.BROKEN, "T15: Shifted node is BROKEN.");
     }
 
@@ -381,7 +468,6 @@ public static class OffsetDoctorTests
     private static void Test16_MultiLevelBlockedPropagation(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment().reader;
-        // Invalidate Game States pattern
         setup.WriteBytes(setup.MainModuleBase, new byte[0x500]);
 
         var engine = new OffsetRecoveryEngine();
@@ -517,6 +603,81 @@ public static class OffsetDoctorTests
         check(report.UnverifiedCount > 0, "T25: At least one unverified node exists (Gold without ground truth).");
     }
 
+    // 26. Distinct Components Resolved Independently
+    private static void Test26_DistinctComponentsResolvedIndependently(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var compMap = setup.compMap;
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var lifeRes = report.Results.First(r => r.NodeId == "comp_life");
+        var renderRes = report.Results.First(r => r.NodeId == "comp_render");
+        var posRes = report.Results.First(r => r.NodeId == "comp_positioned");
+        var actorRes = report.Results.First(r => r.NodeId == "comp_actor");
+        var statsRes = report.Results.First(r => r.NodeId == "comp_stats");
+        var playerRes = report.Results.First(r => r.NodeId == "comp_player");
+        var buffsRes = report.Results.First(r => r.NodeId == "comp_buffs");
+
+        check(lifeRes.Status == ValidationStatus.VALID && lifeRes.ResolvedAddress == compMap["Life"], "T26: Life component resolved to its distinct address.");
+        check(renderRes.Status == ValidationStatus.VALID && renderRes.ResolvedAddress == compMap["Render"], "T26: Render component resolved to its distinct address.");
+        check(posRes.Status == ValidationStatus.VALID && posRes.ResolvedAddress == compMap["Positioned"], "T26: Positioned component resolved to its distinct address.");
+        check(actorRes.Status == ValidationStatus.VALID && actorRes.ResolvedAddress == compMap["Actor"], "T26: Actor component resolved to its distinct address.");
+        check(statsRes.Status == ValidationStatus.VALID && statsRes.ResolvedAddress == compMap["Stats"], "T26: Stats component resolved to its distinct address.");
+        check(playerRes.Status == ValidationStatus.VALID && playerRes.ResolvedAddress == compMap["Player"], "T26: Player component resolved to its distinct address.");
+        check(buffsRes.Status == ValidationStatus.VALID && buffsRes.ResolvedAddress == compMap["Buffs"], "T26: Buffs component resolved to its distinct address.");
+
+        // Invariant: all 7 component addresses must be distinct
+        var distinctAddresses = new HashSet<IntPtr>
+        {
+            lifeRes.ResolvedAddress,
+            renderRes.ResolvedAddress,
+            posRes.ResolvedAddress,
+            actorRes.ResolvedAddress,
+            statsRes.ResolvedAddress,
+            playerRes.ResolvedAddress,
+            buffsRes.ResolvedAddress
+        };
+        check(distinctAddresses.Count == 7, "T26: All 7 components resolved to unique distinct addresses.");
+    }
+
+    // 27. Empty Vector and Map report UNVERIFIED
+    private static void Test27_EmptyVectorAndMapReportUnverified(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        var env = report.Results.First(r => r.NodeId == "area_environments");
+        var awake = report.Results.First(r => r.NodeId == "area_awake_entities");
+
+        check(env.Status == ValidationStatus.UNVERIFIED, "T27: Empty Environments vector is UNVERIFIED (not false VALID).");
+        check(awake.Status == ValidationStatus.UNVERIFIED, "T27: Empty AwakeEntities map is UNVERIFIED (not false VALID).");
+    }
+
+    // 28. Manifest Offsets match TEHhub.Offsets reflection exactly
+    private static void Test28_ManifestOffsetsMatchStructReflection(Action<bool, string> check)
+    {
+        var manifest = OffsetManifest.CreateFullRepositoryManifest();
+
+        var aiNode = manifest.First(n => n.Id == "in_game_area_instance");
+        var expectedAiOffset = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.AreaInstanceData)).ToInt32();
+        check(aiNode.DefaultOffset == expectedAiOffset, $"T28: AreaInstance default offset (0x{aiNode.DefaultOffset:X}) matches InGameStateOffset.AreaInstanceData reflection (0x{expectedAiOffset:X}).");
+
+        var levelNode = manifest.First(n => n.Id == "area_current_level");
+        var expectedLevelOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.CurrentAreaLevel)).ToInt32();
+        check(levelNode.DefaultOffset == expectedLevelOffset, $"T28: CurrentAreaLevel offset (0x{levelNode.DefaultOffset:X}) matches AreaInstanceOffsets.CurrentAreaLevel reflection (0x{expectedLevelOffset:X}).");
+
+        var psdNode = manifest.First(n => n.Id == "server_data_psd_vector");
+        var expectedPsdOffset = Marshal.OffsetOf<ServerDataOffsets>(nameof(ServerDataOffsets.PlayerServerDataPtr)).ToInt32();
+        check(psdNode.DefaultOffset == expectedPsdOffset, $"T28: PSD vector offset (0x{psdNode.DefaultOffset:X}) matches ServerDataOffsets.PlayerServerDataPtr reflection (0x{expectedPsdOffset:X}).");
+
+        var goldSlotNode = manifest.First(n => n.Id == "psd_gold_record_slot");
+        check(goldSlotNode.DefaultOffset == PlayerServerDataOffsets.GoldRecordPtrSlot, $"T28: Gold record slot (0x{goldSlotNode.DefaultOffset:X}) matches PlayerServerDataOffsets constant (0x{PlayerServerDataOffsets.GoldRecordPtrSlot:X}).");
+    }
+
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
     {
         private readonly IProcessMemoryReader _inner;
@@ -534,14 +695,14 @@ public static class OffsetDoctorTests
 
         public bool IsValidAddress(IntPtr address)
         {
-            if (address == _unreadableAddress) return true; // Canonical user range
+            if (address == _unreadableAddress) return true;
             return _inner.IsValidAddress(address);
         }
 
         public bool TryRead<T>(IntPtr address, out T value) where T : unmanaged
         {
             value = default;
-            if (address == _unreadableAddress) return false; // Unmapped
+            if (address == _unreadableAddress) return false;
             return _inner.TryRead(address, out value);
         }
 

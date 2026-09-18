@@ -1,5 +1,8 @@
 namespace TEHhub.OffsetDoctor.Manifest;
 
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using TEHhub.Offsets.Natives;
 using TEHhub.Offsets.Objects;
 using TEHhub.Offsets.Objects.Components;
 using TEHhub.Offsets.Objects.States;
@@ -90,10 +93,10 @@ public static class OffsetManifest
                 DisplayName = "GameState Static Root",
                 Category = "Game States",
                 ParentId = "pattern_game_states",
-                DefaultOffset = 0,
+                DefaultOffset = Marshal.OffsetOf<GameStateStaticOffset>(nameof(GameStateStaticOffset.GameState)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "GameStateStaticOffset",
-                FieldName = "GameState",
+                StructTypeName = nameof(GameStateStaticOffset),
+                FieldName = nameof(GameStateStaticOffset.GameState),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/GameStateOffsets.cs"
             },
             new OffsetNode
@@ -102,10 +105,12 @@ public static class OffsetManifest
                 DisplayName = "CurrentStatePtr StdVector",
                 Category = "Game States",
                 ParentId = "game_state_root",
-                DefaultOffset = 0x10,
+                DefaultOffset = Marshal.OffsetOf<GameStateOffset>(nameof(GameStateOffset.CurrentStatePtr)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "GameStateOffset",
-                FieldName = "CurrentStatePtr",
+                VectorElementSize = 8,
+                VectorIsPointerElements = true,
+                StructTypeName = nameof(GameStateOffset),
+                FieldName = nameof(GameStateOffset.CurrentStatePtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/GameStateOffsets.cs"
             },
             new OffsetNode
@@ -114,9 +119,10 @@ public static class OffsetManifest
                 DisplayName = "AreaLoadingState (States[0].X)",
                 Category = "Game States",
                 ParentId = "game_state_root",
-                DefaultOffset = 0x50,
+                DefaultOffset = Marshal.OffsetOf<GameStateOffset>(nameof(GameStateOffset.States)).ToInt32() + 0 * Unsafe.SizeOf<StdTuple2D<IntPtr>>(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "GameStateOffset",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(GameStateOffset),
                 FieldName = "States[0].X",
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/GameStateOffsets.cs"
             },
@@ -126,9 +132,9 @@ public static class OffsetManifest
                 DisplayName = "InGameState (States[4].X)",
                 Category = "Game States",
                 ParentId = "game_state_root",
-                DefaultOffset = 0x90,
+                DefaultOffset = Marshal.OffsetOf<GameStateOffset>(nameof(GameStateOffset.States)).ToInt32() + 4 * Unsafe.SizeOf<StdTuple2D<IntPtr>>(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "GameStateOffset",
+                StructTypeName = nameof(GameStateOffset),
                 FieldName = "States[4].X",
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/GameStateOffsets.cs"
             },
@@ -142,10 +148,10 @@ public static class OffsetManifest
                 DisplayName = "AreaInstance (AreaInstanceData)",
                 Category = "Area / Server Data",
                 ParentId = "game_state_in_game_state",
-                DefaultOffset = 0x290,
+                DefaultOffset = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.AreaInstanceData)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "InGameStateOffset",
-                FieldName = "AreaInstanceData",
+                StructTypeName = nameof(InGameStateOffset),
+                FieldName = nameof(InGameStateOffset.AreaInstanceData),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameStateOffset.cs"
             },
             new OffsetNode
@@ -154,10 +160,10 @@ public static class OffsetManifest
                 DisplayName = "WorldData",
                 Category = "Area / Server Data",
                 ParentId = "game_state_in_game_state",
-                DefaultOffset = 0x368,
+                DefaultOffset = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.WorldData)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "InGameStateOffset",
-                FieldName = "WorldData",
+                StructTypeName = nameof(InGameStateOffset),
+                FieldName = nameof(InGameStateOffset.WorldData),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameStateOffset.cs"
             },
             new OffsetNode
@@ -166,10 +172,11 @@ public static class OffsetManifest
                 DisplayName = "MouseOverHostPtr",
                 Category = "Area / Server Data",
                 ParentId = "game_state_in_game_state",
-                DefaultOffset = 0x300,
+                DefaultOffset = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.MouseOverHostPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "InGameStateOffset",
-                FieldName = "MouseOverHostPtr",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(InGameStateOffset),
+                FieldName = nameof(InGameStateOffset.MouseOverHostPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameStateOffset.cs"
             },
             new OffsetNode
@@ -178,10 +185,13 @@ public static class OffsetManifest
                 DisplayName = "CurrentAreaLevel (byte)",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x0BC,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.CurrentAreaLevel)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "AreaInstanceOffsets",
-                FieldName = "CurrentAreaLevel",
+                ScalarType = ScalarType.Byte,
+                ExpectedMinNumeric = 1,
+                ExpectedMaxNumeric = 100,
+                StructTypeName = nameof(AreaInstanceOffsets),
+                FieldName = nameof(AreaInstanceOffsets.CurrentAreaLevel),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
             new OffsetNode
@@ -190,10 +200,11 @@ public static class OffsetManifest
                 DisplayName = "CurrentAreaHash (uint)",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x114,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.CurrentAreaHash)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "AreaInstanceOffsets",
-                FieldName = "CurrentAreaHash",
+                ScalarType = ScalarType.UInt,
+                StructTypeName = nameof(AreaInstanceOffsets),
+                FieldName = nameof(AreaInstanceOffsets.CurrentAreaHash),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
             new OffsetNode
@@ -202,10 +213,11 @@ public static class OffsetManifest
                 DisplayName = "Environments StdVector",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x4C0,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.Environments)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "AreaInstanceOffsets",
-                FieldName = "Environments",
+                VectorElementSize = Unsafe.SizeOf<EnvironmentStruct>(),
+                StructTypeName = nameof(AreaInstanceOffsets),
+                FieldName = nameof(AreaInstanceOffsets.Environments),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
             new OffsetNode
@@ -214,9 +226,10 @@ public static class OffsetManifest
                 DisplayName = "ServerData (PlayerInfo.ServerDataPtr)",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x5B0,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.PlayerInfo)).ToInt32() +
+                                Marshal.OffsetOf<LocalPlayerStruct>(nameof(LocalPlayerStruct.ServerDataPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "AreaInstanceOffsets",
+                StructTypeName = nameof(AreaInstanceOffsets),
                 FieldName = "PlayerInfo.ServerDataPtr",
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
@@ -226,9 +239,12 @@ public static class OffsetManifest
                 DisplayName = "LocalPlayers StdVector",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x5B8,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.PlayerInfo)).ToInt32() +
+                                Marshal.OffsetOf<LocalPlayerStruct>(nameof(LocalPlayerStruct.LocalPlayers)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "AreaInstanceOffsets",
+                VectorElementSize = 8,
+                VectorIsPointerElements = true,
+                StructTypeName = nameof(AreaInstanceOffsets),
                 FieldName = "PlayerInfo.LocalPlayers",
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
@@ -238,9 +254,10 @@ public static class OffsetManifest
                 DisplayName = "LocalPlayerPtr",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x5D0,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.PlayerInfo)).ToInt32() +
+                                Marshal.OffsetOf<LocalPlayerStruct>(nameof(LocalPlayerStruct.LocalPlayerPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "AreaInstanceOffsets",
+                StructTypeName = nameof(AreaInstanceOffsets),
                 FieldName = "PlayerInfo.LocalPlayerPtr",
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
@@ -250,9 +267,10 @@ public static class OffsetManifest
                 DisplayName = "AwakeEntities StdMap",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x6F0,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.Entities)).ToInt32() +
+                                Marshal.OffsetOf<EntityListStruct>(nameof(EntityListStruct.AwakeEntities)).ToInt32(),
                 Kind = ValueKind.StdMapField,
-                StructTypeName = "AreaInstanceOffsets",
+                StructTypeName = nameof(AreaInstanceOffsets),
                 FieldName = "Entities.AwakeEntities",
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
@@ -262,9 +280,10 @@ public static class OffsetManifest
                 DisplayName = "SleepingEntities StdMap",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x6F8,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.Entities)).ToInt32() +
+                                Marshal.OffsetOf<EntityListStruct>(nameof(EntityListStruct.SleepingEntities)).ToInt32(),
                 Kind = ValueKind.StdMapField,
-                StructTypeName = "AreaInstanceOffsets",
+                StructTypeName = nameof(AreaInstanceOffsets),
                 FieldName = "Entities.SleepingEntities",
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
@@ -274,10 +293,10 @@ public static class OffsetManifest
                 DisplayName = "TerrainMetadata",
                 Category = "Area / Server Data",
                 ParentId = "in_game_area_instance",
-                DefaultOffset = 0x8D0,
+                DefaultOffset = Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.TerrainMetadata)).ToInt32(),
                 Kind = ValueKind.StructField,
-                StructTypeName = "AreaInstanceOffsets",
-                FieldName = "TerrainMetadata",
+                StructTypeName = nameof(AreaInstanceOffsets),
+                FieldName = nameof(AreaInstanceOffsets.TerrainMetadata),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/AreaInstanceOffsets.cs"
             },
             new OffsetNode
@@ -286,10 +305,10 @@ public static class OffsetManifest
                 DisplayName = "WorldAreaDetailsPtr",
                 Category = "Area / Server Data",
                 ParentId = "in_game_world_data",
-                DefaultOffset = 0x98,
+                DefaultOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.WorldAreaDetailsPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "WorldDataOffset",
-                FieldName = "WorldAreaDetailsPtr",
+                StructTypeName = nameof(WorldDataOffset),
+                FieldName = nameof(WorldDataOffset.WorldAreaDetailsPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/WorldDataOffset.cs"
             },
 
@@ -302,10 +321,12 @@ public static class OffsetManifest
                 DisplayName = "PlayerServerData StdVector",
                 Category = "ServerData & Inventory",
                 ParentId = "area_server_data",
-                DefaultOffset = 0x48,
+                DefaultOffset = Marshal.OffsetOf<ServerDataOffsets>(nameof(ServerDataOffsets.PlayerServerDataPtr)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "ServerDataOffsets",
-                FieldName = "PlayerServerDataPtr",
+                VectorElementSize = 8,
+                VectorIsPointerElements = true,
+                StructTypeName = nameof(ServerDataOffsets),
+                FieldName = nameof(ServerDataOffsets.PlayerServerDataPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ServerDataOffset.cs"
             },
             new OffsetNode
@@ -314,10 +335,11 @@ public static class OffsetManifest
                 DisplayName = "PlayerInventories StdVector",
                 Category = "ServerData & Inventory",
                 ParentId = "area_server_data",
-                DefaultOffset = 0x320,
+                DefaultOffset = Marshal.OffsetOf<ServerDataStructure>(nameof(ServerDataStructure.PlayerInventories)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "ServerDataStructure",
-                FieldName = "PlayerInventories",
+                VectorElementSize = Unsafe.SizeOf<InventoryArrayStruct>(),
+                StructTypeName = nameof(ServerDataStructure),
+                FieldName = nameof(ServerDataStructure.PlayerInventories),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ServerDataOffset.cs"
             },
             new OffsetNode
@@ -326,11 +348,11 @@ public static class OffsetManifest
                 DisplayName = "WorldAreaMods StdVector (Unverified Native Owner)",
                 Category = "ServerData & Inventory",
                 ParentId = "area_server_data",
-                DefaultOffset = 0x8A8,
+                DefaultOffset = Marshal.OffsetOf<ServerDataStructure>(nameof(ServerDataStructure.WorldAreaMods)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
                 ConservativeUnverifiedOnly = true,
-                StructTypeName = "ServerDataStructure",
-                FieldName = "WorldAreaMods",
+                StructTypeName = nameof(ServerDataStructure),
+                FieldName = nameof(ServerDataStructure.WorldAreaMods),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ServerDataOffset.cs"
             },
             new OffsetNode
@@ -339,10 +361,10 @@ public static class OffsetManifest
                 DisplayName = "Gold Record Slot Pointer",
                 Category = "ServerData & Inventory",
                 ParentId = "server_data_psd_vector",
-                DefaultOffset = 0x0E28,
+                DefaultOffset = PlayerServerDataOffsets.GoldRecordPtrSlot,
                 Kind = ValueKind.RecordSlotField,
-                StructTypeName = "PlayerServerDataOffsets",
-                FieldName = "GoldRecordPtrSlot",
+                StructTypeName = nameof(PlayerServerDataOffsets),
+                FieldName = nameof(PlayerServerDataOffsets.GoldRecordPtrSlot),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/PlayerServerDataOffsets.cs"
             },
             new OffsetNode
@@ -351,10 +373,13 @@ public static class OffsetManifest
                 DisplayName = "Gold Amount (Int32)",
                 Category = "ServerData & Inventory",
                 ParentId = "psd_gold_record_slot",
-                DefaultOffset = 0x0618,
+                DefaultOffset = PlayerServerDataOffsets.GoldFieldOffset,
                 Kind = ValueKind.NumericField,
-                StructTypeName = "PlayerServerDataOffsets",
-                FieldName = "GoldFieldOffset",
+                ScalarType = ScalarType.Int,
+                ExpectedMinNumeric = 0,
+                ExpectedMaxNumeric = 2_000_000_000,
+                StructTypeName = nameof(PlayerServerDataOffsets),
+                FieldName = nameof(PlayerServerDataOffsets.GoldFieldOffset),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/PlayerServerDataOffsets.cs"
             },
 
@@ -367,10 +392,10 @@ public static class OffsetManifest
                 DisplayName = "EntityDetailsPtr",
                 Category = "Player & Components",
                 ParentId = "area_local_player_entity",
-                DefaultOffset = 0x08,
+                DefaultOffset = Marshal.OffsetOf<ItemStruct>(nameof(ItemStruct.EntityDetailsPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "ItemStruct",
-                FieldName = "EntityDetailsPtr",
+                StructTypeName = nameof(ItemStruct),
+                FieldName = nameof(ItemStruct.EntityDetailsPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/EntityOffsets.cs"
             },
             new OffsetNode
@@ -379,10 +404,10 @@ public static class OffsetManifest
                 DisplayName = "Entity Path / Name StdWString",
                 Category = "Player & Components",
                 ParentId = "player_entity_details",
-                DefaultOffset = 0x08,
+                DefaultOffset = Marshal.OffsetOf<EntityDetails>(nameof(EntityDetails.name)).ToInt32(),
                 Kind = ValueKind.StdWStringField,
-                StructTypeName = "EntityDetails",
-                FieldName = "name",
+                StructTypeName = nameof(EntityDetails),
+                FieldName = nameof(EntityDetails.name),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/EntityOffsets.cs"
             },
             new OffsetNode
@@ -391,10 +416,10 @@ public static class OffsetManifest
                 DisplayName = "ComponentLookUpPtr",
                 Category = "Player & Components",
                 ParentId = "player_entity_details",
-                DefaultOffset = 0x28,
+                DefaultOffset = Marshal.OffsetOf<EntityDetails>(nameof(EntityDetails.ComponentLookUpPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "EntityDetails",
-                FieldName = "ComponentLookUpPtr",
+                StructTypeName = nameof(EntityDetails),
+                FieldName = nameof(EntityDetails.ComponentLookUpPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/EntityOffsets.cs"
             },
             new OffsetNode
@@ -403,10 +428,12 @@ public static class OffsetManifest
                 DisplayName = "ComponentListPtr StdVector",
                 Category = "Player & Components",
                 ParentId = "area_local_player_entity",
-                DefaultOffset = 0x10,
+                DefaultOffset = Marshal.OffsetOf<ItemStruct>(nameof(ItemStruct.ComponentListPtr)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "ItemStruct",
-                FieldName = "ComponentListPtr",
+                VectorElementSize = 8,
+                VectorIsPointerElements = true,
+                StructTypeName = nameof(ItemStruct),
+                FieldName = nameof(ItemStruct.ComponentListPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/EntityOffsets.cs"
             },
             new OffsetNode
@@ -414,7 +441,7 @@ public static class OffsetManifest
                 Id = "comp_life",
                 DisplayName = "Life Component",
                 Category = "Player & Components",
-                ParentId = "player_component_list",
+                ParentId = "area_local_player_entity",
                 DefaultOffset = 0,
                 Kind = ValueKind.ComponentLookup,
                 ComponentName = "Life",
@@ -426,10 +453,10 @@ public static class OffsetManifest
                 DisplayName = "Life.Health VitalStruct",
                 Category = "Player & Components",
                 ParentId = "comp_life",
-                DefaultOffset = 0x1B0,
+                DefaultOffset = Marshal.OffsetOf<LifeOffset>(nameof(LifeOffset.Health)).ToInt32(),
                 Kind = ValueKind.VitalStructField,
-                StructTypeName = "LifeOffset",
-                FieldName = "Health",
+                StructTypeName = nameof(LifeOffset),
+                FieldName = nameof(LifeOffset.Health),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Life.cs"
             },
             new OffsetNode
@@ -438,10 +465,10 @@ public static class OffsetManifest
                 DisplayName = "Life.Mana VitalStruct",
                 Category = "Player & Components",
                 ParentId = "comp_life",
-                DefaultOffset = 0x208,
+                DefaultOffset = Marshal.OffsetOf<LifeOffset>(nameof(LifeOffset.Mana)).ToInt32(),
                 Kind = ValueKind.VitalStructField,
-                StructTypeName = "LifeOffset",
-                FieldName = "Mana",
+                StructTypeName = nameof(LifeOffset),
+                FieldName = nameof(LifeOffset.Mana),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Life.cs"
             },
             new OffsetNode
@@ -450,10 +477,10 @@ public static class OffsetManifest
                 DisplayName = "Life.EnergyShield VitalStruct",
                 Category = "Player & Components",
                 ParentId = "comp_life",
-                DefaultOffset = 0x248,
+                DefaultOffset = Marshal.OffsetOf<LifeOffset>(nameof(LifeOffset.EnergyShield)).ToInt32(),
                 Kind = ValueKind.VitalStructField,
-                StructTypeName = "LifeOffset",
-                FieldName = "EnergyShield",
+                StructTypeName = nameof(LifeOffset),
+                FieldName = nameof(LifeOffset.EnergyShield),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Life.cs"
             },
             new OffsetNode
@@ -462,10 +489,11 @@ public static class OffsetManifest
                 DisplayName = "Life.SpiritList StdVector",
                 Category = "Player & Components",
                 ParentId = "comp_life",
-                DefaultOffset = 0x380,
+                DefaultOffset = Marshal.OffsetOf<LifeOffset>(nameof(LifeOffset.SpiritList)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "LifeOffset",
-                FieldName = "SpiritList",
+                VectorElementSize = Unsafe.SizeOf<SpiritEntry>(),
+                StructTypeName = nameof(LifeOffset),
+                FieldName = nameof(LifeOffset.SpiritList),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Life.cs"
             },
             new OffsetNode
@@ -473,7 +501,7 @@ public static class OffsetManifest
                 Id = "comp_buffs",
                 DisplayName = "Buffs Component",
                 Category = "Player & Components",
-                ParentId = "player_component_list",
+                ParentId = "area_local_player_entity",
                 DefaultOffset = 0,
                 Kind = ValueKind.ComponentLookup,
                 ComponentName = "Buffs",
@@ -485,10 +513,11 @@ public static class OffsetManifest
                 DisplayName = "Buffs.StatusEffectPtr StdVector",
                 Category = "Player & Components",
                 ParentId = "comp_buffs",
-                DefaultOffset = 0x160,
+                DefaultOffset = Marshal.OffsetOf<BuffsOffsets>(nameof(BuffsOffsets.StatusEffectPtr)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "BuffsOffsets",
-                FieldName = "StatusEffectPtr",
+                VectorElementSize = Unsafe.SizeOf<StatusEffectStruct>(),
+                StructTypeName = nameof(BuffsOffsets),
+                FieldName = nameof(BuffsOffsets.StatusEffectPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Buffs.cs"
             },
             new OffsetNode
@@ -496,7 +525,7 @@ public static class OffsetManifest
                 Id = "comp_stats",
                 DisplayName = "Stats Component",
                 Category = "Player & Components",
-                ParentId = "player_component_list",
+                ParentId = "area_local_player_entity",
                 DefaultOffset = 0,
                 Kind = ValueKind.ComponentLookup,
                 ComponentName = "Stats",
@@ -508,10 +537,10 @@ public static class OffsetManifest
                 DisplayName = "Stats.StatsChangedByItemsPtr",
                 Category = "Player & Components",
                 ParentId = "comp_stats",
-                DefaultOffset = 0x160,
+                DefaultOffset = Marshal.OffsetOf<StatsOffsets>(nameof(StatsOffsets.StatsChangedByItemsPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "StatsOffsets",
-                FieldName = "StatsChangedByItemsPtr",
+                StructTypeName = nameof(StatsOffsets),
+                FieldName = nameof(StatsOffsets.StatsChangedByItemsPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Stats.cs"
             },
             new OffsetNode
@@ -520,10 +549,13 @@ public static class OffsetManifest
                 DisplayName = "Stats.CurrentWeaponIndex",
                 Category = "Player & Components",
                 ParentId = "comp_stats",
-                DefaultOffset = 0x168,
+                DefaultOffset = Marshal.OffsetOf<StatsOffsets>(nameof(StatsOffsets.CurrentWeaponIndex)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "StatsOffsets",
-                FieldName = "CurrentWeaponIndex",
+                ScalarType = ScalarType.Int,
+                ExpectedMinNumeric = 0,
+                ExpectedMaxNumeric = 1,
+                StructTypeName = nameof(StatsOffsets),
+                FieldName = nameof(StatsOffsets.CurrentWeaponIndex),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Stats.cs"
             },
             new OffsetNode
@@ -532,10 +564,10 @@ public static class OffsetManifest
                 DisplayName = "Stats.StatsChangedByBuffAndActions",
                 Category = "Player & Components",
                 ParentId = "comp_stats",
-                DefaultOffset = 0x1C8,
+                DefaultOffset = Marshal.OffsetOf<StatsOffsets>(nameof(StatsOffsets.StatsChangedByBuffAndActions)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "StatsOffsets",
-                FieldName = "StatsChangedByBuffAndActions",
+                StructTypeName = nameof(StatsOffsets),
+                FieldName = nameof(StatsOffsets.StatsChangedByBuffAndActions),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Stats.cs"
             },
             new OffsetNode
@@ -543,7 +575,7 @@ public static class OffsetManifest
                 Id = "comp_render",
                 DisplayName = "Render Component",
                 Category = "Player & Components",
-                ParentId = "player_component_list",
+                ParentId = "area_local_player_entity",
                 DefaultOffset = 0,
                 Kind = ValueKind.ComponentLookup,
                 ComponentName = "Render",
@@ -555,10 +587,10 @@ public static class OffsetManifest
                 DisplayName = "Render.CurrentWorldPosition StdTuple3D",
                 Category = "Player & Components",
                 ParentId = "comp_render",
-                DefaultOffset = 0x138,
+                DefaultOffset = Marshal.OffsetOf<RenderOffsets>(nameof(RenderOffsets.CurrentWorldPosition)).ToInt32(),
                 Kind = ValueKind.StructField,
-                StructTypeName = "RenderOffsets",
-                FieldName = "CurrentWorldPosition",
+                StructTypeName = nameof(RenderOffsets),
+                FieldName = nameof(RenderOffsets.CurrentWorldPosition),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Render.cs"
             },
             new OffsetNode
@@ -567,10 +599,13 @@ public static class OffsetManifest
                 DisplayName = "Render.TerrainHeight (float)",
                 Category = "Player & Components",
                 ParentId = "comp_render",
-                DefaultOffset = 0x1B0,
+                DefaultOffset = Marshal.OffsetOf<RenderOffsets>(nameof(RenderOffsets.TerrainHeight)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "RenderOffsets",
-                FieldName = "TerrainHeight",
+                ScalarType = ScalarType.Float,
+                ExpectedMinNumeric = -20000.0,
+                ExpectedMaxNumeric = 20000.0,
+                StructTypeName = nameof(RenderOffsets),
+                FieldName = nameof(RenderOffsets.TerrainHeight),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Render.cs"
             },
             new OffsetNode
@@ -578,7 +613,7 @@ public static class OffsetManifest
                 Id = "comp_positioned",
                 DisplayName = "Positioned Component",
                 Category = "Player & Components",
-                ParentId = "player_component_list",
+                ParentId = "area_local_player_entity",
                 DefaultOffset = 0,
                 Kind = ValueKind.ComponentLookup,
                 ComponentName = "Positioned",
@@ -590,10 +625,13 @@ public static class OffsetManifest
                 DisplayName = "Positioned.Reaction (byte)",
                 Category = "Player & Components",
                 ParentId = "comp_positioned",
-                DefaultOffset = 0x1E0,
+                DefaultOffset = Marshal.OffsetOf<PositionedOffsets>(nameof(PositionedOffsets.Reaction)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "PositionedOffsets",
-                FieldName = "Reaction",
+                ScalarType = ScalarType.Byte,
+                ExpectedMinNumeric = 0,
+                ExpectedMaxNumeric = 2,
+                StructTypeName = nameof(PositionedOffsets),
+                FieldName = nameof(PositionedOffsets.Reaction),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Positioned.cs"
             },
             new OffsetNode
@@ -601,7 +639,7 @@ public static class OffsetManifest
                 Id = "comp_actor",
                 DisplayName = "Actor Component",
                 Category = "Player & Components",
-                ParentId = "player_component_list",
+                ParentId = "area_local_player_entity",
                 DefaultOffset = 0,
                 Kind = ValueKind.ComponentLookup,
                 ComponentName = "Actor",
@@ -613,10 +651,13 @@ public static class OffsetManifest
                 DisplayName = "Actor.AnimationId (int)",
                 Category = "Player & Components",
                 ParentId = "comp_actor",
-                DefaultOffset = 0x8B0,
+                DefaultOffset = Marshal.OffsetOf<ActorOffset>(nameof(ActorOffset.AnimationId)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "ActorOffset",
-                FieldName = "AnimationId",
+                ScalarType = ScalarType.Int,
+                ExpectedMinNumeric = 0,
+                ExpectedMaxNumeric = 10000,
+                StructTypeName = nameof(ActorOffset),
+                FieldName = nameof(ActorOffset.AnimationId),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Actor.cs"
             },
             new OffsetNode
@@ -625,10 +666,11 @@ public static class OffsetManifest
                 DisplayName = "Actor.ActiveSkillsPtr StdVector",
                 Category = "Player & Components",
                 ParentId = "comp_actor",
-                DefaultOffset = 0xB08,
+                DefaultOffset = Marshal.OffsetOf<ActorOffset>(nameof(ActorOffset.ActiveSkillsPtr)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "ActorOffset",
-                FieldName = "ActiveSkillsPtr",
+                VectorElementSize = Unsafe.SizeOf<ActiveSkillStructure>(),
+                StructTypeName = nameof(ActorOffset),
+                FieldName = nameof(ActorOffset.ActiveSkillsPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Actor.cs"
             },
             new OffsetNode
@@ -637,10 +679,11 @@ public static class OffsetManifest
                 DisplayName = "Actor.CooldownsPtr StdVector",
                 Category = "Player & Components",
                 ParentId = "comp_actor",
-                DefaultOffset = 0xB20,
+                DefaultOffset = Marshal.OffsetOf<ActorOffset>(nameof(ActorOffset.CooldownsPtr)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "ActorOffset",
-                FieldName = "CooldownsPtr",
+                VectorElementSize = Unsafe.SizeOf<ActiveSkillCooldown>(),
+                StructTypeName = nameof(ActorOffset),
+                FieldName = nameof(ActorOffset.CooldownsPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Actor.cs"
             },
             new OffsetNode
@@ -649,10 +692,11 @@ public static class OffsetManifest
                 DisplayName = "Actor.DeployedEntityArray StdVector",
                 Category = "Player & Components",
                 ParentId = "comp_actor",
-                DefaultOffset = 0xC28,
+                DefaultOffset = Marshal.OffsetOf<ActorOffset>(nameof(ActorOffset.DeployedEntityArray)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                StructTypeName = "ActorOffset",
-                FieldName = "DeployedEntityArray",
+                VectorElementSize = Unsafe.SizeOf<DeployedEntityStructure>(),
+                StructTypeName = nameof(ActorOffset),
+                FieldName = nameof(ActorOffset.DeployedEntityArray),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Actor.cs"
             },
             new OffsetNode
@@ -660,7 +704,7 @@ public static class OffsetManifest
                 Id = "comp_player",
                 DisplayName = "Player Component",
                 Category = "Player & Components",
-                ParentId = "player_component_list",
+                ParentId = "area_local_player_entity",
                 DefaultOffset = 0,
                 Kind = ValueKind.ComponentLookup,
                 ComponentName = "Player",
@@ -672,10 +716,10 @@ public static class OffsetManifest
                 DisplayName = "Player.Name StdWString",
                 Category = "Player & Components",
                 ParentId = "comp_player",
-                DefaultOffset = 0x1B0,
+                DefaultOffset = Marshal.OffsetOf<PlayerOffsets>(nameof(PlayerOffsets.Name)).ToInt32(),
                 Kind = ValueKind.StdWStringField,
-                StructTypeName = "PlayerOffsets",
-                FieldName = "Name",
+                StructTypeName = nameof(PlayerOffsets),
+                FieldName = nameof(PlayerOffsets.Name),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Player.cs"
             },
             new OffsetNode
@@ -684,10 +728,13 @@ public static class OffsetManifest
                 DisplayName = "Player.Level (byte)",
                 Category = "Player & Components",
                 ParentId = "comp_player",
-                DefaultOffset = 0x204,
+                DefaultOffset = Marshal.OffsetOf<PlayerOffsets>(nameof(PlayerOffsets.Level)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "PlayerOffsets",
-                FieldName = "Level",
+                ScalarType = ScalarType.Byte,
+                ExpectedMinNumeric = 1,
+                ExpectedMaxNumeric = 100,
+                StructTypeName = nameof(PlayerOffsets),
+                FieldName = nameof(PlayerOffsets.Level),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Player.cs"
             },
 
@@ -700,10 +747,10 @@ public static class OffsetManifest
                 DisplayName = "UiRootStructPtr",
                 Category = "UI Elements",
                 ParentId = "game_state_in_game_state",
-                DefaultOffset = 0x2F0,
+                DefaultOffset = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.UiRootStructPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "InGameStateOffset",
-                FieldName = "UiRootStructPtr",
+                StructTypeName = nameof(InGameStateOffset),
+                FieldName = nameof(InGameStateOffset.UiRootStructPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameStateOffset.cs"
             },
             new OffsetNode
@@ -712,10 +759,10 @@ public static class OffsetManifest
                 DisplayName = "GameUiPtr",
                 Category = "UI Elements",
                 ParentId = "ui_root_struct",
-                DefaultOffset = 0xBE0,
+                DefaultOffset = Marshal.OffsetOf<UiRootStruct>(nameof(UiRootStruct.GameUiPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "UiRootStruct",
-                FieldName = "GameUiPtr",
+                StructTypeName = nameof(UiRootStruct),
+                FieldName = nameof(UiRootStruct.GameUiPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameStateOffset.cs"
             },
             new OffsetNode
@@ -724,10 +771,10 @@ public static class OffsetManifest
                 DisplayName = "ChatParentPtr",
                 Category = "UI Elements",
                 ParentId = "ui_game_ui_ptr",
-                DefaultOffset = 0x640,
+                DefaultOffset = Marshal.OffsetOf<ImportantUiElementsOffsets>(nameof(ImportantUiElementsOffsets.ChatParentPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "ImportantUiElementsOffsets",
-                FieldName = "ChatParentPtr",
+                StructTypeName = nameof(ImportantUiElementsOffsets),
+                FieldName = nameof(ImportantUiElementsOffsets.ChatParentPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ImportantUiElementsOffsets.cs"
             },
             new OffsetNode
@@ -736,10 +783,11 @@ public static class OffsetManifest
                 DisplayName = "LeftPanelPtr",
                 Category = "UI Elements",
                 ParentId = "ui_game_ui_ptr",
-                DefaultOffset = 0x6D0,
+                DefaultOffset = Marshal.OffsetOf<ImportantUiElementsOffsets>(nameof(ImportantUiElementsOffsets.LeftPanelPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "ImportantUiElementsOffsets",
-                FieldName = "LeftPanelPtr",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(ImportantUiElementsOffsets),
+                FieldName = nameof(ImportantUiElementsOffsets.LeftPanelPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ImportantUiElementsOffsets.cs"
             },
             new OffsetNode
@@ -748,10 +796,11 @@ public static class OffsetManifest
                 DisplayName = "RightPanelPtr",
                 Category = "UI Elements",
                 ParentId = "ui_game_ui_ptr",
-                DefaultOffset = 0x6D8,
+                DefaultOffset = Marshal.OffsetOf<ImportantUiElementsOffsets>(nameof(ImportantUiElementsOffsets.RightPanelPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "ImportantUiElementsOffsets",
-                FieldName = "RightPanelPtr",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(ImportantUiElementsOffsets),
+                FieldName = nameof(ImportantUiElementsOffsets.RightPanelPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ImportantUiElementsOffsets.cs"
             },
             new OffsetNode
@@ -760,10 +809,11 @@ public static class OffsetManifest
                 DisplayName = "PassiveSkillTreePanel",
                 Category = "UI Elements",
                 ParentId = "ui_game_ui_ptr",
-                DefaultOffset = 0x730,
+                DefaultOffset = Marshal.OffsetOf<ImportantUiElementsOffsets>(nameof(ImportantUiElementsOffsets.PassiveSkillTreePanel)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "ImportantUiElementsOffsets",
-                FieldName = "PassiveSkillTreePanel",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(ImportantUiElementsOffsets),
+                FieldName = nameof(ImportantUiElementsOffsets.PassiveSkillTreePanel),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ImportantUiElementsOffsets.cs"
             },
             new OffsetNode
@@ -772,10 +822,11 @@ public static class OffsetManifest
                 DisplayName = "MapParentPtr",
                 Category = "UI Elements",
                 ParentId = "ui_game_ui_ptr",
-                DefaultOffset = 0x7C0,
+                DefaultOffset = Marshal.OffsetOf<ImportantUiElementsOffsets>(nameof(ImportantUiElementsOffsets.MapParentPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "ImportantUiElementsOffsets",
-                FieldName = "MapParentPtr",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(ImportantUiElementsOffsets),
+                FieldName = nameof(ImportantUiElementsOffsets.MapParentPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ImportantUiElementsOffsets.cs"
             },
             new OffsetNode
@@ -784,10 +835,11 @@ public static class OffsetManifest
                 DisplayName = "WorldMapPanelPtr",
                 Category = "UI Elements",
                 ParentId = "ui_game_ui_ptr",
-                DefaultOffset = 0x988,
+                DefaultOffset = Marshal.OffsetOf<ImportantUiElementsOffsets>(nameof(ImportantUiElementsOffsets.WorldMapPanelPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "ImportantUiElementsOffsets",
-                FieldName = "WorldMapPanelPtr",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(ImportantUiElementsOffsets),
+                FieldName = nameof(ImportantUiElementsOffsets.WorldMapPanelPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/InGameState/ImportantUiElementsOffsets.cs"
             },
 
@@ -800,10 +852,13 @@ public static class OffsetManifest
                 DisplayName = "AreaLoadingState.IsLoading",
                 Category = "Area Loading State",
                 ParentId = "game_state_area_loading",
-                DefaultOffset = 0x770,
+                DefaultOffset = Marshal.OffsetOf<AreaLoadingStateOffset>(nameof(AreaLoadingStateOffset.IsLoading)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "AreaLoadingStateOffset",
-                FieldName = "IsLoading",
+                ScalarType = ScalarType.Int,
+                ExpectedMinNumeric = 0,
+                ExpectedMaxNumeric = 1,
+                StructTypeName = nameof(AreaLoadingStateOffset),
+                FieldName = nameof(AreaLoadingStateOffset.IsLoading),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/AreaLoadingStateOffset.cs"
             },
             new OffsetNode
@@ -812,10 +867,11 @@ public static class OffsetManifest
                 DisplayName = "AreaLoadingState.TotalLoadingScreenTimeMs",
                 Category = "Area Loading State",
                 ParentId = "game_state_area_loading",
-                DefaultOffset = 0xEC0,
+                DefaultOffset = Marshal.OffsetOf<AreaLoadingStateOffset>(nameof(AreaLoadingStateOffset.TotalLoadingScreenTimeMs)).ToInt32(),
                 Kind = ValueKind.NumericField,
-                StructTypeName = "AreaLoadingStateOffset",
-                FieldName = "TotalLoadingScreenTimeMs",
+                ScalarType = ScalarType.UInt,
+                StructTypeName = nameof(AreaLoadingStateOffset),
+                FieldName = nameof(AreaLoadingStateOffset.TotalLoadingScreenTimeMs),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/AreaLoadingStateOffset.cs"
             },
             new OffsetNode
@@ -824,10 +880,11 @@ public static class OffsetManifest
                 DisplayName = "AreaLoadingState.CurrentAreaDetailsPtr",
                 Category = "Area Loading State",
                 ParentId = "game_state_area_loading",
-                DefaultOffset = 0xF40,
+                DefaultOffset = Marshal.OffsetOf<AreaLoadingStateOffset>(nameof(AreaLoadingStateOffset.CurrentAreaDetailsPtr)).ToInt32(),
                 Kind = ValueKind.PointerField,
-                StructTypeName = "AreaLoadingStateOffset",
-                FieldName = "CurrentAreaDetailsPtr",
+                IsOptionalStateDependent = true,
+                StructTypeName = nameof(AreaLoadingStateOffset),
+                FieldName = nameof(AreaLoadingStateOffset.CurrentAreaDetailsPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/States/AreaLoadingStateOffset.cs"
             }
         ];
