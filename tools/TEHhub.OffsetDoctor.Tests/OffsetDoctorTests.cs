@@ -25,7 +25,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 82 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 84 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -109,8 +109,10 @@ public static class OffsetDoctorTests
         Test80_WatchModeReportsImprovedUiEvidence(check);
         Test81_ValidateAllBehaviorRemainsConservative(check);
         Test82_ReadOnlyBehaviorPreserved(check);
+        Test83_BaselineCompareTreatsGoldChangesAsInformational(check);
+        Test84_NoHardcodedDefaultGoldOrPlayerValuesExist(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 82 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 84 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -1957,6 +1959,47 @@ public static class OffsetDoctorTests
             targetFilter: "ui");
 
         check(setup.MemoryMatchesSnapshot(snapshot), "T82: UI validation and watch perform zero memory writes.");
+    }
+
+    // 83. Baseline compare treats gold value changes as informational unless current --gold is supplied and validator itself reports mismatch
+    private static void Test83_BaselineCompareTreatsGoldChangesAsInformational(Action<bool, string> check)
+    {
+        var setup1 = SetupSyntheticEnvironment(goldValue: 50_000_000);
+        using var reader1 = setup1.reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(reader1, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        // Scenario A: current scan has gold = 12,345 without supplied ground truth -> Informational
+        var setup2 = SetupSyntheticEnvironment(goldValue: 12_345);
+        using var reader2 = setup2.reader;
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var reportNoGt = recoveryEngine.RunValidation(reader2, expectedGold: null);
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResultNoGt = comparisonEngine.Compare(baseline, reportNoGt);
+        var goldDeltaNoGt = compResultNoGt.Deltas.FirstOrDefault(d => d.NodeId == "psd_gold_field");
+        check(goldDeltaNoGt != null, "T83: Gold delta is generated when value changes.");
+        check(goldDeltaNoGt?.Severity == DeltaSeverity.Informational, "T83: Gold change without ground truth is Informational (not Critical).");
+
+        // Scenario B: current scan supplies matching ground truth --gold 12345 -> VALID
+        var reportWithGt = recoveryEngine.RunValidation(reader2, expectedGold: 12_345);
+        var compResultWithGt = comparisonEngine.Compare(baseline, reportWithGt);
+        var goldDeltaWithGt = compResultWithGt.Deltas.FirstOrDefault(d => d.NodeId == "psd_gold_field");
+        check(goldDeltaWithGt?.Severity == DeltaSeverity.Informational, "T83: Gold change with matching ground truth is Informational.");
+        check(!compResultWithGt.HasCriticalRegressions, "T83: Zero critical regressions when gold matches supplied ground truth.");
+    }
+
+    // 84. No hardcoded default gold or player value exists in ValidationGroundTruth
+    private static void Test84_NoHardcodedDefaultGoldOrPlayerValuesExist(Action<bool, string> check)
+    {
+        var defaultGt = new ValidationGroundTruth();
+        check(defaultGt.ExpectedGold == null, "T84: Default ExpectedGold is null.");
+        check(defaultGt.ExpectedHpCurrent == null, "T84: Default ExpectedHpCurrent is null.");
+        check(defaultGt.ExpectedHpTotal == null, "T84: Default ExpectedHpTotal is null.");
+        check(defaultGt.ExpectedMpCurrent == null, "T84: Default ExpectedMpCurrent is null.");
+        check(defaultGt.ExpectedMpTotal == null, "T84: Default ExpectedMpTotal is null.");
+        check(defaultGt.ExpectedEsCurrent == null, "T84: Default ExpectedEsCurrent is null.");
+        check(defaultGt.ExpectedEsTotal == null, "T84: Default ExpectedEsTotal is null.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
