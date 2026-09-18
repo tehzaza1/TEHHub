@@ -174,8 +174,15 @@ public sealed class SyntheticMemoryReader : IProcessMemoryReader
     public byte[]? ReadBytes(IntPtr address, int count)
     {
         if (count <= 0) return null;
-        var buf = new byte[count];
-        return TryReadBytes(address, buf) ? buf : null;
+        var addr = (ulong)address.ToInt64();
+        var block = FindBlock(addr, 1, out var offset);
+        if (block == null) return null;
+
+        int toRead = Math.Min(count, block.Length - offset);
+        var buf = new byte[toRead];
+        Buffer.BlockCopy(block, offset, buf, 0, toRead);
+        TrackReadAccess(addr, toRead);
+        return buf;
     }
 
     private void TrackReadAccess(ulong addr, int size)

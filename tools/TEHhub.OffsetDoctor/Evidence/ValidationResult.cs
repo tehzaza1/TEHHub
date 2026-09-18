@@ -6,6 +6,8 @@ public sealed class ValidationResult
 {
     public required string NodeId { get; init; }
     public required string NodeDisplayName { get; init; }
+    public string Category { get; init; } = "Core";
+    public string? ParentId { get; init; }
     public ValidationStatus Status { get; set; }
     public int ConfiguredOffset { get; init; }
     public IntPtr ResolvedAddress { get; set; }

@@ -43,6 +43,7 @@ public sealed class WindowsProcessMemoryReader : IProcessMemoryReader
         {
             ProcessId = processId,
             ProcessName = _process.ProcessName,
+            ProcessPath = mainModule?.FileName,
             FileVersion = mainModule?.FileVersionInfo.FileVersion ?? string.Empty,
             ModuleBase = MainModuleBase,
             ModuleMemorySize = MainModuleSize,
@@ -95,7 +96,24 @@ public sealed class WindowsProcessMemoryReader : IProcessMemoryReader
         }
 
         var buffer = new byte[count];
-        return TryReadBytes(address, buffer) ? buffer : null;
+        unsafe
+        {
+            fixed (byte* destPtr = buffer)
+            {
+                if (ReadProcessMemory(_processHandle, address, (IntPtr)destPtr, (nuint)count, out var bytesRead) && (int)bytesRead > 0)
+                {
+                    if ((int)bytesRead < count)
+                    {
+                        var trimmed = new byte[(int)bytesRead];
+                        Buffer.BlockCopy(buffer, 0, trimmed, 0, (int)bytesRead);
+                        return trimmed;
+                    }
+                    return buffer;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static bool CheckElevation()

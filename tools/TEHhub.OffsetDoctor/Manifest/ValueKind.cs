@@ -5,6 +5,11 @@ public enum ValueKind
     StaticPattern,
     PointerField,
     StdVectorField,
+    StdMapField,
+    StdWStringField,
     RecordSlotField,
-    NumericField
+    NumericField,
+    VitalStructField,
+    ComponentLookup,
+    StructField
 }

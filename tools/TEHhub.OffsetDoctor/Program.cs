@@ -3,9 +3,8 @@ using TEHhub.OffsetDoctor.Process;
 using TEHhub.OffsetDoctor.Recovery;
 using TEHhub.OffsetDoctor.Reporting;
 
-Console.WriteLine("TEHhub.OffsetDoctor - PoE2 Read-Only Offset Diagnostic & Recovery Tool");
+Console.WriteLine("TEHhub.OffsetDoctor — PoE2 Read-Only Offset Health Scanner");
 
-string command = "recover";
 int? explicitPid = null;
 int? expectedGold = null;
 string? outputPath = null;
@@ -13,13 +12,9 @@ string? outputPath = null;
 for (int i = 0; i < args.Length; i++)
 {
     var arg = args[i];
-    if (arg.Equals("validate", StringComparison.OrdinalIgnoreCase))
+    if (arg.Equals("validate-all", StringComparison.OrdinalIgnoreCase) || arg.Equals("validate", StringComparison.OrdinalIgnoreCase))
     {
-        command = "validate";
-    }
-    else if (arg.Equals("recover", StringComparison.OrdinalIgnoreCase))
-    {
-        command = "recover";
+        // Default validation command
     }
     else if (arg.Equals("--pid", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
@@ -65,14 +60,10 @@ if (discovery.Status != ProcessDiscoveryStatus.Success || discovery.SelectedProc
 }
 
 var targetProcess = discovery.SelectedProcess;
-Console.WriteLine($"Found Target Process: {targetProcess.ProcessName} (PID: {targetProcess.Id})");
-
 using var reader = new WindowsProcessMemoryReader(targetProcess.Id);
-var engine = new OffsetRecoveryEngine();
 
-OffsetDoctorReport report = string.Equals(command, "validate", StringComparison.OrdinalIgnoreCase)
-    ? engine.RunValidation(reader, expectedGold)
-    : engine.RunRecovery(reader, expectedGold);
+var engine = new OffsetRecoveryEngine();
+var report = engine.RunValidation(reader, expectedGold);
 
 ConsoleReportWriter.PrintReport(report);
 
@@ -82,19 +73,19 @@ if (!string.IsNullOrEmpty(outputPath))
     Console.WriteLine($"Exported JSON report to: {outputPath}");
 }
 
-return report.IsChainHealthy ? 0 : 2;
+return report.BrokenCount == 0 ? 0 : 2;
 
 static void PrintUsage()
 {
     Console.WriteLine("Usage: TEHhub.OffsetDoctor [command] [options]");
     Console.WriteLine();
     Console.WriteLine("Commands:");
-    Console.WriteLine("  validate               Validate the compiled offset chain without searching for candidates.");
-    Console.WriteLine("  recover                Validate and perform bounded recovery searches for broken offsets (default).");
+    Console.WriteLine("  validate-all           Run full repository offset validation scan (default).");
+    Console.WriteLine("  validate               Run full repository offset validation scan.");
     Console.WriteLine();
     Console.WriteLine("Options:");
     Console.WriteLine("  --pid <pid>            Target a specific process ID.");
-    Console.WriteLine("  --gold <amount>        Provide your current inventory gold amount for exact matching.");
+    Console.WriteLine("  --gold <amount>        Provide current inventory gold amount for exact semantic verification.");
     Console.WriteLine("  --output <path>        Path to write the JSON diagnostic report.");
     Console.WriteLine("  --help, -h             Show help information.");
 }

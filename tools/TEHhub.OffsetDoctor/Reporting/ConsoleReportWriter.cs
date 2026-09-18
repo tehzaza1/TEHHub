@@ -9,103 +9,104 @@ public static class ConsoleReportWriter
     public static void PrintReport(OffsetDoctorReport report)
     {
         Console.WriteLine("================================================================================");
-        Console.WriteLine("                   TEHhub OffsetDoctor Diagnostic Report                        ");
+        Console.WriteLine("                     TEHhub Offset Doctor — Validate All                        ");
         Console.WriteLine("================================================================================");
-        Console.WriteLine($"Target Process : {report.ProcessMetadata.ProcessName} (PID: {report.ProcessMetadata.ProcessId})");
-        Console.WriteLine($"File Version   : {report.ProcessMetadata.FileVersion}");
-        Console.WriteLine($"Module Base    : 0x{report.ProcessMetadata.ModuleBase.ToInt64():X}");
-        Console.WriteLine($"Elevated       : {report.ProcessMetadata.IsElevated}");
-        Console.WriteLine($"Timestamp (UTC): {report.TimestampUtc:yyyy-MM-dd HH:mm:ss}");
-        Console.WriteLine($"Chain Status   : {(report.IsChainHealthy ? "HEALTHY (ALL NODES VALID)" : "DEGRADED / BROKEN")}");
-        Console.WriteLine("--------------------------------------------------------------------------------");
-        Console.WriteLine("NODE VALIDATION PIPELINE:");
-        Console.WriteLine("--------------------------------------------------------------------------------");
 
-        for (int i = 0; i < report.Results.Count; i++)
+        Console.WriteLine("Process");
+        Console.WriteLine($"  PID ............... {report.ProcessMetadata.ProcessId}");
+        Console.WriteLine($"  Name .............. {report.ProcessMetadata.ProcessName}");
+        Console.WriteLine($"  Version ........... {(!string.IsNullOrEmpty(report.ProcessMetadata.FileVersion) ? report.ProcessMetadata.FileVersion : "N/A")}");
+        Console.WriteLine($"  Module Base ....... 0x{report.ProcessMetadata.ModuleBase.ToInt64():X}");
+        Console.WriteLine($"  Elevated .......... {report.ProcessMetadata.IsElevated}");
+        Console.WriteLine($"  Timestamp (UTC) ... {report.TimestampUtc:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine();
+
+        // Group by Category
+        var categories = report.Results
+            .GroupBy(r => r.Category)
+            .OrderBy(g => GetCategoryOrder(g.Key));
+
+        foreach (var group in categories)
         {
-            var res = report.Results[i];
-            var indent = new string(' ', i * 2);
-            var statusColor = GetStatusColor(res.Status);
-
-            var prevColor = Console.ForegroundColor;
-            Console.Write($"{indent}[");
-            Console.ForegroundColor = statusColor;
-            Console.Write($"{res.Status,-15}");
-            Console.ForegroundColor = prevColor;
-            Console.Write($"] {res.NodeDisplayName} (Offset: +0x{res.ConfiguredOffset:X})");
-
-            if (res.IsProvisional)
+            Console.WriteLine(group.Key);
+            foreach (var res in group)
             {
-                Console.Write(" [PROVISIONAL PARENT]");
-            }
-
-            if (res.ExtractedValue != null)
-            {
-                Console.Write($" -> Value: {res.ExtractedValue}");
-            }
-
-            Console.WriteLine();
-
-            if (res.ErrorMessage != null && res.Status != ValidationStatus.VALID)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"{indent}    Note: {res.ErrorMessage}");
-                Console.ForegroundColor = prevColor;
-            }
-
-            if (res.Candidates.Count > 0)
-            {
-                Console.WriteLine($"{indent}    Candidates ({res.Candidates.Count} found):");
-                foreach (var c in res.Candidates.Take(3))
+                var nameDisplay = res.NodeDisplayName;
+                if (res.ConfiguredOffset != 0 && res.Category != "Static Roots")
                 {
-                    var confColor = c.Confidence switch
-                    {
-                        Confidence.HIGH => ConsoleColor.Green,
-                        Confidence.MEDIUM => ConsoleColor.Yellow,
-                        _ => ConsoleColor.Red
-                    };
+                    nameDisplay = $"{res.NodeDisplayName} (+0x{res.ConfiguredOffset:X})";
+                }
 
-                    Console.Write($"{indent}      * +0x{c.Offset:X} (Delta: {c.Offset - res.ConfiguredOffset:+0;-0;0}) | Score: {c.Score} | Conf: ");
-                    Console.ForegroundColor = confColor;
-                    Console.Write($"{c.Confidence}");
-                    Console.ForegroundColor = prevColor;
-                    if (c.DownstreamEvidenceSummary != null)
+                int dotsCount = Math.Max(2, 45 - nameDisplay.Length);
+                var dots = new string('.', dotsCount);
+
+                Console.Write($"  {nameDisplay} {dots} ");
+                var prevColor = Console.ForegroundColor;
+                Console.ForegroundColor = GetStatusColor(res.Status);
+                Console.Write($"{res.Status}");
+                Console.ForegroundColor = prevColor;
+
+                if (res.ExtractedValue != null && res.Status == ValidationStatus.VALID)
+                {
+                    Console.Write($" [{res.ExtractedValue}]");
+                }
+                Console.WriteLine();
+
+                // Detailed evidence on non-VALID status or notes
+                if (res.Status != ValidationStatus.VALID)
+                {
+                    if (!string.IsNullOrEmpty(res.ErrorMessage))
                     {
-                        Console.Write($" | {c.DownstreamEvidenceSummary}");
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.WriteLine($"      Note: {res.ErrorMessage}");
+                        Console.ForegroundColor = prevColor;
                     }
-                    Console.WriteLine();
+                    foreach (var ev in res.Evidence.Where(e => !e.Passed))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"      FAIL: {ev.Description}");
+                        Console.ForegroundColor = prevColor;
+                    }
                 }
             }
+            Console.WriteLine();
         }
 
         Console.WriteLine("--------------------------------------------------------------------------------");
-
-        if (report.Recommendations.Count > 0)
-        {
-            Console.WriteLine("ACTIONABLE OFFSET RECOMMENDATIONS:");
-            Console.WriteLine("--------------------------------------------------------------------------------");
-            Console.WriteLine($"{"Node",-25} | {"Current",-8} | {"Suggested",-9} | {"Delta",-8} | {"Conf",-6} | {"Score",-5} | Source");
-            Console.WriteLine(new string('-', 80));
-
-            foreach (var rec in report.Recommendations)
-            {
-                Console.WriteLine($"{rec.NodeId,-25} | +0x{rec.CurrentOffset,-6:X} | +0x{rec.SuggestedOffset,-7:X} | {rec.Delta,+6:+0;-0;0} | {rec.Confidence,-6} | {rec.Score,-5} | {rec.SourceLocation}");
-            }
-            Console.WriteLine("--------------------------------------------------------------------------------");
-        }
-
+        Console.WriteLine("Summary");
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"  VALID ............. {report.ValidCount}");
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"  BROKEN ............ {report.BrokenCount}");
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.WriteLine($"  BLOCKED ........... {report.BlockedCount}");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"  UNVERIFIED ........ {report.UnverifiedCount}");
+        Console.ResetColor();
+        Console.WriteLine($"  Total Nodes ....... {report.TotalNodesCount}");
+        Console.WriteLine("--------------------------------------------------------------------------------");
         Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("NOTICE: OffsetDoctor operates strictly in READ-ONLY mode. Source files and process memory were not modified.");
+        Console.WriteLine("NOTICE: OffsetDoctor operates strictly in READ-ONLY mode. Zero memory writes performed.");
         Console.ResetColor();
         Console.WriteLine("================================================================================");
     }
 
+    private static int GetCategoryOrder(string category) => category switch
+    {
+        "Static Roots" => 1,
+        "Game States" => 2,
+        "Area / Server Data" => 3,
+        "ServerData & Inventory" => 4,
+        "Player & Components" => 5,
+        "UI Elements" => 6,
+        "Area Loading State" => 7,
+        _ => 99
+    };
+
     private static ConsoleColor GetStatusColor(ValidationStatus status) => status switch
     {
         ValidationStatus.VALID => ConsoleColor.Green,
-        ValidationStatus.CANDIDATE_FOUND => ConsoleColor.Cyan,
-        ValidationStatus.AMBIGUOUS => ConsoleColor.Yellow,
-        ValidationStatus.NEEDS_MANUAL_PROOF => ConsoleColor.Magenta,
+        ValidationStatus.UNVERIFIED => ConsoleColor.Yellow,
         ValidationStatus.BROKEN => ConsoleColor.Red,
         ValidationStatus.BLOCKED => ConsoleColor.DarkYellow,
         _ => ConsoleColor.Gray

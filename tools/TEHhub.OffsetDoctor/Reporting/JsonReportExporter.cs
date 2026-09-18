@@ -33,7 +33,24 @@ public static class JsonReportExporter
     {
         public override IntPtr Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return new IntPtr(reader.GetInt64());
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var str = reader.GetString();
+                if (!string.IsNullOrEmpty(str) && str.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new IntPtr(Convert.ToInt64(str[2..], 16));
+                }
+                if (long.TryParse(str, out var val))
+                {
+                    return new IntPtr(val);
+                }
+            }
+            else if (reader.TokenType == JsonTokenType.Number)
+            {
+                return new IntPtr(reader.GetInt64());
+            }
+
+            return IntPtr.Zero;
         }
 
         public override void Write(Utf8JsonWriter writer, IntPtr value, JsonSerializerOptions options)
