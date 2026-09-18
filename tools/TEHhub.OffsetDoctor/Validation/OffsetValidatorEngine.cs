@@ -339,7 +339,7 @@ public sealed class OffsetValidatorEngine
 
             case ValueKind.RecordSlotField:
             {
-                ValidateGoldRecordSlot(reader, targetAddr, node, result);
+                ValidateGoldRecordSlot(reader, parentAddr, targetAddr, node, result);
                 break;
             }
 
@@ -395,79 +395,91 @@ public sealed class OffsetValidatorEngine
 
     private static void ValidateGoldRecordSlot(
         IProcessMemoryReader reader,
+        IntPtr parentAddr,
         IntPtr targetAddr,
         OffsetNode node,
         ValidationResult result)
     {
         result.ResolvedAddress = targetAddr;
 
-        if (!reader.TryRead<IntPtr>(targetAddr, out var recordMem))
-        {
-            result.Status = ValidationStatus.BROKEN;
-            result.TraversalAddress = IntPtr.Zero;
-            result.ErrorMessage = $"Failed to read gold record pointer at +0x{node.DefaultOffset:X}";
-            result.Evidence.Add(new EvidenceRecord
-            {
-                RuleName = "RecordSlotReadable",
-                Description = $"Record slot pointer at +0x{node.DefaultOffset:X} could not be read",
-                Passed = false
-            });
-            return;
-        }
+        // Verify the sequence of neighboring record pointer slots in PlayerServerData.
+        // Known structure: 5 consecutive 8-byte pointer slots at PSD + 0x0E08, 0x0E10, 0x0E18, 0x0E20, 0x0E28
+        // pointing to records with 0x80 byte stride (PlayerServerDataOffsets.RecordStride).
+        // Configured GoldRecordPtrSlot (0x0E28) is the 5th slot (index 4).
+        const int slotCount = 5;
+        const int configuredSlotIndex = 4;
+        const int slotPointerSize = 8;
 
-        if (recordMem == IntPtr.Zero || !reader.IsValidAddress(recordMem))
+        var recordPointers = new IntPtr[slotCount];
+        for (int i = 0; i < slotCount; i++)
         {
-            result.Status = ValidationStatus.BROKEN;
-            result.TraversalAddress = IntPtr.Zero;
-            result.ErrorMessage = $"Gold record pointer at +0x{node.DefaultOffset:X} (0x{recordMem.ToInt64():X}) is null or unmapped.";
-            result.Evidence.Add(new EvidenceRecord
-            {
-                RuleName = "RecordSlotTargetValid",
-                Description = $"Record slot target pointer 0x{recordMem.ToInt64():X} is null or invalid",
-                Passed = false
-            });
-            return;
-        }
+            int slotOffset = node.DefaultOffset - (configuredSlotIndex - i) * slotPointerSize;
+            IntPtr slotAddr = parentAddr + slotOffset;
 
-        // Structural stride proof:
-        // Record #4 is at recordMem. Gold is at recordMem + GoldFieldOffset (0x618).
-        // Stride is 0x80 bytes per record.
-        // Verify that target memory block spans at least 0x618 + 4 bytes and sequential strides are readable.
-        int requiredSpan = PlayerServerDataOffsets.GoldFieldOffset + sizeof(int);
-        var recordBytes = reader.ReadBytes(recordMem, requiredSpan);
-        if (recordBytes == null || recordBytes.Length < requiredSpan)
-        {
-            result.Status = ValidationStatus.BROKEN;
-            result.TraversalAddress = IntPtr.Zero;
-            result.ErrorMessage = $"Gold record memory at 0x{recordMem.ToInt64():X} cannot be read for required span of {requiredSpan} bytes (stride 0x80 check failed).";
-            result.Evidence.Add(new EvidenceRecord
+            if (!reader.TryRead<IntPtr>(slotAddr, out var recPtr))
             {
-                RuleName = "RecordSlotMemorySpanReadable",
-                Description = $"Record memory at 0x{recordMem.ToInt64():X} failed to read {requiredSpan} bytes",
-                Passed = false
-            });
-            return;
-        }
-
-        bool strideReadable = true;
-        for (int offset = 0; offset <= PlayerServerDataOffsets.GoldFieldOffset; offset += PlayerServerDataOffsets.RecordStride)
-        {
-            if (!reader.TryRead<byte>(recordMem + offset, out _))
-            {
-                strideReadable = false;
-                break;
+                result.Status = ValidationStatus.BROKEN;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = $"Failed to read record slot #{i} pointer at PSD+0x{slotOffset:X}";
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "NeighboringRecordSlotReadable",
+                    Description = $"Record slot #{i} at +0x{slotOffset:X} could not be read",
+                    Passed = false
+                });
+                return;
             }
+
+            if (recPtr == IntPtr.Zero || !reader.IsValidAddress(recPtr) || !reader.TryRead<byte>(recPtr, out _))
+            {
+                result.Status = ValidationStatus.BROKEN;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = $"Record slot #{i} pointer at PSD+0x{slotOffset:X} (0x{recPtr.ToInt64():X}) is null, invalid, or unreadable.";
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "NeighboringRecordSlotTargetValid",
+                    Description = $"Record slot #{i} target pointer 0x{recPtr.ToInt64():X} is null, invalid, or unreadable",
+                    Passed = false
+                });
+                return;
+            }
+
+            if (i > 0)
+            {
+                long prevAddr = recordPointers[i - 1].ToInt64();
+                long currAddr = recPtr.ToInt64();
+                long stride = currAddr - prevAddr;
+                if (stride != PlayerServerDataOffsets.RecordStride)
+                {
+                    result.Status = ValidationStatus.BROKEN;
+                    result.TraversalAddress = IntPtr.Zero;
+                    result.ErrorMessage = $"Record slot stride mismatch between slot #{i - 1} and #{i}: expected 0x{PlayerServerDataOffsets.RecordStride:X} (128 bytes), observed 0x{stride:X} ({stride} bytes).";
+                    result.Evidence.Add(new EvidenceRecord
+                    {
+                        RuleName = "RecordSlotStrideRelationship",
+                        Description = $"Stride between slot #{i - 1} (0x{prevAddr:X}) and slot #{i} (0x{currAddr:X}) is 0x{stride:X} (expected 0x{PlayerServerDataOffsets.RecordStride:X})",
+                        Passed = false
+                    });
+                    return;
+                }
+            }
+
+            recordPointers[i] = recPtr;
         }
 
-        if (!strideReadable)
+        IntPtr configuredRecordMem = recordPointers[configuredSlotIndex];
+
+        // Verify final gold address is readable as Int32
+        IntPtr finalGoldAddr = configuredRecordMem + PlayerServerDataOffsets.GoldFieldOffset;
+        if (!reader.TryRead<int>(finalGoldAddr, out _))
         {
             result.Status = ValidationStatus.BROKEN;
             result.TraversalAddress = IntPtr.Zero;
-            result.ErrorMessage = $"Gold record stride integrity check failed at 0x{recordMem.ToInt64():X}.";
+            result.ErrorMessage = $"Final gold address at 0x{finalGoldAddr.ToInt64():X} (+0x{PlayerServerDataOffsets.GoldFieldOffset:X} from record) is unreadable as Int32.";
             result.Evidence.Add(new EvidenceRecord
             {
-                RuleName = "RecordSlotStrideIntegrity",
-                Description = $"Record stride boundaries at 0x{recordMem.ToInt64():X} are unreadable",
+                RuleName = "FinalGoldAddressReadable",
+                Description = $"Memory at 0x{finalGoldAddr.ToInt64():X} could not be read as 32-bit integer",
                 Passed = false
             });
             return;
@@ -475,12 +487,12 @@ public sealed class OffsetValidatorEngine
 
         result.Status = ValidationStatus.VALID;
         result.ResolvedAddress = targetAddr;
-        result.TraversalAddress = recordMem;
-        result.ExtractedValue = $"RecordSlot #4 -> 0x{recordMem.ToInt64():X} (Stride 0x80 verified)";
+        result.TraversalAddress = configuredRecordMem;
+        result.ExtractedValue = $"RecordSlot #4 -> 0x{configuredRecordMem.ToInt64():X} (5 PSD record slots verified with 0x{PlayerServerDataOffsets.RecordStride:X} stride)";
         result.Evidence.Add(new EvidenceRecord
         {
-            RuleName = "RecordSlotStrideVerified",
-            Description = $"Gold record pointer at +0x{node.DefaultOffset:X} points to 0x{recordMem.ToInt64():X} with valid 0x80 stride mapping up to +0x{PlayerServerDataOffsets.GoldFieldOffset:X}",
+            RuleName = "RecordSlotSequenceStrideVerified",
+            Description = $"Verified {slotCount} neighboring PSD record slots with exact 0x{PlayerServerDataOffsets.RecordStride:X} stride sequence up to slot +0x{node.DefaultOffset:X} (0x{configuredRecordMem.ToInt64():X})",
             Passed = true,
             IsIndependentValidator = true
         });

@@ -21,7 +21,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 39 Rigorous Semantic Validation Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 45 Rigorous Semantic Validation Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -59,11 +59,17 @@ public static class OffsetDoctorTests
         Test34_MalformedComponentLookupBlocksSubfields(check);
         Test35_BroadScalarPlausibilityIsUnverified(check);
         Test36_MalformedUtf16SurrogateReportsBroken(check);
-        Test37_GoldRecordSlotStrideUnreadableReportsBroken(check);
+        Test37_FinalGoldAddressUnreadableReportsBroken(check);
         Test38_VitalStructCurrentGreaterThanTotalReportsBroken(check);
         Test39_DomainOnlyScalarsPlausibilityAndBounds(check);
+        Test40_MalformedPsdStrideBlocksGold(check);
+        Test41_UnreadableNeighboringPsdSlotBlocksGold(check);
+        Test42_NullNeighboringPsdSlotBlocksGold(check);
+        Test43_ArbitraryReadableBlockWithoutPsdStrideIsNotValid(check);
+        Test44_MalformedPsdStridePlusMatchingNonZeroGoldIsNotValid(check);
+        Test45_MalformedPsdStridePlusMatchingZeroGoldIsNotValid(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 39 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 45 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -83,7 +89,8 @@ public static class OffsetDoctorTests
         var serverData = reader.AllocateBlock(0x1000);
         var psdVectorBuf = reader.AllocateBlock(0x100);
         var psd = reader.AllocateBlock(0x2000);
-        var goldRecord = reader.AllocateBlock(0x1000);
+        var recordsBlock = reader.AllocateBlock(0x2000);
+        var goldRecord = recordsBlock + 4 * PlayerServerDataOffsets.RecordStride;
         var localPlayer = reader.AllocateBlock(0x1000);
         var compList = reader.AllocateBlock(0x200);
         var dummyVtable = reader.AllocateBlock(0x100);
@@ -242,8 +249,13 @@ public static class OffsetDoctorTests
         reader.WritePointer(psdVectorBuf, psd);
         reader.WriteStdVector(serverData + psdVectorOffset, psdVectorBuf, psdVectorBuf + 8, psdVectorBuf + 8);
 
-        // PSD -> Gold Slot -> Gold Field
-        reader.WritePointer(psd + goldRecordSlotOffset, goldRecord);
+        // PSD -> Gold Slots Sequence (5 neighboring slots: 0x0E08, 0x0E10, 0x0E18, 0x0E20, 0x0E28) -> Gold Field
+        for (int i = 0; i < 5; i++)
+        {
+            int slotOffset = goldRecordSlotOffset - (4 - i) * 8;
+            IntPtr recAddr = recordsBlock + i * PlayerServerDataOffsets.RecordStride;
+            reader.WritePointer(psd + slotOffset, recAddr);
+        }
         reader.Write(goldRecord + goldFieldOffset, goldValue);
 
         return (reader, gameState, inGameState, areaInstance, serverData, psd, goldRecord, localPlayer, compList, compMap);
@@ -871,16 +883,21 @@ public static class OffsetDoctorTests
         check(nameRes.Status == ValidationStatus.BROKEN, "T36: Unpaired UTF-16 high surrogate in StdWString must report BROKEN.");
     }
 
-    // 37. Gold record slot with truncated/unreadable stride memory reports BROKEN, child gold field BLOCKED
-    private static void Test37_GoldRecordSlotStrideUnreadableReportsBroken(Action<bool, string> check)
+    // 37. Final gold address unreadable reports BROKEN, child gold field BLOCKED
+    private static void Test37_FinalGoldAddressUnreadableReportsBroken(Action<bool, string> check)
     {
         var setup = SetupSyntheticEnvironment();
         using var reader = setup.reader;
         var psd = setup.psd;
 
-        // Allocate only 0x100 bytes for gold record (too small for 0x618 span)
-        var tinyRecord = reader.AllocateBlock(0x100);
-        reader.WritePointer(psd + 0x0E28, tinyRecord);
+        // Allocate records with 0x80 stride, but block size is only 0x500 (so +0x618 is beyond the block)
+        var shortBlock = reader.AllocateBlock(0x500);
+        for (int i = 0; i < 5; i++)
+        {
+            int slotOffset = 0x0E28 - (4 - i) * 8;
+            IntPtr recAddr = shortBlock + i * PlayerServerDataOffsets.RecordStride;
+            reader.WritePointer(psd + slotOffset, recAddr);
+        }
 
         var engine = new OffsetRecoveryEngine();
         var report = engine.RunValidation(reader, expectedGold: 50_000_000);
@@ -888,7 +905,7 @@ public static class OffsetDoctorTests
         var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
         var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
 
-        check(slotRes.Status == ValidationStatus.BROKEN, "T37: Truncated record memory violating 0x80 stride span reports BROKEN.");
+        check(slotRes.Status == ValidationStatus.BROKEN, "T37: Unreadable final gold address (+0x618) reports BROKEN on record slot.");
         check(goldRes.Status == ValidationStatus.BLOCKED, "T37: Child gold field is BLOCKED by broken record slot.");
     }
 
@@ -929,6 +946,130 @@ public static class OffsetDoctorTests
 
         var levelRes2 = report2.Results.First(r => r.NodeId == "area_current_level");
         check(levelRes2.Status == ValidationStatus.BROKEN, "T39: Level 250 outside domain [1..100] reports BROKEN.");
+    }
+
+    // 40. Malformed stride between neighboring PSD slots -> Gold record slot BROKEN and Gold field BLOCKED
+    private static void Test40_MalformedPsdStrideBlocksGold(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var psd = setup.psd;
+
+        // Corrupt slot #2 (PSD + 0x0E18) stride to 0x90 instead of 0x80
+        reader.TryRead<IntPtr>(psd + 0x0E18, out var currentSlot2);
+        reader.WritePointer(psd + 0x0E18, currentSlot2 + 0x10);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+        var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
+
+        check(slotRes.Status == ValidationStatus.BROKEN, "T40: Malformed stride between neighboring PSD slots must report BROKEN.");
+        check(goldRes.Status == ValidationStatus.BLOCKED, "T40: Gold field is BLOCKED by broken record slot.");
+    }
+
+    // 41. Unreadable neighboring PSD slot -> Gold record slot BROKEN and Gold field BLOCKED
+    private static void Test41_UnreadableNeighboringPsdSlotBlocksGold(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var psd = setup.psd;
+
+        // Set slot #1 (PSD + 0x0E10) to unmapped memory address
+        reader.WritePointer(psd + 0x0E10, new IntPtr(0x7FFF_0000_0000L));
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+        var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
+
+        check(slotRes.Status == ValidationStatus.BROKEN, "T41: Unreadable neighboring PSD slot must report BROKEN.");
+        check(goldRes.Status == ValidationStatus.BLOCKED, "T41: Gold field is BLOCKED by unreadable neighboring slot.");
+    }
+
+    // 42. Null neighboring PSD slot -> Gold record slot BROKEN and Gold field BLOCKED
+    private static void Test42_NullNeighboringPsdSlotBlocksGold(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var psd = setup.psd;
+
+        // Set slot #3 (PSD + 0x0E20) to IntPtr.Zero
+        reader.WritePointer(psd + 0x0E20, IntPtr.Zero);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+        var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
+
+        check(slotRes.Status == ValidationStatus.BROKEN, "T42: Null neighboring PSD slot must report BROKEN.");
+        check(goldRes.Status == ValidationStatus.BLOCKED, "T42: Gold field is BLOCKED by null neighboring slot.");
+    }
+
+    // 43. Arbitrary readable large memory block at GoldRecordPtrSlot but no valid neighboring PSD stride -> NOT VALID
+    private static void Test43_ArbitraryReadableBlockWithoutPsdStrideIsNotValid(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var psd = setup.psd;
+
+        // Clear all neighboring slots 0x0E08..0x0E20 to 0, leaving only 0x0E28 pointing to valid large buffer
+        reader.WritePointer(psd + 0x0E08, IntPtr.Zero);
+        reader.WritePointer(psd + 0x0E10, IntPtr.Zero);
+        reader.WritePointer(psd + 0x0E18, IntPtr.Zero);
+        reader.WritePointer(psd + 0x0E20, IntPtr.Zero);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+        var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
+
+        check(slotRes.Status == ValidationStatus.BROKEN, "T43: Arbitrary readable block at 0x0E28 without neighboring PSD stride is BROKEN.");
+        check(goldRes.Status == ValidationStatus.BLOCKED, "T43: Gold field is BLOCKED (NOT VALID).");
+    }
+
+    // 44. Malformed PSD stride plus Int32 at final address equals supplied --gold -> NOT VALID
+    private static void Test44_MalformedPsdStridePlusMatchingNonZeroGoldIsNotValid(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment(goldValue: 123_456);
+        using var reader = setup.reader;
+        var psd = setup.psd;
+
+        // Corrupt slot #0 stride
+        reader.WritePointer(psd + 0x0E08, IntPtr.Zero);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 123_456);
+
+        var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+        var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
+
+        check(slotRes.Status == ValidationStatus.BROKEN, "T44: Record slot with broken neighbor is BROKEN.");
+        check(goldRes.Status == ValidationStatus.BLOCKED, "T44: Matching non-zero gold ground truth is BLOCKED / NOT VALID when stride proof fails.");
+    }
+
+    // 45. Malformed PSD stride plus Int32 at final address equals supplied --gold 0 -> NOT VALID
+    private static void Test45_MalformedPsdStridePlusMatchingZeroGoldIsNotValid(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment(goldValue: 0);
+        using var reader = setup.reader;
+        var psd = setup.psd;
+
+        // Corrupt slot #1 stride
+        reader.WritePointer(psd + 0x0E10, IntPtr.Zero);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 0);
+
+        var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+        var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
+
+        check(slotRes.Status == ValidationStatus.BROKEN, "T45: Record slot with broken neighbor is BROKEN.");
+        check(goldRes.Status == ValidationStatus.BLOCKED, "T45: Matching --gold 0 is BLOCKED / NOT VALID when stride proof fails.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
