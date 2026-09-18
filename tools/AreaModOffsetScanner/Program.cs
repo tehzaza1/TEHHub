@@ -122,9 +122,11 @@ namespace AreaModOffsetScanner
                 ScanReporter.PrintConsoleReport(scanResult);
 
                 // 8. Export JSON and CSV files
-                var (jsonPath, csvPath) = ScanReporter.ExportFiles(scanResult, parsedArgs.OutputPath);
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+                var playerBase = parsedArgs.OutputPath != null ? $"{parsedArgs.OutputPath}-PlayerServerData" : $"AreaModScan-Phase2-PlayerServerData-{timestamp}";
+                var (jsonPath, csvPath) = ScanReporter.ExportFiles(scanResult, playerBase);
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("\n[+] Scan artifacts exported successfully:");
+                Console.WriteLine("\n[+] PlayerServerData Scan artifacts exported successfully:");
                 Console.WriteLine($"    JSON Report: {Path.GetFullPath(jsonPath)}");
                 Console.WriteLine($"    CSV Table:   {Path.GetFullPath(csvPath)}");
                 Console.ResetColor();
@@ -145,7 +147,7 @@ namespace AreaModOffsetScanner
                         expectedUiCount);
 
                     ScanReporter.PrintConsoleReport(sdScanResult);
-                    var sdBase = parsedArgs.OutputPath != null ? $"{parsedArgs.OutputPath}-ServerData" : null;
+                    var sdBase = parsedArgs.OutputPath != null ? $"{parsedArgs.OutputPath}-ServerDataObject" : $"AreaModScan-Phase2-ServerDataObject-{timestamp}";
                     var (sdJson, sdCsv) = ScanReporter.ExportFiles(sdScanResult, sdBase);
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("\n[+] ServerDataObject Scan artifacts exported:");
