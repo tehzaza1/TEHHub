@@ -25,4 +25,37 @@ namespace TEHhub.Offsets.Objects.States.InGameState
         [FieldOffset(0x08)] public IntPtr InventoryPtr0; // InventoryStruct
         [FieldOffset(0x10)] public IntPtr InventoryPtr1; // this points to 0x10 bytes before InventoryPtr0
     }
+
+    /// <summary>
+    ///     Offsets and structural layout constants for PlayerServerData.
+    /// </summary>
+    public static class PlayerServerDataOffsets
+    {
+        /// <summary>
+        ///     Offset in PlayerServerData pointing to the 4th record pointer slot (observed Record #4)
+        ///     within the 0x80-stride record sequence.
+        /// </summary>
+        public const int GoldRecordPtrSlot = 0x0E28;
+
+        /// <summary>
+        ///     Offset to the 32-bit native Gold value relative to the pointer at <see cref="GoldRecordPtrSlot"/>.
+        ///     Equivalent to (16 - 4) * RecordStride (0x80) + RecordGoldOffset (0x18) = 0x618.
+        /// </summary>
+        public const int GoldFieldOffset = 0x0618;
+
+        /// <summary>
+        ///     Observed stride between sequential record blocks (128 bytes).
+        /// </summary>
+        public const int RecordStride = 0x80;
+
+        /// <summary>
+        ///     Observed 0-based record index containing the player's current gold balance.
+        /// </summary>
+        public const int GoldRecordIndex = 16;
+
+        /// <summary>
+        ///     Observed offset within the gold record to the 32-bit native gold integer.
+        /// </summary>
+        public const int RecordGoldOffset = 0x18;
+    }
 }

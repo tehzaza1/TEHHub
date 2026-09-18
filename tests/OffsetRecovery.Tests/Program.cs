@@ -264,6 +264,7 @@ OffsetAiTests.Run(Check);
 using var reader = new SafeMemoryHandle(process.Id);
 typeof(GameProcess).GetProperty(nameof(GameProcess.Handle))!.SetValue(Core.Process, reader);
 typeof(GameProcess).GetProperty("Information", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Core.Process, process);
+OffsetRecovery.Tests.GoldTests.Run(Check);
 RootSearchArena.TestPe(reader, process.MainModule!.BaseAddress.ToInt64(), process.MainModule.ModuleMemorySize, Check);
 Core.GHSettings.EnableNewMemoryRead = false;
 #if DEBUG
