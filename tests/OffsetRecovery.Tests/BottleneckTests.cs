@@ -785,6 +785,13 @@ internal static class BottleneckTests
             check(buffs.StatusEffects.ContainsKey("flask_quick_AB"), "Skill gem buff produces identical formatted key 'flask_quick_AB'");
             check(!buffs.StatusEffects.ContainsKey("quick"), "Old buff replaced by 'flask_quick_AB'");
             check(buffs.FlaskActive[2] == true, "FlaskActive[2] is set for flask type buff");
+            check(buffs.StatusEffects["flask_quick_AB"].FlaskSlot == 2, "StatusEffectStruct.FlaskSlot stored correctly in StatusEffects");
+
+            // 6b. Explicit FlaskSlot mutation test
+            Marshal.WriteInt16(se2Ptr + 0x42, 3); // Mutate FlaskSlot from 2 to 3
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects["flask_quick_AB"].FlaskSlot == 3, "StatusEffectStruct.FlaskSlot updated correctly on mutation");
+            check(buffs.FlaskActive[3] == true && buffs.FlaskActive[2] == false, "FlaskActive updated to slot 3 on mutation");
 
             // 7. Duplicate buffs stacking: charges are merged and max TimeLeft is preserved
             Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef1); // Both se1 and se2 point to buffDef1 ("grace_period")
@@ -829,168 +836,232 @@ internal static class BottleneckTests
             var allocPerCall = (allocAfter - allocBefore) / 100;
             check(allocPerCall <= 8, $"Buffs.UpdateData steady-state average allocation is <= 8 bytes (measured: {allocPerCall} B/call)");
 
-            // 9. Benchmark & Workload Analysis (Workload A: Unchanged Steady State vs Workload B: Changing TimeLeft)
-            const int BenchBuffCount = 25;
+            // 9. Comprehensive Apples-to-Apples Microbenchmark: OLD vs PROPOSED across 2, 10, 25, 50 Buffs
+            // Workloads:
+            //   A. Unchanged values (steady state)
+            //   B. TimeLeft changes every refresh
+            //   C. One buff removed / replaced periodically
+            //   D. Duplicate buff names requiring stack merge
             const int BenchIterations = 1000;
-            var benchVecPtr = synthBuffsBlock + 0x2000;
-            var benchSeBlock = synthBuffsBlock + 0x3000;
-            var benchDefBlock = synthBuffsBlock + 0x6000;
-            var benchNameBlock = synthBuffsBlock + 0x8000;
+            int[] testBuffCounts = [2, 10, 25, 50];
 
-            for (var b = 0; b < BenchBuffCount; b++)
+            Console.WriteLine("\n=========================================================================================");
+            Console.WriteLine("                BUFFS REFRESH PIPELINE BENCHMARK: OLD vs PROPOSED");
+            Console.WriteLine("=========================================================================================");
+
+            foreach (var count in testBuffCounts)
             {
-                var curNamePtr = benchNameBlock + (b * 64);
-                var curDefPtr = benchDefBlock + (b * 128);
-                var curSePtr = benchSeBlock + (b * 128);
+                var keys = new string[count];
+                var altKeys = new string[count];
+                var dupKeys = new string[count];
+                var structs = new TEHhub.Offsets.Objects.Components.StatusEffectStruct[count];
 
-                WriteUnicodeZ(curNamePtr, $"buff_effect_{b}");
-                Marshal.WriteIntPtr(curDefPtr + 0x00, curNamePtr);
-                Marshal.WriteByte(curDefPtr + 0x67, (byte)(b % 2 == 0 ? 0 : 4));
+                for (var i = 0; i < count; i++)
+                {
+                    keys[i] = string.Intern($"buff_effect_{i}");
+                    altKeys[i] = string.Intern($"buff_effect_alt_{i}");
+                    dupKeys[i] = string.Intern($"buff_effect_{i / 2}"); // 50% duplicate keys for stack merge workload
+                    structs[i] = new TEHhub.Offsets.Objects.Components.StatusEffectStruct
+                    {
+                        BuffDefinationPtr = new IntPtr(0x1000 + (i * 0x100)),
+                        TotalTime = 30.0f,
+                        TimeLeft = 15.0f,
+                        SourceEntityId = 0,
+                        RawStage = (uint)i,
+                        Charges = 1,
+                        FlaskSlot = -1,
+                        Effectiveness = 0,
+                        UnknownIdAndEquipmentInfo = 0,
+                    };
+                }
 
-                Marshal.WriteIntPtr(curSePtr + 0x08, curDefPtr);
-                Marshal.StructureToPtr(30.0f, curSePtr + 0x18, false);
-                Marshal.StructureToPtr(15.0f, curSePtr + 0x1C, false);
-                Marshal.WriteInt32(curSePtr + 0x28, 0);
-                Marshal.WriteInt32(curSePtr + 0x2C, b);
-                Marshal.WriteInt16(curSePtr + 0x40, 1);
-                Marshal.WriteInt16(curSePtr + 0x42, (short)(b % 5));
-                Marshal.WriteInt16(curSePtr + 0x48, (short)(b * 2));
-                Marshal.WriteInt32(curSePtr + 0x4A, 0);
+                // Helper delegates for benchmark
+                static void RunOld(
+                    System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> dict,
+                    string[] kList,
+                    TEHhub.Offsets.Objects.Components.StatusEffectStruct[] sList,
+                    int n)
+                {
+                    dict.Clear();
+                    for (var b = 0; b < n; b++)
+                    {
+                        dict.AddOrUpdate(
+                            kList[b],
+                            static (_, incoming) => incoming,
+                            static (_, oldValue, incoming) =>
+                            {
+                                var incomingStacks = incoming.Charges > 0 ? incoming.Charges : (short)1;
+                                incoming.Charges = (short)(oldValue.Charges + incomingStacks);
+                                incoming.TimeLeft = Math.Max(oldValue.TimeLeft, incoming.TimeLeft);
+                                return incoming;
+                            },
+                            sList[b]);
+                    }
+                }
 
-                Marshal.WriteIntPtr(benchVecPtr + (b * IntPtr.Size), curSePtr);
-            }
+                static void RunProposed(
+                    System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> dict,
+                    Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> scratch,
+                    List<string> staleKeys,
+                    string[] kList,
+                    TEHhub.Offsets.Objects.Components.StatusEffectStruct[] sList,
+                    int n)
+                {
+                    scratch.Clear();
+                    for (var b = 0; b < n; b++)
+                    {
+                        ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(scratch, kList[b], out var exists);
+                        if (exists)
+                        {
+                            var incomingStacks = sList[b].Charges > 0 ? sList[b].Charges : (short)1;
+                            var s = sList[b];
+                            s.Charges = (short)(entry.Charges + incomingStacks);
+                            s.TimeLeft = Math.Max(entry.TimeLeft, s.TimeLeft);
+                            entry = s;
+                        }
+                        else
+                        {
+                            entry = sList[b];
+                        }
+                    }
 
-            var benchVector = new TEHhub.Offsets.Natives.StdVector
-            {
-                First = benchVecPtr,
-                Last = benchVecPtr + (BenchBuffCount * IntPtr.Size),
-                End = benchVecPtr + (BenchBuffCount * IntPtr.Size),
-            };
-            Marshal.StructureToPtr(benchVector, buffsComponentPtr + 0x160, false);
+                    var hasNewKeys = false;
+                    foreach (var kv in scratch)
+                    {
+                        if (!dict.TryGetValue(kv.Key, out var curVal))
+                        {
+                            hasNewKeys = true;
+                            dict[kv.Key] = kv.Value;
+                        }
+                        else if (!curVal.Equals(kv.Value))
+                        {
+                            dict[kv.Key] = kv.Value;
+                        }
+                    }
 
-            // Workload A: Unchanged Steady State
-            for (var w = 0; w < 50; w++) buffs.RefreshDataNow();
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            buffs.RefreshDataNow();
+                    if (hasNewKeys || dict.Count != scratch.Count)
+                    {
+                        staleKeys.Clear();
+                        foreach (var kv in dict)
+                        {
+                            if (!scratch.ContainsKey(kv.Key))
+                            {
+                                staleKeys.Add(kv.Key);
+                            }
+                        }
+                        for (var k = 0; k < staleKeys.Count; k++)
+                        {
+                            dict.TryRemove(staleKeys[k], out _);
+                        }
+                    }
+                }
 
-            var allocWorkloadABefore = GC.GetAllocatedBytesForCurrentThread();
-            var swA = Stopwatch.StartNew();
-            for (var i = 0; i < BenchIterations; i++)
-            {
-                buffs.RefreshDataNow();
-            }
-            swA.Stop();
-            var allocWorkloadAAfter = GC.GetAllocatedBytesForCurrentThread();
-            var allocWorkloadAPerCall = (allocWorkloadAAfter - allocWorkloadABefore) / BenchIterations;
-            var timeNsWorkloadAPerCall = (swA.Elapsed.TotalNanoseconds) / BenchIterations;
+                var oldDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>();
+                var propDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>();
+                var scratch = new Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>(count, StringComparer.Ordinal);
+                var staleKeys = new List<string>(count);
 
-            check(allocWorkloadAPerCall <= 8, $"Workload A allocated bytes <= 8 bytes/call (measured: {allocWorkloadAPerCall} B/call)");
-            check(buffs.StatusEffects.Count == BenchBuffCount, $"Workload A populated all {BenchBuffCount} status effects");
+                // --- WORKLOAD A: Unchanged Steady State ---
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var aOldBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swAOld = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++) RunOld(oldDict, keys, structs, count);
+                swAOld.Stop();
+                var aOldAlloc = (GC.GetAllocatedBytesForCurrentThread() - aOldBefore) / BenchIterations;
+                var aOldNs = swAOld.Elapsed.TotalNanoseconds / BenchIterations;
 
-            // Workload B: Changing TimeLeft Steady State (Timer decrements on every frame)
-            for (var w = 0; w < 50; w++) buffs.RefreshDataNow();
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            buffs.RefreshDataNow();
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var aPropBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swAProp = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++) RunProposed(propDict, scratch, staleKeys, keys, structs, count);
+                swAProp.Stop();
+                var aPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - aPropBefore) / BenchIterations;
+                var aPropNs = swAProp.Elapsed.TotalNanoseconds / BenchIterations;
 
-            var allocWorkloadBBefore = GC.GetAllocatedBytesForCurrentThread();
-            var swB = Stopwatch.StartNew();
-            unsafe
-            {
+                // --- WORKLOAD B: TimeLeft Changes Every Iteration ---
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var bOldBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swBOld = Stopwatch.StartNew();
                 for (var i = 0; i < BenchIterations; i++)
                 {
-                    var newTime = 15.0f - (i * 0.01f);
-                    for (var b = 0; b < BenchBuffCount; b++)
-                    {
-                        *(float*)(benchSeBlock + (b * 128) + 0x1C) = newTime;
-                    }
-                    buffs.RefreshDataNow();
+                    structs[0].TimeLeft = 15.0f - (i * 0.01f);
+                    RunOld(oldDict, keys, structs, count);
                 }
-            }
-            swB.Stop();
-            var allocWorkloadBAfter = GC.GetAllocatedBytesForCurrentThread();
-            var allocWorkloadBPerCall = (allocWorkloadBAfter - allocWorkloadBBefore) / BenchIterations;
-            var timeNsWorkloadBPerCall = (swB.Elapsed.TotalNanoseconds) / BenchIterations;
+                swBOld.Stop();
+                var bOldAlloc = (GC.GetAllocatedBytesForCurrentThread() - bOldBefore) / BenchIterations;
+                var bOldNs = swBOld.Elapsed.TotalNanoseconds / BenchIterations;
 
-            check(buffs.StatusEffects.Count == BenchBuffCount, $"Workload B populated all {BenchBuffCount} status effects");
-            check(Math.Abs(buffs.StatusEffects["buff_effect_0"].TimeLeft - (15.0f - ((BenchIterations - 1) * 0.01f))) < 0.01f, "Workload B updated TimeLeft accurately on all iterations");
-
-            // Compare Old-equivalent execution
-            var oldDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>();
-            var handle = TEHhub.Core.Process.Handle;
-
-            // Warm up Old-equivalent
-            for (var w = 0; w < 50; w++)
-            {
-                oldDict.Clear();
-                for (var b = 0; b < BenchBuffCount; b++)
-                {
-                    var se = handle.ReadMemory<TEHhub.Offsets.Objects.Components.StatusEffectStruct>(benchSeBlock + (b * 128));
-                    var name = $"buff_effect_{b}";
-                    oldDict.AddOrUpdate(name, static (_, incoming) => incoming, static (_, _, incoming) => incoming, se);
-                }
-            }
-
-            // Old Workload A
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            var allocOldABefore = GC.GetAllocatedBytesForCurrentThread();
-            var swOldA = Stopwatch.StartNew();
-            for (var i = 0; i < BenchIterations; i++)
-            {
-                oldDict.Clear();
-                for (var b = 0; b < BenchBuffCount; b++)
-                {
-                    var se = handle.ReadMemory<TEHhub.Offsets.Objects.Components.StatusEffectStruct>(benchSeBlock + (b * 128));
-                    var name = $"buff_effect_{b}";
-                    oldDict.AddOrUpdate(name, static (_, incoming) => incoming, static (_, _, incoming) => incoming, se);
-                }
-            }
-            swOldA.Stop();
-            var allocOldAAfter = GC.GetAllocatedBytesForCurrentThread();
-            var allocOldAPerCall = (allocOldAAfter - allocOldABefore) / BenchIterations;
-            var timeNsOldAPerCall = swOldA.Elapsed.TotalNanoseconds / BenchIterations;
-
-            // Old Workload B (changing TimeLeft)
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            var allocOldBBefore = GC.GetAllocatedBytesForCurrentThread();
-            var swOldB = Stopwatch.StartNew();
-            unsafe
-            {
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var bPropBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swBProp = Stopwatch.StartNew();
                 for (var i = 0; i < BenchIterations; i++)
                 {
-                    var newTime = 15.0f - (i * 0.01f);
-                    for (var b = 0; b < BenchBuffCount; b++)
-                    {
-                        *(float*)(benchSeBlock + (b * 128) + 0x1C) = newTime;
-                    }
-                    oldDict.Clear();
-                    for (var b = 0; b < BenchBuffCount; b++)
-                    {
-                        var se = handle.ReadMemory<TEHhub.Offsets.Objects.Components.StatusEffectStruct>(benchSeBlock + (b * 128));
-                        var name = $"buff_effect_{b}";
-                        oldDict.AddOrUpdate(name, static (_, incoming) => incoming, static (_, _, incoming) => incoming, se);
-                    }
+                    structs[0].TimeLeft = 15.0f - (i * 0.01f);
+                    RunProposed(propDict, scratch, staleKeys, keys, structs, count);
                 }
-            }
-            swOldB.Stop();
-            var allocOldBAfter = GC.GetAllocatedBytesForCurrentThread();
-            var allocOldBPerCall = (allocOldBAfter - allocOldBBefore) / BenchIterations;
-            var timeNsOldBPerCall = swOldB.Elapsed.TotalNanoseconds / BenchIterations;
+                swBProp.Stop();
+                var bPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - bPropBefore) / BenchIterations;
+                var bPropNs = swBProp.Elapsed.TotalNanoseconds / BenchIterations;
 
-            Console.WriteLine($"--- Buffs Performance Comparison (Active Buffs: {BenchBuffCount}, Iterations: {BenchIterations}) ---");
-            Console.WriteLine($"Workload A (Unchanged Steady State):");
-            Console.WriteLine($"  OLD:      {timeNsOldAPerCall:F2} ns/call, {allocOldAPerCall} B/call");
-            Console.WriteLine($"  PROPOSED: {timeNsWorkloadAPerCall:F2} ns/call, {allocWorkloadAPerCall} B/call");
-            Console.WriteLine($"Workload B (Changing TimeLeft Every Refresh):");
-            Console.WriteLine($"  OLD:      {timeNsOldBPerCall:F2} ns/call, {allocOldBPerCall} B/call");
-            Console.WriteLine($"  PROPOSED: {timeNsWorkloadBPerCall:F2} ns/call, {allocWorkloadBPerCall} B/call");
+                // --- WORKLOAD C: Periodic Buff Replacement (Key Swap) ---
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var cOldBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swCOld = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    var kList = (i % 10 == 0) ? altKeys : keys;
+                    RunOld(oldDict, kList, structs, count);
+                }
+                swCOld.Stop();
+                var cOldAlloc = (GC.GetAllocatedBytesForCurrentThread() - cOldBefore) / BenchIterations;
+                var cOldNs = swCOld.Elapsed.TotalNanoseconds / BenchIterations;
+
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var cPropBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swCProp = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    var kList = (i % 10 == 0) ? altKeys : keys;
+                    RunProposed(propDict, scratch, staleKeys, kList, structs, count);
+                }
+                swCProp.Stop();
+                var cPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - cPropBefore) / BenchIterations;
+                var cPropNs = swCProp.Elapsed.TotalNanoseconds / BenchIterations;
+
+                // --- WORKLOAD D: Duplicate Buff Names (Stack Merge) ---
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, dupKeys, structs, count); RunProposed(propDict, scratch, staleKeys, dupKeys, structs, count); }
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var dOldBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swDOld = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    RunOld(oldDict, dupKeys, structs, count);
+                }
+                swDOld.Stop();
+                var dOldAlloc = (GC.GetAllocatedBytesForCurrentThread() - dOldBefore) / BenchIterations;
+                var dOldNs = swDOld.Elapsed.TotalNanoseconds / BenchIterations;
+
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var dPropBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swDProp = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    RunProposed(propDict, scratch, staleKeys, dupKeys, structs, count);
+                }
+                swDProp.Stop();
+                var dPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - dPropBefore) / BenchIterations;
+                var dPropNs = swDProp.Elapsed.TotalNanoseconds / BenchIterations;
+
+                Console.WriteLine($"\n[Buff Count: {count,2} Buffs | Iterations: {BenchIterations}]");
+                Console.WriteLine($"  Workload A (Unchanged):     OLD = {aOldNs,7:F1} ns ({aOldAlloc,4} B) | PROPOSED = {aPropNs,7:F1} ns ({aPropAlloc,4} B) -> Alloc Saved: {(aOldAlloc - aPropAlloc),4} B ({(aOldAlloc > 0 ? (aOldAlloc - aPropAlloc) * 100.0 / aOldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload B (TimeLeft Chg):  OLD = {bOldNs,7:F1} ns ({bOldAlloc,4} B) | PROPOSED = {bPropNs,7:F1} ns ({bPropAlloc,4} B) -> Alloc Saved: {(bOldAlloc - bPropAlloc),4} B ({(bOldAlloc > 0 ? (bOldAlloc - bPropAlloc) * 100.0 / bOldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload C (10% Key Swap):  OLD = {cOldNs,7:F1} ns ({cOldAlloc,4} B) | PROPOSED = {cPropNs,7:F1} ns ({cPropAlloc,4} B) -> Alloc Saved: {(cOldAlloc - cPropAlloc),4} B ({(cOldAlloc > 0 ? (cOldAlloc - cPropAlloc) * 100.0 / cOldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload D (Stack Merge):   OLD = {dOldNs,7:F1} ns ({dOldAlloc,4} B) | PROPOSED = {dPropNs,7:F1} ns ({dPropAlloc,4} B) -> Alloc Saved: {(dOldAlloc - dPropAlloc),4} B ({(dOldAlloc > 0 ? (dOldAlloc - dPropAlloc) * 100.0 / dOldAlloc : 0):F0}%)");
+            }
+            Console.WriteLine("=========================================================================================\n");
         }
         finally
         {
