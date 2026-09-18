@@ -545,21 +545,25 @@ public static class PerformanceProfiler
 
     private static void RenderTreeView()
     {
-        if (ImGui.BeginTable("profilerTreeTable", 9,
-                ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
-                ImGui.GetContentRegionAvail()))
-        {
-            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.2f);
-            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
-            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
-            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.7f);
-            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthStretch, 0.7f);
-            ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+        var tableFlags = ImGuiTableFlags.Resizable |
+                         ImGuiTableFlags.ScrollX |
+                         ImGuiTableFlags.ScrollY |
+                         ImGuiTableFlags.Borders |
+                         ImGuiTableFlags.RowBg;
 
-            ImGui.TableSetupScrollFreeze(0, 1);
+        if (ImGui.BeginTable("profilerTreeTable", 9, tableFlags, ImGui.GetContentRegionAvail()))
+        {
+            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthFixed, 320f);
+            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthFixed, 100f);
+            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthFixed, 100f);
+            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthFixed, 75f);
+            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 85f);
+            ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthFixed, 90f);
+            ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthFixed, 90f);
+            ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthFixed, 90f);
+            ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.WidthFixed, 90f);
+
+            ImGui.TableSetupScrollFreeze(1, 1);
             ImGui.TableHeadersRow();
 
             foreach (var node in cachedTree)
@@ -584,6 +588,10 @@ public static class PerformanceProfiler
         }
 
         var isOpen = ImGui.TreeNodeEx($"##Node_{node.Id}", flags, node.DisplayName);
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(node.Name);
+        }
 
         ImGui.TableNextColumn();
         ImGui.Text(FormatTime(node.InclusiveAvgFrameNs));
@@ -622,21 +630,26 @@ public static class PerformanceProfiler
 
     private static void RenderFlatHotspotsView()
     {
-        if (ImGui.BeginTable("profilerFlatTable", 9,
-                ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
-                ImGui.GetContentRegionAvail()))
-        {
-            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.2f);
-            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
-            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
-            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.7f);
-            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthStretch, 0.7f);
-            ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-            ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.WidthStretch, 1.0f);
+        var tableFlags = ImGuiTableFlags.Sortable |
+                         ImGuiTableFlags.Resizable |
+                         ImGuiTableFlags.ScrollX |
+                         ImGuiTableFlags.ScrollY |
+                         ImGuiTableFlags.Borders |
+                         ImGuiTableFlags.RowBg;
 
-            ImGui.TableSetupScrollFreeze(0, 1);
+        if (ImGui.BeginTable("profilerFlatTable", 9, tableFlags, ImGui.GetContentRegionAvail()))
+        {
+            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthFixed, 320f);
+            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthFixed, 100f);
+            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthFixed, 100f);
+            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthFixed, 75f);
+            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 85f);
+            ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthFixed, 90f);
+            ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthFixed, 90f);
+            ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthFixed, 90f);
+            ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.WidthFixed, 90f);
+
+            ImGui.TableSetupScrollFreeze(1, 1);
             ImGui.TableHeadersRow();
 
             var sortSpecs = ImGui.TableGetSortSpecs();
@@ -667,6 +680,10 @@ public static class PerformanceProfiler
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
                 ImGui.Text(row.Name);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(row.Name);
+                }
 
                 ImGui.TableNextColumn();
                 ImGui.Text(FormatTime(row.InclusiveAvgFrameNs));
