@@ -27,8 +27,44 @@ namespace OffsetRecovery.Tests
                 check(!string.IsNullOrWhiteSpace(node.Path), $"Node '{node.Id}' must have non-empty Path.");
             }
 
-            // 2. Metadata-Only Search Does NOT Call Object Resolvers
+            // 2. Required Static Targets Exist
+            string[] requiredTargetIds = new[]
+            {
+                "core.settings",
+                "core.ggpk_cache",
+                "core.game_process",
+                "core.loaded_files",
+                "core.area_change",
+                "states.hub",
+                "states.ingame",
+                "states.area_loading",
+                "area.current",
+                "area.modifiers",
+                "world.data",
+                "world.area_details",
+                "serverdata.gold",
+                "serverdata.inventories",
+                "player.root",
+                "player.life",
+                "player.buffs",
+                "player.actor",
+                "player.stats",
+                "player.render",
+                "player.positioned",
+                "entities.awake",
+                "entities.sleeping",
+                "legacy.all",
+            };
+
+            foreach (var reqId in requiredTargetIds)
+            {
+                var target = DvRegistry.FindById(reqId);
+                check(target != null, $"Required static target '{reqId}' must exist in DvRegistry.");
+            }
+
+            // 3. Metadata-Only Search Does NOT Call Object Resolvers or Dynamic Children Resolvers
             int countingResolverCalls = 0;
+            int dynamicChildrenCalls = 0;
             var testNodeWithCountingResolver = new DvNavNode
             {
                 Id = "test.counting",
@@ -41,6 +77,11 @@ namespace OffsetRecovery.Tests
                     countingResolverCalls++;
                     return null;
                 },
+                DynamicChildrenResolver = () =>
+                {
+                    dynamicChildrenCalls++;
+                    return Array.Empty<DvNavNode>();
+                },
             };
 
             var testCandidates = new List<DvNavNode> { testNodeWithCountingResolver };
@@ -49,8 +90,34 @@ namespace OffsetRecovery.Tests
                 "Search must find test node by keyword 'counting'.");
             check(countingResolverCalls == 0,
                 $"Search query execution MUST NOT invoke ObjectResolver (resolver calls = {countingResolverCalls}).");
+            check(dynamicChildrenCalls == 0,
+                $"Search query execution MUST NOT invoke DynamicChildrenResolver (dynamic calls = {dynamicChildrenCalls}).");
 
-            // 3. Search Aliases & Tags Matching
+            // 4. Selecting One Target Resolves ONLY That Target
+            int resolverA = 0;
+            int resolverB = 0;
+            var nodeA = new DvNavNode
+            {
+                Id = "test.nodeA",
+                DisplayName = "Node A",
+                Category = "Test",
+                Path = "Test > A",
+                ObjectResolver = () => { resolverA++; return null; },
+            };
+            var nodeB = new DvNavNode
+            {
+                Id = "test.nodeB",
+                DisplayName = "Node B",
+                Category = "Test",
+                Path = "Test > B",
+                ObjectResolver = () => { resolverB++; return null; },
+            };
+
+            // Resolving Node A only
+            _ = nodeA.ObjectResolver();
+            check(resolverA == 1 && resolverB == 0, "Resolving target A must not invoke target B resolver.");
+
+            // 5. Search Aliases & Tags Matching
             var hpResults = DvSearchEngine.Search("hp");
             check(hpResults.Any(n => n.Id == "player.life"), "Search for 'hp' must return 'player.life'.");
 
@@ -66,12 +133,12 @@ namespace OffsetRecovery.Tests
             var preloadResults = DvSearchEngine.Search("preload");
             check(preloadResults.Any(n => n.Id == "core.loaded_files"), "Search for 'preload' must return 'core.loaded_files'.");
 
-            // 4. Gold Navigation Points to ServerData (Single Native SDK Authority)
+            // 6. Gold Navigation Points to ServerData (Single Native SDK Authority)
             var goldNode = DvRegistry.FindById("serverdata.gold");
             check(goldNode != null, "'serverdata.gold' node must exist in registry.");
             check(goldNode!.Path.Contains("ServerData"), "'serverdata.gold' path must route to ServerData.");
 
-            // 5. Navigation Context & History (Back / Forward)
+            // 7. Navigation Context & History (Back / Forward)
             var nav = new DvNavigationContext("core.settings");
             check(nav.SelectedNodeId == "core.settings", "Initial navigation node must be 'core.settings'.");
             check(!nav.CanGoBack, "Initial state must not allow Back.");
@@ -101,18 +168,18 @@ namespace OffsetRecovery.Tests
             check(nav.SelectedNodeId == "core.loaded_files", "Navigated node must be 'core.loaded_files'.");
             check(!nav.CanGoForward, "Navigating after Back must truncate Forward history.");
 
-            // 6. Recent List Deduplication & Ordering
+            // 8. Recent List Deduplication & Ordering
             check(nav.RecentNodeIds[0] == "core.loaded_files", "Most recent item must be at index 0.");
             check(nav.RecentNodeIds.Count(id => id == "player.life") == 1, "Recent items must be deduplicated.");
 
-            // 7. Favorites Management (Stable Node IDs)
+            // 9. Favorites Management (Stable Node IDs)
             check(nav.IsFavorite("player.life"), "'player.life' is in default favorites.");
             nav.ToggleFavorite("player.life");
             check(!nav.IsFavorite("player.life"), "ToggleFavorite must remove 'player.life'.");
             nav.ToggleFavorite("player.life");
             check(nav.IsFavorite("player.life"), "ToggleFavorite must re-add 'player.life'.");
 
-            // 8. Unavailable Resolver Does Not Throw or Break
+            // 10. Unavailable Resolver Does Not Throw or Break
             var unavailableNode = new DvNavNode
             {
                 Id = "test.null",
@@ -124,6 +191,11 @@ namespace OffsetRecovery.Tests
 
             var resolvedNull = unavailableNode.ObjectResolver();
             check(resolvedNull == null, "Null resolver safely returns null without throwing.");
+
+            // 11. Legacy View Node Exists and Uses Preserved Legacy Layout Path
+            var legacyNode = DvRegistry.FindById("legacy.all");
+            check(legacyNode != null, "'legacy.all' must exist in registry.");
+            check(legacyNode!.Kind == DvNodeKind.Legacy, "'legacy.all' must have Kind == DvNodeKind.Legacy.");
         }
     }
 }

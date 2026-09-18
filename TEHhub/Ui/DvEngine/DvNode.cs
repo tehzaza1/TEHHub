@@ -23,6 +23,16 @@ namespace TEHhub.Ui.DvEngine
         CustomRenderer,
 
         /// <summary>
+        ///     Collection or container of child entities / elements.
+        /// </summary>
+        Container,
+
+        /// <summary>
+        ///     Executable command or action trigger.
+        /// </summary>
+        Action,
+
+        /// <summary>
         ///     Legacy view that renders the complete original DV hierarchy.
         /// </summary>
         Legacy,
@@ -75,6 +85,13 @@ namespace TEHhub.Ui.DvEngine
         ///     Gets the custom ImGui render delegate for non-RemoteObject targets.
         /// </summary>
         public Action? CustomRenderer { get; init; }
+
+        /// <summary>
+        ///     Gets the optional dynamic children resolver delegate.
+        ///     Must NEVER be invoked during search, indexing, or collapsed browse rendering.
+        ///     Invoked strictly upon explicit interaction or inspection.
+        /// </summary>
+        public Func<System.Collections.Generic.IReadOnlyList<DvNavNode>>? DynamicChildrenResolver { get; init; }
 
         /// <summary>
         ///     Gets an optional predicate indicating if the target is currently available in the active game state.

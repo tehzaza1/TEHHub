@@ -348,7 +348,7 @@ namespace TEHhub.Ui
                 return;
             }
 
-            if (node.Kind == DvNodeKind.CustomRenderer)
+            if (node.Kind == DvNodeKind.CustomRenderer || node.Kind == DvNodeKind.Container || node.Kind == DvNodeKind.Action)
             {
                 node.CustomRenderer?.Invoke();
                 return;
@@ -376,6 +376,49 @@ namespace TEHhub.Ui
         }
 
         /// <summary>
+        ///     Renders the settings content exactly as preserved from pre-DV-v2.
+        /// </summary>
+        internal static void RenderSettingsContent()
+        {
+            var fields = Core.GHSettings.GetType().GetFields().ToList();
+            for (var i = 0; i < fields.Count; i++)
+            {
+                var field = fields[i];
+                ImGui.Text($"{field.Name}: {field.GetValue(Core.GHSettings)}");
+            }
+
+            ImGui.Text($"Current Window Size:{Core.Overlay.Size}");
+            ImGui.Text($"Current Window Pos: {Core.Overlay.Position}");
+        }
+
+        /// <summary>
+        ///     Renders the game process and static addresses content exactly as preserved from pre-DV-v2.
+        /// </summary>
+        internal static void RenderGameProcessContent()
+        {
+            if (Core.Process.Address != IntPtr.Zero)
+            {
+                ImGuiHelper.IntPtrToImGui("Base Address", Core.Process.Address);
+                ImGui.Text($"Process: {Core.Process.Information}");
+                ImGui.Text($"WindowArea: {Core.Process.WindowArea}");
+                ImGui.Text($"Foreground: {Core.Process.Foreground}");
+                if (ImGui.TreeNode("Static Addresses"))
+                {
+                    foreach (var saddr in Core.Process.StaticAddresses)
+                    {
+                        ImGuiHelper.IntPtrToImGui(saddr.Key, saddr.Value);
+                    }
+
+                    ImGui.TreePop();
+                }
+            }
+            else
+            {
+                ImGui.Text("Game not found.");
+            }
+        }
+
+        /// <summary>
         ///     Renders the complete original legacy DV body.
         ///     Preserves 100% of the old layout, collapsing headers, reflection trees, and diagnostic tools.
         /// </summary>
@@ -383,40 +426,14 @@ namespace TEHhub.Ui
         {
             if (ImGui.CollapsingHeader("Settings"))
             {
-                var fields = Core.GHSettings.GetType().GetFields().ToList();
-                for (var i = 0; i < fields.Count; i++)
-                {
-                    var field = fields[i];
-                    ImGui.Text($"{field.Name}: {field.GetValue(Core.GHSettings)}");
-                }
-
-                ImGui.Text($"Current Window Size:{Core.Overlay.Size}");
-                ImGui.Text($"Current Window Pos: {Core.Overlay.Position}");
+                RenderSettingsContent();
             }
 
             Core.CacheImGui();
+
             if (ImGui.CollapsingHeader("Game Process"))
             {
-                if (Core.Process.Address != IntPtr.Zero)
-                {
-                    ImGuiHelper.IntPtrToImGui("Base Address", Core.Process.Address);
-                    ImGui.Text($"Process: {Core.Process.Information}");
-                    ImGui.Text($"WindowArea: {Core.Process.WindowArea}");
-                    ImGui.Text($"Foreground: {Core.Process.Foreground}");
-                    if (ImGui.TreeNode("Static Addresses"))
-                    {
-                        foreach (var saddr in Core.Process.StaticAddresses)
-                        {
-                            ImGuiHelper.IntPtrToImGui(saddr.Key, saddr.Value);
-                        }
-
-                        ImGui.TreePop();
-                    }
-                }
-                else
-                {
-                    ImGui.Text("Game not found.");
-                }
+                RenderGameProcessContent();
             }
 
             Core.RemoteObjectsToImGuiCollapsingHeader();
