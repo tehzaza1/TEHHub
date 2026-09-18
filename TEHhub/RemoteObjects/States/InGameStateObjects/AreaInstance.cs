@@ -186,28 +186,14 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public Utils.ExpeditionMechanics.ExpeditionConfig ExpeditionConfig => Utils.ExpeditionMechanics.GetConfig(this);
 
         /// <summary>
-        ///     Gets the active area / map modifiers from UI or ServerData.
+        ///     Gets the active area / map modifiers read from the game's UI hierarchy (with same-area last-known-good caching).
         /// </summary>
-        public IReadOnlyList<AreaMod> AreaMods
-        {
-            get
-            {
-                var uiMods = Core.States.InGameStateObject.GameUi.AreaMods;
-                return uiMods.Count > 0 ? uiMods : this.ServerDataObject.AreaMods;
-            }
-        }
+        public IReadOnlyList<AreaMod> AreaMods => Core.States.InGameStateObject.GameUi.AreaMods;
 
         /// <summary>
-        ///     Gets the set of active area / map modifier raw names from UI or ServerData.
+        ///     Gets the set of active area / map modifier display/raw names read from the game's UI hierarchy.
         /// </summary>
-        public HashSet<string> AreaModNames
-        {
-            get
-            {
-                var uiModNames = Core.States.InGameStateObject.GameUi.AreaModNames;
-                return uiModNames.Count > 0 ? uiModNames : this.ServerDataObject.AreaModNames;
-            }
-        }
+        public HashSet<string> AreaModNames => Core.States.InGameStateObject.GameUi.AreaModNames;
 
         /// <summary>
         ///     Checks if an active area modifier exists with a name containing <paramref name="modNameFragment"/> (case-insensitive).
@@ -221,11 +207,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            var mods = this.ServerDataObject.AreaMods;
+            var mods = this.AreaMods;
             for (var i = 0; i < mods.Count; i++)
             {
-                if (mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
-                    mods[i].DisplayName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase))
+                if (mods[i].DisplayName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
+                    mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -248,11 +234,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
-            var mods = this.ServerDataObject.AreaMods;
+            var mods = this.AreaMods;
             for (var i = 0; i < mods.Count; i++)
             {
-                if (mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
-                    mods[i].DisplayName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase))
+                if (mods[i].DisplayName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase) ||
+                    mods[i].RawName.Contains(modNameFragment, StringComparison.OrdinalIgnoreCase))
                 {
                     mod = mods[i];
                     return true;
