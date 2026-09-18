@@ -606,10 +606,10 @@ internal static class BottleneckTests
         // Buffs Component Zero-Allocation & Refresh Correctness Tests
         // =========================================================================
         TEHhub.RemoteObjects.Components.Buffs.ClearStaticCaches();
-        var synthBuffsBlock = Marshal.AllocHGlobal(16384);
+        var synthBuffsBlock = Marshal.AllocHGlobal(65536);
         try
         {
-            Marshal.Copy(new byte[16384], 0, synthBuffsBlock, 16384);
+            Marshal.Copy(new byte[65536], 0, synthBuffsBlock, 65536);
 
             var buffsComponentPtr = synthBuffsBlock + 0x0000;
             var ptrArray1 = synthBuffsBlock + 0x0300; // Array of IntPtrs to StatusEffects (2 buffs)
@@ -619,9 +619,10 @@ internal static class BottleneckTests
             var buffDef1 = synthBuffsBlock + 0x0A00;  // BuffDefinition 1
             var buffDef2 = synthBuffsBlock + 0x0B00;  // BuffDefinition 2
             var buffDef3 = synthBuffsBlock + 0x0C00;  // BuffDefinition 3 (Flask)
-            var nameStr1 = synthBuffsBlock + 0x0D00;  // Unicode "grace_period\0"
-            var nameStr2 = synthBuffsBlock + 0x0E00;  // Unicode "quick\0"
-            var nameStr3 = synthBuffsBlock + 0x0F00;  // Unicode "flask_quick\0"
+            var buffDef4 = synthBuffsBlock + 0x0D00;  // BuffDefinition 4 (Alternative grace_period)
+            var nameStr1 = synthBuffsBlock + 0x0E00;  // Unicode "grace_period\0"
+            var nameStr2 = synthBuffsBlock + 0x0F00;  // Unicode "quick\0"
+            var nameStr3 = synthBuffsBlock + 0x1000;  // Unicode "flask_quick\0"
 
             static void WriteUnicodeZ(IntPtr dest, string text)
             {
@@ -633,27 +634,37 @@ internal static class BottleneckTests
             WriteUnicodeZ(nameStr2, "quick");
             WriteUnicodeZ(nameStr3, "flask_quick");
 
-            // BuffDefinitions 1, 2 & 3 (NamePtr at +0x00, BuffType at +0x67)
+            // BuffDefinitions 1, 2, 3 & 4 (NamePtr at +0x00, BuffType at +0x67)
             Marshal.WriteIntPtr(buffDef1 + 0x00, nameStr1);
             Marshal.WriteByte(buffDef1 + 0x67, 0); // BuffType = 0
             Marshal.WriteIntPtr(buffDef2 + 0x00, nameStr2);
             Marshal.WriteByte(buffDef2 + 0x67, 0);
             Marshal.WriteIntPtr(buffDef3 + 0x00, nameStr3);
             Marshal.WriteByte(buffDef3 + 0x67, 4); // BuffType = 4 (Flask)
+            Marshal.WriteIntPtr(buffDef4 + 0x00, nameStr1); // Same name "grace_period", different address
+            Marshal.WriteByte(buffDef4 + 0x67, 0);
 
             // StatusEffectStruct 1 ("grace_period")
             Marshal.WriteIntPtr(se1Ptr + 0x08, buffDef1);
             Marshal.StructureToPtr(10.0f, se1Ptr + 0x18, false); // TotalTime
             Marshal.StructureToPtr(8.5f, se1Ptr + 0x1C, false);  // TimeLeft
-            Marshal.WriteInt16(se1Ptr + 0x40, 1);                 // Charges = 1
-            Marshal.WriteInt16(se1Ptr + 0x42, -1);                // FlaskSlot = -1
+            Marshal.WriteInt32(se1Ptr + 0x28, 100);              // SourceEntityId = 100
+            Marshal.WriteInt32(se1Ptr + 0x2C, 0);                // RawStage = 0
+            Marshal.WriteInt16(se1Ptr + 0x40, 1);                // Charges = 1
+            Marshal.WriteInt16(se1Ptr + 0x42, -1);               // FlaskSlot = -1
+            Marshal.WriteInt16(se1Ptr + 0x48, 0);                // Effectiveness = 0
+            Marshal.WriteInt32(se1Ptr + 0x4A, 0);                // UnknownIdAndEquipmentInfo = 0
 
             // StatusEffectStruct 2 ("quick")
             Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef2);
             Marshal.StructureToPtr(5.0f, se2Ptr + 0x18, false); // TotalTime
             Marshal.StructureToPtr(3.0f, se2Ptr + 0x1C, false); // TimeLeft
+            Marshal.WriteInt32(se2Ptr + 0x28, 100);             // SourceEntityId = 100
+            Marshal.WriteInt32(se2Ptr + 0x2C, 0);
             Marshal.WriteInt16(se2Ptr + 0x40, 1);                // Charges = 1
             Marshal.WriteInt16(se2Ptr + 0x42, -1);
+            Marshal.WriteInt16(se2Ptr + 0x48, 0);
+            Marshal.WriteInt32(se2Ptr + 0x4A, 0);
 
             // ptrArray1: holds [se1Ptr, se2Ptr]
             Marshal.WriteIntPtr(ptrArray1 + 0, se1Ptr);
@@ -680,11 +691,57 @@ internal static class BottleneckTests
             check(buffs.StatusEffects.Count == 2, "StatusEffects count matches active count (2)");
             check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 8.5f) < 0.01f, "StatusEffect TimeLeft parsed accurately");
 
-            // 2. Changed buff values replace old values in-place
-            Marshal.StructureToPtr(4.2f, se1Ptr + 0x1C, false); // Update TimeLeft on grace_period
+            // 2. Comprehensive field-by-field mutation tests (verifies no stale data in StatusEffectStruct)
+            // 2a. TotalTime mutation
+            Marshal.StructureToPtr(25.0f, se1Ptr + 0x18, false);
             buffs.RefreshDataNow();
-            check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 4.2f) < 0.01f, "Changed buff values replace old values correctly");
-            check(buffs.StatusEffects.Count == 2, "StatusEffects count remains 2 after in-place value update");
+            check(Math.Abs(buffs.StatusEffects["grace_period"].TotalTime - 25.0f) < 0.01f, "StatusEffectStruct.TotalTime updated correctly");
+
+            // 2b. TimeLeft mutation
+            Marshal.StructureToPtr(4.2f, se1Ptr + 0x1C, false);
+            buffs.RefreshDataNow();
+            check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 4.2f) < 0.01f, "StatusEffectStruct.TimeLeft updated correctly");
+
+            // 2c. SourceEntityId mutation
+            Marshal.WriteInt32(se1Ptr + 0x28, 99999);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects["grace_period"].SourceEntityId == 99999, "StatusEffectStruct.SourceEntityId updated correctly");
+
+            // 2d. RawStage mutation
+            Marshal.WriteInt32(se1Ptr + 0x2C, 7);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects["grace_period"].RawStage == 7, "StatusEffectStruct.RawStage updated correctly");
+
+            // 2e. Charges mutation
+            Marshal.WriteInt16(se1Ptr + 0x40, 5);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects["grace_period"].Charges == 5, "StatusEffectStruct.Charges updated correctly");
+
+            // 2f. Effectiveness mutation
+            Marshal.WriteInt16(se1Ptr + 0x48, 65);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects["grace_period"].Effectiveness == 65, "StatusEffectStruct.Effectiveness updated correctly");
+
+            // 2g. UnknownIdAndEquipmentInfo mutation (equipment info bits changed, skillGemId kept 0)
+            Marshal.WriteInt32(se1Ptr + 0x4A, 0x00001234);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects["grace_period"].UnknownIdAndEquipmentInfo == 0x00001234, "StatusEffectStruct.UnknownIdAndEquipmentInfo updated correctly");
+
+            // 2h. BuffDefinationPtr mutation
+            Marshal.WriteIntPtr(se1Ptr + 0x08, buffDef4);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects["grace_period"].BuffDefinationPtr == buffDef4, "StatusEffectStruct.BuffDefinationPtr updated correctly");
+
+            // Restore se1 fields to clean test baseline
+            Marshal.WriteIntPtr(se1Ptr + 0x08, buffDef1);
+            Marshal.StructureToPtr(10.0f, se1Ptr + 0x18, false);
+            Marshal.StructureToPtr(8.5f, se1Ptr + 0x1C, false);
+            Marshal.WriteInt32(se1Ptr + 0x28, 100);
+            Marshal.WriteInt32(se1Ptr + 0x2C, 0);
+            Marshal.WriteInt16(se1Ptr + 0x40, 1);
+            Marshal.WriteInt16(se1Ptr + 0x48, 0);
+            Marshal.WriteInt32(se1Ptr + 0x4A, 0);
+            buffs.RefreshDataNow();
 
             // 3. Removed buff disappears correctly on next update
             var vec1 = new TEHhub.Offsets.Natives.StdVector
@@ -721,9 +778,9 @@ internal static class BottleneckTests
 
             // 6. Skill gem buff key formatting and flask slot tracking
             Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef3);
-            Marshal.WriteInt32(se2Ptr + 0x28, unchecked((int)uint.MaxValue)); // SourceEntityId matches playerId (uint.MaxValue)
-            Marshal.WriteInt16(se2Ptr + 0x42, 2);                              // FlaskSlot = 2
-            Marshal.WriteInt32(se2Ptr + 0x4A, 0x00AB0000);                     // SkillGemUnknownId = 0xAB
+            Marshal.WriteInt32(se2Ptr + 0x28, 0);          // SourceEntityId matches playerId (0 in test environment)
+            Marshal.WriteInt16(se2Ptr + 0x42, 2);          // FlaskSlot = 2
+            Marshal.WriteInt32(se2Ptr + 0x4A, 0x00AB0000); // SkillGemUnknownId = 0xAB
             buffs.RefreshDataNow();
             check(buffs.StatusEffects.ContainsKey("flask_quick_AB"), "Skill gem buff produces identical formatted key 'flask_quick_AB'");
             check(!buffs.StatusEffects.ContainsKey("quick"), "Old buff replaced by 'flask_quick_AB'");
@@ -771,6 +828,169 @@ internal static class BottleneckTests
             var allocAfter = GC.GetAllocatedBytesForCurrentThread();
             var allocPerCall = (allocAfter - allocBefore) / 100;
             check(allocPerCall <= 8, $"Buffs.UpdateData steady-state average allocation is <= 8 bytes (measured: {allocPerCall} B/call)");
+
+            // 9. Benchmark & Workload Analysis (Workload A: Unchanged Steady State vs Workload B: Changing TimeLeft)
+            const int BenchBuffCount = 25;
+            const int BenchIterations = 1000;
+            var benchVecPtr = synthBuffsBlock + 0x2000;
+            var benchSeBlock = synthBuffsBlock + 0x3000;
+            var benchDefBlock = synthBuffsBlock + 0x6000;
+            var benchNameBlock = synthBuffsBlock + 0x8000;
+
+            for (var b = 0; b < BenchBuffCount; b++)
+            {
+                var curNamePtr = benchNameBlock + (b * 64);
+                var curDefPtr = benchDefBlock + (b * 128);
+                var curSePtr = benchSeBlock + (b * 128);
+
+                WriteUnicodeZ(curNamePtr, $"buff_effect_{b}");
+                Marshal.WriteIntPtr(curDefPtr + 0x00, curNamePtr);
+                Marshal.WriteByte(curDefPtr + 0x67, (byte)(b % 2 == 0 ? 0 : 4));
+
+                Marshal.WriteIntPtr(curSePtr + 0x08, curDefPtr);
+                Marshal.StructureToPtr(30.0f, curSePtr + 0x18, false);
+                Marshal.StructureToPtr(15.0f, curSePtr + 0x1C, false);
+                Marshal.WriteInt32(curSePtr + 0x28, 0);
+                Marshal.WriteInt32(curSePtr + 0x2C, b);
+                Marshal.WriteInt16(curSePtr + 0x40, 1);
+                Marshal.WriteInt16(curSePtr + 0x42, (short)(b % 5));
+                Marshal.WriteInt16(curSePtr + 0x48, (short)(b * 2));
+                Marshal.WriteInt32(curSePtr + 0x4A, 0);
+
+                Marshal.WriteIntPtr(benchVecPtr + (b * IntPtr.Size), curSePtr);
+            }
+
+            var benchVector = new TEHhub.Offsets.Natives.StdVector
+            {
+                First = benchVecPtr,
+                Last = benchVecPtr + (BenchBuffCount * IntPtr.Size),
+                End = benchVecPtr + (BenchBuffCount * IntPtr.Size),
+            };
+            Marshal.StructureToPtr(benchVector, buffsComponentPtr + 0x160, false);
+
+            // Workload A: Unchanged Steady State
+            for (var w = 0; w < 50; w++) buffs.RefreshDataNow();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            buffs.RefreshDataNow();
+
+            var allocWorkloadABefore = GC.GetAllocatedBytesForCurrentThread();
+            var swA = Stopwatch.StartNew();
+            for (var i = 0; i < BenchIterations; i++)
+            {
+                buffs.RefreshDataNow();
+            }
+            swA.Stop();
+            var allocWorkloadAAfter = GC.GetAllocatedBytesForCurrentThread();
+            var allocWorkloadAPerCall = (allocWorkloadAAfter - allocWorkloadABefore) / BenchIterations;
+            var timeNsWorkloadAPerCall = (swA.Elapsed.TotalNanoseconds) / BenchIterations;
+
+            check(allocWorkloadAPerCall <= 8, $"Workload A allocated bytes <= 8 bytes/call (measured: {allocWorkloadAPerCall} B/call)");
+            check(buffs.StatusEffects.Count == BenchBuffCount, $"Workload A populated all {BenchBuffCount} status effects");
+
+            // Workload B: Changing TimeLeft Steady State (Timer decrements on every frame)
+            for (var w = 0; w < 50; w++) buffs.RefreshDataNow();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            buffs.RefreshDataNow();
+
+            var allocWorkloadBBefore = GC.GetAllocatedBytesForCurrentThread();
+            var swB = Stopwatch.StartNew();
+            unsafe
+            {
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    var newTime = 15.0f - (i * 0.01f);
+                    for (var b = 0; b < BenchBuffCount; b++)
+                    {
+                        *(float*)(benchSeBlock + (b * 128) + 0x1C) = newTime;
+                    }
+                    buffs.RefreshDataNow();
+                }
+            }
+            swB.Stop();
+            var allocWorkloadBAfter = GC.GetAllocatedBytesForCurrentThread();
+            var allocWorkloadBPerCall = (allocWorkloadBAfter - allocWorkloadBBefore) / BenchIterations;
+            var timeNsWorkloadBPerCall = (swB.Elapsed.TotalNanoseconds) / BenchIterations;
+
+            check(buffs.StatusEffects.Count == BenchBuffCount, $"Workload B populated all {BenchBuffCount} status effects");
+            check(Math.Abs(buffs.StatusEffects["buff_effect_0"].TimeLeft - (15.0f - ((BenchIterations - 1) * 0.01f))) < 0.01f, "Workload B updated TimeLeft accurately on all iterations");
+
+            // Compare Old-equivalent execution
+            var oldDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>();
+            var handle = TEHhub.Core.Process.Handle;
+
+            // Warm up Old-equivalent
+            for (var w = 0; w < 50; w++)
+            {
+                oldDict.Clear();
+                for (var b = 0; b < BenchBuffCount; b++)
+                {
+                    var se = handle.ReadMemory<TEHhub.Offsets.Objects.Components.StatusEffectStruct>(benchSeBlock + (b * 128));
+                    var name = $"buff_effect_{b}";
+                    oldDict.AddOrUpdate(name, static (_, incoming) => incoming, static (_, _, incoming) => incoming, se);
+                }
+            }
+
+            // Old Workload A
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            var allocOldABefore = GC.GetAllocatedBytesForCurrentThread();
+            var swOldA = Stopwatch.StartNew();
+            for (var i = 0; i < BenchIterations; i++)
+            {
+                oldDict.Clear();
+                for (var b = 0; b < BenchBuffCount; b++)
+                {
+                    var se = handle.ReadMemory<TEHhub.Offsets.Objects.Components.StatusEffectStruct>(benchSeBlock + (b * 128));
+                    var name = $"buff_effect_{b}";
+                    oldDict.AddOrUpdate(name, static (_, incoming) => incoming, static (_, _, incoming) => incoming, se);
+                }
+            }
+            swOldA.Stop();
+            var allocOldAAfter = GC.GetAllocatedBytesForCurrentThread();
+            var allocOldAPerCall = (allocOldAAfter - allocOldABefore) / BenchIterations;
+            var timeNsOldAPerCall = swOldA.Elapsed.TotalNanoseconds / BenchIterations;
+
+            // Old Workload B (changing TimeLeft)
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            var allocOldBBefore = GC.GetAllocatedBytesForCurrentThread();
+            var swOldB = Stopwatch.StartNew();
+            unsafe
+            {
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    var newTime = 15.0f - (i * 0.01f);
+                    for (var b = 0; b < BenchBuffCount; b++)
+                    {
+                        *(float*)(benchSeBlock + (b * 128) + 0x1C) = newTime;
+                    }
+                    oldDict.Clear();
+                    for (var b = 0; b < BenchBuffCount; b++)
+                    {
+                        var se = handle.ReadMemory<TEHhub.Offsets.Objects.Components.StatusEffectStruct>(benchSeBlock + (b * 128));
+                        var name = $"buff_effect_{b}";
+                        oldDict.AddOrUpdate(name, static (_, incoming) => incoming, static (_, _, incoming) => incoming, se);
+                    }
+                }
+            }
+            swOldB.Stop();
+            var allocOldBAfter = GC.GetAllocatedBytesForCurrentThread();
+            var allocOldBPerCall = (allocOldBAfter - allocOldBBefore) / BenchIterations;
+            var timeNsOldBPerCall = swOldB.Elapsed.TotalNanoseconds / BenchIterations;
+
+            Console.WriteLine($"--- Buffs Performance Comparison (Active Buffs: {BenchBuffCount}, Iterations: {BenchIterations}) ---");
+            Console.WriteLine($"Workload A (Unchanged Steady State):");
+            Console.WriteLine($"  OLD:      {timeNsOldAPerCall:F2} ns/call, {allocOldAPerCall} B/call");
+            Console.WriteLine($"  PROPOSED: {timeNsWorkloadAPerCall:F2} ns/call, {allocWorkloadAPerCall} B/call");
+            Console.WriteLine($"Workload B (Changing TimeLeft Every Refresh):");
+            Console.WriteLine($"  OLD:      {timeNsOldBPerCall:F2} ns/call, {allocOldBPerCall} B/call");
+            Console.WriteLine($"  PROPOSED: {timeNsWorkloadBPerCall:F2} ns/call, {allocWorkloadBPerCall} B/call");
         }
         finally
         {

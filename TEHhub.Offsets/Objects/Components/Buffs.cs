@@ -1,6 +1,7 @@
 namespace TEHhub.Offsets.Objects.Components
 {
     using System;
+    using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
     using Natives;
 
@@ -12,7 +13,7 @@ namespace TEHhub.Offsets.Objects.Components
     }
 
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
-    public struct StatusEffectStruct
+    public struct StatusEffectStruct : IEquatable<StatusEffectStruct>
     {
         [FieldOffset(0x0008)] public IntPtr BuffDefinationPtr; //// BuffDefination.DAT file
         [FieldOffset(0x0018)] public float TotalTime;
@@ -30,6 +31,38 @@ namespace TEHhub.Offsets.Objects.Components
         [FieldOffset(0x48)] public short Effectiveness; // read Withering Step skill gem buff
         //[FieldOffset(0x0044)] public short PAD_0x44;
         [FieldOffset(0x4A)] public uint UnknownIdAndEquipmentInfo; // same as in Actor.cs offset file -> ActiveSkillDetails struct.
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(StatusEffectStruct other)
+        {
+            return this.BuffDefinationPtr == other.BuffDefinationPtr &&
+                   this.TotalTime == other.TotalTime &&
+                   this.TimeLeft == other.TimeLeft &&
+                   this.SourceEntityId == other.SourceEntityId &&
+                   this.RawStage == other.RawStage &&
+                   this.Charges == other.Charges &&
+                   this.FlaskSlot == other.FlaskSlot &&
+                   this.Effectiveness == other.Effectiveness &&
+                   this.UnknownIdAndEquipmentInfo == other.UnknownIdAndEquipmentInfo;
+        }
+
+        public override bool Equals(object? obj) => obj is StatusEffectStruct other && this.Equals(other);
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                this.BuffDefinationPtr,
+                this.TotalTime,
+                this.TimeLeft,
+                this.SourceEntityId,
+                this.RawStage,
+                this.Charges,
+                this.FlaskSlot,
+                HashCode.Combine(this.Effectiveness, this.UnknownIdAndEquipmentInfo));
+        }
+
+        public static bool operator ==(StatusEffectStruct left, StatusEffectStruct right) => left.Equals(right);
+        public static bool operator !=(StatusEffectStruct left, StatusEffectStruct right) => !left.Equals(right);
 
         public override string ToString()
         {

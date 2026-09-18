@@ -141,19 +141,17 @@ namespace TEHhub.RemoteObjects.Components
                 return;
             }
 
-            // F-129: snapshot the 4-level Player.Id chain once without throwing NRE.
-            uint playerId = uint.MaxValue;
+            // F-129: snapshot the 4-level Player.Id chain once. Each access goes
+            // through RemoteObjectBase.Address.get (a lock); re-traversing per-loop
+            // is both costly and racy during state transitions. NRE during the
+            // chain -> playerId stays uint.MaxValue, all flask matches fail
+            // (statusEffectData.SourceEntityId is uint, max value is unreachable).
+            uint playerId;
             try
             {
-                var inGame = Core.States?.InGameStateObject;
-                var area = inGame?.CurrentAreaInstance;
-                var player = area?.Player;
-                if (player != null && player.Address != IntPtr.Zero)
-                {
-                    playerId = player.Id;
-                }
+                playerId = Core.States.InGameStateObject.CurrentAreaInstance.Player.Id;
             }
-            catch
+            catch (NullReferenceException)
             {
                 playerId = uint.MaxValue;
             }
@@ -212,41 +210,39 @@ namespace TEHhub.RemoteObjects.Components
                     effectName = combinedName;
                 }
 
-                if (scratch.TryGetValue(effectName, out var existing))
+                ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(scratch, effectName, out var exists);
+                if (exists)
                 {
                     var incomingStacks = statusEffectData.Charges > 0 ? statusEffectData.Charges : (short)1;
-                    statusEffectData.Charges = (short)(existing.Charges + incomingStacks);
-                    statusEffectData.TimeLeft = Math.Max(existing.TimeLeft, statusEffectData.TimeLeft);
-                    scratch[effectName] = statusEffectData;
+                    statusEffectData.Charges = (short)(entry.Charges + incomingStacks);
+                    statusEffectData.TimeLeft = Math.Max(entry.TimeLeft, statusEffectData.TimeLeft);
+                    entry = statusEffectData;
                 }
                 else
                 {
-                    scratch[effectName] = statusEffectData;
+                    entry = statusEffectData;
                 }
             }
 
             // In-place update: update/add active status effects without unnecessary ConcurrentDictionary writes.
+            var hasNewKeys = false;
             foreach (var kv in scratch)
             {
                 var key = kv.Key;
                 var value = kv.Value;
-                if (!this.StatusEffects.TryGetValue(key, out var currentVal) ||
-                    currentVal.TimeLeft != value.TimeLeft ||
-                    currentVal.Charges != value.Charges ||
-                    currentVal.RawStage != value.RawStage ||
-                    currentVal.FlaskSlot != value.FlaskSlot ||
-                    currentVal.Effectiveness != value.Effectiveness ||
-                    currentVal.TotalTime != value.TotalTime ||
-                    currentVal.SourceEntityId != value.SourceEntityId ||
-                    currentVal.BuffDefinationPtr != value.BuffDefinationPtr ||
-                    currentVal.UnknownIdAndEquipmentInfo != value.UnknownIdAndEquipmentInfo)
+                if (!this.StatusEffects.TryGetValue(key, out var currentVal))
+                {
+                    hasNewKeys = true;
+                    this.StatusEffects[key] = value;
+                }
+                else if (!currentVal.Equals(value))
                 {
                     this.StatusEffects[key] = value;
                 }
             }
 
             // In-place removal: prune expired status effects without full dictionary churn.
-            if (this.StatusEffects.Count != scratch.Count)
+            if (hasNewKeys || this.StatusEffects.Count != scratch.Count)
             {
                 var staleKeys = threadLocalStaleKeys ??= new List<string>(16);
                 staleKeys.Clear();
