@@ -17,6 +17,33 @@ public sealed class OffsetDoctorGuiController
     private readonly OffsetWatchEngine _watchEngine = new();
     private readonly object _operationLock = new();
 
+    public bool TryBeginOperation(OffsetDoctorGuiModel model, string operationStatus)
+    {
+        lock (_operationLock)
+        {
+            if (model.IsBusy)
+            {
+                model.ErrorMessage = "An operation is already in progress. Please wait.";
+                return false;
+            }
+
+            model.IsBusy = true;
+            model.OperationStatus = operationStatus;
+            model.ErrorMessage = null;
+            model.NoticeMessage = null;
+            return true;
+        }
+    }
+
+    public void EndOperation(OffsetDoctorGuiModel model, string status = "Ready")
+    {
+        lock (_operationLock)
+        {
+            model.IsBusy = false;
+            model.OperationStatus = status;
+        }
+    }
+
     public bool TryBuildGroundTruth(OffsetDoctorGuiModel model, out ValidationGroundTruth? groundTruth, out string? errorMessage)
     {
         errorMessage = null;
@@ -81,14 +108,15 @@ public sealed class OffsetDoctorGuiController
 
     public bool ValidateNow(IProcessMemoryReader reader, OffsetDoctorGuiModel model)
     {
+        bool ownsGate = false;
         lock (_operationLock)
         {
-            if (model.IsBusy)
+            if (!model.IsBusy)
             {
-                model.ErrorMessage = "An operation is already in progress. Please wait.";
-                return false;
+                model.IsBusy = true;
+                model.OperationStatus = "Validating memory offsets...";
+                ownsGate = true;
             }
-            model.IsBusy = true;
         }
 
         model.ErrorMessage = null;
@@ -97,14 +125,12 @@ public sealed class OffsetDoctorGuiController
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-            lock (_operationLock) { model.IsBusy = false; }
+            if (ownsGate) EndOperation(model);
             return false;
         }
 
         try
         {
-            model.OperationStatus = "Validating memory offsets...";
-
             var report = _recoveryEngine.RunValidation(reader, gt);
             PopulateRowsFromReport(report, model);
 
@@ -120,10 +146,9 @@ public sealed class OffsetDoctorGuiController
         }
         finally
         {
-            lock (_operationLock)
+            if (ownsGate)
             {
-                model.IsBusy = false;
-                model.OperationStatus = "Ready";
+                EndOperation(model);
             }
         }
     }
@@ -136,14 +161,15 @@ public sealed class OffsetDoctorGuiController
         string? targetFilter = null,
         CancellationToken cancellationToken = default)
     {
+        bool ownsGate = false;
         lock (_operationLock)
         {
-            if (model.IsBusy)
+            if (!model.IsBusy)
             {
-                model.ErrorMessage = "An operation is already in progress. Please wait.";
-                return false;
+                model.IsBusy = true;
+                model.OperationStatus = "Watching UI targets...";
+                ownsGate = true;
             }
-            model.IsBusy = true;
         }
 
         model.ErrorMessage = null;
@@ -152,7 +178,7 @@ public sealed class OffsetDoctorGuiController
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-            lock (_operationLock) { model.IsBusy = false; }
+            if (ownsGate) EndOperation(model);
             return false;
         }
 
@@ -198,24 +224,24 @@ public sealed class OffsetDoctorGuiController
         }
         finally
         {
-            lock (_operationLock)
+            if (ownsGate)
             {
-                model.IsBusy = false;
-                model.OperationStatus = "Ready";
+                EndOperation(model);
             }
         }
     }
 
     public bool CaptureBaseline(IProcessMemoryReader reader, OffsetDoctorGuiModel model, string? outputPath = null)
     {
+        bool ownsGate = false;
         lock (_operationLock)
         {
-            if (model.IsBusy)
+            if (!model.IsBusy)
             {
-                model.ErrorMessage = "An operation is already in progress. Please wait.";
-                return false;
+                model.IsBusy = true;
+                model.OperationStatus = "Capturing baseline snapshot...";
+                ownsGate = true;
             }
-            model.IsBusy = true;
         }
 
         model.ErrorMessage = null;
@@ -224,18 +250,16 @@ public sealed class OffsetDoctorGuiController
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-            lock (_operationLock) { model.IsBusy = false; }
+            if (ownsGate) EndOperation(model);
             return false;
         }
 
         var targetPath = !string.IsNullOrWhiteSpace(outputPath) ? outputPath.Trim() :
                          !string.IsNullOrWhiteSpace(model.BaselinePathInput) ? model.BaselinePathInput.Trim() :
-                         "offsetdoctor-baseline.json";
+                         BaselineSnapshot.GetDefaultBaselinePath();
 
         try
         {
-            model.OperationStatus = "Capturing baseline snapshot...";
-
             var snapshot = _captureEngine.Capture(reader, gt);
             BaselineSnapshot.SaveToFile(snapshot, targetPath);
 
@@ -255,24 +279,24 @@ public sealed class OffsetDoctorGuiController
         }
         finally
         {
-            lock (_operationLock)
+            if (ownsGate)
             {
-                model.IsBusy = false;
-                model.OperationStatus = "Ready";
+                EndOperation(model);
             }
         }
     }
 
     public bool CompareBaseline(IProcessMemoryReader reader, OffsetDoctorGuiModel model, string? inputPath = null)
     {
+        bool ownsGate = false;
         lock (_operationLock)
         {
-            if (model.IsBusy)
+            if (!model.IsBusy)
             {
-                model.ErrorMessage = "An operation is already in progress. Please wait.";
-                return false;
+                model.IsBusy = true;
+                model.OperationStatus = "Comparing memory against baseline...";
+                ownsGate = true;
             }
-            model.IsBusy = true;
         }
 
         model.ErrorMessage = null;
@@ -281,18 +305,16 @@ public sealed class OffsetDoctorGuiController
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-            lock (_operationLock) { model.IsBusy = false; }
+            if (ownsGate) EndOperation(model);
             return false;
         }
 
         var sourcePath = !string.IsNullOrWhiteSpace(inputPath) ? inputPath.Trim() :
                          !string.IsNullOrWhiteSpace(model.BaselinePathInput) ? model.BaselinePathInput.Trim() :
-                         "offsetdoctor-baseline.json";
+                         BaselineSnapshot.GetDefaultBaselinePath();
 
         try
         {
-            model.OperationStatus = "Comparing memory against baseline...";
-
             if (!File.Exists(sourcePath))
             {
                 model.ErrorMessage = $"Baseline file '{sourcePath}' does not exist.";
@@ -330,10 +352,9 @@ public sealed class OffsetDoctorGuiController
         }
         finally
         {
-            lock (_operationLock)
+            if (ownsGate)
             {
-                model.IsBusy = false;
-                model.OperationStatus = "Ready";
+                EndOperation(model);
             }
         }
     }

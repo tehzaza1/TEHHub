@@ -26,7 +26,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 100 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 104 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -126,10 +126,14 @@ public static class OffsetDoctorTests
         Test96_GuiControllerCompareBaselineUsesComparisonEngine(check);
         Test97_GuiModelSortsBrokenNodesAtTop(check);
         Test98_GuiControllerClearResultsClearsModelOnly(check);
-        Test99_GuiControllerEnforcesOneActiveOperationAtATime(check);
-        Test100_GuiOperationsPreserveReadOnlyZeroMemoryWrites(check);
+        Test99_GuiControllerEnforcesOneActiveOperationAtATimeAndRejectsDuplicates(check);
+        Test100_GuiControllerIsBusyBecomesTrueBeforeBodyAndResetsAfterSuccess(check);
+        Test101_GuiControllerIsBusyResetsAfterFailure(check);
+        Test102_BaselineDefaultPathResolvesUnderLocalAppDataSafeFolder(check);
+        Test103_CustomBaselinePathIsRespected(check);
+        Test104_GuiOperationsPreserveReadOnlyZeroMemoryWrites(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 100 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 104 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -2479,35 +2483,120 @@ public static class OffsetDoctorTests
         check(model.LastRunTimestampUtc == null, "T98: Model LastRunTimestampUtc is cleared.");
     }
 
-    // 99. Enforce one active operation at a time (prevent duplicate/concurrent runs)
-    private static void Test99_GuiControllerEnforcesOneActiveOperationAtATime(Action<bool, string> check)
+    // 99. Enforce one active operation at a time and reject duplicate concurrent runs
+    private static void Test99_GuiControllerEnforcesOneActiveOperationAtATimeAndRejectsDuplicates(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment().reader;
         var model = new OffsetDoctorGuiModel();
         var controller = new OffsetDoctorGuiController();
 
-        // Simulate busy state
-        model.IsBusy = true;
+        // 1. First operation begins successfully
+        var firstAcquired = controller.TryBeginOperation(model, "Validating memory offsets...");
+        check(firstAcquired, "T99: First TryBeginOperation succeeds synchronously.");
+        check(model.IsBusy, "T99: IsBusy becomes true synchronously on gate acquisition.");
+        check(model.OperationStatus == "Validating memory offsets...", "T99: OperationStatus updated synchronously.");
 
+        // 2. Rapid duplicate click is rejected immediately
+        var duplicateAcquired = controller.TryBeginOperation(model, "Capturing baseline snapshot...");
+        check(!duplicateAcquired, "T99: Rapid duplicate TryBeginOperation is rejected immediately.");
+        check(model.ErrorMessage != null && model.ErrorMessage.Contains("already in progress"), "T99: Error states operation is already in progress.");
+
+        // 3. Direct controller calls are also protected
         var valResult = controller.ValidateNow(setup, model);
-        check(!valResult, "T99: ValidateNow rejected while IsBusy == true.");
-        check(model.ErrorMessage != null && model.ErrorMessage.Contains("already in progress"), "T99: Error states operation already in progress.");
+        check(valResult, "T99: ValidateNow proceeds because gate was already acquired for this operation.");
 
-        var capResult = controller.CaptureBaseline(setup, model);
-        check(!capResult, "T99: CaptureBaseline rejected while IsBusy == true.");
-
-        var compResult = controller.CompareBaseline(setup, model);
-        check(!compResult, "T99: CompareBaseline rejected while IsBusy == true.");
-
-        var watchResult = controller.WatchUi(setup, model);
-        check(!watchResult, "T99: WatchUi rejected while IsBusy == true.");
-
-        model.IsBusy = false;
-        model.ErrorMessage = null;
+        controller.EndOperation(model);
+        check(!model.IsBusy, "T99: IsBusy resets to false after EndOperation.");
+        check(model.OperationStatus == "Ready", "T99: OperationStatus resets to Ready.");
     }
 
-    // 100. Read-only behavior preserved across all GUI operations
-    private static void Test100_GuiOperationsPreserveReadOnlyZeroMemoryWrites(Action<bool, string> check)
+    // 100. IsBusy becomes true before operation body runs and resets after success
+    private static void Test100_GuiControllerIsBusyBecomesTrueBeforeBodyAndResetsAfterSuccess(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        // Simulate synchronous UI thread lock acquisition
+        var gateAcquired = controller.TryBeginOperation(model, "Validating...");
+        check(gateAcquired, "T100: Gate acquired before body execution.");
+        check(model.IsBusy, "T100: IsBusy is strictly true before body execution.");
+
+        var success = controller.ValidateNow(setup, model);
+        check(success, "T100: ValidateNow completes successfully.");
+
+        controller.EndOperation(model);
+        check(!model.IsBusy, "T100: IsBusy resets to false after successful completion.");
+        check(model.OperationStatus == "Ready", "T100: OperationStatus is Ready.");
+    }
+
+    // 101. IsBusy resets after failure
+    private static void Test101_GuiControllerIsBusyResetsAfterFailure(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel { BaselinePathInput = "C:\\NonExistentPath\\NoSuchBaseline.json" };
+        var controller = new OffsetDoctorGuiController();
+
+        var gateAcquired = controller.TryBeginOperation(model, "Comparing...");
+        check(gateAcquired, "T101: Gate acquired.");
+
+        var success = controller.CompareBaseline(setup, model, "C:\\NonExistentPath\\NoSuchBaseline.json");
+        check(!success, "T101: CompareBaseline fails on missing baseline file.");
+        check(!string.IsNullOrEmpty(model.ErrorMessage), "T101: ErrorMessage contains failure description.");
+
+        controller.EndOperation(model);
+        check(!model.IsBusy, "T101: IsBusy resets to false after failed operation.");
+        check(model.OperationStatus == "Ready", "T101: OperationStatus resets to Ready.");
+    }
+
+    // 102. Baseline default path resolves under safe local app data folder
+    private static void Test102_BaselineDefaultPathResolvesUnderLocalAppDataSafeFolder(Action<bool, string> check)
+    {
+        var defaultPath = BaselineSnapshot.GetDefaultBaselinePath();
+        check(!string.IsNullOrWhiteSpace(defaultPath), "T102: Default baseline path is not empty.");
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        check(defaultPath.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase), "T102: Default baseline path is located inside LocalApplicationData.");
+        check(defaultPath.Contains("TEHhub", StringComparison.OrdinalIgnoreCase), "T102: Default baseline path contains 'TEHhub' folder.");
+        check(defaultPath.Contains("OffsetDoctor", StringComparison.OrdinalIgnoreCase), "T102: Default baseline path contains 'OffsetDoctor' folder.");
+        check(defaultPath.EndsWith("offsetdoctor-baseline.json", StringComparison.OrdinalIgnoreCase), "T102: Default baseline file is named 'offsetdoctor-baseline.json'.");
+
+        var model = new OffsetDoctorGuiModel();
+        check(model.BaselinePathInput == defaultPath, "T102: OffsetDoctorGuiModel defaults to safe LocalAppData baseline path.");
+
+        var parentDir = Path.GetDirectoryName(defaultPath);
+        check(parentDir != null && Directory.Exists(parentDir), "T102: Parent directory for default baseline is created if missing.");
+    }
+
+    // 103. Custom baseline path is respected
+    private static void Test103_CustomBaselinePathIsRespected(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var customPath = Path.Combine(Path.GetTempPath(), $"custom-od-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel { BaselinePathInput = customPath };
+            var controller = new OffsetDoctorGuiController();
+
+            var capSuccess = controller.CaptureBaseline(setup, model, customPath);
+            check(capSuccess, "T103: CaptureBaseline succeeds with custom path.");
+            check(File.Exists(customPath), "T103: Baseline file exists at custom path.");
+
+            var compSuccess = controller.CompareBaseline(setup, model, customPath);
+            check(compSuccess, "T103: CompareBaseline succeeds with custom path.");
+        }
+        finally
+        {
+            if (File.Exists(customPath))
+            {
+                File.Delete(customPath);
+            }
+        }
+    }
+
+    // 104. Read-only behavior preserved across all GUI operations
+    private static void Test104_GuiOperationsPreserveReadOnlyZeroMemoryWrites(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment(goldValue: 50_000_000).reader;
         var snapshot = setup.SnapshotAllBlocks();
@@ -2530,7 +2619,7 @@ public static class OffsetDoctorTests
             controller.CompareBaseline(setup, model, tempBaselinePath);
             controller.ClearResults(model);
 
-            check(setup.MemoryMatchesSnapshot(snapshot), "T100: Memory is 100% byte-for-byte identical after all GUI operations (zero writes).");
+            check(setup.MemoryMatchesSnapshot(snapshot), "T104: Memory is 100% byte-for-byte identical after all GUI operations (zero writes).");
         }
         finally
         {

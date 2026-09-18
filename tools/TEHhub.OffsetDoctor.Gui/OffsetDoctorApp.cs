@@ -211,7 +211,7 @@ public sealed class OffsetDoctorApp : Overlay
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.24f, 0.58f, 0.26f, 1.0f));
         if (ImGui.Button("Validate Now##ODValidateBtn", new Vector2(100, 0)))
         {
-            ExecuteAsync(reader => _controller.ValidateNow(reader, _model));
+            ExecuteAsync("Validating memory offsets...", reader => _controller.ValidateNow(reader, _model));
         }
         ImGui.PopStyleColor(2);
 
@@ -222,7 +222,7 @@ public sealed class OffsetDoctorApp : Overlay
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.24f, 0.42f, 0.70f, 1.0f));
         if (ImGui.Button("Watch UI##ODWatchBtn", new Vector2(90, 0)))
         {
-            ExecuteAsync(reader => _controller.WatchUi(reader, _model));
+            ExecuteAsync("Watching UI targets...", reader => _controller.WatchUi(reader, _model));
         }
         ImGui.PopStyleColor(2);
 
@@ -231,7 +231,7 @@ public sealed class OffsetDoctorApp : Overlay
         // Button 3: Capture Baseline
         if (ImGui.Button("Capture Baseline##ODCaptureBtn", new Vector2(120, 0)))
         {
-            ExecuteAsync(reader => _controller.CaptureBaseline(reader, _model));
+            ExecuteAsync("Capturing baseline snapshot...", reader => _controller.CaptureBaseline(reader, _model));
         }
 
         ImGui.SameLine();
@@ -239,7 +239,7 @@ public sealed class OffsetDoctorApp : Overlay
         // Button 4: Compare Baseline
         if (ImGui.Button("Compare Baseline##ODCompareBtn", new Vector2(120, 0)))
         {
-            ExecuteAsync(reader => _controller.CompareBaseline(reader, _model));
+            ExecuteAsync("Comparing memory against baseline...", reader => _controller.CompareBaseline(reader, _model));
         }
 
         ImGui.SameLine();
@@ -431,9 +431,10 @@ public sealed class OffsetDoctorApp : Overlay
         }
     }
 
-    private void ExecuteAsync(Action<IProcessMemoryReader> action)
+    private void ExecuteAsync(string operationName, Action<IProcessMemoryReader> action)
     {
-        if (_model.IsBusy)
+        // Synchronously acquire operation lock and set IsBusy on the UI thread before Task.Run starts
+        if (!_controller.TryBeginOperation(_model, operationName))
         {
             return;
         }
@@ -446,8 +447,6 @@ public sealed class OffsetDoctorApp : Overlay
                 if (discovery.Status != ProcessDiscoveryStatus.Success || discovery.SelectedProcess == null)
                 {
                     _model.ErrorMessage = discovery.ErrorMessage ?? "Could not find running Path of Exile process.";
-                    _model.IsBusy = false;
-                    _model.OperationStatus = "Ready";
                     return;
                 }
 
@@ -457,8 +456,10 @@ public sealed class OffsetDoctorApp : Overlay
             catch (Exception ex)
             {
                 _model.ErrorMessage = $"Process memory access failed: {ex.Message}";
-                _model.IsBusy = false;
-                _model.OperationStatus = "Ready";
+            }
+            finally
+            {
+                _controller.EndOperation(_model);
             }
         });
     }

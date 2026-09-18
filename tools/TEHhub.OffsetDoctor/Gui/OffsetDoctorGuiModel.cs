@@ -17,8 +17,8 @@ public sealed class OffsetDoctorGuiModel
     public string EsCurrentInput = string.Empty;
     public string EsTotalInput = string.Empty;
 
-    // Baseline configuration
-    public string BaselinePathInput = "offsetdoctor-baseline.json";
+    // Baseline configuration (Defaults safely to %LOCALAPPDATA%/TEHhub/OffsetDoctor/offsetdoctor-baseline.json)
+    public string BaselinePathInput = BaselineSnapshot.GetDefaultBaselinePath();
 
     // Watch mode configuration
     public string WatchDurationSecInput = "10";
