@@ -231,7 +231,7 @@ namespace GoldOffsetScanner
         public string FormatHexDump(ulong centerAddress, int radius = 0x80)
         {
             var startAddr = centerAddress >= (ulong)radius ? (centerAddress - (ulong)radius) : 0;
-            startAddr &= ~0x0Fu; // Align to 16-byte boundary
+            startAddr &= ~0x0FUL; // Align to 16-byte boundary
             var endAddr = centerAddress + (ulong)radius;
             var totalBytes = (int)(endAddr - startAddr);
 

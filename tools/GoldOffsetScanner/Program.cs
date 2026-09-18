@@ -24,11 +24,21 @@ namespace GoldOffsetScanner
 
             // Find target process
             int? pidArg = null;
-            for (var i = 0; i < args.Length - 1; i++)
+            var nonFlagArgs = new List<string>();
+            for (var i = 0; i < args.Length; i++)
             {
-                if (args[i].Equals("--pid", StringComparison.OrdinalIgnoreCase) && int.TryParse(args[i + 1], out var parsedPid))
+                if (args[i].Equals("--pid", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length && int.TryParse(args[i + 1], out var parsedPid))
                 {
                     pidArg = parsedPid;
+                    i++; // skip pid val
+                }
+                else if (args[i].StartsWith("--", StringComparison.Ordinal))
+                {
+                    // flag
+                }
+                else
+                {
+                    nonFlagArgs.Add(args[i]);
                 }
             }
 
@@ -46,9 +56,49 @@ namespace GoldOffsetScanner
             using var reader = NativeMemoryReader.Open(targetPid);
             Console.WriteLine($"[Process] Main Module Base: 0x{reader.MainModuleBase.ToInt64():X12} (Size: {reader.MainModuleSize / 1024 / 1024:N0} MB)");
 
+            if (args.Contains("--report", StringComparer.OrdinalIgnoreCase))
+            {
+                PrintCandidateReport(session, reader);
+                return 0;
+            }
+
+            if (args.Contains("--inspect-vector", StringComparer.OrdinalIgnoreCase))
+            {
+                Vector1D8Inspector.Inspect(reader);
+                return 0;
+            }
+
+            if (args.Contains("--validate-chain", StringComparer.OrdinalIgnoreCase))
+            {
+                StableChainValidator.Validate(reader);
+                return 0;
+            }
+
+            if (args.Contains("--dump-psd", StringComparer.OrdinalIgnoreCase))
+            {
+                var targetCandidate = session.Data.Candidates.FirstOrDefault(c => !c.IsUiTextCandidate);
+                var goldAddr = targetCandidate?.Address ?? 0x04828ED049D0;
+                PsdOffsetAnalyzer.Analyze(reader, goldAddr);
+                return 0;
+            }
+
+            if (args.Contains("--scan-psd-range", StringComparer.OrdinalIgnoreCase))
+            {
+                var targetCandidate = session.Data.Candidates.FirstOrDefault(c => !c.IsUiTextCandidate);
+                var goldAddr = targetCandidate?.Address ?? 0x04828ED049D0;
+                PsdArrayScanner.ScanRange(reader, goldAddr);
+                return 0;
+            }
+
+            if (args.Contains("--watch", StringComparer.OrdinalIgnoreCase))
+            {
+                LiveGoldWatcher.Watch(reader, 20);
+                return 0;
+            }
+
             // Check if user provided direct gold value as an argument
             long? targetGold = null;
-            foreach (var arg in args)
+            foreach (var arg in nonFlagArgs)
             {
                 if (long.TryParse(arg.Replace(",", "").Trim(), out var parsedVal) && parsedVal >= 0)
                 {
@@ -60,12 +110,6 @@ namespace GoldOffsetScanner
             if (targetGold.HasValue)
             {
                 ExecutePass(session, reader, targetGold.Value);
-                PrintCandidateReport(session, reader);
-                return 0;
-            }
-
-            if (args.Contains("--report", StringComparer.OrdinalIgnoreCase))
-            {
                 PrintCandidateReport(session, reader);
                 return 0;
             }
@@ -195,6 +239,11 @@ namespace GoldOffsetScanner
                     Console.WriteLine("  Surrounding Memory Hex Dump (+/- 0x80 bytes):");
                     var hexDump = reader.FormatHexDump(c.Address, 0x80);
                     Console.WriteLine(hexDump);
+
+                    if (!c.IsUiTextCandidate)
+                    {
+                        PointerEvaluator.AnalyzePointerChains(reader, sdkCtx, c.Address);
+                    }
                 }
             }
             else

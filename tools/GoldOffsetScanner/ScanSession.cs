@@ -156,9 +156,12 @@ namespace GoldOffsetScanner
             var valInt64 = targetValue;
             var valUInt64 = (ulong)targetValue;
 
-            var valStr = targetValue.ToString();
-            var valBytesUtf16 = Encoding.Unicode.GetBytes(valStr);
-            var valBytesAscii = Encoding.ASCII.GetBytes(valStr);
+            var valStrRaw = targetValue.ToString();
+            var valStrComma = $"{targetValue:N0}";
+            var valBytesUtf16Raw = Encoding.Unicode.GetBytes(valStrRaw);
+            var valBytesUtf16Comma = Encoding.Unicode.GetBytes(valStrComma);
+            var valBytesAsciiRaw = Encoding.ASCII.GetBytes(valStrRaw);
+            var valBytesAsciiComma = Encoding.ASCII.GetBytes(valStrComma);
 
             var chunkBuffer = new byte[1024 * 1024]; // 1 MB chunk buffer
             var regionCount = 0;
@@ -187,9 +190,12 @@ namespace GoldOffsetScanner
                             valUInt32,
                             valInt64,
                             valUInt64,
-                            valBytesUtf16,
-                            valBytesAscii,
-                            valStr,
+                            valBytesUtf16Raw,
+                            valBytesUtf16Comma,
+                            valBytesAsciiRaw,
+                            valBytesAsciiComma,
+                            valStrRaw,
+                            valStrComma,
                             reg,
                             candidates);
                     }
@@ -210,9 +216,12 @@ namespace GoldOffsetScanner
             uint targetUInt32,
             long targetInt64,
             ulong targetUInt64,
-            byte[] targetUtf16,
-            byte[] targetAscii,
-            string targetStr,
+            byte[] targetUtf16Raw,
+            byte[] targetUtf16Comma,
+            byte[] targetAsciiRaw,
+            byte[] targetAsciiComma,
+            string targetStrRaw,
+            string targetStrComma,
             NativeMemoryReader.MemoryRegionInfo reg,
             List<GoldCandidate> results)
         {
@@ -272,69 +281,89 @@ namespace GoldOffsetScanner
                 }
             }
 
-            // Text search (UTF-16)
-            if (targetUtf16.Length > 0 && targetUtf16.Length <= length)
-            {
-                for (var i = 0; i <= length - targetUtf16.Length; i += 2)
-                {
-                    var match = true;
-                    for (var j = 0; j < targetUtf16.Length; j++)
-                    {
-                        if (buffer[i + j] != targetUtf16[j])
-                        {
-                            match = false;
-                            break;
-                        }
-                    }
+            // Text search (UTF-16 Raw)
+            ScanTextUtf16(chunkBaseAddr, buffer, length, targetUtf16Raw, targetStrRaw, reg, results);
 
-                    if (match)
-                    {
-                        results.Add(new GoldCandidate
-                        {
-                            Address = chunkBaseAddr + (ulong)i,
-                            Type = CandidateType.Utf16Text,
-                            RegionBase = reg.BaseAddress,
-                            RegionSize = reg.RegionSize,
-                            RegionProtect = reg.ProtectDescription,
-                            RegionType = reg.TypeDescription,
-                            CurrentValue = targetInt64,
-                            ValueHistory = new List<long> { targetInt64 },
-                            TextRepresentation = targetStr
-                        });
-                    }
-                }
+            // Text search (UTF-16 Comma)
+            if (targetUtf16Comma.Length != targetUtf16Raw.Length)
+            {
+                ScanTextUtf16(chunkBaseAddr, buffer, length, targetUtf16Comma, targetStrComma, reg, results);
             }
 
-            // Text search (ASCII)
-            if (targetAscii.Length > 0 && targetAscii.Length <= length)
-            {
-                for (var i = 0; i <= length - targetAscii.Length; i++)
-                {
-                    var match = true;
-                    for (var j = 0; j < targetAscii.Length; j++)
-                    {
-                        if (buffer[i + j] != targetAscii[j])
-                        {
-                            match = false;
-                            break;
-                        }
-                    }
+            // Text search (ASCII Raw)
+            ScanTextAscii(chunkBaseAddr, buffer, length, targetAsciiRaw, targetStrRaw, reg, results);
 
-                    if (match)
+            // Text search (ASCII Comma)
+            if (targetAsciiComma.Length != targetAsciiRaw.Length)
+            {
+                ScanTextAscii(chunkBaseAddr, buffer, length, targetAsciiComma, targetStrComma, reg, results);
+            }
+        }
+
+        private static void ScanTextUtf16(ulong chunkBaseAddr, byte[] buffer, int length, byte[] pattern, string textRep, NativeMemoryReader.MemoryRegionInfo reg, List<GoldCandidate> results)
+        {
+            if (pattern.Length == 0 || pattern.Length > length) return;
+
+            for (var i = 0; i <= length - pattern.Length; i += 2)
+            {
+                var match = true;
+                for (var j = 0; j < pattern.Length; j++)
+                {
+                    if (buffer[i + j] != pattern[j])
                     {
-                        results.Add(new GoldCandidate
-                        {
-                            Address = chunkBaseAddr + (ulong)i,
-                            Type = CandidateType.AsciiText,
-                            RegionBase = reg.BaseAddress,
-                            RegionSize = reg.RegionSize,
-                            RegionProtect = reg.ProtectDescription,
-                            RegionType = reg.TypeDescription,
-                            CurrentValue = targetInt64,
-                            ValueHistory = new List<long> { targetInt64 },
-                            TextRepresentation = targetStr
-                        });
+                        match = false;
+                        break;
                     }
+                }
+
+                if (match)
+                {
+                    results.Add(new GoldCandidate
+                    {
+                        Address = chunkBaseAddr + (ulong)i,
+                        Type = CandidateType.Utf16Text,
+                        RegionBase = reg.BaseAddress,
+                        RegionSize = reg.RegionSize,
+                        RegionProtect = reg.ProtectDescription,
+                        RegionType = reg.TypeDescription,
+                        CurrentValue = 0,
+                        ValueHistory = new List<long>(),
+                        TextRepresentation = textRep
+                    });
+                }
+            }
+        }
+
+        private static void ScanTextAscii(ulong chunkBaseAddr, byte[] buffer, int length, byte[] pattern, string textRep, NativeMemoryReader.MemoryRegionInfo reg, List<GoldCandidate> results)
+        {
+            if (pattern.Length == 0 || pattern.Length > length) return;
+
+            for (var i = 0; i <= length - pattern.Length; i++)
+            {
+                var match = true;
+                for (var j = 0; j < pattern.Length; j++)
+                {
+                    if (buffer[i + j] != pattern[j])
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+
+                if (match)
+                {
+                    results.Add(new GoldCandidate
+                    {
+                        Address = chunkBaseAddr + (ulong)i,
+                        Type = CandidateType.AsciiText,
+                        RegionBase = reg.BaseAddress,
+                        RegionSize = reg.RegionSize,
+                        RegionProtect = reg.ProtectDescription,
+                        RegionType = reg.TypeDescription,
+                        CurrentValue = 0,
+                        ValueHistory = new List<long>(),
+                        TextRepresentation = textRep
+                    });
                 }
             }
         }
@@ -374,7 +403,7 @@ namespace GoldOffsetScanner
                     break;
 
                 case CandidateType.Utf16Text:
-                    var strUtf16 = targetValue.ToString();
+                    var strUtf16 = candidate.TextRepresentation.Contains(',') ? $"{targetValue:N0}" : targetValue.ToString();
                     var bytesUtf16 = Encoding.Unicode.GetBytes(strUtf16);
                     Span<byte> bufUtf16 = stackalloc byte[bytesUtf16.Length];
                     if (reader.TryReadBytes(addr, bufUtf16, out var readUtf16) && readUtf16 == bytesUtf16.Length)
@@ -384,7 +413,7 @@ namespace GoldOffsetScanner
                     break;
 
                 case CandidateType.AsciiText:
-                    var strAscii = targetValue.ToString();
+                    var strAscii = candidate.TextRepresentation.Contains(',') ? $"{targetValue:N0}" : targetValue.ToString();
                     var bytesAscii = Encoding.ASCII.GetBytes(strAscii);
                     Span<byte> bufAscii = stackalloc byte[bytesAscii.Length];
                     if (reader.TryReadBytes(addr, bufAscii, out var readAscii) && readAscii == bytesAscii.Length)

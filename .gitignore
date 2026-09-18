@@ -27,4 +27,5 @@ FarmCounter-master/
 artifacts/
 *.patch
 /audit-output
+gold_scan_session.json
 

@@ -149,6 +149,170 @@ namespace GoldOffsetScanner
             }
         }
 
+        public static void AnalyzePointerChains(NativeMemoryReader reader, PointerContext ctx, ulong candidateAddress)
+        {
+            Console.WriteLine($"\n[Pointer Analysis] Tracing pointer chains pointing to candidate 0x{candidateAddress:X12} (and enclosing struct +/- 0x1000)...");
+
+            var candidateMin = candidateAddress >= 0x1000 ? (candidateAddress - 0x1000) : 0;
+            var candidateMax = candidateAddress + 0x100;
+
+            // 1. Deep probe PlayerServerData fields
+            if (ctx.PlayerServerData != 0)
+            {
+                Console.WriteLine("\n[PlayerServerData Deep Vector / Struct Probe]:");
+                var psdBuf = new byte[0x2000];
+                if (reader.TryReadBytes((IntPtr)(long)ctx.PlayerServerData, psdBuf, out var psdRead))
+                {
+                    for (var off = 0x0; off <= psdRead - 24; off += 8)
+                    {
+                        var vFirst = (ulong)BitConverter.ToInt64(psdBuf, off);
+                        var vLast = (ulong)BitConverter.ToInt64(psdBuf, off + 8);
+                        var vEnd = (ulong)BitConverter.ToInt64(psdBuf, off + 16);
+
+                        if (vFirst >= 0x10000 && vLast >= vFirst && vEnd >= vLast && (vEnd - vFirst) < 0x100000 && (vEnd - vFirst) > 0)
+                        {
+                            var totalBytes = vLast - vFirst;
+                            // Check if candidateAddress is within [vFirst, vLast)
+                            if (candidateAddress >= vFirst && candidateAddress < vLast)
+                            {
+                                var elemOffset = candidateAddress - vFirst;
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine($"  *** DIRECT HIT in StdVector at PlayerServerData + 0x{off:X4} ***");
+                                Console.WriteLine($"      Vector Range: [0x{vFirst:X12} .. 0x{vLast:X12}] (Total Bytes: 0x{totalBytes:X})");
+                                Console.WriteLine($"      Offset from Vector.First: +0x{elemOffset:X}");
+                                Console.ResetColor();
+                            }
+                            // Check if any element in vector points to candidateAddress
+                            else if (totalBytes < 0x50000)
+                            {
+                                var vecData = new byte[(int)totalBytes];
+                                if (reader.TryReadBytes((IntPtr)(long)vFirst, vecData, out var vecRead) && vecRead == (int)totalBytes)
+                                {
+                                    for (var e = 0; e <= vecRead - 8; e += 8)
+                                    {
+                                        var ptr = (ulong)BitConverter.ToInt64(vecData, e);
+                                        if (ptr == candidateAddress)
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Green;
+                                            Console.WriteLine($"  *** DIRECT POINTER in StdVector at PlayerServerData + 0x{off:X4}, Index {e / 8} -> 0x{ptr:X12} ***");
+                                            Console.ResetColor();
+                                        }
+                                        else if (ptr >= candidateMin && ptr <= candidateMax)
+                                        {
+                                            var diff = (long)candidateAddress - (long)ptr;
+                                            Console.WriteLine($"      StdVector at PlayerServerData + 0x{off:X4}, Index {e / 8} -> Points to 0x{ptr:X12} (Gold at +0x{diff:X})");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Check direct pointers in PlayerServerData
+            if (ctx.PlayerServerData != 0)
+            {
+                CheckPointersInBlock(reader, ctx.PlayerServerData, 0x4000, "PlayerServerData", candidateAddress, candidateMin, candidateMax);
+            }
+
+            // 3. Check direct pointers in ServerData
+            if (ctx.ServerData != 0)
+            {
+                CheckPointersInBlock(reader, ctx.ServerData, 0x1000, "ServerData", candidateAddress, candidateMin, candidateMax);
+            }
+
+            // 4. Check direct pointers in AreaInstance
+            if (ctx.AreaInstance != 0)
+            {
+                CheckPointersInBlock(reader, ctx.AreaInstance, 0x2000, "AreaInstance", candidateAddress, candidateMin, candidateMax);
+            }
+
+            // 5. Check direct pointers in InGameState
+            if (ctx.InGameState != 0)
+            {
+                CheckPointersInBlock(reader, ctx.InGameState, 0x1000, "InGameState", candidateAddress, candidateMin, candidateMax);
+            }
+
+            // 6. Check direct pointers in LocalPlayer & components
+            if (ctx.LocalPlayer != 0)
+            {
+                CheckPointersInBlock(reader, ctx.LocalPlayer, 0x1000, "LocalPlayer", candidateAddress, candidateMin, candidateMax);
+            }
+
+            // 7. Check PlayerInventories
+            foreach (var kvp in ctx.Inventories)
+            {
+                CheckPointersInBlock(reader, kvp.Value, 0x400, $"Inventory [{kvp.Key}]", candidateAddress, candidateMin, candidateMax);
+            }
+
+            // 8. Global pointer search across readable memory for pointers pointing directly to the enclosing struct
+            Console.WriteLine("\n  Searching all process memory for incoming pointers to enclosing structure...");
+            var incomingPointers = SearchIncomingPointers(reader, candidateMin, candidateMax);
+            Console.WriteLine($"  Found {incomingPointers.Count} pointers pointing to the enclosing structure (range 0x{candidateMin:X12}..0x{candidateMax:X12}):");
+
+            foreach (var (ptrAddr, targetPtr) in incomingPointers.Take(15))
+            {
+                var offsetInside = (long)candidateAddress - (long)targetPtr;
+                var contextName = EvaluateCandidateContext(reader, ctx, ptrAddr);
+                Console.WriteLine($"    * At 0x{ptrAddr:X12} [{contextName}]: Points to 0x{targetPtr:X12} (Gold is at Object + 0x{offsetInside:X})");
+            }
+        }
+
+        private static void CheckPointersInBlock(NativeMemoryReader reader, ulong baseAddress, int blockSize, string blockName, ulong candidateAddress, ulong minTarget, ulong maxTarget)
+        {
+            var buffer = new byte[blockSize];
+            if (!reader.TryReadBytes((IntPtr)(long)baseAddress, buffer, out var bytesRead) || bytesRead < 8)
+            {
+                return;
+            }
+
+            for (var offset = 0; offset <= bytesRead - 8; offset += 8)
+            {
+                var ptrVal = (ulong)BitConverter.ToInt64(buffer, offset);
+                if (ptrVal >= minTarget && ptrVal <= maxTarget)
+                {
+                    var goldOffset = (long)candidateAddress - (long)ptrVal;
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"  >>> MATCH in {blockName} + 0x{offset:X4} -> Points to 0x{ptrVal:X12} (Gold at +0x{goldOffset:X}) <<<");
+                    Console.ResetColor();
+                }
+            }
+        }
+
+        private static List<(ulong Address, ulong Target)> SearchIncomingPointers(NativeMemoryReader reader, ulong minTarget, ulong maxTarget)
+        {
+            var results = new List<(ulong Address, ulong Target)>();
+            var regions = reader.EnumerateReadableRegions();
+            var chunk = new byte[1024 * 1024];
+
+            foreach (var reg in regions)
+            {
+                ulong regOffset = 0;
+                while (regOffset < reg.RegionSize)
+                {
+                    var chunkSize = (int)Math.Min((ulong)chunk.Length, reg.RegionSize - regOffset);
+                    var readAddr = (IntPtr)(long)(reg.BaseAddress + regOffset);
+
+                    if (reader.TryReadBytes(readAddr, chunk.AsSpan(0, chunkSize), out var read) && read >= 8)
+                    {
+                        for (var i = 0; i <= read - 8; i += 8)
+                        {
+                            var val = (ulong)BitConverter.ToInt64(chunk, i);
+                            if (val >= minTarget && val <= maxTarget)
+                            {
+                                results.Add((reg.BaseAddress + regOffset + (ulong)i, val));
+                            }
+                        }
+                    }
+
+                    regOffset += (ulong)chunkSize;
+                }
+            }
+
+            return results;
+        }
+
         public static string EvaluateCandidateContext(NativeMemoryReader reader, PointerContext ctx, ulong candidateAddress)
         {
             if (!ctx.IsValid)
