@@ -3,9 +3,11 @@ using TEHhub.OffsetDoctor.Process;
 using TEHhub.OffsetDoctor.Recovery;
 using TEHhub.OffsetDoctor.Reporting;
 using TEHhub.OffsetDoctor.Validation;
+using TEHhub.OffsetDoctor.Watch;
 
 Console.WriteLine("TEHhub.OffsetDoctor — PoE2 Read-Only Offset Health Scanner");
 
+bool isWatchMode = false;
 int? explicitPid = null;
 int? expectedGold = null;
 int? expectedHpCurrent = null;
@@ -14,14 +16,21 @@ int? expectedMpCurrent = null;
 int? expectedMpTotal = null;
 int? expectedEsCurrent = null;
 int? expectedEsTotal = null;
+int intervalMs = 500;
+int durationSec = 120;
+string targetFilter = "all";
 string? outputPath = null;
 
 for (int i = 0; i < args.Length; i++)
 {
     var arg = args[i];
-    if (arg.Equals("validate-all", StringComparison.OrdinalIgnoreCase) || arg.Equals("validate", StringComparison.OrdinalIgnoreCase))
+    if (arg.Equals("watch", StringComparison.OrdinalIgnoreCase))
     {
-        // Default validation command
+        isWatchMode = true;
+    }
+    else if (arg.Equals("validate-all", StringComparison.OrdinalIgnoreCase) || arg.Equals("validate", StringComparison.OrdinalIgnoreCase))
+    {
+        isWatchMode = false;
     }
     else if (arg.Equals("--pid", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
@@ -54,6 +63,18 @@ for (int i = 0; i < args.Length; i++)
     else if (arg.Equals("--es-max", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
         if (int.TryParse(args[++i], out var esMax)) expectedEsTotal = esMax;
+    }
+    else if (arg.Equals("--interval-ms", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        if (int.TryParse(args[++i], out var interval) && interval > 0) intervalMs = interval;
+    }
+    else if (arg.Equals("--duration-sec", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        if (int.TryParse(args[++i], out var duration) && duration > 0) durationSec = duration;
+    }
+    else if (arg.Equals("--target", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        targetFilter = args[++i];
     }
     else if (arg.Equals("--output", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
@@ -104,18 +125,56 @@ var groundTruth = new ValidationGroundTruth
     ExpectedEsTotal = expectedEsTotal
 };
 
-var engine = new OffsetRecoveryEngine();
-var report = engine.RunValidation(reader, groundTruth);
-
-ConsoleReportWriter.PrintReport(report);
-
-if (!string.IsNullOrEmpty(outputPath))
+if (isWatchMode)
 {
-    JsonReportExporter.ExportToFile(report, outputPath);
-    Console.WriteLine($"Exported JSON report to: {outputPath}");
-}
+    using var cts = new CancellationTokenSource();
+    Console.CancelKeyPress += (s, e) =>
+    {
+        e.Cancel = true;
+        cts.Cancel();
+    };
 
-return report.BrokenCount == 0 ? 0 : 2;
+    var watchTargets = WatchTargetInfo.ResolveTargets(targetFilter);
+    var interval = TimeSpan.FromMilliseconds(intervalMs);
+    var duration = TimeSpan.FromSeconds(durationSec);
+
+    ConsoleWatchWriter.PrintHeader(reader.Metadata, interval, duration, watchTargets, groundTruth);
+
+    var watchEngine = new OffsetWatchEngine();
+    var watchReport = watchEngine.RunWatch(
+        reader,
+        groundTruth,
+        interval,
+        duration,
+        targetFilter,
+        onTransition: ConsoleWatchWriter.PrintTransition,
+        cancellationToken: cts.Token);
+
+    ConsoleWatchWriter.PrintSummary(watchReport);
+
+    if (!string.IsNullOrEmpty(outputPath))
+    {
+        JsonReportExporter.ExportToFile(watchReport, outputPath);
+        Console.WriteLine($"Exported JSON watch report to: {outputPath}");
+    }
+
+    return 0;
+}
+else
+{
+    var engine = new OffsetRecoveryEngine();
+    var report = engine.RunValidation(reader, groundTruth);
+
+    ConsoleReportWriter.PrintReport(report);
+
+    if (!string.IsNullOrEmpty(outputPath))
+    {
+        JsonReportExporter.ExportToFile(report, outputPath);
+        Console.WriteLine($"Exported JSON report to: {outputPath}");
+    }
+
+    return report.BrokenCount == 0 ? 0 : 2;
+}
 
 static void PrintUsage()
 {
@@ -124,6 +183,7 @@ static void PrintUsage()
     Console.WriteLine("Commands:");
     Console.WriteLine("  validate-all           Run full repository offset validation scan (default).");
     Console.WriteLine("  validate               Run full repository offset validation scan.");
+    Console.WriteLine("  watch                  Run realtime state-dependent watch mode.");
     Console.WriteLine();
     Console.WriteLine("Options:");
     Console.WriteLine("  --pid <pid>            Target a specific process ID.");
@@ -134,6 +194,9 @@ static void PrintUsage()
     Console.WriteLine("  --mp-max <total>       Provide total player Mana amount.");
     Console.WriteLine("  --es <current>         Provide current player Energy Shield amount.");
     Console.WriteLine("  --es-max <total>       Provide total player Energy Shield amount.");
+    Console.WriteLine("  --interval-ms <ms>     Watch polling interval in milliseconds (default: 500).");
+    Console.WriteLine("  --duration-sec <sec>   Watch total duration in seconds (default: 120).");
+    Console.WriteLine("  --target <name>        Watch targets filter: all, ui, loading, buffs, or specific node name (default: all).");
     Console.WriteLine("  --output <path>        Path to write the JSON diagnostic report.");
     Console.WriteLine("  --help, -h             Show help information.");
 }

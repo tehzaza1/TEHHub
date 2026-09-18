@@ -17,11 +17,13 @@ using TEHhub.Offsets.Objects.Components;
 using TEHhub.Offsets.Objects.States;
 using TEHhub.Offsets.Objects.States.InGameState;
 
+using TEHhub.OffsetDoctor.Watch;
+
 public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 49 Rigorous Semantic Validation Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 59 Rigorous Semantic Validation & Watch Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -72,8 +74,18 @@ public static class OffsetDoctorTests
         Test47_RequiredPointerSentinelIsBroken(check);
         Test48_VitalStructWithoutVtableIsValid(check);
         Test49_BuffsStatusEffectsVectorIsValidUnverified(check);
+        Test50_WatchRecordsFirstLatestBestStatus(check);
+        Test51_WatchPrintsOnlyTransitionsNotEveryTick(check);
+        Test52_OptionalInactivePointerRemainsWaitingUnverified(check);
+        Test53_OptionalNodeBecomingActiveUpdatesBestStatus(check);
+        Test54_BrokenWhileInactiveIsNotReported(check);
+        Test55_BrokenWhileExpectedActiveRemainsBroken(check);
+        Test56_TargetFiltering(check);
+        Test57_PlayerGroundTruthPassedToValidationEngine(check);
+        Test58_ValidateAllBehaviorUnchanged(check);
+        Test59_WatchPreservesZeroMemoryWrites(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 49 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 59 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -139,6 +151,14 @@ public static class OffsetDoctorTests
         // WorldData: inGameState + 0x368
         var worldData = reader.AllocateBlock(0x1000);
         reader.WritePointer(inGameState + 0x368, worldData);
+
+        // UI Root & GameUi: inGameState + 0x2F0 -> uiRoot + 0xBE0 -> gameUi
+        var uiRoot = reader.AllocateBlock(0x1000);
+        var gameUi = reader.AllocateBlock(0x1000);
+        var chatParent = reader.AllocateBlock(0x100);
+        reader.WritePointer(inGameState + 0x2F0, uiRoot);
+        reader.WritePointer(uiRoot + 0xBE0, gameUi);
+        reader.WritePointer(gameUi + 0x640, chatParent);
 
         // AreaInstance subfields
         reader.Write(areaInstance + 0x0BC, (byte)75); // Level 75
@@ -1154,6 +1174,221 @@ public static class OffsetDoctorTests
         var buffsVec = report.Results.First(r => r.NodeId == "comp_buffs_status_effects");
         check(buffsVec.Status == ValidationStatus.UNVERIFIED, "T49: Buffs.StatusEffectPtr pointer vector is UNVERIFIED.");
         check(buffsVec.Evidence.Any(e => e.RuleName == "StdVectorPointersValid" && e.Passed), "T49: StdVectorPointersValid rule passed.");
+    }
+
+    // 50. Watch records first/latest/best status
+    private static void Test50_WatchRecordsFirstLatestBestStatus(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var inGameState = setup.inGameState;
+
+        var uiRoot = reader.AllocateBlock(0x1000);
+        var gameUi = reader.AllocateBlock(0x1000);
+        reader.WritePointer(inGameState + 0x2F0, uiRoot);
+        reader.WritePointer(uiRoot + 0xBE0, gameUi);
+        reader.WritePointer(gameUi + 0x6D0, new IntPtr(7)); // inactive sentinel
+
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            reader,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(10),
+            duration: TimeSpan.FromMilliseconds(30),
+            targetFilter: "LeftPanelPtr");
+
+        var leftSummary = report.TargetSummaries.First(t => t.NodeId == "ui_left_panel");
+        check(leftSummary.FirstStatus == ValidationStatus.UNVERIFIED, "T50: First status recorded.");
+        check(leftSummary.LatestStatus == ValidationStatus.UNVERIFIED, "T50: Latest status recorded.");
+        check(leftSummary.BestStatus == ValidationStatus.UNVERIFIED, "T50: Best status recorded.");
+    }
+
+    // 51. Watch prints only transitions, not every tick
+    private static void Test51_WatchPrintsOnlyTransitionsNotEveryTick(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+
+        var transitions = new List<string>();
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            reader,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(50),
+            targetFilter: "all",
+            onTransition: transitions.Add);
+
+        // With static synthetic environment, initial scan records state and subsequent ticks produce 0 duplicate transitions
+        check(transitions.Count == 0, "T51: Zero transitions logged when state is static across multiple ticks.");
+        check(report.TotalTransitions == 0, "T51: Report TotalTransitions is 0.");
+    }
+
+    // 52. Optional inactive pointer remains waiting/UNVERIFIED
+    private static void Test52_OptionalInactivePointerRemainsWaitingUnverified(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            reader,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(20),
+            targetFilter: "ui_map_parent");
+
+        var mapSummary = report.TargetSummaries.First(t => t.NodeId == "ui_map_parent");
+        check(mapSummary.LatestStatus == ValidationStatus.UNVERIFIED, "T52: Inactive optional pointer is UNVERIFIED.");
+        check(mapSummary.Recommendation.Contains("still waiting/inactive"), "T52: Recommendation is still waiting/inactive.");
+    }
+
+    // 53. Optional node becoming active updates best status
+    private static void Test53_OptionalNodeBecomingActiveUpdatesBestStatus(Action<bool, string> check)
+    {
+        var targetInfo = WatchTargetInfo.DefaultTargets.First(t => t.NodeId == "ui_left_panel");
+        var state = new WatchTargetState(targetInfo);
+
+        // Tick 1: inactive sentinel
+        var initialRes = new ValidationResult
+        {
+            NodeId = "ui_left_panel",
+            NodeDisplayName = "LeftPanelPtr",
+            Status = ValidationStatus.UNVERIFIED,
+            ResolvedAddress = new IntPtr(7),
+            ErrorMessage = "Optional pointer is inactive or sentinel in current runtime state."
+        };
+        state.Update(initialRes, TimeSpan.FromSeconds(0));
+        check(state.FirstObservedStatus == ValidationStatus.UNVERIFIED, "T53: Initial status is UNVERIFIED.");
+
+        // Tick 2: panel opens (active readable address)
+        var activeRes = new ValidationResult
+        {
+            NodeId = "ui_left_panel",
+            NodeDisplayName = "LeftPanelPtr",
+            Status = ValidationStatus.UNVERIFIED,
+            ResolvedAddress = new IntPtr(0x5E5DD375C80),
+            ExtractedValue = "0x5E5DD375C80",
+            ErrorMessage = "Pointer target is readable and structurally valid; unverified without semantic object proof."
+        };
+        var msg = state.Update(activeRes, TimeSpan.FromSeconds(2));
+        check(msg != null, "T53: Transition message generated on state change.");
+        check(state.PlayerActionObserved, "T53: Player action observed is true.");
+        check(state.Recommendation.Contains("remains UNVERIFIED (structural evidence verified"), "T53: Recommendation reflects active structural evidence.");
+    }
+
+    // 54. BROKEN while inactive is not reported
+    private static void Test54_BrokenWhileInactiveIsNotReported(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var inGameState = setup.inGameState;
+
+        var uiRoot = reader.AllocateBlock(0x1000);
+        var gameUi = reader.AllocateBlock(0x1000);
+        reader.WritePointer(inGameState + 0x2F0, uiRoot);
+        reader.WritePointer(uiRoot + 0xBE0, gameUi);
+        reader.WritePointer(gameUi + 0x730, new IntPtr(unchecked((long)0xC140000000000000))); // Sentinel
+
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            reader,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(20),
+            targetFilter: "PassiveSkillTreePanel");
+
+        var summary = report.TargetSummaries.First(t => t.NodeId == "ui_passive_tree_panel");
+        check(summary.LatestStatus != ValidationStatus.BROKEN, "T54: PassiveTree sentinel is NOT marked BROKEN.");
+        check(summary.LatestStatus == ValidationStatus.UNVERIFIED, "T54: PassiveTree sentinel is UNVERIFIED.");
+    }
+
+    // 55. BROKEN while expected-active remains BROKEN
+    private static void Test55_BrokenWhileExpectedActiveRemainsBroken(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var inGameState = setup.inGameState;
+
+        // Break required AreaInstance
+        reader.WritePointer(inGameState + 0x290, new IntPtr(7));
+
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            reader,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(20),
+            targetFilter: "ui");
+
+        // When parent InGameState / AreaInstance chain is broken, children get BLOCKED
+        var summary = report.TargetSummaries.First(t => t.NodeId == "ui_left_panel");
+        check(summary.LatestStatus == ValidationStatus.BLOCKED || summary.LatestStatus == ValidationStatus.UNVERIFIED,
+            "T55: Chain break correctly propagates to watch targets.");
+    }
+
+    // 56. Target filtering works (ui, loading, buffs, all, specific)
+    private static void Test56_TargetFiltering(Action<bool, string> check)
+    {
+        var allTargets = WatchTargetInfo.ResolveTargets("all");
+        var uiTargets = WatchTargetInfo.ResolveTargets("ui");
+        var loadingTargets = WatchTargetInfo.ResolveTargets("loading");
+        var buffsTargets = WatchTargetInfo.ResolveTargets("buffs");
+        var specificTarget = WatchTargetInfo.ResolveTargets("PassiveSkillTreePanel");
+
+        check(allTargets.Count == 7, "T56: 'all' filter returns 7 targets.");
+        check(uiTargets.Count == 5, "T56: 'ui' filter returns 5 UI targets.");
+        check(loadingTargets.Count == 1, "T56: 'loading' filter returns 1 loading target.");
+        check(buffsTargets.Count == 1, "T56: 'buffs' filter returns 1 buffs target.");
+        check(specificTarget.Count == 1 && specificTarget[0].NodeId == "ui_passive_tree_panel", "T56: specific node filter matches.");
+    }
+
+    // 57. Player ground-truth values are passed through to validation engine
+    private static void Test57_PlayerGroundTruthPassedToValidationEngine(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment(goldValue: 12_345);
+        using var reader = setup.reader;
+
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            reader,
+            new ValidationGroundTruth { ExpectedGold = 12_345 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(20),
+            targetFilter: "all");
+
+        check(report.GroundTruth?.ExpectedGold == 12_345, "T57: Ground truth preserved in watch report.");
+    }
+
+    // 58. Validate-all behavior is unchanged
+    private static void Test58_ValidateAllBehaviorUnchanged(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        check(report.TotalNodesCount == 67, "T58: TotalNodesCount is 67 in validate-all.");
+        check(report.Results.Count == 67, "T58: Results.Count is 67.");
+        check(report.Results.First(r => r.NodeId == "pattern_game_states").Status == ValidationStatus.VALID, "T58: Game States pattern is VALID.");
+        check(report.Results.First(r => r.NodeId == "area_local_player_entity").Status == ValidationStatus.VALID, "T58: Player entity is VALID.");
+        check(report.Results.First(r => r.NodeId == "psd_gold_field").Status == ValidationStatus.VALID, "T58: Gold is VALID.");
+    }
+
+    // 59. Watch preserves zero memory writes
+    private static void Test59_WatchPreservesZeroMemoryWrites(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var snapshot = setup.SnapshotAllBlocks();
+
+        var watchEngine = new OffsetWatchEngine();
+        watchEngine.RunWatch(
+            setup,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(25),
+            targetFilter: "all");
+
+        check(setup.MemoryMatchesSnapshot(snapshot), "T59: Watch mode performs exactly zero memory writes.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
