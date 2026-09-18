@@ -1099,8 +1099,9 @@ namespace TEHhub.Utils
 
             private sealed class PageLocalityTracker
             {
-                private readonly List<(int Start, int End)> intervals = new(6);
+                private readonly ulong[] byteMask = new ulong[PageBlockSize / 64];
                 private int mediumRegionMask;
+                private int uniqueByteCount;
 
                 internal int AccessCount { get; private set; }
 
@@ -1110,48 +1111,30 @@ namespace TEHhub.Utils
                 {
                     this.AccessCount++;
 
-                    var mediumIndex = offsetInPage / MediumBlockSize;
-                    if (mediumIndex >= 0 && mediumIndex < (PageBlockSize / MediumBlockSize))
+                    var startMed = Math.Clamp(offsetInPage / MediumBlockSize, 0, (PageBlockSize / MediumBlockSize) - 1);
+                    var endMed = Math.Clamp((offsetInPage + size - 1) / MediumBlockSize, 0, (PageBlockSize / MediumBlockSize) - 1);
+                    for (var m = startMed; m <= endMed; m++)
                     {
-                        this.mediumRegionMask |= 1 << mediumIndex;
+                        this.mediumRegionMask |= 1 << m;
                     }
 
-                    var endMediumIndex = (offsetInPage + size - 1) / MediumBlockSize;
-                    if (endMediumIndex >= 0 && endMediumIndex < (PageBlockSize / MediumBlockSize))
+                    var startByte = Math.Clamp(offsetInPage, 0, PageBlockSize);
+                    var endByte = Math.Clamp(offsetInPage + size, 0, PageBlockSize);
+                    for (var b = startByte; b < endByte; b++)
                     {
-                        this.mediumRegionMask |= 1 << endMediumIndex;
+                        var ulongIdx = b >> 6;
+                        var bit = 1UL << (b & 63);
+                        if ((this.byteMask[ulongIdx] & bit) == 0)
+                        {
+                            this.byteMask[ulongIdx] |= bit;
+                            this.uniqueByteCount++;
+                        }
                     }
-
-                    this.MergeInterval(offsetInPage, offsetInPage + size);
                 }
 
                 internal int GetUniqueByteCount()
                 {
-                    var total = 0;
-                    for (var i = 0; i < this.intervals.Count; i++)
-                    {
-                        total += this.intervals[i].End - this.intervals[i].Start;
-                    }
-
-                    return total;
-                }
-
-                private void MergeInterval(int start, int end)
-                {
-                    var newStart = start;
-                    var newEnd = end;
-                    for (var i = this.intervals.Count - 1; i >= 0; i--)
-                    {
-                        var (iStart, iEnd) = this.intervals[i];
-                        if (newStart <= iEnd && newEnd >= iStart)
-                        {
-                            newStart = Math.Min(newStart, iStart);
-                            newEnd = Math.Max(newEnd, iEnd);
-                            this.intervals.RemoveAt(i);
-                        }
-                    }
-
-                    this.intervals.Add((newStart, newEnd));
+                    return this.uniqueByteCount;
                 }
             }
 
