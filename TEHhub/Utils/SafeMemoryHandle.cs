@@ -591,6 +591,7 @@ namespace TEHhub.Utils
             private const int CompactBlockSize = 128;
             private const int CompactPromotionThreshold = 2;
             private const int MaxDynamicWindows = 2048;
+            private const int MaxTrackedBlocks = 2048;
 
             private readonly ReadCacheWindow[] windows;
             private readonly Dictionary<long, ReadCacheWindow>? exactWindows;
@@ -697,8 +698,22 @@ namespace TEHhub.Utils
                 // 3. Adaptive 128B Promotion on locality evidence (miss in 128B block with access count >= threshold)
                 if (fitsInBlock && IsValidAddress(new IntPtr(blockStart)))
                 {
-                    var count = this.blockAccessCounts.GetValueOrDefault(blockStart, 0) + 1;
-                    this.blockAccessCounts[blockStart] = count;
+                    int count;
+                    if (this.blockAccessCounts.TryGetValue(blockStart, out var currentCount))
+                    {
+                        count = currentCount + 1;
+                        this.blockAccessCounts[blockStart] = count;
+                    }
+                    else if (this.blockAccessCounts.Count < MaxTrackedBlocks)
+                    {
+                        count = 1;
+                        this.blockAccessCounts.Add(blockStart, count);
+                    }
+                    else
+                    {
+                        // Tracking budget full; treat as un-promoted single access
+                        count = 1;
+                    }
 
                     if (count >= CompactPromotionThreshold &&
                         (this.compactWindows.Count + this.exactWindows.Count) < MaxDynamicWindows)
