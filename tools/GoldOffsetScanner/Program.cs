@@ -62,6 +62,14 @@ namespace GoldOffsetScanner
                 return 0;
             }
 
+            if (args.Contains("--validate-structure", StringComparer.OrdinalIgnoreCase) || args.Contains("--validate", StringComparer.OrdinalIgnoreCase))
+            {
+                var targetCandidate = session.Data.Candidates.FirstOrDefault(c => !c.IsUiTextCandidate);
+                var goldAddr = targetCandidate?.Address ?? 0;
+                StructuralValidator.RunFullValidation(reader, goldAddr);
+                return 0;
+            }
+
             if (args.Contains("--inspect-vector", StringComparer.OrdinalIgnoreCase))
             {
                 Vector1D8Inspector.Inspect(reader);
