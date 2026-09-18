@@ -26,3 +26,4 @@ scratch/
 FarmCounter-master/
 artifacts/
 *.patch
+/audit-output
