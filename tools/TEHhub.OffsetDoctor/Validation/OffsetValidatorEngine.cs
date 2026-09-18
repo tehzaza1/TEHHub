@@ -337,8 +337,13 @@ public sealed class OffsetValidatorEngine
                 break;
             }
 
-            case ValueKind.PointerField:
             case ValueKind.RecordSlotField:
+            {
+                ValidateGoldRecordSlot(reader, targetAddr, node, result);
+                break;
+            }
+
+            case ValueKind.PointerField:
             {
                 ValidatePointerField(reader, targetAddr, node, result);
                 break;
@@ -386,6 +391,99 @@ public sealed class OffsetValidatorEngine
                 result.ErrorMessage = $"Unsupported ValueKind: {node.Kind}";
                 break;
         }
+    }
+
+    private static void ValidateGoldRecordSlot(
+        IProcessMemoryReader reader,
+        IntPtr targetAddr,
+        OffsetNode node,
+        ValidationResult result)
+    {
+        result.ResolvedAddress = targetAddr;
+
+        if (!reader.TryRead<IntPtr>(targetAddr, out var recordMem))
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Failed to read gold record pointer at +0x{node.DefaultOffset:X}";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "RecordSlotReadable",
+                Description = $"Record slot pointer at +0x{node.DefaultOffset:X} could not be read",
+                Passed = false
+            });
+            return;
+        }
+
+        if (recordMem == IntPtr.Zero || !reader.IsValidAddress(recordMem))
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Gold record pointer at +0x{node.DefaultOffset:X} (0x{recordMem.ToInt64():X}) is null or unmapped.";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "RecordSlotTargetValid",
+                Description = $"Record slot target pointer 0x{recordMem.ToInt64():X} is null or invalid",
+                Passed = false
+            });
+            return;
+        }
+
+        // Structural stride proof:
+        // Record #4 is at recordMem. Gold is at recordMem + GoldFieldOffset (0x618).
+        // Stride is 0x80 bytes per record.
+        // Verify that target memory block spans at least 0x618 + 4 bytes and sequential strides are readable.
+        int requiredSpan = PlayerServerDataOffsets.GoldFieldOffset + sizeof(int);
+        var recordBytes = reader.ReadBytes(recordMem, requiredSpan);
+        if (recordBytes == null || recordBytes.Length < requiredSpan)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Gold record memory at 0x{recordMem.ToInt64():X} cannot be read for required span of {requiredSpan} bytes (stride 0x80 check failed).";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "RecordSlotMemorySpanReadable",
+                Description = $"Record memory at 0x{recordMem.ToInt64():X} failed to read {requiredSpan} bytes",
+                Passed = false
+            });
+            return;
+        }
+
+        bool strideReadable = true;
+        for (int offset = 0; offset <= PlayerServerDataOffsets.GoldFieldOffset; offset += PlayerServerDataOffsets.RecordStride)
+        {
+            if (!reader.TryRead<byte>(recordMem + offset, out _))
+            {
+                strideReadable = false;
+                break;
+            }
+        }
+
+        if (!strideReadable)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Gold record stride integrity check failed at 0x{recordMem.ToInt64():X}.";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "RecordSlotStrideIntegrity",
+                Description = $"Record stride boundaries at 0x{recordMem.ToInt64():X} are unreadable",
+                Passed = false
+            });
+            return;
+        }
+
+        result.Status = ValidationStatus.VALID;
+        result.ResolvedAddress = targetAddr;
+        result.TraversalAddress = recordMem;
+        result.ExtractedValue = $"RecordSlot #4 -> 0x{recordMem.ToInt64():X} (Stride 0x80 verified)";
+        result.Evidence.Add(new EvidenceRecord
+        {
+            RuleName = "RecordSlotStrideVerified",
+            Description = $"Gold record pointer at +0x{node.DefaultOffset:X} points to 0x{recordMem.ToInt64():X} with valid 0x80 stride mapping up to +0x{PlayerServerDataOffsets.GoldFieldOffset:X}",
+            Passed = true,
+            IsIndependentValidator = true
+        });
     }
 
     private static void ValidatePointerField(
@@ -456,79 +554,11 @@ public sealed class OffsetValidatorEngine
         }
 
         // Pointer is valid and target memory is readable.
-        // Apply dedicated semantic verification for core objects, otherwise report UNVERIFIED with usable TraversalAddress.
         result.ResolvedAddress = ptr;
         result.TraversalAddress = ptr;
         result.ExtractedValue = $"0x{ptr.ToInt64():X}";
 
-        if (node.Id == "game_state_root")
-        {
-            if (reader.TryRead<GameStateOffset>(ptr, out var gs) && gs.CurrentStatePtr.First != IntPtr.Zero)
-            {
-                result.Status = ValidationStatus.VALID;
-                result.Evidence.Add(new EvidenceRecord
-                {
-                    RuleName = "GameStateSemanticLayout",
-                    Description = $"GameState at 0x{ptr.ToInt64():X} verified with valid CurrentStatePtr vector",
-                    Passed = true,
-                    IsIndependentValidator = true
-                });
-                return;
-            }
-        }
-        else if (node.Id == "game_state_in_game_state")
-        {
-            if (reader.TryRead<InGameStateOffset>(ptr, out var igs) && igs.AreaInstanceData != IntPtr.Zero)
-            {
-                result.Status = ValidationStatus.VALID;
-                result.Evidence.Add(new EvidenceRecord
-                {
-                    RuleName = "InGameStateSemanticLayout",
-                    Description = $"InGameState at 0x{ptr.ToInt64():X} verified with valid AreaInstanceData pointer",
-                    Passed = true,
-                    IsIndependentValidator = true
-                });
-                return;
-            }
-        }
-        else if (node.Id == "in_game_area_instance")
-        {
-            if (reader.TryRead<AreaInstanceOffsets>(ptr, out var ai) && ai.CurrentAreaLevel >= 1 && ai.CurrentAreaLevel <= 100)
-            {
-                result.Status = ValidationStatus.VALID;
-                result.Evidence.Add(new EvidenceRecord
-                {
-                    RuleName = "AreaInstanceSemanticLayout",
-                    Description = $"AreaInstance at 0x{ptr.ToInt64():X} verified with coherent CurrentAreaLevel ({ai.CurrentAreaLevel})",
-                    Passed = true,
-                    IsIndependentValidator = true
-                });
-                return;
-            }
-        }
-        else if (node.Id == "area_server_data")
-        {
-            if (reader.TryRead<ServerDataOffsets>(ptr, out var sd))
-            {
-                var bVal = (ulong)sd.PlayerServerDataPtr.First.ToInt64();
-                var eVal = (ulong)sd.PlayerServerDataPtr.Last.ToInt64();
-                var cVal = (ulong)sd.PlayerServerDataPtr.End.ToInt64();
-
-                if (bVal != 0 && eVal != 0 && cVal != 0 && bVal <= eVal && eVal <= cVal && reader.IsValidAddress(sd.PlayerServerDataPtr.First))
-                {
-                    result.Status = ValidationStatus.VALID;
-                    result.Evidence.Add(new EvidenceRecord
-                    {
-                        RuleName = "ServerDataSemanticLayout",
-                        Description = $"ServerData at 0x{ptr.ToInt64():X} verified with valid PlayerServerDataPtr vector",
-                        Passed = true,
-                        IsIndependentValidator = true
-                    });
-                    return;
-                }
-            }
-        }
-        else if (node.Id == "area_local_player_entity")
+        if (node.Id == "area_local_player_entity")
         {
             if (reader.TryRead<ItemStruct>(ptr, out var item) &&
                 item.EntityDetailsPtr != IntPtr.Zero &&
@@ -790,15 +820,7 @@ public sealed class OffsetValidatorEngine
                 return;
             }
 
-            if (node.Id == "game_state_current_state" || node.Id == "server_data_psd_vector")
-            {
-                result.Status = ValidationStatus.VALID;
-            }
-            else
-            {
-                result.Status = ValidationStatus.UNVERIFIED;
-            }
-
+            result.Status = ValidationStatus.UNVERIFIED;
             result.TraversalAddress = firstPtr;
             result.ExtractedValue = $"StdVector [Count={count}, Target=0x{firstPtr.ToInt64():X}]";
             result.Evidence.Add(new EvidenceRecord
@@ -934,6 +956,13 @@ public sealed class OffsetValidatorEngine
             BitConverter.GetBytes(wstr.Buffer.ToInt64()).CopyTo(buf, 0);
             BitConverter.GetBytes(wstr.ReservedBytes.ToInt64()).CopyTo(buf, 8);
             int byteLen = Math.Min(wstr.Length * 2, 16);
+            if (!IsValidUtf16Bytes(buf, wstr.Length))
+            {
+                result.Status = ValidationStatus.BROKEN;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = "Malformed UTF-16 string: unpaired surrogate character detected in SSO buffer.";
+                return;
+            }
             strVal = Encoding.Unicode.GetString(buf, 0, byteLen);
         }
         else
@@ -952,6 +981,14 @@ public sealed class OffsetValidatorEngine
                 result.Status = ValidationStatus.BROKEN;
                 result.TraversalAddress = IntPtr.Zero;
                 result.ErrorMessage = "Unable to read full heap buffer contents for StdWString.";
+                return;
+            }
+
+            if (!IsValidUtf16Bytes(heapBytes, wstr.Length))
+            {
+                result.Status = ValidationStatus.BROKEN;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = "Malformed UTF-16 string: unpaired surrogate character detected in heap buffer.";
                 return;
             }
 
@@ -1013,7 +1050,7 @@ public sealed class OffsetValidatorEngine
 
         bool vtableValid = vital.VtablePtr != IntPtr.Zero && reader.IsValidAddress(vital.VtablePtr) && reader.TryRead<byte>(vital.VtablePtr, out _);
         bool totalSane = vital.Total >= 0 && vital.Total <= 500_000;
-        bool currentSane = vital.Current >= 0 && vital.Current <= vital.Total + 50_000;
+        bool currentSane = vital.Current >= 0 && vital.Current <= vital.Total;
 
         if (!vtableValid || !totalSane || !currentSane)
         {
@@ -1160,18 +1197,17 @@ public sealed class OffsetValidatorEngine
             }
         }
 
-        // Tightly bounded domain checks that provide semantic proof:
+        // Tightly bounded domain checks (plausibility only -> UNVERIFIED; out-of-range -> BROKEN):
         if (node.Id == "area_current_level" || node.Id == "comp_player_level")
         {
             if (numVal >= 1 && numVal <= 100)
             {
-                result.Status = ValidationStatus.VALID;
+                result.Status = ValidationStatus.UNVERIFIED;
                 result.Evidence.Add(new EvidenceRecord
                 {
-                    RuleName = "LevelDomainValid",
-                    Description = $"Level value {numVal} is within valid PoE level domain [1..100]",
-                    Passed = true,
-                    IsIndependentValidator = true
+                    RuleName = "LevelDomainPlausible",
+                    Description = $"Level value {numVal} is within valid PoE level domain [1..100] (plausibility only)",
+                    Passed = true
                 });
                 return;
             }
@@ -1184,13 +1220,12 @@ public sealed class OffsetValidatorEngine
         {
             if (numVal == 0 || numVal == 1)
             {
-                result.Status = ValidationStatus.VALID;
+                result.Status = ValidationStatus.UNVERIFIED;
                 result.Evidence.Add(new EvidenceRecord
                 {
-                    RuleName = "WeaponIndexValid",
-                    Description = $"Weapon index {numVal} is valid (0 or 1)",
-                    Passed = true,
-                    IsIndependentValidator = true
+                    RuleName = "WeaponIndexPlausible",
+                    Description = $"Weapon index {numVal} is plausible (0 or 1)",
+                    Passed = true
                 });
                 return;
             }
@@ -1203,13 +1238,12 @@ public sealed class OffsetValidatorEngine
         {
             if (numVal >= 0 && numVal <= 2)
             {
-                result.Status = ValidationStatus.VALID;
+                result.Status = ValidationStatus.UNVERIFIED;
                 result.Evidence.Add(new EvidenceRecord
                 {
-                    RuleName = "ReactionValid",
-                    Description = $"Reaction byte {numVal} is valid (0, 1, or 2)",
-                    Passed = true,
-                    IsIndependentValidator = true
+                    RuleName = "ReactionPlausible",
+                    Description = $"Reaction byte {numVal} is plausible (0, 1, or 2)",
+                    Passed = true
                 });
                 return;
             }
@@ -1222,13 +1256,12 @@ public sealed class OffsetValidatorEngine
         {
             if (numVal == 0 || numVal == 1)
             {
-                result.Status = ValidationStatus.VALID;
+                result.Status = ValidationStatus.UNVERIFIED;
                 result.Evidence.Add(new EvidenceRecord
                 {
-                    RuleName = "IsLoadingValid",
-                    Description = $"IsLoading integer {numVal} is valid (0 or 1)",
-                    Passed = true,
-                    IsIndependentValidator = true
+                    RuleName = "IsLoadingPlausible",
+                    Description = $"IsLoading integer {numVal} is plausible (0 or 1)",
+                    Passed = true
                 });
                 return;
             }
@@ -1320,6 +1353,31 @@ public sealed class OffsetValidatorEngine
         result.ErrorMessage = $"Unreadable struct memory at +0x{node.DefaultOffset:X}";
     }
 
+    private static bool IsValidUtf16Bytes(byte[] bytes, int charCount)
+    {
+        if (bytes == null || bytes.Length < charCount * 2) return false;
+        for (int i = 0; i < charCount; i++)
+        {
+            ushort u = BitConverter.ToUInt16(bytes, i * 2);
+            if (u >= 0xD800 && u <= 0xDBFF)
+            {
+                // High surrogate: must be followed by Low surrogate (0xDC00..0xDFFF)
+                if (i + 1 >= charCount)
+                    return false;
+                ushort next = BitConverter.ToUInt16(bytes, (i + 1) * 2);
+                if (next < 0xDC00 || next > 0xDFFF)
+                    return false;
+                i++; // Skip paired low surrogate
+            }
+            else if (u >= 0xDC00 && u <= 0xDFFF)
+            {
+                // Unpaired low surrogate
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static string DecodeStdWString(IProcessMemoryReader reader, StdWString wstr)
     {
         if (wstr.Length <= 0 || wstr.Length > 1000 || wstr.Capacity < wstr.Length)
@@ -1333,6 +1391,7 @@ public sealed class OffsetValidatorEngine
             BitConverter.GetBytes(wstr.Buffer.ToInt64()).CopyTo(buf, 0);
             BitConverter.GetBytes(wstr.ReservedBytes.ToInt64()).CopyTo(buf, 8);
             int byteLen = Math.Min(wstr.Length * 2, 16);
+            if (!IsValidUtf16Bytes(buf, wstr.Length)) return string.Empty;
             return Encoding.Unicode.GetString(buf, 0, byteLen);
         }
         else if (wstr.Buffer != IntPtr.Zero && reader.IsValidAddress(wstr.Buffer))
@@ -1340,6 +1399,7 @@ public sealed class OffsetValidatorEngine
             var heapBytes = reader.ReadBytes(wstr.Buffer, wstr.Length * 2);
             if (heapBytes != null)
             {
+                if (!IsValidUtf16Bytes(heapBytes, wstr.Length)) return string.Empty;
                 return Encoding.Unicode.GetString(heapBytes);
             }
         }

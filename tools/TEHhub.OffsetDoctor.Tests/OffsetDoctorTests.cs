@@ -21,7 +21,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 35 Rigorous Semantic Validation Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 39 Rigorous Semantic Validation Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -58,8 +58,12 @@ public static class OffsetDoctorTests
         Test33_VitalStructGroundTruthMismatchIsUnverified(check);
         Test34_MalformedComponentLookupBlocksSubfields(check);
         Test35_BroadScalarPlausibilityIsUnverified(check);
+        Test36_MalformedUtf16SurrogateReportsBroken(check);
+        Test37_GoldRecordSlotStrideUnreadableReportsBroken(check);
+        Test38_VitalStructCurrentGreaterThanTotalReportsBroken(check);
+        Test39_DomainOnlyScalarsPlausibilityAndBounds(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 35 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 39 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -245,7 +249,7 @@ public static class OffsetDoctorTests
         return (reader, gameState, inGameState, areaInstance, serverData, psd, goldRecord, localPlayer, compList, compMap);
     }
 
-    // 1. Healthy root/core chain -> VALID
+    // 1. Healthy root/core chain -> VALID / UNVERIFIED per semantic proof rules
     private static void Test1_HealthyCoreChain(Action<bool, string> check)
     {
         using var setup = SetupSyntheticEnvironment().reader;
@@ -258,15 +262,19 @@ public static class OffsetDoctorTests
         var ai = report.Results.First(r => r.NodeId == "in_game_area_instance");
         var sd = report.Results.First(r => r.NodeId == "area_server_data");
         var psd = report.Results.First(r => r.NodeId == "server_data_psd_vector");
+        var goldSlot = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
         var gold = report.Results.First(r => r.NodeId == "psd_gold_field");
+        var playerEntity = report.Results.First(r => r.NodeId == "area_local_player_entity");
 
         check(gsPattern.Status == ValidationStatus.VALID, "T1: Game States pattern is VALID.");
-        check(gsRoot.Status == ValidationStatus.VALID, "T1: GameState root is VALID.");
-        check(igs.Status == ValidationStatus.VALID, "T1: InGameState is VALID.");
-        check(ai.Status == ValidationStatus.VALID, "T1: AreaInstance is VALID.");
-        check(sd.Status == ValidationStatus.VALID, "T1: ServerData is VALID.");
-        check(psd.Status == ValidationStatus.VALID, "T1: PSD vector is VALID.");
+        check(gsRoot.Status == ValidationStatus.UNVERIFIED, "T1: GameState root is UNVERIFIED.");
+        check(igs.Status == ValidationStatus.UNVERIFIED, "T1: InGameState is UNVERIFIED.");
+        check(ai.Status == ValidationStatus.UNVERIFIED, "T1: AreaInstance is UNVERIFIED.");
+        check(sd.Status == ValidationStatus.UNVERIFIED, "T1: ServerData is UNVERIFIED.");
+        check(psd.Status == ValidationStatus.UNVERIFIED, "T1: PSD vector is UNVERIFIED.");
+        check(goldSlot.Status == ValidationStatus.VALID, "T1: Gold record slot with 0x80 stride is VALID.");
         check(gold.Status == ValidationStatus.VALID, "T1: Gold field with ground truth is VALID.");
+        check(playerEntity.Status == ValidationStatus.VALID, "T1: Player entity with character metadata is VALID.");
     }
 
     // 2. Broken static root -> all dependent nodes BLOCKED
@@ -836,6 +844,91 @@ public static class OffsetDoctorTests
 
         check(hash.Status == ValidationStatus.UNVERIFIED, "T35: CurrentAreaHash is UNVERIFIED (broad scalar).");
         check(loadTime.Status == ValidationStatus.UNVERIFIED, "T35: LoadingScreenTimeMs is UNVERIFIED (broad timer).");
+    }
+
+    // 36. Malformed UTF-16 surrogate string in StdWString reports BROKEN
+    private static void Test36_MalformedUtf16SurrogateReportsBroken(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var playerComp = setup.compMap["Player"];
+
+        // Plant raw unpaired high surrogate 0xD83D followed by 'a', 'b' in little-endian UTF-16
+        var badBytes = new byte[] { 0x3D, 0xD8, 0x61, 0x00, 0x62, 0x00 };
+        var badBuf = reader.AllocateBlock(0x80);
+        reader.WriteBytes(badBuf, badBytes);
+        reader.Write(playerComp + 0x1B0, new StdWString
+        {
+            Buffer = badBuf,
+            Length = 3,
+            Capacity = 20
+        });
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var nameRes = report.Results.First(r => r.NodeId == "comp_player_name");
+        check(nameRes.Status == ValidationStatus.BROKEN, "T36: Unpaired UTF-16 high surrogate in StdWString must report BROKEN.");
+    }
+
+    // 37. Gold record slot with truncated/unreadable stride memory reports BROKEN, child gold field BLOCKED
+    private static void Test37_GoldRecordSlotStrideUnreadableReportsBroken(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var psd = setup.psd;
+
+        // Allocate only 0x100 bytes for gold record (too small for 0x618 span)
+        var tinyRecord = reader.AllocateBlock(0x100);
+        reader.WritePointer(psd + 0x0E28, tinyRecord);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var slotRes = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+        var goldRes = report.Results.First(r => r.NodeId == "psd_gold_field");
+
+        check(slotRes.Status == ValidationStatus.BROKEN, "T37: Truncated record memory violating 0x80 stride span reports BROKEN.");
+        check(goldRes.Status == ValidationStatus.BLOCKED, "T37: Child gold field is BLOCKED by broken record slot.");
+    }
+
+    // 38. VitalStruct with Current > Total reports BROKEN
+    private static void Test38_VitalStructCurrentGreaterThanTotalReportsBroken(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var dummyVtable = new IntPtr(0x10000000 + 0x800);
+        var lifeComp = setup.compMap["Life"];
+
+        // Write VitalStruct with Current = 6000 > Total = 5000
+        reader.Write(lifeComp + 0x1B0, new VitalStruct { VtablePtr = dummyVtable, Total = 5000, Current = 6000 });
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var hpRes = report.Results.First(r => r.NodeId == "comp_life_health");
+        check(hpRes.Status == ValidationStatus.BROKEN, "T38: VitalStruct with Current > Total must report BROKEN.");
+    }
+
+    // 39. Domain-only scalars within range report UNVERIFIED, outside range report BROKEN
+    private static void Test39_DomainOnlyScalarsPlausibilityAndBounds(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var areaInstance = setup.areaInstance;
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var levelRes = report.Results.First(r => r.NodeId == "area_current_level");
+        check(levelRes.Status == ValidationStatus.UNVERIFIED, "T39: Level 75 in domain [1..100] is UNVERIFIED (plausibility only).");
+
+        // Overwrite level with impossible level 250
+        reader.Write(areaInstance + 0x0BC, (byte)250);
+        var report2 = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var levelRes2 = report2.Results.First(r => r.NodeId == "area_current_level");
+        check(levelRes2.Status == ValidationStatus.BROKEN, "T39: Level 250 outside domain [1..100] reports BROKEN.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
