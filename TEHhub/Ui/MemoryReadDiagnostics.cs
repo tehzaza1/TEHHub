@@ -63,27 +63,36 @@ public static class MemoryReadDiagnostics
     private static int apiStopRequested;
     private static string lastDumpPath = string.Empty;
 
-    private static long hybridLogicalRequests;
-    private static long hybridLogicalBytes;
-    private static long hybridExactHits;
-    private static long hybridCompactHits;
-    private static long hybridMediumHits;
-    private static long hybridPageHits;
-    private static long hybridExactReads;
-    private static long hybridCompactPromotions;
-    private static long hybridMediumPromotions;
-    private static long hybridPagePromotions;
-    private static long hybridCompactPromotionFailures;
-    private static long hybridMediumPromotionFailures;
-    private static long hybridPagePromotionFailures;
-    private static long hybridExactFetchedBytes;
-    private static long hybridCompactFetchedBytes;
-    private static long hybridMediumFetchedBytes;
-    private static long hybridPageFetchedBytes;
-    private static long hybridEntriesCreated;
-    private static long hybridPageTrackersCreated;
-    private static long hybridMaxPageTrackersPerFrame;
-    private static long hybridSnapshotSequence;
+    private sealed class HybridDiagnosticsState
+    {
+        public long LogicalRequests;
+        public long LogicalBytes;
+
+        public long ExactHits;
+        public long CompactHits;
+        public long MediumHits;
+        public long PageHits;
+
+        public long ExactReads;
+        public long CompactPromotions;
+        public long MediumPromotions;
+        public long PagePromotions;
+
+        public long CompactPromotionFailures;
+        public long MediumPromotionFailures;
+        public long PagePromotionFailures;
+
+        public long ExactFetchedBytes;
+        public long CompactFetchedBytes;
+        public long MediumFetchedBytes;
+        public long PageFetchedBytes;
+
+        public long EntriesCreated;
+        public long PageTrackersCreated;
+        public int MaxPageTrackersPerFrame;
+    }
+
+    private static HybridDiagnosticsState hybridState = new();
 
     /// <summary>
     ///     Starts the window render coroutine.
@@ -171,124 +180,58 @@ public static class MemoryReadDiagnostics
 
     /// <summary>
     ///     Captures a coherent, single-interval snapshot of Hybrid Dynamic memory metrics using
-    ///     a lock-free seqlock sequence check to guarantee pre-reset and post-reset states are
-    ///     never mixed.
+    ///     an atomic generation-state reference.
     /// </summary>
     internal static MemoryDiagnosticsHybridSnapshot GetHybridSnapshot()
     {
-        const int MaxRetries = 10;
-        for (var attempt = 0; attempt < MaxRetries; attempt++)
-        {
-            var seqBefore = Volatile.Read(ref hybridSnapshotSequence);
-            if ((seqBefore & 1) != 0)
-            {
-                Thread.Yield();
-                continue;
-            }
+        var state = Volatile.Read(ref hybridState);
 
-            var logicalReqs = Volatile.Read(ref hybridLogicalRequests);
-            var logicalBytes = Volatile.Read(ref hybridLogicalBytes);
-            var exactHits = Volatile.Read(ref hybridExactHits);
-            var compHits = Volatile.Read(ref hybridCompactHits);
-            var medHits = Volatile.Read(ref hybridMediumHits);
-            var pageHits = Volatile.Read(ref hybridPageHits);
-            var exactReads = Volatile.Read(ref hybridExactReads);
-            var compProms = Volatile.Read(ref hybridCompactPromotions);
-            var medProms = Volatile.Read(ref hybridMediumPromotions);
-            var pageProms = Volatile.Read(ref hybridPagePromotions);
-            var compFails = Volatile.Read(ref hybridCompactPromotionFailures);
-            var medFails = Volatile.Read(ref hybridMediumPromotionFailures);
-            var pageFails = Volatile.Read(ref hybridPagePromotionFailures);
-            var exactFetched = Volatile.Read(ref hybridExactFetchedBytes);
-            var entriesCreated = Volatile.Read(ref hybridEntriesCreated);
-            var trackersCreated = Volatile.Read(ref hybridPageTrackersCreated);
-            var maxTrackersFrame = Volatile.Read(ref hybridMaxPageTrackersPerFrame);
+        var logicalReqs = Volatile.Read(ref state.LogicalRequests);
+        var logicalBytes = Volatile.Read(ref state.LogicalBytes);
+        var exactHits = Volatile.Read(ref state.ExactHits);
+        var compHits = Volatile.Read(ref state.CompactHits);
+        var medHits = Volatile.Read(ref state.MediumHits);
+        var pageHits = Volatile.Read(ref state.PageHits);
+        var exactReads = Volatile.Read(ref state.ExactReads);
+        var compProms = Volatile.Read(ref state.CompactPromotions);
+        var medProms = Volatile.Read(ref state.MediumPromotions);
+        var pageProms = Volatile.Read(ref state.PagePromotions);
+        var compFails = Volatile.Read(ref state.CompactPromotionFailures);
+        var medFails = Volatile.Read(ref state.MediumPromotionFailures);
+        var pageFails = Volatile.Read(ref state.PagePromotionFailures);
+        var exactFetched = Volatile.Read(ref state.ExactFetchedBytes);
+        var compFetched = Volatile.Read(ref state.CompactFetchedBytes);
+        var medFetched = Volatile.Read(ref state.MediumFetchedBytes);
+        var pageFetched = Volatile.Read(ref state.PageFetchedBytes);
+        var totalFetched = exactFetched + compFetched + medFetched + pageFetched;
+        var entriesCreated = Volatile.Read(ref state.EntriesCreated);
+        var trackersCreated = Volatile.Read(ref state.PageTrackersCreated);
+        var maxTrackersFrame = Volatile.Read(ref state.MaxPageTrackersPerFrame);
+        var ratio = logicalBytes > 0 ? (double)totalFetched / logicalBytes : 0.0;
 
-            var seqAfter = Volatile.Read(ref hybridSnapshotSequence);
-            if (seqBefore != seqAfter)
-            {
-                continue;
-            }
-
-            var coherentCompFetched = compProms * 128L;
-            var coherentMedFetched = medProms * 512L;
-            var coherentPageFetched = pageProms * 4096L;
-            var totalFetched = exactFetched + coherentCompFetched + coherentMedFetched + coherentPageFetched;
-            var ratio = logicalBytes > 0 ? (double)totalFetched / logicalBytes : 0.0;
-
-            return new MemoryDiagnosticsHybridSnapshot(
-                logicalReqs,
-                logicalBytes,
-                exactHits,
-                compHits,
-                medHits,
-                pageHits,
-                exactReads,
-                compProms,
-                medProms,
-                pageProms,
-                compFails,
-                medFails,
-                pageFails,
-                exactFetched,
-                coherentCompFetched,
-                coherentMedFetched,
-                coherentPageFetched,
-                totalFetched,
-                entriesCreated,
-                trackersCreated,
-                maxTrackersFrame,
-                ratio);
-        }
-
-        {
-            var logicalReqs = Volatile.Read(ref hybridLogicalRequests);
-            var logicalBytes = Volatile.Read(ref hybridLogicalBytes);
-            var exactHits = Volatile.Read(ref hybridExactHits);
-            var compHits = Volatile.Read(ref hybridCompactHits);
-            var medHits = Volatile.Read(ref hybridMediumHits);
-            var pageHits = Volatile.Read(ref hybridPageHits);
-            var exactReads = Volatile.Read(ref hybridExactReads);
-            var compProms = Volatile.Read(ref hybridCompactPromotions);
-            var medProms = Volatile.Read(ref hybridMediumPromotions);
-            var pageProms = Volatile.Read(ref hybridPagePromotions);
-            var compFails = Volatile.Read(ref hybridCompactPromotionFailures);
-            var medFails = Volatile.Read(ref hybridMediumPromotionFailures);
-            var pageFails = Volatile.Read(ref hybridPagePromotionFailures);
-            var exactFetched = Volatile.Read(ref hybridExactFetchedBytes);
-            var coherentCompFetched = compProms * 128L;
-            var coherentMedFetched = medProms * 512L;
-            var coherentPageFetched = pageProms * 4096L;
-            var totalFetched = exactFetched + coherentCompFetched + coherentMedFetched + coherentPageFetched;
-            var entriesCreated = Volatile.Read(ref hybridEntriesCreated);
-            var trackersCreated = Volatile.Read(ref hybridPageTrackersCreated);
-            var maxTrackersFrame = Volatile.Read(ref hybridMaxPageTrackersPerFrame);
-            var ratio = logicalBytes > 0 ? (double)totalFetched / logicalBytes : 0.0;
-
-            return new MemoryDiagnosticsHybridSnapshot(
-                logicalReqs,
-                logicalBytes,
-                exactHits,
-                compHits,
-                medHits,
-                pageHits,
-                exactReads,
-                compProms,
-                medProms,
-                pageProms,
-                compFails,
-                medFails,
-                pageFails,
-                exactFetched,
-                coherentCompFetched,
-                coherentMedFetched,
-                coherentPageFetched,
-                totalFetched,
-                entriesCreated,
-                trackersCreated,
-                maxTrackersFrame,
-                ratio);
-        }
+        return new MemoryDiagnosticsHybridSnapshot(
+            logicalReqs,
+            logicalBytes,
+            exactHits,
+            compHits,
+            medHits,
+            pageHits,
+            exactReads,
+            compProms,
+            medProms,
+            pageProms,
+            compFails,
+            medFails,
+            pageFails,
+            exactFetched,
+            compFetched,
+            medFetched,
+            pageFetched,
+            totalFetched,
+            entriesCreated,
+            trackersCreated,
+            maxTrackersFrame,
+            ratio);
     }
 
     /// <summary>
@@ -400,85 +343,97 @@ public static class MemoryReadDiagnostics
 
     internal static void RecordHybridLogicalRequest(long requestedBytes)
     {
-        Interlocked.Increment(ref hybridLogicalRequests);
-        Interlocked.Add(ref hybridLogicalBytes, requestedBytes);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.LogicalRequests);
+        Interlocked.Add(ref state.LogicalBytes, requestedBytes);
     }
 
     internal static void RecordHybridExactHit()
     {
-        Interlocked.Increment(ref hybridExactHits);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.ExactHits);
     }
 
     internal static void RecordHybridCompactHit()
     {
-        Interlocked.Increment(ref hybridCompactHits);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.CompactHits);
     }
 
     internal static void RecordHybridMediumHit()
     {
-        Interlocked.Increment(ref hybridMediumHits);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.MediumHits);
     }
 
     internal static void RecordHybridPageHit()
     {
-        Interlocked.Increment(ref hybridPageHits);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.PageHits);
     }
 
     internal static void RecordHybridExactRead(long fetchedBytes)
     {
-        Interlocked.Increment(ref hybridExactReads);
-        Interlocked.Increment(ref hybridEntriesCreated);
-        Interlocked.Add(ref hybridExactFetchedBytes, fetchedBytes);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.ExactReads);
+        Interlocked.Increment(ref state.EntriesCreated);
+        Interlocked.Add(ref state.ExactFetchedBytes, fetchedBytes);
     }
 
     internal static void RecordHybridCompactPromotion(long fetchedBytes)
     {
-        Interlocked.Increment(ref hybridCompactPromotions);
-        Interlocked.Increment(ref hybridEntriesCreated);
-        Interlocked.Add(ref hybridCompactFetchedBytes, fetchedBytes);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.CompactPromotions);
+        Interlocked.Increment(ref state.EntriesCreated);
+        Interlocked.Add(ref state.CompactFetchedBytes, fetchedBytes);
     }
 
     internal static void RecordHybridMediumPromotion(long fetchedBytes)
     {
-        Interlocked.Increment(ref hybridMediumPromotions);
-        Interlocked.Increment(ref hybridEntriesCreated);
-        Interlocked.Add(ref hybridMediumFetchedBytes, fetchedBytes);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.MediumPromotions);
+        Interlocked.Increment(ref state.EntriesCreated);
+        Interlocked.Add(ref state.MediumFetchedBytes, fetchedBytes);
     }
 
     internal static void RecordHybridPagePromotion(long fetchedBytes)
     {
-        Interlocked.Increment(ref hybridPagePromotions);
-        Interlocked.Increment(ref hybridEntriesCreated);
-        Interlocked.Add(ref hybridPageFetchedBytes, fetchedBytes);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.PagePromotions);
+        Interlocked.Increment(ref state.EntriesCreated);
+        Interlocked.Add(ref state.PageFetchedBytes, fetchedBytes);
     }
 
     internal static void RecordHybridPromotionFailure(HybridPromotionLevel level)
     {
+        var state = Volatile.Read(ref hybridState);
         switch (level)
         {
             case HybridPromotionLevel.Compact128B:
-                Interlocked.Increment(ref hybridCompactPromotionFailures);
+                Interlocked.Increment(ref state.CompactPromotionFailures);
                 break;
             case HybridPromotionLevel.Medium512B:
-                Interlocked.Increment(ref hybridMediumPromotionFailures);
+                Interlocked.Increment(ref state.MediumPromotionFailures);
                 break;
             case HybridPromotionLevel.Page4KB:
-                Interlocked.Increment(ref hybridPagePromotionFailures);
+                Interlocked.Increment(ref state.PagePromotionFailures);
                 break;
         }
     }
 
     internal static void RecordHybridPageTrackerCreated()
     {
-        Interlocked.Increment(ref hybridPageTrackersCreated);
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.PageTrackersCreated);
     }
 
     internal static void RecordHybridFrameTracking(int trackedPagesCount)
     {
-        var currentMax = Volatile.Read(ref hybridMaxPageTrackersPerFrame);
+        var state = Volatile.Read(ref hybridState);
+        var currentMax = Volatile.Read(ref state.MaxPageTrackersPerFrame);
         while (trackedPagesCount > currentMax)
         {
-            var prev = Interlocked.CompareExchange(ref hybridMaxPageTrackersPerFrame, trackedPagesCount, currentMax);
+            var prev = Interlocked.CompareExchange(ref state.MaxPageTrackersPerFrame, trackedPagesCount, currentMax);
             if (prev == currentMax)
             {
                 break;
@@ -748,34 +703,7 @@ public static class MemoryReadDiagnostics
 
     private static void ResetHybridMetrics()
     {
-        Interlocked.Increment(ref hybridSnapshotSequence);
-        try
-        {
-            Interlocked.Exchange(ref hybridLogicalRequests, 0);
-            Interlocked.Exchange(ref hybridLogicalBytes, 0);
-            Interlocked.Exchange(ref hybridExactHits, 0);
-            Interlocked.Exchange(ref hybridCompactHits, 0);
-            Interlocked.Exchange(ref hybridMediumHits, 0);
-            Interlocked.Exchange(ref hybridPageHits, 0);
-            Interlocked.Exchange(ref hybridExactReads, 0);
-            Interlocked.Exchange(ref hybridCompactPromotions, 0);
-            Interlocked.Exchange(ref hybridMediumPromotions, 0);
-            Interlocked.Exchange(ref hybridPagePromotions, 0);
-            Interlocked.Exchange(ref hybridCompactPromotionFailures, 0);
-            Interlocked.Exchange(ref hybridMediumPromotionFailures, 0);
-            Interlocked.Exchange(ref hybridPagePromotionFailures, 0);
-            Interlocked.Exchange(ref hybridExactFetchedBytes, 0);
-            Interlocked.Exchange(ref hybridCompactFetchedBytes, 0);
-            Interlocked.Exchange(ref hybridMediumFetchedBytes, 0);
-            Interlocked.Exchange(ref hybridPageFetchedBytes, 0);
-            Interlocked.Exchange(ref hybridEntriesCreated, 0);
-            Interlocked.Exchange(ref hybridPageTrackersCreated, 0);
-            Interlocked.Exchange(ref hybridMaxPageTrackersPerFrame, 0);
-        }
-        finally
-        {
-            Interlocked.Increment(ref hybridSnapshotSequence);
-        }
+        Interlocked.Exchange(ref hybridState, new HybridDiagnosticsState());
     }
 
     private static void ResetReadMetrics()
