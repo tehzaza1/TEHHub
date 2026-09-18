@@ -52,7 +52,7 @@ internal static class BottleneckTests
         check(BottleneckCapture.Snapshot!.Frames == 0 && BottleneckCapture.Snapshot.Memory.TotalReadCalls == 0, "new capture resets prior session counters");
         check(BottleneckCapture.Snapshot.CaptureId != firstCaptureId, "new capture receives distinct identity so monitors cannot mix rounds");
 
-        // Hybrid Memory Reader diagnostics invariant tests
+        // Hybrid Memory Reader diagnostics invariant & reset coherence tests
         MemoryReadDiagnostics.RecordHybridLogicalRequest(64);
         MemoryReadDiagnostics.RecordHybridExactRead(64);
         MemoryReadDiagnostics.RecordHybridCompactPromotion(128);
@@ -66,9 +66,74 @@ internal static class BottleneckTests
         check(hybridSnap.PageFetchedBytes == hybridSnap.PagePromotions * 4096, "page fetched bytes equal page promotions * 4096");
         check(hybridSnap.FetchedBytes == hybridSnap.ExactFetchedBytes + hybridSnap.CompactFetchedBytes + hybridSnap.MediumFetchedBytes + hybridSnap.PageFetchedBytes, "total hybrid fetched bytes equal sum of level fetched bytes");
 
+        // Test: all promotion counts and byte counters reset together
         MemoryReadDiagnostics.ResetForCapture();
         var resetHybridSnap = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
-        check(resetHybridSnap.FetchedBytes == 0 && resetHybridSnap.ExactFetchedBytes == 0 && resetHybridSnap.CompactFetchedBytes == 0 && resetHybridSnap.MediumFetchedBytes == 0 && resetHybridSnap.PageFetchedBytes == 0 && resetHybridSnap.PagePromotions == 0, "hybrid diagnostics reset clears all level byte and promotion counters together");
+        check(resetHybridSnap.LogicalRequests == 0 &&
+              resetHybridSnap.LogicalBytes == 0 &&
+              resetHybridSnap.ExactHits == 0 &&
+              resetHybridSnap.CompactHits == 0 &&
+              resetHybridSnap.MediumHits == 0 &&
+              resetHybridSnap.PageHits == 0 &&
+              resetHybridSnap.ExactReads == 0 &&
+              resetHybridSnap.CompactPromotions == 0 &&
+              resetHybridSnap.MediumPromotions == 0 &&
+              resetHybridSnap.PagePromotions == 0 &&
+              resetHybridSnap.ExactFetchedBytes == 0 &&
+              resetHybridSnap.CompactFetchedBytes == 0 &&
+              resetHybridSnap.MediumFetchedBytes == 0 &&
+              resetHybridSnap.PageFetchedBytes == 0 &&
+              resetHybridSnap.FetchedBytes == 0,
+              "hybrid diagnostics reset clears all level byte and promotion counters together");
+
+        // Test: reset/capture transition & concurrent snapshot coherence
+        // Verify snapshot after reset cannot combine pre-reset counts with post-reset bytes
+        var passedInvariants = true;
+        var running = true;
+        var threadEx = (Exception?)null;
+
+        var recorder = new Thread(() =>
+        {
+            try
+            {
+                for (var i = 0; i < 2000 && Volatile.Read(ref running); i++)
+                {
+                    MemoryReadDiagnostics.RecordHybridLogicalRequest(64);
+                    MemoryReadDiagnostics.RecordHybridExactRead(40);
+                    MemoryReadDiagnostics.RecordHybridPagePromotion(4096);
+                    if ((i % 200) == 0)
+                    {
+                        MemoryReadDiagnostics.ResetForCapture();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                threadEx = ex;
+            }
+        });
+
+        recorder.Start();
+        for (var i = 0; i < 1000; i++)
+        {
+            var snap = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
+            if (snap.PageFetchedBytes != snap.PagePromotions * 4096 ||
+                snap.CompactFetchedBytes != snap.CompactPromotions * 128 ||
+                snap.MediumFetchedBytes != snap.MediumPromotions * 512 ||
+                snap.FetchedBytes != (snap.ExactFetchedBytes + snap.CompactFetchedBytes + snap.MediumFetchedBytes + snap.PageFetchedBytes))
+            {
+                passedInvariants = false;
+                break;
+            }
+        }
+
+        Volatile.Write(ref running, false);
+        recorder.Join();
+
+        check(threadEx == null, "concurrent hybrid recording and resetting completed without exceptions");
+        check(passedInvariants, "snapshot after reset never combines pre-reset counts with post-reset bytes under concurrent load");
+
+        MemoryReadDiagnostics.ResetForCapture();
     }
 }
 #endif
