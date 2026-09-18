@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0-windows</TargetFramework>
+        <PlatformTarget>x64</PlatformTarget>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>14.0</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="ClickableTransparentOverlay" Version="11.1.0" />
+        <!-- Override transitive SixLabors.ImageSharp 3.1.6 with patched 3.1.12 -->
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\TEHhub.Offsets\TEHhub.Offsets.csproj" />
+        <ProjectReference Include="..\TEHhub.OffsetDoctor\TEHhub.OffsetDoctor.csproj" />
+    </ItemGroup>
+
+</Project>

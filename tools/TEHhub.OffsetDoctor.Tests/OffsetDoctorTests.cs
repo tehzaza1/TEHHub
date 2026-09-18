@@ -20,12 +20,13 @@ using TEHhub.Offsets.Objects.UiElement;
 
 using TEHhub.OffsetDoctor.Watch;
 using TEHhub.OffsetDoctor.Baseline;
+using TEHhub.OffsetDoctor.Gui;
 
 public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 89 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 100 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -116,8 +117,19 @@ public static class OffsetDoctorTests
         Test87_BaselineCompareStaticRootResolvedAddressChangedIsWarning(check);
         Test88_BaselineCompareDynamicBuffsAndLoadingStateChangesAreInformational(check);
         Test89_BaselineCompareStaticRootValidToBrokenIsCritical(check);
+        Test90_GuiModelEmptyGroundTruthProducesNulls(check);
+        Test91_GuiModelGoldInputOptionalNoHardcodedDefault(check);
+        Test92_GuiModelInvalidNumericInputRejectedWithSafeError(check);
+        Test93_GuiControllerValidateNowPopulatesModelWithValidatorOptions(check);
+        Test94_GuiControllerWatchUiUsesWatchModeOptions(check);
+        Test95_GuiControllerCaptureBaselineUsesBaselineEngine(check);
+        Test96_GuiControllerCompareBaselineUsesComparisonEngine(check);
+        Test97_GuiModelSortsBrokenNodesAtTop(check);
+        Test98_GuiControllerClearResultsClearsModelOnly(check);
+        Test99_GuiControllerEnforcesOneActiveOperationAtATime(check);
+        Test100_GuiOperationsPreserveReadOnlyZeroMemoryWrites(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 89 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 100 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -2253,6 +2265,280 @@ public static class OffsetDoctorTests
         check(compResult.HasCriticalRegressions, "T89: Static root VALID -> BROKEN flags HasCriticalRegressions.");
         var delta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "pattern_file_root");
         check(delta != null && delta.Severity == DeltaSeverity.Critical, "T89: Static root VALID -> BROKEN delta is Critical.");
+    }
+
+    // 90. Empty ground-truth inputs produce no supplied values
+    private static void Test90_GuiModelEmptyGroundTruthProducesNulls(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T90: TryBuildGroundTruth succeeds with empty model inputs.");
+        check(err == null, "T90: Error message is null for empty inputs.");
+        check(gt == null, "T90: Ground-truth object is null when no inputs are supplied.");
+    }
+
+    // 91. Gold input is optional and never defaults to a hardcoded value
+    private static void Test91_GuiModelGoldInputOptionalNoHardcodedDefault(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel();
+        check(string.IsNullOrEmpty(model.GoldInput), "T91: OffsetDoctorGuiModel.GoldInput defaults to empty string (no hardcoded default).");
+
+        var controller = new OffsetDoctorGuiController();
+        controller.TryBuildGroundTruth(model, out var gtEmpty, out _);
+        check(gtEmpty?.ExpectedGold == null, "T91: ExpectedGold is null when GoldInput is empty.");
+
+        model.GoldInput = "123456";
+        var success = controller.TryBuildGroundTruth(model, out var gtSupplied, out var err);
+        check(success, "T91: TryBuildGroundTruth succeeds when valid GoldInput is provided.");
+        check(err == null, "T91: Error is null for valid gold input.");
+        check(gtSupplied != null && gtSupplied.ExpectedGold == 123456, "T91: ExpectedGold is correctly parsed as 123456.");
+    }
+
+    // 92. Invalid numeric input is rejected with a UI-safe error
+    private static void Test92_GuiModelInvalidNumericInputRejectedWithSafeError(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        model.GoldInput = "-500";
+        var success1 = controller.TryBuildGroundTruth(model, out var gt1, out var err1);
+        check(!success1, "T92: Negative gold input is rejected.");
+        check(gt1 == null, "T92: Ground-truth is null on negative gold error.");
+        check(err1 != null && err1.Contains("Invalid Gold"), "T92: Safe error message contains 'Invalid Gold'.");
+
+        model.GoldInput = "abc_invalid";
+        var success2 = controller.TryBuildGroundTruth(model, out _, out var err2);
+        check(!success2, "T92: Alphanumeric gold input is rejected.");
+        check(err2 != null && err2.Contains("Invalid Gold"), "T92: Safe error message contains 'Invalid Gold'.");
+
+        model.GoldInput = string.Empty;
+        model.HpCurrentInput = "99.95";
+        var success3 = controller.TryBuildGroundTruth(model, out _, out var err3);
+        check(!success3, "T92: Floating point HP input is rejected.");
+        check(err3 != null && err3.Contains("Invalid HP Current"), "T92: Safe error message contains 'Invalid HP Current'.");
+    }
+
+    // 93. Validate Now uses existing validator options
+    private static void Test93_GuiControllerValidateNowPopulatesModelWithValidatorOptions(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment(goldValue: 50_000_000).reader;
+        var model = new OffsetDoctorGuiModel
+        {
+            GoldInput = "50000000",
+            HpCurrentInput = "4800",
+            HpTotalInput = "5000"
+        };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.ValidateNow(setup, model);
+        check(success, "T93: ValidateNow returns true.");
+        check(model.HasResults, "T93: Model has results populated.");
+        check(model.ValidCount > 0, "T93: Model ValidCount > 0.");
+        check(model.Rows.Count > 0, "T93: Model Rows populated.");
+
+        var goldRow = model.Rows.FirstOrDefault(r => r.NodeId == "psd_gold_field");
+        check(goldRow != null && goldRow.Status == ValidationStatus.VALID, "T93: psd_gold_field row is VALID with supplied ground-truth.");
+
+        var hpRow = model.Rows.FirstOrDefault(r => r.NodeId == "comp_life_health");
+        check(hpRow != null && hpRow.Status == ValidationStatus.VALID, "T93: comp_life_health row is VALID with supplied ground-truth.");
+
+        check(model.LastRunTimestampUtc != null, "T93: LastRunTimestampUtc is updated.");
+        check(!string.IsNullOrEmpty(model.NoticeMessage), "T93: NoticeMessage describes completion summary.");
+    }
+
+    // 94. Watch UI uses existing watch mode options
+    private static void Test94_GuiControllerWatchUiUsesWatchModeOptions(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel
+        {
+            WatchDurationSecInput = "1",
+            WatchIntervalMsInput = "100",
+            WatchTargetInput = "ui"
+        };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.WatchUi(setup, model, durationSec: 1, intervalMs: 50, targetFilter: "ui");
+        check(success, "T94: WatchUi returns true.");
+        check(model.LastWatchReport != null, "T94: LastWatchReport is populated.");
+        check(model.LastWatchReport?.TargetFilter == "ui", "T94: Target filter 'ui' used.");
+        check(model.LastWatchReport?.TargetSummaries.Count > 0, "T94: Target summaries recorded.");
+        check(model.NoticeMessage != null && model.NoticeMessage.Contains("Watch completed"), "T94: Notice confirms watch completion.");
+    }
+
+    // 95. Baseline capture uses existing baseline engine
+    private static void Test95_GuiControllerCaptureBaselineUsesBaselineEngine(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var tempBaselinePath = Path.Combine(Path.GetTempPath(), $"od-test-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel { BaselinePathInput = tempBaselinePath };
+            var controller = new OffsetDoctorGuiController();
+
+            var success = controller.CaptureBaseline(setup, model, tempBaselinePath);
+            check(success, "T95: CaptureBaseline returns true.");
+            check(File.Exists(tempBaselinePath), "T95: Baseline JSON file was created on disk.");
+
+            var loadedSnapshot = BaselineSnapshot.LoadFromFile(tempBaselinePath);
+            check(loadedSnapshot.Nodes.Count > 0, "T95: Loaded snapshot contains nodes.");
+            check(loadedSnapshot.Summary.ValidCount > 0, "T95: Loaded snapshot has valid nodes.");
+            check(model.NoticeMessage != null && model.NoticeMessage.Contains("Baseline captured"), "T95: NoticeMessage confirms baseline capture.");
+        }
+        finally
+        {
+            if (File.Exists(tempBaselinePath))
+            {
+                File.Delete(tempBaselinePath);
+            }
+        }
+    }
+
+    // 96. Baseline compare uses existing baseline engine
+    private static void Test96_GuiControllerCompareBaselineUsesComparisonEngine(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var tempBaselinePath = Path.Combine(Path.GetTempPath(), $"od-test-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel { BaselinePathInput = tempBaselinePath };
+            var controller = new OffsetDoctorGuiController();
+
+            controller.CaptureBaseline(setup, model, tempBaselinePath);
+
+            var compSuccess = controller.CompareBaseline(setup, model, tempBaselinePath);
+            check(compSuccess, "T96: CompareBaseline returns true.");
+            check(model.ComparisonResult != null, "T96: Model ComparisonResult is populated.");
+            check(model.ComparisonResult?.HasCriticalRegressions == false, "T96: No critical baseline regressions detected.");
+            check(model.NoticeMessage != null && model.NoticeMessage.Contains("No critical baseline regressions detected"), "T96: Notice confirms 0 critical regressions.");
+        }
+        finally
+        {
+            if (File.Exists(tempBaselinePath))
+            {
+                File.Delete(tempBaselinePath);
+            }
+        }
+    }
+
+    // 97. BROKEN nodes sort/show before non-broken nodes in GUI model
+    private static void Test97_GuiModelSortsBrokenNodesAtTop(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment(areaInstanceOffset: 0x2B0).reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.ValidateNow(setup, model);
+        check(success, "T97: ValidateNow runs on shifted synthetic memory.");
+        check(model.BrokenCount > 0, "T97: Model BrokenCount > 0.");
+        check(model.Rows.Count > 0, "T97: Model has rows.");
+
+        // First row must be BROKEN
+        check(model.Rows[0].Status == ValidationStatus.BROKEN, "T97: The top row in GUI model is BROKEN.");
+
+        // Verify ordering: all BROKEN before BLOCKED, all BLOCKED before UNVERIFIED, all UNVERIFIED before VALID
+        var seenNonBroken = false;
+        var seenValid = false;
+        var brokenAtTop = true;
+        foreach (var row in model.Rows)
+        {
+            if (row.Status != ValidationStatus.BROKEN) seenNonBroken = true;
+            if (row.Status == ValidationStatus.BROKEN && seenNonBroken) brokenAtTop = false;
+
+            if (row.Status == ValidationStatus.VALID) seenValid = true;
+            if (row.Status == ValidationStatus.UNVERIFIED && seenValid) brokenAtTop = false;
+        }
+
+        check(brokenAtTop, "T97: All BROKEN nodes strictly appear at the top of the GUI row list.");
+    }
+
+    // 98. Clear Results clears GUI model only
+    private static void Test98_GuiControllerClearResultsClearsModelOnly(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        controller.ValidateNow(setup, model);
+        check(model.HasResults, "T98: Model has results before ClearResults.");
+
+        controller.ClearResults(model);
+        check(!model.HasResults, "T98: Model HasResults is false after ClearResults.");
+        check(model.Rows.Count == 0, "T98: Model Rows is empty.");
+        check(model.ValidCount == 0, "T98: Model ValidCount is 0.");
+        check(model.BrokenCount == 0, "T98: Model BrokenCount is 0.");
+        check(model.BlockedCount == 0, "T98: Model BlockedCount is 0.");
+        check(model.UnverifiedCount == 0, "T98: Model UnverifiedCount is 0.");
+        check(model.ErrorMessage == null, "T98: Model ErrorMessage is cleared.");
+        check(model.NoticeMessage == null, "T98: Model NoticeMessage is cleared.");
+        check(model.ComparisonResult == null, "T98: Model ComparisonResult is cleared.");
+        check(model.LastRunTimestampUtc == null, "T98: Model LastRunTimestampUtc is cleared.");
+    }
+
+    // 99. Enforce one active operation at a time (prevent duplicate/concurrent runs)
+    private static void Test99_GuiControllerEnforcesOneActiveOperationAtATime(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        // Simulate busy state
+        model.IsBusy = true;
+
+        var valResult = controller.ValidateNow(setup, model);
+        check(!valResult, "T99: ValidateNow rejected while IsBusy == true.");
+        check(model.ErrorMessage != null && model.ErrorMessage.Contains("already in progress"), "T99: Error states operation already in progress.");
+
+        var capResult = controller.CaptureBaseline(setup, model);
+        check(!capResult, "T99: CaptureBaseline rejected while IsBusy == true.");
+
+        var compResult = controller.CompareBaseline(setup, model);
+        check(!compResult, "T99: CompareBaseline rejected while IsBusy == true.");
+
+        var watchResult = controller.WatchUi(setup, model);
+        check(!watchResult, "T99: WatchUi rejected while IsBusy == true.");
+
+        model.IsBusy = false;
+        model.ErrorMessage = null;
+    }
+
+    // 100. Read-only behavior preserved across all GUI operations
+    private static void Test100_GuiOperationsPreserveReadOnlyZeroMemoryWrites(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment(goldValue: 50_000_000).reader;
+        var snapshot = setup.SnapshotAllBlocks();
+        var tempBaselinePath = Path.Combine(Path.GetTempPath(), $"od-test-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel
+            {
+                GoldInput = "50000000",
+                HpCurrentInput = "4800",
+                HpTotalInput = "5000",
+                BaselinePathInput = tempBaselinePath
+            };
+            var controller = new OffsetDoctorGuiController();
+
+            controller.ValidateNow(setup, model);
+            controller.WatchUi(setup, model, durationSec: 1, intervalMs: 50, targetFilter: "ui");
+            controller.CaptureBaseline(setup, model, tempBaselinePath);
+            controller.CompareBaseline(setup, model, tempBaselinePath);
+            controller.ClearResults(model);
+
+            check(setup.MemoryMatchesSnapshot(snapshot), "T100: Memory is 100% byte-for-byte identical after all GUI operations (zero writes).");
+        }
+        finally
+        {
+            if (File.Exists(tempBaselinePath))
+            {
+                File.Delete(tempBaselinePath);
+            }
+        }
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
