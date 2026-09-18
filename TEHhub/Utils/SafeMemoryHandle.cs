@@ -748,8 +748,8 @@ namespace TEHhub.Utils
                 // 4. Adaptive 4KB Page Promotion
                 var pageQualifies = pageTracker is not null &&
                     pageTracker.AccessCount >= PagePromotionAccessThreshold &&
-                    pageTracker.GetUniqueByteCount() >= PagePromotionMinimumUniqueBytes &&
-                    pageTracker.DistinctMediumRegions >= PagePromotionMinimumDistinctMediumRegions;
+                    pageTracker.DistinctMediumRegions >= PagePromotionMinimumDistinctMediumRegions &&
+                    pageTracker.GetUniqueByteCount() >= PagePromotionMinimumUniqueBytes;
 
                 if (fitsInPage &&
                     pageQualifies &&
@@ -874,25 +874,102 @@ namespace TEHhub.Utils
                 this.pageTrackers?.Clear();
             }
 
-            private sealed class PageLocalityTracker
+            internal sealed class PageLocalityTracker
             {
-                private readonly ulong[] byteMask = new ulong[PageBlockSize / 64];
+                private const int MaxInlineAccesses = PagePromotionAccessThreshold;
+
+                private ushort off0, sz0;
+                private ushort off1, sz1;
+                private ushort off2, sz2;
+                private ushort off3, sz3;
+                private ushort off4, sz4;
+                private ushort off5, sz5;
+
                 private int mediumRegionMask;
+                private int totalRequestedBytes;
                 private int uniqueByteCount;
+                private ulong[]? byteMask;
 
                 internal int AccessCount { get; private set; }
 
                 internal int DistinctMediumRegions => System.Numerics.BitOperations.PopCount((uint)this.mediumRegionMask);
 
+                internal bool IsBitmapMaterialized => this.byteMask is not null;
+
                 internal void RecordAccess(int offsetInPage, int size)
                 {
+                    var accessIndex = this.AccessCount;
                     this.AccessCount++;
+                    this.totalRequestedBytes += size;
 
                     var startMed = Math.Clamp(offsetInPage / MediumBlockSize, 0, (PageBlockSize / MediumBlockSize) - 1);
                     var endMed = Math.Clamp((offsetInPage + size - 1) / MediumBlockSize, 0, (PageBlockSize / MediumBlockSize) - 1);
                     for (var m = startMed; m <= endMed; m++)
                     {
                         this.mediumRegionMask |= 1 << m;
+                    }
+
+                    if (this.byteMask is not null)
+                    {
+                        this.ApplyRangeToBitmap(offsetInPage, size);
+                        return;
+                    }
+
+                    if (accessIndex < MaxInlineAccesses)
+                    {
+                        this.StoreInlineAccess(accessIndex, (ushort)offsetInPage, (ushort)size);
+                    }
+                    else
+                    {
+                        // 7th or higher access without prior materialization: materialize now so no access range is lost
+                        this.MaterializeBitmap();
+                        this.ApplyRangeToBitmap(offsetInPage, size);
+                    }
+                }
+
+                internal int GetUniqueByteCount()
+                {
+                    if (this.byteMask is not null)
+                    {
+                        return this.uniqueByteCount;
+                    }
+
+                    // Fast rejection upper-bound check: if total requested bytes < 256, unique byte count cannot be >= 256.
+                    if (this.totalRequestedBytes < PagePromotionMinimumUniqueBytes)
+                    {
+                        return this.totalRequestedBytes;
+                    }
+
+                    this.MaterializeBitmap();
+                    return this.uniqueByteCount;
+                }
+
+                private void MaterializeBitmap()
+                {
+                    if (this.byteMask is not null)
+                    {
+                        return;
+                    }
+
+                    this.byteMask = new ulong[PageBlockSize / 64];
+                    if (Ui.MemoryReadDiagnostics.IsRecording)
+                    {
+                        Ui.MemoryReadDiagnostics.RecordHybridPageBitmapMaterialized();
+                    }
+
+                    var count = Math.Min(this.AccessCount, MaxInlineAccesses);
+                    for (var i = 0; i < count; i++)
+                    {
+                        this.GetInlineAccess(i, out var off, out var sz);
+                        this.ApplyRangeToBitmap(off, sz);
+                    }
+                }
+
+                private void ApplyRangeToBitmap(int offsetInPage, int size)
+                {
+                    if (this.byteMask is null)
+                    {
+                        return;
                     }
 
                     var startByte = Math.Clamp(offsetInPage, 0, PageBlockSize);
@@ -909,9 +986,33 @@ namespace TEHhub.Utils
                     }
                 }
 
-                internal int GetUniqueByteCount()
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                private void StoreInlineAccess(int index, ushort offset, ushort size)
                 {
-                    return this.uniqueByteCount;
+                    switch (index)
+                    {
+                        case 0: this.off0 = offset; this.sz0 = size; break;
+                        case 1: this.off1 = offset; this.sz1 = size; break;
+                        case 2: this.off2 = offset; this.sz2 = size; break;
+                        case 3: this.off3 = offset; this.sz3 = size; break;
+                        case 4: this.off4 = offset; this.sz4 = size; break;
+                        case 5: this.off5 = offset; this.sz5 = size; break;
+                    }
+                }
+
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                private void GetInlineAccess(int index, out ushort offset, out ushort size)
+                {
+                    switch (index)
+                    {
+                        case 0: offset = this.off0; size = this.sz0; break;
+                        case 1: offset = this.off1; size = this.sz1; break;
+                        case 2: offset = this.off2; size = this.sz2; break;
+                        case 3: offset = this.off3; size = this.sz3; break;
+                        case 4: offset = this.off4; size = this.sz4; break;
+                        case 5: offset = this.off5; size = this.sz5; break;
+                        default: offset = 0; size = 0; break;
+                    }
                 }
             }
 

@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using TEHhub;
 using TEHhub.Ui;
+using TEHhub.Utils;
 
 internal static class BottleneckTests
 
@@ -54,6 +55,114 @@ internal static class BottleneckTests
         check(BottleneckCapture.Snapshot.CaptureId != firstCaptureId, "new capture receives distinct identity so monitors cannot mix rounds");
 
         // =========================================================================
+        // Hybrid Memory Reader: PageLocalityTracker Lazy Bitmap Unit Tests
+        // =========================================================================
+
+        // 1. < 6 accesses: no promotion qualification, bitmap remains unmaterialized
+        var t1 = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
+        for (var i = 0; i < 5; i++)
+        {
+            t1.RecordAccess(i * 64, 64);
+        }
+        check(t1.AccessCount == 5 && !t1.IsBitmapMaterialized, "1: < 6 accesses keeps tracker bitmap unmaterialized");
+        check(t1.DistinctMediumRegions == 1, "1: distinct medium regions is 1");
+
+        // 2. >= 6 accesses but total requested bytes < 256: fast rejection keeps bitmap unmaterialized
+        var t2 = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
+        for (var i = 0; i < 6; i++)
+        {
+            var off = (i % 2 == 0) ? (i * 8) : (600 + i * 8);
+            t2.RecordAccess(off, 8); // 6 * 8 = 48 bytes total
+        }
+        check(t2.AccessCount == 6 && t2.DistinctMediumRegions == 2, "2: 6 accesses across 2 regions recorded");
+        check(t2.GetUniqueByteCount() < 256 && !t2.IsBitmapMaterialized, "2: fast rejection avoids bitmap materialization when total bytes < 256");
+
+        // 3. >= 6 accesses, >= 256 requested bytes, but heavy overlap (< 256 unique): bitmap materialized, exact count accurate, no qualification
+        var t3 = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
+        for (var i = 0; i < 6; i++)
+        {
+            // 3 accesses at offset 100 (size 50), 3 accesses at offset 600 (size 50) => total requested = 300 bytes, unique = 100 bytes
+            var off = (i % 2 == 0) ? 100 : 600;
+            t3.RecordAccess(off, 50);
+        }
+        check(t3.AccessCount == 6 && t3.DistinctMediumRegions == 2, "3: 6 accesses across 2 regions with overlap");
+        var u3 = t3.GetUniqueByteCount();
+        check(u3 == 100 && t3.IsBitmapMaterialized, "3: bitmap materialized on evaluation and accurately returns 100 unique bytes");
+        check(u3 < 256, "3: overlapping accesses reject promotion");
+
+        // 4. >= 6 accesses, >= 256 unique bytes, but only 1 distinct medium region
+        var t4 = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
+        for (var i = 0; i < 6; i++)
+        {
+            t4.RecordAccess(i * 50, 50); // 0..300 in region 0
+        }
+        check(t4.AccessCount == 6 && t4.DistinctMediumRegions == 1, "4: 6 accesses in single 512B region");
+        // SafeMemoryHandle short-circuits on DistinctMediumRegions >= 2 before calling GetUniqueByteCount()
+        check(!t4.IsBitmapMaterialized, "4: single region page tracker retains unmaterialized bitmap prior to GetUniqueByteCount()");
+
+        // 5. >= 6 accesses, >= 256 unique bytes, >= 2 medium regions: qualifies on exactly the 6th access
+        var t5 = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
+        t5.RecordAccess(0, 64);
+        t5.RecordAccess(64, 64);
+        t5.RecordAccess(128, 64);
+        t5.RecordAccess(600, 64);
+        t5.RecordAccess(664, 64);
+        check(t5.AccessCount == 5 && !t5.IsBitmapMaterialized, "5a: 5 accesses do not qualify and bitmap is unmaterialized");
+        t5.RecordAccess(728, 64);
+        check(t5.AccessCount == 6 && t5.DistinctMediumRegions == 2, "5b: 6th access satisfies access count and region dispersion");
+        check(t5.GetUniqueByteCount() == 384 && t5.IsBitmapMaterialized, "5c: 6th access materializes bitmap and returns exactly 384 unique bytes");
+
+        // 6. Equivalence testing: compare PageLocalityTracker against ReferencePageTracker across deterministic sequences
+        var rng = new Random(4242);
+        var allEquivalencePassed = true;
+        for (var seq = 0; seq < 200; seq++)
+        {
+            var tracker = new SafeMemoryHandle.ReadCachePlan.PageLocalityTracker();
+            var refTracker = new ReferencePageTracker();
+            var accessCount = rng.Next(1, 25);
+            for (var a = 0; a < accessCount; a++)
+            {
+                var offset = rng.Next(0, 4000);
+                var maxLen = Math.Min(128, 4096 - offset);
+                var size = rng.Next(1, maxLen + 1);
+
+                tracker.RecordAccess(offset, size);
+                refTracker.RecordAccess(offset, size);
+
+                if (tracker.AccessCount != refTracker.AccessCount ||
+                    tracker.DistinctMediumRegions != refTracker.DistinctMediumRegions)
+                {
+                    allEquivalencePassed = false;
+                    break;
+                }
+
+                // Check qualification equivalence
+                var refQualifies = refTracker.Qualifies();
+                var trackerQualifies = tracker.AccessCount >= 6 &&
+                                       tracker.DistinctMediumRegions >= 2 &&
+                                       tracker.GetUniqueByteCount() >= 256;
+
+                if (refQualifies != trackerQualifies)
+                {
+                    allEquivalencePassed = false;
+                    break;
+                }
+
+                if (tracker.IsBitmapMaterialized && tracker.GetUniqueByteCount() != refTracker.GetUniqueByteCount())
+                {
+                    allEquivalencePassed = false;
+                    break;
+                }
+            }
+
+            if (!allEquivalencePassed)
+            {
+                break;
+            }
+        }
+        check(allEquivalencePassed, "6: PageLocalityTracker matches ReferencePageTracker across 200 pseudo-random deterministic sequences");
+
+        // =========================================================================
         // Hybrid Memory Reader: Exact & Hot-Page Promotion Tests (13 Invariants)
         // =========================================================================
         var procHandle = Core.Process.Handle;
@@ -74,7 +183,7 @@ internal static class BottleneckTests
             Core.GHSettings.EnableNewMemoryRead = true;
             Core.GHSettings.ShowMemoryDiagnostics = true;
 
-            // Invariant 1: Cold isolated read remains exact
+            // Invariant 1: Cold isolated read remains exact and does not materialize bitmap
             MemoryReadDiagnostics.ResetForCapture();
             using (var plan = procHandle.BeginReadCachePlan([], enableDynamicCache: true))
             {
@@ -84,6 +193,7 @@ internal static class BottleneckTests
                 check(snap1.ExactReads == 1 && snap1.ExactHits == 0 && snap1.PagePromotions == 0 && snap1.PageHits == 0,
                     "1: cold isolated read is an exact read");
                 check(snap1.ExactFetchedBytes == sizeof(int), "exact fetched bytes equals exact size (4 bytes)");
+                check(snap1.PageTrackersCreated == 1 && snap1.PageBitmapsMaterialized == 0, "cold isolated read creates tracker without materializing bitmap");
 
                 // Invariant 2: Repeated exact read hits exact cache
                 var ok2 = procHandle.TryReadMemory<int>(pageAlignedAddr + 0x10, out var val2);
@@ -100,10 +210,11 @@ internal static class BottleneckTests
                 var snap3 = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                 check(snap3.PagePromotions == 0 && snap3.ExactReads == 5,
                     "3: no 128B or 512B promotion occurs on repeated sub-page accesses");
+                check(snap3.PageBitmapsMaterialized == 0, "sub-page accesses with < 6 reads do not materialize bitmap");
             }
 
             // Invariant 4: Page promotion requires >= 6 accesses, >= 256 unique bytes, >= 2 distinct 512B subregions
-            // Test 4a: 6 accesses but < 256 unique bytes (e.g. 6 reads of 8 bytes = 48 bytes) -> No promotion
+            // Test 4a: 6 accesses but < 256 unique bytes (e.g. 6 reads of 8 bytes = 48 bytes) -> No promotion & fast-reject keeps bitmap unmaterialized
             MemoryReadDiagnostics.ResetForCapture();
             using (var plan = procHandle.BeginReadCachePlan([], enableDynamicCache: true))
             {
@@ -114,9 +225,10 @@ internal static class BottleneckTests
                 }
                 var snap4a = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                 check(snap4a.PagePromotions == 0, "4a: page does not promote with < 256 unique bytes despite >= 6 accesses and 2 regions");
+                check(snap4a.PageBitmapsMaterialized == 0, "4a: fast rejection avoids bitmap materialization");
             }
 
-            // Test 4b: >= 6 accesses, >= 256 unique bytes, but only 1 distinct 512B subregion -> No promotion
+            // Test 4b: >= 6 accesses, >= 256 unique bytes, but only 1 distinct 512B subregion -> No promotion & region short-circuit keeps bitmap unmaterialized
             MemoryReadDiagnostics.ResetForCapture();
             using (var plan = procHandle.BeginReadCachePlan([], enableDynamicCache: true))
             {
@@ -127,6 +239,7 @@ internal static class BottleneckTests
                 }
                 var snap4b = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                 check(snap4b.PagePromotions == 0, "4b: page does not promote with 1 distinct subregion despite >= 256 bytes and >= 6 accesses");
+                check(snap4b.PageBitmapsMaterialized == 0, "4b: single-region check short-circuits before bitmap materialization");
             }
 
             // Invariant 5 & 6 & 7: Qualifying page promotes to exactly one 4KB window, supersedes contained exact entries, and serves subsequent reads
@@ -142,12 +255,14 @@ internal static class BottleneckTests
 
                 var snapBeforeProm = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                 check(snapBeforeProm.ExactReads == 5 && snapBeforeProm.PagePromotions == 0, "5 distinct exact entries before promotion");
+                check(snapBeforeProm.PageBitmapsMaterialized == 0, "bitmap remains unmaterialized during first 5 accesses");
 
                 // 6th access qualifies and triggers 4KB promotion
                 procHandle.TryReadMemory<TestStruct64>(pageAlignedAddr + 728, out _);
                 var snapProm = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                 check(snapProm.PagePromotions == 1, "5: qualifying page promotes to exactly one 4KB window");
                 check(snapProm.PageFetchedBytes == 4096, "12: PageFetchedBytes equals PagePromotions * 4096");
+                check(snapProm.PageBitmapsMaterialized == 1, "qualifying 6th access materializes bitmap");
 
                 // Invariant 6: Subsequent contained requests hit page cache
                 procHandle.TryReadMemory<int>(pageAlignedAddr + 0x200, out var pageHitVal);
@@ -180,6 +295,7 @@ internal static class BottleneckTests
                 var snapCross = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
                 check(snapCross.PagePromotions == 0 && snapCross.ExactReads == 1 && snapCross.ExactFetchedBytes == Marshal.SizeOf<TestStruct64>(),
                     "9: cross-page request never causes an 8KB or 4KB promotion fetch and stays exact");
+                check(snapCross.PageBitmapsMaterialized == 0, "cross-page request does not materialize bitmap");
             }
 
             // Invariant 10: MaxDynamicWindows remains bounded at exactly 2048 dynamic entries
@@ -252,6 +368,8 @@ internal static class BottleneckTests
                     MemoryReadDiagnostics.RecordHybridLogicalRequest(64);
                     MemoryReadDiagnostics.RecordHybridExactRead(40);
                     MemoryReadDiagnostics.RecordHybridPagePromotion(4096);
+                    MemoryReadDiagnostics.RecordHybridPageTrackerCreated();
+                    MemoryReadDiagnostics.RecordHybridPageBitmapMaterialized();
                 }
             }
             catch (Exception ex)
@@ -310,13 +428,17 @@ internal static class BottleneckTests
               emptySnap.ExactFetchedBytes == 0 &&
               emptySnap.PageFetchedBytes == 0 &&
               emptySnap.FetchedBytes == 0 &&
-              emptySnap.EntriesCreated == 0,
+              emptySnap.EntriesCreated == 0 &&
+              emptySnap.PageTrackersCreated == 0 &&
+              emptySnap.PageBitmapsMaterialized == 0,
               "11: atomic generation reset produces a completely empty new generation state");
 
         // Record deterministic known set of events into the new generation
         MemoryReadDiagnostics.RecordHybridLogicalRequest(200);
         MemoryReadDiagnostics.RecordHybridExactRead(64);
         MemoryReadDiagnostics.RecordHybridPagePromotion(4096);
+        MemoryReadDiagnostics.RecordHybridPageTrackerCreated();
+        MemoryReadDiagnostics.RecordHybridPageBitmapMaterialized();
 
         // Verify from the actual stored byte counters and promotion invariants
         var deterministicSnap = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
@@ -324,8 +446,59 @@ internal static class BottleneckTests
         check(deterministicSnap.PageFetchedBytes == 4096 && deterministicSnap.PageFetchedBytes == deterministicSnap.PagePromotions * 4096, "12: page fetched bytes equal page promotions * 4096");
         check(deterministicSnap.FetchedBytes == deterministicSnap.ExactFetchedBytes + deterministicSnap.PageFetchedBytes, "13: total hybrid fetched bytes equal sum of actual level fetched bytes");
         check(deterministicSnap.EntriesCreated == deterministicSnap.ExactReads + deterministicSnap.PagePromotions, "entries created equals sum of exact reads and promotions in isolated generation");
+        check(deterministicSnap.PageTrackersCreated == 1, "trackers created matches recorded count");
+        check(deterministicSnap.PageBitmapsMaterialized == 1, "bitmaps materialized matches recorded count");
 
         MemoryReadDiagnostics.ResetForCapture();
+    }
+
+    private sealed class ReferencePageTracker
+    {
+        private readonly bool[] bytes = new bool[4096];
+        private int mediumRegionMask;
+
+        public int AccessCount { get; private set; }
+
+        public int DistinctMediumRegions => System.Numerics.BitOperations.PopCount((uint)this.mediumRegionMask);
+
+        public void RecordAccess(int offset, int size)
+        {
+            this.AccessCount++;
+            var startMed = Math.Clamp(offset / 512, 0, 7);
+            var endMed = Math.Clamp((offset + size - 1) / 512, 0, 7);
+            for (var m = startMed; m <= endMed; m++)
+            {
+                this.mediumRegionMask |= 1 << m;
+            }
+
+            var startByte = Math.Clamp(offset, 0, 4096);
+            var endByte = Math.Clamp(offset + size, 0, 4096);
+            for (var b = startByte; b < endByte; b++)
+            {
+                this.bytes[b] = true;
+            }
+        }
+
+        public int GetUniqueByteCount()
+        {
+            var count = 0;
+            for (var i = 0; i < 4096; i++)
+            {
+                if (this.bytes[i])
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        public bool Qualifies()
+        {
+            return this.AccessCount >= 6 &&
+                   this.DistinctMediumRegions >= 2 &&
+                   this.GetUniqueByteCount() >= 256;
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

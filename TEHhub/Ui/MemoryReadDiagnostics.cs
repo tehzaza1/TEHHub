@@ -81,6 +81,7 @@ public static class MemoryReadDiagnostics
 
         public long EntriesCreated;
         public long PageTrackersCreated;
+        public long PageBitmapsMaterialized;
         public int MaxPageTrackersPerFrame;
     }
 
@@ -190,6 +191,7 @@ public static class MemoryReadDiagnostics
         var totalFetched = exactFetched + pageFetched;
         var entriesCreated = Volatile.Read(ref state.EntriesCreated);
         var trackersCreated = Volatile.Read(ref state.PageTrackersCreated);
+        var bitmapsMaterialized = Volatile.Read(ref state.PageBitmapsMaterialized);
         var maxTrackersFrame = Volatile.Read(ref state.MaxPageTrackersPerFrame);
         var ratio = logicalBytes > 0 ? (double)totalFetched / logicalBytes : 0.0;
 
@@ -206,6 +208,7 @@ public static class MemoryReadDiagnostics
             totalFetched,
             entriesCreated,
             trackersCreated,
+            bitmapsMaterialized,
             maxTrackersFrame,
             ratio);
     }
@@ -367,6 +370,12 @@ public static class MemoryReadDiagnostics
         Interlocked.Increment(ref state.PageTrackersCreated);
     }
 
+    internal static void RecordHybridPageBitmapMaterialized()
+    {
+        var state = Volatile.Read(ref hybridState);
+        Interlocked.Increment(ref state.PageBitmapsMaterialized);
+    }
+
     internal static void RecordHybridFrameTracking(int trackedPagesCount)
     {
         var state = Volatile.Read(ref hybridState);
@@ -484,7 +493,7 @@ public static class MemoryReadDiagnostics
                     ImGui.Text($"Native Fetches: {totalNativeReads:N0} (Hybrid Dynamic Fetched: {hybrid.FetchedBytes / 1024.0:F1} KiB)  |  Hybrid Dynamic Fetched/Logical: {hybrid.FetchedToRequestedRatio:F2}x");
                     ImGui.TextDisabled($"  Fetches Breakdown: 4KB Prom {hybrid.PagePromotions:N0} (Fail {hybrid.PagePromotionFailures:N0})  |  Exact {hybrid.ExactReads:N0}");
                     ImGui.TextDisabled($"  Fetched Breakdown: 4KB {hybrid.PageFetchedBytes / 1024.0:F1} KiB  |  Exact {hybrid.ExactFetchedBytes / 1024.0:F1} KiB");
-                    ImGui.TextDisabled($"  Dynamics: Dynamic Entries Created {hybrid.EntriesCreated:N0}  |  Page Trackers Created {hybrid.PageTrackersCreated:N0}  |  Peak Tracked Pages/Frame {hybrid.MaxPageTrackersPerFrame:N0}");
+                    ImGui.TextDisabled($"  Dynamics: Dynamic Entries Created {hybrid.EntriesCreated:N0}  |  Page Trackers Created {hybrid.PageTrackersCreated:N0} (Bitmaps Materialized {hybrid.PageBitmapsMaterialized:N0})  |  Peak Tracked Pages/Frame {hybrid.MaxPageTrackersPerFrame:N0}");
                 }
 
                 if (ImGui.BeginTable("memDiagTable", 6,
@@ -717,7 +726,7 @@ public static class MemoryReadDiagnostics
             sb.AppendLine($"#   Native Fetches: {totalNative} (Hybrid Dynamic Fetched Bytes: {hybrid.FetchedBytes / 1024.0:F1} KiB), Hybrid Dynamic Fetched / Logical Ratio: {hybrid.FetchedToRequestedRatio:F2}x");
             sb.AppendLine($"#   Promotions: Page4KB={hybrid.PagePromotions} (Fail={hybrid.PagePromotionFailures}), Exact={hybrid.ExactReads}");
             sb.AppendLine($"#   Fetched Breakdown: Page4KB={hybrid.PageFetchedBytes / 1024.0:F1} KiB, Exact={hybrid.ExactFetchedBytes / 1024.0:F1} KiB, Total={hybrid.FetchedBytes / 1024.0:F1} KiB");
-            sb.AppendLine($"#   Dynamics: DynamicEntriesCreated={hybrid.EntriesCreated}, TrackersCreated={hybrid.PageTrackersCreated}, PeakTrackedPages/Frame={hybrid.MaxPageTrackersPerFrame}");
+            sb.AppendLine($"#   Dynamics: DynamicEntriesCreated={hybrid.EntriesCreated}, TrackersCreated={hybrid.PageTrackersCreated}, BitmapsMaterialized={hybrid.PageBitmapsMaterialized}, PeakTrackedPages/Frame={hybrid.MaxPageTrackersPerFrame}");
         }
 
         sb.AppendLine("# Read regions (regions can overlap):");
@@ -987,6 +996,7 @@ internal sealed record MemoryDiagnosticsHybridSnapshot(
     long FetchedBytes,
     long EntriesCreated,
     long PageTrackersCreated,
+    long PageBitmapsMaterialized,
     long MaxPageTrackersPerFrame,
     double FetchedToRequestedRatio);
 
