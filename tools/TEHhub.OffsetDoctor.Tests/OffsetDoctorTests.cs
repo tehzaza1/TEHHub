@@ -101,11 +101,11 @@ public static class OffsetDoctorTests
         Test72_InactiveOptionalUiPointerRemainsUnverified(check);
         Test73_SentinelUiPointerRemainsUnverified(check);
         Test74_ActiveReadableUiWithoutHelperProofRemainsUnverified(check);
-        Test75_ActiveUiWithHelperProofBecomesValid(check);
+        Test75_ActiveUiWithValidUiElementBaseRemainsUnverified(check);
         Test76_InvalidFlagsDomainDoesNotBecomeValid(check);
         Test77_MalformedChildVectorDoesNotBecomeValid(check);
-        Test78_HelperChildPathResolutionSuccessUpgradesEvidence(check);
-        Test79_HelperChildPathResolutionFailureStaysUnverifiedNotBroken(check);
+        Test78_ActiveMapParentAndWorldMapRemainUnverified(check);
+        Test79_ActiveUiWithUnreadableChildVectorStaysUnverifiedNotBroken(check);
         Test80_WatchModeReportsImprovedUiEvidence(check);
         Test81_ValidateAllBehaviorRemainsConservative(check);
         Test82_ReadOnlyBehaviorPreserved(check);
@@ -1735,38 +1735,43 @@ public static class OffsetDoctorTests
         reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
         reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
 
-        // Allocate a valid UiElementBase for PassiveSkillTreePanel but with 0 children (missing child[2] node container)
+        // Allocate a valid UiElementBase for PassiveSkillTreePanel with child[2]
         var treePanel = reader.AllocateBlock(0x1000);
-        WriteValidUiElement(reader, treePanel, parentAddr: gameUi, childCount: 0, width: 1000f, height: 1000f);
+        WriteValidUiElement(reader, treePanel, parentAddr: gameUi, childCount: 3, width: 1000f, height: 1000f);
         reader.WritePointer(gameUi + 0x730, treePanel);
 
         var engine = new OffsetRecoveryEngine();
         var report = engine.RunValidation(reader, expectedGold: 50_000_000);
 
         var treeResult = report.Results.First(r => r.NodeId == "ui_passive_tree_panel");
-        check(treeResult.Status == ValidationStatus.UNVERIFIED, "T74: Active PassiveTree without child[2] helper proof remains UNVERIFIED.");
+        check(treeResult.Status == ValidationStatus.UNVERIFIED, "T74: Active PassiveTree with children remains UNVERIFIED without source-backed node proof.");
         check(treeResult.ErrorMessage?.Contains("UNVERIFIED:") == true, "T74: PassiveTree reason includes descriptive UNVERIFIED helper prefix.");
+        check(treeResult.TraversalAddress == treePanel, "T74: Safe TraversalAddress is preserved for active PassiveTree.");
     }
 
-    // 75. Active UI pointer with valid UiElementBase layout and helper-backed identity becomes VALID
-    private static void Test75_ActiveUiWithHelperProofBecomesValid(Action<bool, string> check)
+    // 75. Active UI pointer with valid UiElementBase layout remains UNVERIFIED (Self == 0 is accepted)
+    private static void Test75_ActiveUiWithValidUiElementBaseRemainsUnverified(Action<bool, string> check)
     {
         var setup = SetupSyntheticEnvironment();
         using var reader = setup.reader;
         reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
         reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
 
-        // Allocate LeftPanel with valid UiElementBase, parent=gameUi, size=(400,600), 2 children
+        // Allocate LeftPanel with valid UiElementBase, parent=gameUi, size=(400,600), 2 children, and Self == 0 (accepted per UiElementBase.UpdateData)
         var leftPanel = reader.AllocateBlock(0x1000);
         WriteValidUiElement(reader, leftPanel, parentAddr: gameUi, childCount: 2, width: 400f, height: 600f);
+        // Overwrite Self with 0 to verify Self==0 is accepted
+        reader.WritePointer(leftPanel, IntPtr.Zero);
         reader.WritePointer(gameUi + 0x6D0, leftPanel);
 
         var engine = new OffsetRecoveryEngine();
         var report = engine.RunValidation(reader, expectedGold: 50_000_000);
 
         var leftResult = report.Results.First(r => r.NodeId == "ui_left_panel");
-        check(leftResult.Status == ValidationStatus.VALID, "T75: Active LeftPanel with full layout & parent link becomes VALID.");
-        check(leftResult.ExtractedValue?.ToString()?.Contains("VALID: UiElementBase + visibility/child layout + expected helper path resolved") == true, "T75: ExtractedValue contains helper-resolved proof string.");
+        check(leftResult.Status == ValidationStatus.UNVERIFIED, "T75: Active LeftPanel with full layout & Self==0 remains UNVERIFIED without source-backed panel identity proof.");
+        check(leftResult.ErrorMessage?.Contains("no source-backed panel identity proof") == true, "T75: ErrorMessage contains conservative panel identity proof explanation.");
+        check(leftResult.Evidence.Any(e => e.RuleName == "SidePanelLayoutPlausible" && e.Passed), "T75: SidePanelLayoutPlausible rule passed.");
+        check(leftResult.TraversalAddress == leftPanel, "T75: Safe TraversalAddress is preserved for active LeftPanel.");
     }
 
     // 76. Invalid visibility/flags domain does not become VALID
@@ -1824,8 +1829,8 @@ public static class OffsetDoctorTests
         check(worldMapResult.Status == ValidationStatus.UNVERIFIED, "T77: Malformed child vector boundaries prevent VALID status.");
     }
 
-    // 78. Helper child path resolution success can upgrade evidence
-    private static void Test78_HelperChildPathResolutionSuccessUpgradesEvidence(Action<bool, string> check)
+    // 78. Active MapParent and WorldMapPanel with valid UiElementBase layout remain UNVERIFIED
+    private static void Test78_ActiveMapParentAndWorldMapRemainUnverified(Action<bool, string> check)
     {
         var setup = SetupSyntheticEnvironment();
         using var reader = setup.reader;
@@ -1834,11 +1839,12 @@ public static class OffsetDoctorTests
 
         var mapParent = reader.AllocateBlock(0x1000);
         var largeMap = reader.AllocateBlock(0x1000);
+        var worldMap = reader.AllocateBlock(0x1000);
 
         WriteValidUiElement(reader, mapParent, parentAddr: gameUi, childCount: 2, width: 1920f, height: 1080f);
         WriteValidUiElement(reader, largeMap, parentAddr: mapParent, childCount: 5, width: 1920f, height: 1080f);
+        WriteValidUiElement(reader, worldMap, parentAddr: gameUi, childCount: 8, width: 1920f, height: 1080f);
 
-        // Write MapUiElementOffset with valid Zoom
         reader.Write(largeMap, new MapUiElementOffset
         {
             UiElementBase = new UiElementBaseOffset
@@ -1852,20 +1858,27 @@ public static class OffsetDoctorTests
             Zoom = 1.25f
         });
 
-        // Set MapParentStruct.LargeMapPtr (+0x28)
         reader.WritePointer(mapParent + 0x28, largeMap);
         reader.WritePointer(gameUi + 0x7C0, mapParent);
+        reader.WritePointer(gameUi + 0x988, worldMap);
 
         var engine = new OffsetRecoveryEngine();
         var report = engine.RunValidation(reader, expectedGold: 50_000_000);
 
         var mapResult = report.Results.First(r => r.NodeId == "ui_map_parent");
-        check(mapResult.Status == ValidationStatus.VALID, "T78: MapParent with LargeMap child becomes VALID.");
-        check(mapResult.Evidence.Any(e => e.RuleName == "MapParentStructVerified"), "T78: MapParentStructVerified rule passed.");
+        var worldMapResult = report.Results.First(r => r.NodeId == "ui_world_map_panel");
+
+        check(mapResult.Status == ValidationStatus.UNVERIFIED, "T78: Active MapParent remains UNVERIFIED.");
+        check(mapResult.Evidence.Any(e => e.RuleName == "MapParentLayoutPlausible" && e.Passed), "T78: MapParentLayoutPlausible rule passed.");
+        check(mapResult.TraversalAddress == mapParent, "T78: TraversalAddress preserved for MapParent.");
+
+        check(worldMapResult.Status == ValidationStatus.UNVERIFIED, "T78: Active WorldMapPanel remains UNVERIFIED.");
+        check(worldMapResult.Evidence.Any(e => e.RuleName == "WorldMapPanelLayoutPlausible" && e.Passed), "T78: WorldMapPanelLayoutPlausible rule passed.");
+        check(worldMapResult.TraversalAddress == worldMap, "T78: TraversalAddress preserved for WorldMapPanel.");
     }
 
-    // 79. Helper child path resolution failure stays UNVERIFIED, not BROKEN
-    private static void Test79_HelperChildPathResolutionFailureStaysUnverifiedNotBroken(Action<bool, string> check)
+    // 79. Active UI pointer with unreadable child vector stays UNVERIFIED, not BROKEN
+    private static void Test79_ActiveUiWithUnreadableChildVectorStaysUnverifiedNotBroken(Action<bool, string> check)
     {
         var setup = SetupSyntheticEnvironment();
         using var reader = setup.reader;
@@ -1880,8 +1893,8 @@ public static class OffsetDoctorTests
         var report = engine.RunValidation(reader, expectedGold: 50_000_000);
 
         var mapResult = report.Results.First(r => r.NodeId == "ui_map_parent");
-        check(mapResult.Status == ValidationStatus.UNVERIFIED, "T79: MapParent without LargeMap child stays UNVERIFIED (not BROKEN).");
-        check(mapResult.ErrorMessage?.Contains("semantic MapUiElement child path proof missing") == true, "T79: Informative child path proof missing reason.");
+        check(mapResult.Status == ValidationStatus.UNVERIFIED, "T79: MapParent stays UNVERIFIED (not BROKEN).");
+        check(mapResult.ErrorMessage?.Contains("UNVERIFIED:") == true, "T79: Informative UNVERIFIED reason.");
     }
 
     // 80. Watch mode reports improved UI evidence
@@ -1892,9 +1905,9 @@ public static class OffsetDoctorTests
         reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
         reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
 
-        // Make RightPanel active but without semantic child proof
+        // Make RightPanel active
         var rightPanel = reader.AllocateBlock(0x1000);
-        WriteValidUiElement(reader, rightPanel, parentAddr: gameUi, childCount: 0, width: 400f, height: 600f);
+        WriteValidUiElement(reader, rightPanel, parentAddr: gameUi, childCount: 2, width: 400f, height: 600f);
         reader.WritePointer(gameUi + 0x6D8, rightPanel);
 
         var transitions = new List<string>();
@@ -1908,7 +1921,8 @@ public static class OffsetDoctorTests
             onTransition: transitions.Add);
 
         var rightSummary = report.TargetSummaries.First(s => s.NodeId == "ui_right_panel");
-        check(rightSummary.Reason?.Contains("semantic child path proof missing") == true || rightSummary.Reason?.Contains("UNVERIFIED:") == true, "T80: Watch target summary contains improved semantic evidence.");
+        check(rightSummary.LatestStatus == ValidationStatus.UNVERIFIED, "T80: Active RightPanel remains UNVERIFIED in watch mode.");
+        check(rightSummary.Reason?.Contains("no source-backed panel identity proof") == true || rightSummary.Reason?.Contains("UNVERIFIED:") == true, "T80: Watch target summary contains improved conservative semantic evidence.");
     }
 
     // 81. Validate-all behavior remains conservative
