@@ -8,10 +8,13 @@ using TEHhub.OffsetDoctor.Watch;
 
 public sealed class OffsetDoctorGuiModel
 {
-    // Ground-truth inputs (All optional, empty string = not supplied; Max-only stable values)
+    // Ground-truth inputs (All optional, empty string = not supplied)
     public string GoldInput = string.Empty;
+    public string HpCurrentInput = string.Empty;
     public string HpTotalInput = string.Empty;
+    public string MpCurrentInput = string.Empty;
     public string MpTotalInput = string.Empty;
+    public string EsCurrentInput = string.Empty;
     public string EsTotalInput = string.Empty;
 
     // Baseline configuration (Defaults safely to %LOCALAPPDATA%/TEHhub/OffsetDoctor/offsetdoctor-baseline.json)

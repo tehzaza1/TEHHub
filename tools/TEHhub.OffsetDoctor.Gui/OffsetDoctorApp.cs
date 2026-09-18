@@ -87,7 +87,7 @@ public sealed class OffsetDoctorApp : Overlay
         if (ImGui.CollapsingHeader("Ground-Truth Inputs (Optional)###ODGroundTruth", ImGuiTreeNodeFlags.DefaultOpen))
         {
             ImGui.PushStyleColor(ImGuiCol.Text, ColorMuted);
-            ImGui.TextUnformatted("Leave inputs empty if not supplied. Only stable max values are used. No hardcoded default player values.");
+            ImGui.TextUnformatted("Leave inputs empty if not supplied. No hardcoded default player values are used.");
             ImGui.PopStyleColor();
 
             ImGui.Columns(4, "ODGroundTruthCols", false);
@@ -99,24 +99,39 @@ public sealed class OffsetDoctorApp : Overlay
 
             ImGui.NextColumn();
 
-            // Column 2: Max HP
-            ImGui.Text("Max HP:");
-            ImGui.SetNextItemWidth(-1);
-            ImGui.InputText("##ODMaxHp", ref _model.HpTotalInput, 16);
+            // Column 2: Health
+            ImGui.Text("HP Current / Max:");
+            ImGui.SetNextItemWidth(80);
+            ImGui.InputText("##ODHpCur", ref _model.HpCurrentInput, 16);
+            ImGui.SameLine();
+            ImGui.Text("/");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(80);
+            ImGui.InputText("##ODHpTot", ref _model.HpTotalInput, 16);
 
             ImGui.NextColumn();
 
-            // Column 3: Max Mana
-            ImGui.Text("Max Mana:");
-            ImGui.SetNextItemWidth(-1);
-            ImGui.InputText("##ODMaxMp", ref _model.MpTotalInput, 16);
+            // Column 3: Mana
+            ImGui.Text("Mana Current / Max:");
+            ImGui.SetNextItemWidth(80);
+            ImGui.InputText("##ODMpCur", ref _model.MpCurrentInput, 16);
+            ImGui.SameLine();
+            ImGui.Text("/");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(80);
+            ImGui.InputText("##ODMpTot", ref _model.MpTotalInput, 16);
 
             ImGui.NextColumn();
 
-            // Column 4: Max ES
-            ImGui.Text("Max ES:");
-            ImGui.SetNextItemWidth(-1);
-            ImGui.InputText("##ODMaxEs", ref _model.EsTotalInput, 16);
+            // Column 4: ES
+            ImGui.Text("ES Current / Max:");
+            ImGui.SetNextItemWidth(80);
+            ImGui.InputText("##ODEsCur", ref _model.EsCurrentInput, 16);
+            ImGui.SameLine();
+            ImGui.Text("/");
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(80);
+            ImGui.InputText("##ODEsTot", ref _model.EsTotalInput, 16);
 
             ImGui.Columns(1);
             ImGui.Spacing();

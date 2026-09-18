@@ -70,23 +70,35 @@ public sealed class OffsetDoctorGuiController
         var gold = ParseOptionalInt(model.GoldInput, "Gold", out var goldErr);
         if (goldErr != null) { errorMessage = goldErr; return false; }
 
-        var hpTot = ParseOptionalInt(model.HpTotalInput, "Max HP", out var hpTotErr);
+        var hpCur = ParseOptionalInt(model.HpCurrentInput, "HP Current", out var hpCurErr);
+        if (hpCurErr != null) { errorMessage = hpCurErr; return false; }
+
+        var hpTot = ParseOptionalInt(model.HpTotalInput, "HP Total", out var hpTotErr);
         if (hpTotErr != null) { errorMessage = hpTotErr; return false; }
 
-        var mpTot = ParseOptionalInt(model.MpTotalInput, "Max Mana", out var mpTotErr);
+        var mpCur = ParseOptionalInt(model.MpCurrentInput, "Mana Current", out var mpCurErr);
+        if (mpCurErr != null) { errorMessage = mpCurErr; return false; }
+
+        var mpTot = ParseOptionalInt(model.MpTotalInput, "Mana Total", out var mpTotErr);
         if (mpTotErr != null) { errorMessage = mpTotErr; return false; }
 
-        var esTot = ParseOptionalInt(model.EsTotalInput, "Max ES", out var esTotErr);
+        var esCur = ParseOptionalInt(model.EsCurrentInput, "ES Current", out var esCurErr);
+        if (esCurErr != null) { errorMessage = esCurErr; return false; }
+
+        var esTot = ParseOptionalInt(model.EsTotalInput, "ES Total", out var esTotErr);
         if (esTotErr != null) { errorMessage = esTotErr; return false; }
 
-        // If any value was provided, construct the ground truth object (Max-only for vitals)
-        if (gold != null || hpTot != null || mpTot != null || esTot != null)
+        // If any value was provided, construct the ground truth object (each field is independent and optional)
+        if (gold != null || hpCur != null || hpTot != null || mpCur != null || mpTot != null || esCur != null || esTot != null)
         {
             groundTruth = new ValidationGroundTruth
             {
                 ExpectedGold = gold,
+                ExpectedHpCurrent = hpCur,
                 ExpectedHpTotal = hpTot,
+                ExpectedMpCurrent = mpCur,
                 ExpectedMpTotal = mpTot,
+                ExpectedEsCurrent = esCur,
                 ExpectedEsTotal = esTot
             };
         }
