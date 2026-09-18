@@ -7,7 +7,7 @@ namespace AreaModOffsetScanner
     using TEHhub.Offsets.Natives;
 
     /// <summary>
-    ///     Executes a candidate memory scan across a configurable range.
+    ///     Executes a candidate memory scan across a configurable range with multi-hypothesis inspection.
     /// </summary>
     public sealed class ScanSession
     {
@@ -20,17 +20,17 @@ namespace AreaModOffsetScanner
             public long ServerDataObjectAddress { get; init; }
             public string PlayerServerDataAddressHex { get; init; } = "0x0";
             public long PlayerServerDataAddress { get; init; }
+            public string ScanTargetBaseName { get; init; } = "PlayerServerData";
             public int StartOffset { get; init; }
             public int EndOffset { get; init; }
             public int Step { get; init; }
             public int? ExpectedUiModCount { get; init; }
             public DateTime Timestamp { get; init; }
             public int TotalOffsetsInspected { get; init; }
-            public int StructurallyValidCount { get; init; }
-            public int StructurallyInvalidPlausibleCount { get; init; }
-            public int DeepInspectedCandidatesCount { get; init; }
-            public int CandidatesWithReadableNameChainsCount { get; init; }
-            public int CandidatesWithPlausibleNamesCount { get; init; }
+            public int BasicStructurallyValidCount { get; init; }
+            public int HypothesisAPlausibleCount { get; init; }
+            public int HypothesisBPlausibleCount { get; init; }
+            public int HypothesisCPlausibleCount { get; init; }
             public long ElapsedMilliseconds { get; init; }
         }
 
@@ -43,8 +43,10 @@ namespace AreaModOffsetScanner
 
         public static ScanResult Execute(
             NativeMemoryReader reader,
+            IntPtr baseAddress,
             IntPtr playerServerDataAddress,
             IntPtr serverDataObjectAddress,
+            string targetBaseName = "PlayerServerData",
             int startOffset = 0x0000,
             int endOffset = 0x4000,
             int step = 8,
@@ -55,33 +57,27 @@ namespace AreaModOffsetScanner
             var allEvaluated = new List<AreaModCandidate>();
 
             var totalInspected = 0;
-            var structurallyValidCount = 0;
-            var structurallyInvalidPlausibleCount = 0;
-            var deepInspectedCount = 0;
-            var candidatesWithReadableNameChainsCount = 0;
-            var candidatesWithPlausibleNamesCount = 0;
+            var basicValidCount = 0;
+            var hypACount = 0;
+            var hypBCount = 0;
+            var hypCCount = 0;
 
             for (var offset = startOffset; offset <= endOffset; offset += step)
             {
                 totalInspected++;
-                var candidateAddr = playerServerDataAddress + offset;
+                var candidateAddr = baseAddress + offset;
 
                 if (!reader.TryRead<StdVector>(candidateAddr, out var vec))
                 {
                     continue;
                 }
 
-                var eval = VectorEvaluator.Evaluate(vec, VectorEvaluator.ModArrayStride);
-                var isPlausible = eval.ElementCount is > 0 and < 150;
+                var basicEval = VectorEvaluator.EvaluateBasic(vec);
                 var isSpecial = offset is 0x8A8 or 0xD8 or 0x120;
 
-                if (eval.IsStructurallyValid && eval.ElementCount > 0)
+                if (basicEval.IsBasicValid && basicEval.UsedBytes > 0)
                 {
-                    structurallyValidCount++;
-                }
-                else if (!eval.IsStructurallyValid && isPlausible)
-                {
-                    structurallyInvalidPlausibleCount++;
+                    basicValidCount++;
                 }
 
                 var specialTag = offset switch
@@ -92,34 +88,71 @@ namespace AreaModOffsetScanner
                     _ => string.Empty
                 };
 
-                var resolution = default(ModRecordResolver.ResolutionResult);
+                var hypA = new ModRecordResolver.HypothesisEvaluation();
+                var hypB = new ModRecordResolver.HypothesisEvaluation();
+                var hypC = new ModRecordResolver.HypothesisEvaluation();
 
-                // Deep inspect ModArrayStruct ONLY if the vector is structurally valid.
-                // Structurally invalid vectors (e.g. 0xD8 with End < Last) are recorded
-                // for diagnostics but never parsed as legitimate containers.
-                var shouldInspect = eval.IsStructurallyValid &&
-                                    eval.ElementCount is > 0 and < 150 &&
-                                    vec.First != IntPtr.Zero &&
-                                    NativeMemoryReader.IsValidAddress(vec.First);
-
-                if (shouldInspect)
+                // Only deep-inspect memory if the vector satisfies basic structural bounds and ordering
+                // (First <= Last <= End and non-null pointers are valid user-mode addresses)
+                if (basicEval.IsBasicValid &&
+                    basicEval.UsedBytes > 0 &&
+                    basicEval.UsedBytes <= (150 * 0x40) && // Reasonable mod vector size upper bound (9.6 KB)
+                    vec.First != IntPtr.Zero &&
+                    NativeMemoryReader.IsValidAddress(vec.First))
                 {
-                    deepInspectedCount++;
-                    var maxEntries = (int)Math.Clamp(eval.ElementCount, 1, 150);
-                    resolution = resolver.ResolveCandidate(reader, vec.First, maxEntries);
-
-                    if (resolution.ReadableNameChainCount > 0)
+                    // Hypothesis A: vector<ModArrayStruct> (stride 0x40)
+                    if (basicEval.UsedBytes % 0x40 == 0)
                     {
-                        candidatesWithReadableNameChainsCount++;
+                        hypA = resolver.ResolveHypothesisA(reader, vec.First, basicEval.UsedBytes);
+                        if (hypA.AsciiIdentifierCount > 0)
+                        {
+                            hypACount++;
+                        }
                     }
 
-                    if (resolution.PlausibleRawNameCount > 0)
+                    // Hypothesis B: vector<IntPtr> direct Mods.dat rows (stride 0x08)
+                    if (basicEval.UsedBytes % 0x08 == 0)
                     {
-                        candidatesWithPlausibleNamesCount++;
+                        hypB = resolver.ResolveHypothesisB(reader, vec.First, basicEval.UsedBytes);
+                        if (hypB.AsciiIdentifierCount > 0)
+                        {
+                            hypBCount++;
+                        }
+                    }
+
+                    // Hypothesis C: vector<IntPtr> pointers to ModArrayStruct (stride 0x08)
+                    if (basicEval.UsedBytes % 0x08 == 0)
+                    {
+                        hypC = resolver.ResolveHypothesisC(reader, vec.First, basicEval.UsedBytes);
+                        if (hypC.AsciiIdentifierCount > 0)
+                        {
+                            hypCCount++;
+                        }
                     }
                 }
 
-                if (isPlausible || isSpecial || resolution.ReadableNameChainCount > 0 || (eval.IsStructurallyValid && eval.ElementCount > 0))
+                var maxAscii = Math.Max(hypA.AsciiIdentifierCount, Math.Max(hypB.AsciiIdentifierCount, hypC.AsciiIdentifierCount));
+                var bestHypCode = "None";
+                if (maxAscii > 0)
+                {
+                    if (maxAscii == hypA.AsciiIdentifierCount)
+                    {
+                        bestHypCode = "A";
+                    }
+                    else if (maxAscii == hypB.AsciiIdentifierCount)
+                    {
+                        bestHypCode = "B";
+                    }
+                    else if (maxAscii == hypC.AsciiIdentifierCount)
+                    {
+                        bestHypCode = "C";
+                    }
+                }
+
+                var hasReadableChains = hypA.ReadableNameChainCount > 0 || hypB.ReadableNameChainCount > 0 || hypC.ReadableNameChainCount > 0;
+                var hasReasonableElements = (basicEval.UsedBytes > 0 && basicEval.UsedBytes <= (100 * 0x40));
+
+                if (isSpecial || maxAscii > 0 || hasReadableChains || (basicEval.IsBasicValid && hasReasonableElements))
                 {
                     allEvaluated.Add(new AreaModCandidate
                     {
@@ -127,16 +160,15 @@ namespace AreaModOffsetScanner
                         First = $"0x{vec.First.ToInt64():X11}",
                         Last = $"0x{vec.Last.ToInt64():X11}",
                         End = $"0x{vec.End.ToInt64():X11}",
-                        IsStructurallyValid = eval.IsStructurallyValid,
-                        StructuralFailureReason = eval.FailureReasons,
-                        ElementCount = eval.ElementCount,
-                        CapacityCount = eval.CapacityCount,
-                        AttemptedEntries = resolution.AttemptedEntries,
-                        ReadableEntries = resolution.ReadableEntries,
-                        PlausibleModsPtrCount = resolution.PlausibleModsPtrCount,
-                        ReadableNameChainCount = resolution.ReadableNameChainCount,
-                        PlausibleRawNameCount = resolution.PlausibleRawNameCount,
-                        SampleRawNames = resolution.SampleRawNames ?? new List<string>(),
+                        IsBasicValid = basicEval.IsBasicValid,
+                        StructuralFailureReason = basicEval.FailureReasons,
+                        UsedBytes = basicEval.UsedBytes,
+                        CapacityBytes = basicEval.CapacityBytes,
+                        HypothesisA = hypA,
+                        HypothesisB = hypB,
+                        HypothesisC = hypC,
+                        BestHypothesisCode = bestHypCode,
+                        BestHypothesisAsciiCount = maxAscii,
                         SpecialTag = specialTag
                     });
                 }
@@ -144,17 +176,16 @@ namespace AreaModOffsetScanner
 
             sw.Stop();
 
-            // Ranking for diagnostic presentation only:
-            // 1. Structurally valid vectors first
-            // 2. More plausible RawName identifiers
-            // 3. More readable string chains
-            // 4. Smaller mismatch between vector element count and plausible name count
+            // Ranking for diagnostic presentation:
+            // 1. Highest number of strict ASCII identifiers
+            // 2. Highest number of readable name chains across any hypothesis
+            // 3. Structurally valid vectors
+            // 4. Smaller distance between element count and expected UI mods (if expected provided)
             // 5. Offset ascending
             var ranked = allEvaluated
-                .OrderByDescending(c => c.IsStructurallyValid)
-                .ThenByDescending(c => c.PlausibleRawNameCount)
-                .ThenByDescending(c => c.ReadableNameChainCount)
-                .ThenBy(c => Math.Abs(c.ElementCount - c.PlausibleRawNameCount))
+                .OrderByDescending(c => c.BestHypothesisAsciiCount)
+                .ThenByDescending(c => Math.Max(c.HypothesisA.ReadableNameChainCount, Math.Max(c.HypothesisB.ReadableNameChainCount, c.HypothesisC.ReadableNameChainCount)))
+                .ThenByDescending(c => c.IsBasicValid)
                 .ThenBy(c => c.Offset)
                 .ToList();
 
@@ -167,17 +198,17 @@ namespace AreaModOffsetScanner
                 ServerDataObjectAddress = serverDataObjectAddress.ToInt64(),
                 PlayerServerDataAddressHex = $"0x{playerServerDataAddress.ToInt64():X11}",
                 PlayerServerDataAddress = playerServerDataAddress.ToInt64(),
+                ScanTargetBaseName = targetBaseName,
                 StartOffset = startOffset,
                 EndOffset = endOffset,
                 Step = step,
                 ExpectedUiModCount = expectedUiModCount,
                 Timestamp = DateTime.UtcNow,
                 TotalOffsetsInspected = totalInspected,
-                StructurallyValidCount = structurallyValidCount,
-                StructurallyInvalidPlausibleCount = structurallyInvalidPlausibleCount,
-                DeepInspectedCandidatesCount = deepInspectedCount,
-                CandidatesWithReadableNameChainsCount = candidatesWithReadableNameChainsCount,
-                CandidatesWithPlausibleNamesCount = candidatesWithPlausibleNamesCount,
+                BasicStructurallyValidCount = basicValidCount,
+                HypothesisAPlausibleCount = hypACount,
+                HypothesisBPlausibleCount = hypBCount,
+                HypothesisCPlausibleCount = hypCCount,
                 ElapsedMilliseconds = sw.ElapsedMilliseconds
             };
 

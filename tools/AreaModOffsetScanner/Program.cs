@@ -15,12 +15,13 @@ namespace AreaModOffsetScanner
             "PathofExile2Steam",
             "PathofExile2_x64Steam",
             "PathofExile2_x64",
-            "PathofExile2"
+            "PathofExile2",
+            "PathOfExile"
         };
 
         public static int Main(string[] args)
         {
-            Console.Title = "PoE2 AreaMod Offset Scanner (Standalone Read-Only)";
+            Console.Title = "PoE2 AreaMod Offset Scanner - Phase 2 (Multi-Hypothesis)";
 
             var parsedArgs = ParseCommandLine(args);
             if (parsedArgs.ShowHelp)
@@ -31,7 +32,7 @@ namespace AreaModOffsetScanner
 
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("================================================================================");
-            Console.WriteLine("       PoE2 Standalone Read-Only AreaMods Memory Candidate Scanner              ");
+            Console.WriteLine("    PoE2 Standalone AreaMods Scanner - Phase 2 (Multi-Hypothesis & Verify)      ");
             Console.WriteLine("================================================================================");
             Console.ResetColor();
 
@@ -92,34 +93,66 @@ namespace AreaModOffsetScanner
 
                 var playerServerDataAddress = derivation.PlayerServerDataAddress;
 
-                // 4. Optional ground truth UI count
+                // 4. Live Verification of PlayerServerData using PlayerInventories (+0x320)
+                Console.WriteLine("\n[+] Verifying PlayerServerData base via known PlayerInventories vector (+0x320)...");
+                var verification = InventoryVerifier.Verify(reader, playerServerDataAddress);
+                Console.WriteLine(verification.Log);
+
+                // 5. Optional ground truth UI count
                 var expectedUiCount = parsedArgs.ExpectedUiModCount;
                 if (!expectedUiCount.HasValue && !parsedArgs.NonInteractive)
                 {
                     expectedUiCount = PromptForExpectedUiMods();
                 }
 
-                // 5. Execute Scan
-                Console.WriteLine($"\n[+] Scanning memory from 0x{parsedArgs.StartOffset:X4} to 0x{parsedArgs.EndOffset:X4} (step {parsedArgs.Step} bytes)...");
+                // 6. Execute Primary Scan on PlayerServerData
+                Console.WriteLine($"\n[+] Scanning PlayerServerData memory from 0x{parsedArgs.StartOffset:X4} to 0x{parsedArgs.EndOffset:X4} (step {parsedArgs.Step} bytes)...");
                 var scanResult = ScanSession.Execute(
                     reader,
                     playerServerDataAddress,
+                    playerServerDataAddress,
                     serverDataAddress,
+                    targetBaseName: "PlayerServerData",
                     parsedArgs.StartOffset,
                     parsedArgs.EndOffset,
                     parsedArgs.Step,
                     expectedUiCount);
 
-                // 6. Report results
+                // 7. Report results
                 ScanReporter.PrintConsoleReport(scanResult);
 
-                // 7. Export JSON and CSV files
+                // 8. Export JSON and CSV files
                 var (jsonPath, csvPath) = ScanReporter.ExportFiles(scanResult, parsedArgs.OutputPath);
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("\n[+] Scan artifacts exported successfully:");
                 Console.WriteLine($"    JSON Report: {Path.GetFullPath(jsonPath)}");
                 Console.WriteLine($"    CSV Table:   {Path.GetFullPath(csvPath)}");
                 Console.ResetColor();
+
+                // 9. If requested, also scan ServerDataObject directly
+                if (parsedArgs.ScanServerDataDirectly)
+                {
+                    Console.WriteLine($"\n[+] Scanning ServerDataObject memory directly from 0x0000 to 0x1000 (step {parsedArgs.Step} bytes)...");
+                    var sdScanResult = ScanSession.Execute(
+                        reader,
+                        serverDataAddress,
+                        playerServerDataAddress,
+                        serverDataAddress,
+                        targetBaseName: "ServerDataObject",
+                        0x0000,
+                        0x1000,
+                        parsedArgs.Step,
+                        expectedUiCount);
+
+                    ScanReporter.PrintConsoleReport(sdScanResult);
+                    var sdBase = parsedArgs.OutputPath != null ? $"{parsedArgs.OutputPath}-ServerData" : null;
+                    var (sdJson, sdCsv) = ScanReporter.ExportFiles(sdScanResult, sdBase);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("\n[+] ServerDataObject Scan artifacts exported:");
+                    Console.WriteLine($"    JSON Report: {Path.GetFullPath(sdJson)}");
+                    Console.WriteLine($"    CSV Table:   {Path.GetFullPath(sdCsv)}");
+                    Console.ResetColor();
+                }
 
                 Console.WriteLine("\nScan complete. Press Enter to exit...");
                 if (!parsedArgs.NonInteractive)
@@ -292,6 +325,7 @@ namespace AreaModOffsetScanner
             public int Step { get; set; } = 8;
             public int? ExpectedUiModCount { get; set; }
             public string? OutputPath { get; set; }
+            public bool ScanServerDataDirectly { get; set; }
             public bool NonInteractive { get; set; }
             public bool ShowHelp { get; set; }
         }
@@ -312,6 +346,12 @@ namespace AreaModOffsetScanner
                 if (arg.Equals("--non-interactive", StringComparison.OrdinalIgnoreCase) || arg.Equals("--batch", StringComparison.OrdinalIgnoreCase))
                 {
                     result.NonInteractive = true;
+                    continue;
+                }
+
+                if (arg.Equals("--scan-server-data", StringComparison.OrdinalIgnoreCase) || arg.Equals("--both", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.ScanServerDataDirectly = true;
                     continue;
                 }
 
@@ -380,7 +420,7 @@ namespace AreaModOffsetScanner
         private static void PrintHelp()
         {
             Console.WriteLine(@"
-PoE2 AreaMods Memory Offset Scanner (Standalone Read-Only)
+PoE2 AreaMods Memory Offset Scanner - Phase 2 (Multi-Hypothesis & Live Verification)
 
 Usage:
   AreaModOffsetScanner.exe [options]
@@ -392,12 +432,13 @@ Options:
   --end <HEX/DEC>         End offset from playerServerData (default: 0x4000)
   --step <INT>            Scan step in bytes (default: 8)
   --expected, -e <INT>    Expected UI AreaMod lines for comparison (e.g. 30)
+  --scan-server-data      Also scan ServerDataObject directly (0x0000..0x1000)
   --out, -o <PATH>        Custom base output filename for JSON and CSV exports
   --non-interactive       Run in batch/non-interactive mode without prompts
   --help, -h              Show this help message
 
 Example:
-  dotnet run --project tools\AreaModOffsetScanner\AreaModOffsetScanner.csproj -- -a 0x5FB96A52000 -e 30
+  dotnet run --project tools\AreaModOffsetScanner\AreaModOffsetScanner.csproj -- -a 0x5FB96A52000 -e 30 --scan-server-data
 ");
         }
     }

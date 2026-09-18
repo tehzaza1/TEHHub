@@ -4,7 +4,7 @@ namespace AreaModOffsetScanner
     using System.Collections.Generic;
 
     /// <summary>
-    ///     Diagnostic data model for an evaluated memory candidate offset.
+    ///     Diagnostic data model for an evaluated memory candidate offset across all 3 element hypotheses.
     ///     Contains only JSON-safe primitive and string properties.
     /// </summary>
     public sealed class AreaModCandidate
@@ -19,25 +19,23 @@ namespace AreaModOffsetScanner
 
         public string End { get; init; } = "0x0";
 
-        public bool IsStructurallyValid { get; init; }
+        public bool IsBasicValid { get; init; }
 
         public string StructuralFailureReason { get; init; } = string.Empty;
 
-        public long ElementCount { get; init; }
+        public long UsedBytes { get; init; }
 
-        public long CapacityCount { get; init; }
+        public long CapacityBytes { get; init; }
 
-        public int AttemptedEntries { get; init; }
+        public ModRecordResolver.HypothesisEvaluation HypothesisA { get; init; } = new();
 
-        public int ReadableEntries { get; init; }
+        public ModRecordResolver.HypothesisEvaluation HypothesisB { get; init; } = new();
 
-        public int PlausibleModsPtrCount { get; init; }
+        public ModRecordResolver.HypothesisEvaluation HypothesisC { get; init; } = new();
 
-        public int ReadableNameChainCount { get; init; }
+        public string BestHypothesisCode { get; init; } = "None";
 
-        public int PlausibleRawNameCount { get; init; }
-
-        public List<string> SampleRawNames { get; init; } = new();
+        public int BestHypothesisAsciiCount { get; init; }
 
         public string SpecialTag { get; init; } = string.Empty;
 
