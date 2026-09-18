@@ -9,17 +9,13 @@ namespace AreaModOffsetScanner
 
     internal static class Program
     {
+        // Target process names specifically restricted to Path of Exile 2 executables
         private static readonly string[] TargetProcessNames =
         {
             "PathofExile2Steam",
             "PathofExile2_x64Steam",
             "PathofExile2_x64",
-            "PathofExile2",
-            "PathofExileSteam",
-            "PathofExile_x64Steam",
-            "PathofExile_x64",
-            "PathofExile",
-            "PathOfExile"
+            "PathofExile2"
         };
 
         public static int Main(string[] args)
@@ -170,7 +166,7 @@ namespace AreaModOffsetScanner
                 return p.Id;
             }
 
-            Console.WriteLine($"[?] Multiple matching processes detected ({processes.Count}):");
+            Console.WriteLine($"[?] Multiple matching PoE2 processes detected ({processes.Count}):");
             for (var i = 0; i < processes.Count; i++)
             {
                 var p = processes[i];
@@ -179,7 +175,10 @@ namespace AreaModOffsetScanner
 
             if (nonInteractive)
             {
-                return processes[0].Id;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("[ERROR] Multiple PoE2 processes detected in non-interactive mode. Please specify target process with --pid <PID>.");
+                Console.ResetColor();
+                return -1;
             }
 
             while (true)
@@ -387,7 +386,7 @@ Usage:
   AreaModOffsetScanner.exe [options]
 
 Options:
-  --pid, -p <PID>         Target process ID (optional; auto-detected if omitted)
+  --pid, -p <PID>         Target PoE2 process ID (optional; auto-detected if omitted)
   --address, -a <HEX>     ServerDataObject address (e.g. 0x5FB96A52000)
   --start <HEX/DEC>       Start offset from playerServerData (default: 0x0000)
   --end <HEX/DEC>         End offset from playerServerData (default: 0x4000)

@@ -16,8 +16,10 @@ namespace AreaModOffsetScanner
             public int ProcessId { get; init; }
             public string ProcessName { get; init; } = string.Empty;
             public string MainModuleFileName { get; init; } = string.Empty;
-            public IntPtr ServerDataObjectAddress { get; init; }
-            public IntPtr PlayerServerDataAddress { get; init; }
+            public string ServerDataObjectAddressHex { get; init; } = "0x0";
+            public long ServerDataObjectAddress { get; init; }
+            public string PlayerServerDataAddressHex { get; init; } = "0x0";
+            public long PlayerServerDataAddress { get; init; }
             public int StartOffset { get; init; }
             public int EndOffset { get; init; }
             public int Step { get; init; }
@@ -27,7 +29,8 @@ namespace AreaModOffsetScanner
             public int StructurallyValidCount { get; init; }
             public int StructurallyInvalidPlausibleCount { get; init; }
             public int DeepInspectedCandidatesCount { get; init; }
-            public int CandidatesWithResolvedModsCount { get; init; }
+            public int CandidatesWithReadableNameChainsCount { get; init; }
+            public int CandidatesWithPlausibleNamesCount { get; init; }
             public long ElapsedMilliseconds { get; init; }
         }
 
@@ -55,7 +58,8 @@ namespace AreaModOffsetScanner
             var structurallyValidCount = 0;
             var structurallyInvalidPlausibleCount = 0;
             var deepInspectedCount = 0;
-            var candidatesWithResolvedModsCount = 0;
+            var candidatesWithReadableNameChainsCount = 0;
+            var candidatesWithPlausibleNamesCount = 0;
 
             for (var offset = startOffset; offset <= endOffset; offset += step)
             {
@@ -89,23 +93,33 @@ namespace AreaModOffsetScanner
                 };
 
                 var resolution = default(ModRecordResolver.ResolutionResult);
-                var shouldInspect = (isPlausible || isSpecial) &&
+
+                // Deep inspect ModArrayStruct ONLY if the vector is structurally valid.
+                // Structurally invalid vectors (e.g. 0xD8 with End < Last) are recorded
+                // for diagnostics but never parsed as legitimate containers.
+                var shouldInspect = eval.IsStructurallyValid &&
+                                    eval.ElementCount is > 0 and < 150 &&
                                     vec.First != IntPtr.Zero &&
                                     NativeMemoryReader.IsValidAddress(vec.First);
 
                 if (shouldInspect)
                 {
                     deepInspectedCount++;
-                    var maxEntries = (int)Math.Clamp(eval.ElementCount > 0 ? eval.ElementCount : 10, 1, 150);
+                    var maxEntries = (int)Math.Clamp(eval.ElementCount, 1, 150);
                     resolution = resolver.ResolveCandidate(reader, vec.First, maxEntries);
 
-                    if (resolution.ResolvedModCount > 0)
+                    if (resolution.ReadableNameChainCount > 0)
                     {
-                        candidatesWithResolvedModsCount++;
+                        candidatesWithReadableNameChainsCount++;
+                    }
+
+                    if (resolution.PlausibleRawNameCount > 0)
+                    {
+                        candidatesWithPlausibleNamesCount++;
                     }
                 }
 
-                if (isPlausible || isSpecial || resolution.ResolvedModCount > 0 || (eval.IsStructurallyValid && eval.ElementCount > 0))
+                if (isPlausible || isSpecial || resolution.ReadableNameChainCount > 0 || (eval.IsStructurallyValid && eval.ElementCount > 0))
                 {
                     allEvaluated.Add(new AreaModCandidate
                     {
@@ -120,8 +134,8 @@ namespace AreaModOffsetScanner
                         AttemptedEntries = resolution.AttemptedEntries,
                         ReadableEntries = resolution.ReadableEntries,
                         PlausibleModsPtrCount = resolution.PlausibleModsPtrCount,
-                        ResolvedModCount = resolution.ResolvedModCount,
-                        NonEmptyRawNameCount = resolution.NonEmptyRawNameCount,
+                        ReadableNameChainCount = resolution.ReadableNameChainCount,
+                        PlausibleRawNameCount = resolution.PlausibleRawNameCount,
                         SampleRawNames = resolution.SampleRawNames ?? new List<string>(),
                         SpecialTag = specialTag
                     });
@@ -132,15 +146,15 @@ namespace AreaModOffsetScanner
 
             // Ranking for diagnostic presentation only:
             // 1. Structurally valid vectors first
-            // 2. More resolved Mods.dat entries
-            // 3. More non-empty RawNames
-            // 4. Smaller mismatch with element count
+            // 2. More plausible RawName identifiers
+            // 3. More readable string chains
+            // 4. Smaller mismatch between vector element count and plausible name count
             // 5. Offset ascending
             var ranked = allEvaluated
                 .OrderByDescending(c => c.IsStructurallyValid)
-                .ThenByDescending(c => c.ResolvedModCount)
-                .ThenByDescending(c => c.NonEmptyRawNameCount)
-                .ThenBy(c => Math.Abs(c.ElementCount - c.ResolvedModCount))
+                .ThenByDescending(c => c.PlausibleRawNameCount)
+                .ThenByDescending(c => c.ReadableNameChainCount)
+                .ThenBy(c => Math.Abs(c.ElementCount - c.PlausibleRawNameCount))
                 .ThenBy(c => c.Offset)
                 .ToList();
 
@@ -149,8 +163,10 @@ namespace AreaModOffsetScanner
                 ProcessId = reader.ProcessId,
                 ProcessName = reader.ProcessName,
                 MainModuleFileName = reader.MainModuleFileName,
-                ServerDataObjectAddress = serverDataObjectAddress,
-                PlayerServerDataAddress = playerServerDataAddress,
+                ServerDataObjectAddressHex = $"0x{serverDataObjectAddress.ToInt64():X11}",
+                ServerDataObjectAddress = serverDataObjectAddress.ToInt64(),
+                PlayerServerDataAddressHex = $"0x{playerServerDataAddress.ToInt64():X11}",
+                PlayerServerDataAddress = playerServerDataAddress.ToInt64(),
                 StartOffset = startOffset,
                 EndOffset = endOffset,
                 Step = step,
@@ -160,7 +176,8 @@ namespace AreaModOffsetScanner
                 StructurallyValidCount = structurallyValidCount,
                 StructurallyInvalidPlausibleCount = structurallyInvalidPlausibleCount,
                 DeepInspectedCandidatesCount = deepInspectedCount,
-                CandidatesWithResolvedModsCount = candidatesWithResolvedModsCount,
+                CandidatesWithReadableNameChainsCount = candidatesWithReadableNameChainsCount,
+                CandidatesWithPlausibleNamesCount = candidatesWithPlausibleNamesCount,
                 ElapsedMilliseconds = sw.ElapsedMilliseconds
             };
 

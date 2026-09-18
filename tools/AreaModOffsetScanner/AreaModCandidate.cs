@@ -5,6 +5,7 @@ namespace AreaModOffsetScanner
 
     /// <summary>
     ///     Diagnostic data model for an evaluated memory candidate offset.
+    ///     Contains only JSON-safe primitive and string properties.
     /// </summary>
     public sealed class AreaModCandidate
     {
@@ -32,9 +33,9 @@ namespace AreaModOffsetScanner
 
         public int PlausibleModsPtrCount { get; init; }
 
-        public int ResolvedModCount { get; init; }
+        public int ReadableNameChainCount { get; init; }
 
-        public int NonEmptyRawNameCount { get; init; }
+        public int PlausibleRawNameCount { get; init; }
 
         public List<string> SampleRawNames { get; init; } = new();
 

@@ -96,9 +96,14 @@ namespace AreaModOffsetScanner
                 reasons.Add($"First address 0x{first:X} is outside user-mode address space");
             }
 
-            if (last != 0 && last > first && !NativeMemoryReader.IsValidAddress(vector.Last))
+            if (last != 0 && !NativeMemoryReader.IsValidAddress(vector.Last))
             {
                 reasons.Add($"Last address 0x{last:X} is outside user-mode address space");
+            }
+
+            if (end != 0 && !NativeMemoryReader.IsValidAddress(vector.End))
+            {
+                reasons.Add($"End address 0x{end:X} is outside user-mode address space");
             }
 
             if (reasons.Count > 0)
