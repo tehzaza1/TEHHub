@@ -14,6 +14,7 @@ public sealed class OffsetNode
     public int Alignment { get; init; } = 8;
     public int SearchRadius { get; init; } = 0x200;
     public string? StaticPatternName { get; init; }
+    public StaticPatternResolutionKind StaticPatternResolution { get; init; } = StaticPatternResolutionKind.RipRelativeDisp32;
     public string? StructTypeName { get; init; }
     public string? FieldName { get; init; }
     public string? ProductionSourceLocation { get; init; }

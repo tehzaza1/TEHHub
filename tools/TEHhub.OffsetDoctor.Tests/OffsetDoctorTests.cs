@@ -21,7 +21,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 28 Rigorous Semantic Validation Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 35 Rigorous Semantic Validation Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -51,8 +51,15 @@ public static class OffsetDoctorTests
         Test26_DistinctComponentsResolvedIndependently(check);
         Test27_EmptyVectorAndMapReportUnverified(check);
         Test28_ManifestOffsetsMatchStructReflection(check);
+        Test29_DuplicateStaticPatternBlocksDescendants(check);
+        Test30_DirectStaticPatternResolutionValidates(check);
+        Test31_GenericReadablePointerIsUnverifiedWithTraversalAddress(check);
+        Test32_EmptyVectorBlocksChildNode(check);
+        Test33_VitalStructGroundTruthMismatchIsUnverified(check);
+        Test34_MalformedComponentLookupBlocksSubfields(check);
+        Test35_BroadScalarPlausibilityIsUnverified(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 28 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 35 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -376,7 +383,7 @@ public static class OffsetDoctorTests
 
         var gold = report.Results.First(r => r.NodeId == "psd_gold_field");
         check(gold.Status == ValidationStatus.VALID, "T8: Gold == 0 with --gold 0 must be VALID.");
-        check(gold.ExtractedValue is int val && val == 0, "T8: Extracted gold value is 0.");
+        check(gold.ExtractedValue is double val && (int)val == 0, "T8: Extracted gold value is 0.");
     }
 
     // 9. Gold without ground truth -> conservative UNVERIFIED
@@ -388,7 +395,7 @@ public static class OffsetDoctorTests
 
         var gold = report.Results.First(r => r.NodeId == "psd_gold_field");
         check(gold.Status == ValidationStatus.UNVERIFIED, "T9: Gold without ground truth must be UNVERIFIED.");
-        check(gold.ExtractedValue is int val && val == 12345, "T9: Extracted value is preserved.");
+        check(gold.ExtractedValue is double val && (int)val == 12345, "T9: Extracted value is preserved.");
     }
 
     // 10. Plausible garbage numeric field is not falsely VALID
@@ -399,7 +406,7 @@ public static class OffsetDoctorTests
         var report = engine.RunValidation(setup, expectedGold: 10000); // Mismatch!
 
         var gold = report.Results.First(r => r.NodeId == "psd_gold_field");
-        check(gold.Status == ValidationStatus.BROKEN, "T10: Numeric value mismatching expected ground truth is BROKEN.");
+        check(gold.Status == ValidationStatus.UNVERIFIED, "T10: Numeric value mismatching expected ground truth is UNVERIFIED (not falsely VALID or BROKEN).");
     }
 
     // 11. Healthy component/struct fixture validates
@@ -676,6 +683,159 @@ public static class OffsetDoctorTests
 
         var goldSlotNode = manifest.First(n => n.Id == "psd_gold_record_slot");
         check(goldSlotNode.DefaultOffset == PlayerServerDataOffsets.GoldRecordPtrSlot, $"T28: Gold record slot (0x{goldSlotNode.DefaultOffset:X}) matches PlayerServerDataOffsets constant (0x{PlayerServerDataOffsets.GoldRecordPtrSlot:X}).");
+    }
+
+    // 29. Duplicate static pattern match in module memory -> status UNVERIFIED, TraversalAddress = 0, descendant BLOCKED
+    private static void Test29_DuplicateStaticPatternBlocksDescendants(Action<bool, string> check)
+    {
+        using var reader = new SyntheticMemoryReader();
+        var moduleBase = reader.MainModuleBase;
+        var gsPattern = StaticOffsetsPatterns.Patterns.First(p => p.Name == "Game States");
+        var pData = gsPattern.Data;
+        var pLen = pData.Length;
+
+        var codeBuf = new byte[0x2000];
+        // Plant duplicate pattern at 0x100 and 0x800
+        Buffer.BlockCopy(pData, 0, codeBuf, 0x100, pLen);
+        Buffer.BlockCopy(pData, 0, codeBuf, 0x800, pLen);
+
+        reader.AllocateBlockAt((ulong)moduleBase.ToInt64(), 0x2000);
+        reader.WriteBytes(moduleBase, codeBuf);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: null);
+
+        var patternRes = report.Results.First(r => r.NodeId == "pattern_game_states");
+        var rootRes = report.Results.First(r => r.NodeId == "game_state_root");
+
+        check(patternRes.Status == ValidationStatus.UNVERIFIED, "T29: Duplicate pattern match reports UNVERIFIED.");
+        check(patternRes.TraversalAddress == IntPtr.Zero, "T29: Ambiguous pattern has zero TraversalAddress.");
+        check(rootRes.Status == ValidationStatus.BLOCKED, "T29: Descendant game_state_root is BLOCKED by ambiguous pattern.");
+    }
+
+    // 30. Direct static pattern resolution (Terrain Rotator Helper / Selector) adds BytesToSkip and validates
+    private static void Test30_DirectStaticPatternResolutionValidates(Action<bool, string> check)
+    {
+        using var reader = new SyntheticMemoryReader();
+        var moduleBase = reader.MainModuleBase;
+        var rotPattern = StaticOffsetsPatterns.Patterns.First(p => p.Name == "Terrain Rotator Helper");
+        var pData = rotPattern.Data;
+        var pLen = pData.Length;
+
+        var codeBuf = new byte[0x1000];
+        Buffer.BlockCopy(pData, 0, codeBuf, 0x200, pLen);
+
+        reader.AllocateBlockAt((ulong)moduleBase.ToInt64(), 0x1000);
+        reader.WriteBytes(moduleBase, codeBuf);
+
+        var manifestNodes = new List<OffsetNode>
+        {
+            new OffsetNode
+            {
+                Id = "pattern_rotator",
+                DisplayName = "Terrain Rotator Pattern",
+                Category = "Static Pattern",
+                StaticPatternName = "Terrain Rotator Helper",
+                StaticPatternResolution = StaticPatternResolutionKind.DirectMatchPlusSkip
+            }
+        };
+
+        var validator = new OffsetValidatorEngine();
+        var results = validator.ValidateChain(reader, manifestNodes, new RecoveryContext());
+
+        var res = results.First();
+        var expectedDirectAddr = moduleBase + 0x200 + rotPattern.BytesToSkip;
+
+        check(res.Status == ValidationStatus.VALID, "T30: Direct static pattern resolves to VALID.");
+        check(res.ResolvedAddress == expectedDirectAddr, "T30: Direct static pattern ResolvedAddress matches moduleBase + offset + BytesToSkip.");
+        check(res.TraversalAddress == expectedDirectAddr, "T30: Direct static pattern TraversalAddress is valid.");
+    }
+
+    // 31. Configured pointer field readable pointing to non-null memory without domain-specific validation -> status UNVERIFIED, TraversalAddress non-zero
+    private static void Test31_GenericReadablePointerIsUnverifiedWithTraversalAddress(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        var worldData = report.Results.First(r => r.NodeId == "in_game_world_data");
+        check(worldData.Status == ValidationStatus.UNVERIFIED, "T31: Generic readable WorldData pointer is UNVERIFIED.");
+        check(worldData.TraversalAddress != IntPtr.Zero, "T31: Generic readable pointer provides non-zero TraversalAddress for downstream inspection.");
+    }
+
+    // 32. Empty StdVector ({0,0,0} or First == Last) -> status UNVERIFIED, TraversalAddress = 0, child node BLOCKED
+    private static void Test32_EmptyVectorBlocksChildNode(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var serverData = setup.serverData;
+
+        // Overwrite PSD vector on ServerData with empty vector {0, 0, 0}
+        reader.WriteStdVector(serverData + 0x48, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var psdVec = report.Results.First(r => r.NodeId == "server_data_psd_vector");
+        var goldSlot = report.Results.First(r => r.NodeId == "psd_gold_record_slot");
+
+        check(psdVec.Status == ValidationStatus.UNVERIFIED, "T32: Empty PSD vector is UNVERIFIED.");
+        check(psdVec.TraversalAddress == IntPtr.Zero, "T32: Empty PSD vector has zero TraversalAddress.");
+        check(goldSlot.Status == ValidationStatus.BLOCKED, "T32: Downstream child gold slot is BLOCKED by empty vector.");
+    }
+
+    // 33. VitalStruct ground truth mismatch is UNVERIFIED (never BROKEN)
+    private static void Test33_VitalStructGroundTruthMismatchIsUnverified(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var groundTruth = new ValidationGroundTruth
+        {
+            ExpectedHpCurrent = 9999, // Mismatch (setup has 4800)
+            ExpectedMpCurrent = 1200  // Match (setup has 1200)
+        };
+        var report = engine.RunValidation(setup, groundTruth);
+
+        var hp = report.Results.First(r => r.NodeId == "comp_life_health");
+        var mp = report.Results.First(r => r.NodeId == "comp_life_mana");
+
+        check(hp.Status == ValidationStatus.UNVERIFIED, "T33: HP mismatching ground truth is UNVERIFIED (never BROKEN due to async game state).");
+        check(mp.Status == ValidationStatus.VALID, "T33: Mana matching ground truth is VALID.");
+    }
+
+    // 34. Malformed component lookup containers -> component BROKEN, subfields BLOCKED
+    private static void Test34_MalformedComponentLookupBlocksSubfields(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var localPlayer = setup.localPlayer;
+
+        // Corrupt EntityDetailsPtr on localPlayer to invalid address
+        reader.WritePointer(localPlayer + 0x08, new IntPtr(0x99999999));
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var lifeComp = report.Results.First(r => r.NodeId == "comp_life");
+        var hp = report.Results.First(r => r.NodeId == "comp_life_health");
+
+        check(lifeComp.Status == ValidationStatus.BROKEN, "T34: Malformed component lookup container is BROKEN.");
+        check(lifeComp.TraversalAddress == IntPtr.Zero, "T34: Broken component has zero TraversalAddress.");
+        check(hp.Status == ValidationStatus.BLOCKED, "T34: Subfield comp_life_health is BLOCKED.");
+    }
+
+    // 35. Broad scalar / timer plausibility is UNVERIFIED
+    private static void Test35_BroadScalarPlausibilityIsUnverified(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        var hash = report.Results.First(r => r.NodeId == "area_current_hash");
+        var loadTime = report.Results.First(r => r.NodeId == "loading_state_total_time");
+
+        check(hash.Status == ValidationStatus.UNVERIFIED, "T35: CurrentAreaHash is UNVERIFIED (broad scalar).");
+        check(loadTime.Status == ValidationStatus.UNVERIFIED, "T35: LoadingScreenTimeMs is UNVERIFIED (broad timer).");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader

@@ -10,7 +10,9 @@ public sealed class ValidationResult
     public string? ParentId { get; init; }
     public ValidationStatus Status { get; set; }
     public int ConfiguredOffset { get; init; }
+    public IntPtr ObservedAddress { get; set; }
     public IntPtr ResolvedAddress { get; set; }
+    public IntPtr TraversalAddress { get; set; }
     public object? ExtractedValue { get; set; }
     public List<CandidateResult> Candidates { get; set; } = [];
     public CandidateResult? BestCandidate { get; set; }

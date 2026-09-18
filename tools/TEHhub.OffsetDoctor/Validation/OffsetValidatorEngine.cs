@@ -1,5 +1,6 @@
 namespace TEHhub.OffsetDoctor.Validation;
 
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using TEHhub.OffsetDoctor.Evidence;
@@ -10,6 +11,7 @@ using TEHhub.Offsets;
 using TEHhub.Offsets.Natives;
 using TEHhub.Offsets.Objects;
 using TEHhub.Offsets.Objects.Components;
+using TEHhub.Offsets.Objects.States;
 using TEHhub.Offsets.Objects.States.InGameState;
 
 public sealed class OffsetValidatorEngine
@@ -21,7 +23,8 @@ public sealed class OffsetValidatorEngine
         bool allowRecovery = false)
     {
         var results = new List<ValidationResult>();
-        var resolvedAddresses = new Dictionary<string, IntPtr>();
+        var resolvedResults = new Dictionary<string, ValidationResult>();
+        var resolvedTraversalAddresses = new Dictionary<string, IntPtr>();
 
         foreach (var node in manifestNodes)
         {
@@ -38,52 +41,99 @@ public sealed class OffsetValidatorEngine
             if (node.ParentId == null)
             {
                 ValidateStaticPatternNode(reader, node, result);
-                if (result.Status == ValidationStatus.VALID || result.Status == ValidationStatus.UNVERIFIED)
+                if (result.TraversalAddress != IntPtr.Zero)
                 {
-                    resolvedAddresses[node.Id] = result.ResolvedAddress;
+                    resolvedTraversalAddresses[node.Id] = result.TraversalAddress;
                 }
+                resolvedResults[node.Id] = result;
                 results.Add(result);
                 continue;
             }
 
             // 2. Parent Dependency Check
-            if (!resolvedAddresses.TryGetValue(node.ParentId, out var parentAddr) ||
-                parentAddr == IntPtr.Zero ||
-                !reader.IsValidAddress(parentAddr) ||
-                !reader.TryRead<byte>(parentAddr, out _))
+            if (!resolvedResults.TryGetValue(node.ParentId, out var parentRes))
             {
-                var parentRes = results.FirstOrDefault(r => r.NodeId == node.ParentId);
-                var parentStatusStr = parentRes?.Status.ToString() ?? "NOT FOUND";
                 result.Status = ValidationStatus.BLOCKED;
-                result.ErrorMessage = $"Blocked: Parent node '{node.ParentId}' is {parentStatusStr}.";
+                result.ErrorMessage = $"Blocked: Parent node '{node.ParentId}' not found.";
                 result.Evidence.Add(new EvidenceRecord
                 {
                     RuleName = "ParentDependencyCheck",
-                    Description = $"Required parent '{node.ParentId}' is {parentStatusStr}",
+                    Description = $"Required parent '{node.ParentId}' was not evaluated.",
                     Passed = false,
                     ScoreDelta = 0
                 });
+                resolvedResults[node.Id] = result;
                 results.Add(result);
                 continue;
             }
 
-            result.Evidence.Add(new EvidenceRecord
+            if (parentRes.Status == ValidationStatus.BROKEN || parentRes.Status == ValidationStatus.BLOCKED)
             {
-                RuleName = "ParentValid",
-                Description = $"Parent '{node.ParentId}' is resolved at 0x{parentAddr.ToInt64():X}",
-                Passed = true,
-                ScoreDelta = 10,
-                IsIndependentValidator = true
-            });
-
-            // 3. Evaluate node at configured offset
-            EvaluateNode(reader, parentAddr, node, result, context);
-
-            if (result.Status == ValidationStatus.VALID || result.Status == ValidationStatus.UNVERIFIED)
-            {
-                resolvedAddresses[node.Id] = result.ResolvedAddress;
+                result.Status = ValidationStatus.BLOCKED;
+                result.ErrorMessage = $"Blocked: Parent node '{node.ParentId}' is {parentRes.Status}.";
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "ParentDependencyCheck",
+                    Description = $"Required parent '{node.ParentId}' is {parentRes.Status}",
+                    Passed = false,
+                    ScoreDelta = 0
+                });
+                resolvedResults[node.Id] = result;
+                results.Add(result);
+                continue;
             }
 
+            if (!resolvedTraversalAddresses.TryGetValue(node.ParentId, out var parentTraversalAddr) ||
+                parentTraversalAddr == IntPtr.Zero ||
+                !reader.IsValidAddress(parentTraversalAddr) ||
+                !reader.TryRead<byte>(parentTraversalAddr, out _))
+            {
+                result.Status = ValidationStatus.BLOCKED;
+                result.ErrorMessage = $"Blocked: Parent node '{node.ParentId}' has no valid downstream traversal address.";
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "ParentTraversalAddressCheck",
+                    Description = $"Required parent '{node.ParentId}' has no safe traversal address (status: {parentRes.Status})",
+                    Passed = false,
+                    ScoreDelta = 0
+                });
+                resolvedResults[node.Id] = result;
+                results.Add(result);
+                continue;
+            }
+
+            if (parentRes.Status == ValidationStatus.VALID)
+            {
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "ParentValid",
+                    Description = $"Parent '{node.ParentId}' is VALID at 0x{parentTraversalAddr.ToInt64():X}",
+                    Passed = true,
+                    ScoreDelta = 10,
+                    IsIndependentValidator = true
+                });
+            }
+            else
+            {
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "ParentStructurallyResolved",
+                    Description = $"Parent '{node.ParentId}' is structurally resolved at 0x{parentTraversalAddr.ToInt64():X} (status: {parentRes.Status})",
+                    Passed = true,
+                    ScoreDelta = 5,
+                    IsIndependentValidator = true
+                });
+            }
+
+            // 3. Evaluate node at configured offset
+            EvaluateNode(reader, parentTraversalAddr, node, result, context);
+
+            if (result.TraversalAddress != IntPtr.Zero)
+            {
+                resolvedTraversalAddresses[node.Id] = result.TraversalAddress;
+            }
+
+            resolvedResults[node.Id] = result;
             results.Add(result);
         }
 
@@ -95,6 +145,7 @@ public sealed class OffsetValidatorEngine
         if (reader.MainModuleBase == IntPtr.Zero || reader.MainModuleSize <= 0)
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = "Main module base address or size is invalid.";
             result.Evidence.Add(new EvidenceRecord
             {
@@ -111,16 +162,18 @@ public sealed class OffsetValidatorEngine
         if (string.IsNullOrEmpty(patternDef.Name))
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Static pattern '{patternName}' is not defined in StaticOffsetsPatterns.";
             return;
         }
 
-        int scanSize = (int)Math.Min(reader.MainModuleSize > 0 ? reader.MainModuleSize : 40_000_000, 40_000_000);
+        int scanSize = (int)(reader.MainModuleSize > 0 ? reader.MainModuleSize : 100_000_000);
         var buf = reader.ReadBytes(reader.MainModuleBase, scanSize);
 
         if (buf == null || buf.Length < patternDef.Data.Length)
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = "Unable to read executable module memory for pattern scanning.";
             return;
         }
@@ -156,6 +209,7 @@ public sealed class OffsetValidatorEngine
         if (matchCount == 0)
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Pattern '{patternName}' not found in executable code.";
             result.Evidence.Add(new EvidenceRecord
             {
@@ -168,53 +222,86 @@ public sealed class OffsetValidatorEngine
 
         if (matchCount > 1)
         {
+            // CRITICAL: Ambiguous static patterns MUST NOT provide any traversal address!
             result.Status = ValidationStatus.UNVERIFIED;
-            result.ErrorMessage = $"Pattern '{patternName}' matched multiple locations ({matchCount}). Uniqueness invariant violated.";
+            result.TraversalAddress = IntPtr.Zero;
+            result.ObservedAddress = reader.MainModuleBase + matchOffset;
+            result.ErrorMessage = $"Pattern '{patternName}' matched multiple locations ({matchCount}). Uniqueness invariant violated; traversal blocked.";
             result.Evidence.Add(new EvidenceRecord
             {
                 RuleName = "PatternUnique",
                 Description = $"Pattern '{patternName}' matched {matchCount} locations (expected 1)",
                 Passed = false
             });
-        }
-        else
-        {
-            result.Evidence.Add(new EvidenceRecord
-            {
-                RuleName = "PatternUniqueMatch",
-                Description = $"Pattern '{patternName}' matched uniquely at RVA +0x{matchOffset:X}",
-                Passed = true,
-                IsIndependentValidator = true
-            });
+            return;
         }
 
-        // Calculate RIP displacement target: baseAddress + matchOffset + BytesToSkip + disp32 + 4
-        int dispOffset = matchOffset + patternDef.BytesToSkip;
-        if (dispOffset + 4 <= buf.Length)
+        result.Evidence.Add(new EvidenceRecord
         {
-            int disp32 = BitConverter.ToInt32(buf, dispOffset);
-            long rip = reader.MainModuleBase.ToInt64() + dispOffset + 4;
-            long targetStaticAddr = rip + disp32;
-            var targetPtr = new IntPtr(targetStaticAddr);
+            RuleName = "PatternUniqueMatch",
+            Description = $"Pattern '{patternName}' matched uniquely at RVA +0x{matchOffset:X}",
+            Passed = true,
+            IsIndependentValidator = true
+        });
+
+        if (node.StaticPatternResolution == StaticPatternResolutionKind.RipRelativeDisp32)
+        {
+            int dispOffset = matchOffset + patternDef.BytesToSkip;
+            if (dispOffset + 4 <= buf.Length)
+            {
+                int disp32 = BitConverter.ToInt32(buf, dispOffset);
+                long rip = reader.MainModuleBase.ToInt64() + dispOffset + 4;
+                long targetStaticAddr = rip + disp32;
+                var targetPtr = new IntPtr(targetStaticAddr);
+
+                if (reader.IsValidAddress(targetPtr) && reader.TryRead<byte>(targetPtr, out _))
+                {
+                    result.Status = ValidationStatus.VALID;
+                    result.ObservedAddress = reader.MainModuleBase + matchOffset;
+                    result.ResolvedAddress = targetPtr;
+                    result.TraversalAddress = targetPtr;
+                    result.ExtractedValue = $"StaticPtr (0x{targetPtr.ToInt64():X})";
+                    result.Evidence.Add(new EvidenceRecord
+                    {
+                        RuleName = "RipDisplacementReadable",
+                        Description = $"Resolved static address 0x{targetPtr.ToInt64():X} points to valid readable memory",
+                        Passed = true,
+                        IsIndependentValidator = true
+                    });
+                    return;
+                }
+            }
+
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Pattern '{patternName}' matched but RIP displacement target is unmapped or unreadable.";
+        }
+        else if (node.StaticPatternResolution == StaticPatternResolutionKind.DirectMatchPlusSkip)
+        {
+            long targetDirectAddr = reader.MainModuleBase.ToInt64() + matchOffset + patternDef.BytesToSkip;
+            var targetPtr = new IntPtr(targetDirectAddr);
 
             if (reader.IsValidAddress(targetPtr) && reader.TryRead<byte>(targetPtr, out _))
             {
-                result.Status = matchCount == 1 ? ValidationStatus.VALID : ValidationStatus.UNVERIFIED;
+                result.Status = ValidationStatus.VALID;
+                result.ObservedAddress = reader.MainModuleBase + matchOffset;
                 result.ResolvedAddress = targetPtr;
-                result.ExtractedValue = $"StaticPtr (0x{targetPtr.ToInt64():X})";
+                result.TraversalAddress = targetPtr;
+                result.ExtractedValue = $"DirectPtr (0x{targetPtr.ToInt64():X})";
                 result.Evidence.Add(new EvidenceRecord
                 {
-                    RuleName = "RipDisplacementReadable",
-                    Description = $"Resolved static address 0x{targetPtr.ToInt64():X} points to valid readable memory",
+                    RuleName = "DirectMatchReadable",
+                    Description = $"Direct pattern address 0x{targetPtr.ToInt64():X} points to valid readable memory",
                     Passed = true,
                     IsIndependentValidator = true
                 });
                 return;
             }
-        }
 
-        result.Status = ValidationStatus.BROKEN;
-        result.ErrorMessage = $"Pattern '{patternName}' matched but displacement resolved to invalid address.";
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Pattern '{patternName}' matched but direct target 0x{targetPtr.ToInt64():X} is unmapped or unreadable.";
+        }
     }
 
     private static void EvaluateNode(
@@ -225,11 +312,13 @@ public sealed class OffsetValidatorEngine
         RecoveryContext context)
     {
         var targetAddr = parentAddr + node.DefaultOffset;
+        result.ObservedAddress = targetAddr;
 
         if (node.ConservativeUnverifiedOnly)
         {
             result.Status = ValidationStatus.UNVERIFIED;
             result.ResolvedAddress = targetAddr;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = "Unproven native ownership in current PoE2 version. Reported conservatively as UNVERIFIED.";
             result.Evidence.Add(new EvidenceRecord
             {
@@ -251,61 +340,7 @@ public sealed class OffsetValidatorEngine
             case ValueKind.PointerField:
             case ValueKind.RecordSlotField:
             {
-                if (reader.TryRead<IntPtr>(targetAddr, out var ptr))
-                {
-                    if (ptr == IntPtr.Zero)
-                    {
-                        if (node.IsOptionalStateDependent)
-                        {
-                            result.Status = ValidationStatus.UNVERIFIED;
-                            result.ResolvedAddress = IntPtr.Zero;
-                            result.ErrorMessage = "Optional / state-dependent pointer is null in current runtime state.";
-                            result.Evidence.Add(new EvidenceRecord
-                            {
-                                RuleName = "OptionalPointerNullState",
-                                Description = "Pointer is null (legitimately inactive in current state)",
-                                Passed = true
-                            });
-                            break;
-                        }
-                        else
-                        {
-                            result.Status = ValidationStatus.BROKEN;
-                            result.ErrorMessage = $"Null pointer at +0x{node.DefaultOffset:X}";
-                            result.Evidence.Add(new EvidenceRecord
-                            {
-                                RuleName = "PointerNotNull",
-                                Description = $"Pointer at +0x{node.DefaultOffset:X} is null",
-                                Passed = false
-                            });
-                            break;
-                        }
-                    }
-
-                    if (reader.IsValidAddress(ptr) && reader.TryRead<byte>(ptr, out _))
-                    {
-                        result.Status = ValidationStatus.VALID;
-                        result.ResolvedAddress = ptr;
-                        result.ExtractedValue = $"0x{ptr.ToInt64():X}";
-                        result.Evidence.Add(new EvidenceRecord
-                        {
-                            RuleName = "ValidReadableAddress",
-                            Description = $"Pointer 0x{ptr.ToInt64():X} at +0x{node.DefaultOffset:X} points to valid readable memory",
-                            Passed = true,
-                            IsIndependentValidator = true
-                        });
-                        break;
-                    }
-                }
-
-                result.Status = ValidationStatus.BROKEN;
-                result.ErrorMessage = $"Invalid, unmapped, or unreadable pointer at +0x{node.DefaultOffset:X}";
-                result.Evidence.Add(new EvidenceRecord
-                {
-                    RuleName = "PointerReadable",
-                    Description = $"Pointer at +0x{node.DefaultOffset:X} is unreadable or unmapped",
-                    Passed = false
-                });
+                ValidatePointerField(reader, targetAddr, node, result);
                 break;
             }
 
@@ -347,9 +382,184 @@ public sealed class OffsetValidatorEngine
 
             default:
                 result.Status = ValidationStatus.UNVERIFIED;
+                result.TraversalAddress = IntPtr.Zero;
                 result.ErrorMessage = $"Unsupported ValueKind: {node.Kind}";
                 break;
         }
+    }
+
+    private static void ValidatePointerField(
+        IProcessMemoryReader reader,
+        IntPtr targetAddr,
+        OffsetNode node,
+        ValidationResult result)
+    {
+        if (!reader.TryRead<IntPtr>(targetAddr, out var ptr))
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Failed to read pointer memory at +0x{node.DefaultOffset:X}";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "PointerReadable",
+                Description = $"Memory at +0x{node.DefaultOffset:X} could not be read",
+                Passed = false
+            });
+            return;
+        }
+
+        if (ptr == IntPtr.Zero)
+        {
+            if (node.IsOptionalStateDependent)
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ResolvedAddress = IntPtr.Zero;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = "Optional / state-dependent pointer is null in current runtime state.";
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "OptionalPointerNullState",
+                    Description = "Pointer is null (legitimately inactive / closed in current runtime state)",
+                    Passed = true
+                });
+                return;
+            }
+            else
+            {
+                result.Status = ValidationStatus.BROKEN;
+                result.ResolvedAddress = IntPtr.Zero;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = $"Required pointer at +0x{node.DefaultOffset:X} is null.";
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "PointerNotNull",
+                    Description = $"Required pointer at +0x{node.DefaultOffset:X} is null",
+                    Passed = false
+                });
+                return;
+            }
+        }
+
+        if (!reader.IsValidAddress(ptr) || !reader.TryRead<byte>(ptr, out _))
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.ResolvedAddress = ptr;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Pointer at +0x{node.DefaultOffset:X} (0x{ptr.ToInt64():X}) points to unmapped or unreadable memory.";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "PointerTargetReadable",
+                Description = $"Pointer target 0x{ptr.ToInt64():X} is unreadable or unmapped",
+                Passed = false
+            });
+            return;
+        }
+
+        // Pointer is valid and target memory is readable.
+        // Apply dedicated semantic verification for core objects, otherwise report UNVERIFIED with usable TraversalAddress.
+        result.ResolvedAddress = ptr;
+        result.TraversalAddress = ptr;
+        result.ExtractedValue = $"0x{ptr.ToInt64():X}";
+
+        if (node.Id == "game_state_root")
+        {
+            if (reader.TryRead<GameStateOffset>(ptr, out var gs) && gs.CurrentStatePtr.First != IntPtr.Zero)
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "GameStateSemanticLayout",
+                    Description = $"GameState at 0x{ptr.ToInt64():X} verified with valid CurrentStatePtr vector",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
+        }
+        else if (node.Id == "game_state_in_game_state")
+        {
+            if (reader.TryRead<InGameStateOffset>(ptr, out var igs) && igs.AreaInstanceData != IntPtr.Zero)
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "InGameStateSemanticLayout",
+                    Description = $"InGameState at 0x{ptr.ToInt64():X} verified with valid AreaInstanceData pointer",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
+        }
+        else if (node.Id == "in_game_area_instance")
+        {
+            if (reader.TryRead<AreaInstanceOffsets>(ptr, out var ai) && ai.CurrentAreaLevel >= 1 && ai.CurrentAreaLevel <= 100)
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "AreaInstanceSemanticLayout",
+                    Description = $"AreaInstance at 0x{ptr.ToInt64():X} verified with coherent CurrentAreaLevel ({ai.CurrentAreaLevel})",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
+        }
+        else if (node.Id == "area_server_data")
+        {
+            if (reader.TryRead<ServerDataOffsets>(ptr, out var sd))
+            {
+                var bVal = (ulong)sd.PlayerServerDataPtr.First.ToInt64();
+                var eVal = (ulong)sd.PlayerServerDataPtr.Last.ToInt64();
+                var cVal = (ulong)sd.PlayerServerDataPtr.End.ToInt64();
+
+                if (bVal != 0 && eVal != 0 && cVal != 0 && bVal <= eVal && eVal <= cVal && reader.IsValidAddress(sd.PlayerServerDataPtr.First))
+                {
+                    result.Status = ValidationStatus.VALID;
+                    result.Evidence.Add(new EvidenceRecord
+                    {
+                        RuleName = "ServerDataSemanticLayout",
+                        Description = $"ServerData at 0x{ptr.ToInt64():X} verified with valid PlayerServerDataPtr vector",
+                        Passed = true,
+                        IsIndependentValidator = true
+                    });
+                    return;
+                }
+            }
+        }
+        else if (node.Id == "area_local_player_entity")
+        {
+            if (reader.TryRead<ItemStruct>(ptr, out var item) &&
+                item.EntityDetailsPtr != IntPtr.Zero &&
+                reader.IsValidAddress(item.EntityDetailsPtr) &&
+                reader.TryRead<EntityDetails>(item.EntityDetailsPtr, out var details))
+            {
+                var pathStr = DecodeStdWString(reader, details.name);
+                if (!string.IsNullOrEmpty(pathStr) && pathStr.StartsWith("Metadata/Characters/", StringComparison.Ordinal))
+                {
+                    result.Status = ValidationStatus.VALID;
+                    result.Evidence.Add(new EvidenceRecord
+                    {
+                        RuleName = "PlayerEntityMetadataVerified",
+                        Description = $"Local player entity verified with character path \"{pathStr}\"",
+                        Passed = true,
+                        IsIndependentValidator = true
+                    });
+                    return;
+                }
+            }
+        }
+
+        // Generic pointer readability without dedicated semantic proof -> UNVERIFIED
+        result.Status = ValidationStatus.UNVERIFIED;
+        result.ErrorMessage = "Pointer target is readable and structurally valid; unverified without semantic object proof.";
+        result.Evidence.Add(new EvidenceRecord
+        {
+            RuleName = "PointerTargetReadableStructuralOnly",
+            Description = $"Pointer at +0x{node.DefaultOffset:X} (0x{ptr.ToInt64():X}) is readable (structural evidence only)",
+            Passed = true
+        });
     }
 
     private static void ValidateComponentLookup(
@@ -360,42 +570,56 @@ public sealed class OffsetValidatorEngine
     {
         var compName = node.ComponentName ?? "Component";
 
-        // Read ItemStruct at entityAddr (+0x00)
         if (!reader.TryRead<ItemStruct>(entityAddr, out var itemStruct) ||
             itemStruct.EntityDetailsPtr == IntPtr.Zero ||
             !reader.IsValidAddress(itemStruct.EntityDetailsPtr))
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Unable to read valid ItemStruct / EntityDetailsPtr on Entity at 0x{entityAddr.ToInt64():X}";
             return;
         }
 
-        // Read EntityDetails
         if (!reader.TryRead<EntityDetails>(itemStruct.EntityDetailsPtr, out var entityDetails) ||
             entityDetails.ComponentLookUpPtr == IntPtr.Zero ||
             !reader.IsValidAddress(entityDetails.ComponentLookUpPtr))
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Unable to read EntityDetails or ComponentLookUpPtr at 0x{itemStruct.EntityDetailsPtr.ToInt64():X}";
             return;
         }
 
-        // Read ComponentLookUpStruct
         if (!reader.TryRead<ComponentLookUpStruct>(entityDetails.ComponentLookUpPtr, out var lookupStruct))
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Unable to read ComponentLookUpStruct at 0x{entityDetails.ComponentLookUpPtr.ToInt64():X}";
             return;
         }
 
         var bucketVector = lookupStruct.ComponentsNameAndIndex.Data;
-        int elemSize = System.Runtime.CompilerServices.Unsafe.SizeOf<ComponentNameAndIndexStruct>();
-        long bucketByteLen = bucketVector.Last.ToInt64() - bucketVector.First.ToInt64();
+        int elemSize = Unsafe.SizeOf<ComponentNameAndIndexStruct>();
+        long bVal = bucketVector.First.ToInt64();
+        long eVal = bucketVector.Last.ToInt64();
+        long cVal = bucketVector.End.ToInt64();
 
-        if (bucketByteLen < 0 || bucketByteLen % elemSize != 0 || bucketByteLen > 100_000)
+        if (bVal == 0 || eVal == 0 || cVal == 0 || bVal > eVal || eVal > cVal)
         {
             result.Status = ValidationStatus.BROKEN;
-            result.ErrorMessage = $"Invalid ComponentLookUp bucket vector dimensions ({bucketByteLen} bytes)";
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = "Corrupt ComponentLookUp bucket vector boundaries (begin <= end <= capacity violated).";
+            return;
+        }
+
+        long bucketByteLen = eVal - bVal;
+        long bucketCapLen = cVal - bVal;
+
+        if (bucketByteLen % elemSize != 0 || bucketCapLen % elemSize != 0 || bucketByteLen > 100_000)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Invalid ComponentLookUp bucket vector alignment ({bucketByteLen} bytes, element size {elemSize}).";
             return;
         }
 
@@ -403,7 +627,8 @@ public sealed class OffsetValidatorEngine
         if (entryCount == 0)
         {
             result.Status = ValidationStatus.UNVERIFIED;
-            result.ErrorMessage = "Entity component lookup table is empty.";
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = "Entity component lookup table is empty (0 entries).";
             return;
         }
 
@@ -432,18 +657,29 @@ public sealed class OffsetValidatorEngine
         if (targetIndex < 0)
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Component '{compName}' not found in entity component lookup dictionary ({entryCount} entries scanned).";
             return;
         }
 
-        // Read Component from ItemStruct.ComponentListPtr
-        long compListByteLen = itemStruct.ComponentListPtr.Last.ToInt64() - itemStruct.ComponentListPtr.First.ToInt64();
-        int compListCount = (int)(compListByteLen / 8);
+        long clB = itemStruct.ComponentListPtr.First.ToInt64();
+        long clE = itemStruct.ComponentListPtr.Last.ToInt64();
+        long clC = itemStruct.ComponentListPtr.End.ToInt64();
 
+        if (clB == 0 || clE == 0 || clC == 0 || clB > clE || clE > clC || (clE - clB) % 8 != 0 || (clC - clB) % 8 != 0)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = "Corrupt ComponentList vector boundaries or alignment.";
+            return;
+        }
+
+        int compListCount = (int)((clE - clB) / 8);
         if (targetIndex >= compListCount || targetIndex < 0)
         {
             result.Status = ValidationStatus.BROKEN;
-            result.ErrorMessage = $"Component '{compName}' index {targetIndex} out of range for ComponentList (count {compListCount}).";
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Component '{compName}' lookup index {targetIndex} is out of ComponentList bounds (count {compListCount}).";
             return;
         }
 
@@ -457,12 +693,14 @@ public sealed class OffsetValidatorEngine
             !reader.TryRead<byte>(header.StaticPtr, out _))
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Component '{compName}' resolved to invalid address or invalid ComponentHeader.";
             return;
         }
 
         result.Status = ValidationStatus.VALID;
         result.ResolvedAddress = compAddr;
+        result.TraversalAddress = compAddr;
         result.ExtractedValue = $"{compName}Component (0x{compAddr.ToInt64():X})";
         result.Evidence.Add(new EvidenceRecord
         {
@@ -479,73 +717,119 @@ public sealed class OffsetValidatorEngine
         OffsetNode node,
         ValidationResult result)
     {
-        if (reader.TryRead<StdVector>(targetAddr, out var vec))
+        result.ResolvedAddress = targetAddr;
+
+        if (!reader.TryRead<StdVector>(targetAddr, out var vec))
         {
-            var bVal = (ulong)vec.First.ToInt64();
-            var eVal = (ulong)vec.Last.ToInt64();
-            var cVal = (ulong)vec.End.ToInt64();
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Failed to read StdVector struct at +0x{node.DefaultOffset:X}";
+            return;
+        }
 
-            bool validNull = bVal == 0 && eVal == 0;
-            bool validRange = bVal != 0 && eVal != 0 && bVal <= eVal && (cVal == 0 || eVal <= cVal);
+        var bVal = (ulong)vec.First.ToInt64();
+        var eVal = (ulong)vec.Last.ToInt64();
+        var cVal = (ulong)vec.End.ToInt64();
 
-            if (validNull)
+        // Check empty vector: {0,0,0} or First == Last
+        if ((bVal == 0 && eVal == 0) || (bVal != 0 && bVal == eVal))
+        {
+            result.Status = ValidationStatus.UNVERIFIED;
+            result.TraversalAddress = IntPtr.Zero; // CRITICAL: EMPTY VECTOR HAS ZERO TRAVERSAL ADDRESS!
+            result.ExtractedValue = "StdVector [Empty, Count=0]";
+            result.ErrorMessage = "StdVector has 0 elements; unproven without active elements and cannot be traversed.";
+            result.Evidence.Add(new EvidenceRecord
             {
-                result.Status = ValidationStatus.UNVERIFIED;
-                result.ResolvedAddress = targetAddr;
-                result.ExtractedValue = "StdVector [Empty, Count=0]";
-                result.ErrorMessage = "StdVector is cleanly initialized but empty (0 elements); unproven without active items.";
-                result.Evidence.Add(new EvidenceRecord
-                {
-                    RuleName = "StdVectorEmptyUnproven",
-                    Description = "StdVector is empty (0 elements); requires active elements for full semantic proof",
-                    Passed = true
-                });
+                RuleName = "StdVectorEmptyUnproven",
+                Description = "StdVector has 0 elements; requires active elements for semantic proof and downstream traversal",
+                Passed = true
+            });
+            return;
+        }
+
+        // Non-empty vector requires all pointers non-zero, valid range, valid alignment
+        if (bVal == 0 || eVal == 0 || cVal == 0 || bVal > eVal || eVal > cVal ||
+            !reader.IsValidAddress(vec.First) || !reader.IsValidAddress(vec.Last))
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Invalid StdVector boundaries at +0x{node.DefaultOffset:X} (First <= Last <= End violated or End==0)";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "StdVectorStructureValid",
+                Description = "StdVector pointers violate begin <= end <= capacity invariant",
+                Passed = false
+            });
+            return;
+        }
+
+        int elemSize = node.VectorElementSize > 0 ? node.VectorElementSize : 8;
+        var byteSize = (long)(eVal - bVal);
+        var capByteSize = (long)(cVal - bVal);
+
+        if (byteSize <= 0 || byteSize % elemSize != 0 || capByteSize % elemSize != 0 || byteSize > 50_000_000)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Invalid StdVector alignment at +0x{node.DefaultOffset:X} (Size {byteSize} bytes not multiple of {elemSize})";
+            return;
+        }
+
+        var count = byteSize / elemSize;
+
+        if (node.VectorIsPointerElements)
+        {
+            if (!reader.TryRead<IntPtr>(vec.First, out var firstPtr) ||
+                firstPtr == IntPtr.Zero ||
+                !reader.IsValidAddress(firstPtr) ||
+                !reader.TryRead<byte>(firstPtr, out _))
+            {
+                result.Status = ValidationStatus.BROKEN;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = "Pointer vector first element is null, unmapped, or unreadable.";
                 return;
             }
 
-            if (validRange && reader.IsValidAddress(vec.First) && reader.TryRead<byte>(vec.First, out _))
+            if (node.Id == "game_state_current_state" || node.Id == "server_data_psd_vector")
             {
-                int elemSize = node.VectorElementSize > 0 ? node.VectorElementSize : 8;
-                var byteSize = (long)(eVal - bVal);
-
-                if (byteSize % elemSize == 0 && byteSize <= 50_000_000)
-                {
-                    var count = byteSize / elemSize;
-                    IntPtr resolvedTarget = vec.First;
-
-                    if (count > 0 && node.VectorIsPointerElements)
-                    {
-                        if (reader.TryRead<IntPtr>(vec.First, out var firstPtr) &&
-                            firstPtr != IntPtr.Zero &&
-                            reader.IsValidAddress(firstPtr) &&
-                            reader.TryRead<byte>(firstPtr, out _))
-                        {
-                            resolvedTarget = firstPtr;
-                        }
-                    }
-
-                    result.Status = ValidationStatus.VALID;
-                    result.ResolvedAddress = resolvedTarget;
-                    result.ExtractedValue = $"StdVector [Count={count}, Target=0x{resolvedTarget.ToInt64():X}]";
-                    result.Evidence.Add(new EvidenceRecord
-                    {
-                        RuleName = "StdVectorStructureValid",
-                        Description = $"StdVector at +0x{node.DefaultOffset:X} is valid (Count={count}, ElemSize={elemSize})",
-                        Passed = true,
-                        IsIndependentValidator = true
-                    });
-                    return;
-                }
+                result.Status = ValidationStatus.VALID;
             }
+            else
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+            }
+
+            result.TraversalAddress = firstPtr;
+            result.ExtractedValue = $"StdVector [Count={count}, Target=0x{firstPtr.ToInt64():X}]";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "StdVectorPointersValid",
+                Description = $"StdVector at +0x{node.DefaultOffset:X} contains {count} pointer elements; first target 0x{firstPtr.ToInt64():X} is readable",
+                Passed = true,
+                IsIndependentValidator = true
+            });
+            return;
         }
 
-        result.Status = ValidationStatus.BROKEN;
-        result.ErrorMessage = $"Invalid StdVector structure at +0x{node.DefaultOffset:X}";
+        // Struct elements vector
+        var payloadBytes = reader.ReadBytes(vec.First, elemSize);
+        if (payloadBytes == null || payloadBytes.Length < elemSize)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Failed to read first struct element payload ({elemSize} bytes) at 0x{vec.First.ToInt64():X}";
+            return;
+        }
+
+        result.Status = ValidationStatus.UNVERIFIED; // Structural plausibility only for generic struct vectors
+        result.TraversalAddress = vec.First;
+        result.ExtractedValue = $"StdVector [Count={count}, ElemSize={elemSize}]";
         result.Evidence.Add(new EvidenceRecord
         {
-            RuleName = "StdVectorStructureValid",
-            Description = "StdVector pointers violate begin <= end <= capacity invariant or unaligned element size",
-            Passed = false
+            RuleName = "StdVectorStructElementsValid",
+            Description = $"StdVector at +0x{node.DefaultOffset:X} contains {count} struct elements (element size {elemSize})",
+            Passed = true,
+            IsIndependentValidator = true
         });
     }
 
@@ -555,45 +839,58 @@ public sealed class OffsetValidatorEngine
         OffsetNode node,
         ValidationResult result)
     {
-        if (reader.TryRead<IntPtr>(targetAddr, out var head) &&
-            reader.TryRead<int>(targetAddr + 8, out var size))
-        {
-            if (size >= 0 && size < 100_000)
-            {
-                if (size == 0)
-                {
-                    result.Status = ValidationStatus.UNVERIFIED;
-                    result.ResolvedAddress = targetAddr;
-                    result.ExtractedValue = "StdMap [Size=0]";
-                    result.ErrorMessage = "StdMap size is 0; unproven without active map elements.";
-                    result.Evidence.Add(new EvidenceRecord
-                    {
-                        RuleName = "StdMapEmptyUnproven",
-                        Description = "StdMap is empty (Size=0); requires active elements for full semantic proof",
-                        Passed = true
-                    });
-                    return;
-                }
+        result.ResolvedAddress = targetAddr;
 
-                if (head != IntPtr.Zero && reader.IsValidAddress(head) && reader.TryRead<byte>(head, out _))
-                {
-                    result.Status = ValidationStatus.VALID;
-                    result.ResolvedAddress = targetAddr;
-                    result.ExtractedValue = $"StdMap [Size={size}, Head=0x{head.ToInt64():X}]";
-                    result.Evidence.Add(new EvidenceRecord
-                    {
-                        RuleName = "StdMapValid",
-                        Description = $"StdMap at +0x{node.DefaultOffset:X} is valid with size {size}",
-                        Passed = true,
-                        IsIndependentValidator = true
-                    });
-                    return;
-                }
-            }
+        if (!reader.TryRead<IntPtr>(targetAddr, out var head) ||
+            !reader.TryRead<int>(targetAddr + 8, out var size))
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Failed to read StdMap at +0x{node.DefaultOffset:X}";
+            return;
         }
 
-        result.Status = ValidationStatus.BROKEN;
-        result.ErrorMessage = $"Invalid StdMap structure at +0x{node.DefaultOffset:X}";
+        if (size < 0 || size >= 100_000)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Invalid StdMap size ({size}) at +0x{node.DefaultOffset:X}";
+            return;
+        }
+
+        if (size == 0)
+        {
+            result.Status = ValidationStatus.UNVERIFIED;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ExtractedValue = "StdMap [Size=0]";
+            result.ErrorMessage = "StdMap size is 0; unproven without active map elements.";
+            result.Evidence.Add(new EvidenceRecord
+            {
+                RuleName = "StdMapEmptyUnproven",
+                Description = "StdMap is empty (Size=0); requires active elements for full semantic proof",
+                Passed = true
+            });
+            return;
+        }
+
+        if (head == IntPtr.Zero || !reader.IsValidAddress(head) || !reader.TryRead<byte>(head, out _))
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"StdMap head pointer 0x{head.ToInt64():X} is null or unreadable.";
+            return;
+        }
+
+        result.Status = ValidationStatus.UNVERIFIED; // Structural plausibility only
+        result.TraversalAddress = targetAddr;
+        result.ExtractedValue = $"StdMap [Size={size}, Head=0x{head.ToInt64():X}]";
+        result.Evidence.Add(new EvidenceRecord
+        {
+            RuleName = "StdMapValid",
+            Description = $"StdMap at +0x{node.DefaultOffset:X} is structurally valid with size {size}",
+            Passed = true,
+            IsIndependentValidator = true
+        });
     }
 
     private static void ValidateStdWString(
@@ -602,59 +899,98 @@ public sealed class OffsetValidatorEngine
         OffsetNode node,
         ValidationResult result)
     {
-        if (reader.TryRead<StdWString>(targetAddr, out var wstr))
+        result.ResolvedAddress = targetAddr;
+        result.TraversalAddress = targetAddr;
+
+        if (!reader.TryRead<StdWString>(targetAddr, out var wstr))
         {
-            if (wstr.Length >= 0 && wstr.Length <= 1000 && wstr.Capacity >= wstr.Length)
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Failed to read StdWString struct at +0x{node.DefaultOffset:X}";
+            return;
+        }
+
+        if (wstr.Length < 0 || wstr.Length > 1000 || wstr.Capacity < wstr.Length || wstr.Capacity > 10_000)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Malformed StdWString dimensions (Length={wstr.Length}, Capacity={wstr.Capacity})";
+            return;
+        }
+
+        if (wstr.Length == 0)
+        {
+            result.Status = ValidationStatus.UNVERIFIED;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ExtractedValue = "\"\" (Length=0)";
+            result.ErrorMessage = "StdWString is empty (Length=0).";
+            return;
+        }
+
+        string strVal = string.Empty;
+        if (wstr.Capacity <= 8)
+        {
+            var buf = new byte[16];
+            BitConverter.GetBytes(wstr.Buffer.ToInt64()).CopyTo(buf, 0);
+            BitConverter.GetBytes(wstr.ReservedBytes.ToInt64()).CopyTo(buf, 8);
+            int byteLen = Math.Min(wstr.Length * 2, 16);
+            strVal = Encoding.Unicode.GetString(buf, 0, byteLen);
+        }
+        else
+        {
+            if (wstr.Buffer == IntPtr.Zero || !reader.IsValidAddress(wstr.Buffer))
             {
-                if (wstr.Length == 0)
-                {
-                    result.Status = ValidationStatus.UNVERIFIED;
-                    result.ResolvedAddress = targetAddr;
-                    result.ExtractedValue = "\"\" (Length=0)";
-                    result.ErrorMessage = "StdWString is empty (Length=0).";
-                    return;
-                }
+                result.Status = ValidationStatus.BROKEN;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = $"Heap StdWString has unmapped or null buffer pointer 0x{wstr.Buffer.ToInt64():X}";
+                return;
+            }
 
-                string strVal = string.Empty;
-                if (wstr.Capacity <= 8)
-                {
-                    // Inline SSO buffer (16 bytes in Buffer and ReservedBytes)
-                    var buf = new byte[16];
-                    BitConverter.GetBytes(wstr.Buffer.ToInt64()).CopyTo(buf, 0);
-                    BitConverter.GetBytes(wstr.ReservedBytes.ToInt64()).CopyTo(buf, 8);
-                    int byteLen = Math.Min(wstr.Length * 2, 16);
-                    strVal = Encoding.Unicode.GetString(buf, 0, byteLen);
-                }
-                else if (wstr.Buffer != IntPtr.Zero && reader.IsValidAddress(wstr.Buffer))
-                {
-                    // Heap buffer
-                    int byteLen = wstr.Length * 2;
-                    var heapBytes = reader.ReadBytes(wstr.Buffer, byteLen);
-                    if (heapBytes != null)
-                    {
-                        strVal = Encoding.Unicode.GetString(heapBytes);
-                    }
-                }
+            var heapBytes = reader.ReadBytes(wstr.Buffer, wstr.Length * 2);
+            if (heapBytes == null || heapBytes.Length < wstr.Length * 2)
+            {
+                result.Status = ValidationStatus.BROKEN;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = "Unable to read full heap buffer contents for StdWString.";
+                return;
+            }
 
-                if (!string.IsNullOrEmpty(strVal))
+            strVal = Encoding.Unicode.GetString(heapBytes);
+        }
+
+        result.ExtractedValue = $"\"{strVal}\"";
+
+        if (node.Id == "player_entity_name")
+        {
+            if (strVal.StartsWith("Metadata/Characters/", StringComparison.Ordinal))
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
                 {
-                    result.Status = ValidationStatus.VALID;
-                    result.ResolvedAddress = targetAddr;
-                    result.ExtractedValue = $"\"{strVal}\"";
-                    result.Evidence.Add(new EvidenceRecord
-                    {
-                        RuleName = "StdWStringValid",
-                        Description = $"StdWString at +0x{node.DefaultOffset:X} verified (Length={wstr.Length}, Cap={wstr.Capacity})",
-                        Passed = true,
-                        IsIndependentValidator = true
-                    });
-                    return;
-                }
+                    RuleName = "EntityPathSemanticVerified",
+                    Description = $"Entity path \"{strVal}\" verified with character metadata prefix",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
+            else
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ErrorMessage = $"Entity path \"{strVal}\" does not start with expected 'Metadata/Characters/' prefix.";
+                return;
             }
         }
 
-        result.Status = ValidationStatus.BROKEN;
-        result.ErrorMessage = $"Invalid StdWString structure at +0x{node.DefaultOffset:X}";
+        // Generic player name / arbitrary string -> UNVERIFIED
+        result.Status = ValidationStatus.UNVERIFIED;
+        result.ErrorMessage = "String layout is structurally valid; content unverified without ground truth.";
+        result.Evidence.Add(new EvidenceRecord
+        {
+            RuleName = "StdWStringStructuralOnly",
+            Description = $"StdWString \"{strVal}\" layout is valid (Length={wstr.Length}, Cap={wstr.Capacity})",
+            Passed = true
+        });
     }
 
     private static void ValidateVitalStruct(
@@ -664,77 +1000,86 @@ public sealed class OffsetValidatorEngine
         ValidationResult result,
         RecoveryContext context)
     {
-        if (reader.TryRead<VitalStruct>(targetAddr, out var vital))
+        result.ResolvedAddress = targetAddr;
+        result.TraversalAddress = targetAddr;
+
+        if (!reader.TryRead<VitalStruct>(targetAddr, out var vital))
         {
-            bool vtableValid = vital.VtablePtr != IntPtr.Zero && reader.IsValidAddress(vital.VtablePtr) && reader.TryRead<byte>(vital.VtablePtr, out _);
-            bool totalSane = vital.Total >= 0 && vital.Total <= 500_000;
-            bool currentSane = vital.Current >= 0 && vital.Current <= vital.Total + 50_000;
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Failed to read VitalStruct at +0x{node.DefaultOffset:X}";
+            return;
+        }
 
-            if (vtableValid && totalSane && currentSane)
+        bool vtableValid = vital.VtablePtr != IntPtr.Zero && reader.IsValidAddress(vital.VtablePtr) && reader.TryRead<byte>(vital.VtablePtr, out _);
+        bool totalSane = vital.Total >= 0 && vital.Total <= 500_000;
+        bool currentSane = vital.Current >= 0 && vital.Current <= vital.Total + 50_000;
+
+        if (!vtableValid || !totalSane || !currentSane)
+        {
+            result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
+            result.ErrorMessage = $"Invalid VitalStruct (vtableValid={vtableValid}, Total={vital.Total}, Current={vital.Current})";
+            return;
+        }
+
+        result.ExtractedValue = $"VitalStruct [Total={vital.Total}, Current={vital.Current}]";
+
+        // Check ground truth if provided; mismatch is UNVERIFIED (never BROKEN) due to dynamic asynchronous game state
+        if (node.Id == "comp_life_health")
+        {
+            if (context.ExpectedHpCurrent.HasValue && vital.Current != context.ExpectedHpCurrent.Value)
             {
-                // Verify ground truth if provided
-                if (node.Id == "comp_life_health")
-                {
-                    if (context.ExpectedHpCurrent.HasValue && vital.Current != context.ExpectedHpCurrent.Value)
-                    {
-                        result.Status = ValidationStatus.BROKEN;
-                        result.ErrorMessage = $"Health Current ({vital.Current}) does not match expected ({context.ExpectedHpCurrent.Value}).";
-                        return;
-                    }
-                    if (context.ExpectedHpTotal.HasValue && vital.Total != context.ExpectedHpTotal.Value)
-                    {
-                        result.Status = ValidationStatus.BROKEN;
-                        result.ErrorMessage = $"Health Total ({vital.Total}) does not match expected ({context.ExpectedHpTotal.Value}).";
-                        return;
-                    }
-                }
-                else if (node.Id == "comp_life_mana")
-                {
-                    if (context.ExpectedMpCurrent.HasValue && vital.Current != context.ExpectedMpCurrent.Value)
-                    {
-                        result.Status = ValidationStatus.BROKEN;
-                        result.ErrorMessage = $"Mana Current ({vital.Current}) does not match expected ({context.ExpectedMpCurrent.Value}).";
-                        return;
-                    }
-                    if (context.ExpectedMpTotal.HasValue && vital.Total != context.ExpectedMpTotal.Value)
-                    {
-                        result.Status = ValidationStatus.BROKEN;
-                        result.ErrorMessage = $"Mana Total ({vital.Total}) does not match expected ({context.ExpectedMpTotal.Value}).";
-                        return;
-                    }
-                }
-                else if (node.Id == "comp_life_es")
-                {
-                    if (context.ExpectedEsCurrent.HasValue && vital.Current != context.ExpectedEsCurrent.Value)
-                    {
-                        result.Status = ValidationStatus.BROKEN;
-                        result.ErrorMessage = $"ES Current ({vital.Current}) does not match expected ({context.ExpectedEsCurrent.Value}).";
-                        return;
-                    }
-                    if (context.ExpectedEsTotal.HasValue && vital.Total != context.ExpectedEsTotal.Value)
-                    {
-                        result.Status = ValidationStatus.BROKEN;
-                        result.ErrorMessage = $"ES Total ({vital.Total}) does not match expected ({context.ExpectedEsTotal.Value}).";
-                        return;
-                    }
-                }
-
-                result.Status = ValidationStatus.VALID;
-                result.ResolvedAddress = targetAddr;
-                result.ExtractedValue = $"VitalStruct [Total={vital.Total}, Current={vital.Current}]";
-                result.Evidence.Add(new EvidenceRecord
-                {
-                    RuleName = "VitalStructValid",
-                    Description = $"VitalStruct at +0x{node.DefaultOffset:X} verified (Total={vital.Total}, Current={vital.Current})",
-                    Passed = true,
-                    IsIndependentValidator = true
-                });
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ErrorMessage = $"Supplied HP Current ground truth ({context.ExpectedHpCurrent.Value}) did not match live snapshot ({vital.Current}); value may have changed dynamically.";
+                return;
+            }
+            if (context.ExpectedHpTotal.HasValue && vital.Total != context.ExpectedHpTotal.Value)
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ErrorMessage = $"Supplied HP Total ground truth ({context.ExpectedHpTotal.Value}) did not match live snapshot ({vital.Total}).";
+                return;
+            }
+        }
+        else if (node.Id == "comp_life_mana")
+        {
+            if (context.ExpectedMpCurrent.HasValue && vital.Current != context.ExpectedMpCurrent.Value)
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ErrorMessage = $"Supplied Mana Current ground truth ({context.ExpectedMpCurrent.Value}) did not match live snapshot ({vital.Current}); value may have changed dynamically.";
+                return;
+            }
+            if (context.ExpectedMpTotal.HasValue && vital.Total != context.ExpectedMpTotal.Value)
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ErrorMessage = $"Supplied Mana Total ground truth ({context.ExpectedMpTotal.Value}) did not match live snapshot ({vital.Total}).";
+                return;
+            }
+        }
+        else if (node.Id == "comp_life_es")
+        {
+            if (context.ExpectedEsCurrent.HasValue && vital.Current != context.ExpectedEsCurrent.Value)
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ErrorMessage = $"Supplied ES Current ground truth ({context.ExpectedEsCurrent.Value}) did not match live snapshot ({vital.Current}); value may have changed dynamically.";
+                return;
+            }
+            if (context.ExpectedEsTotal.HasValue && vital.Total != context.ExpectedEsTotal.Value)
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ErrorMessage = $"Supplied ES Total ground truth ({context.ExpectedEsTotal.Value}) did not match live snapshot ({vital.Total}).";
                 return;
             }
         }
 
-        result.Status = ValidationStatus.BROKEN;
-        result.ErrorMessage = $"Invalid VitalStruct at +0x{node.DefaultOffset:X}";
+        result.Status = ValidationStatus.VALID;
+        result.Evidence.Add(new EvidenceRecord
+        {
+            RuleName = "VitalStructValid",
+            Description = $"VitalStruct at +0x{node.DefaultOffset:X} verified (Total={vital.Total}, Current={vital.Current})",
+            Passed = true,
+            IsIndependentValidator = true
+        });
     }
 
     private static void ValidateNumericField(
@@ -744,6 +1089,9 @@ public sealed class OffsetValidatorEngine
         ValidationResult result,
         RecoveryContext context)
     {
+        result.ResolvedAddress = targetAddr;
+        result.TraversalAddress = targetAddr;
+
         double numVal = 0;
         bool readSuccess = false;
 
@@ -773,9 +1121,12 @@ public sealed class OffsetValidatorEngine
         if (!readSuccess)
         {
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Unable to read {node.ScalarType} at +0x{node.DefaultOffset:X}";
             return;
         }
+
+        result.ExtractedValue = numVal;
 
         if (node.Id == "psd_gold_field")
         {
@@ -785,8 +1136,6 @@ public sealed class OffsetValidatorEngine
                 if (goldVal == context.ExpectedGoldAmount.Value)
                 {
                     result.Status = ValidationStatus.VALID;
-                    result.ResolvedAddress = targetAddr;
-                    result.ExtractedValue = goldVal;
                     result.Evidence.Add(new EvidenceRecord
                     {
                         RuleName = "ExactExpectedValueMatch",
@@ -798,50 +1147,104 @@ public sealed class OffsetValidatorEngine
                 }
                 else
                 {
-                    result.Status = ValidationStatus.BROKEN;
-                    result.ErrorMessage = $"Value at +0x{node.DefaultOffset:X} ({goldVal:N0}) does not match expected amount ({context.ExpectedGoldAmount.Value:N0})";
+                    result.Status = ValidationStatus.UNVERIFIED;
+                    result.ErrorMessage = $"Supplied gold ground truth ({context.ExpectedGoldAmount.Value:N0}) did not match snapshot ({goldVal:N0}); value may have changed dynamically.";
                     return;
                 }
             }
-            else if (goldVal >= 0 && goldVal <= 2_000_000_000)
+            else
             {
                 result.Status = ValidationStatus.UNVERIFIED;
-                result.ResolvedAddress = targetAddr;
-                result.ExtractedValue = goldVal;
                 result.ErrorMessage = $"Plausible numeric value {goldVal:N0} requires external ground truth (--gold <amount>).";
-                result.Evidence.Add(new EvidenceRecord
-                {
-                    RuleName = "PlausibleNumericValue",
-                    Description = $"Numeric value {goldVal:N0} is within valid bounds [0..2B] (unverified without --gold)",
-                    Passed = true
-                });
                 return;
             }
         }
 
-        if (node.ExpectedMinNumeric.HasValue && numVal < node.ExpectedMinNumeric.Value)
+        // Tightly bounded domain checks that provide semantic proof:
+        if (node.Id == "area_current_level" || node.Id == "comp_player_level")
         {
+            if (numVal >= 1 && numVal <= 100)
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "LevelDomainValid",
+                    Description = $"Level value {numVal} is within valid PoE level domain [1..100]",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
             result.Status = ValidationStatus.BROKEN;
-            result.ErrorMessage = $"Value {numVal} is below expected minimum ({node.ExpectedMinNumeric.Value})";
+            result.ErrorMessage = $"Level value {numVal} is outside valid domain [1..100].";
             return;
         }
 
-        if (node.ExpectedMaxNumeric.HasValue && numVal > node.ExpectedMaxNumeric.Value)
+        if (node.Id == "comp_stats_weapon_index")
         {
+            if (numVal == 0 || numVal == 1)
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "WeaponIndexValid",
+                    Description = $"Weapon index {numVal} is valid (0 or 1)",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
             result.Status = ValidationStatus.BROKEN;
-            result.ErrorMessage = $"Value {numVal} is above expected maximum ({node.ExpectedMaxNumeric.Value})";
+            result.ErrorMessage = $"Weapon index {numVal} is invalid (must be 0 or 1).";
             return;
         }
 
-        result.Status = ValidationStatus.VALID;
-        result.ResolvedAddress = targetAddr;
-        result.ExtractedValue = numVal;
+        if (node.Id == "comp_positioned_reaction")
+        {
+            if (numVal >= 0 && numVal <= 2)
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "ReactionValid",
+                    Description = $"Reaction byte {numVal} is valid (0, 1, or 2)",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
+            result.Status = ValidationStatus.BROKEN;
+            result.ErrorMessage = $"Reaction byte {numVal} is invalid.";
+            return;
+        }
+
+        if (node.Id == "loading_state_is_loading")
+        {
+            if (numVal == 0 || numVal == 1)
+            {
+                result.Status = ValidationStatus.VALID;
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "IsLoadingValid",
+                    Description = $"IsLoading integer {numVal} is valid (0 or 1)",
+                    Passed = true,
+                    IsIndependentValidator = true
+                });
+                return;
+            }
+            result.Status = ValidationStatus.BROKEN;
+            result.ErrorMessage = $"IsLoading integer {numVal} is invalid.";
+            return;
+        }
+
+        // Broad plausibility scalars (CurrentAreaHash, TotalLoadingScreenTimeMs, AnimationId, TerrainHeight, etc.) -> UNVERIFIED
+        result.Status = ValidationStatus.UNVERIFIED;
+        result.ErrorMessage = $"Scalar {node.ScalarType} value {numVal} is readable; unverified without dedicated catalog or ground truth.";
         result.Evidence.Add(new EvidenceRecord
         {
-            RuleName = "NumericFieldDomainValid",
-            Description = $"Numeric {node.ScalarType} value {numVal} at +0x{node.DefaultOffset:X} satisfies domain bounds",
-            Passed = true,
-            IsIndependentValidator = true
+            RuleName = "ScalarReadablePlausibilityOnly",
+            Description = $"Scalar {node.ScalarType} value {numVal} at +0x{node.DefaultOffset:X} is readable (plausibility only)",
+            Passed = true
         });
     }
 
@@ -851,6 +1254,9 @@ public sealed class OffsetValidatorEngine
         OffsetNode node,
         ValidationResult result)
     {
+        result.ResolvedAddress = targetAddr;
+        result.TraversalAddress = targetAddr;
+
         if (node.Id == "comp_render_world_pos")
         {
             if (reader.TryRead<StdTuple3D<float>>(targetAddr, out var pos))
@@ -858,25 +1264,23 @@ public sealed class OffsetValidatorEngine
                 bool validFloats = !float.IsNaN(pos.X) && !float.IsInfinity(pos.X) &&
                                   !float.IsNaN(pos.Y) && !float.IsInfinity(pos.Y) &&
                                   !float.IsNaN(pos.Z) && !float.IsInfinity(pos.Z);
-                bool validBounds = Math.Abs(pos.X) < 100_000 && Math.Abs(pos.Y) < 100_000 && Math.Abs(pos.Z) < 100_000;
-
-                if (validFloats && validBounds)
+                if (validFloats)
                 {
-                    result.Status = ValidationStatus.VALID;
-                    result.ResolvedAddress = targetAddr;
+                    result.Status = ValidationStatus.UNVERIFIED; // Plausibility only without spatial cross-validation
                     result.ExtractedValue = $"Pos({pos.X:F1}, {pos.Y:F1}, {pos.Z:F1})";
+                    result.ErrorMessage = "World position coordinates are finite floats; unverified without spatial ground truth.";
                     result.Evidence.Add(new EvidenceRecord
                     {
-                        RuleName = "WorldPositionValid",
-                        Description = $"Render world position finite floats within bounds ({pos.X:F1}, {pos.Y:F1}, {pos.Z:F1})",
-                        Passed = true,
-                        IsIndependentValidator = true
+                        RuleName = "WorldPositionFiniteFloats",
+                        Description = $"World position contains finite floats ({pos.X:F1}, {pos.Y:F1}, {pos.Z:F1})",
+                        Passed = true
                     });
                     return;
                 }
             }
 
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Invalid WorldPosition floats at +0x{node.DefaultOffset:X}";
             return;
         }
@@ -885,36 +1289,61 @@ public sealed class OffsetValidatorEngine
         {
             if (reader.TryRead<TerrainStruct>(targetAddr, out var terrain))
             {
-                if (terrain.BytesPerRow >= 0)
+                result.Status = ValidationStatus.UNVERIFIED; // Plausibility only
+                result.ExtractedValue = $"TerrainStruct [BytesPerRow={terrain.BytesPerRow}]";
+                result.ErrorMessage = "TerrainStruct layout is readable; unverified without area terrain catalog cross-reference.";
+                result.Evidence.Add(new EvidenceRecord
                 {
-                    result.Status = ValidationStatus.VALID;
-                    result.ResolvedAddress = targetAddr;
-                    result.ExtractedValue = $"TerrainStruct [BytesPerRow={terrain.BytesPerRow}]";
-                    result.Evidence.Add(new EvidenceRecord
-                    {
-                        RuleName = "TerrainStructValid",
-                        Description = $"Terrain metadata valid at +0x{node.DefaultOffset:X}",
-                        Passed = true,
-                        IsIndependentValidator = true
-                    });
-                    return;
-                }
+                    RuleName = "TerrainStructReadable",
+                    Description = $"Terrain metadata struct memory is readable at +0x{node.DefaultOffset:X}",
+                    Passed = true
+                });
+                return;
             }
 
             result.Status = ValidationStatus.BROKEN;
+            result.TraversalAddress = IntPtr.Zero;
             result.ErrorMessage = $"Invalid TerrainStruct at +0x{node.DefaultOffset:X}";
             return;
         }
 
         if (reader.TryRead<byte>(targetAddr, out _))
         {
-            result.Status = ValidationStatus.VALID;
-            result.ResolvedAddress = targetAddr;
+            result.Status = ValidationStatus.UNVERIFIED;
             result.ExtractedValue = $"Struct at +0x{node.DefaultOffset:X}";
+            result.ErrorMessage = "Struct memory is readable; unverified without dedicated semantic validator.";
             return;
         }
 
         result.Status = ValidationStatus.BROKEN;
+        result.TraversalAddress = IntPtr.Zero;
         result.ErrorMessage = $"Unreadable struct memory at +0x{node.DefaultOffset:X}";
+    }
+
+    private static string DecodeStdWString(IProcessMemoryReader reader, StdWString wstr)
+    {
+        if (wstr.Length <= 0 || wstr.Length > 1000 || wstr.Capacity < wstr.Length)
+        {
+            return string.Empty;
+        }
+
+        if (wstr.Capacity <= 8)
+        {
+            var buf = new byte[16];
+            BitConverter.GetBytes(wstr.Buffer.ToInt64()).CopyTo(buf, 0);
+            BitConverter.GetBytes(wstr.ReservedBytes.ToInt64()).CopyTo(buf, 8);
+            int byteLen = Math.Min(wstr.Length * 2, 16);
+            return Encoding.Unicode.GetString(buf, 0, byteLen);
+        }
+        else if (wstr.Buffer != IntPtr.Zero && reader.IsValidAddress(wstr.Buffer))
+        {
+            var heapBytes = reader.ReadBytes(wstr.Buffer, wstr.Length * 2);
+            if (heapBytes != null)
+            {
+                return Encoding.Unicode.GetString(heapBytes);
+            }
+        }
+
+        return string.Empty;
     }
 }

@@ -26,6 +26,7 @@ public static class OffsetManifest
                 DefaultOffset = 0,
                 Kind = ValueKind.StaticPattern,
                 StaticPatternName = "Game States",
+                StaticPatternResolution = StaticPatternResolutionKind.RipRelativeDisp32,
                 ProductionSourceLocation = "TEHhub.Offsets/StaticOffsetsPatterns.cs"
             },
             new OffsetNode
@@ -37,6 +38,7 @@ public static class OffsetManifest
                 DefaultOffset = 0,
                 Kind = ValueKind.StaticPattern,
                 StaticPatternName = "File Root",
+                StaticPatternResolution = StaticPatternResolutionKind.RipRelativeDisp32,
                 ProductionSourceLocation = "TEHhub.Offsets/StaticOffsetsPatterns.cs"
             },
             new OffsetNode
@@ -48,6 +50,7 @@ public static class OffsetManifest
                 DefaultOffset = 0,
                 Kind = ValueKind.StaticPattern,
                 StaticPatternName = "AreaChangeCounter",
+                StaticPatternResolution = StaticPatternResolutionKind.RipRelativeDisp32,
                 ProductionSourceLocation = "TEHhub.Offsets/StaticOffsetsPatterns.cs"
             },
             new OffsetNode
@@ -59,6 +62,7 @@ public static class OffsetManifest
                 DefaultOffset = 0,
                 Kind = ValueKind.StaticPattern,
                 StaticPatternName = "Terrain Rotator Helper",
+                StaticPatternResolution = StaticPatternResolutionKind.DirectMatchPlusSkip,
                 ProductionSourceLocation = "TEHhub.Offsets/StaticOffsetsPatterns.cs"
             },
             new OffsetNode
@@ -70,6 +74,7 @@ public static class OffsetManifest
                 DefaultOffset = 0,
                 Kind = ValueKind.StaticPattern,
                 StaticPatternName = "Terrain Rotation Selector",
+                StaticPatternResolution = StaticPatternResolutionKind.DirectMatchPlusSkip,
                 ProductionSourceLocation = "TEHhub.Offsets/StaticOffsetsPatterns.cs"
             },
             new OffsetNode
@@ -81,6 +86,7 @@ public static class OffsetManifest
                 DefaultOffset = 0,
                 Kind = ValueKind.StaticPattern,
                 StaticPatternName = "GameCullSize",
+                StaticPatternResolution = StaticPatternResolutionKind.RipRelativeDisp32,
                 ProductionSourceLocation = "TEHhub.Offsets/StaticOffsetsPatterns.cs"
             },
 
