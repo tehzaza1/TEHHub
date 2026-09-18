@@ -1417,31 +1417,40 @@ internal static class BottleneckTests
         }
         check(PerformanceProfiler.GetTreeSnapshot().Count == 0, "14b: No nodes created when profiler is disabled");
 
-        // 15. True Current-Frame Percentile Isolation
+        // 15. Current-Frame Percentile Semantics (Explicit NaN / Unavailable) & Accumulated Percentiles
         Core.GHSettings.ShowPerfProfiler = true;
         PerformanceProfiler.Reset();
-        // Frame 1: Slow call (1000 ticks)
+        // Frame 1: Slow call (2000 ticks)
         PerformanceProfiler.StartFrame();
         using (PerformanceProfiler.Measure("Test", "PercentileScope"))
         {
             var sw = Stopwatch.GetTimestamp(); while (Stopwatch.GetTimestamp() - sw < 2000) { }
         }
         PerformanceProfiler.EndFrame();
-        var f1Snap = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: false);
-        var f1P95 = f1Snap[0].P95CallNs;
 
-        // Frame 2: Fast calls (minimal ticks)
+        // Accumulated snapshot: P95 and P99 are available and > 0
+        var f1Snap = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: false);
+        check(!double.IsNaN(f1Snap[0].P95CallNs) && f1Snap[0].P95CallNs > 0, "15a: Accumulated Tree P95 is available and > 0");
+        check(!double.IsNaN(f1Snap[0].P99CallNs) && f1Snap[0].P99CallNs > 0, "15b: Accumulated Tree P99 is available and > 0");
+        var f1Flat = PerformanceProfiler.GetApiSnapshot(currentFrameOnly: false);
+        check(!double.IsNaN(f1Flat.Rows[0].P95CallNanoseconds) && f1Flat.Rows[0].P95CallNanoseconds > 0, "15c: Accumulated Flat P95 is available and > 0");
+        check(!double.IsNaN(f1Flat.Rows[0].P99CallNanoseconds) && f1Flat.Rows[0].P99CallNanoseconds > 0, "15d: Accumulated Flat P99 is available and > 0");
+
+        // Frame 2: Current Frame Only mode makes P95/P99 unavailable (NaN)
         PerformanceProfiler.StartFrame();
         for (var i = 0; i < 20; i++)
         {
             using (PerformanceProfiler.Measure("Test", "PercentileScope")) { }
         }
-        var curFramePercentiles = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: true);
-        var curP95 = curFramePercentiles[0].P95CallNs;
-        check(curP95 < f1P95 / 2.0, "15a: Current Frame Only P95 reflects only current frame samples and does not leak prior frame slow sample");
+        var curFrameTree15 = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: true);
+        check(double.IsNaN(curFrameTree15[0].P95CallNs), "15e: Current Frame Only Tree P95 is double.NaN");
+        check(double.IsNaN(curFrameTree15[0].P99CallNs), "15f: Current Frame Only Tree P99 is double.NaN");
+        var curFrameFlat15 = PerformanceProfiler.GetApiSnapshot(currentFrameOnly: true);
+        check(double.IsNaN(curFrameFlat15.Rows[0].P95CallNanoseconds), "15g: Current Frame Only Flat P95 is double.NaN");
+        check(double.IsNaN(curFrameFlat15.Rows[0].P99CallNanoseconds), "15h: Current Frame Only Flat P99 is double.NaN");
         PerformanceProfiler.EndFrame();
 
-        // 16. Flat Hotspots Aggregated Percentiles with Merged Population
+        // 16. Flat Hotspots Aggregated Percentiles with Merged Population in Accumulated Mode
         PerformanceProfiler.Reset();
         PerformanceProfiler.StartFrame();
         using (PerformanceProfiler.Measure("Test", "Parent1"))
@@ -1465,9 +1474,9 @@ internal static class BottleneckTests
             }
         }
         PerformanceProfiler.EndFrame();
-        var flatSnap16 = PerformanceProfiler.GetApiSnapshot();
+        var flatSnap16 = PerformanceProfiler.GetApiSnapshot(currentFrameOnly: false);
         var flatLeaf = flatSnap16.Rows.First(r => r.Name == "Test.SharedLeaf");
-        check(flatLeaf.Count == 10 && flatLeaf.P95CallNanoseconds > 0, "16: Flat hotspot combines population from multiple parents and computes merged percentile");
+        check(flatLeaf.Count == 10 && flatLeaf.P95CallNanoseconds > 0 && flatLeaf.P99CallNanoseconds > 0, "16: Flat hotspot combines population from multiple parents and computes merged percentile");
 
         // 17. Reset Generation Safety
         PerformanceProfiler.Reset();
@@ -1481,6 +1490,77 @@ internal static class BottleneckTests
         check(postResetTree.Count == 1 && postResetTree[0].Name == "Test.ScopeB", "17a: ScopeB is the only node in the new generation");
         check(postResetTree[0].Count == 1, "17b: ScopeB count is not corrupted by old ScopeA exit");
         PerformanceProfiler.EndFrame();
+
+        // 18. Reset Node Registry Clearing and Post-Reset StartFrame Reset Verification
+        PerformanceProfiler.Reset();
+        check(PerformanceProfiler.GetTreeSnapshot().Count == 0, "18a: Reset clears all node registries");
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("NewGen", "PostResetScope")) { }
+        PerformanceProfiler.EndFrame();
+        var postSnap1 = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: false);
+        check(postSnap1.Count == 1 && postSnap1[0].Count == 1, "18b: Node created after Reset is recorded in frame 1");
+
+        // Next frame: StartFrame must reset current-frame counters for newly created nodes
+        PerformanceProfiler.StartFrame();
+        var postSnap2CurBefore = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: true);
+        check(postSnap2CurBefore.Count == 0, "18c: Current frame snapshot is empty before calls in frame 2");
+        using (PerformanceProfiler.Measure("NewGen", "PostResetScope")) { }
+        var postSnap2CurAfter = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: true);
+        check(postSnap2CurAfter.Count == 1 && postSnap2CurAfter[0].Count == 1, "18d: Node current frame count is exactly 1 in frame 2");
+        PerformanceProfiler.EndFrame();
+
+        // =========================================================================
+        // Frame Lifecycle Benchmark: StartFrame() + EndFrame() Steady-State Allocations
+        // =========================================================================
+        const int FrameBenchIterations = 100_000;
+        Console.WriteLine("\n=========================================================================================");
+        Console.WriteLine("        FRAME LIFECYCLE BENCHMARK: StartFrame() + EndFrame() Steady-State Allocations");
+        Console.WriteLine("=========================================================================================");
+
+        Core.GHSettings.ShowPerfProfiler = true;
+        PerformanceProfiler.Reset();
+
+        // Warm up and create 100 representative nodes in the hierarchy (10 roots x 10 children)
+        PerformanceProfiler.StartFrame();
+        for (var p = 0; p < 10; p++)
+        {
+            using (PerformanceProfiler.Measure("BenchParent", $"Parent_{p}"))
+            {
+                for (var c = 0; c < 10; c++)
+                {
+                    using (PerformanceProfiler.Measure("BenchChild", $"Child_{p}_{c}")) { }
+                }
+            }
+        }
+        PerformanceProfiler.EndFrame();
+
+        // Warm StartFrame / EndFrame loops to ensure full JIT and tier-1 compilation
+        for (var w = 0; w < 10_000; w++)
+        {
+            PerformanceProfiler.StartFrame();
+            PerformanceProfiler.EndFrame();
+        }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        var swFrame = Stopwatch.StartNew();
+        var frameAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < FrameBenchIterations; i++)
+        {
+            PerformanceProfiler.StartFrame();
+            PerformanceProfiler.EndFrame();
+        }
+        var totalFrameAllocBytes = GC.GetAllocatedBytesForCurrentThread() - frameAllocBefore;
+        swFrame.Stop();
+        var frameAllocPerIter = (double)totalFrameAllocBytes / FrameBenchIterations;
+        var frameNsPerIter = swFrame.Elapsed.TotalNanoseconds / FrameBenchIterations;
+
+        Console.WriteLine($"  StartFrame + EndFrame ({FrameBenchIterations:N0} frames, 100 nodes): {frameAllocPerIter:F1} B/frame, {frameNsPerIter:F1} ns/frame");
+        Console.WriteLine("=========================================================================================");
+
+        check(frameAllocPerIter == 0.0, "StartFrame + EndFrame steady-state allocated bytes per frame is exactly 0 B/frame");
 
         // =========================================================================
         // Profiler Overhead Benchmark: Disabled vs Measure vs Profile vs Nested

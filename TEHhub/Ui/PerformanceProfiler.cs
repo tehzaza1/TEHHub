@@ -26,6 +26,7 @@ public static class PerformanceProfiler
     // Node registry & hierarchy storage
     private static readonly ConcurrentDictionary<(int ParentId, string ScopeKey), int> NodeLookup = new();
     private static readonly ConcurrentDictionary<int, ProfilerNode> Nodes = new();
+    private static readonly List<ProfilerNode> AllNodes = new();
     private static readonly ConcurrentDictionary<(string NamespaceName, string MethodName), string> ProfileKeys = new();
     private static readonly List<int> RootNodeIds = new();
     private static readonly object HierarchyLock = new();
@@ -175,9 +176,12 @@ public static class PerformanceProfiler
             return;
         }
 
-        foreach (var node in Nodes.Values)
+        lock (HierarchyLock)
         {
-            node.ResetCurrentFrame();
+            for (var i = 0; i < AllNodes.Count; i++)
+            {
+                AllNodes[i].ResetCurrentFrame();
+            }
         }
     }
 
@@ -198,6 +202,7 @@ public static class PerformanceProfiler
             Interlocked.Increment(ref currentSessionGeneration);
             NodeLookup.Clear();
             Nodes.Clear();
+            AllNodes.Clear();
             ProfileKeys.Clear();
             RootNodeIds.Clear();
             nextNodeId = 1;
@@ -222,10 +227,11 @@ public static class PerformanceProfiler
     ///     Returns flat profiler rows for local diagnostics tooling and automated captures.
     ///     Aggregates identical scope names across all parent locations.
     /// </summary>
-    internal static PerformanceProfilerSnapshot GetApiSnapshot()
+    internal static PerformanceProfilerSnapshot GetApiSnapshot(bool? currentFrameOnly = null)
     {
+        var curFrame = currentFrameOnly ?? showCurrentFrameOnly;
         var frames = Math.Max(1, Volatile.Read(ref totalFramesCaptured));
-        var flatRows = BuildFlatRows(showCurrentFrameOnly, frames);
+        var flatRows = BuildFlatRows(curFrame, frames);
         var rows = new List<PerformanceProfilerRow>(flatRows.Count);
 
         foreach (var r in flatRows)
@@ -242,7 +248,7 @@ public static class PerformanceProfiler
 
         return new PerformanceProfilerSnapshot(
             IsRecording,
-            showCurrentFrameOnly,
+            curFrame,
             rows.OrderByDescending(static row => row.AvgFrameNanoseconds).ToArray());
     }
 
@@ -264,6 +270,7 @@ public static class PerformanceProfiler
             var node = new ProfilerNode(id, parentId, scopeKey);
             Nodes[id] = node;
             NodeLookup[(parentId, scopeKey)] = id;
+            AllNodes.Add(node);
 
             if (parentId == 0)
             {
@@ -377,8 +384,8 @@ public static class PerformanceProfiler
             InclusiveAvgFrameNs = incAvgFrameNs,
             SelfAvgCallNs = selfAvgCallNs,
             SelfAvgFrameNs = selfAvgFrameNs,
-            P95CallNs = node.GetPercentileTicks(0.95, currentFrameOnly) * NsPerTick,
-            P99CallNs = node.GetPercentileTicks(0.99, currentFrameOnly) * NsPerTick,
+            P95CallNs = currentFrameOnly ? double.NaN : node.GetPercentileTicks(0.95) * NsPerTick,
+            P99CallNs = currentFrameOnly ? double.NaN : node.GetPercentileTicks(0.99) * NsPerTick,
             AvgAllocatedBytes = avgAllocBytes,
         };
 
@@ -389,7 +396,13 @@ public static class PerformanceProfiler
 
     private static List<ProfilerFlatRow> BuildFlatRows(bool currentFrameOnly, long frames)
     {
-        var groups = Nodes.Values.GroupBy(static n => n.ScopeKey);
+        List<ProfilerNode> nodesSnapshot;
+        lock (HierarchyLock)
+        {
+            nodesSnapshot = new List<ProfilerNode>(AllNodes);
+        }
+
+        var groups = nodesSnapshot.GroupBy(static n => n.ScopeKey);
         var rows = new List<ProfilerFlatRow>();
 
         foreach (var g in groups)
@@ -434,16 +447,29 @@ public static class PerformanceProfiler
                 avgAllocBytes = (double)totalAlloc / count;
             }
 
-            // Merged bounded sample population from all nodes in this group
-            var combinedSamples = g.SelectMany(n => currentFrameOnly ? n.GetCurrentFrameSamples() : n.GetRecentSamples()).ToArray();
-            double p95Ns = 0.0, p99Ns = 0.0;
-            if (combinedSamples.Length > 0)
+            double p95Ns, p99Ns;
+            if (currentFrameOnly)
             {
-                Array.Sort(combinedSamples);
-                var idx95 = Math.Clamp((int)Math.Ceiling(combinedSamples.Length * 0.95) - 1, 0, combinedSamples.Length - 1);
-                var idx99 = Math.Clamp((int)Math.Ceiling(combinedSamples.Length * 0.99) - 1, 0, combinedSamples.Length - 1);
-                p95Ns = combinedSamples[idx95] * NsPerTick;
-                p99Ns = combinedSamples[idx99] * NsPerTick;
+                p95Ns = double.NaN;
+                p99Ns = double.NaN;
+            }
+            else
+            {
+                // Merged bounded sample population from all nodes in this group
+                var combinedSamples = g.SelectMany(static n => n.GetRecentSamples()).ToArray();
+                if (combinedSamples.Length > 0)
+                {
+                    Array.Sort(combinedSamples);
+                    var idx95 = Math.Clamp((int)Math.Ceiling(combinedSamples.Length * 0.95) - 1, 0, combinedSamples.Length - 1);
+                    var idx99 = Math.Clamp((int)Math.Ceiling(combinedSamples.Length * 0.99) - 1, 0, combinedSamples.Length - 1);
+                    p95Ns = combinedSamples[idx95] * NsPerTick;
+                    p99Ns = combinedSamples[idx99] * NsPerTick;
+                }
+                else
+                {
+                    p95Ns = 0.0;
+                    p99Ns = 0.0;
+                }
             }
 
             rows.Add(new ProfilerFlatRow(
@@ -678,6 +704,11 @@ public static class PerformanceProfiler
 
     private static string FormatTime(double ns)
     {
+        if (double.IsNaN(ns))
+        {
+            return "N/A";
+        }
+
         return ns switch
         {
             >= 1000000000.0 => $"{ns / 1000000000.0:F2} s",
@@ -754,7 +785,6 @@ internal class ProfilerNode
 
     private const int WindowSize = 100;
     private readonly ConcurrentQueue<long> recentInclusiveTicks = new();
-    private readonly ConcurrentQueue<long> currentFrameInclusiveTicksQueue = new();
 
     private int currentFrameCount;
     private long currentFrameInclusiveTicks;
@@ -796,12 +826,6 @@ internal class ProfilerNode
         {
             this.recentInclusiveTicks.TryDequeue(out _);
         }
-
-        this.currentFrameInclusiveTicksQueue.Enqueue(inclusiveTicks);
-        while (this.currentFrameInclusiveTicksQueue.Count > WindowSize)
-        {
-            this.currentFrameInclusiveTicksQueue.TryDequeue(out _);
-        }
     }
 
     public void ResetCurrentFrame()
@@ -810,16 +834,13 @@ internal class ProfilerNode
         Volatile.Write(ref this.currentFrameInclusiveTicks, 0);
         Volatile.Write(ref this.currentFrameSelfTicks, 0);
         Volatile.Write(ref this.currentFrameAllocatedBytes, 0);
-        this.currentFrameInclusiveTicksQueue.Clear();
     }
 
     public long[] GetRecentSamples() => this.recentInclusiveTicks.ToArray();
 
-    public long[] GetCurrentFrameSamples() => this.currentFrameInclusiveTicksQueue.ToArray();
-
-    public long GetPercentileTicks(double percentile, bool currentFrameOnly = false)
+    public long GetPercentileTicks(double percentile)
     {
-        var samples = currentFrameOnly ? this.currentFrameInclusiveTicksQueue.ToArray() : this.recentInclusiveTicks.ToArray();
+        var samples = this.recentInclusiveTicks.ToArray();
         if (samples.Length == 0)
         {
             return 0;
