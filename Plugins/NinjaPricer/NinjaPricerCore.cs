@@ -2884,17 +2884,15 @@ namespace NinjaPricer
 
                         if (PluginUiElementReflection.TryGetAbsoluteRect(bk, out _, out var bkSize))
                         {
-                            if (bkSize.X > 100 && bkSize.Y > 100) return true;
+                            if (bkSize.X > 100 && bkSize.Y > 100 && !ContainsItemEntities(bk, handle)) return true;
                         }
                     }
                 }
             }
 
-            // Check children of LeftPanel (skip index 2 and any main viewport > 600x600 which is the active stash tab itself)
-            for (int i = 0; i < children.Length; i++)
+            // Check dynamic popup children of LeftPanel (index >= 3 in stash; indices 0, 1, 2 are permanent stash/vendor elements)
+            for (int i = 3; i < children.Length; i++)
             {
-                if (i == 2) continue; // Child 2 is always the main active stash tab container, NOT a dropdown list
-
                 var child = children[i];
                 if (child == IntPtr.Zero) continue;
                 if (!handle.TryReadMemory<UiElementBaseOffset>(child, out var cOff) || !UiElementBaseFuncs.IsVisibleChecker(cOff.Flags))
@@ -2905,8 +2903,8 @@ namespace NinjaPricer
 
                 if (!PluginUiElementReflection.TryGetAbsoluteRect(child, out var cPos, out var cSize)) continue;
 
-                // Dropdown menu is a popup list (width typically 150-400), not the full stash tab viewport (> 600x600)
-                if (cSize.X >= 100 && cSize.Y >= 100 && !(cSize.X > 600 && cSize.Y > 600))
+                // Dropdown menu is a popup list (width typically 150-400), not the full stash tab viewport (> 600x600), and must not contain item entities
+                if (cSize.X >= 100 && cSize.Y >= 100 && !(cSize.X > 600 && cSize.Y > 600) && !ContainsItemEntities(child, handle))
                 {
                     int visibleSubCount = 0;
                     for (int k = 0; k < Math.Min(subKids.Length, 20); k++)
@@ -2925,6 +2923,40 @@ namespace NinjaPricer
                 }
             }
 
+            return false;
+        }
+
+        private static bool ContainsItemEntities(IntPtr element, SafeMemoryHandle handle)
+        {
+            if (element == IntPtr.Zero || handle == null) return false;
+            if (handle.ReadMemory<IntPtr>(element + UiElementItemAddressOffset) != IntPtr.Zero) return true;
+
+            if (handle.TryReadMemory<UiElementBaseOffset>(element, out var off))
+            {
+                var kids = handle.ReadStdVector<IntPtr>(off.ChildrensPtr);
+                if (kids != null)
+                {
+                    for (int i = 0; i < Math.Min(kids.Length, 15); i++)
+                    {
+                        if (kids[i] != IntPtr.Zero)
+                        {
+                            if (handle.ReadMemory<IntPtr>(kids[i] + UiElementItemAddressOffset) != IntPtr.Zero) return true;
+                            if (handle.TryReadMemory<UiElementBaseOffset>(kids[i], out var subOff))
+                            {
+                                var subKids = handle.ReadStdVector<IntPtr>(subOff.ChildrensPtr);
+                                if (subKids != null)
+                                {
+                                    for (int j = 0; j < Math.Min(subKids.Length, 5); j++)
+                                    {
+                                        if (subKids[j] != IntPtr.Zero && handle.ReadMemory<IntPtr>(subKids[j] + UiElementItemAddressOffset) != IntPtr.Zero)
+                                            return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             return false;
         }
 
