@@ -588,10 +588,7 @@ namespace TEHhub.Utils
 
         internal sealed class ReadCachePlan : IDisposable
         {
-            private const int CompactBlockSize = 128;
-            private const int CompactPromotionThreshold = 2;
             private const int MediumBlockSize = 512;
-            private const int MediumPromotionThreshold = 4;
             private const int PageBlockSize = 4096;
             private const int PagePromotionAccessThreshold = 6;
             private const int PagePromotionMinimumUniqueBytes = 256;
@@ -601,11 +598,7 @@ namespace TEHhub.Utils
 
             private readonly ReadCacheWindow[] windows;
             private readonly Dictionary<long, ReadCacheWindow>? exactWindows;
-            private readonly Dictionary<long, ReadCacheWindow>? compactWindows;
-            private readonly Dictionary<long, ReadCacheWindow>? mediumWindows;
             private readonly Dictionary<long, ReadCacheWindow>? pageWindows;
-            private readonly Dictionary<long, int>? compactAccessCounts;
-            private readonly Dictionary<long, int>? mediumAccessCounts;
             private readonly Dictionary<long, PageLocalityTracker>? pageTrackers;
 
             internal ReadCachePlan(ReadCacheWindow[] windows, bool enableDynamicCache)
@@ -614,11 +607,7 @@ namespace TEHhub.Utils
                 if (enableDynamicCache)
                 {
                     this.exactWindows = new();
-                    this.compactWindows = new();
-                    this.mediumWindows = new();
                     this.pageWindows = new();
-                    this.compactAccessCounts = new();
-                    this.mediumAccessCounts = new();
                     this.pageTrackers = new();
                 }
             }
@@ -662,11 +651,7 @@ namespace TEHhub.Utils
             {
                 result = default;
                 if (this.exactWindows is null ||
-                    this.compactWindows is null ||
-                    this.mediumWindows is null ||
                     this.pageWindows is null ||
-                    this.compactAccessCounts is null ||
-                    this.mediumAccessCounts is null ||
                     this.pageTrackers is null)
                 {
                     return false;
@@ -688,14 +673,6 @@ namespace TEHhub.Utils
                 var offsetInPage = address - pageStart;
                 var fitsInPage = size <= PageBlockSize && offsetInPage + size <= PageBlockSize;
 
-                var mediumBlockStart = address & ~(MediumBlockSize - 1L);
-                var offsetInMedium = address - mediumBlockStart;
-                var fitsInMedium = size <= MediumBlockSize && offsetInMedium + size <= MediumBlockSize;
-
-                var compactBlockStart = address & ~(CompactBlockSize - 1L);
-                var offsetInCompact = address - compactBlockStart;
-                var fitsInCompact = size <= CompactBlockSize && offsetInCompact + size <= CompactBlockSize;
-
                 // 1. Check 4KB page window cache (O(1) dictionary lookup by aligned block start)
                 if (fitsInPage && this.pageWindows.TryGetValue(pageStart, out var pageWindow))
                 {
@@ -711,37 +688,7 @@ namespace TEHhub.Utils
                     }
                 }
 
-                // 2. Check 512B medium window cache (O(1) dictionary lookup by aligned block start)
-                if (fitsInMedium && this.mediumWindows.TryGetValue(mediumBlockStart, out var mediumWindow))
-                {
-                    if (offsetInMedium + size <= mediumWindow.ByteCount)
-                    {
-                        if (measure)
-                        {
-                            Ui.MemoryReadDiagnostics.RecordHybridMediumHit();
-                        }
-
-                        result = MemoryMarshal.Read<T>(mediumWindow.Buffer.AsSpan((int)offsetInMedium, size));
-                        return true;
-                    }
-                }
-
-                // 3. Check 128B compact window cache (O(1) dictionary lookup by aligned block start)
-                if (fitsInCompact && this.compactWindows.TryGetValue(compactBlockStart, out var compactWindow))
-                {
-                    if (offsetInCompact + size <= compactWindow.ByteCount)
-                    {
-                        if (measure)
-                        {
-                            Ui.MemoryReadDiagnostics.RecordHybridCompactHit();
-                        }
-
-                        result = MemoryMarshal.Read<T>(compactWindow.Buffer.AsSpan((int)offsetInCompact, size));
-                        return true;
-                    }
-                }
-
-                // 4. Check exact window cache (O(1) dictionary lookup by exact address)
+                // 2. Check exact window cache (O(1) dictionary lookup by exact address)
                 if (this.exactWindows.TryGetValue(address, out var existingSameAddressExact))
                 {
                     if (existingSameAddressExact.ByteCount >= size)
@@ -775,9 +722,9 @@ namespace TEHhub.Utils
                 }
 
                 // Total allocated dynamic windows count
-                var totalDynamicWindows = this.pageWindows.Count + this.mediumWindows.Count + this.compactWindows.Count + this.exactWindows.Count;
+                var totalDynamicWindows = this.pageWindows.Count + this.exactWindows.Count;
 
-                // 5. Update locality / hotness tracking on cache miss
+                // 3. Update locality / hotness tracking on cache miss
                 PageLocalityTracker? pageTracker = null;
                 if (fitsInPage && IsValidAddress(new IntPtr(pageStart)))
                 {
@@ -798,45 +745,7 @@ namespace TEHhub.Utils
                     }
                 }
 
-                int mediumCount = 0;
-                if (fitsInMedium && IsValidAddress(new IntPtr(mediumBlockStart)))
-                {
-                    if (this.mediumAccessCounts.TryGetValue(mediumBlockStart, out var currMed))
-                    {
-                        mediumCount = currMed + 1;
-                        this.mediumAccessCounts[mediumBlockStart] = mediumCount;
-                    }
-                    else if (this.mediumAccessCounts.Count < MaxTrackedBlocks)
-                    {
-                        mediumCount = 1;
-                        this.mediumAccessCounts.Add(mediumBlockStart, mediumCount);
-                    }
-                    else
-                    {
-                        mediumCount = 1;
-                    }
-                }
-
-                int compactCount = 0;
-                if (fitsInCompact && IsValidAddress(new IntPtr(compactBlockStart)))
-                {
-                    if (this.compactAccessCounts.TryGetValue(compactBlockStart, out var currComp))
-                    {
-                        compactCount = currComp + 1;
-                        this.compactAccessCounts[compactBlockStart] = compactCount;
-                    }
-                    else if (this.compactAccessCounts.Count < MaxTrackedBlocks)
-                    {
-                        compactCount = 1;
-                        this.compactAccessCounts.Add(compactBlockStart, compactCount);
-                    }
-                    else
-                    {
-                        compactCount = 1;
-                    }
-                }
-
-                // 6. Adaptive 4KB Page Promotion
+                // 4. Adaptive 4KB Page Promotion
                 var pageQualifies = pageTracker is not null &&
                     pageTracker.AccessCount >= PagePromotionAccessThreshold &&
                     pageTracker.GetUniqueByteCount() >= PagePromotionMinimumUniqueBytes &&
@@ -857,56 +766,6 @@ namespace TEHhub.Utils
 
                         var newPageWindow = new ReadCacheWindow(pageStart, PageBlockSize, pageBuffer);
                         this.pageWindows[pageStart] = newPageWindow;
-
-                        // Supersede any 512B medium windows contained inside [pageStart, pageStart + 4096)
-                        if (this.mediumWindows.Count > 0)
-                        {
-                            List<long>? toRemoveMed = null;
-                            foreach (var (addr, w) in this.mediumWindows)
-                            {
-                                if (addr >= pageStart && addr + w.ByteCount <= pageStart + PageBlockSize)
-                                {
-                                    toRemoveMed ??= new();
-                                    toRemoveMed.Add(addr);
-                                }
-                            }
-
-                            if (toRemoveMed is not null)
-                            {
-                                for (int i = 0; i < toRemoveMed.Count; i++)
-                                {
-                                    if (this.mediumWindows.Remove(toRemoveMed[i], out var oldMed))
-                                    {
-                                        ArrayPool<byte>.Shared.Return(oldMed.Buffer);
-                                    }
-                                }
-                            }
-                        }
-
-                        // Supersede any 128B compact windows contained inside [pageStart, pageStart + 4096)
-                        if (this.compactWindows.Count > 0)
-                        {
-                            List<long>? toRemoveComp = null;
-                            foreach (var (addr, w) in this.compactWindows)
-                            {
-                                if (addr >= pageStart && addr + w.ByteCount <= pageStart + PageBlockSize)
-                                {
-                                    toRemoveComp ??= new();
-                                    toRemoveComp.Add(addr);
-                                }
-                            }
-
-                            if (toRemoveComp is not null)
-                            {
-                                for (int i = 0; i < toRemoveComp.Count; i++)
-                                {
-                                    if (this.compactWindows.Remove(toRemoveComp[i], out var oldComp))
-                                    {
-                                        ArrayPool<byte>.Shared.Return(oldComp.Buffer);
-                                    }
-                                }
-                            }
-                        }
 
                         // Supersede any exact windows contained inside [pageStart, pageStart + 4096)
                         if (this.exactWindows.Count > 0)
@@ -937,7 +796,7 @@ namespace TEHhub.Utils
                         return true;
                     }
 
-                    // Promotion read failed; safely return rented buffer and preserve child caches
+                    // Promotion read failed; safely return rented buffer and preserve exact cache
                     ArrayPool<byte>.Shared.Return(pageBuffer);
                     if (measure)
                     {
@@ -945,140 +804,7 @@ namespace TEHhub.Utils
                     }
                 }
 
-                // 7. Adaptive 512B Medium Promotion (if not page-promoted)
-                if (fitsInMedium &&
-                    mediumCount >= MediumPromotionThreshold &&
-                    totalDynamicWindows < MaxDynamicWindows &&
-                    IsValidAddress(new IntPtr(mediumBlockStart)))
-                {
-                    var mediumBuffer = ArrayPool<byte>.Shared.Rent(MediumBlockSize);
-                    if (reader.TryReadMemoryArray(new IntPtr(mediumBlockStart), mediumBuffer, MediumBlockSize, out _))
-                    {
-                        if (measure)
-                        {
-                            Ui.MemoryReadDiagnostics.RecordHybridMediumPromotion(MediumBlockSize);
-                        }
-
-                        var newMediumWindow = new ReadCacheWindow(mediumBlockStart, MediumBlockSize, mediumBuffer);
-                        this.mediumWindows[mediumBlockStart] = newMediumWindow;
-
-                        // Supersede any 128B compact windows contained inside [mediumBlockStart, mediumBlockStart + 512)
-                        if (this.compactWindows.Count > 0)
-                        {
-                            List<long>? toRemoveComp = null;
-                            foreach (var (addr, w) in this.compactWindows)
-                            {
-                                if (addr >= mediumBlockStart && addr + w.ByteCount <= mediumBlockStart + MediumBlockSize)
-                                {
-                                    toRemoveComp ??= new();
-                                    toRemoveComp.Add(addr);
-                                }
-                            }
-
-                            if (toRemoveComp is not null)
-                            {
-                                for (int i = 0; i < toRemoveComp.Count; i++)
-                                {
-                                    if (this.compactWindows.Remove(toRemoveComp[i], out var oldComp))
-                                    {
-                                        ArrayPool<byte>.Shared.Return(oldComp.Buffer);
-                                    }
-                                }
-                            }
-                        }
-
-                        // Supersede any exact windows contained inside [mediumBlockStart, mediumBlockStart + 512)
-                        if (this.exactWindows.Count > 0)
-                        {
-                            List<long>? toRemoveExact = null;
-                            foreach (var (addr, w) in this.exactWindows)
-                            {
-                                if (addr >= mediumBlockStart && addr + w.ByteCount <= mediumBlockStart + MediumBlockSize)
-                                {
-                                    toRemoveExact ??= new();
-                                    toRemoveExact.Add(addr);
-                                }
-                            }
-
-                            if (toRemoveExact is not null)
-                            {
-                                for (int i = 0; i < toRemoveExact.Count; i++)
-                                {
-                                    if (this.exactWindows.Remove(toRemoveExact[i], out var oldExact))
-                                    {
-                                        ArrayPool<byte>.Shared.Return(oldExact.Buffer);
-                                    }
-                                }
-                            }
-                        }
-
-                        result = MemoryMarshal.Read<T>(mediumBuffer.AsSpan((int)offsetInMedium, size));
-                        return true;
-                    }
-
-                    // Promotion read failed; safely return rented buffer and preserve child caches
-                    ArrayPool<byte>.Shared.Return(mediumBuffer);
-                    if (measure)
-                    {
-                        Ui.MemoryReadDiagnostics.RecordHybridPromotionFailure(Ui.HybridPromotionLevel.Medium512B);
-                    }
-                }
-
-                // 8. Adaptive 128B Compact Promotion (if not medium-promoted)
-                if (fitsInCompact &&
-                    compactCount >= CompactPromotionThreshold &&
-                    totalDynamicWindows < MaxDynamicWindows &&
-                    IsValidAddress(new IntPtr(compactBlockStart)))
-                {
-                    var compactBuffer = ArrayPool<byte>.Shared.Rent(CompactBlockSize);
-                    if (reader.TryReadMemoryArray(new IntPtr(compactBlockStart), compactBuffer, CompactBlockSize, out _))
-                    {
-                        if (measure)
-                        {
-                            Ui.MemoryReadDiagnostics.RecordHybridCompactPromotion(CompactBlockSize);
-                        }
-
-                        var newCompactWindow = new ReadCacheWindow(compactBlockStart, CompactBlockSize, compactBuffer);
-                        this.compactWindows[compactBlockStart] = newCompactWindow;
-
-                        // Supersede any exact windows contained inside [compactBlockStart, compactBlockStart + 128)
-                        if (this.exactWindows.Count > 0)
-                        {
-                            List<long>? toRemoveExact = null;
-                            foreach (var (addr, w) in this.exactWindows)
-                            {
-                                if (addr >= compactBlockStart && addr + w.ByteCount <= compactBlockStart + CompactBlockSize)
-                                {
-                                    toRemoveExact ??= new();
-                                    toRemoveExact.Add(addr);
-                                }
-                            }
-
-                            if (toRemoveExact is not null)
-                            {
-                                for (int i = 0; i < toRemoveExact.Count; i++)
-                                {
-                                    if (this.exactWindows.Remove(toRemoveExact[i], out var oldExact))
-                                    {
-                                        ArrayPool<byte>.Shared.Return(oldExact.Buffer);
-                                    }
-                                }
-                            }
-                        }
-
-                        result = MemoryMarshal.Read<T>(compactBuffer.AsSpan((int)offsetInCompact, size));
-                        return true;
-                    }
-
-                    // Promotion read failed; safely return rented buffer and preserve exact cache
-                    ArrayPool<byte>.Shared.Return(compactBuffer);
-                    if (measure)
-                    {
-                        Ui.MemoryReadDiagnostics.RecordHybridPromotionFailure(Ui.HybridPromotionLevel.Compact128B);
-                    }
-                }
-
-                // 9. Exact-First Read (first access, non-promoted, promotion failure, or cross-boundary requests)
+                // 5. Exact-First Read (first access, non-promoted, promotion failure, or cross-boundary requests)
                 if (existingSameAddressExact is null && totalDynamicWindows >= MaxDynamicWindows)
                 {
                     return false;
@@ -1135,26 +861,6 @@ namespace TEHhub.Utils
                     this.pageWindows.Clear();
                 }
 
-                if (this.mediumWindows is not null)
-                {
-                    foreach (var window in this.mediumWindows.Values)
-                    {
-                        ArrayPool<byte>.Shared.Return(window.Buffer);
-                    }
-
-                    this.mediumWindows.Clear();
-                }
-
-                if (this.compactWindows is not null)
-                {
-                    foreach (var window in this.compactWindows.Values)
-                    {
-                        ArrayPool<byte>.Shared.Return(window.Buffer);
-                    }
-
-                    this.compactWindows.Clear();
-                }
-
                 if (this.exactWindows is not null)
                 {
                     foreach (var window in this.exactWindows.Values)
@@ -1166,8 +872,6 @@ namespace TEHhub.Utils
                 }
 
                 this.pageTrackers?.Clear();
-                this.mediumAccessCounts?.Clear();
-                this.compactAccessCounts?.Clear();
             }
 
             private sealed class PageLocalityTracker
