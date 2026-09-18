@@ -1364,17 +1364,21 @@ internal static class BottleneckTests
         check(PerformanceProfiler.GetTreeSnapshot().Count == 0, "11b: Reset clears tree snapshot nodes");
         check(PerformanceProfiler.GetApiSnapshot().Rows.Length == 0, "11c: Reset clears flat snapshot rows");
 
-        // 12. Current Frame Only does not show stale accumulated data
+        // 12. Current Frame Only does not show stale accumulated data and prunes historical branches
         PerformanceProfiler.Reset();
         PerformanceProfiler.StartFrame();
-        using (PerformanceProfiler.Measure("Test", "Frame1Only")) { }
+        using (PerformanceProfiler.Measure("Test", "HistParent"))
+        {
+            using (PerformanceProfiler.Measure("Test", "HistChild")) { }
+        }
         PerformanceProfiler.EndFrame();
 
+        // Frame 2: Only Unrelated runs
         PerformanceProfiler.StartFrame();
-        using (PerformanceProfiler.Measure("Test", "Frame2Only")) { }
+        using (PerformanceProfiler.Measure("Test", "Unrelated")) { }
         var curFrameTree = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: true);
-        check(curFrameTree.Any(r => r.Name == "Test.Frame2Only"), "12a: Current frame tree contains Frame2Only");
-        check(!curFrameTree.Any(r => r.Name == "Test.Frame1Only"), "12b: Current frame tree excludes Frame1Only from prior frame");
+        check(curFrameTree.Count == 1 && curFrameTree[0].Name == "Test.Unrelated", "12a: Current frame tree contains only Unrelated");
+        check(!curFrameTree.Any(r => r.Name == "Test.HistParent" || r.Name == "Test.HistChild"), "12b: Current frame tree completely prunes HistParent and HistChild branches");
         PerformanceProfiler.EndFrame();
 
         // 13. Recursive/re-entrant scope safety
@@ -1413,8 +1417,73 @@ internal static class BottleneckTests
         }
         check(PerformanceProfiler.GetTreeSnapshot().Count == 0, "14b: No nodes created when profiler is disabled");
 
+        // 15. True Current-Frame Percentile Isolation
+        Core.GHSettings.ShowPerfProfiler = true;
+        PerformanceProfiler.Reset();
+        // Frame 1: Slow call (1000 ticks)
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "PercentileScope"))
+        {
+            var sw = Stopwatch.GetTimestamp(); while (Stopwatch.GetTimestamp() - sw < 2000) { }
+        }
+        PerformanceProfiler.EndFrame();
+        var f1Snap = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: false);
+        var f1P95 = f1Snap[0].P95CallNs;
+
+        // Frame 2: Fast calls (minimal ticks)
+        PerformanceProfiler.StartFrame();
+        for (var i = 0; i < 20; i++)
+        {
+            using (PerformanceProfiler.Measure("Test", "PercentileScope")) { }
+        }
+        var curFramePercentiles = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: true);
+        var curP95 = curFramePercentiles[0].P95CallNs;
+        check(curP95 < f1P95 / 2.0, "15a: Current Frame Only P95 reflects only current frame samples and does not leak prior frame slow sample");
+        PerformanceProfiler.EndFrame();
+
+        // 16. Flat Hotspots Aggregated Percentiles with Merged Population
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "Parent1"))
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                using (PerformanceProfiler.Measure("Test", "SharedLeaf"))
+                {
+                    var sw = Stopwatch.GetTimestamp(); while (Stopwatch.GetTimestamp() - sw < 200) { }
+                }
+            }
+        }
+        using (PerformanceProfiler.Measure("Test", "Parent2"))
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                using (PerformanceProfiler.Measure("Test", "SharedLeaf"))
+                {
+                    var sw = Stopwatch.GetTimestamp(); while (Stopwatch.GetTimestamp() - sw < 1000) { }
+                }
+            }
+        }
+        PerformanceProfiler.EndFrame();
+        var flatSnap16 = PerformanceProfiler.GetApiSnapshot();
+        var flatLeaf = flatSnap16.Rows.First(r => r.Name == "Test.SharedLeaf");
+        check(flatLeaf.Count == 10 && flatLeaf.P95CallNanoseconds > 0, "16: Flat hotspot combines population from multiple parents and computes merged percentile");
+
+        // 17. Reset Generation Safety
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        var unclosedScopeA = PerformanceProfiler.Measure("Test", "ScopeA");
+        PerformanceProfiler.Reset(); // Reset while ScopeA is active
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "ScopeB")) { }
+        unclosedScopeA.Dispose(); // Disposing old generation scope must not corrupt ScopeB
+        var postResetTree = PerformanceProfiler.GetTreeSnapshot();
+        check(postResetTree.Count == 1 && postResetTree[0].Name == "Test.ScopeB", "17a: ScopeB is the only node in the new generation");
+        check(postResetTree[0].Count == 1, "17b: ScopeB count is not corrupted by old ScopeA exit");
+        PerformanceProfiler.EndFrame();
+
         // =========================================================================
-        // Profiler Overhead Benchmark: Disabled vs Flat vs Nested Scopes
+        // Profiler Overhead Benchmark: Disabled vs Measure vs Profile vs Nested
         // =========================================================================
         const int ProfilerBenchIterations = 100_000;
         Console.WriteLine("\n=========================================================================================");
@@ -1436,23 +1505,38 @@ internal static class BottleneckTests
         var disabledAlloc = (double)(GC.GetAllocatedBytesForCurrentThread() - disabledAllocBefore) / ProfilerBenchIterations;
         var disabledNs = swDisabled.Elapsed.TotalNanoseconds / ProfilerBenchIterations;
 
-        // 2. Profiler Enabled - Flat / Single Scope
+        // 2. Profiler Enabled - Measure() (Allocation-Free Struct Hot Path)
         Core.GHSettings.ShowPerfProfiler = true;
         PerformanceProfiler.Reset();
         PerformanceProfiler.StartFrame();
-        for (var w = 0; w < 1000; w++) { using (PerformanceProfiler.Measure("Bench", "FlatScope")) { } }
+        for (var w = 0; w < 1000; w++) { using (PerformanceProfiler.Measure("Bench", "FlatMeasure")) { } }
         GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
-        var flatAllocBefore = GC.GetAllocatedBytesForCurrentThread();
-        var swFlat = Stopwatch.StartNew();
+        var flatMeasureAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        var swFlatMeasure = Stopwatch.StartNew();
         for (var i = 0; i < ProfilerBenchIterations; i++)
         {
-            using (PerformanceProfiler.Measure("Bench", "FlatScope")) { }
+            using (PerformanceProfiler.Measure("Bench", "FlatMeasure")) { }
         }
-        swFlat.Stop();
-        var flatAlloc = (double)(GC.GetAllocatedBytesForCurrentThread() - flatAllocBefore) / ProfilerBenchIterations;
-        var flatNs = swFlat.Elapsed.TotalNanoseconds / ProfilerBenchIterations;
+        swFlatMeasure.Stop();
+        var flatMeasureAlloc = (double)(GC.GetAllocatedBytesForCurrentThread() - flatMeasureAllocBefore) / ProfilerBenchIterations;
+        var flatMeasureNs = swFlatMeasure.Elapsed.TotalNanoseconds / ProfilerBenchIterations;
 
-        // 3. Profiler Enabled - Nested Scopes (Depth 3: Root -> Child -> GrandChild)
+        // 3. Profiler Enabled - Profile() (Class IDisposable Compatibility Path)
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        for (var w = 0; w < 1000; w++) { using (PerformanceProfiler.Profile("Bench", "FlatProfile")) { } }
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        var flatProfileAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        var swFlatProfile = Stopwatch.StartNew();
+        for (var i = 0; i < ProfilerBenchIterations; i++)
+        {
+            using (PerformanceProfiler.Profile("Bench", "FlatProfile")) { }
+        }
+        swFlatProfile.Stop();
+        var flatProfileAlloc = (double)(GC.GetAllocatedBytesForCurrentThread() - flatProfileAllocBefore) / ProfilerBenchIterations;
+        var flatProfileNs = swFlatProfile.Elapsed.TotalNanoseconds / ProfilerBenchIterations;
+
+        // 4. Profiler Enabled - Nested Scopes via Measure() (Depth 3: Root -> Child -> GrandChild)
         PerformanceProfiler.Reset();
         for (var w = 0; w < 1000; w++)
         {
@@ -1483,9 +1567,10 @@ internal static class BottleneckTests
         var nestedNs = swNested.Elapsed.TotalNanoseconds / nestedTotalScopes;
         PerformanceProfiler.EndFrame();
 
-        Console.WriteLine($"  1. Profiler Disabled:            {disabledNs,6:F1} ns/scope, {disabledAlloc:F1} B/scope");
-        Console.WriteLine($"  2. Profiler Enabled (Flat):      {flatNs,6:F1} ns/scope, {flatAlloc:F1} B/scope");
-        Console.WriteLine($"  3. Profiler Enabled (Nested D3): {nestedNs,6:F1} ns/scope, {nestedAlloc:F1} B/scope");
+        Console.WriteLine($"  1. Profiler Disabled (Measure):   {disabledNs,6:F1} ns/scope, {disabledAlloc:F1} B/scope");
+        Console.WriteLine($"  2. Profiler Enabled (Measure):    {flatMeasureNs,6:F1} ns/scope, {flatMeasureAlloc:F1} B/scope [Production Hot Path]");
+        Console.WriteLine($"  3. Profiler Enabled (Profile):    {flatProfileNs,6:F1} ns/scope, {flatProfileAlloc:F1} B/scope [Legacy Compatibility]");
+        Console.WriteLine($"  4. Profiler Enabled (Nested D3):  {nestedNs,6:F1} ns/scope, {nestedAlloc:F1} B/scope [Production Hot Path]");
         Console.WriteLine("=========================================================================================\n");
     }
 

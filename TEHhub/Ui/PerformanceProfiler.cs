@@ -30,6 +30,7 @@ public static class PerformanceProfiler
     private static readonly List<int> RootNodeIds = new();
     private static readonly object HierarchyLock = new();
     private static int nextNodeId = 1;
+    private static int currentSessionGeneration = 1;
 
     // Global session frame counter
     private static long totalFramesCaptured;
@@ -45,6 +46,7 @@ public static class PerformanceProfiler
     private struct ThreadScopeFrame
     {
         public int NodeId;
+        public int Generation;
         public long StartTimestamp;
         public long StartAllocated;
         public long DirectChildTicks;
@@ -71,8 +73,17 @@ public static class PerformanceProfiler
         }
 
         var key = GetProfileKey(namespaceName, methodName);
+        var gen = Volatile.Read(ref currentSessionGeneration);
         var stack = threadStack;
         var depth = threadStackDepth;
+
+        // Prune any stale stack frames from previous session generations
+        while (depth > 0 && stack != null && stack[depth - 1].Generation != gen)
+        {
+            depth--;
+        }
+        threadStackDepth = depth;
+
         var parentId = depth > 0 ? stack![depth - 1].NodeId : 0;
         var nodeId = GetOrCreateNode(parentId, key);
 
@@ -85,13 +96,14 @@ public static class PerformanceProfiler
         stack[depth] = new ThreadScopeFrame
         {
             NodeId = nodeId,
+            Generation = gen,
             StartTimestamp = Stopwatch.GetTimestamp(),
             StartAllocated = GC.GetAllocatedBytesForCurrentThread(),
             DirectChildTicks = 0,
         };
         threadStackDepth = depth + 1;
 
-        return new ProfileScope(depth + 1);
+        return new ProfileScope(depth + 1, gen);
     }
 
     public static IDisposable? Profile(string namespaceName, string methodName)
@@ -105,10 +117,26 @@ public static class PerformanceProfiler
         return new ProfileDisposable(scope);
     }
 
-    internal static void RecordScopeExit(int expectedDepth)
+    internal static void RecordScopeExit(int expectedDepth, int expectedGeneration)
     {
         var depth = threadStackDepth;
-        if (depth != expectedDepth || depth == 0)
+        if (depth == 0)
+        {
+            return;
+        }
+
+        // If the session reset while this scope was active, discard sample safely and clean up stack
+        if (expectedGeneration != Volatile.Read(ref currentSessionGeneration))
+        {
+            if (depth >= expectedDepth && threadStack != null && threadStack[expectedDepth - 1].Generation == expectedGeneration)
+            {
+                threadStackDepth = expectedDepth - 1;
+            }
+
+            return;
+        }
+
+        if (depth != expectedDepth)
         {
             return;
         }
@@ -116,6 +144,11 @@ public static class PerformanceProfiler
         var newDepth = depth - 1;
         threadStackDepth = newDepth;
         ref var frame = ref threadStack![newDepth];
+
+        if (frame.Generation != expectedGeneration)
+        {
+            return;
+        }
 
         var endTimestamp = Stopwatch.GetTimestamp();
         var endAllocated = GC.GetAllocatedBytesForCurrentThread();
@@ -129,7 +162,7 @@ public static class PerformanceProfiler
             node.AddSample(inclusiveTicks, selfTicks, allocatedBytes);
         }
 
-        if (newDepth > 0)
+        if (newDepth > 0 && threadStack[newDepth - 1].Generation == expectedGeneration)
         {
             threadStack[newDepth - 1].DirectChildTicks += inclusiveTicks;
         }
@@ -162,6 +195,7 @@ public static class PerformanceProfiler
     {
         lock (HierarchyLock)
         {
+            Interlocked.Increment(ref currentSessionGeneration);
             NodeLookup.Clear();
             Nodes.Clear();
             ProfileKeys.Clear();
@@ -284,11 +318,6 @@ public static class PerformanceProfiler
         {
             count = node.CurrentFrameCount;
             callsPerFrame = count;
-            if (count == 0 && node.Children.Count == 0)
-            {
-                return null;
-            }
-
             incAvgCallNs = count > 0 ? (node.CurrentFrameInclusiveTicks * NsPerTick) / count : 0.0;
             incAvgFrameNs = node.CurrentFrameInclusiveTicks * NsPerTick;
             selfAvgCallNs = count > 0 ? (node.CurrentFrameSelfTicks * NsPerTick) / count : 0.0;
@@ -298,17 +327,41 @@ public static class PerformanceProfiler
         else
         {
             count = node.TotalCount;
-            if (count == 0 && node.Children.Count == 0)
-            {
-                return null;
-            }
-
             callsPerFrame = (double)count / frames;
             incAvgCallNs = count > 0 ? (node.SessionSumInclusiveTicks * NsPerTick) / count : 0.0;
             incAvgFrameNs = (node.SessionSumInclusiveTicks * NsPerTick) / frames;
             selfAvgCallNs = count > 0 ? (node.SessionSumSelfTicks * NsPerTick) / count : 0.0;
             selfAvgFrameNs = (node.SessionSumSelfTicks * NsPerTick) / frames;
             avgAllocBytes = count > 0 ? (double)node.SessionSumAllocatedBytes / count : 0.0;
+        }
+
+        List<int> childIds;
+        lock (node.Children)
+        {
+            childIds = node.Children.ToList();
+        }
+
+        var activeChildren = new List<ProfilerTreeNode>();
+        foreach (var childId in childIds)
+        {
+            if (Nodes.TryGetValue(childId, out var childNode))
+            {
+                var childTreeNode = BuildTreeNode(childNode, frames, currentFrameOnly, depth + 1);
+                if (childTreeNode != null)
+                {
+                    activeChildren.Add(childTreeNode);
+                }
+            }
+        }
+
+        if (currentFrameOnly && count == 0 && activeChildren.Count == 0)
+        {
+            return null;
+        }
+
+        if (!currentFrameOnly && count == 0 && activeChildren.Count == 0)
+        {
+            return null;
         }
 
         var treeNode = new ProfilerTreeNode
@@ -324,30 +377,13 @@ public static class PerformanceProfiler
             InclusiveAvgFrameNs = incAvgFrameNs,
             SelfAvgCallNs = selfAvgCallNs,
             SelfAvgFrameNs = selfAvgFrameNs,
-            P95CallNs = node.GetPercentileTicks(0.95) * NsPerTick,
-            P99CallNs = node.GetPercentileTicks(0.99) * NsPerTick,
+            P95CallNs = node.GetPercentileTicks(0.95, currentFrameOnly) * NsPerTick,
+            P99CallNs = node.GetPercentileTicks(0.99, currentFrameOnly) * NsPerTick,
             AvgAllocatedBytes = avgAllocBytes,
         };
 
-        List<int> childIds;
-        lock (node.Children)
-        {
-            childIds = node.Children.ToList();
-        }
-
-        foreach (var childId in childIds)
-        {
-            if (Nodes.TryGetValue(childId, out var childNode))
-            {
-                var childTreeNode = BuildTreeNode(childNode, frames, currentFrameOnly, depth + 1);
-                if (childTreeNode != null)
-                {
-                    treeNode.Children.Add(childTreeNode);
-                }
-            }
-        }
-
-        treeNode.Children.Sort(static (a, b) => b.InclusiveAvgFrameNs.CompareTo(a.InclusiveAvgFrameNs));
+        activeChildren.Sort(static (a, b) => b.InclusiveAvgFrameNs.CompareTo(a.InclusiveAvgFrameNs));
+        treeNode.Children.AddRange(activeChildren);
         return treeNode;
     }
 
@@ -365,8 +401,6 @@ public static class PerformanceProfiler
             double incAvgFrameNs;
             double selfAvgCallNs;
             double selfAvgFrameNs;
-            double p95Ns;
-            double p99Ns;
             double avgAllocBytes;
 
             if (currentFrameOnly)
@@ -383,8 +417,6 @@ public static class PerformanceProfiler
                 selfAvgCallNs = (totalFrameSelfTicks * NsPerTick) / count;
                 selfAvgFrameNs = totalFrameSelfTicks * NsPerTick;
                 avgAllocBytes = (double)totalFrameAlloc / count;
-                p95Ns = incAvgCallNs;
-                p99Ns = incAvgCallNs;
             }
             else
             {
@@ -400,8 +432,18 @@ public static class PerformanceProfiler
                 selfAvgCallNs = (totalSelfTicks * NsPerTick) / count;
                 selfAvgFrameNs = (totalSelfTicks * NsPerTick) / frames;
                 avgAllocBytes = (double)totalAlloc / count;
-                p95Ns = g.Max(static n => n.GetPercentileTicks(0.95)) * NsPerTick;
-                p99Ns = g.Max(static n => n.GetPercentileTicks(0.99)) * NsPerTick;
+            }
+
+            // Merged bounded sample population from all nodes in this group
+            var combinedSamples = g.SelectMany(n => currentFrameOnly ? n.GetCurrentFrameSamples() : n.GetRecentSamples()).ToArray();
+            double p95Ns = 0.0, p99Ns = 0.0;
+            if (combinedSamples.Length > 0)
+            {
+                Array.Sort(combinedSamples);
+                var idx95 = Math.Clamp((int)Math.Ceiling(combinedSamples.Length * 0.95) - 1, 0, combinedSamples.Length - 1);
+                var idx99 = Math.Clamp((int)Math.Ceiling(combinedSamples.Length * 0.99) - 1, 0, combinedSamples.Length - 1);
+                p95Ns = combinedSamples[idx95] * NsPerTick;
+                p99Ns = combinedSamples[idx99] * NsPerTick;
             }
 
             rows.Add(new ProfilerFlatRow(
@@ -430,7 +472,7 @@ public static class PerformanceProfiler
                 continue;
             }
 
-            ImGui.SetNextWindowSize(new Vector2(850, 520), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSize(new Vector2(880, 520), ImGuiCond.FirstUseEver);
             if (ImGui.Begin("Performance Profiler", ref Core.GHSettings.ShowPerfProfiler, ImGuiWindowFlags.MenuBar))
             {
                 if (ImGui.BeginMenuBar())
@@ -477,14 +519,15 @@ public static class PerformanceProfiler
 
     private static void RenderTreeView()
     {
-        if (ImGui.BeginTable("profilerTreeTable", 8,
+        if (ImGui.BeginTable("profilerTreeTable", 9,
                 ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
                 ImGui.GetContentRegionAvail()))
         {
-            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.5f);
-            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
-            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
-            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.8f);
+            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.2f);
+            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
+            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
+            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.7f);
+            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthStretch, 0.7f);
             ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
             ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
             ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
@@ -513,10 +556,6 @@ public static class PerformanceProfiler
         {
             flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
         }
-        else
-        {
-            flags |= ImGuiTreeNodeFlags.DefaultOpen;
-        }
 
         var isOpen = ImGui.TreeNodeEx($"##Node_{node.Id}", flags, node.DisplayName);
 
@@ -528,6 +567,9 @@ public static class PerformanceProfiler
 
         ImGui.TableNextColumn();
         ImGui.Text(node.CallsPerFrame >= 10.0 ? $"{node.CallsPerFrame:F1}" : $"{node.CallsPerFrame:F2}");
+
+        ImGui.TableNextColumn();
+        ImGui.Text($"{node.Count:N0}");
 
         ImGui.TableNextColumn();
         ImGui.Text(FormatTime(node.InclusiveAvgCallNs));
@@ -554,14 +596,15 @@ public static class PerformanceProfiler
 
     private static void RenderFlatHotspotsView()
     {
-        if (ImGui.BeginTable("profilerFlatTable", 8,
+        if (ImGui.BeginTable("profilerFlatTable", 9,
                 ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
                 ImGui.GetContentRegionAvail()))
         {
-            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.5f);
-            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
-            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
-            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.8f);
+            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.2f);
+            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
+            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.1f);
+            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.7f);
+            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthStretch, 0.7f);
             ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
             ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
             ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
@@ -584,10 +627,11 @@ public static class PerformanceProfiler
                     1 => ascending ? cachedFlatRows.OrderBy(static r => r.InclusiveAvgFrameNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.InclusiveAvgFrameNs).ToList(),
                     2 => ascending ? cachedFlatRows.OrderBy(static r => r.SelfAvgFrameNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.SelfAvgFrameNs).ToList(),
                     3 => ascending ? cachedFlatRows.OrderBy(static r => r.CallsPerFrame).ToList() : cachedFlatRows.OrderByDescending(static r => r.CallsPerFrame).ToList(),
-                    4 => ascending ? cachedFlatRows.OrderBy(static r => r.InclusiveAvgCallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.InclusiveAvgCallNs).ToList(),
-                    5 => ascending ? cachedFlatRows.OrderBy(static r => r.P95CallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.P95CallNs).ToList(),
-                    6 => ascending ? cachedFlatRows.OrderBy(static r => r.P99CallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.P99CallNs).ToList(),
-                    7 => ascending ? cachedFlatRows.OrderBy(static r => r.AvgAllocatedBytes).ToList() : cachedFlatRows.OrderByDescending(static r => r.AvgAllocatedBytes).ToList(),
+                    4 => ascending ? cachedFlatRows.OrderBy(static r => r.Count).ToList() : cachedFlatRows.OrderByDescending(static r => r.Count).ToList(),
+                    5 => ascending ? cachedFlatRows.OrderBy(static r => r.InclusiveAvgCallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.InclusiveAvgCallNs).ToList(),
+                    6 => ascending ? cachedFlatRows.OrderBy(static r => r.P95CallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.P95CallNs).ToList(),
+                    7 => ascending ? cachedFlatRows.OrderBy(static r => r.P99CallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.P99CallNs).ToList(),
+                    8 => ascending ? cachedFlatRows.OrderBy(static r => r.AvgAllocatedBytes).ToList() : cachedFlatRows.OrderByDescending(static r => r.AvgAllocatedBytes).ToList(),
                     _ => cachedFlatRows.OrderByDescending(static r => r.AvgAllocatedBytes).ToList(),
                 };
             }
@@ -606,6 +650,9 @@ public static class PerformanceProfiler
 
                 ImGui.TableNextColumn();
                 ImGui.Text(row.CallsPerFrame >= 10.0 ? $"{row.CallsPerFrame:F1}" : $"{row.CallsPerFrame:F2}");
+
+                ImGui.TableNextColumn();
+                ImGui.Text($"{row.Count:N0}");
 
                 ImGui.TableNextColumn();
                 ImGui.Text(FormatTime(row.InclusiveAvgCallNs));
@@ -653,17 +700,19 @@ public static class PerformanceProfiler
     internal readonly struct ProfileScope : IDisposable
     {
         private readonly int depth;
+        private readonly int generation;
 
-        internal ProfileScope(int depth)
+        internal ProfileScope(int depth, int generation)
         {
             this.depth = depth;
+            this.generation = generation;
         }
 
         public void Dispose()
         {
             if (this.depth > 0)
             {
-                RecordScopeExit(this.depth);
+                RecordScopeExit(this.depth, this.generation);
             }
         }
     }
@@ -705,6 +754,7 @@ internal class ProfilerNode
 
     private const int WindowSize = 100;
     private readonly ConcurrentQueue<long> recentInclusiveTicks = new();
+    private readonly ConcurrentQueue<long> currentFrameInclusiveTicksQueue = new();
 
     private int currentFrameCount;
     private long currentFrameInclusiveTicks;
@@ -746,6 +796,12 @@ internal class ProfilerNode
         {
             this.recentInclusiveTicks.TryDequeue(out _);
         }
+
+        this.currentFrameInclusiveTicksQueue.Enqueue(inclusiveTicks);
+        while (this.currentFrameInclusiveTicksQueue.Count > WindowSize)
+        {
+            this.currentFrameInclusiveTicksQueue.TryDequeue(out _);
+        }
     }
 
     public void ResetCurrentFrame()
@@ -754,11 +810,16 @@ internal class ProfilerNode
         Volatile.Write(ref this.currentFrameInclusiveTicks, 0);
         Volatile.Write(ref this.currentFrameSelfTicks, 0);
         Volatile.Write(ref this.currentFrameAllocatedBytes, 0);
+        this.currentFrameInclusiveTicksQueue.Clear();
     }
 
-    public long GetPercentileTicks(double percentile)
+    public long[] GetRecentSamples() => this.recentInclusiveTicks.ToArray();
+
+    public long[] GetCurrentFrameSamples() => this.currentFrameInclusiveTicksQueue.ToArray();
+
+    public long GetPercentileTicks(double percentile, bool currentFrameOnly = false)
     {
-        var samples = this.recentInclusiveTicks.ToArray();
+        var samples = currentFrameOnly ? this.currentFrameInclusiveTicksQueue.ToArray() : this.recentInclusiveTicks.ToArray();
         if (samples.Length == 0)
         {
             return 0;
