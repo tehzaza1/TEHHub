@@ -190,9 +190,9 @@ namespace AutoExile2.WebServer
                     var result = new List<object>();
                     var buffsList = new List<object>();
 
-                    if (player != null && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
+                    if (player != null && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.FastStatusEffects != null)
                     {
-                        foreach (var (bName, sEff) in pBuffs.StatusEffects)
+                        foreach (var (bName, sEff) in pBuffs.FastStatusEffects)
                         {
                             buffsList.Add(new
                             {

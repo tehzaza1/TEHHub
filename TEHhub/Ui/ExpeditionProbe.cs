@@ -149,7 +149,7 @@ namespace TEHhub.Ui
             var buffNames = new List<string>();
             if (entity.TryGetComponent<Buffs>(out var buffs, shouldCache: false))
             {
-                buffNames = buffs.StatusEffects.Keys.Take(MaxModsPerCandidate).OrderBy(name => name, StringComparer.Ordinal).ToList();
+                buffNames = buffs.FastStatusEffects.Keys.Take(MaxModsPerCandidate).OrderBy(name => name, StringComparer.Ordinal).ToList();
             }
 
             var stats = new List<ExpeditionProbeStat>();

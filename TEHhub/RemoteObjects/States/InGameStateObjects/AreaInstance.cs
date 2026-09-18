@@ -449,7 +449,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                         break;
                     }
 
-                    foreach (var statusEffect in entityBuffs.StatusEffects)
+                    foreach (var statusEffect in entityBuffs.FastStatusEffects)
                     {
                         if (!statusEffect.Key.Contains(definition.BuffNameFragment, StringComparison.OrdinalIgnoreCase))
                         {
@@ -1201,10 +1201,10 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
                         // -------- Buffs --------
                         List<string>? buffs = null;
-                        if (entity.Value.TryGetComponent<Buffs>(out var buf) && buf.StatusEffects != null)
+                        if (entity.Value.TryGetComponent<Buffs>(out var buf) && buf.FastStatusEffects != null)
                         {
                             var list = new List<string>();
-                            foreach (var se in buf.StatusEffects) // don’t check Count; enumerate directly
+                            foreach (var se in buf.FastStatusEffects) // don’t check Count; enumerate directly
                             {
                                 // se might be KeyValuePair<string, T>
                                 var name = TryGetKeyName(se);

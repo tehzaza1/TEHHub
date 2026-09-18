@@ -249,7 +249,7 @@ namespace AutoHotKeyTrigger
                 if (Core.States.InGameStateObject.CurrentAreaInstance.Player.TryGetComponent<Buffs>(out var buff))
                 {
                     var data = "===========================================" + Environment.NewLine;
-                    foreach (var statusEffect in buff.StatusEffects)
+                    foreach (var statusEffect in buff.FastStatusEffects)
                     {
                         data += $"{statusEffect.Key} {statusEffect.Value}\n";
                     }
@@ -337,7 +337,7 @@ namespace AutoHotKeyTrigger
 
                 if (entity.TryGetComponent<Buffs>(out var buffs))
                 {
-                    foreach (var name in buffs.StatusEffects.Keys)
+                    foreach (var name in buffs.FastStatusEffects.Keys)
                     {
                         var lower = name.ToLowerInvariant();
                         if (lower.Contains("invuln") || lower.Contains("immun") ||
@@ -498,7 +498,7 @@ namespace AutoHotKeyTrigger
 
             if (Core.States.InGameStateObject.CurrentAreaInstance.Player.TryGetComponent<Buffs>(out var buffComp))
             {
-                if (buffComp.StatusEffects.ContainsKey("grace_period"))
+                if (buffComp.FastStatusEffects.ContainsKey("grace_period"))
                 {
                     this.debugMessage = "Player has Grace Period.";
                     return false;

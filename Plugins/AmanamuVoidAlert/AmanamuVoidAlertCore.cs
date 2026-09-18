@@ -249,7 +249,7 @@ namespace AmanamuVoidAlert
 
                 if (entity.TryGetComponent<Buffs>(out var buffs))
                 {
-                    foreach (var kv in buffs.StatusEffects)
+                    foreach (var kv in buffs.FastStatusEffects)
                     {
                         buffNames.Add(kv.Key);
                         if (kv.Key.Contains(BuffPrefixAbyssLightlessWell, StringComparison.OrdinalIgnoreCase))

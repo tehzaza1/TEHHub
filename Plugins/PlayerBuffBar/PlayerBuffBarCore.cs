@@ -1112,7 +1112,7 @@ namespace PlayerBuffBar
                 return activeByWatchId;
             }
 
-            foreach (var kv in buffs.StatusEffects)
+            foreach (var kv in buffs.FastStatusEffects)
             {
                 foreach (var watchId in watchIds)
                 {
@@ -1280,13 +1280,13 @@ namespace PlayerBuffBar
 
                 var sb = new StringBuilder();
                 sb.AppendLine("=== Player buff dump ===");
-                foreach (var kv in buffs.StatusEffects.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                foreach (var kv in buffs.FastStatusEffects.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
                 {
                     sb.AppendLine($"{kv.Key} | charges={kv.Value.Charges} timeLeft={kv.Value.TimeLeft} total={kv.Value.TotalTime}");
                 }
 
                 File.WriteAllText(dumpPath, sb.ToString());
-                var count = buffs.StatusEffects.Count;
+                var count = buffs.FastStatusEffects.Count;
                 this.dumpStatusLine =
                     this.PluginText.F("status.dump_saved", "Dump saved ({0} buffs): Plugins/PlayerBuffBar/player_buff_dump.txt", count);
                 Console.WriteLine($"[PlayerBuffBar] Wrote {count} buffs to {dumpPath}");

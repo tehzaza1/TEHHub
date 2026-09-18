@@ -297,9 +297,9 @@ namespace AutoExile2
             activeTotems = activeTotemNames.Count;
 
             var detectedBuffs = new List<ActiveBuffInfo>();
-            if (player != null && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
+            if (player != null && player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.FastStatusEffects != null)
             {
-                foreach (var (buffName, eff) in pBuffs.StatusEffects)
+                foreach (var (buffName, eff) in pBuffs.FastStatusEffects)
                 {
                     if (string.IsNullOrWhiteSpace(buffName)) continue;
                     detectedBuffs.Add(new ActiveBuffInfo
@@ -707,9 +707,9 @@ namespace AutoExile2
             }
 
             // Check grace period (invulnerability after entering area)
-            if (player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.StatusEffects != null)
+            if (player.TryGetComponent<Buffs>(out var pBuffs) && pBuffs.FastStatusEffects != null)
             {
-                if (pBuffs.StatusEffects.ContainsKey("grace_period"))
+                if (pBuffs.FastStatusEffects.ContainsKey("grace_period"))
                 {
                     return;
                 }

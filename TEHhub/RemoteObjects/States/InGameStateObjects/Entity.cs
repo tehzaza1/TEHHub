@@ -886,8 +886,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             }
 
             if (this.TryGetComponent<Buffs>(out var buffs, false) &&
-                buffs.StatusEffects != null &&
-                buffs.StatusEffects.Count > 0)
+                buffs.FastStatusEffects != null &&
+                buffs.FastStatusEffects.Count > 0)
             {
                 return true;
             }
@@ -1181,7 +1181,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 }
                 else if (this.IsOrWasMonsterSubType(EntitySubtypes.PinnacleBoss) &&
                          this.TryGetComponent<Buffs>(out var buffsComp) &&
-                         buffsComp.StatusEffects.ContainsKey("hidden_monster"))
+                         buffsComp.FastStatusEffects.ContainsKey("hidden_monster"))
                 {
                     this.EntityState = EntityStates.PinnacleBossHidden;
                 }

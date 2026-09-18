@@ -836,6 +836,51 @@ internal static class BottleneckTests
             var allocPerCall = (allocAfter - allocBefore) / 100;
             check(allocPerCall <= 8, $"Buffs.UpdateData steady-state average allocation is <= 8 bytes (measured: {allocPerCall} B/call)");
 
+            // 8b. Deterministic Fast vs Legacy Compatibility Tests
+            // 1. Fast storage contains correct current-frame values.
+            check(buffs.FastStatusEffects.ContainsKey("grace_period") && buffs.FastStatusEffects.ContainsKey("quick"), "1: Fast storage contains correct current-frame values");
+            // 2. Legacy public StatusEffects exposes identical keys/values.
+            check(buffs.StatusEffects.ContainsKey("grace_period") && buffs.StatusEffects.ContainsKey("quick") && buffs.StatusEffects.Count == buffs.FastStatusEffects.Count, "2: Legacy public StatusEffects exposes identical keys/values");
+            // 3. Legacy snapshot updates after TimeLeft changes.
+            Marshal.StructureToPtr(1.23f, se1Ptr + 0x1C, false);
+            buffs.RefreshDataNow();
+            check(Math.Abs(buffs.FastStatusEffects["grace_period"].TimeLeft - 1.23f) < 0.01f, "3a: Fast storage updates after TimeLeft change");
+            check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 1.23f) < 0.01f, "3b: Legacy snapshot updates after TimeLeft changes");
+            // 4. Removed buffs disappear from legacy view.
+            Marshal.StructureToPtr(vec1, buffsComponentPtr + 0x160, false);
+            buffs.RefreshDataNow();
+            check(!buffs.FastStatusEffects.ContainsKey("quick") && !buffs.StatusEffects.ContainsKey("quick"), "4a: Removed buffs disappear from both fast and legacy view");
+            check(buffs.StatusEffects.Count == 1 && buffs.FastStatusEffects.Count == 1, "4b: Counts match after buff removal");
+            // 5. Duplicate stacking matches fast view.
+            Marshal.StructureToPtr(vec2, buffsComponentPtr + 0x160, false);
+            Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef1);
+            Marshal.WriteInt32(se2Ptr + 0x4A, 0);
+            Marshal.WriteInt16(se1Ptr + 0x40, 2);
+            Marshal.WriteInt16(se2Ptr + 0x40, 3);
+            buffs.RefreshDataNow();
+            check(buffs.FastStatusEffects["grace_period"].Charges == 5 && buffs.StatusEffects["grace_period"].Charges == 5, "5: Duplicate stacking matches between fast and legacy view");
+            // Restore se2
+            Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef2);
+            Marshal.WriteInt16(se2Ptr + 0x40, 1);
+            buffs.RefreshDataNow();
+            // 6. Accessing only the fast path does NOT allocate/rebuild legacy ConcurrentDictionary.
+            var legacyBeforeAlloc = GC.GetAllocatedBytesForCurrentThread();
+            for (var r = 0; r < 50; r++)
+            {
+                buffs.RefreshDataNow();
+                var c = buffs.FastStatusEffects.Count;
+            }
+            var legacyFastOnlyAlloc = GC.GetAllocatedBytesForCurrentThread() - legacyBeforeAlloc;
+            check(legacyFastOnlyAlloc <= 8, $"6: Accessing only the fast path does not allocate/rebuild legacy ConcurrentDictionary (measured: {legacyFastOnlyAlloc} B)");
+            // 7. Repeated legacy getter reads in the same data generation do not rebuild it.
+            var legacyRef1 = buffs.StatusEffects;
+            var legacyRef2 = buffs.StatusEffects;
+            check(object.ReferenceEquals(legacyRef1, legacyRef2), "7: Repeated legacy getter reads in same generation return identical instance");
+            // 8. A new Buffs refresh invalidates compatibility generation exactly once.
+            Marshal.StructureToPtr(9.99f, se1Ptr + 0x1C, false);
+            buffs.RefreshDataNow();
+            check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 9.99f) < 0.01f, "8: New Buffs refresh invalidates compatibility generation and reflects new data");
+
             // 9. Comprehensive Apples-to-Apples Microbenchmark: OLD vs PROPOSED across 2, 10, 25, 50 Buffs
             // Workloads:
             //   A. Unchanged values (steady state)
@@ -924,8 +969,30 @@ internal static class BottleneckTests
                     }
                 }
 
+                static void SyncLegacy(
+                    System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> target,
+                    Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> source)
+                {
+                    foreach (var kv in source)
+                    {
+                        target[kv.Key] = kv.Value;
+                    }
+
+                    if (target.Count != source.Count)
+                    {
+                        foreach (var key in target.Keys)
+                        {
+                            if (!source.ContainsKey(key))
+                            {
+                                target.TryRemove(key, out _);
+                            }
+                        }
+                    }
+                }
+
                 var oldDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>();
                 var propDict = new Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>(count, StringComparer.Ordinal);
+                var legacyCompatDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>(StringComparer.Ordinal);
 
                 // --- WORKLOAD A: Unchanged Steady State ---
                 for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, keys, structs, count); }
@@ -1053,12 +1120,26 @@ internal static class BottleneckTests
                 var dPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - dPropBefore) / BenchIterations;
                 var dPropNs = swDProp.Elapsed.TotalNanoseconds / BenchIterations;
 
+                // --- DIAGNOSTIC: Legacy Materialization Cost (when external caller requests StatusEffects) ---
+                for (var w = 0; w < 50; w++) { SyncLegacy(legacyCompatDict, propDict); }
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var legacySyncBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swLegacySync = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    SyncLegacy(legacyCompatDict, propDict);
+                }
+                swLegacySync.Stop();
+                var legacySyncAlloc = (GC.GetAllocatedBytesForCurrentThread() - legacySyncBefore) / BenchIterations;
+                var legacySyncNs = swLegacySync.Elapsed.TotalNanoseconds / BenchIterations;
+
                 Console.WriteLine($"\n[Buff Count: {count,2} Buffs | Iterations: {BenchIterations}]");
                 Console.WriteLine($"  Workload A  (Unchanged):    OLD = {aOldNs,7:F1} ns ({aOldAlloc,4} B) | PROPOSED = {aPropNs,7:F1} ns ({aPropAlloc,4} B) -> Alloc Saved: {(aOldAlloc - aPropAlloc),4} B ({(aOldAlloc > 0 ? (aOldAlloc - aPropAlloc) * 100.0 / aOldAlloc : 0):F0}%)");
                 Console.WriteLine($"  Workload B1 (1 Buff Chg):   OLD = {b1OldNs,7:F1} ns ({b1OldAlloc,4} B) | PROPOSED = {b1PropNs,7:F1} ns ({b1PropAlloc,4} B) -> Alloc Saved: {(b1OldAlloc - b1PropAlloc),4} B ({(b1OldAlloc > 0 ? (b1OldAlloc - b1PropAlloc) * 100.0 / b1OldAlloc : 0):F0}%)");
                 Console.WriteLine($"  Workload B2 (ALL Buffs Chg):OLD = {b2OldNs,7:F1} ns ({b2OldAlloc,4} B) | PROPOSED = {b2PropNs,7:F1} ns ({b2PropAlloc,4} B) -> Alloc Saved: {(b2OldAlloc - b2PropAlloc),4} B ({(b2OldAlloc > 0 ? (b2OldAlloc - b2PropAlloc) * 100.0 / b2OldAlloc : 0):F0}%)");
                 Console.WriteLine($"  Workload C  (10% Key Swap): OLD = {cOldNs,7:F1} ns ({cOldAlloc,4} B) | PROPOSED = {cPropNs,7:F1} ns ({cPropAlloc,4} B) -> Alloc Saved: {(cOldAlloc - cPropAlloc),4} B ({(cOldAlloc > 0 ? (cOldAlloc - cPropAlloc) * 100.0 / cOldAlloc : 0):F0}%)");
                 Console.WriteLine($"  Workload D  (Stack Merge):  OLD = {dOldNs,7:F1} ns ({dOldAlloc,4} B) | PROPOSED = {dPropNs,7:F1} ns ({dPropAlloc,4} B) -> Alloc Saved: {(dOldAlloc - dPropAlloc),4} B ({(dOldAlloc > 0 ? (dOldAlloc - dPropAlloc) * 100.0 / dOldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Legacy Snapshot Sync (Diag):{legacySyncNs,7:F1} ns ({legacySyncAlloc,4} B) [Lazy on-demand only, 0 cost on fast path]");
             }
             Console.WriteLine("=========================================================================================\n");
         }

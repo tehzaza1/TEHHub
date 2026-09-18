@@ -33,7 +33,7 @@ internal static class SkillResearchCapture
             var values = new Dictionary<string, Dictionary<string, string>>();
             if (player.TryGetComponent<Buffs>(out var buffs))
             {
-                foreach (var entry in buffs.StatusEffects)
+                foreach (var entry in buffs.FastStatusEffects)
                     values["buff/" + entry.Key] = Fields(entry.Value);
                 CaptureBuffBytes(buffs.Address, values);
             }

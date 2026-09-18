@@ -36,11 +36,11 @@ namespace AutoHotKeyTrigger.ProfileManager.DynamicConditions
                 {
                     this.PlayerAilments = JsonDataHelper.StatusEffectGroups
                                                   .Where(x => x.Value.Any(effect =>
-                                                      playerBuffs.StatusEffects.ContainsKey(effect) ||
-                                                      playerBuffs.StatusEffects.Keys.Any(k =>
+                                                      playerBuffs.FastStatusEffects.ContainsKey(effect) ||
+                                                      playerBuffs.FastStatusEffects.Keys.Any(k =>
                                                           k.StartsWith(effect + "_", StringComparison.OrdinalIgnoreCase))))
                                                   .Select(x => x.Key).ToHashSet();
-                    this.PlayerBuffs = new BuffDictionary(playerBuffs.StatusEffects);
+                    this.PlayerBuffs = new BuffDictionary(playerBuffs.FastStatusEffects);
                 }
 
                 if (player.TryGetComponent<Actor>(out var actorComponent))

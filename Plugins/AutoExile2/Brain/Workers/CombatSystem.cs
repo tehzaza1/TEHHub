@@ -338,10 +338,10 @@ namespace AutoExile2.Systems
             this.CurrentTargetName = targetName;
 
             // Live scan debuffs on the targeted monster
-            if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.StatusEffects != null)
+            if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.FastStatusEffects != null)
             {
                 this.ObservedTargetDebuffs.Clear();
-                foreach (var (debuffName, eff) in tBuffs.StatusEffects)
+                foreach (var (debuffName, eff) in tBuffs.FastStatusEffects)
                 {
                     if (string.IsNullOrWhiteSpace(debuffName)) continue;
                     this.ObservedTargetDebuffs.Add(new ActiveBuffInfo
@@ -404,10 +404,10 @@ namespace AutoExile2.Systems
                 }
 
                 // 2. Fallback scan on active status effects
-                if (buffs.StatusEffects != null && buffs.StatusEffects.Count > 0)
+                if (buffs.FastStatusEffects != null && buffs.FastStatusEffects.Count > 0)
                 {
                     string target = isLife ? "life" : "mana";
-                    foreach (var kvp in buffs.StatusEffects)
+                    foreach (var kvp in buffs.FastStatusEffects)
                     {
                         if (kvp.Value.FlaskSlot == slot)
                         {
@@ -696,7 +696,7 @@ namespace AutoExile2.Systems
 
         public static bool HasBuff(Entity entity, string buffName)
         {
-            if (entity == null || string.IsNullOrWhiteSpace(buffName) || !entity.TryGetComponent<Buffs>(out var pBuffs) || pBuffs.StatusEffects == null || pBuffs.StatusEffects.IsEmpty)
+            if (entity == null || string.IsNullOrWhiteSpace(buffName) || !entity.TryGetComponent<Buffs>(out var pBuffs) || pBuffs.FastStatusEffects == null || pBuffs.FastStatusEffects.IsEmpty)
             {
                 return false;
             }
@@ -709,7 +709,7 @@ namespace AutoExile2.Systems
 
             var aliases = GetBuffAliases(clean);
 
-            foreach (var kv in pBuffs.StatusEffects)
+            foreach (var kv in pBuffs.FastStatusEffects)
             {
                 string keyClean = CleanBuffString(kv.Key);
                 string keyCleanNoDigits = System.Text.RegularExpressions.Regex.Replace(keyClean, @"\d+$", "");
@@ -1031,7 +1031,7 @@ namespace AutoExile2.Systems
                 // 2. Debuff / Curse presence check on target
                 if (slot.OnlyWhenBuffMissing && (slot.Category == SkillClassifier.CategoryCurse || slot.Role == SkillRole.PackTargeted))
                 {
-                    if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.StatusEffects != null)
+                    if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.FastStatusEffects != null)
                     {
                         string curseToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
                             ? slot.BuffDebuffName
@@ -1039,7 +1039,7 @@ namespace AutoExile2.Systems
                             string cleanCurse = CleanBuffString(curseToMatch);
                             var aliases = GetBuffAliases(cleanCurse);
                             bool hasDebuff = false;
-                            foreach (var kv in tBuffs.StatusEffects)
+                            foreach (var kv in tBuffs.FastStatusEffects)
                             {
                                 string targetBuffClean = CleanBuffString(kv.Key);
                                 string targetBuffCleanNoDigits = System.Text.RegularExpressions.Regex.Replace(targetBuffClean, @"\d+$", "");

@@ -26,6 +26,10 @@ namespace TEHhub.RemoteObjects.Components
         [ThreadStatic]
         private static IntPtr[]? threadLocalPtrArray;
 
+        private ConcurrentDictionary<string, StatusEffectStruct>? legacyStatusEffects;
+        private uint dataVersion;
+        private uint legacySnapshotVersion;
+
         static Buffs()
         {
             CoroutineHandler.Start(OnAreaChange());
@@ -40,10 +44,37 @@ namespace TEHhub.RemoteObjects.Components
             : base(address) { }
 
         /// <summary>
+        ///     Gets the internal fast zero-allocation dictionary of status effects.
+        ///     In-tree consumers should prefer this property over <see cref="StatusEffects"/>.
+        /// </summary>
+        public StatusEffectDictionary FastStatusEffects { get; } = new();
+
+        /// <summary>
         ///     Gets the Buffs/Debuffs associated with the entity.
+        ///     Legacy binary compatibility view that materializes a ConcurrentDictionary snapshot
+        ///     lazily only when requested by external/precompiled plugins.
         ///     This is not updated anymore once entity dies.
         /// </summary>
-        public StatusEffectDictionary StatusEffects { get; } = new();
+        public ConcurrentDictionary<string, StatusEffectStruct> StatusEffects
+        {
+            get
+            {
+                if (this.legacyStatusEffects == null)
+                {
+                    this.legacyStatusEffects = new ConcurrentDictionary<string, StatusEffectStruct>(
+                        StringComparer.Ordinal);
+                    this.legacySnapshotVersion = 0;
+                }
+
+                if (this.legacySnapshotVersion != this.dataVersion)
+                {
+                    this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+                    this.legacySnapshotVersion = this.dataVersion;
+                }
+
+                return this.legacyStatusEffects;
+            }
+        }
 
         public bool[] FlaskActive { get; private set; } = new bool[5];
 
@@ -77,7 +108,7 @@ namespace TEHhub.RemoteObjects.Components
             base.ToImGui();
             if (ImGui.TreeNode("Status Effect (Buffs/Debuffs)"))
             {
-                foreach (var kv in this.StatusEffects)
+                foreach (var kv in this.FastStatusEffects)
                 {
                     if (ImGui.TreeNode($"{kv.Key}"))
                     {
@@ -102,10 +133,11 @@ namespace TEHhub.RemoteObjects.Components
         /// <inheritdoc />
         protected override void UpdateData(bool hasAddressChanged)
         {
+            this.dataVersion++;
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<BuffsOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
-            this.StatusEffects.Clear();
+            this.FastStatusEffects.Clear();
             Array.Fill(this.FlaskActive, false);
 
             var byteLength = data.StatusEffectPtr.Last.ToInt64() - data.StatusEffectPtr.First.ToInt64();
@@ -192,7 +224,7 @@ namespace TEHhub.RemoteObjects.Components
                     effectName = combinedName;
                 }
 
-                ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.StatusEffects, effectName, out var exists);
+                ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.FastStatusEffects, effectName, out var exists);
                 if (exists)
                 {
                     var incomingStacks = statusEffectData.Charges > 0 ? statusEffectData.Charges : (short)1;
@@ -216,17 +248,38 @@ namespace TEHhub.RemoteObjects.Components
         /// <param name="statusEffectData">Status-effect data with its stage represented as charges.</param>
         internal void AddSyntheticStatusEffect(string effectName, StatusEffectStruct statusEffectData)
         {
-            ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.StatusEffects, effectName, out var exists);
+            ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.FastStatusEffects, effectName, out var exists);
             if (exists)
             {
                 if (statusEffectData.Charges > entry.Charges)
                 {
                     entry = statusEffectData;
+                    this.dataVersion++;
                 }
             }
             else
             {
                 entry = statusEffectData;
+                this.dataVersion++;
+            }
+        }
+
+        private void SynchronizeLegacyStatusEffects(ConcurrentDictionary<string, StatusEffectStruct> target)
+        {
+            foreach (var kv in this.FastStatusEffects)
+            {
+                target[kv.Key] = kv.Value;
+            }
+
+            if (target.Count != this.FastStatusEffects.Count)
+            {
+                foreach (var key in target.Keys)
+                {
+                    if (!this.FastStatusEffects.ContainsKey(key))
+                    {
+                        target.TryRemove(key, out _);
+                    }
+                }
             }
         }
 
