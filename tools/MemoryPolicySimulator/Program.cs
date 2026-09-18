@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,38 +9,81 @@ namespace MemoryPolicySimulator;
 
 public record MemoryRequest(long Address, int Size, string Tag);
 
+/// <summary>
+/// Efficient interval range tracker to compute unique byte coverage without per-byte allocations.
+/// </summary>
+public class PageIntervalTracker
+{
+    private readonly List<(long Start, long End)> intervals = new();
+
+    public void AddRange(long start, int size)
+    {
+        if (size <= 0) return;
+        long end = start + size;
+        intervals.Add((start, end));
+    }
+
+    public int GetUniqueByteCount()
+    {
+        if (intervals.Count == 0) return 0;
+
+        // Sort intervals by start
+        var sorted = intervals.OrderBy(x => x.Start).ToList();
+        long totalUnique = 0;
+        long currentStart = sorted[0].Start;
+        long currentEnd = sorted[0].End;
+
+        for (int i = 1; i < sorted.Count; i++)
+        {
+            if (sorted[i].Start <= currentEnd)
+            {
+                currentEnd = Math.Max(currentEnd, sorted[i].End);
+            }
+            else
+            {
+                totalUnique += (currentEnd - currentStart);
+                currentStart = sorted[i].Start;
+                currentEnd = sorted[i].End;
+            }
+        }
+        totalUnique += (currentEnd - currentStart);
+
+        return (int)totalUnique;
+    }
+}
+
 public class SimulationMetrics
 {
     public string PolicyName { get; set; } = "";
     public int TotalRequests { get; set; }
     public long RequestedBytes { get; set; }
+    public long UniqueRequestedBytes { get; set; }
     public long NativeReadCalls { get; set; }
-    public long FetchedBytes { get; set; }
+    
+    // Categorized Fetched Bytes
+    public long ExactFetchedBytes { get; set; }
+    public long Level1CompactFetchedBytes { get; set; }
+    public long Level2MediumFetchedBytes { get; set; }
+    public long Level3PageFetchedBytes { get; set; }
+    public long MergeFetchedBytes { get; set; }
+    
+    public long TotalFetchedBytes => ExactFetchedBytes + Level1CompactFetchedBytes + Level2MediumFetchedBytes + Level3PageFetchedBytes + MergeFetchedBytes;
+    
     public long CacheHits { get; set; }
     public long CacheMisses { get; set; }
-    public long WastedBytes => Math.Max(0, FetchedBytes - RequestedBytes);
-    public double TotalAmplification => RequestedBytes > 0 ? (double)FetchedBytes / RequestedBytes : 1.0;
-    
-    // Detailed Amplification Metrics
-    public double MergeAmplification { get; set; } = 1.0;
-    public double CachePromotionAmplification { get; set; } = 1.0;
-
-    // Promotion level statistics
-    public int Level0ExactFetches { get; set; }
-    public int Level1CompactFetches { get; set; }
-    public int Level2MediumFetches { get; set; }
-    public int Level3PageFetches { get; set; }
+    public long WastedBytes => Math.Max(0, TotalFetchedBytes - RequestedBytes);
+    public double TotalAmplification => RequestedBytes > 0 ? (double)TotalFetchedBytes / RequestedBytes : 1.0;
 
     public double ComputeCost(double callCost, double byteCost = 1.0)
     {
-        return (NativeReadCalls * callCost) + (FetchedBytes * byteCost);
+        return (NativeReadCalls * callCost) + (TotalFetchedBytes * byteCost);
     }
 }
 
 public interface IMemoryPolicy
 {
     string Name { get; }
-    SimulationMetrics Run(IEnumerable<MemoryRequest> requests, IEnumerable<MemoryRequest>? plannedBatches = null);
+    SimulationMetrics Run(IEnumerable<MemoryRequest> requests);
 }
 
 // 1. Legacy Exact-Read Policy
@@ -47,20 +91,23 @@ public class LegacyExactReadPolicy : IMemoryPolicy
 {
     public string Name => "Legacy Exact-Read";
 
-    public SimulationMetrics Run(IEnumerable<MemoryRequest> requests, IEnumerable<MemoryRequest>? plannedBatches = null)
+    public SimulationMetrics Run(IEnumerable<MemoryRequest> requests)
     {
         var metrics = new SimulationMetrics { PolicyName = Name };
+        var globalTracker = new PageIntervalTracker();
         
         foreach (var req in requests)
         {
             metrics.TotalRequests++;
             metrics.RequestedBytes += req.Size;
+            globalTracker.AddRange(req.Address, req.Size);
+
             metrics.NativeReadCalls++;
-            metrics.FetchedBytes += req.Size;
+            metrics.ExactFetchedBytes += req.Size;
             metrics.CacheMisses++;
-            metrics.Level0ExactFetches++;
         }
 
+        metrics.UniqueRequestedBytes = globalTracker.GetUniqueByteCount();
         return metrics;
     }
 }
@@ -73,26 +120,17 @@ public class CurrentNewMemoryReadPolicy : IMemoryPolicy
     private const int DynamicCrossPageBytes = 0x2000; // 8192 bytes
     private const int MaxDynamicWindows = 2048;
 
-    public SimulationMetrics Run(IEnumerable<MemoryRequest> requests, IEnumerable<MemoryRequest>? plannedBatches = null)
+    public SimulationMetrics Run(IEnumerable<MemoryRequest> requests)
     {
         var metrics = new SimulationMetrics { PolicyName = Name };
         var cache = new Dictionary<long, int>(); // StartAddress -> Size
-
-        if (plannedBatches != null)
-        {
-            foreach (var batch in plannedBatches)
-            {
-                metrics.NativeReadCalls++;
-                metrics.FetchedBytes += batch.Size;
-                cache[batch.Address] = batch.Size;
-                metrics.Level3PageFetches++;
-            }
-        }
+        var globalTracker = new PageIntervalTracker();
 
         foreach (var req in requests)
         {
             metrics.TotalRequests++;
             metrics.RequestedBytes += req.Size;
+            globalTracker.AddRange(req.Address, req.Size);
 
             bool covered = false;
             foreach (var (wStart, wSize) in cache)
@@ -115,58 +153,66 @@ public class CurrentNewMemoryReadPolicy : IMemoryPolicy
             if (cache.Count < MaxDynamicWindows)
             {
                 metrics.NativeReadCalls++;
-                metrics.FetchedBytes += fetchSize;
+                metrics.Level3PageFetchedBytes += fetchSize;
                 cache[pageStart] = fetchSize;
-                metrics.Level3PageFetches++;
             }
             else
             {
                 metrics.NativeReadCalls++;
-                metrics.FetchedBytes += req.Size;
-                metrics.Level0ExactFetches++;
+                metrics.ExactFetchedBytes += req.Size;
             }
         }
 
-        metrics.CachePromotionAmplification = metrics.TotalAmplification;
+        metrics.UniqueRequestedBytes = globalTracker.GetUniqueByteCount();
         return metrics;
     }
 }
 
-// 3. Corrected Hybrid V2 Policy: Exact-First + Hierarchical Multi-Level Promotion
+// 3. Fully Corrected Hybrid V2 Policy: Logical Hotness First + Exact-First + Hierarchical Promotion
 public class HybridV2HierarchicalPolicy : IMemoryPolicy
 {
     public string Name { get; set; } = "Proposed Hybrid V2 (Hierarchical Exact-First)";
 
-    // Level configuration
-    public int Level1BlockSize { get; set; } = 128; // Level 1 compact block (e.g. 64B or 128B)
-    public int Level2BlockSize { get; set; } = 512; // Level 2 medium block (e.g. 256B or 512B)
+    public int Level1BlockSize { get; set; } = 128; // Level 1 compact block
+    public int Level2BlockSize { get; set; } = 512; // Level 2 medium block
     public int Level3PageSize { get; set; } = 4096; // Level 3 4KB page
 
-    // Promotion criteria
-    public int Level1AccessThreshold { get; set; } = 2; // Accesses to promote to Level 1
-    public int Level2AccessThreshold { get; set; } = 3; // Accesses to promote to Level 2
-    public int Level3AccessThreshold { get; set; } = 5; // Accesses to promote to Level 3
-    public int Level3MinUniqueBytes { get; set; } = 256; // Minimum unique requested bytes in page to promote to 4KB
+    public int Level1AccessThreshold { get; set; } = 2;  // Access count to promote to Level 1
+    public int Level2AccessThreshold { get; set; } = 4;  // Access count to promote to Level 2
+    public int Level3AccessThreshold { get; set; } = 6;  // Access count to promote to Level 3
+    public int Level3MinUniqueBytes { get; set; } = 256; // Min unique requested bytes on page for Level 3
 
-    // Merging budget
-    public int MaxMergeGap { get; set; } = 64;
-    public double MaxMergeAmplificationBudget { get; set; } = 2.5;
-
-    public SimulationMetrics Run(IEnumerable<MemoryRequest> requests, IEnumerable<MemoryRequest>? plannedBatches = null)
+    public SimulationMetrics Run(IEnumerable<MemoryRequest> requests)
     {
         var metrics = new SimulationMetrics { PolicyName = Name };
         var cachedRanges = new List<(long Start, int Size)>();
         
-        // Tracking state per 4KB page
+        // Page-level hotness tracking
         var pageAccessCount = new Dictionary<long, int>();
-        var pageUniqueBytes = new Dictionary<long, HashSet<long>>(); // Page -> Set of requested addresses
+        var pageTrackers = new Dictionary<long, PageIntervalTracker>();
+        var globalTracker = new PageIntervalTracker();
 
         foreach (var req in requests)
         {
             metrics.TotalRequests++;
             metrics.RequestedBytes += req.Size;
+            globalTracker.AddRange(req.Address, req.Size);
 
-            // 1. Check existing cached ranges
+            long pageId = req.Address & ~0xFFFL;
+
+            // 1. LOGICAL HOTNESS TRACKING (Counted on EVERY logical access before cache check)
+            pageAccessCount.TryGetValue(pageId, out int accesses);
+            accesses++;
+            pageAccessCount[pageId] = accesses;
+
+            if (!pageTrackers.TryGetValue(pageId, out var tracker))
+            {
+                tracker = new PageIntervalTracker();
+                pageTrackers[pageId] = tracker;
+            }
+            tracker.AddRange(req.Address, req.Size);
+
+            // 2. CHECK CACHE COVERAGE
             bool hit = false;
             for (int i = 0; i < cachedRanges.Count; i++)
             {
@@ -182,64 +228,70 @@ public class HybridV2HierarchicalPolicy : IMemoryPolicy
             if (hit) continue;
 
             metrics.CacheMisses++;
-            long pageId = req.Address & ~0xFFFL;
+            int uniqueBytesOnPage = tracker.GetUniqueByteCount();
 
-            pageAccessCount.TryGetValue(pageId, out int accesses);
-            accesses++;
-            pageAccessCount[pageId] = accesses;
-
-            if (!pageUniqueBytes.TryGetValue(pageId, out var uniqueSet))
-            {
-                uniqueSet = new HashSet<long>();
-                pageUniqueBytes[pageId] = uniqueSet;
-            }
-            for (int b = 0; b < req.Size; b++) uniqueSet.Add(req.Address + b);
-
-            int uniqueByteCount = uniqueSet.Count;
-
-            // Hierarchical Level Selection:
-            // Level 0: Isolated / first sparse access -> EXACT requested range
-            // Level 1: Moderate accesses -> Small compact block (128B)
-            // Level 2: High accesses / medium cluster -> Medium block (512B)
-            // Level 3: Hot page (High accesses + High unique byte density) -> 4KB Page
-            int fetchSize;
+            // 3. HIERARCHICAL PROMOTION & FETCH ALIGNMENT
             long fetchStart;
+            int fetchSize;
 
-            if (accesses >= Level3AccessThreshold && uniqueByteCount >= Level3MinUniqueBytes)
+            if (accesses >= Level3AccessThreshold && uniqueBytesOnPage >= Level3MinUniqueBytes)
             {
-                // Level 3: Hot Page
+                // Level 3: 4KB Hot Page Cache
                 fetchStart = pageId;
                 fetchSize = Level3PageSize;
-                metrics.Level3PageFetches++;
+                metrics.Level3PageFetchedBytes += fetchSize;
             }
             else if (accesses >= Level2AccessThreshold)
             {
-                // Level 2: Medium Compact Block
-                fetchSize = Math.Max(Level2BlockSize, req.Size);
-                fetchStart = req.Address & ~(fetchSize - 1L);
-                metrics.Level2MediumFetches++;
+                // Level 2: Medium Compact Block (Power-of-two aligned with boundary handling)
+                if (req.Size > Level2BlockSize)
+                {
+                    fetchStart = req.Address;
+                    fetchSize = req.Size;
+                }
+                else
+                {
+                    fetchStart = req.Address & ~(Level2BlockSize - 1L);
+                    long fetchEnd = (req.Address + req.Size + Level2BlockSize - 1L) & ~(Level2BlockSize - 1L);
+                    fetchSize = (int)(fetchEnd - fetchStart);
+                }
+                metrics.Level2MediumFetchedBytes += fetchSize;
             }
             else if (accesses >= Level1AccessThreshold)
             {
                 // Level 1: Small Compact Block
-                fetchSize = Math.Max(Level1BlockSize, req.Size);
-                fetchStart = req.Address & ~(fetchSize - 1L);
-                metrics.Level1CompactFetches++;
+                if (req.Size > Level1BlockSize)
+                {
+                    fetchStart = req.Address;
+                    fetchSize = req.Size;
+                }
+                else
+                {
+                    fetchStart = req.Address & ~(Level1BlockSize - 1L);
+                    long fetchEnd = (req.Address + req.Size + Level1BlockSize - 1L) & ~(Level1BlockSize - 1L);
+                    fetchSize = (int)(fetchEnd - fetchStart);
+                }
+                metrics.Level1CompactFetchedBytes += fetchSize;
             }
             else
             {
-                // Level 0: EXACT-FIRST (No over-fetch on first isolated miss)
+                // Level 0: EXACT-FIRST (Isolated access gets exact bytes requested)
                 fetchStart = req.Address;
                 fetchSize = req.Size;
-                metrics.Level0ExactFetches++;
+                metrics.ExactFetchedBytes += fetchSize;
+            }
+
+            // Invariant assertions: The fetched range MUST strictly cover the requested memory span
+            if (fetchStart > req.Address || fetchStart + fetchSize < req.Address + req.Size)
+            {
+                throw new InvalidOperationException($"Under-read bug! Req: [0x{req.Address:X}..0x{req.Address + req.Size:X}], Fetched: [0x{fetchStart:X}..0x{fetchStart + fetchSize:X}]");
             }
 
             metrics.NativeReadCalls++;
-            metrics.FetchedBytes += fetchSize;
             cachedRanges.Add((fetchStart, fetchSize));
         }
 
-        metrics.CachePromotionAmplification = metrics.TotalAmplification;
+        metrics.UniqueRequestedBytes = globalTracker.GetUniqueByteCount();
         return metrics;
     }
 }
@@ -262,7 +314,7 @@ public static class WorkloadGenerator
 
         for (int i = 0; i < skillCount; i++)
         {
-            long skillAddr = skillBase + (i * 0x100); // Dense clustering (256B spacing)
+            long skillAddr = skillBase + (i * 0x100);
             reqs.Add(new MemoryRequest(skillAddr + 0x08, 4, "UseStage"));
             reqs.Add(new MemoryRequest(skillAddr + 0x0C, 4, "CastType"));
             reqs.Add(new MemoryRequest(skillAddr + 0x40, 4, "SkillIdInfo"));
@@ -355,6 +407,20 @@ public static class WorkloadGenerator
 
         return reqs;
     }
+
+    // 5. Repeated Same-Pointer Workload: Same 8-byte address read repeatedly
+    public static List<MemoryRequest> GenerateRepeatedSinglePointerWorkload(int count)
+    {
+        var reqs = new List<MemoryRequest>();
+        long ptrAddr = 0x600000040L;
+
+        for (int i = 0; i < count; i++)
+        {
+            reqs.Add(new MemoryRequest(ptrAddr, 8, $"RepeatedPointer_{i}"));
+        }
+
+        return reqs;
+    }
 }
 
 public class Program
@@ -366,6 +432,9 @@ public class Program
         Console.WriteLine("================================================================================");
         Console.WriteLine();
 
+        // Run self-tests and regressions
+        RunSimulatorSelfTests();
+
         var policies = new IMemoryPolicy[]
         {
             new LegacyExactReadPolicy(),
@@ -374,40 +443,73 @@ public class Program
         };
 
         var sbMarkdown = new StringBuilder();
-        sbMarkdown.AppendLine("# Offline Memory Read Policy Simulation Report (Corrected Hierarchical Model)");
-        sbMarkdown.AppendLine("Comparative Analysis: Legacy Exact-Read vs. Current NewMemoryRead vs. Proposed Hybrid V2 (Exact-First)");
+        sbMarkdown.AppendLine("# Offline Memory Read Policy Simulation Report (Fully Corrected Model)");
+        sbMarkdown.AppendLine("Comparative Analysis: Legacy Exact-Read vs. Current NewMemoryRead vs. Proposed Hybrid V2 (Exact-First + Hierarchical Promotion)");
         sbMarkdown.AppendLine();
-        sbMarkdown.AppendLine("Cost Model: `EstimatedCost = (NativeCalls * CallCost) + (FetchedBytes * 1)`");
+        sbMarkdown.AppendLine("Cost Model: `EstimatedCost = (NativeCalls * CallCost) + (TotalFetchedBytes * 1.0)`");
         sbMarkdown.AppendLine();
 
         int[] testSizes = { 10, 100, 500, 1000 };
 
-        // 1. Skill Workload
-        RunBenchmarkSuite("1. Skill Workload (Actor + ActiveSkills + Cooldowns)",
-            testSizes, WorkloadGenerator.GenerateSkillWorkload, policies, sbMarkdown);
-
-        // 2. Entity / Component Workload
-        RunBenchmarkSuite("2. Entity / Component Workload (Dense Component Clusters)",
-            testSizes, WorkloadGenerator.GenerateEntityComponentWorkload, policies, sbMarkdown);
-
-        // 3. UI-Tree Workload
-        RunBenchmarkSuite("3. UI-Tree Workload (Hierarchical UI Traversal & String Reads)",
-            testSizes, WorkloadGenerator.GenerateUiTreeWorkload, policies, sbMarkdown);
-
-        // 4. Worst-case Scattered Workload
-        RunBenchmarkSuite("4. Worst-Case Scattered Workload (1 Scalar Read per 4KB Page)",
+        // 1. Scattered Workload
+        RunBenchmarkSuite("1. Worst-Case Scattered Workload (1 Scalar Read per 4KB Page)",
             testSizes, WorkloadGenerator.GenerateWorstCaseScatteredWorkload, policies, sbMarkdown);
 
-        // 5. Cost Sensitivity Sweep
+        // 2. Skill Workload
+        RunBenchmarkSuite("2. Skill Workload (Actor + ActiveSkills + Cooldowns)",
+            testSizes, WorkloadGenerator.GenerateSkillWorkload, policies, sbMarkdown);
+
+        // 3. Entity / Component Workload
+        RunBenchmarkSuite("3. Entity / Component Workload (Dense Component Clusters)",
+            testSizes, WorkloadGenerator.GenerateEntityComponentWorkload, policies, sbMarkdown);
+
+        // 4. UI-Tree Workload
+        RunBenchmarkSuite("4. UI-Tree Workload (Hierarchical UI Traversal & String Reads)",
+            testSizes, WorkloadGenerator.GenerateUiTreeWorkload, policies, sbMarkdown);
+
+        // 5. Repeated Single-Pointer Workload
+        RunBenchmarkSuite("5. Repeated Single-Pointer Workload (Same 8-byte pointer read repeatedly)",
+            new[] { 10, 100, 500, 1000 }, WorkloadGenerator.GenerateRepeatedSinglePointerWorkload, policies, sbMarkdown);
+
+        // 6. Cost Sensitivity Sweep
         RunCostSensitivitySweep(sbMarkdown);
 
-        // 6. Pareto-Optimal Analysis
+        // 7. Pareto Analysis
         RunParetoAnalysis(sbMarkdown);
 
         // Save report to markdown
         string reportPath = @"c:\Games\Hy-v Tool\GameHelper2-main\tools\MemoryPolicySimulator\Simulation_Report.md";
         File.WriteAllText(reportPath, sbMarkdown.ToString(), Encoding.UTF8);
         Console.WriteLine($"\n[Report saved to: {reportPath}]");
+    }
+
+    private static void RunSimulatorSelfTests()
+    {
+        Console.WriteLine("Running Deterministic Self-Tests & Invariant Verifications...");
+
+        // A. Scattered test (1000 items -> Hybrid exact 1.0x amplification)
+        var scattered = WorkloadGenerator.GenerateWorstCaseScatteredWorkload(1000);
+        var resScattered = new HybridV2HierarchicalPolicy().Run(scattered);
+        Debug.Assert(resScattered.TotalAmplification == 1.0, $"Scattered amplification must be 1.0x, got {resScattered.TotalAmplification}");
+        Debug.Assert(resScattered.ExactFetchedBytes == 8000, "Scattered exact fetched bytes must equal 8000");
+
+        // B. Repeated same pointer test (100 reads -> must NOT promote to 4KB because unique bytes = 8)
+        var repeated = WorkloadGenerator.GenerateRepeatedSinglePointerWorkload(100);
+        var resRepeated = new HybridV2HierarchicalPolicy().Run(repeated);
+        Debug.Assert(resRepeated.Level3PageFetchedBytes == 0, "Repeated same pointer must NOT promote to Level 3 4KB page!");
+        Debug.Assert(resRepeated.UniqueRequestedBytes == 8, "Unique requested bytes must be exactly 8");
+
+        // C. Oversized & boundary tests
+        var oversized = new List<MemoryRequest>
+        {
+            new(0x100000050L, 300, "Oversized_300B"),
+            new(0x100001000L, 600, "Oversized_600B"),
+            new(0x100002000L, 1500, "Oversized_1500B")
+        };
+        var resOversized = new HybridV2HierarchicalPolicy().Run(oversized);
+        Debug.Assert(resOversized.TotalFetchedBytes >= 2400, "Oversized requests must fully cover requested bytes");
+
+        Console.WriteLine("All Deterministic Invariant Checks PASSED successfully!\n");
     }
 
     private static void RunBenchmarkSuite(
@@ -425,19 +527,19 @@ public class Program
         {
             var reqs = workloadGen(size);
             Console.WriteLine($"\n--- Workload Scale: {size} items ({reqs.Count} total memory requests) ---");
-            Console.WriteLine($"{"Policy",-35} | {"ReqBytes",9} | {"Calls",7} | {"FetchBytes",11} | {"Amplif",8} | {"WastedBytes",11} | {"EstCost (1k)",12}");
-            Console.WriteLine(new string('-', 108));
+            Console.WriteLine($"{"Policy",-35} | {"ReqBytes",9} | {"UniqBytes",9} | {"Calls",7} | {"Exact(B)",8} | {"L1(B)",8} | {"L2(B)",8} | {"L3(B)",9} | {"Total(B)",10} | {"Amplif",7} | {"EstCost (1k)",12}");
+            Console.WriteLine(new string('-', 145));
 
             md.AppendLine($"### Scale: {size} items ({reqs.Count} requests)");
-            md.AppendLine("| Policy | Requested | Native Calls | Fetched | Amplification | Wasted Bytes | Relative Cost (CallCost=1000) |");
-            md.AppendLine("| :--- | :---: | :---: | :---: | :---: | :---: | :---: |");
+            md.AppendLine("| Policy | Requested | Unique Bytes | Native Calls | Exact (B) | L1 Compact | L2 Medium | L3 Page | Total Fetched | Amplification | Cost (CallCost=1000) |");
+            md.AppendLine("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |");
 
             foreach (var pol in policies)
             {
                 var res = pol.Run(reqs);
                 double cost = res.ComputeCost(1000.0);
-                Console.WriteLine($"{res.PolicyName,-35} | {res.RequestedBytes,9:N0} | {res.NativeReadCalls,7:N0} | {res.FetchedBytes,11:N0} | {res.TotalAmplification,7:F2}x | {res.WastedBytes,11:N0} | {cost,12:N0}");
-                md.AppendLine($"| **{res.PolicyName}** | {res.RequestedBytes:N0} B | {res.NativeReadCalls:N0} | {res.FetchedBytes:N0} B | {res.TotalAmplification:F2}x | {res.WastedBytes:N0} B | {cost:N0} |");
+                Console.WriteLine($"{res.PolicyName,-35} | {res.RequestedBytes,9:N0} | {res.UniqueRequestedBytes,9:N0} | {res.NativeReadCalls,7:N0} | {res.ExactFetchedBytes,8:N0} | {res.Level1CompactFetchedBytes,8:N0} | {res.Level2MediumFetchedBytes,8:N0} | {res.Level3PageFetchedBytes,9:N0} | {res.TotalFetchedBytes,10:N0} | {res.TotalAmplification,6:F2}x | {cost,12:N0}");
+                md.AppendLine($"| **{res.PolicyName}** | {res.RequestedBytes:N0} B | {res.UniqueRequestedBytes:N0} B | {res.NativeReadCalls:N0} | {res.ExactFetchedBytes:N0} B | {res.Level1CompactFetchedBytes:N0} B | {res.Level2MediumFetchedBytes:N0} B | {res.Level3PageFetchedBytes:N0} B | {res.TotalFetchedBytes:N0} B | {res.TotalAmplification:F2}x | {cost:N0} |");
             }
             md.AppendLine();
         }
@@ -522,8 +624,8 @@ public class Program
             double cost = res.ComputeCost(1000.0);
             string pareto = (name.Contains("Hybrid")) ? "Pareto-Optimal (Balanced)" : (name.Contains("Legacy") ? "Lowest Fetched / Highest Calls" : "Lowest Calls / Highest Wasted");
 
-            Console.WriteLine($"{name,-42} | {res.NativeReadCalls,7:N0} | {res.FetchedBytes,10:N0} B | {res.TotalAmplification,12:F2}x | {cost,12:N0}");
-            md.AppendLine($"| **{name}** | {res.NativeReadCalls:N0} | {res.FetchedBytes:N0} B | {res.TotalAmplification:F2}x | {cost:N0} | {pareto} |");
+            Console.WriteLine($"{name,-42} | {res.NativeReadCalls,7:N0} | {res.TotalFetchedBytes,10:N0} B | {res.TotalAmplification,12:F2}x | {cost,12:N0}");
+            md.AppendLine($"| **{name}** | {res.NativeReadCalls:N0} | {res.TotalFetchedBytes:N0} B | {res.TotalAmplification:F2}x | {cost:N0} | {pareto} |");
         }
     }
 }
