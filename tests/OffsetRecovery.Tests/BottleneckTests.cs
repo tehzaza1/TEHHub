@@ -838,6 +838,10 @@ internal static class BottleneckTests
 
             // 8b. Deterministic Fast vs Legacy Live Reference Compatibility Tests
             var liveTestBuffs = new TEHhub.RemoteObjects.Components.Buffs(buffsComponentPtr);
+            var legacyField = typeof(TEHhub.RemoteObjects.Components.Buffs).GetField("legacyStatusEffects", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            check(legacyField != null, "0a: legacyStatusEffects private field located via reflection");
+            check(legacyField!.GetValue(liveTestBuffs) == null, "0b: legacyStatusEffects is genuinely null upon Buffs creation");
+
             Marshal.StructureToPtr(vec2, buffsComponentPtr + 0x160, false);
             Marshal.StructureToPtr(8.5f, se1Ptr + 0x1C, false);
             Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef2);
@@ -845,8 +849,10 @@ internal static class BottleneckTests
             Marshal.WriteInt16(se1Ptr + 0x40, 1);
             Marshal.WriteInt16(se2Ptr + 0x40, 1);
             liveTestBuffs.RefreshDataNow();
+            liveTestBuffs.RefreshDataNow();
+            check(legacyField.GetValue(liveTestBuffs) == null, "0c: legacyStatusEffects remains null across multiple RefreshDataNow calls before getter access");
 
-            // 0. Before activation: zero legacy synchronization overhead in fast path
+            // 0d. Before activation: zero legacy synchronization overhead in fast path
             var unactivatedAllocBefore = GC.GetAllocatedBytesForCurrentThread();
             for (var r = 0; r < 50; r++)
             {
@@ -854,16 +860,20 @@ internal static class BottleneckTests
                 var c = liveTestBuffs.FastStatusEffects.Count;
             }
             var unactivatedAlloc = GC.GetAllocatedBytesForCurrentThread() - unactivatedAllocBefore;
-            check(unactivatedAlloc <= 8, $"0: Before activation, fast path has 0 legacy sync overhead ({unactivatedAlloc} B)");
+            check(unactivatedAlloc <= 8, $"0d: Before activation, fast path has 0 legacy sync overhead ({unactivatedAlloc} B)");
 
             // Cache legacy reference on first access
             var cachedLegacyReference = liveTestBuffs.StatusEffects;
+            var activatedFieldValue = legacyField.GetValue(liveTestBuffs);
+            check(activatedFieldValue != null, "0e: legacyStatusEffects is non-null after first StatusEffects getter access");
+            check(object.ReferenceEquals(cachedLegacyReference, activatedFieldValue), "0f: StatusEffects getter returned exactly the allocated private field instance");
             check(cachedLegacyReference.Count == 2 && cachedLegacyReference.ContainsKey("grace_period") && cachedLegacyReference.ContainsKey("quick"), "Cached legacy reference populated on activation");
 
             // 1. TimeLeft changes (WITHOUT touching liveTestBuffs.StatusEffects getter)
             Marshal.StructureToPtr(3.14f, se1Ptr + 0x1C, false);
             liveTestBuffs.RefreshDataNow();
-            check(Math.Abs(cachedLegacyReference["grace_period"].TimeLeft - 3.14f) < 0.01f, "1: Cached legacy reference observes TimeLeft change without re-calling getter");
+            check(object.ReferenceEquals(cachedLegacyReference, liveTestBuffs.StatusEffects), "1a: ReferenceEquals holds after refresh");
+            check(Math.Abs(cachedLegacyReference["grace_period"].TimeLeft - 3.14f) < 0.01f, "1b: Cached legacy reference observes TimeLeft change without re-calling getter");
 
             // 2 & 3. Buff disappears and new buff appears (WITHOUT touching getter)
             Marshal.StructureToPtr(vec1, buffsComponentPtr + 0x160, false);

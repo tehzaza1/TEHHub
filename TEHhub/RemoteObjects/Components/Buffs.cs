@@ -26,8 +26,7 @@ namespace TEHhub.RemoteObjects.Components
         [ThreadStatic]
         private static IntPtr[]? threadLocalPtrArray;
 
-        private readonly ConcurrentDictionary<string, StatusEffectStruct> legacyStatusEffects = new(StringComparer.Ordinal);
-        private bool legacySnapshotActivated;
+        private ConcurrentDictionary<string, StatusEffectStruct>? legacyStatusEffects;
 
         static Buffs()
         {
@@ -58,13 +57,15 @@ namespace TEHhub.RemoteObjects.Components
         {
             get
             {
-                if (!this.legacySnapshotActivated)
+                var legacy = this.legacyStatusEffects;
+                if (legacy == null)
                 {
-                    this.legacySnapshotActivated = true;
-                    this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+                    legacy = new ConcurrentDictionary<string, StatusEffectStruct>(StringComparer.Ordinal);
+                    this.legacyStatusEffects = legacy;
+                    this.SynchronizeLegacyStatusEffects(legacy);
                 }
 
-                return this.legacyStatusEffects;
+                return legacy;
             }
         }
 
@@ -134,9 +135,10 @@ namespace TEHhub.RemoteObjects.Components
             var byteLength = data.StatusEffectPtr.Last.ToInt64() - data.StatusEffectPtr.First.ToInt64();
             if (byteLength <= 0 || byteLength % IntPtr.Size != 0 || byteLength > 50_000_000)
             {
-                if (this.legacySnapshotActivated)
+                var legacy = this.legacyStatusEffects;
+                if (legacy != null)
                 {
-                    this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+                    this.SynchronizeLegacyStatusEffects(legacy);
                 }
 
                 return;
@@ -151,9 +153,10 @@ namespace TEHhub.RemoteObjects.Components
 
             if (!reader.TryReadMemoryArray(data.StatusEffectPtr.First, statusEffects, statusEffectCount, out _))
             {
-                if (this.legacySnapshotActivated)
+                var legacy = this.legacyStatusEffects;
+                if (legacy != null)
                 {
-                    this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+                    this.SynchronizeLegacyStatusEffects(legacy);
                 }
 
                 return;
@@ -239,9 +242,10 @@ namespace TEHhub.RemoteObjects.Components
                 }
             }
 
-            if (this.legacySnapshotActivated)
+            var activeLegacy = this.legacyStatusEffects;
+            if (activeLegacy != null)
             {
-                this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+                this.SynchronizeLegacyStatusEffects(activeLegacy);
             }
         }
 
@@ -260,18 +264,20 @@ namespace TEHhub.RemoteObjects.Components
                 if (statusEffectData.Charges > entry.Charges)
                 {
                     entry = statusEffectData;
-                    if (this.legacySnapshotActivated)
+                    var legacy = this.legacyStatusEffects;
+                    if (legacy != null)
                     {
-                        this.legacyStatusEffects[effectName] = statusEffectData;
+                        legacy[effectName] = statusEffectData;
                     }
                 }
             }
             else
             {
                 entry = statusEffectData;
-                if (this.legacySnapshotActivated)
+                var legacy = this.legacyStatusEffects;
+                if (legacy != null)
                 {
-                    this.legacyStatusEffects[effectName] = statusEffectData;
+                    legacy[effectName] = statusEffectData;
                 }
             }
         }
