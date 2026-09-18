@@ -177,7 +177,7 @@ public static class MemoryReadDiagnostics
             rate.AverageMicrosecondsPerCall,
             rate.AverageFramesPerSecond,
             rate.AverageCallsPerFrame,
-            rate.AverageReaderMicrosecondsPerFrame,
+            rate.AverageNativeReadMicrosecondsPerFrame,
             rate.TotalMebibytes,
             failures.Length,
             regions,
@@ -466,7 +466,7 @@ public static class MemoryReadDiagnostics
                     $"{cachedReadRate.AverageCallsPerFrame:N0} reads/frame");
                 ImGui.Text(
                     $"Breakdown: Scalar {cachedReadRate.ScalarCalls:N0}    Buffer/array {cachedReadRate.BufferCalls:N0}    " +
-                    $"Requested: {cachedReadRate.TotalMebibytes:F2} MiB  |  Reader Time: {cachedReadRate.AverageReaderMicrosecondsPerFrame:F1} us/frame ({cachedReadRate.AverageMicrosecondsPerCall:F2} us/call)");
+                    $"Requested: {cachedReadRate.TotalMebibytes:F2} MiB  |  Avg Native Read Time/Frame: {cachedReadRate.AverageNativeReadMicrosecondsPerFrame:F1} us ({cachedReadRate.AverageMicrosecondsPerCall:F2} us/call)");
 
                 if (Core.GHSettings.EnableNewMemoryRead || hybridLogicalRequests > 0)
                 {
@@ -499,9 +499,9 @@ public static class MemoryReadDiagnostics
 
                     ImGui.Text($"Logical Requests: {logicalReqs:N0} ({logicalBytes / 1024.0:F1} KiB)  |  Cache Hits: {totalHits:N0} ({hitRate:F1}%)");
                     ImGui.TextDisabled($"  Hits Breakdown: Page(4KB) {pageHits:N0}  |  Medium(512B) {medHits:N0}  |  Compact(128B) {compHits:N0}  |  Exact {exactHits:N0}");
-                    ImGui.Text($"Native Fetches: {totalNativeReads:N0} ({fetchedBytes / 1024.0:F1} KiB)  |  Fetched/Requested Ratio: {ratio:F2}x");
+                    ImGui.Text($"Native Fetches: {totalNativeReads:N0} (Hybrid Dynamic Fetched: {fetchedBytes / 1024.0:F1} KiB)  |  Hybrid Dynamic Fetched/Logical: {ratio:F2}x");
                     ImGui.TextDisabled($"  Fetches Breakdown: 4KB Prom {pageProms:N0} (Fail {pageFails:N0})  |  512B Prom {medProms:N0} (Fail {medFails:N0})  |  128B Prom {compProms:N0} (Fail {compFails:N0})  |  Exact {exactReads:N0}");
-                    ImGui.TextDisabled($"  Dynamics: Cache Windows Created {entriesCreated:N0}  |  Page Trackers Created {trackersCreated:N0}  |  Peak Tracked Pages/Frame {maxTrackersFrame:N0}");
+                    ImGui.TextDisabled($"  Dynamics: Dynamic Entries Created {entriesCreated:N0}  |  Page Trackers Created {trackersCreated:N0}  |  Peak Tracked Pages/Frame {maxTrackersFrame:N0}");
                 }
 
                 if (ImGui.BeginTable("memDiagTable", 6,
@@ -732,7 +732,7 @@ public static class MemoryReadDiagnostics
             $"# Frames: {cachedReadRate.TotalFrames}, " +
             $"{cachedReadRate.AverageFramesPerSecond:F1} frames/s, " +
             $"{cachedReadRate.AverageCallsPerFrame:F0} reads/frame, " +
-            $"Reader time/frame: {cachedReadRate.AverageReaderMicrosecondsPerFrame:F1} us");
+            $"Average Native Read Time / Frame: {cachedReadRate.AverageNativeReadMicrosecondsPerFrame:F1} us");
         sb.AppendLine(
             $"# Scalar calls: {cachedReadRate.ScalarCalls}, Buffer/array calls: {cachedReadRate.BufferCalls}, " +
             $"Total requested: {cachedReadRate.TotalMebibytes:F2} MiB");
@@ -759,9 +759,9 @@ public static class MemoryReadDiagnostics
             sb.AppendLine("# Hybrid Memory Reader (Dynamic path):");
             sb.AppendLine($"#   Logical Requests: {reqs}, Bytes: {reqBytes / 1024.0:F1} KiB, Cache Hits: {totalHits} ({hitRate:F1}%)");
             sb.AppendLine($"#   Cache Hits: Page4KB={pageHits}, Medium512B={medHits}, Compact128B={compHits}, Exact={exactHits}");
-            sb.AppendLine($"#   Native Fetches: {totalNative} ({fetchBytes / 1024.0:F1} KiB), Fetched/Requested Ratio: {ratio:F2}x");
+            sb.AppendLine($"#   Native Fetches: {totalNative} (Hybrid Dynamic Fetched Bytes: {fetchBytes / 1024.0:F1} KiB), Hybrid Dynamic Fetched / Logical Ratio: {ratio:F2}x");
             sb.AppendLine($"#   Promotions: Page4KB={pageProms} (Fail={Volatile.Read(ref hybridPagePromotionFailures)}), Medium512B={medProms} (Fail={Volatile.Read(ref hybridMediumPromotionFailures)}), Compact128B={compProms} (Fail={Volatile.Read(ref hybridCompactPromotionFailures)}), Exact={exactReads}");
-            sb.AppendLine($"#   Dynamics: WindowsCreated={Volatile.Read(ref hybridEntriesCreated)}, TrackersCreated={Volatile.Read(ref hybridPageTrackersCreated)}, PeakTrackedPages/Frame={Volatile.Read(ref hybridMaxPageTrackersPerFrame)}");
+            sb.AppendLine($"#   Dynamics: DynamicEntriesCreated={Volatile.Read(ref hybridEntriesCreated)}, TrackersCreated={Volatile.Read(ref hybridPageTrackersCreated)}, PeakTrackedPages/Frame={Volatile.Read(ref hybridMaxPageTrackersPerFrame)}");
         }
 
         sb.AppendLine("# Read regions (regions can overlap):");
@@ -1011,7 +1011,7 @@ internal sealed record MemoryDiagnosticsSnapshot(
     double AverageMicrosecondsPerCall,
     double AverageFramesPerSecond,
     double AverageCallsPerFrame,
-    double AverageReaderMicrosecondsPerFrame,
+    double AverageNativeReadMicrosecondsPerFrame,
     double TotalMebibytes,
     int DistinctFailureCallSites,
     MemoryDiagnosticsRegion[] Regions,
@@ -1103,7 +1103,7 @@ internal readonly record struct ReadRateSnapshot(
     long TotalFrames,
     double AverageFramesPerSecond,
     double AverageCallsPerFrame,
-    double AverageReaderMicrosecondsPerFrame);
+    double AverageNativeReadMicrosecondsPerFrame);
 
 /// <summary>
 ///     A snapshot row for the diagnostics table.
