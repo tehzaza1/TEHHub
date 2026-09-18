@@ -26,12 +26,6 @@ namespace TEHhub.RemoteObjects.Components
         [ThreadStatic]
         private static IntPtr[]? threadLocalPtrArray;
 
-        [ThreadStatic]
-        private static Dictionary<string, StatusEffectStruct>? threadLocalScratch;
-
-        [ThreadStatic]
-        private static List<string>? threadLocalStaleKeys;
-
         static Buffs()
         {
             CoroutineHandler.Start(OnAreaChange());
@@ -49,7 +43,7 @@ namespace TEHhub.RemoteObjects.Components
         ///     Gets the Buffs/Debuffs associated with the entity.
         ///     This is not updated anymore once entity dies.
         /// </summary>
-        public ConcurrentDictionary<string, StatusEffectStruct> StatusEffects { get; } = new();
+        public StatusEffectDictionary StatusEffects { get; } = new();
 
         public bool[] FlaskActive { get; private set; } = new bool[5];
 
@@ -111,16 +105,12 @@ namespace TEHhub.RemoteObjects.Components
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<BuffsOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
+            this.StatusEffects.Clear();
             Array.Fill(this.FlaskActive, false);
 
             var byteLength = data.StatusEffectPtr.Last.ToInt64() - data.StatusEffectPtr.First.ToInt64();
             if (byteLength <= 0 || byteLength % IntPtr.Size != 0 || byteLength > 50_000_000)
             {
-                if (!this.StatusEffects.IsEmpty)
-                {
-                    this.StatusEffects.Clear();
-                }
-
                 return;
             }
 
@@ -133,11 +123,6 @@ namespace TEHhub.RemoteObjects.Components
 
             if (!reader.TryReadMemoryArray(data.StatusEffectPtr.First, statusEffects, statusEffectCount, out _))
             {
-                if (!this.StatusEffects.IsEmpty)
-                {
-                    this.StatusEffects.Clear();
-                }
-
                 return;
             }
 
@@ -155,9 +140,6 @@ namespace TEHhub.RemoteObjects.Components
             {
                 playerId = uint.MaxValue;
             }
-
-            var scratch = threadLocalScratch ??= new Dictionary<string, StatusEffectStruct>(16, StringComparer.Ordinal);
-            scratch.Clear();
 
             for (var i = 0; i < statusEffectCount; i++)
             {
@@ -210,7 +192,7 @@ namespace TEHhub.RemoteObjects.Components
                     effectName = combinedName;
                 }
 
-                ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(scratch, effectName, out var exists);
+                ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.StatusEffects, effectName, out var exists);
                 if (exists)
                 {
                     var incomingStacks = statusEffectData.Charges > 0 ? statusEffectData.Charges : (short)1;
@@ -221,43 +203,6 @@ namespace TEHhub.RemoteObjects.Components
                 else
                 {
                     entry = statusEffectData;
-                }
-            }
-
-            // In-place update: update/add active status effects without unnecessary ConcurrentDictionary writes.
-            var hasNewKeys = false;
-            foreach (var kv in scratch)
-            {
-                var key = kv.Key;
-                var value = kv.Value;
-                if (!this.StatusEffects.TryGetValue(key, out var currentVal))
-                {
-                    hasNewKeys = true;
-                    this.StatusEffects[key] = value;
-                }
-                else if (!currentVal.Equals(value))
-                {
-                    this.StatusEffects[key] = value;
-                }
-            }
-
-            // In-place removal: prune expired status effects without full dictionary churn.
-            if (hasNewKeys || this.StatusEffects.Count != scratch.Count)
-            {
-                var staleKeys = threadLocalStaleKeys ??= new List<string>(16);
-                staleKeys.Clear();
-
-                foreach (var kv in this.StatusEffects)
-                {
-                    if (!scratch.ContainsKey(kv.Key))
-                    {
-                        staleKeys.Add(kv.Key);
-                    }
-                }
-
-                for (var k = 0; k < staleKeys.Count; k++)
-                {
-                    this.StatusEffects.TryRemove(staleKeys[k], out _);
                 }
             }
         }
@@ -271,11 +216,18 @@ namespace TEHhub.RemoteObjects.Components
         /// <param name="statusEffectData">Status-effect data with its stage represented as charges.</param>
         internal void AddSyntheticStatusEffect(string effectName, StatusEffectStruct statusEffectData)
         {
-            this.StatusEffects.AddOrUpdate(
-                effectName,
-                static (_, incoming) => incoming,
-                static (_, oldValue, incoming) => incoming.Charges > oldValue.Charges ? incoming : oldValue,
-                statusEffectData);
+            ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(this.StatusEffects, effectName, out var exists);
+            if (exists)
+            {
+                if (statusEffectData.Charges > entry.Charges)
+                {
+                    entry = statusEffectData;
+                }
+            }
+            else
+            {
+                entry = statusEffectData;
+            }
         }
 
         private static (string Name, byte BuffType) GetNameFromBuffDefination(IntPtr addr)
@@ -284,5 +236,26 @@ namespace TEHhub.RemoteObjects.Components
             var data = reader.ReadMemory<BuffDefinitionsOffset>(addr);
             return (reader.ReadUnicodeString(data.Name), data.BuffType);
         }
+    }
+
+    /// <summary>
+    ///     Reusable dictionary for status effects that exposes IsEmpty helper.
+    /// </summary>
+    public sealed class StatusEffectDictionary : Dictionary<string, StatusEffectStruct>
+    {
+        public StatusEffectDictionary()
+            : base(StringComparer.Ordinal)
+        {
+        }
+
+        public StatusEffectDictionary(int capacity)
+            : base(capacity, StringComparer.Ordinal)
+        {
+        }
+
+        /// <summary>
+        ///     Gets a value indicating whether the collection is empty.
+        /// </summary>
+        public bool IsEmpty => this.Count == 0;
     }
 }

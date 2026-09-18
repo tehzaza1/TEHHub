@@ -900,17 +900,15 @@ internal static class BottleneckTests
                 }
 
                 static void RunProposed(
-                    System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> dict,
-                    Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> scratch,
-                    List<string> staleKeys,
+                    Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct> dict,
                     string[] kList,
                     TEHhub.Offsets.Objects.Components.StatusEffectStruct[] sList,
                     int n)
                 {
-                    scratch.Clear();
+                    dict.Clear();
                     for (var b = 0; b < n; b++)
                     {
-                        ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(scratch, kList[b], out var exists);
+                        ref var entry = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(dict, kList[b], out var exists);
                         if (exists)
                         {
                             var incomingStacks = sList[b].Charges > 0 ? sList[b].Charges : (short)1;
@@ -924,45 +922,13 @@ internal static class BottleneckTests
                             entry = sList[b];
                         }
                     }
-
-                    var hasNewKeys = false;
-                    foreach (var kv in scratch)
-                    {
-                        if (!dict.TryGetValue(kv.Key, out var curVal))
-                        {
-                            hasNewKeys = true;
-                            dict[kv.Key] = kv.Value;
-                        }
-                        else if (!curVal.Equals(kv.Value))
-                        {
-                            dict[kv.Key] = kv.Value;
-                        }
-                    }
-
-                    if (hasNewKeys || dict.Count != scratch.Count)
-                    {
-                        staleKeys.Clear();
-                        foreach (var kv in dict)
-                        {
-                            if (!scratch.ContainsKey(kv.Key))
-                            {
-                                staleKeys.Add(kv.Key);
-                            }
-                        }
-                        for (var k = 0; k < staleKeys.Count; k++)
-                        {
-                            dict.TryRemove(staleKeys[k], out _);
-                        }
-                    }
                 }
 
                 var oldDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>();
-                var propDict = new System.Collections.Concurrent.ConcurrentDictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>();
-                var scratch = new Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>(count, StringComparer.Ordinal);
-                var staleKeys = new List<string>(count);
+                var propDict = new Dictionary<string, TEHhub.Offsets.Objects.Components.StatusEffectStruct>(count, StringComparer.Ordinal);
 
                 // --- WORKLOAD A: Unchanged Steady State ---
-                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, keys, structs, count); }
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 var aOldBefore = GC.GetAllocatedBytesForCurrentThread();
                 var swAOld = Stopwatch.StartNew();
@@ -974,13 +940,13 @@ internal static class BottleneckTests
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 var aPropBefore = GC.GetAllocatedBytesForCurrentThread();
                 var swAProp = Stopwatch.StartNew();
-                for (var i = 0; i < BenchIterations; i++) RunProposed(propDict, scratch, staleKeys, keys, structs, count);
+                for (var i = 0; i < BenchIterations; i++) RunProposed(propDict, keys, structs, count);
                 swAProp.Stop();
                 var aPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - aPropBefore) / BenchIterations;
                 var aPropNs = swAProp.Elapsed.TotalNanoseconds / BenchIterations;
 
                 // --- WORKLOAD B1: Single Buff TimeLeft Changes Every Iteration ---
-                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, keys, structs, count); }
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 var b1OldBefore = GC.GetAllocatedBytesForCurrentThread();
                 var swB1Old = Stopwatch.StartNew();
@@ -999,14 +965,14 @@ internal static class BottleneckTests
                 for (var i = 0; i < BenchIterations; i++)
                 {
                     structs[0].TimeLeft = 15.0f - (i * 0.01f);
-                    RunProposed(propDict, scratch, staleKeys, keys, structs, count);
+                    RunProposed(propDict, keys, structs, count);
                 }
                 swB1Prop.Stop();
                 var b1PropAlloc = (GC.GetAllocatedBytesForCurrentThread() - b1PropBefore) / BenchIterations;
                 var b1PropNs = swB1Prop.Elapsed.TotalNanoseconds / BenchIterations;
 
                 // --- WORKLOAD B2: ALL Active Buffs Change TimeLeft Every Iteration ---
-                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, keys, structs, count); }
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 var b2OldBefore = GC.GetAllocatedBytesForCurrentThread();
                 var swB2Old = Stopwatch.StartNew();
@@ -1031,14 +997,14 @@ internal static class BottleneckTests
                     {
                         structs[b].TimeLeft = 15.0f - ((i + b) * 0.01f);
                     }
-                    RunProposed(propDict, scratch, staleKeys, keys, structs, count);
+                    RunProposed(propDict, keys, structs, count);
                 }
                 swB2Prop.Stop();
                 var b2PropAlloc = (GC.GetAllocatedBytesForCurrentThread() - b2PropBefore) / BenchIterations;
                 var b2PropNs = swB2Prop.Elapsed.TotalNanoseconds / BenchIterations;
 
                 // --- WORKLOAD C: Periodic Buff Replacement (Key Swap) ---
-                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, keys, structs, count); }
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 var cOldBefore = GC.GetAllocatedBytesForCurrentThread();
                 var swCOld = Stopwatch.StartNew();
@@ -1057,14 +1023,14 @@ internal static class BottleneckTests
                 for (var i = 0; i < BenchIterations; i++)
                 {
                     var kList = (i % 10 == 0) ? altKeys : keys;
-                    RunProposed(propDict, scratch, staleKeys, kList, structs, count);
+                    RunProposed(propDict, kList, structs, count);
                 }
                 swCProp.Stop();
                 var cPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - cPropBefore) / BenchIterations;
                 var cPropNs = swCProp.Elapsed.TotalNanoseconds / BenchIterations;
 
                 // --- WORKLOAD D: Duplicate Buff Names (Stack Merge) ---
-                for (var w = 0; w < 50; w++) { RunOld(oldDict, dupKeys, structs, count); RunProposed(propDict, scratch, staleKeys, dupKeys, structs, count); }
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, dupKeys, structs, count); RunProposed(propDict, dupKeys, structs, count); }
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
                 var dOldBefore = GC.GetAllocatedBytesForCurrentThread();
                 var swDOld = Stopwatch.StartNew();
@@ -1081,7 +1047,7 @@ internal static class BottleneckTests
                 var swDProp = Stopwatch.StartNew();
                 for (var i = 0; i < BenchIterations; i++)
                 {
-                    RunProposed(propDict, scratch, staleKeys, dupKeys, structs, count);
+                    RunProposed(propDict, dupKeys, structs, count);
                 }
                 swDProp.Stop();
                 var dPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - dPropBefore) / BenchIterations;
