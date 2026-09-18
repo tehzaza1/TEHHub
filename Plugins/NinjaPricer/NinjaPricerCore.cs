@@ -261,6 +261,7 @@ namespace NinjaPricer
         }
         private List<SlotTag> cachedInvSlots = new();
         private List<SlotTag> cachedStashSlots = new();
+        private List<SlotTag> cachedModalSlots = new();
         private List<Vector4> cachedRealItemRects = new();
         private volatile bool isInvScanRunning = false;
 
@@ -649,6 +650,7 @@ namespace NinjaPricer
             this.cachedGroundTags.Clear();
             this.cachedInvSlots.Clear();
             this.cachedStashSlots.Clear();
+            this.cachedModalSlots.Clear();
             this.cachedRealItemRects.Clear();
             this.alertedEntityIds.Clear();
             this.activeAlertDrops.Clear();
@@ -680,6 +682,7 @@ namespace NinjaPricer
                 this.cachedGroundTags.Clear();
                 this.cachedInvSlots.Clear();
                 this.cachedStashSlots.Clear();
+                this.cachedModalSlots.Clear();
                 this.cachedRealItemRects.Clear();
                 this.itemSlotCache.Clear();
                 this.alertedEntityIds.Clear();
@@ -2222,16 +2225,19 @@ namespace NinjaPricer
                 if (this.perfGroundMs > this.perfPeakGroundMs) this.perfPeakGroundMs = this.perfGroundMs;
             }
 
-            // Inventory / Stash overlay (decoupled background scan, non-blocking render)
+            // Inventory / Stash / Vendor / Reward overlay (decoupled background scan, non-blocking render)
             if (this.Settings.ShowInventoryPrices || this.Settings.ShowOtherInventoryPrices || this.Settings.ShowRitualPrices)
             {
                 var gameUi = Core.States.InGameStateObject?.GameUi;
-                if (gameUi != null)
+                if (gameUi != null && gameUi.Address != IntPtr.Zero)
                 {
                     var scanLeft = this.Settings.ShowOtherInventoryPrices && gameUi.LeftPanel.IsVisible;
                     var leftAddr = scanLeft ? gameUi.LeftPanel.Address : IntPtr.Zero;
                     var scanRight = this.Settings.ShowInventoryPrices && gameUi.RightPanel.IsVisible;
                     var rightAddr = scanRight ? gameUi.RightPanel.Address : IntPtr.Zero;
+                    var otherAddrs = (this.Settings.ShowOtherInventoryPrices || this.Settings.ShowRitualPrices)
+                        ? this.GetVisibleDialogPanelAddresses(gameUi.Address, leftAddr, rightAddr)
+                        : null;
 
                     var now = DateTime.UtcNow;
                     if ((now - this.lastInvScanUtc).TotalMilliseconds >= this.Settings.ScanIntervalMs && !this.isInvScanRunning)
@@ -2242,7 +2248,7 @@ namespace NinjaPricer
                         {
                             try
                             {
-                                this.ScanItemSlots(leftAddr, rightAddr);
+                                this.ScanItemSlots(leftAddr, rightAddr, otherAddrs);
                             }
                             catch
                             {
@@ -2622,13 +2628,48 @@ namespace NinjaPricer
             }
         }
 
-        private void ScanItemSlots(IntPtr leftAddress, IntPtr rightAddress)
+        private List<IntPtr> GetVisibleDialogPanelAddresses(IntPtr gameUiAddress, IntPtr leftAddress, IntPtr rightAddress)
+        {
+            var list = new List<IntPtr>();
+            var handle = Core.Process?.Handle;
+            if (handle == null || gameUiAddress == IntPtr.Zero) return list;
+
+            if (!handle.TryReadMemory<UiElementBaseOffset>(gameUiAddress, out var uiOff)) return list;
+            var children = handle.ReadStdVector<IntPtr>(uiOff.ChildrensPtr);
+            if (children == null || children.Length == 0) return list;
+
+            for (int i = 0; i < children.Length; i++)
+            {
+                var child = children[i];
+                if (child == IntPtr.Zero || child == leftAddress || child == rightAddress) continue;
+
+                // Skip fixed non-item background systems (e.g. minimap 6, world map 22, passive tree 24, atlas passives 25)
+                if (i is 6 or 22 or 24 or 25) continue;
+
+                if (!handle.TryReadMemory<UiElementBaseOffset>(child, out var cOff) || !UiElementBaseFuncs.IsVisibleChecker(cOff.Flags))
+                    continue;
+
+                if (PluginUiElementReflection.TryGetAbsoluteRect(child, out _, out var size))
+                {
+                    // Dialog/modal/shop containers (e.g. child 80 Nameless Seer/Buy-Sell, child 76 Ritual, etc.)
+                    if (size.X >= 250 && size.Y >= 250)
+                    {
+                        list.Add(child);
+                    }
+                }
+            }
+
+            return list;
+        }
+
+        private void ScanItemSlots(IntPtr leftAddress, IntPtr rightAddress, List<IntPtr>? otherAddresses = null)
         {
             var service = this.priceService;
             if (service == null) return;
 
             var newInv = new List<SlotTag>();
             var newStash = new List<SlotTag>();
+            var newModal = new List<SlotTag>();
             var newRealItemRects = new List<Vector4>();
             double totalScanMs = 0;
             double totalGetMs = 0;
@@ -2656,6 +2697,20 @@ namespace NinjaPricer
                 totalLookupMs += lMs;
             }
 
+            if (otherAddresses != null && otherAddresses.Count > 0)
+            {
+                foreach (var otherAddr in otherAddresses)
+                {
+                    if (otherAddr == IntPtr.Zero) continue;
+                    this.ScanPanelSlots(otherAddr, newModal, newRealItemRects, out var sMs, out var gMs, out var fCount, out var mCount, out var lMs);
+                    totalScanMs += sMs;
+                    totalGetMs += gMs;
+                    totalFound += fCount;
+                    totalMiss += mCount;
+                    totalLookupMs += lMs;
+                }
+            }
+
             this.perfScanCallMs = totalScanMs;
             if (this.perfScanCallMs > this.perfPeakScanCallMs) this.perfPeakScanCallMs = this.perfScanCallMs;
 
@@ -2669,6 +2724,7 @@ namespace NinjaPricer
 
             this.cachedInvSlots = newInv;
             this.cachedStashSlots = newStash;
+            this.cachedModalSlots = newModal;
             this.cachedRealItemRects = newRealItemRects;
         }
 
@@ -2978,8 +3034,9 @@ namespace NinjaPricer
 
             var isLeftVisible = gameUi.LeftPanel.Address != IntPtr.Zero && gameUi.LeftPanel.IsVisible;
             var isRightVisible = gameUi.RightPanel.Address != IntPtr.Zero && gameUi.RightPanel.IsVisible;
+            var hasModalSlots = this.cachedModalSlots.Count > 0;
 
-            if (!isLeftVisible && !isRightVisible)
+            if (!isLeftVisible && !isRightVisible && !hasModalSlots)
             {
                 return;
             }
@@ -3047,6 +3104,7 @@ namespace NinjaPricer
 
             if (this.Settings.ShowInventoryPrices && isRightVisible) DrawSlots(this.cachedInvSlots);
             if (this.Settings.ShowOtherInventoryPrices && isLeftVisible && !stashDropdownOpen) DrawSlots(this.cachedStashSlots);
+            if ((this.Settings.ShowOtherInventoryPrices || this.Settings.ShowRitualPrices) && hasModalSlots) DrawSlots(this.cachedModalSlots);
         }
 
         private void ScanRuneshapeRows()
