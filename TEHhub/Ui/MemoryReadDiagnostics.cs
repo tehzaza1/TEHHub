@@ -63,6 +63,24 @@ public static class MemoryReadDiagnostics
     private static int apiStopRequested;
     private static string lastDumpPath = string.Empty;
 
+    private static long hybridLogicalRequests;
+    private static long hybridLogicalBytes;
+    private static long hybridExactHits;
+    private static long hybridCompactHits;
+    private static long hybridMediumHits;
+    private static long hybridPageHits;
+    private static long hybridExactReads;
+    private static long hybridCompactPromotions;
+    private static long hybridMediumPromotions;
+    private static long hybridPagePromotions;
+    private static long hybridCompactPromotionFailures;
+    private static long hybridMediumPromotionFailures;
+    private static long hybridPagePromotionFailures;
+    private static long hybridFetchedBytes;
+    private static long hybridEntriesCreated;
+    private static long hybridPageTrackersCreated;
+    private static long hybridMaxPageTrackersPerFrame;
+
     /// <summary>
     ///     Starts the window render coroutine.
     /// </summary>
@@ -121,6 +139,28 @@ public static class MemoryReadDiagnostics
                 row.Verdict))
             .ToArray();
 
+        var logicalBytes = Interlocked.Read(ref hybridLogicalBytes);
+        var fetchedBytes = Interlocked.Read(ref hybridFetchedBytes);
+        var hybridSnapshot = new MemoryDiagnosticsHybridSnapshot(
+            Interlocked.Read(ref hybridLogicalRequests),
+            logicalBytes,
+            Interlocked.Read(ref hybridExactHits),
+            Interlocked.Read(ref hybridCompactHits),
+            Interlocked.Read(ref hybridMediumHits),
+            Interlocked.Read(ref hybridPageHits),
+            Interlocked.Read(ref hybridExactReads),
+            Interlocked.Read(ref hybridCompactPromotions),
+            Interlocked.Read(ref hybridMediumPromotions),
+            Interlocked.Read(ref hybridPagePromotions),
+            Interlocked.Read(ref hybridCompactPromotionFailures),
+            Interlocked.Read(ref hybridMediumPromotionFailures),
+            Interlocked.Read(ref hybridPagePromotionFailures),
+            fetchedBytes,
+            Interlocked.Read(ref hybridEntriesCreated),
+            Interlocked.Read(ref hybridPageTrackersCreated),
+            Interlocked.Read(ref hybridMaxPageTrackersPerFrame),
+            logicalBytes > 0 ? (double)fetchedBytes / logicalBytes : 0.0);
+
         return new MemoryDiagnosticsSnapshot(
             IsRecording,
             Core.GHSettings.EnableNewMemoryRead,
@@ -137,10 +177,12 @@ public static class MemoryReadDiagnostics
             rate.AverageMicrosecondsPerCall,
             rate.AverageFramesPerSecond,
             rate.AverageCallsPerFrame,
+            rate.AverageReaderMicrosecondsPerFrame,
             rate.TotalMebibytes,
             failures.Length,
             regions,
-            failures);
+            failures,
+            hybridSnapshot);
     }
 
     /// <summary>
@@ -250,6 +292,96 @@ public static class MemoryReadDiagnostics
         Interlocked.Add(ref stat.RequestedBytes, Interlocked.Read(ref context.RequestedBytes));
     }
 
+    internal static void RecordHybridLogicalRequest(long requestedBytes)
+    {
+        Interlocked.Increment(ref hybridLogicalRequests);
+        Interlocked.Add(ref hybridLogicalBytes, requestedBytes);
+    }
+
+    internal static void RecordHybridExactHit()
+    {
+        Interlocked.Increment(ref hybridExactHits);
+    }
+
+    internal static void RecordHybridCompactHit()
+    {
+        Interlocked.Increment(ref hybridCompactHits);
+    }
+
+    internal static void RecordHybridMediumHit()
+    {
+        Interlocked.Increment(ref hybridMediumHits);
+    }
+
+    internal static void RecordHybridPageHit()
+    {
+        Interlocked.Increment(ref hybridPageHits);
+    }
+
+    internal static void RecordHybridExactRead(long fetchedBytes)
+    {
+        Interlocked.Increment(ref hybridExactReads);
+        Interlocked.Increment(ref hybridEntriesCreated);
+        Interlocked.Add(ref hybridFetchedBytes, fetchedBytes);
+    }
+
+    internal static void RecordHybridCompactPromotion(long fetchedBytes)
+    {
+        Interlocked.Increment(ref hybridCompactPromotions);
+        Interlocked.Increment(ref hybridEntriesCreated);
+        Interlocked.Add(ref hybridFetchedBytes, fetchedBytes);
+    }
+
+    internal static void RecordHybridMediumPromotion(long fetchedBytes)
+    {
+        Interlocked.Increment(ref hybridMediumPromotions);
+        Interlocked.Increment(ref hybridEntriesCreated);
+        Interlocked.Add(ref hybridFetchedBytes, fetchedBytes);
+    }
+
+    internal static void RecordHybridPagePromotion(long fetchedBytes)
+    {
+        Interlocked.Increment(ref hybridPagePromotions);
+        Interlocked.Increment(ref hybridEntriesCreated);
+        Interlocked.Add(ref hybridFetchedBytes, fetchedBytes);
+    }
+
+    internal static void RecordHybridPromotionFailure(HybridPromotionLevel level)
+    {
+        switch (level)
+        {
+            case HybridPromotionLevel.Compact128B:
+                Interlocked.Increment(ref hybridCompactPromotionFailures);
+                break;
+            case HybridPromotionLevel.Medium512B:
+                Interlocked.Increment(ref hybridMediumPromotionFailures);
+                break;
+            case HybridPromotionLevel.Page4KB:
+                Interlocked.Increment(ref hybridPagePromotionFailures);
+                break;
+        }
+    }
+
+    internal static void RecordHybridPageTrackerCreated()
+    {
+        Interlocked.Increment(ref hybridPageTrackersCreated);
+    }
+
+    internal static void RecordHybridFrameTracking(int trackedPagesCount)
+    {
+        var currentMax = Volatile.Read(ref hybridMaxPageTrackersPerFrame);
+        while (trackedPagesCount > currentMax)
+        {
+            var prev = Interlocked.CompareExchange(ref hybridMaxPageTrackersPerFrame, trackedPagesCount, currentMax);
+            if (prev == currentMax)
+            {
+                break;
+            }
+
+            currentMax = prev;
+        }
+    }
+
     private static IEnumerator<Wait> RenderWindow()
     {
         while (true)
@@ -332,9 +464,45 @@ public static class MemoryReadDiagnostics
                     $"Frames: {cachedReadRate.TotalFrames:N0}  |  " +
                     $"{cachedReadRate.AverageFramesPerSecond:F1} frames/s  |  " +
                     $"{cachedReadRate.AverageCallsPerFrame:N0} reads/frame");
-                ImGui.TextDisabled(
+                ImGui.Text(
                     $"Breakdown: Scalar {cachedReadRate.ScalarCalls:N0}    Buffer/array {cachedReadRate.BufferCalls:N0}    " +
-                    $"Requested: {cachedReadRate.TotalMebibytes:F2} MiB");
+                    $"Requested: {cachedReadRate.TotalMebibytes:F2} MiB  |  Reader Time: {cachedReadRate.AverageReaderMicrosecondsPerFrame:F1} us/frame ({cachedReadRate.AverageMicrosecondsPerCall:F2} us/call)");
+
+                if (Core.GHSettings.EnableNewMemoryRead || hybridLogicalRequests > 0)
+                {
+                    ImGui.Separator();
+                    ImGui.TextColored(new Vector4(0.4f, 0.8f, 1f, 1f), "Hybrid Memory Reader (EnableNewMemoryRead)");
+
+                    var logicalReqs = Interlocked.Read(ref hybridLogicalRequests);
+                    var logicalBytes = Interlocked.Read(ref hybridLogicalBytes);
+                    var exactHits = Interlocked.Read(ref hybridExactHits);
+                    var compHits = Interlocked.Read(ref hybridCompactHits);
+                    var medHits = Interlocked.Read(ref hybridMediumHits);
+                    var pageHits = Interlocked.Read(ref hybridPageHits);
+                    var totalHits = exactHits + compHits + medHits + pageHits;
+                    var hitRate = logicalReqs > 0 ? (double)totalHits / logicalReqs * 100.0 : 0.0;
+
+                    var exactReads = Interlocked.Read(ref hybridExactReads);
+                    var compProms = Interlocked.Read(ref hybridCompactPromotions);
+                    var medProms = Interlocked.Read(ref hybridMediumPromotions);
+                    var pageProms = Interlocked.Read(ref hybridPagePromotions);
+                    var totalNativeReads = exactReads + compProms + medProms + pageProms;
+                    var fetchedBytes = Interlocked.Read(ref hybridFetchedBytes);
+                    var compFails = Interlocked.Read(ref hybridCompactPromotionFailures);
+                    var medFails = Interlocked.Read(ref hybridMediumPromotionFailures);
+                    var pageFails = Interlocked.Read(ref hybridPagePromotionFailures);
+                    var entriesCreated = Interlocked.Read(ref hybridEntriesCreated);
+                    var trackersCreated = Interlocked.Read(ref hybridPageTrackersCreated);
+                    var maxTrackersFrame = Interlocked.Read(ref hybridMaxPageTrackersPerFrame);
+
+                    var ratio = logicalBytes > 0 ? (double)fetchedBytes / logicalBytes : 0.0;
+
+                    ImGui.Text($"Logical Requests: {logicalReqs:N0} ({logicalBytes / 1024.0:F1} KiB)  |  Cache Hits: {totalHits:N0} ({hitRate:F1}%)");
+                    ImGui.TextDisabled($"  Hits Breakdown: Page(4KB) {pageHits:N0}  |  Medium(512B) {medHits:N0}  |  Compact(128B) {compHits:N0}  |  Exact {exactHits:N0}");
+                    ImGui.Text($"Native Fetches: {totalNativeReads:N0} ({fetchedBytes / 1024.0:F1} KiB)  |  Fetched/Requested Ratio: {ratio:F2}x");
+                    ImGui.TextDisabled($"  Fetches Breakdown: 4KB Prom {pageProms:N0} (Fail {pageFails:N0})  |  512B Prom {medProms:N0} (Fail {medFails:N0})  |  128B Prom {compProms:N0} (Fail {compFails:N0})  |  Exact {exactReads:N0}");
+                    ImGui.TextDisabled($"  Dynamics: Cache Windows Created {entriesCreated:N0}  |  Page Trackers Created {trackersCreated:N0}  |  Peak Tracked Pages/Frame {maxTrackersFrame:N0}");
+                }
 
                 if (ImGui.BeginTable("memDiagTable", 6,
                         ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders |
@@ -480,13 +648,35 @@ public static class MemoryReadDiagnostics
             failures,
             frames,
             sessionSeconds > 0 ? frames / sessionSeconds : 0,
-            frames > 0 ? (double)calls / frames : 0);
+            frames > 0 ? (double)calls / frames : 0,
+            frames > 0 ? ticks * 1_000_000.0 / Stopwatch.Frequency / frames : 0);
 
         previousReadCalls = calls;
         previousReadBytes = bytes;
         previousReadTicks = ticks;
         previousReadFailures = failures;
         previousRateTimestamp = nowTimestamp;
+    }
+
+    private static void ResetHybridMetrics()
+    {
+        Interlocked.Exchange(ref hybridLogicalRequests, 0);
+        Interlocked.Exchange(ref hybridLogicalBytes, 0);
+        Interlocked.Exchange(ref hybridExactHits, 0);
+        Interlocked.Exchange(ref hybridCompactHits, 0);
+        Interlocked.Exchange(ref hybridMediumHits, 0);
+        Interlocked.Exchange(ref hybridPageHits, 0);
+        Interlocked.Exchange(ref hybridExactReads, 0);
+        Interlocked.Exchange(ref hybridCompactPromotions, 0);
+        Interlocked.Exchange(ref hybridMediumPromotions, 0);
+        Interlocked.Exchange(ref hybridPagePromotions, 0);
+        Interlocked.Exchange(ref hybridCompactPromotionFailures, 0);
+        Interlocked.Exchange(ref hybridMediumPromotionFailures, 0);
+        Interlocked.Exchange(ref hybridPagePromotionFailures, 0);
+        Interlocked.Exchange(ref hybridFetchedBytes, 0);
+        Interlocked.Exchange(ref hybridEntriesCreated, 0);
+        Interlocked.Exchange(ref hybridPageTrackersCreated, 0);
+        Interlocked.Exchange(ref hybridMaxPageTrackersPerFrame, 0);
     }
 
     private static void ResetReadMetrics()
@@ -512,6 +702,7 @@ public static class MemoryReadDiagnostics
         Stats.Clear();
         ReadRegions.Clear();
         ResetReadMetrics();
+        ResetHybridMetrics();
         cachedRows = [];
         lastDumpPath = string.Empty;
         lastActionMessage = string.Empty;
@@ -540,10 +731,39 @@ public static class MemoryReadDiagnostics
         sb.AppendLine(
             $"# Frames: {cachedReadRate.TotalFrames}, " +
             $"{cachedReadRate.AverageFramesPerSecond:F1} frames/s, " +
-            $"{cachedReadRate.AverageCallsPerFrame:F0} reads/frame");
+            $"{cachedReadRate.AverageCallsPerFrame:F0} reads/frame, " +
+            $"Reader time/frame: {cachedReadRate.AverageReaderMicrosecondsPerFrame:F1} us");
         sb.AppendLine(
             $"# Scalar calls: {cachedReadRate.ScalarCalls}, Buffer/array calls: {cachedReadRate.BufferCalls}, " +
             $"Total requested: {cachedReadRate.TotalMebibytes:F2} MiB");
+
+        if (Core.GHSettings.EnableNewMemoryRead || Volatile.Read(ref hybridLogicalRequests) > 0)
+        {
+            var reqs = Volatile.Read(ref hybridLogicalRequests);
+            var reqBytes = Volatile.Read(ref hybridLogicalBytes);
+            var exactHits = Volatile.Read(ref hybridExactHits);
+            var compHits = Volatile.Read(ref hybridCompactHits);
+            var medHits = Volatile.Read(ref hybridMediumHits);
+            var pageHits = Volatile.Read(ref hybridPageHits);
+            var totalHits = exactHits + compHits + medHits + pageHits;
+            var hitRate = reqs > 0 ? (double)totalHits / reqs * 100.0 : 0.0;
+
+            var exactReads = Volatile.Read(ref hybridExactReads);
+            var compProms = Volatile.Read(ref hybridCompactPromotions);
+            var medProms = Volatile.Read(ref hybridMediumPromotions);
+            var pageProms = Volatile.Read(ref hybridPagePromotions);
+            var totalNative = exactReads + compProms + medProms + pageProms;
+            var fetchBytes = Volatile.Read(ref hybridFetchedBytes);
+            var ratio = reqBytes > 0 ? (double)fetchBytes / reqBytes : 0.0;
+
+            sb.AppendLine("# Hybrid Memory Reader (Dynamic path):");
+            sb.AppendLine($"#   Logical Requests: {reqs}, Bytes: {reqBytes / 1024.0:F1} KiB, Cache Hits: {totalHits} ({hitRate:F1}%)");
+            sb.AppendLine($"#   Cache Hits: Page4KB={pageHits}, Medium512B={medHits}, Compact128B={compHits}, Exact={exactHits}");
+            sb.AppendLine($"#   Native Fetches: {totalNative} ({fetchBytes / 1024.0:F1} KiB), Fetched/Requested Ratio: {ratio:F2}x");
+            sb.AppendLine($"#   Promotions: Page4KB={pageProms} (Fail={Volatile.Read(ref hybridPagePromotionFailures)}), Medium512B={medProms} (Fail={Volatile.Read(ref hybridMediumPromotionFailures)}), Compact128B={compProms} (Fail={Volatile.Read(ref hybridCompactPromotionFailures)}), Exact={exactReads}");
+            sb.AppendLine($"#   Dynamics: WindowsCreated={Volatile.Read(ref hybridEntriesCreated)}, TrackersCreated={Volatile.Read(ref hybridPageTrackersCreated)}, PeakTrackedPages/Frame={Volatile.Read(ref hybridMaxPageTrackersPerFrame)}");
+        }
+
         sb.AppendLine("# Read regions (regions can overlap):");
         sb.AppendLine("# Region\tInvocations\tTotalReads\tAvgReads/Invocation\tRequestedMiB");
         foreach (var entry in ReadRegions.OrderByDescending(static entry => Interlocked.Read(ref entry.Value.ReadCalls)))
@@ -790,11 +1010,40 @@ internal sealed record MemoryDiagnosticsSnapshot(
     double AverageMebibytesPerSecond,
     double AverageMicrosecondsPerCall,
     double AverageFramesPerSecond,
-    double AverageReadsPerFrame,
+    double AverageCallsPerFrame,
+    double AverageReaderMicrosecondsPerFrame,
     double TotalMebibytes,
     int DistinctFailureCallSites,
     MemoryDiagnosticsRegion[] Regions,
-    MemoryDiagnosticsFailure[] Failures);
+    MemoryDiagnosticsFailure[] Failures,
+    MemoryDiagnosticsHybridSnapshot Hybrid);
+
+internal sealed record MemoryDiagnosticsHybridSnapshot(
+    long LogicalRequests,
+    long LogicalBytes,
+    long ExactHits,
+    long CompactHits,
+    long MediumHits,
+    long PageHits,
+    long ExactReads,
+    long CompactPromotions,
+    long MediumPromotions,
+    long PagePromotions,
+    long CompactPromotionFailures,
+    long MediumPromotionFailures,
+    long PagePromotionFailures,
+    long FetchedBytes,
+    long EntriesCreated,
+    long PageTrackersCreated,
+    long MaxPageTrackersPerFrame,
+    double FetchedToRequestedRatio);
+
+internal enum HybridPromotionLevel
+{
+    Compact128B,
+    Medium512B,
+    Page4KB,
+}
 
 internal sealed record MemoryDiagnosticsRegion(
     string Name,
@@ -853,7 +1102,8 @@ internal readonly record struct ReadRateSnapshot(
     long TotalFailures,
     long TotalFrames,
     double AverageFramesPerSecond,
-    double AverageCallsPerFrame);
+    double AverageCallsPerFrame,
+    double AverageReaderMicrosecondsPerFrame);
 
 /// <summary>
 ///     A snapshot row for the diagnostics table.

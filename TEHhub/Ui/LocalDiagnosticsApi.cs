@@ -414,6 +414,8 @@ namespace TEHhub.Ui
     [JsonSerializable(typeof(OffsetHelper.OffsetVerificationStatus))]
     [JsonSerializable(typeof(MemoryDiagnosticsStatus))]
     [JsonSerializable(typeof(MemoryDiagnosticsSnapshot))]
+    [JsonSerializable(typeof(MemoryDiagnosticsHybridSnapshot))]
+    [JsonSerializable(typeof(HybridPromotionLevel))]
     [JsonSerializable(typeof(PerformanceProfilerSnapshot))]
     [JsonSerializable(typeof(DiagnosticsApiResponse))]
     [JsonSerializable(typeof(BottleneckSnapshot))]
