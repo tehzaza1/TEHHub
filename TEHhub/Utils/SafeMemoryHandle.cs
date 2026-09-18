@@ -588,14 +588,24 @@ namespace TEHhub.Utils
 
         internal sealed class ReadCachePlan : IDisposable
         {
+            private const int CompactBlockSize = 128;
+            private const int CompactPromotionThreshold = 2;
             private const int MaxDynamicWindows = 2048;
+
             private readonly ReadCacheWindow[] windows;
-            private readonly Dictionary<long, ReadCacheWindow>? dynamicWindows;
+            private readonly Dictionary<long, ReadCacheWindow>? exactWindows;
+            private readonly Dictionary<long, ReadCacheWindow>? compactWindows;
+            private readonly Dictionary<long, int>? blockAccessCounts;
 
             internal ReadCachePlan(ReadCacheWindow[] windows, bool enableDynamicCache)
             {
                 this.windows = windows;
-                this.dynamicWindows = enableDynamicCache ? new() : null;
+                if (enableDynamicCache)
+                {
+                    this.exactWindows = new();
+                    this.compactWindows = new();
+                    this.blockAccessCounts = new();
+                }
             }
 
             internal bool Contains(long startAddress, int byteCount)
@@ -636,8 +646,7 @@ namespace TEHhub.Utils
                 where T : unmanaged
             {
                 result = default;
-                var cache = this.dynamicWindows;
-                if (cache is null)
+                if (this.exactWindows is null || this.compactWindows is null || this.blockAccessCounts is null)
                 {
                     return false;
                 }
@@ -648,17 +657,33 @@ namespace TEHhub.Utils
                     return false;
                 }
 
-                if (cache.TryGetValue(address, out var existingSameAddressWindow))
+                var blockStart = address & ~(CompactBlockSize - 1L);
+                var offsetInBlock = address - blockStart;
+                var fitsInBlock = size <= CompactBlockSize && offsetInBlock + size <= CompactBlockSize;
+
+                // 1. Check compact 128B window cache (O(1) dictionary lookup by aligned block start)
+                if (fitsInBlock && this.compactWindows.TryGetValue(blockStart, out var compactWindow))
                 {
-                    if (existingSameAddressWindow.ByteCount >= size)
+                    if (offsetInBlock + size <= compactWindow.ByteCount)
                     {
-                        result = MemoryMarshal.Read<T>(existingSameAddressWindow.Buffer.AsSpan(0, size));
+                        result = MemoryMarshal.Read<T>(compactWindow.Buffer.AsSpan((int)offsetInBlock, size));
+                        return true;
+                    }
+                }
+
+                // 2. Check exact window cache (O(1) dictionary lookup by exact address)
+                if (this.exactWindows.TryGetValue(address, out var existingSameAddressExact))
+                {
+                    if (existingSameAddressExact.ByteCount >= size)
+                    {
+                        result = MemoryMarshal.Read<T>(existingSameAddressExact.Buffer.AsSpan(0, size));
                         return true;
                     }
                 }
                 else
                 {
-                    foreach (var w in cache.Values)
+                    // Secondary containment check across exact entries (e.g. sub-range inside larger exact read)
+                    foreach (var w in this.exactWindows.Values)
                     {
                         var offset = address - w.StartAddress;
                         if (offset >= 0 && offset <= w.ByteCount - size)
@@ -669,7 +694,58 @@ namespace TEHhub.Utils
                     }
                 }
 
-                if (existingSameAddressWindow is null && cache.Count >= MaxDynamicWindows)
+                // 3. Adaptive 128B Promotion on locality evidence (miss in 128B block with access count >= threshold)
+                if (fitsInBlock && IsValidAddress(new IntPtr(blockStart)))
+                {
+                    var count = this.blockAccessCounts.GetValueOrDefault(blockStart, 0) + 1;
+                    this.blockAccessCounts[blockStart] = count;
+
+                    if (count >= CompactPromotionThreshold &&
+                        (this.compactWindows.Count + this.exactWindows.Count) < MaxDynamicWindows)
+                    {
+                        var compactBuffer = ArrayPool<byte>.Shared.Rent(CompactBlockSize);
+                        if (reader.TryReadMemoryArray(new IntPtr(blockStart), compactBuffer, CompactBlockSize, out _))
+                        {
+                            var newCompactWindow = new ReadCacheWindow(blockStart, CompactBlockSize, compactBuffer);
+                            this.compactWindows[blockStart] = newCompactWindow;
+
+                            // Safely remove and return any exact entries superseded by this compact window
+                            if (this.exactWindows.Count > 0)
+                            {
+                                List<long>? toRemove = null;
+                                foreach (var (addr, w) in this.exactWindows)
+                                {
+                                    if (addr >= blockStart && addr + w.ByteCount <= blockStart + CompactBlockSize)
+                                    {
+                                        toRemove ??= new();
+                                        toRemove.Add(addr);
+                                    }
+                                }
+
+                                if (toRemove is not null)
+                                {
+                                    for (int i = 0; i < toRemove.Count; i++)
+                                    {
+                                        var addr = toRemove[i];
+                                        if (this.exactWindows.Remove(addr, out var oldExact))
+                                        {
+                                            ArrayPool<byte>.Shared.Return(oldExact.Buffer);
+                                        }
+                                    }
+                                }
+                            }
+
+                            result = MemoryMarshal.Read<T>(compactBuffer.AsSpan((int)offsetInBlock, size));
+                            return true;
+                        }
+
+                        // Promotion read failed; safely return the rented buffer and preserve prior exact cache
+                        ArrayPool<byte>.Shared.Return(compactBuffer);
+                    }
+                }
+
+                // 4. Exact-First Read (first access, non-promoted, promotion failure, or cross-boundary requests)
+                if (existingSameAddressExact is null && (this.compactWindows.Count + this.exactWindows.Count) >= MaxDynamicWindows)
                 {
                     return false;
                 }
@@ -679,22 +755,22 @@ namespace TEHhub.Utils
                     return false;
                 }
 
-                var buffer = ArrayPool<byte>.Shared.Rent(size);
-                if (!reader.TryReadMemoryArray(new IntPtr(address), buffer, size, out _))
+                var exactBuffer = ArrayPool<byte>.Shared.Rent(size);
+                if (!reader.TryReadMemoryArray(new IntPtr(address), exactBuffer, size, out _))
                 {
-                    ArrayPool<byte>.Shared.Return(buffer);
+                    ArrayPool<byte>.Shared.Return(exactBuffer);
                     return false;
                 }
 
-                var newWindow = new ReadCacheWindow(address, size, buffer);
-                cache[address] = newWindow;
+                var newExactWindow = new ReadCacheWindow(address, size, exactBuffer);
+                this.exactWindows[address] = newExactWindow;
 
-                if (existingSameAddressWindow is not null)
+                if (existingSameAddressExact is not null)
                 {
-                    ArrayPool<byte>.Shared.Return(existingSameAddressWindow.Buffer);
+                    ArrayPool<byte>.Shared.Return(existingSameAddressExact.Buffer);
                 }
 
-                result = MemoryMarshal.Read<T>(buffer.AsSpan(0, size));
+                result = MemoryMarshal.Read<T>(exactBuffer.AsSpan(0, size));
                 return true;
             }
 
@@ -705,15 +781,27 @@ namespace TEHhub.Utils
                     ArrayPool<byte>.Shared.Return(window.Buffer);
                 }
 
-                if (this.dynamicWindows is not null)
+                if (this.compactWindows is not null)
                 {
-                    foreach (var window in this.dynamicWindows.Values)
+                    foreach (var window in this.compactWindows.Values)
                     {
                         ArrayPool<byte>.Shared.Return(window.Buffer);
                     }
 
-                    this.dynamicWindows.Clear();
+                    this.compactWindows.Clear();
                 }
+
+                if (this.exactWindows is not null)
+                {
+                    foreach (var window in this.exactWindows.Values)
+                    {
+                        ArrayPool<byte>.Shared.Return(window.Buffer);
+                    }
+
+                    this.exactWindows.Clear();
+                }
+
+                this.blockAccessCounts?.Clear();
             }
 
             private ReadCacheWindow? FindWindow(long address)
