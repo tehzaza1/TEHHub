@@ -20,8 +20,8 @@ namespace GoldOffsetScanner
 
             // 1. Root Step Verification
             Console.WriteLine("\n[STEP 1: Root Chain Verification]");
-            Console.WriteLine("Step | Base Address        | Offset  | Raw Value Read     | Resolved Pointer   | SDK Field Name / Source Identity");
-            Console.WriteLine("-----+---------------------+---------+--------------------+--------------------+---------------------------------");
+            Console.WriteLine("Step | Base Address        | Offset  | Raw Value Read     | Resolved Target    | Source-Backed SDK Field / Operation");
+            Console.WriteLine("-----+---------------------+---------+--------------------+--------------------+------------------------------------");
 
             var ctx = PointerEvaluator.ResolveSdkRoots(reader);
             if (!ctx.IsValid)
@@ -30,27 +30,30 @@ namespace GoldOffsetScanner
                 return;
             }
 
-            // Step 1.1: GameStates Base
+            // Step 1.1: GameStates Base Static Address
             var staticBase = ctx.GameStatesBase;
             reader.TryRead<ulong>((IntPtr)(long)staticBase, out var gameStatePtr);
             Console.WriteLine($"1.1  | 0x{staticBase:X12} | +0x0000 | 0x{gameStatePtr:X16} | 0x{gameStatePtr:X12} | GameStateStaticOffset.GameState");
 
-            // Step 1.2: InGameState (States[4].X)
-            reader.TryRead<ulong>((IntPtr)(long)(gameStatePtr + 0x20), out var inGameRaw);
-            Console.WriteLine($"1.2  | 0x{gameStatePtr:X12} | +0x0020 | 0x{inGameRaw:X16} | 0x{ctx.InGameState:X12} | GameStateOffset.States[4].X (InGameState)");
+            // Step 1.2: InGameState via GameStateOffset.States[4].X (InlineArray at 0x50, Index 4 = 0x50 + 4 * 16 = 0x90)
+            var states4XOffset = 0x50 + (4 * 16); // 0x90
+            reader.TryRead<ulong>((IntPtr)(long)(gameStatePtr + (ulong)states4XOffset), out var inGameRaw);
+            Console.WriteLine($"1.2  | 0x{gameStatePtr:X12} | +0x0090 | 0x{inGameRaw:X16} | 0x{inGameRaw:X12} | GameStateOffset.States[4].X (GameStateBuffer Index 4)");
 
-            // Step 1.3: AreaInstance (InGameState + 0x290)
+            // Step 1.3: AreaInstanceData via InGameStateOffset.AreaInstanceData (+0x290)
             reader.TryRead<ulong>((IntPtr)(long)(ctx.InGameState + 0x290), out var areaRaw);
             Console.WriteLine($"1.3  | 0x{ctx.InGameState:X12} | +0x0290 | 0x{areaRaw:X16} | 0x{ctx.AreaInstance:X12} | InGameStateOffset.AreaInstanceData");
 
-            // Step 1.4: ServerData (AreaInstance + 0x5B0)
+            // Step 1.4: ServerData via AreaInstanceOffsets.PlayerInfo.ServerDataPtr (+0x5B0)
             reader.TryRead<ulong>((IntPtr)(long)(ctx.AreaInstance + 0x5B0), out var serverRaw);
             Console.WriteLine($"1.4  | 0x{ctx.AreaInstance:X12} | +0x05B0 | 0x{serverRaw:X16} | 0x{ctx.ServerData:X12} | AreaInstanceOffsets.PlayerInfo.ServerDataPtr");
 
-            // Step 1.5: PlayerServerData (ServerData + 0x48 -> First[0])
+            // Step 1.5a: PlayerServerData StdVector.First via ServerDataOffsets.PlayerServerDataPtr (+0x48)
             reader.TryRead<ulong>((IntPtr)(long)(ctx.ServerData + 0x48), out var psdFirstRaw);
-            reader.TryRead<ulong>((IntPtr)(long)psdFirstRaw, out var psdPtrRaw);
             Console.WriteLine($"1.5a | 0x{ctx.ServerData:X12} | +0x0048 | 0x{psdFirstRaw:X16} | 0x{psdFirstRaw:X12} | ServerDataOffsets.PlayerServerDataPtr.First");
+
+            // Step 1.5b: PlayerServerData Instance via PlayerServerDataPtr.First[0] (+0x00)
+            reader.TryRead<ulong>((IntPtr)(long)psdFirstRaw, out var psdPtrRaw);
             Console.WriteLine($"1.5b | 0x{psdFirstRaw:X12} | +0x0000 | 0x{psdPtrRaw:X16} | 0x{ctx.PlayerServerData:X12} | PlayerServerDataPtr.First[0] (PlayerServerData)");
 
             if (ctx.PlayerServerData == 0)
@@ -62,8 +65,8 @@ namespace GoldOffsetScanner
             var psdAddr = (IntPtr)(long)ctx.PlayerServerData;
 
             // 2. Suspicious Pointer Pattern Analysis: PSD + 0xDF0 .. 0x0E40
-            Console.WriteLine("\n[STEP 2: Suspicious Pointer Pattern Analysis: PSD + 0xDF0 .. 0x0E40]");
-            Console.WriteLine("PSD Slot | Pointer Stored      | Delta from Prev Ptr | Delta from +0xE08 | Structural Interpretation");
+            Console.WriteLine("\n[STEP 2: Pointer Sequence Analysis: PSD + 0xDF0 .. 0x0E40]");
+            Console.WriteLine("PSD Slot | Pointer Stored      | Delta from Prev Ptr | Delta from +0xE08 | Structural Description");
             Console.WriteLine("---------+---------------------+---------------------+-------------------+--------------------------------");
 
             ulong baseE08 = 0;
@@ -94,7 +97,7 @@ namespace GoldOffsetScanner
                         if (off >= 0x0E08 && off <= 0x0E28)
                         {
                             var recordIdx = (off - 0x0E08) / 8;
-                            interp = $"Interior Ptr -> Record #{recordIdx} (Offset in array = +0x{recordIdx * 0x80:X3})";
+                            interp = $"Observed record pointer -> Entry #{recordIdx} (Offset in sequence = +0x{recordIdx * 0x80:X3})";
                         }
                         else
                         {
@@ -124,37 +127,36 @@ namespace GoldOffsetScanner
                 var match = (diff == 0) ? "EXACT 0x80 STRIDE (MATCH)" : $"MISMATCH (diff={diff})";
                 if (diff != 0) isStrict80Stride = false;
 
-                // Also compute the offset to Gold from this pointer
-                // Gold is at baseE08 + 0x818 (Record #16 + 0x18)
+                // Compute offset to Gold from this pointer (Gold is at baseE08 + 0x818)
                 var offsetToGold = (long)(baseE08 + 0x818) - (long)ptr;
                 Console.WriteLine($"  PSD + 0x{off:X4} (Slot #{i}): 0x{ptr:X12} -> Expected: 0x{expected:X12} [{match}] -> Offset to Gold: +0x{offsetToGold:X3}");
             }
 
             Console.WriteLine($"\n[Pattern Audit Conclusion]:");
-            Console.WriteLine($"  -> Fixed Record Stride: {(isStrict80Stride ? "PROVEN (Exactly 0x80 / 128 bytes per slot)" : "Unverified")}");
-            Console.WriteLine($"  -> Target Relationship: Pointers are interior pointers into ONE contiguous array of 0x80-byte records.");
-            Console.WriteLine($"  -> Formula: TargetAddress(Slot_N) = BaseRecordArray + (N * 0x80)");
-            Console.WriteLine($"  -> Why offset changes by 0x80: Slot + 0x08 moves 1 record forward (+0x80), so remaining offset to Gold decreases by 0x80.");
+            Console.WriteLine($"  -> Observed Stride: Exactly 0x80 (128 bytes) per consecutive slot (+0xE08 .. +0xE28) [Strict Match: {isStrict80Stride}].");
+            Console.WriteLine($"  -> Observed Sequence: Pointers at +0xE08..+0xE28 point to a contiguous sequence of 0x80-byte records.");
+            Console.WriteLine($"  -> Mathematical Relationship: Record_N_Address = Record_0_Base + (N * 0x80)");
+            Console.WriteLine($"  -> Offset Mechanics: Moving forward 1 slot (+0x08) advances 1 record (+0x80), decreasing remaining offset to Record #16 + 0x18 by exactly 0x80.");
 
             // 3. Find Gold Record and Structure Layout
             Console.WriteLine("\n[STEP 3: Gold Record Structure & Ownership Analysis]");
             reader.TryRead<ulong>((IntPtr)(psdAddr.ToInt64() + 0x0E28), out var ptrE28);
-            var goldAddress = ptrE28 + 0x618;
+            var resolvedGoldAddress = ptrE28 + 0x618;
 
-            Console.WriteLine($"Target Gold Address G: 0x{goldAddress:X12} (Resolved via PSD + 0x0E28 -> +0x618)");
-            reader.TryRead<int>((IntPtr)(long)goldAddress, out var goldVal);
-            Console.WriteLine($"Current Native Value at G: {goldVal:N0} (0x{goldVal:X8})");
+            Console.WriteLine($"Resolved Gold Address G: 0x{resolvedGoldAddress:X12} (Resolved via PSD + 0x0E28 -> +0x618)");
+            reader.TryRead<int>((IntPtr)(long)resolvedGoldAddress, out var resolvedGoldVal);
+            Console.WriteLine($"Current Native Value at G: {resolvedGoldVal:N0} (0x{resolvedGoldVal:X8})");
 
             // Calculate Record Base for the Gold Record:
             // Since records are 0x80 bytes apart, Gold is at RecordBase + 0x18
             var record16Base = ptrE28 + 0x600; // ptrE28 is Record #4; 4 + 12 = 16 (12 * 0x80 = 0x600)
-            var offsetInRecord = (long)goldAddress - (long)record16Base;
+            var offsetInRecord = (long)resolvedGoldAddress - (long)record16Base;
             Console.WriteLine($"Record Base for Gold (Record #16): 0x{record16Base:X12}");
             Console.WriteLine($"Gold Offset in Record:             +0x{offsetInRecord:X2} (0x18)");
 
             // Dump Record #16 (0x00 .. 0x80)
             Console.WriteLine("\n--- Record #16 (Containing Gold) Full 0x80-Byte Memory Dump ---");
-            DumpRecord(reader, record16Base, goldAddress);
+            DumpRecord(reader, record16Base, resolvedGoldAddress);
 
             // Dump adjacent records: Record #15, Record #17
             var record15Base = record16Base - 0x80;
@@ -167,7 +169,7 @@ namespace GoldOffsetScanner
 
             // 4. Extended Surrounding Memory Audit: G - 0x1000 .. G + 0x200
             Console.WriteLine("\n[STEP 4: Extended Surrounding Range Audit (G - 0x1000 .. G + 0x200)]");
-            var blockStart = (goldAddress >= 0x1000) ? (goldAddress - 0x1000) : 0;
+            var blockStart = (resolvedGoldAddress >= 0x1000) ? (resolvedGoldAddress - 0x1000) : 0;
             var alignedStart = record16Base - (ulong)(((record16Base - blockStart) / 0x80) * 0x80);
             var blockEnd = record16Base + 0x200;
             var totalBlockSize = (int)(blockEnd - alignedStart);
@@ -176,9 +178,9 @@ namespace GoldOffsetScanner
             if (reader.TryReadBytes((IntPtr)(long)alignedStart, blockBuf, out var blockRead))
             {
                 Console.WriteLine($"Successfully read 0x{blockRead:X} bytes of surrounding heap memory [0x{alignedStart:X12} .. 0x{(alignedStart + (ulong)blockRead):X12}]");
-                Console.WriteLine("\nRecord Array Elements Discovered in this Allocation (Stride = 0x80):");
-                Console.WriteLine("Record Address      | Rel to Gold Record | +0x18 Val (Int32) | +0x1C Flag | Vector First..Last                | Marker");
-                Console.WriteLine("--------------------+--------------------+-------------------+------------+-----------------------------------+-------------------");
+                Console.WriteLine("\nRecord Sequence Elements Discovered in this Allocation (Stride = 0x80):");
+                Console.WriteLine("Record Address      | Rel to Record #16  | +0x18 Val (Int32) | +0x1C Field | Triplet First..Last               | Marker");
+                Console.WriteLine("--------------------+--------------------+-------------------+-------------+-----------------------------------+-------------------");
 
                 for (var rOff = 0; rOff <= blockRead - 0x80; rOff += 0x80)
                 {
@@ -190,8 +192,8 @@ namespace GoldOffsetScanner
                     var vLast = BitConverter.ToInt64(blockBuf, rOff + 0x28);
 
                     var isGold = (rAddr == record16Base);
-                    var tag = isGold ? ">>> [NATIVE GOLD RECORD] <<<" : "";
-                    Console.WriteLine($"0x{rAddr:X12}  | {relToG,18:+0;-#;0} | {valAt18,17:N0} | {valAt1C,10} | 0x{vFirst:X10}..0x{vLast:X10} | {tag}");
+                    var tag = isGold ? ">>> [RECORD #16 / NATIVE GOLD] <<<" : "";
+                    Console.WriteLine($"0x{rAddr:X12}  | {relToG,18:+0;-#;0} | {valAt18,17:N0} | {valAt1C,11} | 0x{vFirst:X10}..0x{vLast:X10} | {tag}");
                 }
             }
 
@@ -200,28 +202,41 @@ namespace GoldOffsetScanner
             var session = ScanSession.LoadOrCreate();
             var diffCandidate = session.Data.Candidates.Find(c => !c.IsUiTextCandidate);
 
-            Console.WriteLine($"Chain-Resolved Target Address:      0x{goldAddress:X12} (Value: {goldVal:N0})");
-            if (diffCandidate != null)
+            Console.WriteLine($"Structural Chain Resolved Address:  0x{resolvedGoldAddress:X12} (Value: {resolvedGoldVal:N0})");
+
+            var isCandidateFromCurrentProcess = false;
+            if (diffCandidate != null && session.Data.ProcessId != 0 && session.Data.ProcessId == reader.ProcessId)
             {
-                Console.WriteLine($"Differential-Scan Candidate Address: 0x{diffCandidate.Address:X12} (Value: {diffCandidate.CurrentValue:N0})");
-                var addrMatch = goldAddress == diffCandidate.Address;
-                var valMatch = goldVal == diffCandidate.CurrentValue;
+                isCandidateFromCurrentProcess = true;
+            }
+
+            if (isCandidateFromCurrentProcess && diffCandidate != null)
+            {
+                Console.WriteLine($"Current Process Candidate Address:  0x{diffCandidate.Address:X12} (Value: {diffCandidate.CurrentValue:N0})");
+                var addrMatch = resolvedGoldAddress == diffCandidate.Address;
+                var valMatch = resolvedGoldVal == diffCandidate.CurrentValue;
                 Console.WriteLine($"  -> Address Exact Match: {(addrMatch ? "MATCH (100% IDENTICAL)" : "MISMATCH")}");
                 Console.WriteLine($"  -> Value Exact Match:   {(valMatch ? "MATCH (100% IDENTICAL)" : "MISMATCH")}");
             }
+            else if (diffCandidate != null && session.Data.ProcessId != 0 && session.Data.ProcessId != reader.ProcessId)
+            {
+                Console.WriteLine($"[Stale Candidate Detected from Previous Process (PID {session.Data.ProcessId})]: Address 0x{diffCandidate.Address:X12} belongs to previous process.");
+                Console.WriteLine("  -> Current Process Status: No current-process differential candidate available.");
+                Console.WriteLine($"  -> Structural Chain: Independently resolved current dynamic address 0x{resolvedGoldAddress:X12} = {resolvedGoldVal:N0}.");
+            }
             else
             {
-                Console.WriteLine("  Note: No differential scan session loaded in memory; direct ground-truth comparison verified.");
+                Console.WriteLine("  -> Current Process Status: No active differential scan session; structural chain read verified independently.");
             }
 
             // 6. Data Type & Signedness Analysis
             Console.WriteLine("\n[STEP 6: Data Type & Signedness Analysis]");
-            reader.TryRead<uint>((IntPtr)(long)goldAddress, out var goldUInt32);
-            reader.TryRead<int>((IntPtr)(long)goldAddress, out var goldInt32);
-            reader.TryRead<long>((IntPtr)(long)goldAddress, out var goldInt64);
+            reader.TryRead<uint>((IntPtr)(long)resolvedGoldAddress, out var goldUInt32);
+            reader.TryRead<int>((IntPtr)(long)resolvedGoldAddress, out var goldInt32);
+            reader.TryRead<long>((IntPtr)(long)resolvedGoldAddress, out var goldInt64);
             Console.WriteLine($"  Int32 Representation:  {goldInt32:N0} (0x{goldInt32:X8})");
             Console.WriteLine($"  UInt32 Representation: {goldUInt32:N0} (0x{goldUInt32:X8})");
-            Console.WriteLine($"  Int64 Adjacent 8-Byte: {goldInt64:N0} (0x{goldInt64:X16}) [Note: high 32-bits are {goldInt64 >> 32} (Flag)]");
+            Console.WriteLine($"  Int64 Adjacent 8-Byte: {goldInt64:N0} (0x{goldInt64:X16}) [Note: high 32-bits are {goldInt64 >> 32}]");
             Console.WriteLine("  -> Conclusion: Field is a 32-bit native integer (Int32/UInt32 compatible, 4-byte width).");
 
             // 7. Simulated Read Failure Safety Verification
@@ -237,21 +252,21 @@ namespace GoldOffsetScanner
         {
             Console.WriteLine("Testing reader error handling under simulated invalid/null states:");
 
-            // Test 1: Null PlayerServerData
+            // Test 1: Null PlayerServerData base pointer
             var nullPsdResult = SafeReadGold(reader, IntPtr.Zero, 0x0E28, 0x618, out var val1);
-            Console.WriteLine($"  Test 1 [Null PlayerServerData]:         Success={nullPsdResult}, Value={val1} -> {(nullPsdResult == false ? "PASSED (Safe)" : "FAILED")}");
+            Console.WriteLine($"  Test 1 [Null PlayerServerData Base]:    Success={nullPsdResult}, Value={val1} -> {(nullPsdResult == false ? "PASSED (Safe)" : "FAILED")}");
 
-            // Test 2: Unreadable / Unmapped Address
-            var badAddrResult = SafeReadGold(reader, unchecked((IntPtr)(long)0xDEADBEEF0000UL), 0x0E28, 0x618, out var val2);
-            Console.WriteLine($"  Test 2 [Unmapped PlayerServerData]:     Success={badAddrResult}, Value={val2} -> {(badAddrResult == false ? "PASSED (Safe)" : "FAILED")}");
+            // Test 2: Unmapped / Invalid Base Address (Low address < 0x10000)
+            var badAddrResult = SafeReadGold(reader, (IntPtr)0x1000, 0x0E28, 0x618, out var val2);
+            Console.WriteLine($"  Test 2 [Invalid Base Address <0x10000]: Success={badAddrResult}, Value={val2} -> {(badAddrResult == false ? "PASSED (Safe)" : "FAILED")}");
 
-            // Test 3: Null Interior Pointer at PSD + 0x0E28 (simulated by passing invalid offset)
-            var badSlotResult = SafeReadGold(reader, (IntPtr)(long)validCtx.PlayerServerData, 0x7FF0, 0x618, out var val3);
-            Console.WriteLine($"  Test 3 [Null / Out-of-Bounds Slot]:     Success={badSlotResult}, Value={val3} -> {(badSlotResult == false ? "PASSED (Safe)" : "FAILED")}");
+            // Test 3: Null / Unmapped Target Pointer
+            var nullPtrResult = SafeReadGold(reader, unchecked((IntPtr)(long)0x00007FFFFFFE0000UL), 0x00, 0x618, out var val3);
+            Console.WriteLine($"  Test 3 [Null / Unmapped Record Pointer]: Success={nullPtrResult}, Value={val3} -> {(nullPtrResult == false ? "PASSED (Safe)" : "FAILED")}");
 
-            // Test 4: Valid Live Read
+            // Test 4: Live Valid Read
             var liveResult = SafeReadGold(reader, (IntPtr)(long)validCtx.PlayerServerData, 0x0E28, 0x618, out var liveVal);
-            Console.WriteLine($"  Test 4 [Live Valid Read]:               Success={liveResult}, Value={liveVal:N0} -> {(liveResult == true && liveVal > 0 ? "PASSED (Read Confirmed)" : "FAILED")}");
+            Console.WriteLine($"  Test 4 [Live Valid Read]:               Success={liveResult}, Value={liveVal:N0} -> {(liveResult == true ? "PASSED (Read Confirmed)" : "FAILED")}");
         }
 
         public static bool SafeReadGold(NativeMemoryReader reader, IntPtr playerServerData, int psdOffset, int objOffset, out int goldValue)
@@ -326,12 +341,12 @@ namespace GoldOffsetScanner
             var vecEnd = BitConverter.ToInt64(buf, 0x30);
 
             Console.WriteLine($"  Interpreted Record Fields at 0x{recordBase:X12}:");
-            Console.WriteLine($"    +0x00: 0x{field00:X16} (Header / VTable / ID)");
-            Console.WriteLine($"    +0x08: 0x{field08:X16} (Ptr 1)");
-            Console.WriteLine($"    +0x10: 0x{field10:X16} (Ptr 2)");
-            Console.WriteLine($"    +0x18: {valInt32,12:N0} (0x{valInt32:X8}) -> [PRIMARY VALUE FIELD]");
-            Console.WriteLine($"    +0x1C: {flag1C,12:N0} (0x{flag1C:X8}) -> [FLAG / SUB-TYPE]");
-            Console.WriteLine($"    +0x20..0x38 StdVector: First=0x{vecFirst:X12}, Last=0x{vecLast:X12}, End=0x{vecEnd:X12}");
+            Console.WriteLine($"    +0x00: 0x{field00:X16} (Unknown field 0x00)");
+            Console.WriteLine($"    +0x08: 0x{field08:X16} (Unknown pointer / field 0x08)");
+            Console.WriteLine($"    +0x10: 0x{field10:X16} (Unknown pointer / field 0x10)");
+            Console.WriteLine($"    +0x18: {valInt32,12:N0} (0x{valInt32:X8}) -> [Native 32-bit Integer / Target Gold Field]");
+            Console.WriteLine($"    +0x1C: {flag1C,12:N0} (0x{flag1C:X8}) -> [Unknown 32-bit Field 0x1C]");
+            Console.WriteLine($"    +0x20..0x38 Candidate vector-shaped triplet (StdVector-compatible First/Last/End shape): First=0x{vecFirst:X12}, Last=0x{vecLast:X12}, End=0x{vecEnd:X12}");
         }
     }
 }

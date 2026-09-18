@@ -28,4 +28,3 @@ artifacts/
 *.patch
 /audit-output
 gold_scan_session.json
-profiler-review-bundle.txt
