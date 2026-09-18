@@ -648,11 +648,11 @@ namespace TEHhub.Utils
                     return false;
                 }
 
-                if (cache.TryGetValue(address, out var window))
+                if (cache.TryGetValue(address, out var existingSameAddressWindow))
                 {
-                    if (window.ByteCount >= size)
+                    if (existingSameAddressWindow.ByteCount >= size)
                     {
-                        result = MemoryMarshal.Read<T>(window.Buffer.AsSpan(0, size));
+                        result = MemoryMarshal.Read<T>(existingSameAddressWindow.Buffer.AsSpan(0, size));
                         return true;
                     }
                 }
@@ -669,7 +669,12 @@ namespace TEHhub.Utils
                     }
                 }
 
-                if (cache.Count >= MaxDynamicWindows || !IsValidAddress(new IntPtr(address)))
+                if (existingSameAddressWindow is null && cache.Count >= MaxDynamicWindows)
+                {
+                    return false;
+                }
+
+                if (!IsValidAddress(new IntPtr(address)))
                 {
                     return false;
                 }
@@ -683,6 +688,11 @@ namespace TEHhub.Utils
 
                 var newWindow = new ReadCacheWindow(address, size, buffer);
                 cache[address] = newWindow;
+
+                if (existingSameAddressWindow is not null)
+                {
+                    ArrayPool<byte>.Shared.Return(existingSameAddressWindow.Buffer);
+                }
 
                 result = MemoryMarshal.Read<T>(buffer.AsSpan(0, size));
                 return true;
