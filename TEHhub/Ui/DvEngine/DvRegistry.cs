@@ -77,20 +77,7 @@ namespace TEHhub.Ui.DvEngine
                 Path = "Core > Settings",
                 Tags = new[] { "config", "settings", "overlay", "state", "window" },
                 Kind = DvNodeKind.CustomRenderer,
-                CustomRenderer = () =>
-                {
-                    ImGui.TextDisabled("TEHHub Core Settings Snapshot (live fields):");
-                    var fields = Core.GHSettings.GetType().GetFields();
-                    for (var i = 0; i < fields.Length; i++)
-                    {
-                        var field = fields[i];
-                        ImGui.Text($"{field.Name}: {field.GetValue(Core.GHSettings)}");
-                    }
-
-                    ImGui.Separator();
-                    ImGui.Text($"Current Window Size: {Core.Overlay.Size}");
-                    ImGui.Text($"Current Window Pos:  {Core.Overlay.Position}");
-                },
+                CustomRenderer = DataVisualization.RenderSettingsContent,
             });
 
             Register(new DvNavNode
@@ -112,29 +99,7 @@ namespace TEHhub.Ui.DvEngine
                 Path = "Core > Game Process",
                 Tags = new[] { "process", "static", "address", "aob", "base", "offsets", "pid" },
                 Kind = DvNodeKind.CustomRenderer,
-                CustomRenderer = () =>
-                {
-                    if (Core.Process.Address != IntPtr.Zero)
-                    {
-                        ImGuiHelper.IntPtrToImGui("Base Address", Core.Process.Address);
-                        ImGui.Text($"Process:    {Core.Process.Information}");
-                        ImGui.Text($"WindowArea: {Core.Process.WindowArea}");
-                        ImGui.Text($"Foreground: {Core.Process.Foreground}");
-                        if (ImGui.TreeNode("Static Addresses (Discovered AOB Patterns)"))
-                        {
-                            foreach (var saddr in Core.Process.StaticAddresses)
-                            {
-                                ImGuiHelper.IntPtrToImGui(saddr.Key, saddr.Value);
-                            }
-
-                            ImGui.TreePop();
-                        }
-                    }
-                    else
-                    {
-                        ImGui.TextDisabled("Game process not found or not attached.");
-                    }
-                },
+                CustomRenderer = DataVisualization.RenderGameProcessContent,
             });
 
             Register(new DvNavNode
@@ -411,7 +376,7 @@ namespace TEHhub.Ui.DvEngine
                 Category = "Entities & UI",
                 Path = "States > InGameState > CurrentAreaInstance > Awake Entities",
                 Tags = new[] { "entity", "entities", "awake", "monsters", "npc", "chests", "loot", "items", "rarity filter" },
-                Kind = DvNodeKind.RemoteObject,
+                Kind = DvNodeKind.Container,
                 ObjectResolver = () => Core.States.InGameStateObject?.CurrentAreaInstance,
             });
 
@@ -422,7 +387,7 @@ namespace TEHhub.Ui.DvEngine
                 Category = "Entities & UI",
                 Path = "States > InGameState > CurrentAreaInstance > Sleeping Entities",
                 Tags = new[] { "sleeping", "scan sleeping", "dormant", "decorations", "effects" },
-                Kind = DvNodeKind.RemoteObject,
+                Kind = DvNodeKind.Container,
                 ObjectResolver = () => Core.States.InGameStateObject?.CurrentAreaInstance,
             });
 

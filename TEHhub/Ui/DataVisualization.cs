@@ -348,13 +348,19 @@ namespace TEHhub.Ui
                 return;
             }
 
-            if (node.Kind == DvNodeKind.CustomRenderer || node.Kind == DvNodeKind.Container || node.Kind == DvNodeKind.Action)
+            if (node.Kind == DvNodeKind.CustomRenderer || node.Kind == DvNodeKind.Action)
             {
                 node.CustomRenderer?.Invoke();
                 return;
             }
 
-            if (node.Kind == DvNodeKind.RemoteObject)
+            if (node.Kind == DvNodeKind.Container && node.CustomRenderer != null)
+            {
+                node.CustomRenderer.Invoke();
+                return;
+            }
+
+            if (node.Kind == DvNodeKind.RemoteObject || node.Kind == DvNodeKind.Container)
             {
                 var remoteObj = node.ObjectResolver?.Invoke();
                 if (remoteObj != null && remoteObj.Address != IntPtr.Zero)
