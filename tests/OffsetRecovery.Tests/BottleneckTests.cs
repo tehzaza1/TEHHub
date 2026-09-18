@@ -979,31 +979,63 @@ internal static class BottleneckTests
                 var aPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - aPropBefore) / BenchIterations;
                 var aPropNs = swAProp.Elapsed.TotalNanoseconds / BenchIterations;
 
-                // --- WORKLOAD B: TimeLeft Changes Every Iteration ---
+                // --- WORKLOAD B1: Single Buff TimeLeft Changes Every Iteration ---
                 for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
-                var bOldBefore = GC.GetAllocatedBytesForCurrentThread();
-                var swBOld = Stopwatch.StartNew();
+                var b1OldBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swB1Old = Stopwatch.StartNew();
                 for (var i = 0; i < BenchIterations; i++)
                 {
                     structs[0].TimeLeft = 15.0f - (i * 0.01f);
                     RunOld(oldDict, keys, structs, count);
                 }
-                swBOld.Stop();
-                var bOldAlloc = (GC.GetAllocatedBytesForCurrentThread() - bOldBefore) / BenchIterations;
-                var bOldNs = swBOld.Elapsed.TotalNanoseconds / BenchIterations;
+                swB1Old.Stop();
+                var b1OldAlloc = (GC.GetAllocatedBytesForCurrentThread() - b1OldBefore) / BenchIterations;
+                var b1OldNs = swB1Old.Elapsed.TotalNanoseconds / BenchIterations;
 
                 GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
-                var bPropBefore = GC.GetAllocatedBytesForCurrentThread();
-                var swBProp = Stopwatch.StartNew();
+                var b1PropBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swB1Prop = Stopwatch.StartNew();
                 for (var i = 0; i < BenchIterations; i++)
                 {
                     structs[0].TimeLeft = 15.0f - (i * 0.01f);
                     RunProposed(propDict, scratch, staleKeys, keys, structs, count);
                 }
-                swBProp.Stop();
-                var bPropAlloc = (GC.GetAllocatedBytesForCurrentThread() - bPropBefore) / BenchIterations;
-                var bPropNs = swBProp.Elapsed.TotalNanoseconds / BenchIterations;
+                swB1Prop.Stop();
+                var b1PropAlloc = (GC.GetAllocatedBytesForCurrentThread() - b1PropBefore) / BenchIterations;
+                var b1PropNs = swB1Prop.Elapsed.TotalNanoseconds / BenchIterations;
+
+                // --- WORKLOAD B2: ALL Active Buffs Change TimeLeft Every Iteration ---
+                for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var b2OldBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swB2Old = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    for (var b = 0; b < count; b++)
+                    {
+                        structs[b].TimeLeft = 15.0f - ((i + b) * 0.01f);
+                    }
+                    RunOld(oldDict, keys, structs, count);
+                }
+                swB2Old.Stop();
+                var b2OldAlloc = (GC.GetAllocatedBytesForCurrentThread() - b2OldBefore) / BenchIterations;
+                var b2OldNs = swB2Old.Elapsed.TotalNanoseconds / BenchIterations;
+
+                GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+                var b2PropBefore = GC.GetAllocatedBytesForCurrentThread();
+                var swB2Prop = Stopwatch.StartNew();
+                for (var i = 0; i < BenchIterations; i++)
+                {
+                    for (var b = 0; b < count; b++)
+                    {
+                        structs[b].TimeLeft = 15.0f - ((i + b) * 0.01f);
+                    }
+                    RunProposed(propDict, scratch, staleKeys, keys, structs, count);
+                }
+                swB2Prop.Stop();
+                var b2PropAlloc = (GC.GetAllocatedBytesForCurrentThread() - b2PropBefore) / BenchIterations;
+                var b2PropNs = swB2Prop.Elapsed.TotalNanoseconds / BenchIterations;
 
                 // --- WORKLOAD C: Periodic Buff Replacement (Key Swap) ---
                 for (var w = 0; w < 50; w++) { RunOld(oldDict, keys, structs, count); RunProposed(propDict, scratch, staleKeys, keys, structs, count); }
@@ -1056,10 +1088,11 @@ internal static class BottleneckTests
                 var dPropNs = swDProp.Elapsed.TotalNanoseconds / BenchIterations;
 
                 Console.WriteLine($"\n[Buff Count: {count,2} Buffs | Iterations: {BenchIterations}]");
-                Console.WriteLine($"  Workload A (Unchanged):     OLD = {aOldNs,7:F1} ns ({aOldAlloc,4} B) | PROPOSED = {aPropNs,7:F1} ns ({aPropAlloc,4} B) -> Alloc Saved: {(aOldAlloc - aPropAlloc),4} B ({(aOldAlloc > 0 ? (aOldAlloc - aPropAlloc) * 100.0 / aOldAlloc : 0):F0}%)");
-                Console.WriteLine($"  Workload B (TimeLeft Chg):  OLD = {bOldNs,7:F1} ns ({bOldAlloc,4} B) | PROPOSED = {bPropNs,7:F1} ns ({bPropAlloc,4} B) -> Alloc Saved: {(bOldAlloc - bPropAlloc),4} B ({(bOldAlloc > 0 ? (bOldAlloc - bPropAlloc) * 100.0 / bOldAlloc : 0):F0}%)");
-                Console.WriteLine($"  Workload C (10% Key Swap):  OLD = {cOldNs,7:F1} ns ({cOldAlloc,4} B) | PROPOSED = {cPropNs,7:F1} ns ({cPropAlloc,4} B) -> Alloc Saved: {(cOldAlloc - cPropAlloc),4} B ({(cOldAlloc > 0 ? (cOldAlloc - cPropAlloc) * 100.0 / cOldAlloc : 0):F0}%)");
-                Console.WriteLine($"  Workload D (Stack Merge):   OLD = {dOldNs,7:F1} ns ({dOldAlloc,4} B) | PROPOSED = {dPropNs,7:F1} ns ({dPropAlloc,4} B) -> Alloc Saved: {(dOldAlloc - dPropAlloc),4} B ({(dOldAlloc > 0 ? (dOldAlloc - dPropAlloc) * 100.0 / dOldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload A  (Unchanged):    OLD = {aOldNs,7:F1} ns ({aOldAlloc,4} B) | PROPOSED = {aPropNs,7:F1} ns ({aPropAlloc,4} B) -> Alloc Saved: {(aOldAlloc - aPropAlloc),4} B ({(aOldAlloc > 0 ? (aOldAlloc - aPropAlloc) * 100.0 / aOldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload B1 (1 Buff Chg):   OLD = {b1OldNs,7:F1} ns ({b1OldAlloc,4} B) | PROPOSED = {b1PropNs,7:F1} ns ({b1PropAlloc,4} B) -> Alloc Saved: {(b1OldAlloc - b1PropAlloc),4} B ({(b1OldAlloc > 0 ? (b1OldAlloc - b1PropAlloc) * 100.0 / b1OldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload B2 (ALL Buffs Chg):OLD = {b2OldNs,7:F1} ns ({b2OldAlloc,4} B) | PROPOSED = {b2PropNs,7:F1} ns ({b2PropAlloc,4} B) -> Alloc Saved: {(b2OldAlloc - b2PropAlloc),4} B ({(b2OldAlloc > 0 ? (b2OldAlloc - b2PropAlloc) * 100.0 / b2OldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload C  (10% Key Swap): OLD = {cOldNs,7:F1} ns ({cOldAlloc,4} B) | PROPOSED = {cPropNs,7:F1} ns ({cPropAlloc,4} B) -> Alloc Saved: {(cOldAlloc - cPropAlloc),4} B ({(cOldAlloc > 0 ? (cOldAlloc - cPropAlloc) * 100.0 / cOldAlloc : 0):F0}%)");
+                Console.WriteLine($"  Workload D  (Stack Merge):  OLD = {dOldNs,7:F1} ns ({dOldAlloc,4} B) | PROPOSED = {dPropNs,7:F1} ns ({dPropAlloc,4} B) -> Alloc Saved: {(dOldAlloc - dPropAlloc),4} B ({(dOldAlloc > 0 ? (dOldAlloc - dPropAlloc) * 100.0 / dOldAlloc : 0):F0}%)");
             }
             Console.WriteLine("=========================================================================================\n");
         }
