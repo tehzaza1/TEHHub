@@ -1179,6 +1179,314 @@ internal static class BottleneckTests
             Marshal.FreeHGlobal(synthBuffsBlock);
             TEHhub.RemoteObjects.Components.Buffs.ClearStaticCaches();
         }
+
+        // =========================================================================
+        // Hierarchical Performance Profiler Invariants & Hierarchy Tests (14 Invariants)
+        // =========================================================================
+        PerformanceProfiler.Reset();
+        Core.GHSettings.ShowPerfProfiler = true;
+
+        // 1. Simple parent -> child hierarchy (A -> B)
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "ParentA"))
+        {
+            using (PerformanceProfiler.Measure("Test", "ChildB"))
+            {
+            }
+        }
+        PerformanceProfiler.EndFrame();
+        var tree1 = PerformanceProfiler.GetTreeSnapshot();
+        check(tree1.Count == 1 && tree1[0].Name == "Test.ParentA", "1a: Single root node created for ParentA");
+        check(tree1[0].Children.Count == 1 && tree1[0].Children[0].Name == "Test.ChildB", "1b: ChildB is attached as child of ParentA");
+
+        // 2. Parent -> child -> grandchild hierarchy (A -> B -> C)
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "A"))
+        {
+            using (PerformanceProfiler.Measure("Test", "B"))
+            {
+                using (PerformanceProfiler.Measure("Test", "C"))
+                {
+                }
+            }
+        }
+        PerformanceProfiler.EndFrame();
+        var tree2 = PerformanceProfiler.GetTreeSnapshot();
+        check(tree2.Count == 1 && tree2[0].Name == "Test.A", "2a: Root is A");
+        check(tree2[0].Children.Count == 1 && tree2[0].Children[0].Name == "Test.B", "2b: A's child is B");
+        check(tree2[0].Children[0].Children.Count == 1 && tree2[0].Children[0].Children[0].Name == "Test.C", "2c: B's child is C (grandchild of A)");
+
+        // 3. Two sibling children (A -> B, A -> C)
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "A"))
+        {
+            using (PerformanceProfiler.Measure("Test", "B")) { }
+            using (PerformanceProfiler.Measure("Test", "C")) { }
+        }
+        PerformanceProfiler.EndFrame();
+        var tree3 = PerformanceProfiler.GetTreeSnapshot();
+        check(tree3.Count == 1 && tree3[0].Children.Count == 2, "3a: A has exactly 2 children");
+        check(tree3[0].Children.Any(c => c.Name == "Test.B") && tree3[0].Children.Any(c => c.Name == "Test.C"), "3b: A has both B and C as sibling children");
+
+        // 4. Same scope name under two different parents (P1 -> CommonChild, P2 -> CommonChild)
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "P1"))
+        {
+            using (PerformanceProfiler.Measure("Test", "CommonChild")) { }
+        }
+        using (PerformanceProfiler.Measure("Test", "P2"))
+        {
+            using (PerformanceProfiler.Measure("Test", "CommonChild")) { }
+        }
+        PerformanceProfiler.EndFrame();
+        var tree4 = PerformanceProfiler.GetTreeSnapshot();
+        var p1Node = tree4.FirstOrDefault(r => r.Name == "Test.P1");
+        var p2Node = tree4.FirstOrDefault(r => r.Name == "Test.P2");
+        check(p1Node != null && p2Node != null, "4a: Both P1 and P2 exist as separate root nodes");
+        check(p1Node!.Children.Count == 1 && p1Node.Children[0].Name == "Test.CommonChild", "4b: P1 has CommonChild");
+        check(p2Node!.Children.Count == 1 && p2Node.Children[0].Name == "Test.CommonChild", "4c: P2 has CommonChild");
+        check(p1Node.Children[0].Id != p2Node.Children[0].Id, "4d: CommonChild under P1 and P2 have distinct node identities in tree view");
+        var flatSnap4 = PerformanceProfiler.GetApiSnapshot();
+        var flatCommon = flatSnap4.Rows.FirstOrDefault(r => r.Name == "Test.CommonChild");
+        check(flatCommon != null && flatCommon.Count == 2, "4e: Flat hotspot view aggregates CommonChild calls across different parents");
+
+        // 5. Repeated calls in one frame
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        for (var i = 0; i < 5; i++)
+        {
+            using (PerformanceProfiler.Measure("Test", "LoopParent"))
+            {
+                using (PerformanceProfiler.Measure("Test", "LoopChild")) { }
+            }
+        }
+        PerformanceProfiler.EndFrame();
+        var tree5 = PerformanceProfiler.GetTreeSnapshot();
+        check(tree5.Count == 1 && tree5[0].Count == 5, "5a: Parent has 5 calls in 1 frame");
+        check(tree5[0].Children.Count == 1 && tree5[0].Children[0].Count == 5, "5b: Child has 5 calls in 1 frame");
+        check(Math.Abs(tree5[0].CallsPerFrame - 5.0) < 0.001, "5c: Parent CallsPerFrame is 5.0");
+
+        // 6. Same hierarchy over multiple frames
+        PerformanceProfiler.Reset();
+        for (var f = 0; f < 10; f++)
+        {
+            PerformanceProfiler.StartFrame();
+            using (PerformanceProfiler.Measure("Test", "MultiFrameParent"))
+            {
+                using (PerformanceProfiler.Measure("Test", "MultiFrameChild")) { }
+            }
+            PerformanceProfiler.EndFrame();
+        }
+        var tree6 = PerformanceProfiler.GetTreeSnapshot();
+        check(PerformanceProfiler.TotalFramesCaptured == 10, "6a: 10 frames recorded");
+        check(tree6.Count == 1 && tree6[0].Count == 10 && Math.Abs(tree6[0].CallsPerFrame - 1.0) < 0.001, "6b: Parent has 10 calls over 10 frames (1.0 call/frame)");
+        check(tree6[0].Children.Count == 1 && tree6[0].Children[0].Count == 10, "6c: Child has 10 calls over 10 frames");
+
+        // 7. Self time excludes direct child inclusive time exactly within reasonable timer tolerance
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "WorkParent"))
+        {
+            var start = Stopwatch.GetTimestamp();
+            while (Stopwatch.GetTimestamp() - start < 1000) { }
+
+            using (PerformanceProfiler.Measure("Test", "WorkChild"))
+            {
+                var startChild = Stopwatch.GetTimestamp();
+                while (Stopwatch.GetTimestamp() - startChild < 2000) { }
+            }
+        }
+        PerformanceProfiler.EndFrame();
+        var tree7 = PerformanceProfiler.GetTreeSnapshot();
+        var wp = tree7[0];
+        var wc = wp.Children[0];
+        check(wp.InclusiveAvgCallNs > wc.InclusiveAvgCallNs, "7a: Parent inclusive time exceeds child inclusive time");
+        check(wp.SelfAvgCallNs > 0, "7b: Parent has positive self time from its own work");
+        check(Math.Abs(wp.InclusiveAvgCallNs - (wp.SelfAvgCallNs + wc.InclusiveAvgCallNs)) < 50.0, "7c: Parent Inclusive equals Parent Self + Child Inclusive (within timer precision)");
+
+        // 8. No double subtraction for grandchildren
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "GParent"))
+        {
+            var s1 = Stopwatch.GetTimestamp(); while (Stopwatch.GetTimestamp() - s1 < 500) { }
+            using (PerformanceProfiler.Measure("Test", "GChild"))
+            {
+                var s2 = Stopwatch.GetTimestamp(); while (Stopwatch.GetTimestamp() - s2 < 500) { }
+                using (PerformanceProfiler.Measure("Test", "GGrandChild"))
+                {
+                    var s3 = Stopwatch.GetTimestamp(); while (Stopwatch.GetTimestamp() - s3 < 500) { }
+                }
+            }
+        }
+        PerformanceProfiler.EndFrame();
+        var tree8 = PerformanceProfiler.GetTreeSnapshot();
+        var gp = tree8[0];
+        var gc = gp.Children[0];
+        var ggc = gc.Children[0];
+        var sumSelf = gp.SelfAvgCallNs + gc.SelfAvgCallNs + ggc.SelfAvgCallNs;
+        check(Math.Abs(gp.InclusiveAvgCallNs - sumSelf) < 50.0, "8: Sum of all self times (gp + gc + ggc) equals root inclusive time without double subtraction");
+
+        // 9. Calls/frame calculation over uneven frames
+        PerformanceProfiler.Reset();
+        // Frame 1: 3 calls
+        PerformanceProfiler.StartFrame();
+        for (var i = 0; i < 3; i++) { using (PerformanceProfiler.Measure("Test", "Uneven")) { } }
+        PerformanceProfiler.EndFrame();
+        // Frame 2: 1 call
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "Uneven")) { }
+        PerformanceProfiler.EndFrame();
+        // Frame 3: 0 calls
+        PerformanceProfiler.StartFrame();
+        PerformanceProfiler.EndFrame();
+        // Frame 4: 4 calls
+        PerformanceProfiler.StartFrame();
+        for (var i = 0; i < 4; i++) { using (PerformanceProfiler.Measure("Test", "Uneven")) { } }
+        PerformanceProfiler.EndFrame();
+        var tree9 = PerformanceProfiler.GetTreeSnapshot();
+        check(tree9[0].Count == 8 && Math.Abs(tree9[0].CallsPerFrame - 2.0) < 0.001, "9: 8 calls across 4 frames computes exactly 2.0 Calls/Frame");
+
+        // 10. Avg(Frame) arithmetic sanity
+        check(Math.Abs(tree9[0].InclusiveAvgFrameNs - (tree9[0].CallsPerFrame * tree9[0].InclusiveAvgCallNs)) < 0.001, "10a: Tree node satisfies InclusiveAvgFrame == CallsPerFrame * InclusiveAvgCall");
+        var flatSnap10 = PerformanceProfiler.GetApiSnapshot();
+        var flatRow10 = flatSnap10.Rows.First(r => r.Name == "Test.Uneven");
+        var flatAvgFrameFromCall = (flatRow10.Count * flatRow10.AvgCallNanoseconds) / 4.0;
+        check(Math.Abs(flatRow10.AvgFrameNanoseconds - flatAvgFrameFromCall) < 0.001, "10b: Flat row satisfies AvgFrameNanoseconds == (Count * AvgCall) / Frames");
+
+        // 11. Reset removes old hierarchy/state
+        PerformanceProfiler.Reset();
+        check(PerformanceProfiler.TotalFramesCaptured == 0, "11a: Reset sets TotalFramesCaptured to 0");
+        check(PerformanceProfiler.GetTreeSnapshot().Count == 0, "11b: Reset clears tree snapshot nodes");
+        check(PerformanceProfiler.GetApiSnapshot().Rows.Length == 0, "11c: Reset clears flat snapshot rows");
+
+        // 12. Current Frame Only does not show stale accumulated data
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "Frame1Only")) { }
+        PerformanceProfiler.EndFrame();
+
+        PerformanceProfiler.StartFrame();
+        using (PerformanceProfiler.Measure("Test", "Frame2Only")) { }
+        var curFrameTree = PerformanceProfiler.GetTreeSnapshot(currentFrameOnly: true);
+        check(curFrameTree.Any(r => r.Name == "Test.Frame2Only"), "12a: Current frame tree contains Frame2Only");
+        check(!curFrameTree.Any(r => r.Name == "Test.Frame1Only"), "12b: Current frame tree excludes Frame1Only from prior frame");
+        PerformanceProfiler.EndFrame();
+
+        // 13. Recursive/re-entrant scope safety
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        void RecursiveCall(int depth)
+        {
+            using (PerformanceProfiler.Measure("Test", "RecursiveScope"))
+            {
+                if (depth > 1)
+                {
+                    RecursiveCall(depth - 1);
+                }
+            }
+        }
+        RecursiveCall(5);
+        PerformanceProfiler.EndFrame();
+        var tree13 = PerformanceProfiler.GetTreeSnapshot();
+        check(tree13.Count == 1 && tree13[0].Name == "Test.RecursiveScope", "13a: Recursive root is created safely");
+        var cur = tree13[0];
+        var recurseDepth = 1;
+        while (cur.Children.Count > 0)
+        {
+            recurseDepth++;
+            cur = cur.Children[0];
+        }
+        check(recurseDepth == 5, "13b: 5 levels of recursion recorded without stack corruption");
+
+        // 14. Profiler-disabled path remains valid and zero-cost
+        Core.GHSettings.ShowPerfProfiler = false;
+        BottleneckCapture.RequestStop();
+        PerformanceProfiler.Reset();
+        check(!PerformanceProfiler.IsRecording, "14a: Profiler is disabled");
+        using (PerformanceProfiler.Measure("Disabled", "Scope"))
+        {
+        }
+        check(PerformanceProfiler.GetTreeSnapshot().Count == 0, "14b: No nodes created when profiler is disabled");
+
+        // =========================================================================
+        // Profiler Overhead Benchmark: Disabled vs Flat vs Nested Scopes
+        // =========================================================================
+        const int ProfilerBenchIterations = 100_000;
+        Console.WriteLine("\n=========================================================================================");
+        Console.WriteLine("           PERFORMANCE PROFILER OVERHEAD BENCHMARK (100,000 Scope Invocations)");
+        Console.WriteLine("=========================================================================================");
+
+        // 1. Profiler Disabled
+        Core.GHSettings.ShowPerfProfiler = false;
+        BottleneckCapture.RequestStop();
+        for (var w = 0; w < 1000; w++) { using (PerformanceProfiler.Measure("Bench", "Scope")) { } }
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        var disabledAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        var swDisabled = Stopwatch.StartNew();
+        for (var i = 0; i < ProfilerBenchIterations; i++)
+        {
+            using (PerformanceProfiler.Measure("Bench", "Scope")) { }
+        }
+        swDisabled.Stop();
+        var disabledAlloc = (double)(GC.GetAllocatedBytesForCurrentThread() - disabledAllocBefore) / ProfilerBenchIterations;
+        var disabledNs = swDisabled.Elapsed.TotalNanoseconds / ProfilerBenchIterations;
+
+        // 2. Profiler Enabled - Flat / Single Scope
+        Core.GHSettings.ShowPerfProfiler = true;
+        PerformanceProfiler.Reset();
+        PerformanceProfiler.StartFrame();
+        for (var w = 0; w < 1000; w++) { using (PerformanceProfiler.Measure("Bench", "FlatScope")) { } }
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        var flatAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        var swFlat = Stopwatch.StartNew();
+        for (var i = 0; i < ProfilerBenchIterations; i++)
+        {
+            using (PerformanceProfiler.Measure("Bench", "FlatScope")) { }
+        }
+        swFlat.Stop();
+        var flatAlloc = (double)(GC.GetAllocatedBytesForCurrentThread() - flatAllocBefore) / ProfilerBenchIterations;
+        var flatNs = swFlat.Elapsed.TotalNanoseconds / ProfilerBenchIterations;
+
+        // 3. Profiler Enabled - Nested Scopes (Depth 3: Root -> Child -> GrandChild)
+        PerformanceProfiler.Reset();
+        for (var w = 0; w < 1000; w++)
+        {
+            using (PerformanceProfiler.Measure("Bench", "Root"))
+            {
+                using (PerformanceProfiler.Measure("Bench", "Child"))
+                {
+                    using (PerformanceProfiler.Measure("Bench", "GrandChild")) { }
+                }
+            }
+        }
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        var nestedAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        var swNested = Stopwatch.StartNew();
+        for (var i = 0; i < ProfilerBenchIterations / 3; i++)
+        {
+            using (PerformanceProfiler.Measure("Bench", "Root"))
+            {
+                using (PerformanceProfiler.Measure("Bench", "Child"))
+                {
+                    using (PerformanceProfiler.Measure("Bench", "GrandChild")) { }
+                }
+            }
+        }
+        swNested.Stop();
+        var nestedTotalScopes = (ProfilerBenchIterations / 3) * 3;
+        var nestedAlloc = (double)(GC.GetAllocatedBytesForCurrentThread() - nestedAllocBefore) / nestedTotalScopes;
+        var nestedNs = swNested.Elapsed.TotalNanoseconds / nestedTotalScopes;
+        PerformanceProfiler.EndFrame();
+
+        Console.WriteLine($"  1. Profiler Disabled:            {disabledNs,6:F1} ns/scope, {disabledAlloc:F1} B/scope");
+        Console.WriteLine($"  2. Profiler Enabled (Flat):      {flatNs,6:F1} ns/scope, {flatAlloc:F1} B/scope");
+        Console.WriteLine($"  3. Profiler Enabled (Nested D3): {nestedNs,6:F1} ns/scope, {nestedAlloc:F1} B/scope");
+        Console.WriteLine("=========================================================================================\n");
     }
 
     private sealed class ReferencePageTracker

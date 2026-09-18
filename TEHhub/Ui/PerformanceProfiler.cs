@@ -5,116 +5,59 @@
 namespace TEHhub.Ui;
 
 using System;
-using System.Threading;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using Coroutine;
 using CoroutineEvents;
 using ImGuiNET;
 
 /// <summary>
-///     Performance profiler for optimization purposes.
+///     Hierarchical performance profiler for optimization and runtime diagnostic analysis.
 /// </summary>
 public static class PerformanceProfiler
 {
     internal static bool IsRecording => Core.GHSettings.ShowPerfProfiler || BottleneckCapture.Enabled;
     internal static readonly double NsPerTick = 1000000000.0 / Stopwatch.Frequency;
-    private static readonly ConcurrentDictionary<string, ProfileData> ProfileData = new();
-    private static readonly ConcurrentDictionary<string, double> CurrentFrameNs = new();
-    private static readonly ConcurrentDictionary<string, int> CurrentFrameCounts = new();
-    private static readonly ConcurrentDictionary<string, long> CurrentFrameAllocatedBytes = new();
+
+    // Node registry & hierarchy storage
+    private static readonly ConcurrentDictionary<(int ParentId, string ScopeKey), int> NodeLookup = new();
+    private static readonly ConcurrentDictionary<int, ProfilerNode> Nodes = new();
     private static readonly ConcurrentDictionary<(string NamespaceName, string MethodName), string> ProfileKeys = new();
-    
+    private static readonly List<int> RootNodeIds = new();
+    private static readonly object HierarchyLock = new();
+    private static int nextNodeId = 1;
+
+    // Global session frame counter
+    private static long totalFramesCaptured;
+
+    // UI state & cached view models
     private static DateTime lastUpdate = DateTime.MinValue;
-    private static List<ProfileRow> cachedRows = [];
+    private static List<ProfilerTreeNode> cachedTree = [];
+    private static List<ProfilerFlatRow> cachedFlatRows = [];
     private static bool showCurrentFrameOnly = false;
+    private static int viewMode = 0; // 0 = Tree View, 1 = Flat Hotspots
+
+    // Thread-local call stack frame
+    private struct ThreadScopeFrame
+    {
+        public int NodeId;
+        public long StartTimestamp;
+        public long StartAllocated;
+        public long DirectChildTicks;
+    }
+
+    [ThreadStatic]
+    private static ThreadScopeFrame[]? threadStack;
+    [ThreadStatic]
+    private static int threadStackDepth;
 
     internal static void InitializeCoroutines()
     {
         CoroutineHandler.Start(RenderWindow());
-    }
-
-    public static IDisposable? Profile(string namespaceName, string methodName)
-    {
-        if (!IsRecording)
-        {
-            return null;
-        }
-
-        return new ProfileDisposable(
-            GetProfileKey(namespaceName, methodName),
-            Stopwatch.GetTimestamp(),
-            GC.GetAllocatedBytesForCurrentThread());
-    }
-
-    /// <summary>
-    ///     Returns the profiler rows directly for local diagnostics tooling. This mirrors the
-    ///     values shown in the UI without requiring a screenshot or clipboard operation.
-    /// </summary>
-    internal static PerformanceProfilerSnapshot GetApiSnapshot()
-    {
-        var rows = new List<PerformanceProfilerRow>(ProfileData.Count);
-        foreach (var kvp in ProfileData.ToArray())
-        {
-            var data = kvp.Value;
-            var key = kvp.Key;
-            int count;
-            double averageCallNs;
-            double averageFrameNs;
-            double averageAllocatedBytes;
-            if (showCurrentFrameOnly)
-            {
-                if (!CurrentFrameNs.TryGetValue(key, out var currentFrameNs) || currentFrameNs == 0 ||
-                    !CurrentFrameCounts.TryGetValue(key, out count) || count == 0)
-                {
-                    continue;
-                }
-
-                averageCallNs = currentFrameNs / count;
-                averageFrameNs = currentFrameNs;
-                CurrentFrameAllocatedBytes.TryGetValue(key, out var currentFrameAllocatedBytes);
-                averageAllocatedBytes = (double)currentFrameAllocatedBytes / count;
-            }
-            else
-            {
-                count = data.Count;
-                averageCallNs = data.AverageTicks * NsPerTick;
-                averageFrameNs = data.AverageFrameNs;
-                averageAllocatedBytes = data.AverageAllocatedBytes;
-            }
-
-            if (count == 0)
-            {
-                continue;
-            }
-
-            rows.Add(new PerformanceProfilerRow(
-                key,
-                count,
-                averageCallNs,
-                data.GetPercentileTicks(0.95) * NsPerTick,
-                data.GetPercentileTicks(0.99) * NsPerTick,
-                averageAllocatedBytes,
-                averageFrameNs));
-        }
-
-        return new PerformanceProfilerSnapshot(
-            IsRecording,
-            showCurrentFrameOnly,
-            rows.OrderByDescending(static row => row.AllocatedBytesPerCall).ToArray());
-    }
-
-    internal static void Reset()
-    {
-        ProfileData.Clear();
-        CurrentFrameNs.Clear();
-        CurrentFrameCounts.Clear();
-        CurrentFrameAllocatedBytes.Clear();
-        cachedRows = [];
-        lastUpdate = DateTime.MinValue;
     }
 
     /// <summary>
@@ -127,10 +70,354 @@ public static class PerformanceProfiler
             return default;
         }
 
-        return new ProfileScope(
-            GetProfileKey(namespaceName, methodName),
-            Stopwatch.GetTimestamp(),
-            GC.GetAllocatedBytesForCurrentThread());
+        var key = GetProfileKey(namespaceName, methodName);
+        var stack = threadStack;
+        var depth = threadStackDepth;
+        var parentId = depth > 0 ? stack![depth - 1].NodeId : 0;
+        var nodeId = GetOrCreateNode(parentId, key);
+
+        if (stack == null || depth >= stack.Length)
+        {
+            Array.Resize(ref threadStack, Math.Max(32, (stack?.Length ?? 0) * 2));
+            stack = threadStack;
+        }
+
+        stack[depth] = new ThreadScopeFrame
+        {
+            NodeId = nodeId,
+            StartTimestamp = Stopwatch.GetTimestamp(),
+            StartAllocated = GC.GetAllocatedBytesForCurrentThread(),
+            DirectChildTicks = 0,
+        };
+        threadStackDepth = depth + 1;
+
+        return new ProfileScope(depth + 1);
+    }
+
+    public static IDisposable? Profile(string namespaceName, string methodName)
+    {
+        if (!IsRecording)
+        {
+            return null;
+        }
+
+        var scope = Measure(namespaceName, methodName);
+        return new ProfileDisposable(scope);
+    }
+
+    internal static void RecordScopeExit(int expectedDepth)
+    {
+        var depth = threadStackDepth;
+        if (depth != expectedDepth || depth == 0)
+        {
+            return;
+        }
+
+        var newDepth = depth - 1;
+        threadStackDepth = newDepth;
+        ref var frame = ref threadStack![newDepth];
+
+        var endTimestamp = Stopwatch.GetTimestamp();
+        var endAllocated = GC.GetAllocatedBytesForCurrentThread();
+
+        var inclusiveTicks = Math.Max(0, endTimestamp - frame.StartTimestamp);
+        var selfTicks = Math.Max(0, inclusiveTicks - frame.DirectChildTicks);
+        var allocatedBytes = Math.Max(0, endAllocated - frame.StartAllocated);
+
+        if (Nodes.TryGetValue(frame.NodeId, out var node))
+        {
+            node.AddSample(inclusiveTicks, selfTicks, allocatedBytes);
+        }
+
+        if (newDepth > 0)
+        {
+            threadStack[newDepth - 1].DirectChildTicks += inclusiveTicks;
+        }
+    }
+
+    public static void StartFrame()
+    {
+        if (!IsRecording)
+        {
+            return;
+        }
+
+        foreach (var node in Nodes.Values)
+        {
+            node.ResetCurrentFrame();
+        }
+    }
+
+    public static void EndFrame()
+    {
+        if (!IsRecording)
+        {
+            return;
+        }
+
+        Interlocked.Increment(ref totalFramesCaptured);
+    }
+
+    internal static void Reset()
+    {
+        lock (HierarchyLock)
+        {
+            NodeLookup.Clear();
+            Nodes.Clear();
+            ProfileKeys.Clear();
+            RootNodeIds.Clear();
+            nextNodeId = 1;
+            Volatile.Write(ref totalFramesCaptured, 0);
+            cachedTree = [];
+            cachedFlatRows = [];
+            lastUpdate = DateTime.MinValue;
+        }
+    }
+
+    internal static long TotalFramesCaptured => Volatile.Read(ref totalFramesCaptured);
+
+    /// <summary>
+    ///     Returns a snapshot of the call tree for unit testing and diagnostic inspection.
+    /// </summary>
+    internal static List<ProfilerTreeNode> GetTreeSnapshot(bool currentFrameOnly = false)
+    {
+        return BuildTreeSnapshot(currentFrameOnly);
+    }
+
+    /// <summary>
+    ///     Returns flat profiler rows for local diagnostics tooling and automated captures.
+    ///     Aggregates identical scope names across all parent locations.
+    /// </summary>
+    internal static PerformanceProfilerSnapshot GetApiSnapshot()
+    {
+        var frames = Math.Max(1, Volatile.Read(ref totalFramesCaptured));
+        var flatRows = BuildFlatRows(showCurrentFrameOnly, frames);
+        var rows = new List<PerformanceProfilerRow>(flatRows.Count);
+
+        foreach (var r in flatRows)
+        {
+            rows.Add(new PerformanceProfilerRow(
+                r.Name,
+                r.Count,
+                r.InclusiveAvgCallNs,
+                r.P95CallNs,
+                r.P99CallNs,
+                r.AvgAllocatedBytes,
+                r.InclusiveAvgFrameNs));
+        }
+
+        return new PerformanceProfilerSnapshot(
+            IsRecording,
+            showCurrentFrameOnly,
+            rows.OrderByDescending(static row => row.AvgFrameNanoseconds).ToArray());
+    }
+
+    private static int GetOrCreateNode(int parentId, string scopeKey)
+    {
+        if (NodeLookup.TryGetValue((parentId, scopeKey), out var existingId))
+        {
+            return existingId;
+        }
+
+        lock (HierarchyLock)
+        {
+            if (NodeLookup.TryGetValue((parentId, scopeKey), out existingId))
+            {
+                return existingId;
+            }
+
+            var id = nextNodeId++;
+            var node = new ProfilerNode(id, parentId, scopeKey);
+            Nodes[id] = node;
+            NodeLookup[(parentId, scopeKey)] = id;
+
+            if (parentId == 0)
+            {
+                RootNodeIds.Add(id);
+            }
+            else if (Nodes.TryGetValue(parentId, out var parentNode))
+            {
+                lock (parentNode.Children)
+                {
+                    parentNode.Children.Add(id);
+                }
+            }
+
+            return id;
+        }
+    }
+
+    private static List<ProfilerTreeNode> BuildTreeSnapshot(bool currentFrameOnly)
+    {
+        var frames = Math.Max(1, Volatile.Read(ref totalFramesCaptured));
+        var result = new List<ProfilerTreeNode>();
+
+        lock (HierarchyLock)
+        {
+            foreach (var rootId in RootNodeIds)
+            {
+                if (Nodes.TryGetValue(rootId, out var rootNode))
+                {
+                    var treeNode = BuildTreeNode(rootNode, frames, currentFrameOnly, 0);
+                    if (treeNode != null)
+                    {
+                        result.Add(treeNode);
+                    }
+                }
+            }
+        }
+
+        return result.OrderByDescending(static r => r.InclusiveAvgFrameNs).ToList();
+    }
+
+    private static ProfilerTreeNode? BuildTreeNode(ProfilerNode node, long frames, bool currentFrameOnly, int depth)
+    {
+        int count;
+        double callsPerFrame;
+        double incAvgCallNs;
+        double incAvgFrameNs;
+        double selfAvgCallNs;
+        double selfAvgFrameNs;
+        double avgAllocBytes;
+
+        if (currentFrameOnly)
+        {
+            count = node.CurrentFrameCount;
+            callsPerFrame = count;
+            if (count == 0 && node.Children.Count == 0)
+            {
+                return null;
+            }
+
+            incAvgCallNs = count > 0 ? (node.CurrentFrameInclusiveTicks * NsPerTick) / count : 0.0;
+            incAvgFrameNs = node.CurrentFrameInclusiveTicks * NsPerTick;
+            selfAvgCallNs = count > 0 ? (node.CurrentFrameSelfTicks * NsPerTick) / count : 0.0;
+            selfAvgFrameNs = node.CurrentFrameSelfTicks * NsPerTick;
+            avgAllocBytes = count > 0 ? (double)node.CurrentFrameAllocatedBytes / count : 0.0;
+        }
+        else
+        {
+            count = node.TotalCount;
+            if (count == 0 && node.Children.Count == 0)
+            {
+                return null;
+            }
+
+            callsPerFrame = (double)count / frames;
+            incAvgCallNs = count > 0 ? (node.SessionSumInclusiveTicks * NsPerTick) / count : 0.0;
+            incAvgFrameNs = (node.SessionSumInclusiveTicks * NsPerTick) / frames;
+            selfAvgCallNs = count > 0 ? (node.SessionSumSelfTicks * NsPerTick) / count : 0.0;
+            selfAvgFrameNs = (node.SessionSumSelfTicks * NsPerTick) / frames;
+            avgAllocBytes = count > 0 ? (double)node.SessionSumAllocatedBytes / count : 0.0;
+        }
+
+        var treeNode = new ProfilerTreeNode
+        {
+            Id = node.Id,
+            ParentId = node.ParentId,
+            Name = node.ScopeKey,
+            DisplayName = node.DisplayName,
+            Depth = depth,
+            Count = count,
+            CallsPerFrame = callsPerFrame,
+            InclusiveAvgCallNs = incAvgCallNs,
+            InclusiveAvgFrameNs = incAvgFrameNs,
+            SelfAvgCallNs = selfAvgCallNs,
+            SelfAvgFrameNs = selfAvgFrameNs,
+            P95CallNs = node.GetPercentileTicks(0.95) * NsPerTick,
+            P99CallNs = node.GetPercentileTicks(0.99) * NsPerTick,
+            AvgAllocatedBytes = avgAllocBytes,
+        };
+
+        List<int> childIds;
+        lock (node.Children)
+        {
+            childIds = node.Children.ToList();
+        }
+
+        foreach (var childId in childIds)
+        {
+            if (Nodes.TryGetValue(childId, out var childNode))
+            {
+                var childTreeNode = BuildTreeNode(childNode, frames, currentFrameOnly, depth + 1);
+                if (childTreeNode != null)
+                {
+                    treeNode.Children.Add(childTreeNode);
+                }
+            }
+        }
+
+        treeNode.Children.Sort(static (a, b) => b.InclusiveAvgFrameNs.CompareTo(a.InclusiveAvgFrameNs));
+        return treeNode;
+    }
+
+    private static List<ProfilerFlatRow> BuildFlatRows(bool currentFrameOnly, long frames)
+    {
+        var groups = Nodes.Values.GroupBy(static n => n.ScopeKey);
+        var rows = new List<ProfilerFlatRow>();
+
+        foreach (var g in groups)
+        {
+            var key = g.Key;
+            int count;
+            double callsPerFrame;
+            double incAvgCallNs;
+            double incAvgFrameNs;
+            double selfAvgCallNs;
+            double selfAvgFrameNs;
+            double p95Ns;
+            double p99Ns;
+            double avgAllocBytes;
+
+            if (currentFrameOnly)
+            {
+                count = g.Sum(static n => n.CurrentFrameCount);
+                if (count == 0) continue;
+                var totalFrameIncTicks = g.Sum(static n => n.CurrentFrameInclusiveTicks);
+                var totalFrameSelfTicks = g.Sum(static n => n.CurrentFrameSelfTicks);
+                var totalFrameAlloc = g.Sum(static n => n.CurrentFrameAllocatedBytes);
+
+                callsPerFrame = count;
+                incAvgCallNs = (totalFrameIncTicks * NsPerTick) / count;
+                incAvgFrameNs = totalFrameIncTicks * NsPerTick;
+                selfAvgCallNs = (totalFrameSelfTicks * NsPerTick) / count;
+                selfAvgFrameNs = totalFrameSelfTicks * NsPerTick;
+                avgAllocBytes = (double)totalFrameAlloc / count;
+                p95Ns = incAvgCallNs;
+                p99Ns = incAvgCallNs;
+            }
+            else
+            {
+                count = g.Sum(static n => n.TotalCount);
+                if (count == 0) continue;
+                var totalIncTicks = g.Sum(static n => n.SessionSumInclusiveTicks);
+                var totalSelfTicks = g.Sum(static n => n.SessionSumSelfTicks);
+                var totalAlloc = g.Sum(static n => n.SessionSumAllocatedBytes);
+
+                callsPerFrame = (double)count / frames;
+                incAvgCallNs = (totalIncTicks * NsPerTick) / count;
+                incAvgFrameNs = (totalIncTicks * NsPerTick) / frames;
+                selfAvgCallNs = (totalSelfTicks * NsPerTick) / count;
+                selfAvgFrameNs = (totalSelfTicks * NsPerTick) / frames;
+                avgAllocBytes = (double)totalAlloc / count;
+                p95Ns = g.Max(static n => n.GetPercentileTicks(0.95)) * NsPerTick;
+                p99Ns = g.Max(static n => n.GetPercentileTicks(0.99)) * NsPerTick;
+            }
+
+            rows.Add(new ProfilerFlatRow(
+                key,
+                count,
+                callsPerFrame,
+                incAvgCallNs,
+                incAvgFrameNs,
+                selfAvgCallNs,
+                selfAvgFrameNs,
+                p95Ns,
+                p99Ns,
+                avgAllocBytes));
+        }
+
+        return rows;
     }
 
     private static IEnumerator<Wait> RenderWindow()
@@ -143,7 +430,7 @@ public static class PerformanceProfiler
                 continue;
             }
 
-            ImGui.SetNextWindowSize(new Vector2(700, 500), ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSize(new Vector2(850, 520), ImGuiCond.FirstUseEver);
             if (ImGui.Begin("Performance Profiler", ref Core.GHSettings.ShowPerfProfiler, ImGuiWindowFlags.MenuBar))
             {
                 if (ImGui.BeginMenuBar())
@@ -152,174 +439,196 @@ public static class PerformanceProfiler
                     {
                         Reset();
                     }
+
+                    ImGui.SameLine();
                     ImGui.Checkbox("Current Frame Only", ref showCurrentFrameOnly);
+
+                    ImGui.SameLine();
+                    ImGui.RadioButton("Tree View", ref viewMode, 0);
+
+                    ImGui.SameLine();
+                    ImGui.RadioButton("Flat Hotspots", ref viewMode, 1);
+
                     ImGui.EndMenuBar();
                 }
-                
+
                 var now = DateTime.Now;
-                if ((now - lastUpdate).TotalMilliseconds >= 500 || cachedRows.Count == 0)
+                var frames = Math.Max(1, Volatile.Read(ref totalFramesCaptured));
+                if ((now - lastUpdate).TotalMilliseconds >= 500 || (cachedTree.Count == 0 && cachedFlatRows.Count == 0))
                 {
                     lastUpdate = now;
-                    var currentProfileData = ProfileData.ToList();
-                    var tempRows = new List<ProfileRow>();
-                    foreach (var kvp in currentProfileData)
-                    {
-                        var key = kvp.Key;
-                        var pd = kvp.Value;
-                        int count;
-                        double avgPerCallNs;
-                        double avgPerFrameNs;
-                        double avgAllocatedBytes;
-                        if (showCurrentFrameOnly)
-                        {
-                            if (!CurrentFrameNs.TryGetValue(key, out double currentFrameContrib) || currentFrameContrib == 0) continue;
-                            if (!CurrentFrameCounts.TryGetValue(key, out int currentFrameCount) || currentFrameCount == 0) continue;
-                            count = currentFrameCount;
-                            avgPerCallNs = currentFrameContrib / currentFrameCount;
-                            avgPerFrameNs = currentFrameContrib;
-                            CurrentFrameAllocatedBytes.TryGetValue(key, out long currentFrameAllocatedBytes);
-                            avgAllocatedBytes = (double)currentFrameAllocatedBytes / currentFrameCount;
-                        }
-                        else
-                        {
-                            count = pd.Count;
-                            avgPerCallNs = pd.AverageTicks * NsPerTick;
-                            avgPerFrameNs = pd.AverageFrameNs;
-                            avgAllocatedBytes = pd.AverageAllocatedBytes;
-                        }
-                        tempRows.Add(new ProfileRow(
-                            key,
-                            count,
-                            avgPerCallNs,
-                            pd.GetPercentileTicks(0.95) * NsPerTick,
-                            pd.GetPercentileTicks(0.99) * NsPerTick,
-                            avgAllocatedBytes,
-                            avgPerFrameNs));
-                    }
-                    cachedRows = tempRows;
+                    cachedTree = BuildTreeSnapshot(showCurrentFrameOnly);
+                    cachedFlatRows = BuildFlatRows(showCurrentFrameOnly, frames);
                 }
-                if (ImGui.BeginTable("profilerTable", 7,
-                        ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
-                        ImGui.GetContentRegionAvail()))
+
+                if (viewMode == 0)
                 {
-                    ImGui.TableSetupColumn("Count");
-                    ImGui.TableSetupColumn("Name");
-                    ImGui.TableSetupColumn("Avg (Call)");
-                    ImGui.TableSetupColumn("P95 (Call)");
-                    ImGui.TableSetupColumn("P99 (Call)");
-                    ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.DefaultSort);
-                    ImGui.TableSetupColumn("Avg (Frame)");
-                    
-                    ImGui.TableSetupScrollFreeze(0, 1);
-                    ImGui.TableHeadersRow();
-
-                    var sortSpecs = ImGui.TableGetSortSpecs();
-                    List<ProfileRow> sortedRows = cachedRows.OrderByDescending(r => r.AvgAllocatedBytes).ToList();
-                    if (sortSpecs.SpecsCount > 0)
-                    {
-                        var spec = sortSpecs.Specs;
-                        int col = spec.ColumnIndex;
-                        bool ascending = spec.SortDirection == ImGuiSortDirection.Ascending;
-                        
-                        sortedRows = col switch
-                        {
-                            0 => ascending ? cachedRows.OrderBy(r => r.Count).ToList() : cachedRows.OrderByDescending(r => r.Count).ToList(), // Count
-                            1 => ascending ? cachedRows.OrderBy(r => r.Name).ToList() : cachedRows.OrderByDescending(r => r.Name).ToList(), // Name
-                            2 => ascending ? cachedRows.OrderBy(r => r.AvgPerCallNs).ToList() : cachedRows.OrderByDescending(r => r.AvgPerCallNs).ToList(), // Avg (Call)
-                            3 => ascending ? cachedRows.OrderBy(r => r.P95PerCallNs).ToList() : cachedRows.OrderByDescending(r => r.P95PerCallNs).ToList(), // P95 (Call)
-                            4 => ascending ? cachedRows.OrderBy(r => r.P99PerCallNs).ToList() : cachedRows.OrderByDescending(r => r.P99PerCallNs).ToList(), // P99 (Call)
-                            5 => ascending ? cachedRows.OrderBy(r => r.AvgAllocatedBytes).ToList() : cachedRows.OrderByDescending(r => r.AvgAllocatedBytes).ToList(), // Alloc (Call)
-                            6 => ascending ? cachedRows.OrderBy(r => r.AvgPerFrameNs).ToList() : cachedRows.OrderByDescending(r => r.AvgPerFrameNs).ToList(), // Avg (Frame)
-                            _ => cachedRows.OrderByDescending(r => r.AvgAllocatedBytes).ToList()
-                        };
-                    }
-
-                    foreach (var row in sortedRows)
-                    {
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.Count.ToString());
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(row.Name);
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(FormatTime(row.AvgPerCallNs));
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(FormatTime(row.P95PerCallNs));
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(FormatTime(row.P99PerCallNs));
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(FormatBytes(row.AvgAllocatedBytes));
-
-                        ImGui.TableNextColumn();
-                        ImGui.Text(FormatTime(row.AvgPerFrameNs));
-                    }
-
-                    ImGui.EndTable();
+                    RenderTreeView();
+                }
+                else
+                {
+                    RenderFlatHotspotsView();
                 }
             }
+
             ImGui.End();
         }
     }
-        
-    public static void StartFrame()
+
+    private static void RenderTreeView()
     {
-        if (!IsRecording)
+        if (ImGui.BeginTable("profilerTreeTable", 8,
+                ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
+                ImGui.GetContentRegionAvail()))
         {
-            return;
+            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.5f);
+            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.8f);
+            ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+
+            ImGui.TableSetupScrollFreeze(0, 1);
+            ImGui.TableHeadersRow();
+
+            foreach (var node in cachedTree)
+            {
+                RenderTreeRow(node);
+            }
+
+            ImGui.EndTable();
         }
-            
-        CurrentFrameNs.Clear();
-        CurrentFrameCounts.Clear();
-        CurrentFrameAllocatedBytes.Clear();
     }
-        
-    public static void EndFrame()
+
+    private static void RenderTreeRow(ProfilerTreeNode node)
     {
-        if (!IsRecording)
+        ImGui.TableNextRow();
+        ImGui.TableNextColumn();
+
+        var hasChildren = node.Children.Count > 0;
+        var flags = ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.OpenOnArrow;
+        if (!hasChildren)
         {
-            return;
+            flags |= ImGuiTreeNodeFlags.Leaf | ImGuiTreeNodeFlags.NoTreePushOnOpen;
+        }
+        else
+        {
+            flags |= ImGuiTreeNodeFlags.DefaultOpen;
         }
 
-        // Add frame samples for each profiled method
-        foreach (var kvp in CurrentFrameNs)
+        var isOpen = ImGui.TreeNodeEx($"##Node_{node.Id}", flags, node.DisplayName);
+
+        ImGui.TableNextColumn();
+        ImGui.Text(FormatTime(node.InclusiveAvgFrameNs));
+
+        ImGui.TableNextColumn();
+        ImGui.Text(FormatTime(node.SelfAvgFrameNs));
+
+        ImGui.TableNextColumn();
+        ImGui.Text(node.CallsPerFrame >= 10.0 ? $"{node.CallsPerFrame:F1}" : $"{node.CallsPerFrame:F2}");
+
+        ImGui.TableNextColumn();
+        ImGui.Text(FormatTime(node.InclusiveAvgCallNs));
+
+        ImGui.TableNextColumn();
+        ImGui.Text(FormatTime(node.P95CallNs));
+
+        ImGui.TableNextColumn();
+        ImGui.Text(FormatTime(node.P99CallNs));
+
+        ImGui.TableNextColumn();
+        ImGui.Text(FormatBytes(node.AvgAllocatedBytes));
+
+        if (hasChildren && isOpen)
         {
-            var key = kvp.Key;
-            var frameNs = kvp.Value;
-            ProfileData.GetOrAdd(key, static _ => new ProfileData()).AddFrameSample(frameNs);
+            foreach (var child in node.Children)
+            {
+                RenderTreeRow(child);
+            }
+
+            ImGui.TreePop();
         }
     }
 
-    internal static void RecordSample(string methodName, long startTimestamp, long startAllocatedBytes)
+    private static void RenderFlatHotspotsView()
     {
-        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
-        var elapsedNs = elapsedTicks * NsPerTick;
-        var allocatedBytes = Math.Max(0, GC.GetAllocatedBytesForCurrentThread() - startAllocatedBytes);
+        if (ImGui.BeginTable("profilerFlatTable", 8,
+                ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp,
+                ImGui.GetContentRegionAvail()))
+        {
+            ImGui.TableSetupColumn("Scope", ImGuiTableColumnFlags.WidthStretch, 2.5f);
+            ImGui.TableSetupColumn("Inclusive Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+            ImGui.TableSetupColumn("Self Avg/F", ImGuiTableColumnFlags.WidthStretch, 1.2f);
+            ImGui.TableSetupColumn("Calls/F", ImGuiTableColumnFlags.WidthStretch, 0.8f);
+            ImGui.TableSetupColumn("Avg (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("P95 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("P99 (Call)", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+            ImGui.TableSetupColumn("Alloc (Call)", ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.WidthStretch, 1.0f);
 
-        ProfileData.GetOrAdd(methodName, static _ => new ProfileData())
-            .AddSample(elapsedTicks, allocatedBytes);
-        CurrentFrameNs.AddOrUpdate(
-            methodName,
-            static (_, value) => value,
-            static (_, existing, value) => existing + value,
-            elapsedNs);
-        CurrentFrameCounts.AddOrUpdate(methodName, 1, static (_, existing) => existing + 1);
-        CurrentFrameAllocatedBytes.AddOrUpdate(
-            methodName,
-            static (_, value) => value,
-            static (_, existing, value) => existing + value,
-            allocatedBytes);
+            ImGui.TableSetupScrollFreeze(0, 1);
+            ImGui.TableHeadersRow();
+
+            var sortSpecs = ImGui.TableGetSortSpecs();
+            var sortedRows = cachedFlatRows.OrderByDescending(static r => r.AvgAllocatedBytes).ToList();
+            if (sortSpecs.SpecsCount > 0)
+            {
+                var spec = sortSpecs.Specs;
+                int col = spec.ColumnIndex;
+                bool ascending = spec.SortDirection == ImGuiSortDirection.Ascending;
+
+                sortedRows = col switch
+                {
+                    0 => ascending ? cachedFlatRows.OrderBy(static r => r.Name).ToList() : cachedFlatRows.OrderByDescending(static r => r.Name).ToList(),
+                    1 => ascending ? cachedFlatRows.OrderBy(static r => r.InclusiveAvgFrameNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.InclusiveAvgFrameNs).ToList(),
+                    2 => ascending ? cachedFlatRows.OrderBy(static r => r.SelfAvgFrameNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.SelfAvgFrameNs).ToList(),
+                    3 => ascending ? cachedFlatRows.OrderBy(static r => r.CallsPerFrame).ToList() : cachedFlatRows.OrderByDescending(static r => r.CallsPerFrame).ToList(),
+                    4 => ascending ? cachedFlatRows.OrderBy(static r => r.InclusiveAvgCallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.InclusiveAvgCallNs).ToList(),
+                    5 => ascending ? cachedFlatRows.OrderBy(static r => r.P95CallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.P95CallNs).ToList(),
+                    6 => ascending ? cachedFlatRows.OrderBy(static r => r.P99CallNs).ToList() : cachedFlatRows.OrderByDescending(static r => r.P99CallNs).ToList(),
+                    7 => ascending ? cachedFlatRows.OrderBy(static r => r.AvgAllocatedBytes).ToList() : cachedFlatRows.OrderByDescending(static r => r.AvgAllocatedBytes).ToList(),
+                    _ => cachedFlatRows.OrderByDescending(static r => r.AvgAllocatedBytes).ToList(),
+                };
+            }
+
+            foreach (var row in sortedRows)
+            {
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.Text(row.Name);
+
+                ImGui.TableNextColumn();
+                ImGui.Text(FormatTime(row.InclusiveAvgFrameNs));
+
+                ImGui.TableNextColumn();
+                ImGui.Text(FormatTime(row.SelfAvgFrameNs));
+
+                ImGui.TableNextColumn();
+                ImGui.Text(row.CallsPerFrame >= 10.0 ? $"{row.CallsPerFrame:F1}" : $"{row.CallsPerFrame:F2}");
+
+                ImGui.TableNextColumn();
+                ImGui.Text(FormatTime(row.InclusiveAvgCallNs));
+
+                ImGui.TableNextColumn();
+                ImGui.Text(FormatTime(row.P95CallNs));
+
+                ImGui.TableNextColumn();
+                ImGui.Text(FormatTime(row.P99CallNs));
+
+                ImGui.TableNextColumn();
+                ImGui.Text(FormatBytes(row.AvgAllocatedBytes));
+            }
+
+            ImGui.EndTable();
+        }
     }
 
     private static string GetProfileKey(string namespaceName, string methodName) =>
         ProfileKeys.GetOrAdd(
             (namespaceName, methodName),
             static key => string.Concat(key.NamespaceName, ".", key.MethodName));
-        
+
     private static string FormatTime(double ns)
     {
         return ns switch
@@ -327,7 +636,7 @@ public static class PerformanceProfiler
             >= 1000000000.0 => $"{ns / 1000000000.0:F2} s",
             >= 1000000.0 => $"{ns / 1000000.0:F2} ms",
             >= 1000.0 => $"{ns / 1000.0:F2} us",
-            _ => $"{ns:F2} ns"
+            _ => $"{ns:F2} ns",
         };
     }
 
@@ -337,74 +646,119 @@ public static class PerformanceProfiler
         {
             >= 1048576.0 => $"{bytes / 1048576.0:F2} MiB",
             >= 1024.0 => $"{bytes / 1024.0:F2} KiB",
-            _ => $"{bytes:F0} B"
+            _ => $"{bytes:F0} B",
         };
     }
 
     internal readonly struct ProfileScope : IDisposable
     {
-        private readonly string? methodName;
-        private readonly long startTimestamp;
-        private readonly long startAllocatedBytes;
+        private readonly int depth;
 
-        internal ProfileScope(string methodName, long startTimestamp, long startAllocatedBytes)
+        internal ProfileScope(int depth)
         {
-            this.methodName = methodName;
-            this.startTimestamp = startTimestamp;
-            this.startAllocatedBytes = startAllocatedBytes;
+            this.depth = depth;
         }
 
         public void Dispose()
         {
-            if (this.methodName != null)
+            if (this.depth > 0)
             {
-                RecordSample(this.methodName, this.startTimestamp, this.startAllocatedBytes);
+                RecordScopeExit(this.depth);
+            }
+        }
+    }
+
+    internal sealed class ProfileDisposable : IDisposable
+    {
+        private ProfileScope scope;
+        private bool disposed;
+
+        internal ProfileDisposable(ProfileScope scope)
+        {
+            this.scope = scope;
+        }
+
+        public void Dispose()
+        {
+            if (!this.disposed)
+            {
+                this.disposed = true;
+                this.scope.Dispose();
             }
         }
     }
 }
 
-internal class ProfileData
+internal class ProfilerNode
 {
-    private const int WindowSize = 100;
+    public int Id { get; }
+    public int ParentId { get; }
+    public string ScopeKey { get; }
+    public string DisplayName { get; }
+
+    public readonly List<int> Children = new();
+
     private int totalCount;
-    private long sessionSumTicks;
+    private long sessionSumInclusiveTicks;
+    private long sessionSumSelfTicks;
     private long sessionSumAllocatedBytes;
-    private double sessionSumFrameNs;
-    private int sessionFrameCount;
-    private readonly ConcurrentQueue<long> recentTicks = new();
-    private readonly ConcurrentQueue<long> recentAllocatedBytes = new();
-    private readonly ConcurrentQueue<double> recentFrameNs = new();
-    public int Count => totalCount;
 
-    // Average columns intentionally cover the whole capture session. Only percentile
-    // calculations use the bounded recent window, so a long capture is not represented
-    // by the last few calls alone.
-    public double AverageTicks => totalCount > 0 ? (double)sessionSumTicks / totalCount : 0.0;
-    public double AverageAllocatedBytes => totalCount > 0 ? (double)sessionSumAllocatedBytes / totalCount : 0.0;
-    public double AverageFrameNs => sessionFrameCount > 0 ? sessionSumFrameNs / sessionFrameCount : 0.0;
+    private const int WindowSize = 100;
+    private readonly ConcurrentQueue<long> recentInclusiveTicks = new();
 
-    public void AddSample(long ticks, long allocatedBytes)
+    private int currentFrameCount;
+    private long currentFrameInclusiveTicks;
+    private long currentFrameSelfTicks;
+    private long currentFrameAllocatedBytes;
+
+    public ProfilerNode(int id, int parentId, string scopeKey)
     {
-        Interlocked.Increment(ref totalCount);
-        recentTicks.Enqueue(ticks);
-        recentAllocatedBytes.Enqueue(allocatedBytes);
-        Interlocked.Add(ref sessionSumTicks, ticks);
-        Interlocked.Add(ref sessionSumAllocatedBytes, allocatedBytes);
-        while (recentTicks.Count > WindowSize)
-        {
-            recentTicks.TryDequeue(out _);
-        }
+        this.Id = id;
+        this.ParentId = parentId;
+        this.ScopeKey = scopeKey;
+        this.DisplayName = scopeKey;
+    }
 
-        while (recentAllocatedBytes.Count > WindowSize)
+    public int TotalCount => Volatile.Read(ref this.totalCount);
+    public long SessionSumInclusiveTicks => Volatile.Read(ref this.sessionSumInclusiveTicks);
+    public long SessionSumSelfTicks => Volatile.Read(ref this.sessionSumSelfTicks);
+    public long SessionSumAllocatedBytes => Volatile.Read(ref this.sessionSumAllocatedBytes);
+
+    public int CurrentFrameCount => Volatile.Read(ref this.currentFrameCount);
+    public long CurrentFrameInclusiveTicks => Volatile.Read(ref this.currentFrameInclusiveTicks);
+    public long CurrentFrameSelfTicks => Volatile.Read(ref this.currentFrameSelfTicks);
+    public long CurrentFrameAllocatedBytes => Volatile.Read(ref this.currentFrameAllocatedBytes);
+
+    public void AddSample(long inclusiveTicks, long selfTicks, long allocatedBytes)
+    {
+        Interlocked.Increment(ref this.totalCount);
+        Interlocked.Add(ref this.sessionSumInclusiveTicks, inclusiveTicks);
+        Interlocked.Add(ref this.sessionSumSelfTicks, selfTicks);
+        Interlocked.Add(ref this.sessionSumAllocatedBytes, allocatedBytes);
+
+        Interlocked.Increment(ref this.currentFrameCount);
+        Interlocked.Add(ref this.currentFrameInclusiveTicks, inclusiveTicks);
+        Interlocked.Add(ref this.currentFrameSelfTicks, selfTicks);
+        Interlocked.Add(ref this.currentFrameAllocatedBytes, allocatedBytes);
+
+        this.recentInclusiveTicks.Enqueue(inclusiveTicks);
+        while (this.recentInclusiveTicks.Count > WindowSize)
         {
-            recentAllocatedBytes.TryDequeue(out _);
+            this.recentInclusiveTicks.TryDequeue(out _);
         }
+    }
+
+    public void ResetCurrentFrame()
+    {
+        Volatile.Write(ref this.currentFrameCount, 0);
+        Volatile.Write(ref this.currentFrameInclusiveTicks, 0);
+        Volatile.Write(ref this.currentFrameSelfTicks, 0);
+        Volatile.Write(ref this.currentFrameAllocatedBytes, 0);
     }
 
     public long GetPercentileTicks(double percentile)
     {
-        var samples = recentTicks.ToArray();
+        var samples = this.recentInclusiveTicks.ToArray();
         if (samples.Length == 0)
         {
             return 0;
@@ -414,50 +768,51 @@ internal class ProfileData
         var index = Math.Clamp((int)Math.Ceiling(samples.Length * percentile) - 1, 0, samples.Length - 1);
         return samples[index];
     }
-
-    public void AddFrameSample(double ns)
-    {
-        recentFrameNs.Enqueue(ns);
-        Interlocked.Increment(ref sessionFrameCount);
-        // F-182: atomic add - was raw `+=`, racy on parallel ProfileDisposable.Dispose
-        // calls that update CurrentFrameNs from worker threads. Interlocked has no
-        // double Add overload, so use the standard CompareExchange loop pattern.
-        InterlockedAddDouble(ref sessionSumFrameNs, ns);
-        while (recentFrameNs.Count > WindowSize)
-        {
-            recentFrameNs.TryDequeue(out _);
-        }
-    }
-
-    private static double InterlockedAddDouble(ref double location, double value)
-    {
-        double current, computed;
-        do
-        {
-            current = location;
-            computed = current + value;
-        }
-        while (Interlocked.CompareExchange(ref location, computed, current) != current);
-        return computed;
-    }
 }
 
-internal class ProfileRow(
+internal sealed class ProfilerTreeNode
+{
+    public int Id { get; init; }
+    public int ParentId { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string DisplayName { get; init; } = string.Empty;
+    public int Depth { get; init; }
+
+    public int Count { get; init; }
+    public double CallsPerFrame { get; init; }
+    public double InclusiveAvgCallNs { get; init; }
+    public double InclusiveAvgFrameNs { get; init; }
+    public double SelfAvgCallNs { get; init; }
+    public double SelfAvgFrameNs { get; init; }
+    public double P95CallNs { get; init; }
+    public double P99CallNs { get; init; }
+    public double AvgAllocatedBytes { get; init; }
+
+    public List<ProfilerTreeNode> Children { get; } = new();
+}
+
+internal sealed class ProfilerFlatRow(
     string name,
     int count,
-    double avgPerCallNs,
-    double p95PerCallNs,
-    double p99PerCallNs,
-    double avgAllocatedBytes,
-    double avgPerFrameNs)
+    double callsPerFrame,
+    double inclusiveAvgCallNs,
+    double inclusiveAvgFrameNs,
+    double selfAvgCallNs,
+    double selfAvgFrameNs,
+    double p95CallNs,
+    double p99CallNs,
+    double avgAllocatedBytes)
 {
     public string Name { get; } = name;
     public int Count { get; } = count;
-    public double AvgPerCallNs { get; } = avgPerCallNs;
-    public double P95PerCallNs { get; } = p95PerCallNs;
-    public double P99PerCallNs { get; } = p99PerCallNs;
+    public double CallsPerFrame { get; } = callsPerFrame;
+    public double InclusiveAvgCallNs { get; } = inclusiveAvgCallNs;
+    public double InclusiveAvgFrameNs { get; } = inclusiveAvgFrameNs;
+    public double SelfAvgCallNs { get; } = selfAvgCallNs;
+    public double SelfAvgFrameNs { get; } = selfAvgFrameNs;
+    public double P95CallNs { get; } = p95CallNs;
+    public double P99CallNs { get; } = p99CallNs;
     public double AvgAllocatedBytes { get; } = avgAllocatedBytes;
-    public double AvgPerFrameNs { get; } = avgPerFrameNs;
 }
 
 internal sealed record PerformanceProfilerSnapshot(
@@ -473,14 +828,3 @@ internal sealed record PerformanceProfilerRow(
     double P99CallNanoseconds,
     double AllocatedBytesPerCall,
     double AvgFrameNanoseconds);
-
-internal sealed class ProfileDisposable(
-    string methodName,
-    long startTimestamp,
-    long startAllocatedBytes) : IDisposable
-{
-    public void Dispose()
-    {
-        PerformanceProfiler.RecordSample(methodName, startTimestamp, startAllocatedBytes);
-    }
-}
