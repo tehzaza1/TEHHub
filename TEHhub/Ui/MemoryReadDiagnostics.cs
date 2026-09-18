@@ -992,8 +992,6 @@ internal sealed record MemoryDiagnosticsHybridSnapshot(
 
 internal enum HybridPromotionLevel
 {
-    Compact128B,
-    Medium512B,
     Page4KB,
 }
 

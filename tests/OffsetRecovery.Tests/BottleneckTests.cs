@@ -163,7 +163,9 @@ internal static class BottleneckTests
                     "7: earlier exact entry is superseded by page cache");
             }
 
-            // Invariant 8: Failed page promotion accounting is tracked
+            // Invariant 8: Failed page promotion diagnostics tracking
+            // (Note: exact-cache preservation on native read failure is source-verified by SafeMemoryHandle
+            // control flow, where exactWindows superseding is strictly within the successful TryReadMemoryArray block)
             MemoryReadDiagnostics.ResetForCapture();
             MemoryReadDiagnostics.RecordHybridPromotionFailure(HybridPromotionLevel.Page4KB);
             var snapFail = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
@@ -180,18 +182,52 @@ internal static class BottleneckTests
                     "9: cross-page request never causes an 8KB or 4KB promotion fetch and stays exact");
             }
 
-            // Invariant 10: MaxDynamicWindows remains bounded (2048)
-            MemoryReadDiagnostics.ResetForCapture();
-            using (var plan = procHandle.BeginReadCachePlan([], enableDynamicCache: true))
+            // Invariant 10: MaxDynamicWindows remains bounded at exactly 2048 dynamic entries
+            // Test with 2049 distinct 4KB pages (1 small exact read per page -> 0 page promotions)
+            const int maxPages = 2049;
+            const int maxMemSize = maxPages * 4096;
+            var maxMemPtr = Marshal.AllocHGlobal(maxMemSize + 4096);
+            try
             {
-                // Access distinct addresses across multiple 4KB pages with 1 read per page so none promotes
-                for (var i = 0; i < 2050; i++)
+                var rawMaxAddr = maxMemPtr.ToInt64();
+                var maxPageAlignedAddr = new IntPtr((rawMaxAddr + 4095) & ~4095L);
+
+                // Write a recognizable value on each distinct 4KB page
+                for (var p = 0; p < maxPages; p++)
                 {
-                    // Addresses spread out across 32KB buffer (0..32767)
-                    procHandle.TryReadMemory<byte>(pageAlignedAddr + (i % testMemSize), out _);
+                    Marshal.WriteInt32(maxPageAlignedAddr + (p * 4096) + 16, 0x55000000 + p);
                 }
-                var snapBound = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
-                check(snapBound.EntriesCreated <= 2048, "10: total dynamic entries created does not exceed MaxDynamicWindows (2048)");
+
+                MemoryReadDiagnostics.ResetForCapture();
+                using (var plan = procHandle.BeginReadCachePlan([], enableDynamicCache: true))
+                {
+                    // Read from the first 2048 distinct pages (1 read per page -> no promotions)
+                    for (var p = 0; p < 2048; p++)
+                    {
+                        var ok = procHandle.TryReadMemory<int>(maxPageAlignedAddr + (p * 4096) + 16, out var val);
+                        check(ok && val == (0x55000000 + p), "read from distinct page succeeds");
+                    }
+
+                    var snap2048 = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
+                    check(snap2048.ExactReads == 2048 &&
+                          snap2048.PagePromotions == 0 &&
+                          snap2048.EntriesCreated == 2048,
+                          "10a: exactly 2048 dynamic exact entries created without any page promotions");
+
+                    // Read from the 2049th distinct page (page index 2048)
+                    var ok2049 = procHandle.TryReadMemory<int>(maxPageAlignedAddr + (2048 * 4096) + 16, out var val2049);
+                    check(ok2049 && val2049 == (0x55000000 + 2048), "2049th page read succeeds via legacy fallback");
+
+                    var snap2049 = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
+                    check(snap2049.EntriesCreated == 2048 &&
+                          snap2049.ExactReads == 2048 &&
+                          snap2049.PagePromotions == 0,
+                          "10b: 2049th page does not create a new dynamic entry when MaxDynamicWindows (2048) is reached");
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(maxMemPtr);
             }
         }
         finally
