@@ -31,6 +31,8 @@ namespace myFarming
         private readonly Dictionary<uint, GroundGoldPile> knownGoldPiles = new();
         private long groundLootedGold = 0;
         private long memoryGoldGain = 0;
+        private bool isResumedMap = false;
+        private long resumedPreviousGoldGain = 0;
 
         private long lastDiagGround = -1;
         private long lastDiagMemory = -1;
@@ -39,6 +41,7 @@ namespace myFarming
         public long BaselineGold { get; private set; } = 0;
         public long CurrentGold { get; private set; } = 0;
         public long MapGoldGain { get; private set; } = 0;
+        public bool NativeBaselineInitialized { get; private set; } = false;
 
         public void StartMap()
         {
@@ -46,6 +49,11 @@ namespace myFarming
             this.groundLootedGold = 0;
             this.memoryGoldGain = 0;
             this.MapGoldGain = 0;
+            this.CurrentGold = 0;
+            this.BaselineGold = 0;
+            this.NativeBaselineInitialized = false;
+            this.isResumedMap = false;
+            this.resumedPreviousGoldGain = 0;
             this.lastDiagGround = -1;
             this.lastDiagMemory = -1;
             this.lastDiagPublished = -1;
@@ -54,6 +62,7 @@ namespace myFarming
             {
                 this.CurrentGold = gold;
                 this.BaselineGold = gold;
+                this.NativeBaselineInitialized = true;
             }
         }
 
@@ -63,6 +72,11 @@ namespace myFarming
             this.groundLootedGold = previousGoldGain;
             this.memoryGoldGain = previousGoldGain;
             this.MapGoldGain = previousGoldGain;
+            this.CurrentGold = 0;
+            this.BaselineGold = 0;
+            this.NativeBaselineInitialized = false;
+            this.isResumedMap = true;
+            this.resumedPreviousGoldGain = previousGoldGain;
             this.lastDiagGround = -1;
             this.lastDiagMemory = -1;
             this.lastDiagPublished = -1;
@@ -70,7 +84,8 @@ namespace myFarming
             if (this.TryReadPlayerGold(out var gold))
             {
                 this.CurrentGold = gold;
-                this.BaselineGold = this.CurrentGold > previousGoldGain ? this.CurrentGold - previousGoldGain : this.CurrentGold;
+                this.BaselineGold = gold > previousGoldGain ? gold - previousGoldGain : gold;
+                this.NativeBaselineInitialized = true;
             }
         }
 
@@ -82,6 +97,9 @@ namespace myFarming
             this.MapGoldGain = 0;
             this.groundLootedGold = 0;
             this.memoryGoldGain = 0;
+            this.NativeBaselineInitialized = false;
+            this.isResumedMap = false;
+            this.resumedPreviousGoldGain = 0;
             this.lastDiagGround = -1;
             this.lastDiagMemory = -1;
             this.lastDiagPublished = -1;
@@ -109,7 +127,7 @@ namespace myFarming
                 this.lastDiagGround = this.groundLootedGold;
                 this.lastDiagMemory = this.memoryGoldGain;
                 this.lastDiagPublished = this.MapGoldGain;
-                PluginLog.Info("myFarming", $"[GoldDiag] source totals changed: ground={this.groundLootedGold}, nativeMemory={this.memoryGoldGain}, published={this.MapGoldGain}, currentGold={this.CurrentGold}");
+                PluginLog.Info("myFarming", $"[GoldDiag] source totals changed: ground={this.groundLootedGold}, nativeMemory={this.memoryGoldGain}, published={this.MapGoldGain}, currentGold={this.CurrentGold}, baselineInit={this.NativeBaselineInitialized}");
             }
         }
 
@@ -212,16 +230,31 @@ namespace myFarming
 
             if (serverData.TryGetGold(out int nativeGold))
             {
-                this.CurrentGold = nativeGold;
-                if (this.BaselineGold == 0 && nativeGold > 0)
+                this.ProcessNativeGoldSample((long)nativeGold);
+            }
+        }
+
+        internal void ProcessNativeGoldSample(long nativeGold)
+        {
+            this.CurrentGold = nativeGold;
+
+            if (!this.NativeBaselineInitialized)
+            {
+                if (this.isResumedMap)
+                {
+                    this.BaselineGold = nativeGold > this.resumedPreviousGoldGain ? nativeGold - this.resumedPreviousGoldGain : nativeGold;
+                }
+                else
                 {
                     this.BaselineGold = nativeGold;
                 }
 
-                if (nativeGold >= this.BaselineGold)
-                {
-                    this.memoryGoldGain = nativeGold - this.BaselineGold;
-                }
+                this.NativeBaselineInitialized = true;
+            }
+
+            if (nativeGold >= this.BaselineGold)
+            {
+                this.memoryGoldGain = nativeGold - this.BaselineGold;
             }
         }
 

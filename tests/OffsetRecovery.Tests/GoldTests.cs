@@ -146,6 +146,87 @@ namespace OffsetRecovery.Tests
                 check(
                     (PlayerServerDataOffsets.GoldRecordIndex - 4) * PlayerServerDataOffsets.RecordStride + PlayerServerDataOffsets.RecordGoldOffset == PlayerServerDataOffsets.GoldFieldOffset,
                     "Mathematical identity: (16 - 4) * 0x80 + 0x18 == 0x618.");
+
+                // =========================================================================
+                // 4. GoldTracker State Machine Unit Tests (Scenarios A through G)
+                // =========================================================================
+                var tracker = new myFarming.GoldTracker();
+
+                // Scenario A: StartMap initial native Gold = 500 -> baseline initialized to 500 -> later Gold = 650 -> native gain = 150
+                tracker.StartMap();
+                check(!tracker.NativeBaselineInitialized, "StartMap with no memory handle must reset NativeBaselineInitialized to false.");
+                tracker.ProcessNativeGoldSample(500);
+                check(tracker.NativeBaselineInitialized, "First native sample must set NativeBaselineInitialized to true.");
+                check(tracker.BaselineGold == 500, $"Initial sample 500 must set BaselineGold to 500 (got {tracker.BaselineGold}).");
+                check(tracker.CurrentGold == 500, $"Initial sample 500 must set CurrentGold to 500 (got {tracker.CurrentGold}).");
+
+                tracker.ProcessNativeGoldSample(650);
+                check(tracker.BaselineGold == 500, "Subsequent sample must not change BaselineGold.");
+                check(tracker.CurrentGold == 650, $"CurrentGold must update to 650 (got {tracker.CurrentGold}).");
+
+                // Scenario B: StartMap initial native Gold = 0 -> baseline legitimately initialized to 0 -> later Gold = 125 -> native gain = 125 -> baseline must remain 0
+                tracker.StartMap();
+                check(!tracker.NativeBaselineInitialized, "StartMap must reset NativeBaselineInitialized to false.");
+                tracker.ProcessNativeGoldSample(0);
+                check(tracker.NativeBaselineInitialized, "First native sample of 0 must set NativeBaselineInitialized to true.");
+                check(tracker.BaselineGold == 0, $"Initial sample 0 must set BaselineGold to 0 (got {tracker.BaselineGold}).");
+                check(tracker.CurrentGold == 0, $"Initial sample 0 must set CurrentGold to 0 (got {tracker.CurrentGold}).");
+
+                tracker.ProcessNativeGoldSample(125);
+                check(tracker.NativeBaselineInitialized, "NativeBaselineInitialized must remain true.");
+                check(tracker.BaselineGold == 0, $"BaselineGold must remain 0 after later sample 125 (got {tracker.BaselineGold}).");
+                check(tracker.CurrentGold == 125, $"CurrentGold must update to 125 (got {tracker.CurrentGold}).");
+
+                // Scenario C: StartMap initial native read fails -> previous-map CurrentGold/BaselineGold must not survive -> first later successful sample establishes new baseline -> no fake gain caused by stale state
+                tracker.ProcessNativeGoldSample(9999); // Simulate previous map ending with high gold
+                check(tracker.CurrentGold == 9999, "Pre-condition: tracker has high current gold from previous map.");
+                tracker.StartMap(); // Initial read fails (no game attached in unit test)
+                check(tracker.CurrentGold == 0, $"StartMap must reset CurrentGold to 0 on initial read failure (got {tracker.CurrentGold}).");
+                check(tracker.BaselineGold == 0, $"StartMap must reset BaselineGold to 0 on initial read failure (got {tracker.BaselineGold}).");
+                check(!tracker.NativeBaselineInitialized, "StartMap must leave NativeBaselineInitialized = false on initial read failure.");
+
+                tracker.ProcessNativeGoldSample(1000); // First sample arrives later during map
+                check(tracker.NativeBaselineInitialized, "First delayed sample must set NativeBaselineInitialized to true.");
+                check(tracker.BaselineGold == 1000, $"Delayed sample 1000 must establish baseline 1000 (got {tracker.BaselineGold}).");
+                check(tracker.CurrentGold == 1000, $"CurrentGold must be 1000 (got {tracker.CurrentGold}).");
+
+                // Scenario D: Transient native read fails after valid baseline -> CurrentGold / BaselineGold / accumulated published result not converted into fake zero event
+                long preFailCurrent = tracker.CurrentGold;
+                long preFailBaseline = tracker.BaselineGold;
+                // On a failed memory read in production, TrackNativeGold simply does not call ProcessNativeGoldSample.
+                check(tracker.CurrentGold == preFailCurrent, "Transient read failure must not alter CurrentGold.");
+                check(tracker.BaselineGold == preFailBaseline, "Transient read failure must not alter BaselineGold.");
+                check(tracker.NativeBaselineInitialized, "Transient read failure must not invalidate confirmed baseline.");
+
+                // Scenario E: Successful native read of 0 after initialization -> treated as a successful value, not read failure
+                tracker.ProcessNativeGoldSample(0); // Player spends all gold
+                check(tracker.CurrentGold == 0, $"CurrentGold must update to 0 on valid 0 sample (got {tracker.CurrentGold}).");
+                check(tracker.BaselineGold == 1000, "BaselineGold must not be overwritten when 0 sample arrives after initialization.");
+                check(tracker.NativeBaselineInitialized, "NativeBaselineInitialized must remain true.");
+
+                // Scenario F: ResumeMap initial read succeeds -> preserve existing previousGoldGain semantics
+                tracker.ResumeMap(300);
+                check(!tracker.NativeBaselineInitialized, "ResumeMap before first sample has NativeBaselineInitialized = false.");
+                tracker.ProcessNativeGoldSample(800);
+                check(tracker.NativeBaselineInitialized, "First sample after ResumeMap must set NativeBaselineInitialized to true.");
+                check(tracker.BaselineGold == 500, $"ResumeMap with previous gain 300 and sample 800 must set BaselineGold to 800 - 300 = 500 (got {tracker.BaselineGold}).");
+                check(tracker.CurrentGold == 800, $"CurrentGold must be 800 (got {tracker.CurrentGold}).");
+
+                // Scenario G: ResumeMap initial read fails and succeeds later -> establish baseline using ResumeMap semantics without stale prior-map state
+                tracker.ResumeMap(200);
+                check(tracker.CurrentGold == 0, "ResumeMap must clear prior CurrentGold on initial read failure.");
+                check(tracker.BaselineGold == 0, "ResumeMap must clear prior BaselineGold on initial read failure.");
+                check(!tracker.NativeBaselineInitialized, "ResumeMap must set NativeBaselineInitialized = false on initial read failure.");
+
+                tracker.ProcessNativeGoldSample(1500); // Delayed sample arrives
+                check(tracker.NativeBaselineInitialized, "Delayed sample must initialize baseline.");
+                check(tracker.BaselineGold == 1300, $"Delayed sample 1500 with resumed gain 200 must set BaselineGold = 1500 - 200 = 1300 (got {tracker.BaselineGold}).");
+                check(tracker.CurrentGold == 1500, $"CurrentGold must be 1500 (got {tracker.CurrentGold}).");
+
+                // Reset test
+                tracker.Reset();
+                check(tracker.CurrentGold == 0 && tracker.BaselineGold == 0 && !tracker.NativeBaselineInitialized && tracker.MapGoldGain == 0,
+                    "Reset must clear all state including NativeBaselineInitialized.");
             }
             finally
             {
