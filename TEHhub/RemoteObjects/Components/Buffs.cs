@@ -26,9 +26,8 @@ namespace TEHhub.RemoteObjects.Components
         [ThreadStatic]
         private static IntPtr[]? threadLocalPtrArray;
 
-        private ConcurrentDictionary<string, StatusEffectStruct>? legacyStatusEffects;
-        private uint dataVersion;
-        private uint legacySnapshotVersion;
+        private readonly ConcurrentDictionary<string, StatusEffectStruct> legacyStatusEffects = new(StringComparer.Ordinal);
+        private bool legacySnapshotActivated;
 
         static Buffs()
         {
@@ -51,25 +50,18 @@ namespace TEHhub.RemoteObjects.Components
 
         /// <summary>
         ///     Gets the Buffs/Debuffs associated with the entity.
-        ///     Legacy binary compatibility view that materializes a ConcurrentDictionary snapshot
-        ///     lazily only when requested by external/precompiled plugins.
+        ///     Legacy binary compatibility view that returns the same ConcurrentDictionary instance.
+        ///     Synchronizes lazily upon first access, and remains updated across refreshes thereafter.
         ///     This is not updated anymore once entity dies.
         /// </summary>
         public ConcurrentDictionary<string, StatusEffectStruct> StatusEffects
         {
             get
             {
-                if (this.legacyStatusEffects == null)
+                if (!this.legacySnapshotActivated)
                 {
-                    this.legacyStatusEffects = new ConcurrentDictionary<string, StatusEffectStruct>(
-                        StringComparer.Ordinal);
-                    this.legacySnapshotVersion = 0;
-                }
-
-                if (this.legacySnapshotVersion != this.dataVersion)
-                {
+                    this.legacySnapshotActivated = true;
                     this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
-                    this.legacySnapshotVersion = this.dataVersion;
                 }
 
                 return this.legacyStatusEffects;
@@ -133,7 +125,6 @@ namespace TEHhub.RemoteObjects.Components
         /// <inheritdoc />
         protected override void UpdateData(bool hasAddressChanged)
         {
-            this.dataVersion++;
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<BuffsOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
@@ -143,6 +134,11 @@ namespace TEHhub.RemoteObjects.Components
             var byteLength = data.StatusEffectPtr.Last.ToInt64() - data.StatusEffectPtr.First.ToInt64();
             if (byteLength <= 0 || byteLength % IntPtr.Size != 0 || byteLength > 50_000_000)
             {
+                if (this.legacySnapshotActivated)
+                {
+                    this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+                }
+
                 return;
             }
 
@@ -155,6 +151,11 @@ namespace TEHhub.RemoteObjects.Components
 
             if (!reader.TryReadMemoryArray(data.StatusEffectPtr.First, statusEffects, statusEffectCount, out _))
             {
+                if (this.legacySnapshotActivated)
+                {
+                    this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+                }
+
                 return;
             }
 
@@ -237,6 +238,11 @@ namespace TEHhub.RemoteObjects.Components
                     entry = statusEffectData;
                 }
             }
+
+            if (this.legacySnapshotActivated)
+            {
+                this.SynchronizeLegacyStatusEffects(this.legacyStatusEffects);
+            }
         }
 
         /// <summary>
@@ -254,13 +260,19 @@ namespace TEHhub.RemoteObjects.Components
                 if (statusEffectData.Charges > entry.Charges)
                 {
                     entry = statusEffectData;
-                    this.dataVersion++;
+                    if (this.legacySnapshotActivated)
+                    {
+                        this.legacyStatusEffects[effectName] = statusEffectData;
+                    }
                 }
             }
             else
             {
                 entry = statusEffectData;
-                this.dataVersion++;
+                if (this.legacySnapshotActivated)
+                {
+                    this.legacyStatusEffects[effectName] = statusEffectData;
+                }
             }
         }
 
