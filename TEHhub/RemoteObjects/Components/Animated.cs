@@ -23,6 +23,11 @@ namespace TEHhub.RemoteObjects.Components
         public Animated(IntPtr address)
             : base(address) { }
 
+        // This component has no per-frame mutable payload. Its model path, metadata path,
+        // and animated entity id are fixed for the lifetime of the component address and
+        // are populated during the initial/address-change read.
+        internal override bool RequiresPerFrameRefresh => false;
+
         /// <summary>
         ///     Gets the path of the animated entity.
         /// </summary>

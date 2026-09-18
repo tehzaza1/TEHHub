@@ -496,6 +496,111 @@ internal static class BottleneckTests
         check(deterministicSnap.PageBitmapsMaterialized == 1, "bitmaps materialized matches recorded count");
 
         MemoryReadDiagnostics.ResetForCapture();
+
+        // =========================================================================
+        // Animated Component Optimization & Lifecycle Tests
+        // =========================================================================
+        var animComponent = new TEHhub.RemoteObjects.Components.Animated(IntPtr.Zero);
+        check(!animComponent.RequiresPerFrameRefresh, "Animated component opts out of per-frame refresh (RequiresPerFrameRefresh == false)");
+
+        var diesAfterTimeComponent = new TEHhub.RemoteObjects.Components.DiesAfterTime(IntPtr.Zero);
+        check(!diesAfterTimeComponent.RequiresPerFrameRefresh, "DiesAfterTime component opts out of per-frame refresh");
+
+        var lifeComponent = new TEHhub.RemoteObjects.Components.Life(IntPtr.Zero);
+        check(lifeComponent.RequiresPerFrameRefresh, "Life component retains per-frame refresh (RequiresPerFrameRefresh == true)");
+
+        var testEntity = new TEHhub.RemoteObjects.States.InGameStateObjects.Entity();
+        var snapshotAddrs = new List<IntPtr>();
+        testEntity.AppendFrameSnapshotAddresses(snapshotAddrs);
+        check(snapshotAddrs.Count == 0, "Empty entity snapshot addresses is empty");
+
+        // Verify Animated initial read & address-change update via synthetic memory
+        var synthAnimBlock = Marshal.AllocHGlobal(8192);
+        try
+        {
+            Marshal.Copy(new byte[8192], 0, synthAnimBlock, 8192);
+
+            var anim1Ptr = synthAnimBlock + 0x0000;
+            var anim2Ptr = synthAnimBlock + 0x0500;
+            var ent1Ptr = synthAnimBlock + 0x0A00;
+            var ent2Ptr = synthAnimBlock + 0x0C00;
+            var det1Ptr = synthAnimBlock + 0x0E00;
+            var det2Ptr = synthAnimBlock + 0x1000;
+            var modelInfo1Ptr = synthAnimBlock + 0x1200;
+            var modelInfo2Ptr = synthAnimBlock + 0x1300;
+            var fileRec1Ptr = synthAnimBlock + 0x1400;
+            var fileRec2Ptr = synthAnimBlock + 0x1500;
+            var heapStr1 = synthAnimBlock + 0x1600;
+            var heapStr2 = synthAnimBlock + 0x1700;
+            var heapStr3 = synthAnimBlock + 0x1800;
+            var heapStr4 = synthAnimBlock + 0x1900;
+            var owner1 = synthAnimBlock + 0x1E00;
+            var owner2 = synthAnimBlock + 0x1F00;
+
+            static void WriteStdWString(IntPtr dest, string text, IntPtr heapBuffer)
+            {
+                var bytes = System.Text.Encoding.Unicode.GetBytes(text);
+                Marshal.Copy(bytes, 0, heapBuffer, bytes.Length);
+                var wstr = new TEHhub.Offsets.Natives.StdWString
+                {
+                    Buffer = heapBuffer,
+                    ReservedBytes = IntPtr.Zero,
+                    Length = text.Length,
+                    Capacity = text.Length,
+                };
+                Marshal.StructureToPtr(wstr, dest, false);
+            }
+
+            // EntityDetails 1 & 2 (StdWString at +0x08)
+            WriteStdWString(det1Ptr + 0x08, "Metadata/Terrain/Doodads/FlagA", heapStr1);
+            WriteStdWString(det2Ptr + 0x08, "Metadata/Terrain/Doodads/FlagB", heapStr2);
+
+            // EntityOffsets 1 & 2 (ItemBase.EntityDetailsPtr at +0x08, Id at +0x88)
+            Marshal.WriteIntPtr(ent1Ptr + 0x08, det1Ptr);
+            Marshal.WriteInt32(ent1Ptr + 0x88, 12345);
+            Marshal.WriteIntPtr(ent2Ptr + 0x08, det2Ptr);
+            Marshal.WriteInt32(ent2Ptr + 0x88, 67890);
+
+            // FileInfoValueStruct 1 & 2 (StdWString Name at +0x08)
+            WriteStdWString(fileRec1Ptr + 0x08, "Metadata/Models/flag_a.ao@111", heapStr3);
+            WriteStdWString(fileRec2Ptr + 0x08, "Metadata/Models/flag_b.ao@222", heapStr4);
+
+            // AnimatedModelInfoOffsets 1 & 2 (ModelFileRecordPtr at +0x18)
+            Marshal.WriteIntPtr(modelInfo1Ptr + 0x18, fileRec1Ptr);
+            Marshal.WriteIntPtr(modelInfo2Ptr + 0x18, fileRec2Ptr);
+
+            // AnimatedOffsets 1 (Header.EntityPtr at +0x08, AnimatedEntityPtr at +0x0280, ModelInfoPtr at +0x0358)
+            Marshal.WriteIntPtr(anim1Ptr + 0x08, owner1);
+            Marshal.WriteIntPtr(anim1Ptr + 0x0280, ent1Ptr);
+            Marshal.WriteIntPtr(anim1Ptr + 0x0358, modelInfo1Ptr);
+
+            // AnimatedOffsets 2
+            Marshal.WriteIntPtr(anim2Ptr + 0x08, owner2);
+            Marshal.WriteIntPtr(anim2Ptr + 0x0280, ent2Ptr);
+            Marshal.WriteIntPtr(anim2Ptr + 0x0358, modelInfo2Ptr);
+
+            // 1. Test initial data read
+            var animated = new TEHhub.RemoteObjects.Components.Animated(anim1Ptr);
+            check(animated.Path == "Metadata/Terrain/Doodads/FlagA", "Animated initial read resolves Path correctly");
+            check(animated.Id == 12345, "Animated initial read resolves Id correctly");
+            check(animated.ModelPath == "Metadata/Models/flag_a.ao", "Animated initial read resolves ModelPath correctly");
+            check(animated.IsParentValid(owner1), "Animated initial read validates parent owner correctly");
+
+            // 2. Test steady-state no-op: calling RefreshDataNow on unchanged address does not alter state
+            animated.RefreshDataNow();
+            check(animated.Path == "Metadata/Terrain/Doodads/FlagA" && animated.Id == 12345, "Steady-state refresh retains valid populated state without corruption");
+
+            // 3. Test address-change update
+            animated.Address = anim2Ptr;
+            check(animated.Path == "Metadata/Terrain/Doodads/FlagB", "Animated address change updates Path correctly");
+            check(animated.Id == 67890, "Animated address change updates Id correctly");
+            check(animated.ModelPath == "Metadata/Models/flag_b.ao", "Animated address change updates ModelPath correctly");
+            check(animated.IsParentValid(owner2), "Animated address change validates new parent owner correctly");
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(synthAnimBlock);
+        }
     }
 
     private sealed class ReferencePageTracker
