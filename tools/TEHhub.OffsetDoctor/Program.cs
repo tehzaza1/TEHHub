@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using TEHhub.OffsetDoctor.Baseline;
 using TEHhub.OffsetDoctor.Process;
 using TEHhub.OffsetDoctor.Recovery;
 using TEHhub.OffsetDoctor.Reporting;
@@ -7,7 +8,7 @@ using TEHhub.OffsetDoctor.Watch;
 
 Console.WriteLine("TEHhub.OffsetDoctor — PoE2 Read-Only Offset Health Scanner");
 
-bool isWatchMode = false;
+var mode = ProgramMode.ValidateAll;
 int? explicitPid = null;
 int? expectedGold = null;
 int? expectedHpCurrent = null;
@@ -20,17 +21,38 @@ int intervalMs = 500;
 int durationSec = 120;
 string targetFilter = "all";
 string? outputPath = null;
+string? inputPath = null;
 
 for (int i = 0; i < args.Length; i++)
 {
     var arg = args[i];
-    if (arg.Equals("watch", StringComparison.OrdinalIgnoreCase))
+    if (arg.Equals("baseline", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
-        isWatchMode = true;
+        var subCmd = args[++i];
+        if (subCmd.Equals("capture", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = ProgramMode.BaselineCapture;
+        }
+        else if (subCmd.Equals("compare", StringComparison.OrdinalIgnoreCase))
+        {
+            mode = ProgramMode.BaselineCompare;
+        }
+    }
+    else if (arg.Equals("watch", StringComparison.OrdinalIgnoreCase))
+    {
+        mode = ProgramMode.Watch;
     }
     else if (arg.Equals("validate-all", StringComparison.OrdinalIgnoreCase) || arg.Equals("validate", StringComparison.OrdinalIgnoreCase))
     {
-        isWatchMode = false;
+        mode = ProgramMode.ValidateAll;
+    }
+    else if (arg.Equals("--input", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        inputPath = args[++i];
+    }
+    else if (arg.Equals("--output", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        outputPath = args[++i];
     }
     else if (arg.Equals("--pid", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
@@ -75,10 +97,6 @@ for (int i = 0; i < args.Length; i++)
     else if (arg.Equals("--target", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
         targetFilter = args[++i];
-    }
-    else if (arg.Equals("--output", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-    {
-        outputPath = args[++i];
     }
     else if (arg.Equals("--help", StringComparison.OrdinalIgnoreCase) || arg.Equals("-h", StringComparison.OrdinalIgnoreCase))
     {
@@ -125,55 +143,93 @@ var groundTruth = new ValidationGroundTruth
     ExpectedEsTotal = expectedEsTotal
 };
 
-if (isWatchMode)
+switch (mode)
 {
-    using var cts = new CancellationTokenSource();
-    Console.CancelKeyPress += (s, e) =>
+    case ProgramMode.BaselineCapture:
     {
-        e.Cancel = true;
-        cts.Cancel();
-    };
-
-    var watchTargets = WatchTargetInfo.ResolveTargets(targetFilter);
-    var interval = TimeSpan.FromMilliseconds(intervalMs);
-    var duration = TimeSpan.FromSeconds(durationSec);
-
-    ConsoleWatchWriter.PrintHeader(reader.Metadata, interval, duration, watchTargets, groundTruth);
-
-    var watchEngine = new OffsetWatchEngine();
-    var watchReport = watchEngine.RunWatch(
-        reader,
-        groundTruth,
-        interval,
-        duration,
-        targetFilter,
-        onTransition: ConsoleWatchWriter.PrintTransition,
-        cancellationToken: cts.Token);
-
-    ConsoleWatchWriter.PrintSummary(watchReport);
-
-    if (!string.IsNullOrEmpty(outputPath))
-    {
-        JsonReportExporter.ExportToFile(watchReport, outputPath);
-        Console.WriteLine($"Exported JSON watch report to: {outputPath}");
+        var capturePath = outputPath ?? "offsetdoctor-baseline.json";
+        var captureEngine = new BaselineCaptureEngine();
+        var snapshot = captureEngine.Capture(reader, groundTruth);
+        BaselineSnapshot.SaveToFile(snapshot, capturePath);
+        ConsoleBaselineWriter.PrintCaptureSummary(snapshot, capturePath);
+        return 0;
     }
 
-    return 0;
-}
-else
-{
-    var engine = new OffsetRecoveryEngine();
-    var report = engine.RunValidation(reader, groundTruth);
-
-    ConsoleReportWriter.PrintReport(report);
-
-    if (!string.IsNullOrEmpty(outputPath))
+    case ProgramMode.BaselineCompare:
     {
-        JsonReportExporter.ExportToFile(report, outputPath);
-        Console.WriteLine($"Exported JSON report to: {outputPath}");
+        var compareInputPath = inputPath ?? outputPath ?? "offsetdoctor-baseline.json";
+        if (!File.Exists(compareInputPath))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error: Baseline file not found: {compareInputPath}");
+            Console.ResetColor();
+            Console.WriteLine("Capture a baseline first using: TEHhub.OffsetDoctor.exe baseline capture --output <file>");
+            return 1;
+        }
+
+        var baseline = BaselineSnapshot.LoadFromFile(compareInputPath);
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var report = recoveryEngine.RunValidation(reader, groundTruth);
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var comparisonResult = comparisonEngine.Compare(baseline, report);
+        ConsoleBaselineWriter.PrintComparison(comparisonResult, compareInputPath);
+
+        return comparisonResult.HasCriticalRegressions ? 2 : 0;
     }
 
-    return report.BrokenCount == 0 ? 0 : 2;
+    case ProgramMode.Watch:
+    {
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (s, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        var watchTargets = WatchTargetInfo.ResolveTargets(targetFilter);
+        var interval = TimeSpan.FromMilliseconds(intervalMs);
+        var duration = TimeSpan.FromSeconds(durationSec);
+
+        ConsoleWatchWriter.PrintHeader(reader.Metadata, interval, duration, watchTargets, groundTruth);
+
+        var watchEngine = new OffsetWatchEngine();
+        var watchReport = watchEngine.RunWatch(
+            reader,
+            groundTruth,
+            interval,
+            duration,
+            targetFilter,
+            onTransition: ConsoleWatchWriter.PrintTransition,
+            cancellationToken: cts.Token);
+
+        ConsoleWatchWriter.PrintSummary(watchReport);
+
+        if (!string.IsNullOrEmpty(outputPath))
+        {
+            JsonReportExporter.ExportToFile(watchReport, outputPath);
+            Console.WriteLine($"Exported JSON watch report to: {outputPath}");
+        }
+
+        return 0;
+    }
+
+    case ProgramMode.ValidateAll:
+    default:
+    {
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, groundTruth);
+
+        ConsoleReportWriter.PrintReport(report);
+
+        if (!string.IsNullOrEmpty(outputPath))
+        {
+            JsonReportExporter.ExportToFile(report, outputPath);
+            Console.WriteLine($"Exported JSON report to: {outputPath}");
+        }
+
+        return report.BrokenCount == 0 ? 0 : 2;
+    }
 }
 
 static void PrintUsage()
@@ -181,22 +237,34 @@ static void PrintUsage()
     Console.WriteLine("Usage: TEHhub.OffsetDoctor [command] [options]");
     Console.WriteLine();
     Console.WriteLine("Commands:");
-    Console.WriteLine("  validate-all           Run full repository offset validation scan (default).");
-    Console.WriteLine("  validate               Run full repository offset validation scan.");
-    Console.WriteLine("  watch                  Run realtime state-dependent watch mode.");
+    Console.WriteLine("  validate-all                  Run full repository offset validation scan (default).");
+    Console.WriteLine("  validate                      Run full repository offset validation scan.");
+    Console.WriteLine("  watch                         Run realtime state-dependent watch mode.");
+    Console.WriteLine("  baseline capture              Capture a baseline snapshot of current known-good offsets.");
+    Console.WriteLine("  baseline compare              Compare live game offsets against a captured baseline snapshot.");
     Console.WriteLine();
     Console.WriteLine("Options:");
-    Console.WriteLine("  --pid <pid>            Target a specific process ID.");
-    Console.WriteLine("  --gold <amount>        Provide current inventory gold amount for exact semantic verification.");
-    Console.WriteLine("  --hp <current>         Provide current player Health amount.");
-    Console.WriteLine("  --hp-max <total>       Provide total player Health amount.");
-    Console.WriteLine("  --mp <current>         Provide current player Mana amount.");
-    Console.WriteLine("  --mp-max <total>       Provide total player Mana amount.");
-    Console.WriteLine("  --es <current>         Provide current player Energy Shield amount.");
-    Console.WriteLine("  --es-max <total>       Provide total player Energy Shield amount.");
-    Console.WriteLine("  --interval-ms <ms>     Watch polling interval in milliseconds (default: 500).");
-    Console.WriteLine("  --duration-sec <sec>   Watch total duration in seconds (default: 120).");
-    Console.WriteLine("  --target <name>        Watch targets filter: all, ui, loading, buffs, or specific node name (default: all).");
-    Console.WriteLine("  --output <path>        Path to write the JSON diagnostic report.");
-    Console.WriteLine("  --help, -h             Show help information.");
+    Console.WriteLine("  --input <path>                Input baseline snapshot file path for compare mode.");
+    Console.WriteLine("  --output <path>               Output file path for baseline capture or validation JSON report.");
+    Console.WriteLine("  --pid <pid>                   Target a specific process ID.");
+    Console.WriteLine("  --gold <amount>               Provide current inventory gold amount for exact semantic verification.");
+    Console.WriteLine("  --hp <current>                Provide current player Health amount.");
+    Console.WriteLine("  --hp-max <total>              Provide total player Health amount.");
+    Console.WriteLine("  --mp <current>                Provide current player Mana amount.");
+    Console.WriteLine("  --mp-max <total>              Provide total player Mana amount.");
+    Console.WriteLine("  --es <current>                Provide current player Energy Shield amount.");
+    Console.WriteLine("  --es-max <total>              Provide total player Energy Shield amount.");
+    Console.WriteLine("  --interval-ms <ms>            Watch polling interval in milliseconds (default: 500).");
+    Console.WriteLine("  --duration-sec <sec>          Watch total duration in seconds (default: 120).");
+    Console.WriteLine("  --target <name>               Watch targets filter: all, ui, loading, buffs, or specific node name (default: all).");
+    Console.WriteLine("  --help, -h                    Show help information.");
 }
+
+enum ProgramMode
+{
+    ValidateAll,
+    Watch,
+    BaselineCapture,
+    BaselineCompare
+}
+

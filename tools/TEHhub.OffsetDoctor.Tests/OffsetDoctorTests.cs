@@ -18,12 +18,13 @@ using TEHhub.Offsets.Objects.States;
 using TEHhub.Offsets.Objects.States.InGameState;
 
 using TEHhub.OffsetDoctor.Watch;
+using TEHhub.OffsetDoctor.Baseline;
 
 public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 59 Rigorous Semantic Validation & Watch Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 71 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -84,8 +85,20 @@ public static class OffsetDoctorTests
         Test57_PlayerGroundTruthPassedToValidationEngine(check);
         Test58_ValidateAllBehaviorUnchanged(check);
         Test59_WatchPreservesZeroMemoryWrites(check);
+        Test60_BaselineCaptureWritesDeterministicJson(check);
+        Test61_BaselineContainsEveryManifestNode(check);
+        Test62_BaselinePreservesStaticRootResolutionMode(check);
+        Test63_BaselineIncludesOptionalStateDependentMetadata(check);
+        Test64_BaselineCompareDetectsValidToBroken(check);
+        Test65_BaselineCompareDetectsStaticRootChanges(check);
+        Test66_BaselineCompareTreatsDynamicVitalChangesAsInformational(check);
+        Test67_BaselineCompareTreatsOptionalInactiveUiAsInformational(check);
+        Test68_BaselineCompareDetectsMissingAndNewNodes(check);
+        Test69_ValidateAllBehaviorUnchanged(check);
+        Test70_WatchBehaviorUnchanged(check);
+        Test71_BaselineOperationsPreserveZeroMemoryWrites(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 59 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 71 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -1389,6 +1402,232 @@ public static class OffsetDoctorTests
             targetFilter: "all");
 
         check(setup.MemoryMatchesSnapshot(snapshot), "T59: Watch mode performs exactly zero memory writes.");
+    }
+
+    // 60. Baseline capture writes deterministic JSON
+    private static void Test60_BaselineCaptureWritesDeterministicJson(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var snapshot = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 }, commitHash: "testcommit123");
+
+        var json1 = BaselineSnapshot.ToJson(snapshot);
+        var json2 = BaselineSnapshot.ToJson(snapshot);
+
+        check(json1 == json2, "T60: Baseline JSON serialization is deterministic.");
+        check(snapshot.CommitHash == "testcommit123", "T60: Commit hash preserved.");
+        check(snapshot.Summary.TotalNodesCount == 67, "T60: Summary contains 67 total nodes.");
+    }
+
+    // 61. Baseline contains every manifest node
+    private static void Test61_BaselineContainsEveryManifestNode(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var snapshot = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var manifestNodes = OffsetManifest.CreateFullRepositoryManifest();
+        check(snapshot.Nodes.Count == manifestNodes.Count, "T61: Snapshot nodes count equals manifest count.");
+        foreach (var mNode in manifestNodes)
+        {
+            var matched = snapshot.Nodes.FirstOrDefault(n => n.NodeId == mNode.Id);
+            check(matched != null, $"T61: Manifest node '{mNode.Id}' is present in baseline.");
+        }
+    }
+
+    // 62. Baseline preserves static root resolution mode
+    private static void Test62_BaselinePreservesStaticRootResolutionMode(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var snapshot = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var gsPatternNode = snapshot.Nodes.First(n => n.NodeId == "pattern_game_states");
+        check(gsPatternNode.IsStaticRoot, "T62: IsStaticRoot is true for Game States pattern.");
+        check(gsPatternNode.StaticResolutionKind == StaticPatternResolutionKind.RipRelativeDisp32, "T62: Static resolution kind preserved.");
+    }
+
+    // 63. Baseline includes optional state-dependent metadata
+    private static void Test63_BaselineIncludesOptionalStateDependentMetadata(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var snapshot = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var leftPanel = snapshot.Nodes.First(n => n.NodeId == "ui_left_panel");
+        var loadingDetails = snapshot.Nodes.First(n => n.NodeId == "loading_state_area_details");
+
+        check(leftPanel.IsOptionalStateDependent, "T63: LeftPanel has IsOptionalStateDependent = true.");
+        check(loadingDetails.IsOptionalStateDependent, "T63: loading_state_area_details has IsOptionalStateDependent = true.");
+    }
+
+    // 64. Baseline compare detects VALID -> BROKEN
+    private static void Test64_BaselineCompareDetectsValidToBroken(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        // Now break LocalPlayer entity in memory
+        var setup2 = SetupSyntheticEnvironment();
+        using var reader2 = setup2.reader;
+        reader2.WritePointer(setup2.areaInstance + 0x5D0, IntPtr.Zero); // Null LocalPlayerPtr
+
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var report = recoveryEngine.RunValidation(reader2, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, report);
+
+        check(compResult.HasCriticalRegressions, "T64: Critical regressions detected.");
+        var playerDelta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "area_local_player_entity" && d.Severity == DeltaSeverity.Critical);
+        check(playerDelta != null, "T64: Local player delta marked Critical.");
+    }
+
+    // 65. Baseline compare detects static root address/result changes
+    private static void Test65_BaselineCompareDetectsStaticRootChanges(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        // Corrupt pattern memory in reader2
+        var setup2 = SetupSyntheticEnvironment();
+        using var reader2 = setup2.reader;
+        reader2.WriteBytes(reader2.MainModuleBase, new byte[0x500]); // Zero out code pattern
+
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var report = recoveryEngine.RunValidation(reader2, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, report);
+
+        check(compResult.HasCriticalRegressions, "T65: Static pattern corruption detected as critical regression.");
+        var gsDelta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "pattern_game_states" && d.Severity == DeltaSeverity.Critical);
+        check(gsDelta != null, "T65: Game States pattern delta marked Critical.");
+    }
+
+    // 66. Baseline compare treats dynamic HP/Mana/ES value changes as informational
+    private static void Test66_BaselineCompareTreatsDynamicVitalChangesAsInformational(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        // Alter HP current from 4800 to 4500 in reader2
+        var setup2 = SetupSyntheticEnvironment();
+        using var reader2 = setup2.reader;
+        var lifeComp = setup2.compMap["Life"];
+        reader2.Write(lifeComp + 0x1B0, new VitalStruct { VtablePtr = IntPtr.Zero, Total = 5000, Current = 4500 });
+
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var report = recoveryEngine.RunValidation(reader2, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, report);
+
+        var hpDelta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "comp_life_health");
+        check(hpDelta != null, "T66: HP delta generated.");
+        check(hpDelta?.Severity == DeltaSeverity.Informational, "T66: HP value change marked Informational (not Critical).");
+    }
+
+    // 67. Baseline compare treats optional inactive UI changes as informational
+    private static void Test67_BaselineCompareTreatsOptionalInactiveUiAsInformational(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var setup2 = SetupSyntheticEnvironment();
+        using var reader2 = setup2.reader;
+        // Keep UI inactive
+
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var report = recoveryEngine.RunValidation(reader2, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, report);
+
+        var leftDelta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "ui_left_panel");
+        check(leftDelta == null || leftDelta.Severity == DeltaSeverity.Informational, "T67: Inactive optional UI node produces 0 critical deltas.");
+    }
+
+    // 68. Baseline compare detects missing/new nodes
+    private static void Test68_BaselineCompareDetectsMissingAndNewNodes(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        // Simulate a baseline missing one node and having an extra synthetic node
+        var fakeBaselineNodes = baseline.Nodes.Skip(1).ToList();
+        fakeBaselineNodes.Add(new BaselineNodeSnapshot
+        {
+            NodeId = "extra_obsolete_node",
+            DisplayName = "ObsoleteNode",
+            Category = "Core",
+            Status = ValidationStatus.VALID
+        });
+
+        var modifiedBaseline = new BaselineSnapshot
+        {
+            ProcessName = baseline.ProcessName,
+            Summary = baseline.Summary,
+            Nodes = fakeBaselineNodes
+        };
+
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var report = recoveryEngine.RunValidation(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(modifiedBaseline, report);
+
+        check(compResult.Deltas.Any(d => d.NodeId == "extra_obsolete_node"), "T68: Obsolete baseline node detected.");
+        check(compResult.Deltas.Any(d => d.NodeId == baseline.Nodes[0].NodeId), "T68: New current manifest node detected.");
+    }
+
+    // 69. Validate-all behavior unchanged
+    private static void Test69_ValidateAllBehaviorUnchanged(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        check(report.TotalNodesCount == 67, "T69: TotalNodesCount is 67 in validate-all.");
+        check(report.Results.Count == 67, "T69: Results.Count is 67.");
+    }
+
+    // 70. Watch behavior unchanged
+    private static void Test70_WatchBehaviorUnchanged(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            setup,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(15),
+            targetFilter: "ui");
+
+        check(report.TargetSummaries.Count == 5, "T70: Watch target summaries count is 5 for UI filter.");
+    }
+
+    // 71. Baseline operations preserve zero memory writes
+    private static void Test71_BaselineOperationsPreserveZeroMemoryWrites(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var snapshot = setup.SnapshotAllBlocks();
+
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var report = recoveryEngine.RunValidation(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        comparisonEngine.Compare(baseline, report);
+
+        check(setup.MemoryMatchesSnapshot(snapshot), "T71: Baseline capture and compare perform zero memory writes.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
