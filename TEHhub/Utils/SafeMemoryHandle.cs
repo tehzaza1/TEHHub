@@ -1041,6 +1041,20 @@ namespace TEHhub.Utils
 
                 return null;
             }
+
+#if DEBUG
+            internal bool TryGetTrackedPageAccessCount(long pageStart, out int accessCount)
+            {
+                if (this.pageTrackers is not null && this.pageTrackers.TryGetValue(pageStart, out var tracker))
+                {
+                    accessCount = tracker.AccessCount;
+                    return true;
+                }
+
+                accessCount = 0;
+                return false;
+            }
+#endif
         }
 
         internal readonly struct ReadCachePlanScope : IDisposable
@@ -1053,6 +1067,19 @@ namespace TEHhub.Utils
                 this.plan = plan;
                 this.previous = previous;
             }
+
+#if DEBUG
+            internal bool TryGetTrackedPageAccessCount(long pageStart, out int accessCount)
+            {
+                if (this.plan is not null)
+                {
+                    return this.plan.TryGetTrackedPageAccessCount(pageStart, out accessCount);
+                }
+
+                accessCount = 0;
+                return false;
+            }
+#endif
 
             public void Dispose()
             {

@@ -334,10 +334,11 @@ internal static class BottleneckTests
                 var rawMaxAddr = maxMemPtr.ToInt64();
                 var maxPageAlignedAddr = new IntPtr((rawMaxAddr + 4095) & ~4095L);
 
-                // Write a recognizable value on each distinct 4KB page
+                // Write recognizable values on each distinct 4KB page
                 for (var p = 0; p < maxPages; p++)
                 {
                     Marshal.WriteInt32(maxPageAlignedAddr + (p * 4096) + 16, 0x55000000 + p);
+                    Marshal.WriteInt32(maxPageAlignedAddr + (p * 4096) + 32, 0x77000000 + p);
                 }
 
                 MemoryReadDiagnostics.ResetForCapture();
@@ -357,6 +358,9 @@ internal static class BottleneckTests
                           snap2048.PageTrackersCreated == 2048,
                           "10a: exactly 2048 dynamic exact entries and 2048 page trackers created without promotions");
 
+                    var okPage0Before = plan.TryGetTrackedPageAccessCount(maxPageAlignedAddr.ToInt64(), out var countPage0Before);
+                    check(okPage0Before && countPage0Before == 1, "10b: page 0 tracker initially recorded 1 access");
+
                     // Read from the 2049th distinct page (page index 2048)
                     var ok2049 = procHandle.TryReadMemory<int>(maxPageAlignedAddr + (2048 * 4096) + 16, out var val2049);
                     check(ok2049 && val2049 == (0x55000000 + 2048), "2049th page read succeeds via legacy fallback");
@@ -366,14 +370,21 @@ internal static class BottleneckTests
                           snap2049.ExactReads == 2048 &&
                           snap2049.PagePromotions == 0 &&
                           snap2049.PageTrackersCreated == 2048,
-                          "10b: 2049th page does not create a new dynamic entry or tracker when limit (2048) is reached");
+                          "10c: 2049th page does not create a new dynamic entry or tracker when limit (2048) is reached");
+                    var okPage2048 = plan.TryGetTrackedPageAccessCount(maxPageAlignedAddr.ToInt64() + (2048 * 4096), out _);
+                    check(!okPage2048, "10d: 2049th page is not inserted into pageTrackers dictionary");
 
-                    // Re-read an existing tracked page (page index 0)
-                    var okExisting = procHandle.TryReadMemory<int>(maxPageAlignedAddr + 16, out var valExisting);
-                    check(okExisting && valExisting == 0x55000000, "10c: existing tracked page remains readable at capacity");
-                    var snapExisting = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
-                    check(snapExisting.PageTrackersCreated == 2048 && snapExisting.ExactHits == 1,
-                          "10d: re-reading existing tracked page hits exact cache and does not create new tracker entry");
+                    // Read a DIFFERENT address in page index 0 (offset 32) that does not exist in exact cache, while at tracking capacity
+                    var okMutate = procHandle.TryReadMemory<int>(maxPageAlignedAddr + 32, out var valMutate);
+                    check(okMutate && valMutate == (0x77000000 + 0), "10e: read different address in tracked page 0 succeeds");
+
+                    var snapMutate = MemoryReadDiagnostics.GetApiSnapshot().Hybrid;
+                    check(snapMutate.PageTrackersCreated == 2048,
+                          "10f: reading different address in tracked page at capacity does not allocate a new tracker entry");
+
+                    var okPage0After = plan.TryGetTrackedPageAccessCount(maxPageAlignedAddr.ToInt64(), out var countPage0After);
+                    check(okPage0After && countPage0After == 2,
+                          "10g: existing page 0 tracker was mutated in place at capacity (AccessCount advanced from 1 to 2)");
                 }
             }
             finally
