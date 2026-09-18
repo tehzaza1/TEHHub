@@ -16,6 +16,7 @@ using TEHhub.Offsets.Objects;
 using TEHhub.Offsets.Objects.Components;
 using TEHhub.Offsets.Objects.States;
 using TEHhub.Offsets.Objects.States.InGameState;
+using TEHhub.Offsets.Objects.UiElement;
 
 using TEHhub.OffsetDoctor.Watch;
 using TEHhub.OffsetDoctor.Baseline;
@@ -24,7 +25,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 71 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 82 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -97,8 +98,19 @@ public static class OffsetDoctorTests
         Test69_ValidateAllBehaviorUnchanged(check);
         Test70_WatchBehaviorUnchanged(check);
         Test71_BaselineOperationsPreserveZeroMemoryWrites(check);
+        Test72_InactiveOptionalUiPointerRemainsUnverified(check);
+        Test73_SentinelUiPointerRemainsUnverified(check);
+        Test74_ActiveReadableUiWithoutHelperProofRemainsUnverified(check);
+        Test75_ActiveUiWithHelperProofBecomesValid(check);
+        Test76_InvalidFlagsDomainDoesNotBecomeValid(check);
+        Test77_MalformedChildVectorDoesNotBecomeValid(check);
+        Test78_HelperChildPathResolutionSuccessUpgradesEvidence(check);
+        Test79_HelperChildPathResolutionFailureStaysUnverifiedNotBroken(check);
+        Test80_WatchModeReportsImprovedUiEvidence(check);
+        Test81_ValidateAllBehaviorRemainsConservative(check);
+        Test82_ReadOnlyBehaviorPreserved(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 71 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 82 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -168,9 +180,13 @@ public static class OffsetDoctorTests
         // UI Root & GameUi: inGameState + 0x2F0 -> uiRoot + 0xBE0 -> gameUi
         var uiRoot = reader.AllocateBlock(0x1000);
         var gameUi = reader.AllocateBlock(0x1000);
-        var chatParent = reader.AllocateBlock(0x100);
+        var chatParent = reader.AllocateBlock(0x1000);
+
+        WriteValidUiElement(reader, gameUi, parentAddr: IntPtr.Zero, childCount: 25, width: 1920f, height: 1080f);
+        WriteValidUiElement(reader, chatParent, parentAddr: gameUi, childCount: 2, width: 400f, height: 300f);
+
+        reader.Write(uiRoot, new UiRootStruct { GameUiPtr = gameUi });
         reader.WritePointer(inGameState + 0x2F0, uiRoot);
-        reader.WritePointer(uiRoot + 0xBE0, gameUi);
         reader.WritePointer(gameUi + 0x640, chatParent);
 
         // AreaInstance subfields
@@ -1123,11 +1139,9 @@ public static class OffsetDoctorTests
         using var reader = setup.reader;
         var inGameState = setup.inGameState;
 
-        // Set up UiRootStruct at +0x2F0 and GameUi at +0xBE0 with LeftPanelPtr = 0x7 (closed panel sentinel) and PassiveSkillTreePanel = 0xC140000000000000
-        var uiRoot = reader.AllocateBlock(0x1000);
-        var gameUi = reader.AllocateBlock(0x1000);
-        reader.WritePointer(inGameState + 0x2F0, uiRoot);
-        reader.WritePointer(uiRoot + 0xBE0, gameUi);
+        // Set up LeftPanelPtr = 0x7 (closed panel sentinel) and PassiveSkillTreePanel = 0xC140000000000000
+        reader.TryRead<IntPtr>(inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
         reader.WritePointer(gameUi + 0x6D0, new IntPtr(7));
         reader.WritePointer(gameUi + 0x730, new IntPtr(unchecked((long)0xC140000000000000)));
 
@@ -1196,10 +1210,8 @@ public static class OffsetDoctorTests
         using var reader = setup.reader;
         var inGameState = setup.inGameState;
 
-        var uiRoot = reader.AllocateBlock(0x1000);
-        var gameUi = reader.AllocateBlock(0x1000);
-        reader.WritePointer(inGameState + 0x2F0, uiRoot);
-        reader.WritePointer(uiRoot + 0xBE0, gameUi);
+        reader.TryRead<IntPtr>(inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
         reader.WritePointer(gameUi + 0x6D0, new IntPtr(7)); // inactive sentinel
 
         var watchEngine = new OffsetWatchEngine();
@@ -1297,10 +1309,8 @@ public static class OffsetDoctorTests
         using var reader = setup.reader;
         var inGameState = setup.inGameState;
 
-        var uiRoot = reader.AllocateBlock(0x1000);
-        var gameUi = reader.AllocateBlock(0x1000);
-        reader.WritePointer(inGameState + 0x2F0, uiRoot);
-        reader.WritePointer(uiRoot + 0xBE0, gameUi);
+        reader.TryRead<IntPtr>(inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
         reader.WritePointer(gameUi + 0x730, new IntPtr(unchecked((long)0xC140000000000000))); // Sentinel
 
         var watchEngine = new OffsetWatchEngine();
@@ -1628,6 +1638,311 @@ public static class OffsetDoctorTests
         comparisonEngine.Compare(baseline, report);
 
         check(setup.MemoryMatchesSnapshot(snapshot), "T71: Baseline capture and compare perform zero memory writes.");
+    }
+
+    public static void WriteValidUiElement(
+        SyntheticMemoryReader reader,
+        IntPtr elementAddr,
+        IntPtr parentAddr = default,
+        int childCount = 0,
+        IntPtr[]? childPointers = null,
+        uint flags = 0x800, // Visible bit
+        float width = 400.0f,
+        float height = 600.0f)
+    {
+        IntPtr childrenBuf = IntPtr.Zero;
+        if (childPointers != null && childPointers.Length > 0)
+        {
+            childrenBuf = reader.AllocateBlock(childPointers.Length * 8);
+            for (int i = 0; i < childPointers.Length; i++)
+            {
+                reader.WritePointer(childrenBuf + (i * 8), childPointers[i]);
+            }
+            childCount = childPointers.Length;
+        }
+        else if (childCount > 0)
+        {
+            childrenBuf = reader.AllocateBlock(childCount * 8);
+            for (int i = 0; i < childCount; i++)
+            {
+                var dummyChild = reader.AllocateBlock(0x1000);
+                reader.Write(dummyChild, new UiElementBaseOffset
+                {
+                    Self = dummyChild,
+                    ParentPtr = elementAddr,
+                    Flags = 0x800,
+                    LocalScaleMultiplier = 1.0f,
+                    UnscaledSize = new StdTuple2D<float> { X = 100f, Y = 100f }
+                });
+                reader.WritePointer(childrenBuf + (i * 8), dummyChild);
+            }
+        }
+
+        reader.Write(elementAddr, new UiElementBaseOffset
+        {
+            Self = elementAddr,
+            ParentPtr = parentAddr,
+            ChildrensPtr = new StdVector
+            {
+                First = childrenBuf,
+                Last = childrenBuf + (childCount * 8),
+                End = childrenBuf + (childCount * 8)
+            },
+            PositionModifier = new StdTuple2D<float> { X = 0, Y = 0 },
+            RelativePosition = new StdTuple2D<float> { X = 0, Y = 0 },
+            UnscaledSize = new StdTuple2D<float> { X = width, Y = height },
+            Flags = flags,
+            LocalScaleMultiplier = 1.0f,
+            ScaleIndex = 0
+        });
+    }
+
+    // 72. Inactive optional UI pointer remains UNVERIFIED
+    private static void Test72_InactiveOptionalUiPointerRemainsUnverified(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        var leftPanel = report.Results.First(r => r.NodeId == "ui_left_panel");
+        check(leftPanel.Status == ValidationStatus.UNVERIFIED, "T72: Inactive (null) LeftPanel remains UNVERIFIED.");
+        check(leftPanel.ErrorMessage?.Contains("closed") == true || leftPanel.ErrorMessage?.Contains("inactive") == true, "T72: LeftPanel reason identifies inactive/closed state.");
+    }
+
+    // 73. Sentinel UI pointer remains UNVERIFIED
+    private static void Test73_SentinelUiPointerRemainsUnverified(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+        // Write sentinel pointer into RightPanelPtr (0x6D8)
+        reader.WritePointer(gameUi + 0x6D8, unchecked((IntPtr)(long)0xC140000000000000));
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var rightPanel = report.Results.First(r => r.NodeId == "ui_right_panel");
+        check(rightPanel.Status == ValidationStatus.UNVERIFIED, "T73: Sentinel RightPanel pointer remains UNVERIFIED.");
+        check(rightPanel.ErrorMessage?.Contains("sentinel") == true || rightPanel.ErrorMessage?.Contains("inactive") == true, "T73: RightPanel reason identifies sentinel state.");
+    }
+
+    // 74. Active readable UI pointer without semantic helper proof remains UNVERIFIED
+    private static void Test74_ActiveReadableUiWithoutHelperProofRemainsUnverified(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+
+        // Allocate a valid UiElementBase for PassiveSkillTreePanel but with 0 children (missing child[2] node container)
+        var treePanel = reader.AllocateBlock(0x1000);
+        WriteValidUiElement(reader, treePanel, parentAddr: gameUi, childCount: 0, width: 1000f, height: 1000f);
+        reader.WritePointer(gameUi + 0x730, treePanel);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var treeResult = report.Results.First(r => r.NodeId == "ui_passive_tree_panel");
+        check(treeResult.Status == ValidationStatus.UNVERIFIED, "T74: Active PassiveTree without child[2] helper proof remains UNVERIFIED.");
+        check(treeResult.ErrorMessage?.Contains("UNVERIFIED:") == true, "T74: PassiveTree reason includes descriptive UNVERIFIED helper prefix.");
+    }
+
+    // 75. Active UI pointer with valid UiElementBase layout and helper-backed identity becomes VALID
+    private static void Test75_ActiveUiWithHelperProofBecomesValid(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+
+        // Allocate LeftPanel with valid UiElementBase, parent=gameUi, size=(400,600), 2 children
+        var leftPanel = reader.AllocateBlock(0x1000);
+        WriteValidUiElement(reader, leftPanel, parentAddr: gameUi, childCount: 2, width: 400f, height: 600f);
+        reader.WritePointer(gameUi + 0x6D0, leftPanel);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var leftResult = report.Results.First(r => r.NodeId == "ui_left_panel");
+        check(leftResult.Status == ValidationStatus.VALID, "T75: Active LeftPanel with full layout & parent link becomes VALID.");
+        check(leftResult.ExtractedValue?.ToString()?.Contains("VALID: UiElementBase + visibility/child layout + expected helper path resolved") == true, "T75: ExtractedValue contains helper-resolved proof string.");
+    }
+
+    // 76. Invalid visibility/flags domain does not become VALID
+    private static void Test76_InvalidFlagsDomainDoesNotBecomeValid(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+
+        var rightPanel = reader.AllocateBlock(0x1000);
+        WriteValidUiElement(reader, rightPanel, parentAddr: gameUi, childCount: 2, width: 400f, height: 600f, flags: uint.MaxValue);
+        reader.WritePointer(gameUi + 0x6D8, rightPanel);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var rightResult = report.Results.First(r => r.NodeId == "ui_right_panel");
+        check(rightResult.Status == ValidationStatus.UNVERIFIED, "T76: Invalid flags domain (uint.MaxValue) prevents VALID status.");
+        check(rightResult.ErrorMessage?.Contains("invalid domain bits") == true || rightResult.ErrorMessage?.Contains("UNVERIFIED:") == true, "T76: Flags domain rejection reported in reason.");
+    }
+
+    // 77. Malformed child vector does not become VALID
+    private static void Test77_MalformedChildVectorDoesNotBecomeValid(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+
+        var worldMap = reader.AllocateBlock(0x1000);
+        WriteValidUiElement(reader, worldMap, parentAddr: gameUi, childCount: 8, width: 1920f, height: 1080f);
+
+        // Corrupt ChildrensPtr vector: First > Last
+        reader.Write(worldMap, new UiElementBaseOffset
+        {
+            Self = worldMap,
+            ParentPtr = gameUi,
+            ChildrensPtr = new StdVector
+            {
+                First = new IntPtr(0x2000),
+                Last = new IntPtr(0x1000),
+                End = new IntPtr(0x3000)
+            },
+            Flags = 0x800,
+            LocalScaleMultiplier = 1.0f,
+            UnscaledSize = new StdTuple2D<float> { X = 1920f, Y = 1080f }
+        });
+        reader.WritePointer(gameUi + 0x988, worldMap);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var worldMapResult = report.Results.First(r => r.NodeId == "ui_world_map_panel");
+        check(worldMapResult.Status == ValidationStatus.UNVERIFIED, "T77: Malformed child vector boundaries prevent VALID status.");
+    }
+
+    // 78. Helper child path resolution success can upgrade evidence
+    private static void Test78_HelperChildPathResolutionSuccessUpgradesEvidence(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+
+        var mapParent = reader.AllocateBlock(0x1000);
+        var largeMap = reader.AllocateBlock(0x1000);
+
+        WriteValidUiElement(reader, mapParent, parentAddr: gameUi, childCount: 2, width: 1920f, height: 1080f);
+        WriteValidUiElement(reader, largeMap, parentAddr: mapParent, childCount: 5, width: 1920f, height: 1080f);
+
+        // Write MapUiElementOffset with valid Zoom
+        reader.Write(largeMap, new MapUiElementOffset
+        {
+            UiElementBase = new UiElementBaseOffset
+            {
+                Self = largeMap,
+                ParentPtr = mapParent,
+                Flags = 0x800,
+                LocalScaleMultiplier = 1.0f,
+                UnscaledSize = new StdTuple2D<float> { X = 1920f, Y = 1080f }
+            },
+            Zoom = 1.25f
+        });
+
+        // Set MapParentStruct.LargeMapPtr (+0x28)
+        reader.WritePointer(mapParent + 0x28, largeMap);
+        reader.WritePointer(gameUi + 0x7C0, mapParent);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var mapResult = report.Results.First(r => r.NodeId == "ui_map_parent");
+        check(mapResult.Status == ValidationStatus.VALID, "T78: MapParent with LargeMap child becomes VALID.");
+        check(mapResult.Evidence.Any(e => e.RuleName == "MapParentStructVerified"), "T78: MapParentStructVerified rule passed.");
+    }
+
+    // 79. Helper child path resolution failure stays UNVERIFIED, not BROKEN
+    private static void Test79_HelperChildPathResolutionFailureStaysUnverifiedNotBroken(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+
+        var mapParent = reader.AllocateBlock(0x1000);
+        WriteValidUiElement(reader, mapParent, parentAddr: gameUi, childCount: 0, width: 1920f, height: 1080f);
+        reader.WritePointer(gameUi + 0x7C0, mapParent);
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var mapResult = report.Results.First(r => r.NodeId == "ui_map_parent");
+        check(mapResult.Status == ValidationStatus.UNVERIFIED, "T79: MapParent without LargeMap child stays UNVERIFIED (not BROKEN).");
+        check(mapResult.ErrorMessage?.Contains("semantic MapUiElement child path proof missing") == true, "T79: Informative child path proof missing reason.");
+    }
+
+    // 80. Watch mode reports improved UI evidence
+    private static void Test80_WatchModeReportsImprovedUiEvidence(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        reader.TryRead<IntPtr>(setup.inGameState + 0x2F0, out var uiRootPtr);
+        reader.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+
+        // Make RightPanel active but without semantic child proof
+        var rightPanel = reader.AllocateBlock(0x1000);
+        WriteValidUiElement(reader, rightPanel, parentAddr: gameUi, childCount: 0, width: 400f, height: 600f);
+        reader.WritePointer(gameUi + 0x6D8, rightPanel);
+
+        var transitions = new List<string>();
+        var watchEngine = new OffsetWatchEngine();
+        var report = watchEngine.RunWatch(
+            reader,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(20),
+            targetFilter: "ui",
+            onTransition: transitions.Add);
+
+        var rightSummary = report.TargetSummaries.First(s => s.NodeId == "ui_right_panel");
+        check(rightSummary.Reason?.Contains("semantic child path proof missing") == true || rightSummary.Reason?.Contains("UNVERIFIED:") == true, "T80: Watch target summary contains improved semantic evidence.");
+    }
+
+    // 81. Validate-all behavior remains conservative
+    private static void Test81_ValidateAllBehaviorRemainsConservative(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        var uiResults = report.Results.Where(r => r.NodeId.StartsWith("ui_")).ToList();
+        var brokenUi = uiResults.Where(r => r.Status == ValidationStatus.BROKEN).ToList();
+
+        check(brokenUi.Count == 0, "T81: Inactive/healthy UI nodes produce 0 false BROKEN statuses in validate-all.");
+        check(uiResults.Count == 8, "T81: Exactly 8 UI manifest nodes evaluated.");
+    }
+
+    // 82. Read-only behavior preserved
+    private static void Test82_ReadOnlyBehaviorPreserved(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var snapshot = setup.SnapshotAllBlocks();
+
+        var engine = new OffsetRecoveryEngine();
+        engine.RunValidation(setup, expectedGold: 50_000_000);
+
+        var watchEngine = new OffsetWatchEngine();
+        watchEngine.RunWatch(
+            setup,
+            new ValidationGroundTruth { ExpectedGold = 50_000_000 },
+            interval: TimeSpan.FromMilliseconds(5),
+            duration: TimeSpan.FromMilliseconds(15),
+            targetFilter: "ui");
+
+        check(setup.MemoryMatchesSnapshot(snapshot), "T82: UI validation and watch perform zero memory writes.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader

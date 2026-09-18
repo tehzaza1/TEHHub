@@ -345,6 +345,10 @@ public sealed class OffsetValidatorEngine
 
             case ValueKind.PointerField:
             {
+                if (UiSemanticValidator.TryValidateUiElement(reader, targetAddr, node, result))
+                {
+                    break;
+                }
                 ValidatePointerField(reader, targetAddr, node, result);
                 break;
             }

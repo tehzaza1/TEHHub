@@ -129,9 +129,13 @@ public sealed class WatchTargetState
         {
             detail = !string.IsNullOrEmpty(curVal) ? curVal : $"0x{curAddress.ToInt64():X}";
         }
+        else if (curReason != null && curReason.StartsWith("UNVERIFIED:", StringComparison.OrdinalIgnoreCase))
+        {
+            detail = curReason;
+        }
         else if (IsActivePointerOrContent(result))
         {
-            detail = !string.IsNullOrEmpty(curVal) ? curVal : $"active (0x{curAddress.ToInt64():X})";
+            detail = !string.IsNullOrEmpty(curVal) ? curVal : (!string.IsNullOrEmpty(curReason) ? curReason : $"active (0x{curAddress.ToInt64():X})");
         }
         else if (curReason != null && curReason.Contains("inactive or sentinel"))
         {
