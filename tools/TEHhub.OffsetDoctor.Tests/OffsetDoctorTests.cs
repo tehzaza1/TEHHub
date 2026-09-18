@@ -21,7 +21,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 45 Rigorous Semantic Validation Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 49 Rigorous Semantic Validation Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -68,8 +68,12 @@ public static class OffsetDoctorTests
         Test43_ArbitraryReadableBlockWithoutPsdStrideIsNotValid(check);
         Test44_MalformedPsdStridePlusMatchingNonZeroGoldIsNotValid(check);
         Test45_MalformedPsdStridePlusMatchingZeroGoldIsNotValid(check);
+        Test46_OptionalStateDependentPointerSentinelIsUnverified(check);
+        Test47_RequiredPointerSentinelIsBroken(check);
+        Test48_VitalStructWithoutVtableIsValid(check);
+        Test49_BuffsStatusEffectsVectorIsValidUnverified(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 45 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 49 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -244,6 +248,13 @@ public static class OffsetDoctorTests
             Capacity = playerName.Length + 4
         });
         reader.Write(playerComp + 0x204, (byte)88); // Level = 88
+
+        // Buffs Component subfields
+        var buffsComp = compMap["Buffs"];
+        var buffEntries = reader.AllocateBlock(0x100);
+        var dummyStatusEffect = reader.AllocateBlock(0x80);
+        reader.WritePointer(buffEntries, dummyStatusEffect);
+        reader.WriteStdVector(buffsComp + 0x160, buffEntries, buffEntries + 8, buffEntries + 8);
 
         // ServerData -> PSD Vector
         reader.WritePointer(psdVectorBuf, psd);
@@ -1070,6 +1081,79 @@ public static class OffsetDoctorTests
 
         check(slotRes.Status == ValidationStatus.BROKEN, "T45: Record slot with broken neighbor is BROKEN.");
         check(goldRes.Status == ValidationStatus.BLOCKED, "T45: Matching --gold 0 is BLOCKED / NOT VALID when stride proof fails.");
+    }
+
+    // 46. Optional state-dependent pointer holding sentinel / unmapped pointer is UNVERIFIED (never BROKEN)
+    private static void Test46_OptionalStateDependentPointerSentinelIsUnverified(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var inGameState = setup.inGameState;
+
+        // Set up UiRootStruct at +0x2F0 and GameUi at +0xBE0 with LeftPanelPtr = 0x7 (closed panel sentinel) and PassiveSkillTreePanel = 0xC140000000000000
+        var uiRoot = reader.AllocateBlock(0x1000);
+        var gameUi = reader.AllocateBlock(0x1000);
+        reader.WritePointer(inGameState + 0x2F0, uiRoot);
+        reader.WritePointer(uiRoot + 0xBE0, gameUi);
+        reader.WritePointer(gameUi + 0x6D0, new IntPtr(7));
+        reader.WritePointer(gameUi + 0x730, new IntPtr(unchecked((long)0xC140000000000000)));
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var leftPanel = report.Results.First(r => r.NodeId == "ui_left_panel");
+        var passiveTree = report.Results.First(r => r.NodeId == "ui_passive_tree_panel");
+
+        check(leftPanel.Status == ValidationStatus.UNVERIFIED, "T46: LeftPanel with sentinel 0x7 is UNVERIFIED.");
+        check(passiveTree.Status == ValidationStatus.UNVERIFIED, "T46: PassiveSkillTreePanel with sentinel is UNVERIFIED.");
+    }
+
+    // 47. Required pointer holding unmapped / sentinel value is BROKEN
+    private static void Test47_RequiredPointerSentinelIsBroken(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var inGameState = setup.inGameState;
+
+        // Write invalid sentinel pointer into required AreaInstance slot
+        reader.WritePointer(inGameState + 0x290, new IntPtr(7));
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var areaInstance = report.Results.First(r => r.NodeId == "in_game_area_instance");
+        check(areaInstance.Status == ValidationStatus.BROKEN, "T47: Required pointer with sentinel 0x7 is BROKEN.");
+    }
+
+    // 48. VitalStruct without vtable (POD struct with sane Total/Current) validates as VALID
+    private static void Test48_VitalStructWithoutVtableIsValid(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+        var lifeComp = setup.compMap["Life"];
+
+        // Overwrite Health VitalStruct with null vtable (PoE2 POD struct)
+        reader.Write(lifeComp + 0x1B0, new VitalStruct { VtablePtr = IntPtr.Zero, Total = 3500, Current = 3200 });
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var hp = report.Results.First(r => r.NodeId == "comp_life_health");
+        check(hp.Status == ValidationStatus.VALID, "T48: VitalStruct without vtable is VALID.");
+    }
+
+    // 49. Buffs.StatusEffectPtr as pointer vector validates as UNVERIFIED (structural pointer vector verified)
+    private static void Test49_BuffsStatusEffectsVectorIsValidUnverified(Action<bool, string> check)
+    {
+        var setup = SetupSyntheticEnvironment();
+        using var reader = setup.reader;
+
+        var engine = new OffsetRecoveryEngine();
+        var report = engine.RunValidation(reader, expectedGold: 50_000_000);
+
+        var buffsVec = report.Results.First(r => r.NodeId == "comp_buffs_status_effects");
+        check(buffsVec.Status == ValidationStatus.UNVERIFIED, "T49: Buffs.StatusEffectPtr pointer vector is UNVERIFIED.");
+        check(buffsVec.Evidence.Any(e => e.RuleName == "StdVectorPointersValid" && e.Passed), "T49: StdVectorPointersValid rule passed.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader

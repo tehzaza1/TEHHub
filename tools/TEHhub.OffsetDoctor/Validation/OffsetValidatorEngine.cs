@@ -552,6 +552,21 @@ public sealed class OffsetValidatorEngine
 
         if (!reader.IsValidAddress(ptr) || !reader.TryRead<byte>(ptr, out _))
         {
+            if (node.IsOptionalStateDependent)
+            {
+                result.Status = ValidationStatus.UNVERIFIED;
+                result.ResolvedAddress = ptr;
+                result.TraversalAddress = IntPtr.Zero;
+                result.ErrorMessage = $"Optional / state-dependent pointer at +0x{node.DefaultOffset:X} (0x{ptr.ToInt64():X}) is inactive or sentinel in current runtime state.";
+                result.Evidence.Add(new EvidenceRecord
+                {
+                    RuleName = "OptionalPointerInactiveState",
+                    Description = $"Optional pointer has sentinel/inactive value 0x{ptr.ToInt64():X}",
+                    Passed = true
+                });
+                return;
+            }
+
             result.Status = ValidationStatus.BROKEN;
             result.ResolvedAddress = ptr;
             result.TraversalAddress = IntPtr.Zero;
@@ -1060,15 +1075,14 @@ public sealed class OffsetValidatorEngine
             return;
         }
 
-        bool vtableValid = vital.VtablePtr != IntPtr.Zero && reader.IsValidAddress(vital.VtablePtr) && reader.TryRead<byte>(vital.VtablePtr, out _);
         bool totalSane = vital.Total >= 0 && vital.Total <= 500_000;
         bool currentSane = vital.Current >= 0 && vital.Current <= vital.Total;
 
-        if (!vtableValid || !totalSane || !currentSane)
+        if (!totalSane || !currentSane)
         {
             result.Status = ValidationStatus.BROKEN;
             result.TraversalAddress = IntPtr.Zero;
-            result.ErrorMessage = $"Invalid VitalStruct (vtableValid={vtableValid}, Total={vital.Total}, Current={vital.Current})";
+            result.ErrorMessage = $"Invalid VitalStruct (Total={vital.Total}, Current={vital.Current})";
             return;
         }
 

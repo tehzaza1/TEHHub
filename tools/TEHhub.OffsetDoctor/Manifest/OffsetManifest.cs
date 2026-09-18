@@ -521,7 +521,8 @@ public static class OffsetManifest
                 ParentId = "comp_buffs",
                 DefaultOffset = Marshal.OffsetOf<BuffsOffsets>(nameof(BuffsOffsets.StatusEffectPtr)).ToInt32(),
                 Kind = ValueKind.StdVectorField,
-                VectorElementSize = Unsafe.SizeOf<StatusEffectStruct>(),
+                VectorIsPointerElements = true,
+                VectorElementSize = IntPtr.Size,
                 StructTypeName = nameof(BuffsOffsets),
                 FieldName = nameof(BuffsOffsets.StatusEffectPtr),
                 ProductionSourceLocation = "TEHhub.Offsets/Objects/Components/Buffs.cs"
