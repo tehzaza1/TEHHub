@@ -140,6 +140,7 @@ public class CurrentNewMemoryReadPolicy : IMemoryPolicy
         var metrics = new SimulationMetrics { PolicyName = Name };
         var cache = new List<(long Start, int Size)>();
         var globalTracker = new PageIntervalTracker();
+        int dynamicWindowCount = 0;
 
         // 1. Process Planned Batches upfront (Faithful production FrameMemoryReadPipeline ranges)
         if (plannedBatches != null)
@@ -178,11 +179,12 @@ public class CurrentNewMemoryReadPolicy : IMemoryPolicy
             long offsetInPage = req.Address - pageStart;
             int fetchSize = (offsetInPage + req.Size > DynamicPageBytes) ? DynamicCrossPageBytes : DynamicPageBytes;
 
-            if (cache.Count < MaxDynamicWindows)
+            if (dynamicWindowCount < MaxDynamicWindows)
             {
                 metrics.NativeReadCalls++;
                 metrics.Level3PageFetchedBytes += fetchSize;
                 cache.Add((pageStart, fetchSize));
+                dynamicWindowCount++;
             }
             else
             {
@@ -785,7 +787,22 @@ public class Program
         SimulatorAssert.IsTrue(resRepeated.UniqueRequestedBytes == 8, "Unique requested bytes must be exactly 8");
         SimulatorAssert.IsTrue(resRepeated.CacheHits == 99, "Repeated pointer must produce 99 hits");
 
-        Console.WriteLine("All 7 Deterministic Invariant Checks & Regressions PASSED successfully!\n");
+        // H. Dynamic window budget isolation test for CurrentNewMemoryRead (planned ranges must not consume dynamic window budget)
+        var currentPolicy = new CurrentNewMemoryReadPolicy();
+        var plannedOverBudget = new List<MemoryRequest>();
+        for (int i = 0; i < 2500; i++)
+        {
+            plannedOverBudget.Add(new MemoryRequest(0x1000000000L + (i * 0x10000L), 0x100, $"Planned_{i}"));
+        }
+        var unbackedRequest = new List<MemoryRequest>
+        {
+            new MemoryRequest(0x2000000000L + 0x20, 8, "UnbackedScalar")
+        };
+        var resBudget = currentPolicy.Run(unbackedRequest, plannedOverBudget);
+        SimulatorAssert.IsTrue(resBudget.Level3PageFetchedBytes == 4096, $"Current NewMemoryRead with >2048 planned ranges must still perform dynamic 4KB page fetch on unbacked miss (got Level3PageFetchedBytes={resBudget.Level3PageFetchedBytes})");
+        SimulatorAssert.IsTrue(resBudget.ExactFetchedBytes == 0, $"Unbacked miss within 2048 dynamic windows must not fall back to exact read (got ExactFetchedBytes={resBudget.ExactFetchedBytes})");
+
+        Console.WriteLine("All 8 Deterministic Invariant Checks & Regressions PASSED successfully!\n");
     }
 
     private static void RunHeavySceneSimulationSuite(IMemoryPolicy[] policies, StringBuilder md)
