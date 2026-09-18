@@ -7,6 +7,9 @@ namespace TEHhub.RemoteObjects.Components
     using System;
     using System.Buffers;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using Coroutine;
+    using TEHhub.CoroutineEvents;
     using TEHhub.Offsets.Objects.Components;
     using TEHhub.Offsets.Objects.FilesStructures;
     using ImGuiNET;
@@ -17,6 +20,23 @@ namespace TEHhub.RemoteObjects.Components
     /// </summary>
     public class Buffs : ComponentBase
     {
+        private static readonly ConcurrentDictionary<IntPtr, (string Name, byte BuffType)> BuffDefinitionCache = new();
+        private static readonly ConcurrentDictionary<(string BaseName, uint SkillGemId), string> SkillGemBuffNameCache = new();
+
+        [ThreadStatic]
+        private static IntPtr[]? threadLocalPtrArray;
+
+        [ThreadStatic]
+        private static Dictionary<string, StatusEffectStruct>? threadLocalScratch;
+
+        [ThreadStatic]
+        private static List<string>? threadLocalStaleKeys;
+
+        static Buffs()
+        {
+            CoroutineHandler.Start(OnAreaChange());
+            CoroutineHandler.Start(OnGameClose());
+        }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="Buffs" /> class.
@@ -32,6 +52,30 @@ namespace TEHhub.RemoteObjects.Components
         public ConcurrentDictionary<string, StatusEffectStruct> StatusEffects { get; } = new();
 
         public bool[] FlaskActive { get; private set; } = new bool[5];
+
+        internal static void ClearStaticCaches()
+        {
+            BuffDefinitionCache.Clear();
+            SkillGemBuffNameCache.Clear();
+        }
+
+        private static IEnumerable<Wait> OnAreaChange()
+        {
+            while (true)
+            {
+                yield return new(RemoteEvents.AreaChanged);
+                ClearStaticCaches();
+            }
+        }
+
+        private static IEnumerable<Wait> OnGameClose()
+        {
+            while (true)
+            {
+                yield return new(TEHhubEvents.OnClose);
+                ClearStaticCaches();
+            }
+        }
 
         /// <inheritdoc />
         internal override void ToImGui()
@@ -67,95 +111,158 @@ namespace TEHhub.RemoteObjects.Components
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<BuffsOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
-            this.StatusEffects.Clear();
             Array.Fill(this.FlaskActive, false);
 
             var byteLength = data.StatusEffectPtr.Last.ToInt64() - data.StatusEffectPtr.First.ToInt64();
             if (byteLength <= 0 || byteLength % IntPtr.Size != 0 || byteLength > 50_000_000)
             {
+                if (!this.StatusEffects.IsEmpty)
+                {
+                    this.StatusEffects.Clear();
+                }
+
                 return;
             }
 
             var statusEffectCount = (int)(byteLength / IntPtr.Size);
-            var statusEffects = ArrayPool<IntPtr>.Shared.Rent(statusEffectCount);
+            var statusEffects = threadLocalPtrArray;
+            if (statusEffects == null || statusEffects.Length < statusEffectCount)
+            {
+                threadLocalPtrArray = statusEffects = new IntPtr[Math.Max(statusEffectCount, 32)];
+            }
+
+            if (!reader.TryReadMemoryArray(data.StatusEffectPtr.First, statusEffects, statusEffectCount, out _))
+            {
+                if (!this.StatusEffects.IsEmpty)
+                {
+                    this.StatusEffects.Clear();
+                }
+
+                return;
+            }
+
+            // F-129: snapshot the 4-level Player.Id chain once without throwing NRE.
+            uint playerId = uint.MaxValue;
             try
             {
-                if (!reader.TryReadMemoryArray(data.StatusEffectPtr.First, statusEffects, statusEffectCount, out _))
+                var inGame = Core.States?.InGameStateObject;
+                var area = inGame?.CurrentAreaInstance;
+                var player = area?.Player;
+                if (player != null && player.Address != IntPtr.Zero)
                 {
-                    return;
-                }
-
-                // F-129: snapshot the 4-level Player.Id chain once. Each access goes
-                // through RemoteObjectBase.Address.get (a lock); re-traversing per-loop
-                // is both costly and racy during state transitions. NRE during the
-                // chain -> playerId stays uint.MaxValue, all flask matches fail
-                // (statusEffectData.SourceEntityId is uint, max value is unreachable).
-                uint playerId;
-                try
-                {
-                    playerId = Core.States.InGameStateObject.CurrentAreaInstance.Player.Id;
-                }
-                catch (NullReferenceException)
-                {
-                    playerId = uint.MaxValue;
-                }
-
-                for (var i = 0; i < statusEffectCount; i++)
-                {
-                    var statusEffectData = reader.ReadMemory<StatusEffectStruct>(statusEffects[i]);
-                    if (statusEffectData.BuffDefinationPtr == IntPtr.Zero)
-                    {
-                        continue;
-                    }
-
-                    if (playerId != statusEffectData.SourceEntityId)
-                    {
-                        statusEffectData.FlaskSlot = -1;
-                    }
-
-                    MiscHelper.ActiveSkillGemDataParser(
-                        statusEffectData.UnknownIdAndEquipmentInfo,
-                        out _,
-                        out _,
-                        out _,
-                        out _,
-                        out _,
-                        out var skillGemUnknownId);
-
-                    var (effectName, effectType) = ((string, byte))Core.GgpkObjectCache.AddOrGetExisting(
-                        statusEffectData.BuffDefinationPtr,
-                        static key => GetNameFromBuffDefination(key));
-
-                    if (effectType != 0x4) // Flask Effect Type is 4.
-                    {
-                        statusEffectData.FlaskSlot = -1;
-                    }
-                    else if (statusEffectData.FlaskSlot >= 0 && statusEffectData.FlaskSlot < 5)
-                    {
-                        this.FlaskActive[statusEffectData.FlaskSlot] = true;
-                    }
-
-                    if (skillGemUnknownId != 0)
-                    {
-                        effectName += $"_{skillGemUnknownId:X}";
-                    }
-
-                    this.StatusEffects.AddOrUpdate(
-                        effectName,
-                        static (_, incoming) => incoming,
-                        static (_, oldValue, incoming) =>
-                        {
-                            var incomingStacks = incoming.Charges > 0 ? incoming.Charges : (short)1;
-                            incoming.Charges = (short)(oldValue.Charges + incomingStacks);
-                            incoming.TimeLeft = Math.Max(oldValue.TimeLeft, incoming.TimeLeft);
-                            return incoming;
-                        },
-                        statusEffectData);
+                    playerId = player.Id;
                 }
             }
-            finally
+            catch
             {
-                ArrayPool<IntPtr>.Shared.Return(statusEffects);
+                playerId = uint.MaxValue;
+            }
+
+            var scratch = threadLocalScratch ??= new Dictionary<string, StatusEffectStruct>(16, StringComparer.Ordinal);
+            scratch.Clear();
+
+            for (var i = 0; i < statusEffectCount; i++)
+            {
+                var statusEffectData = reader.ReadMemory<StatusEffectStruct>(statusEffects[i]);
+                if (statusEffectData.BuffDefinationPtr == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                if (playerId != statusEffectData.SourceEntityId)
+                {
+                    statusEffectData.FlaskSlot = -1;
+                }
+
+                MiscHelper.ActiveSkillGemDataParser(
+                    statusEffectData.UnknownIdAndEquipmentInfo,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out var skillGemUnknownId);
+
+                if (!BuffDefinitionCache.TryGetValue(statusEffectData.BuffDefinationPtr, out var buffDef))
+                {
+                    buffDef = GetNameFromBuffDefination(statusEffectData.BuffDefinationPtr);
+                    BuffDefinitionCache.TryAdd(statusEffectData.BuffDefinationPtr, buffDef);
+                }
+
+                var effectName = buffDef.Name;
+                var effectType = buffDef.BuffType;
+
+                if (effectType != 0x4) // Flask Effect Type is 4.
+                {
+                    statusEffectData.FlaskSlot = -1;
+                }
+                else if (statusEffectData.FlaskSlot >= 0 && statusEffectData.FlaskSlot < 5)
+                {
+                    this.FlaskActive[statusEffectData.FlaskSlot] = true;
+                }
+
+                if (skillGemUnknownId != 0)
+                {
+                    if (!SkillGemBuffNameCache.TryGetValue((effectName, skillGemUnknownId), out var combinedName))
+                    {
+                        combinedName = $"{effectName}_{skillGemUnknownId:X}";
+                        SkillGemBuffNameCache.TryAdd((effectName, skillGemUnknownId), combinedName);
+                    }
+
+                    effectName = combinedName;
+                }
+
+                if (scratch.TryGetValue(effectName, out var existing))
+                {
+                    var incomingStacks = statusEffectData.Charges > 0 ? statusEffectData.Charges : (short)1;
+                    statusEffectData.Charges = (short)(existing.Charges + incomingStacks);
+                    statusEffectData.TimeLeft = Math.Max(existing.TimeLeft, statusEffectData.TimeLeft);
+                    scratch[effectName] = statusEffectData;
+                }
+                else
+                {
+                    scratch[effectName] = statusEffectData;
+                }
+            }
+
+            // In-place update: update/add active status effects without unnecessary ConcurrentDictionary writes.
+            foreach (var kv in scratch)
+            {
+                var key = kv.Key;
+                var value = kv.Value;
+                if (!this.StatusEffects.TryGetValue(key, out var currentVal) ||
+                    currentVal.TimeLeft != value.TimeLeft ||
+                    currentVal.Charges != value.Charges ||
+                    currentVal.RawStage != value.RawStage ||
+                    currentVal.FlaskSlot != value.FlaskSlot ||
+                    currentVal.Effectiveness != value.Effectiveness ||
+                    currentVal.TotalTime != value.TotalTime ||
+                    currentVal.SourceEntityId != value.SourceEntityId ||
+                    currentVal.BuffDefinationPtr != value.BuffDefinationPtr ||
+                    currentVal.UnknownIdAndEquipmentInfo != value.UnknownIdAndEquipmentInfo)
+                {
+                    this.StatusEffects[key] = value;
+                }
+            }
+
+            // In-place removal: prune expired status effects without full dictionary churn.
+            if (this.StatusEffects.Count != scratch.Count)
+            {
+                var staleKeys = threadLocalStaleKeys ??= new List<string>(16);
+                staleKeys.Clear();
+
+                foreach (var kv in this.StatusEffects)
+                {
+                    if (!scratch.ContainsKey(kv.Key))
+                    {
+                        staleKeys.Add(kv.Key);
+                    }
+                }
+
+                for (var k = 0; k < staleKeys.Count; k++)
+                {
+                    this.StatusEffects.TryRemove(staleKeys[k], out _);
+                }
             }
         }
 
@@ -175,7 +282,7 @@ namespace TEHhub.RemoteObjects.Components
                 statusEffectData);
         }
 
-        private static (string, byte) GetNameFromBuffDefination(IntPtr addr)
+        private static (string Name, byte BuffType) GetNameFromBuffDefination(IntPtr addr)
         {
             var reader = Core.Process.Handle;
             var data = reader.ReadMemory<BuffDefinitionsOffset>(addr);

@@ -601,6 +601,182 @@ internal static class BottleneckTests
         {
             Marshal.FreeHGlobal(synthAnimBlock);
         }
+
+        // =========================================================================
+        // Buffs Component Zero-Allocation & Refresh Correctness Tests
+        // =========================================================================
+        TEHhub.RemoteObjects.Components.Buffs.ClearStaticCaches();
+        var synthBuffsBlock = Marshal.AllocHGlobal(16384);
+        try
+        {
+            Marshal.Copy(new byte[16384], 0, synthBuffsBlock, 16384);
+
+            var buffsComponentPtr = synthBuffsBlock + 0x0000;
+            var ptrArray1 = synthBuffsBlock + 0x0300; // Array of IntPtrs to StatusEffects (2 buffs)
+            var ptrArray2 = synthBuffsBlock + 0x0400; // Array of IntPtrs for single buff
+            var se1Ptr = synthBuffsBlock + 0x0600;    // StatusEffect 1: grace_period
+            var se2Ptr = synthBuffsBlock + 0x0700;    // StatusEffect 2: quick
+            var buffDef1 = synthBuffsBlock + 0x0A00;  // BuffDefinition 1
+            var buffDef2 = synthBuffsBlock + 0x0B00;  // BuffDefinition 2
+            var buffDef3 = synthBuffsBlock + 0x0C00;  // BuffDefinition 3 (Flask)
+            var nameStr1 = synthBuffsBlock + 0x0D00;  // Unicode "grace_period\0"
+            var nameStr2 = synthBuffsBlock + 0x0E00;  // Unicode "quick\0"
+            var nameStr3 = synthBuffsBlock + 0x0F00;  // Unicode "flask_quick\0"
+
+            static void WriteUnicodeZ(IntPtr dest, string text)
+            {
+                var bytes = System.Text.Encoding.Unicode.GetBytes(text + "\0");
+                Marshal.Copy(bytes, 0, dest, bytes.Length);
+            }
+
+            WriteUnicodeZ(nameStr1, "grace_period");
+            WriteUnicodeZ(nameStr2, "quick");
+            WriteUnicodeZ(nameStr3, "flask_quick");
+
+            // BuffDefinitions 1, 2 & 3 (NamePtr at +0x00, BuffType at +0x67)
+            Marshal.WriteIntPtr(buffDef1 + 0x00, nameStr1);
+            Marshal.WriteByte(buffDef1 + 0x67, 0); // BuffType = 0
+            Marshal.WriteIntPtr(buffDef2 + 0x00, nameStr2);
+            Marshal.WriteByte(buffDef2 + 0x67, 0);
+            Marshal.WriteIntPtr(buffDef3 + 0x00, nameStr3);
+            Marshal.WriteByte(buffDef3 + 0x67, 4); // BuffType = 4 (Flask)
+
+            // StatusEffectStruct 1 ("grace_period")
+            Marshal.WriteIntPtr(se1Ptr + 0x08, buffDef1);
+            Marshal.StructureToPtr(10.0f, se1Ptr + 0x18, false); // TotalTime
+            Marshal.StructureToPtr(8.5f, se1Ptr + 0x1C, false);  // TimeLeft
+            Marshal.WriteInt16(se1Ptr + 0x40, 1);                 // Charges = 1
+            Marshal.WriteInt16(se1Ptr + 0x42, -1);                // FlaskSlot = -1
+
+            // StatusEffectStruct 2 ("quick")
+            Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef2);
+            Marshal.StructureToPtr(5.0f, se2Ptr + 0x18, false); // TotalTime
+            Marshal.StructureToPtr(3.0f, se2Ptr + 0x1C, false); // TimeLeft
+            Marshal.WriteInt16(se2Ptr + 0x40, 1);                // Charges = 1
+            Marshal.WriteInt16(se2Ptr + 0x42, -1);
+
+            // ptrArray1: holds [se1Ptr, se2Ptr]
+            Marshal.WriteIntPtr(ptrArray1 + 0, se1Ptr);
+            Marshal.WriteIntPtr(ptrArray1 + IntPtr.Size, se2Ptr);
+
+            // ptrArray2: holds [se1Ptr]
+            Marshal.WriteIntPtr(ptrArray2 + 0, se1Ptr);
+
+            // BuffsOffsets StatusEffectPtr at +0x160 (StdVector: First, Last, End)
+            var vec2 = new TEHhub.Offsets.Natives.StdVector
+            {
+                First = ptrArray1,
+                Last = ptrArray1 + (2 * IntPtr.Size),
+                End = ptrArray1 + (2 * IntPtr.Size),
+            };
+            Marshal.StructureToPtr(vec2, buffsComponentPtr + 0x160, false);
+
+            var buffs = new TEHhub.RemoteObjects.Components.Buffs(buffsComponentPtr);
+
+            // 1. Initial refresh with 2 buffs
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects.ContainsKey("grace_period"), "New buff 'grace_period' appears correctly");
+            check(buffs.StatusEffects.ContainsKey("quick"), "New buff 'quick' appears correctly");
+            check(buffs.StatusEffects.Count == 2, "StatusEffects count matches active count (2)");
+            check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 8.5f) < 0.01f, "StatusEffect TimeLeft parsed accurately");
+
+            // 2. Changed buff values replace old values in-place
+            Marshal.StructureToPtr(4.2f, se1Ptr + 0x1C, false); // Update TimeLeft on grace_period
+            buffs.RefreshDataNow();
+            check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 4.2f) < 0.01f, "Changed buff values replace old values correctly");
+            check(buffs.StatusEffects.Count == 2, "StatusEffects count remains 2 after in-place value update");
+
+            // 3. Removed buff disappears correctly on next update
+            var vec1 = new TEHhub.Offsets.Natives.StdVector
+            {
+                First = ptrArray2,
+                Last = ptrArray2 + IntPtr.Size,
+                End = ptrArray2 + IntPtr.Size,
+            };
+            Marshal.StructureToPtr(vec1, buffsComponentPtr + 0x160, false);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects.ContainsKey("grace_period"), "Remaining buff persists");
+            check(!buffs.StatusEffects.ContainsKey("quick"), "Removed buff 'quick' disappears correctly on next update");
+            check(buffs.StatusEffects.Count == 1, "StatusEffects count drops to 1");
+
+            // 4. Empty buff vector clears previous state correctly
+            var vec0 = new TEHhub.Offsets.Natives.StdVector
+            {
+                First = ptrArray1,
+                Last = ptrArray1,
+                End = ptrArray1,
+            };
+            Marshal.StructureToPtr(vec0, buffsComponentPtr + 0x160, false);
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects.IsEmpty, "Empty buff vector clears previous state correctly");
+            check(buffs.StatusEffects.Count == 0, "StatusEffects count is 0 when empty");
+
+            // 5. Multiple consecutive refreshes do not retain stale entries
+            Marshal.StructureToPtr(vec2, buffsComponentPtr + 0x160, false);
+            for (var r = 0; r < 5; r++)
+            {
+                buffs.RefreshDataNow();
+            }
+            check(buffs.StatusEffects.Count == 2 && buffs.StatusEffects.ContainsKey("grace_period") && buffs.StatusEffects.ContainsKey("quick"), "Multiple consecutive refreshes maintain correct state");
+
+            // 6. Skill gem buff key formatting and flask slot tracking
+            Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef3);
+            Marshal.WriteInt32(se2Ptr + 0x28, unchecked((int)uint.MaxValue)); // SourceEntityId matches playerId (uint.MaxValue)
+            Marshal.WriteInt16(se2Ptr + 0x42, 2);                              // FlaskSlot = 2
+            Marshal.WriteInt32(se2Ptr + 0x4A, 0x00AB0000);                     // SkillGemUnknownId = 0xAB
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects.ContainsKey("flask_quick_AB"), "Skill gem buff produces identical formatted key 'flask_quick_AB'");
+            check(!buffs.StatusEffects.ContainsKey("quick"), "Old buff replaced by 'flask_quick_AB'");
+            check(buffs.FlaskActive[2] == true, "FlaskActive[2] is set for flask type buff");
+
+            // 7. Duplicate buffs stacking: charges are merged and max TimeLeft is preserved
+            Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef1); // Both se1 and se2 point to buffDef1 ("grace_period")
+            Marshal.WriteInt32(se2Ptr + 0x4A, 0);         // No skill gem suffix
+            Marshal.StructureToPtr(3.0f, se1Ptr + 0x1C, false);
+            Marshal.WriteInt16(se1Ptr + 0x40, 2); // Charges = 2
+            Marshal.StructureToPtr(7.5f, se2Ptr + 0x1C, false);
+            Marshal.WriteInt16(se2Ptr + 0x40, 3); // Charges = 3
+            buffs.RefreshDataNow();
+            check(buffs.StatusEffects.Count == 1, "Duplicate buffs merged to single key 'grace_period'");
+            check(buffs.StatusEffects["grace_period"].Charges == 5, "Duplicate buff charges summed (2 + 3 = 5)");
+            check(Math.Abs(buffs.StatusEffects["grace_period"].TimeLeft - 7.5f) < 0.01f, "Duplicate buff preserves max TimeLeft (7.5f)");
+
+            // Restore se2 for zero-allocation test
+            Marshal.WriteIntPtr(se2Ptr + 0x08, buffDef2);
+            Marshal.StructureToPtr(5.0f, se2Ptr + 0x18, false);
+            Marshal.StructureToPtr(3.0f, se2Ptr + 0x1C, false);
+            Marshal.WriteInt16(se2Ptr + 0x40, 1);
+            Marshal.WriteInt16(se2Ptr + 0x42, -1);
+            Marshal.WriteInt32(se2Ptr + 0x4A, 0);
+            buffs.RefreshDataNow();
+
+            // 8. Zero allocation in steady-state test
+            buffs.RefreshDataNow();
+            buffs.RefreshDataNow();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            buffs.RefreshDataNow(); // Warm up GC thread-local allocation context after full collection
+
+            var allocSingleBefore = GC.GetAllocatedBytesForCurrentThread();
+            buffs.RefreshDataNow();
+            var allocSingle = GC.GetAllocatedBytesForCurrentThread() - allocSingleBefore;
+            check(allocSingle <= 8, $"Buffs.UpdateData steady-state single call allocation is <= 8 bytes (measured: {allocSingle} B)");
+
+            var allocBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (var r = 0; r < 100; r++)
+            {
+                buffs.RefreshDataNow();
+            }
+            var allocAfter = GC.GetAllocatedBytesForCurrentThread();
+            var allocPerCall = (allocAfter - allocBefore) / 100;
+            check(allocPerCall <= 8, $"Buffs.UpdateData steady-state average allocation is <= 8 bytes (measured: {allocPerCall} B/call)");
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(synthBuffsBlock);
+            TEHhub.RemoteObjects.Components.Buffs.ClearStaticCaches();
+        }
     }
 
     private sealed class ReferencePageTracker
