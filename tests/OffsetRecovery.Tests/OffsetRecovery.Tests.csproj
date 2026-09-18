@@ -5,6 +5,5 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../TEHhub/TEHhub.csproj" />
-    <ProjectReference Include="../../Plugins/AmanamuVoidAlert/AmanamuVoidAlert.csproj" />
   </ItemGroup>
 </Project>

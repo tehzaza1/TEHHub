@@ -1,6 +1,6 @@
-using System.Runtime.CompilerServices;
-
-[assembly: InternalsVisibleTo("OffsetRecovery.Tests")]
+// <copyright file="AmanamuVoidAlertCore.cs" company="None">
+// Copyright (c) None. All rights reserved.
+// </copyright>
 
 namespace AmanamuVoidAlert
 {
@@ -209,31 +209,6 @@ namespace AmanamuVoidAlert
             }
         }
 
-        internal static bool IsCandidatePath(string? path)
-        {
-            if (string.IsNullOrEmpty(path))
-            {
-                return false;
-            }
-
-            return path.Contains("Amanamu", StringComparison.OrdinalIgnoreCase) ||
-                   path.Contains("LightlessLeader", StringComparison.OrdinalIgnoreCase) ||
-                   path.Contains("LeagueAbyss", StringComparison.OrdinalIgnoreCase) ||
-                   path.Contains("AbyssLich", StringComparison.OrdinalIgnoreCase);
-        }
-
-        internal static bool IsCandidateMod(string? modName)
-        {
-            if (string.IsNullOrEmpty(modName))
-            {
-                return false;
-            }
-
-            return string.Equals(modName, ExpectedMonsterModId, StringComparison.OrdinalIgnoreCase) ||
-                   modName.Contains("LightlessWells", StringComparison.OrdinalIgnoreCase) ||
-                   modName.Contains("MonsterAbyssLightless", StringComparison.OrdinalIgnoreCase);
-        }
-
         private void ScanEntities(AreaInstance area, Entity player, float now)
         {
             Vector3 playerPos = Vector3.Zero;
@@ -267,50 +242,7 @@ namespace AmanamuVoidAlert
                     continue;
                 }
 
-                bool alreadyKnown = this.tracked.ContainsKey(entity.Id);
-                bool foundByPath = IsCandidatePath(entity.Path);
-
-                // Check ObjectMagicProperties (RequiresPerFrameRefresh => false, safe and cheap)
-                bool foundByMonsterMod = false;
-                var monsterModDebug = new List<string>();
-
-                if (entity.TryGetComponent<ObjectMagicProperties>(out var omp))
-                {
-                    if (this.Settings.OnlyRareOrUnique && omp.Rarity < Rarity.Rare && !foundByPath && !alreadyKnown)
-                    {
-                        continue;
-                    }
-
-                    foreach (var modName in omp.ModNames)
-                    {
-                        monsterModDebug.Add(modName);
-                        if (IsCandidateMod(modName))
-                        {
-                            foundByMonsterMod = true;
-                        }
-                    }
-
-                    if (!foundByMonsterMod)
-                    {
-                        foreach (var (modName, _) in omp.Mods)
-                        {
-                            if (IsCandidateMod(modName))
-                            {
-                                foundByMonsterMod = true;
-                            }
-                        }
-                    }
-                }
-
-                // Fast candidate prefilter: only confirmed or candidate Amanamu/Abyss entities request Buffs.
-                // Ordinary monsters are rejected here, preventing Buffs from being cached and refreshed every frame.
-                bool isCandidate = alreadyKnown || foundByPath || foundByMonsterMod;
-                if (!isCandidate)
-                {
-                    continue;
-                }
-
-                // Check Buffs (only on confirmed or candidate Amanamu/Abyss entities)
+                // Check Buffs
                 bool hasAnyLightlessBuff = false;
                 bool insideCloud = false;
                 var buffNames = new List<string>();
@@ -330,6 +262,54 @@ namespace AmanamuVoidAlert
                             insideCloud = true;
                         }
                     }
+                }
+
+                // Check ObjectMagicProperties
+                bool foundByMonsterMod = false;
+                var monsterModDebug = new List<string>();
+
+                if (entity.TryGetComponent<ObjectMagicProperties>(out var omp))
+                {
+                    if (this.Settings.OnlyRareOrUnique && omp.Rarity < Rarity.Rare)
+                    {
+                        continue;
+                    }
+
+                    foreach (var modName in omp.ModNames)
+                    {
+                        monsterModDebug.Add(modName);
+                        if (string.Equals(modName, ExpectedMonsterModId, StringComparison.OrdinalIgnoreCase) ||
+                            modName.Contains("LightlessWells", StringComparison.OrdinalIgnoreCase) ||
+                            modName.Contains("MonsterAbyssLightless", StringComparison.OrdinalIgnoreCase))
+                        {
+                            foundByMonsterMod = true;
+                        }
+                    }
+
+                    if (!foundByMonsterMod)
+                    {
+                        foreach (var (modName, _) in omp.Mods)
+                        {
+                            if (string.Equals(modName, ExpectedMonsterModId, StringComparison.OrdinalIgnoreCase) ||
+                                modName.Contains("LightlessWells", StringComparison.OrdinalIgnoreCase) ||
+                                modName.Contains("MonsterAbyssLightless", StringComparison.OrdinalIgnoreCase))
+                            {
+                                foundByMonsterMod = true;
+                            }
+                        }
+                    }
+                }
+
+                // Fallback: entity metadata path contains Amanamu
+                bool foundByPath = !string.IsNullOrEmpty(entity.Path) &&
+                    (entity.Path.Contains("Amanamu", StringComparison.OrdinalIgnoreCase) ||
+                     entity.Path.Contains("LightlessLeader", StringComparison.OrdinalIgnoreCase));
+
+                bool alreadyKnown = this.tracked.ContainsKey(entity.Id);
+
+                if (!foundByMonsterMod && !hasAnyLightlessBuff && !foundByPath && !alreadyKnown)
+                {
+                    continue;
                 }
 
                 bool isNew = !alreadyKnown;
