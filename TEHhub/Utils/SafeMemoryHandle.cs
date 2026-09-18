@@ -141,9 +141,9 @@ namespace TEHhub.Utils
                 return true;
             }
 
-            // The new frame pipeline can lazily materialize an aligned read window for a
-            // scalar address that was not known while the plan was built. This is deliberately
-            // behind the master switch and remains bounded; a failed window falls through to
+            // When EnableNewMemoryRead is active, lazily materialize an exact read for a
+            // scalar address that was not known while the plan was built, caching it for the
+            // remainder of the frame. This remains bounded; a failed read falls through to
             // the exact legacy scalar read below.
             if (Core.GHSettings.EnableNewMemoryRead &&
                 currentReadCachePlan?.TryReadDynamic(this, address.ToInt64(), out result) == true)
@@ -588,8 +588,6 @@ namespace TEHhub.Utils
 
         internal sealed class ReadCachePlan : IDisposable
         {
-            private const int DynamicPageBytes = 0x1000;
-            private const int DynamicCrossPageBytes = 0x2000;
             private const int MaxDynamicWindows = 2048;
             private readonly ReadCacheWindow[] windows;
             private readonly Dictionary<long, ReadCacheWindow>? dynamicWindows;
@@ -644,40 +642,49 @@ namespace TEHhub.Utils
                     return false;
                 }
 
-                var windowStart = address & ~(DynamicPageBytes - 1L);
-                var offsetInPage = address - windowStart;
                 var size = Unsafe.SizeOf<T>();
-                var byteCount = offsetInPage + size > DynamicPageBytes
-                    ? DynamicCrossPageBytes
-                    : DynamicPageBytes;
-                // Aligned page starts always have bit 0 clear, so it is safe to use bit 0 as
-                // the dictionary discriminator for a cross-page window at the same start.
-                var cacheKey = byteCount == DynamicCrossPageBytes ? windowStart | 1L : windowStart;
-                if (!cache.TryGetValue(cacheKey, out var window))
-                {
-                    if (cache.Count >= MaxDynamicWindows || !IsValidAddress(new IntPtr(windowStart)))
-                    {
-                        return false;
-                    }
-
-                    var buffer = ArrayPool<byte>.Shared.Rent(byteCount);
-                    if (!reader.TryReadMemoryArray(new IntPtr(windowStart), buffer, byteCount, out _))
-                    {
-                        ArrayPool<byte>.Shared.Return(buffer);
-                        return false;
-                    }
-
-                    window = new ReadCacheWindow(windowStart, byteCount, buffer);
-                    cache.Add(cacheKey, window);
-                }
-
-                var offset = address - window.StartAddress;
-                if (offset < 0 || offset > window.ByteCount - size)
+                if (size <= 0)
                 {
                     return false;
                 }
 
-                result = MemoryMarshal.Read<T>(window.Buffer.AsSpan((int)offset, size));
+                if (cache.TryGetValue(address, out var window))
+                {
+                    if (window.ByteCount >= size)
+                    {
+                        result = MemoryMarshal.Read<T>(window.Buffer.AsSpan(0, size));
+                        return true;
+                    }
+                }
+                else
+                {
+                    foreach (var w in cache.Values)
+                    {
+                        var offset = address - w.StartAddress;
+                        if (offset >= 0 && offset <= w.ByteCount - size)
+                        {
+                            result = MemoryMarshal.Read<T>(w.Buffer.AsSpan((int)offset, size));
+                            return true;
+                        }
+                    }
+                }
+
+                if (cache.Count >= MaxDynamicWindows || !IsValidAddress(new IntPtr(address)))
+                {
+                    return false;
+                }
+
+                var buffer = ArrayPool<byte>.Shared.Rent(size);
+                if (!reader.TryReadMemoryArray(new IntPtr(address), buffer, size, out _))
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                    return false;
+                }
+
+                var newWindow = new ReadCacheWindow(address, size, buffer);
+                cache[address] = newWindow;
+
+                result = MemoryMarshal.Read<T>(buffer.AsSpan(0, size));
                 return true;
             }
 
