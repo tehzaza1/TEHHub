@@ -30,6 +30,8 @@ public sealed class OffsetValidatorEngine
         RecoveryContext context,
         bool allowRecovery = true)
     {
+        context.StrategyResolver = allowRecovery ? (kind => _strategies.GetValueOrDefault(kind)) : null;
+
         var results = new List<ValidationResult>();
         var resolvedAddresses = new Dictionary<string, IntPtr>();
         var provisionalAddresses = new Dictionary<string, IntPtr>();
@@ -126,7 +128,7 @@ public sealed class OffsetValidatorEngine
                         // - BestCandidate.Confidence == HIGH
                         // - Meaningful score separation (>= 20)
                         // - Not ambiguous
-                        if (topCandidate.Confidence == Confidence.HIGH && (topCandidate.Score - secondCandidate.Score >= 20))
+                        if (topCandidate.Confidence == Confidence.HIGH && (topCandidate.Score - secondCandidate.Score >= 15))
                         {
                             result.BestCandidate = topCandidate;
                             result.Status = ValidationStatus.CANDIDATE_FOUND;

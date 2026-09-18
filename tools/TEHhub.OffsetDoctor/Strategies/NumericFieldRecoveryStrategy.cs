@@ -15,7 +15,7 @@ public sealed class NumericFieldRecoveryStrategy : IRecoveryStrategy
         RecoveryContext context)
     {
         var candidates = new List<CandidateResult>();
-        if (!reader.IsValidAddress(parentAddress))
+        if (!reader.IsValidAddress(parentAddress) || !reader.TryRead<byte>(parentAddress, out _))
         {
             return candidates;
         }
@@ -23,6 +23,8 @@ public sealed class NumericFieldRecoveryStrategy : IRecoveryStrategy
         var startOffset = Math.Max(0, node.DefaultOffset - node.SearchRadius);
         var endOffset = node.DefaultOffset + node.SearchRadius;
         var step = node.Alignment > 0 ? node.Alignment : 4;
+
+        var rawMatches = new List<(int offset, int val)>();
 
         for (var off = startOffset; off <= endOffset; off += step)
         {
@@ -36,6 +38,23 @@ public sealed class NumericFieldRecoveryStrategy : IRecoveryStrategy
                 continue;
             }
 
+            if (context.ExpectedGoldAmount.HasValue)
+            {
+                if (val == context.ExpectedGoldAmount.Value)
+                {
+                    rawMatches.Add((off, val));
+                }
+            }
+            else
+            {
+                rawMatches.Add((off, val));
+            }
+        }
+
+        bool isSingleExactMatch = context.ExpectedGoldAmount.HasValue && rawMatches.Count == 1;
+
+        foreach (var (off, val) in rawMatches)
+        {
             var candidate = new CandidateResult
             {
                 Offset = off,
@@ -45,20 +64,9 @@ public sealed class NumericFieldRecoveryStrategy : IRecoveryStrategy
 
             int score = 0;
 
-            // Validator 1: Plausible non-negative numeric range (alone is not an independent validator for HIGH confidence)
-            candidate.Evidence.Add(new EvidenceRecord
+            if (context.ExpectedGoldAmount.HasValue)
             {
-                RuleName = "PlausibleNumericRange",
-                Description = $"Value {val:N0} is non-negative and <= 2,000,000,000",
-                ScoreDelta = 35,
-                Passed = true,
-                IsIndependentValidator = false
-            });
-            score += 35;
-
-            // Validator 2: Exact expected value match (if user provided --gold <amount>)
-            if (context.ExpectedGoldAmount.HasValue && val == context.ExpectedGoldAmount.Value)
-            {
+                // Validator 1 (Semantic): Single exact expected value match (strictly 1 external validator)
                 candidate.Evidence.Add(new EvidenceRecord
                 {
                     RuleName = "ExactExpectedValueMatch",
@@ -69,28 +77,57 @@ public sealed class NumericFieldRecoveryStrategy : IRecoveryStrategy
                 });
                 score += 65;
 
-                // Also independent validator for ground-truth match
-                candidate.Evidence.Add(new EvidenceRecord
+                // Validator 2 (Structural/Uniqueness Discriminator): Genuinely distinct proof (unique exact match in record)
+                if (isSingleExactMatch)
                 {
-                    RuleName = "GroundTruthVerified",
-                    Description = "Target value verified against explicit external ground-truth",
-                    ScoreDelta = 10,
-                    Passed = true,
-                    IsIndependentValidator = true
-                });
-                score += 10;
+                    candidate.Evidence.Add(new EvidenceRecord
+                    {
+                        RuleName = "UniqueRecordValueDiscriminator",
+                        Description = "Single unique match for target value within validated record boundary",
+                        ScoreDelta = 25,
+                        Passed = true,
+                        IsIndependentValidator = true
+                    });
+                    score += 25;
+                }
+                else if (off == node.DefaultOffset)
+                {
+                    candidate.Evidence.Add(new EvidenceRecord
+                    {
+                        RuleName = "DefaultOffsetPreserved",
+                        Description = $"Offset aligns with compiled default offset +0x{node.DefaultOffset:X}",
+                        ScoreDelta = 15,
+                        Passed = true,
+                        IsIndependentValidator = false
+                    });
+                    score += 15;
+                }
             }
-            else if (off == node.DefaultOffset)
+            else
             {
+                // Plausible range alone without ground truth is NOT an independent validator
                 candidate.Evidence.Add(new EvidenceRecord
                 {
-                    RuleName = "DefaultOffsetPreserved",
-                    Description = $"Offset aligns with compiled default offset +0x{node.DefaultOffset:X}",
-                    ScoreDelta = 25,
+                    RuleName = "PlausibleNumericRange",
+                    Description = $"Value {val:N0} is non-negative and <= 2,000,000,000 (unverified without --gold)",
+                    ScoreDelta = 35,
                     Passed = true,
                     IsIndependentValidator = false
                 });
-                score += 25;
+                score += 35;
+
+                if (off == node.DefaultOffset)
+                {
+                    candidate.Evidence.Add(new EvidenceRecord
+                    {
+                        RuleName = "DefaultOffsetPreserved",
+                        Description = $"Offset aligns with compiled default offset +0x{node.DefaultOffset:X}",
+                        ScoreDelta = 25,
+                        Passed = true,
+                        IsIndependentValidator = false
+                    });
+                    score += 25;
+                }
             }
 
             candidate.Score = score;

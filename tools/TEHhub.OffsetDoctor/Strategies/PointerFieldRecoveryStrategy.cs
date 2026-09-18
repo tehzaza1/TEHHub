@@ -15,7 +15,7 @@ public sealed class PointerFieldRecoveryStrategy : IRecoveryStrategy
         RecoveryContext context)
     {
         var candidates = new List<CandidateResult>();
-        if (!reader.IsValidAddress(parentAddress))
+        if (!reader.IsValidAddress(parentAddress) || !reader.TryRead<byte>(parentAddress, out _))
         {
             return candidates;
         }
@@ -72,6 +72,7 @@ public sealed class PointerFieldRecoveryStrategy : IRecoveryStrategy
             }
 
             // Downstream validation check if child exists
+            bool foundChildEvidence = false;
             if (childNode != null)
             {
                 var childOffset = context.ProvisionalOffsets.GetValueOrDefault(childNode.Id, childNode.DefaultOffset);
@@ -92,6 +93,7 @@ public sealed class PointerFieldRecoveryStrategy : IRecoveryStrategy
                         });
                         score += 50;
                         candidate.DownstreamEvidenceSummary = $"Downstream '{childNode.Id}' validated at +0x{childOffset:X}";
+                        foundChildEvidence = true;
                     }
                 }
                 else if (childNode.Kind == ValueKind.StdVectorField)
@@ -114,6 +116,32 @@ public sealed class PointerFieldRecoveryStrategy : IRecoveryStrategy
                             });
                             score += 50;
                             candidate.DownstreamEvidenceSummary = $"Downstream vector '{childNode.Id}' validated at +0x{childOffset:X}";
+                            foundChildEvidence = true;
+                        }
+                    }
+                }
+
+                // If direct check failed, perform bounded branch-local exploration
+                if (!foundChildEvidence && context.BranchDepth < context.MaxBranchDepth && context.StrategyResolver != null)
+                {
+                    var childStrategy = context.StrategyResolver(childNode.Kind);
+                    if (childStrategy != null)
+                    {
+                        var childContext = context.CreateChildContext();
+                        var childCandidates = childStrategy.SearchCandidates(reader, ptr, childNode, childContext);
+                        if (childCandidates.Count > 0 && childCandidates[0].Confidence == Confidence.HIGH)
+                        {
+                            var bestChild = childCandidates[0];
+                            candidate.Evidence.Add(new EvidenceRecord
+                            {
+                                RuleName = "BranchDownstreamProof",
+                                Description = $"Branch-local search discovered HIGH downstream '{childNode.Id}' at +0x{bestChild.Offset:X}",
+                                ScoreDelta = 50,
+                                Passed = true,
+                                IsIndependentValidator = true
+                            });
+                            score += 50;
+                            candidate.DownstreamEvidenceSummary = $"Branch downstream '{childNode.Id}' verified at +0x{bestChild.Offset:X}";
                         }
                     }
                 }

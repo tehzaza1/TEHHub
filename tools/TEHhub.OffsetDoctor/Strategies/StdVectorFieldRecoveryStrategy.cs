@@ -15,7 +15,7 @@ public sealed class StdVectorFieldRecoveryStrategy : IRecoveryStrategy
         RecoveryContext context)
     {
         var candidates = new List<CandidateResult>();
-        if (!reader.IsValidAddress(parentAddress))
+        if (!reader.IsValidAddress(parentAddress) || !reader.TryRead<byte>(parentAddress, out _))
         {
             return candidates;
         }
@@ -49,7 +49,7 @@ public sealed class StdVectorFieldRecoveryStrategy : IRecoveryStrategy
                 continue;
             }
 
-            if (!reader.IsValidAddress(begin) || (bVal != eVal && !reader.IsValidAddress(end)))
+            if (!reader.IsValidAddress(begin) || !reader.TryRead<byte>(begin, out _))
             {
                 continue;
             }
@@ -62,8 +62,15 @@ public sealed class StdVectorFieldRecoveryStrategy : IRecoveryStrategy
 
             var elemCount = byteSize / 8;
             IntPtr targetAddress = begin;
-            if (elemCount > 0 && reader.TryRead<IntPtr>(begin, out var firstElem) && reader.IsValidAddress(firstElem))
+            if (elemCount > 0)
             {
+                if (!reader.TryRead<IntPtr>(begin, out var firstElem) ||
+                    firstElem == IntPtr.Zero ||
+                    !reader.IsValidAddress(firstElem) ||
+                    !reader.TryRead<byte>(firstElem, out _))
+                {
+                    continue;
+                }
                 targetAddress = firstElem;
             }
 
@@ -98,22 +105,51 @@ public sealed class StdVectorFieldRecoveryStrategy : IRecoveryStrategy
             });
             score += 25;
 
-            // Validator 3: Downstream child probe
-            if (childNode != null && targetAddress != IntPtr.Zero && reader.IsValidAddress(targetAddress))
+            // Validator 3: Downstream child probe (direct or branch-local search)
+            bool foundChildEvidence = false;
+            if (childNode != null && targetAddress != IntPtr.Zero && reader.IsValidAddress(targetAddress) && reader.TryRead<byte>(targetAddress, out _))
             {
                 var childOffset = context.ProvisionalOffsets.GetValueOrDefault(childNode.Id, childNode.DefaultOffset);
-                if (reader.TryRead<IntPtr>(targetAddress + childOffset, out var childPtr) && reader.IsValidAddress(childPtr))
+                if (reader.TryRead<IntPtr>(targetAddress + childOffset, out var childPtr) &&
+                    childPtr != IntPtr.Zero &&
+                    reader.IsValidAddress(childPtr) &&
+                    reader.TryRead<byte>(childPtr, out _))
                 {
                     candidate.Evidence.Add(new EvidenceRecord
                     {
                         RuleName = "DownstreamChildValid",
-                        Description = $"Downstream node '{childNode.Id}' at +0x{childOffset:X} points to valid address 0x{childPtr.ToInt64():X}",
+                        Description = $"Downstream node '{childNode.Id}' at +0x{childOffset:X} points to valid readable address 0x{childPtr.ToInt64():X}",
                         ScoreDelta = 40,
                         Passed = true,
                         IsIndependentValidator = true
                     });
                     score += 40;
                     candidate.DownstreamEvidenceSummary = $"Downstream '{childNode.Id}' verified from vector target";
+                    foundChildEvidence = true;
+                }
+
+                if (!foundChildEvidence && context.BranchDepth < context.MaxBranchDepth && context.StrategyResolver != null)
+                {
+                    var childStrategy = context.StrategyResolver(childNode.Kind);
+                    if (childStrategy != null)
+                    {
+                        var childContext = context.CreateChildContext();
+                        var childCandidates = childStrategy.SearchCandidates(reader, targetAddress, childNode, childContext);
+                        if (childCandidates.Count > 0 && childCandidates[0].Confidence == Confidence.HIGH)
+                        {
+                            var bestChild = childCandidates[0];
+                            candidate.Evidence.Add(new EvidenceRecord
+                            {
+                                RuleName = "BranchDownstreamChildValid",
+                                Description = $"Branch-local search discovered HIGH downstream '{childNode.Id}' at +0x{bestChild.Offset:X}",
+                                ScoreDelta = 40,
+                                Passed = true,
+                                IsIndependentValidator = true
+                            });
+                            score += 40;
+                            candidate.DownstreamEvidenceSummary = $"Branch downstream '{childNode.Id}' discovered at +0x{bestChild.Offset:X}";
+                        }
+                    }
                 }
             }
 
