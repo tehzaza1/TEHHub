@@ -25,7 +25,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 84 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 89 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -111,8 +111,13 @@ public static class OffsetDoctorTests
         Test82_ReadOnlyBehaviorPreserved(check);
         Test83_BaselineCompareTreatsGoldChangesAsInformational(check);
         Test84_NoHardcodedDefaultGoldOrPlayerValuesExist(check);
+        Test85_BaselineCompareDetectsTraversalAddressChanges(check);
+        Test86_BaselineCompareStaticRootValidToUnverifiedIsCritical(check);
+        Test87_BaselineCompareStaticRootResolvedAddressChangedIsWarning(check);
+        Test88_BaselineCompareDynamicBuffsAndLoadingStateChangesAreInformational(check);
+        Test89_BaselineCompareStaticRootValidToBrokenIsCritical(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 84 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 89 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -2000,6 +2005,254 @@ public static class OffsetDoctorTests
         check(defaultGt.ExpectedMpTotal == null, "T84: Default ExpectedMpTotal is null.");
         check(defaultGt.ExpectedEsCurrent == null, "T84: Default ExpectedEsCurrent is null.");
         check(defaultGt.ExpectedEsTotal == null, "T84: Default ExpectedEsTotal is null.");
+    }
+
+    // 85. Baseline compare detects TraversalAddress changes
+    private static void Test85_BaselineCompareDetectsTraversalAddressChanges(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var captureEngine = new BaselineCaptureEngine();
+        var baseline = captureEngine.Capture(setup, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        // Scenario A: Structural node traversal address changed (AreaInstance at new pointer)
+        var setup2 = SetupSyntheticEnvironment();
+        using var reader2 = setup2.reader;
+        var newAreaInstance = reader2.AllocateBlock(0x1000);
+        var areaBytes = reader2.ReadBytes(setup2.areaInstance, 0x1000)!;
+        reader2.WriteBytes(newAreaInstance, areaBytes);
+        reader2.WritePointer(setup2.inGameState + 0x290, newAreaInstance);
+
+        var recoveryEngine = new OffsetRecoveryEngine();
+        var reportStruct = recoveryEngine.RunValidation(reader2, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compStruct = comparisonEngine.Compare(baseline, reportStruct);
+        var areaDelta = compStruct.Deltas.FirstOrDefault(d => d.NodeId == "in_game_area_instance");
+        check(areaDelta != null, "T85: AreaInstance traversal address change detected.");
+        check(areaDelta?.Severity == DeltaSeverity.Warning, "T85: Structural node traversal address change reported as Warning.");
+
+        // Scenario B: Dynamic UI node becoming active with valid traversal address
+        var setup3 = SetupSyntheticEnvironment();
+        using var reader3 = setup3.reader;
+        reader3.TryRead<IntPtr>(setup3.inGameState + 0x2F0, out var uiRootPtr);
+        reader3.TryRead<IntPtr>(uiRootPtr + 0xBE0, out var gameUi);
+        var leftPanel = reader3.AllocateBlock(0x1000);
+        WriteValidUiElement(reader3, leftPanel, parentAddr: gameUi, childCount: 2, width: 400f, height: 600f);
+        reader3.WritePointer(gameUi + 0x6D0, leftPanel);
+
+        var reportUi = recoveryEngine.RunValidation(reader3, new ValidationGroundTruth { ExpectedGold = 50_000_000 });
+        var compUi = comparisonEngine.Compare(baseline, reportUi);
+        var uiDelta = compUi.Deltas.FirstOrDefault(d => d.NodeId == "ui_left_panel");
+        check(uiDelta == null || uiDelta.Severity == DeltaSeverity.Informational, "T85: Dynamic UI traversal address change reported as Informational (not Warning/Critical).");
+    }
+
+    // 86. Baseline compare static root VALID -> UNVERIFIED is Critical
+    private static void Test86_BaselineCompareStaticRootValidToUnverifiedIsCritical(Action<bool, string> check)
+    {
+        var baseline = new BaselineSnapshot
+        {
+            ProcessName = "PathExile2",
+            Summary = new BaselineSummary { ValidCount = 1, TotalNodesCount = 1 },
+            Nodes = new List<BaselineNodeSnapshot>
+            {
+                new()
+                {
+                    NodeId = "pattern_game_states",
+                    DisplayName = "Game States (Pattern)",
+                    Category = "Core",
+                    Status = ValidationStatus.VALID,
+                    IsStaticRoot = true,
+                    PatternName = "Game States",
+                    ResolvedAddress = "0x140001000",
+                    TraversalAddress = "0x140001000"
+                }
+            }
+        };
+
+        var currentReport = new OffsetDoctorReport
+        {
+            ProcessMetadata = new ProcessMetadata { ProcessName = "PathExile2" },
+            Results = new List<ValidationResult>
+            {
+                new()
+                {
+                    NodeId = "pattern_game_states",
+                    NodeDisplayName = "Game States (Pattern)",
+                    Category = "Core",
+                    Status = ValidationStatus.UNVERIFIED,
+                    ErrorMessage = "Pattern match unverified"
+                }
+            }
+        };
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, currentReport);
+
+        check(compResult.HasCriticalRegressions, "T86: Static root VALID -> UNVERIFIED triggers HasCriticalRegressions.");
+        var delta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "pattern_game_states");
+        check(delta != null && delta.Severity == DeltaSeverity.Critical, "T86: Static root VALID -> UNVERIFIED delta is Critical.");
+    }
+
+    // 87. Baseline compare static root VALID with resolved address changed is Warning
+    private static void Test87_BaselineCompareStaticRootResolvedAddressChangedIsWarning(Action<bool, string> check)
+    {
+        var baseline = new BaselineSnapshot
+        {
+            ProcessName = "PathExile2",
+            Summary = new BaselineSummary { ValidCount = 1, TotalNodesCount = 1 },
+            Nodes = new List<BaselineNodeSnapshot>
+            {
+                new()
+                {
+                    NodeId = "pattern_game_states",
+                    DisplayName = "Game States (Pattern)",
+                    Category = "Core",
+                    Status = ValidationStatus.VALID,
+                    IsStaticRoot = true,
+                    PatternName = "Game States",
+                    ResolvedAddress = "0x140001000",
+                    TraversalAddress = "0x140001000"
+                }
+            }
+        };
+
+        var currentReport = new OffsetDoctorReport
+        {
+            ProcessMetadata = new ProcessMetadata { ProcessName = "PathExile2" },
+            Results = new List<ValidationResult>
+            {
+                new()
+                {
+                    NodeId = "pattern_game_states",
+                    NodeDisplayName = "Game States (Pattern)",
+                    Category = "Core",
+                    Status = ValidationStatus.VALID,
+                    ResolvedAddress = new IntPtr(0x140002000),
+                    TraversalAddress = new IntPtr(0x140002000),
+                    ExtractedValue = "StaticPtr (0x140002000)"
+                }
+            }
+        };
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, currentReport);
+
+        var delta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "pattern_game_states");
+        check(delta != null, "T87: Static root address change delta generated.");
+        check(delta?.Severity == DeltaSeverity.Warning, "T87: Static root resolved address change is Warning (not Informational).");
+        check(delta?.Description.Contains("Static root resolved address changed") == true, "T87: Delta description includes 'Static root resolved address changed'.");
+    }
+
+    // 88. Baseline compare treats dynamic buffs and loading-state changes as informational
+    private static void Test88_BaselineCompareDynamicBuffsAndLoadingStateChangesAreInformational(Action<bool, string> check)
+    {
+        var baseline = new BaselineSnapshot
+        {
+            ProcessName = "PathExile2",
+            Summary = new BaselineSummary { ValidCount = 1, UnverifiedCount = 1, TotalNodesCount = 2 },
+            Nodes = new List<BaselineNodeSnapshot>
+            {
+                new()
+                {
+                    NodeId = "comp_buffs_vector",
+                    DisplayName = "Buffs Vector",
+                    Category = "Components",
+                    Status = ValidationStatus.VALID,
+                    TraversalAddress = "0x20001000",
+                    ExtractedValue = "Count=5"
+                },
+                new()
+                {
+                    NodeId = "loading_state_area_details",
+                    DisplayName = "Loading State Area Details",
+                    Category = "LoadingState",
+                    Status = ValidationStatus.UNVERIFIED,
+                    IsOptionalStateDependent = true,
+                    TraversalAddress = "0x0"
+                }
+            }
+        };
+
+        var currentReport = new OffsetDoctorReport
+        {
+            ProcessMetadata = new ProcessMetadata { ProcessName = "PathExile2" },
+            Results = new List<ValidationResult>
+            {
+                new()
+                {
+                    NodeId = "comp_buffs_vector",
+                    NodeDisplayName = "Buffs Vector",
+                    Category = "Components",
+                    Status = ValidationStatus.VALID,
+                    TraversalAddress = new IntPtr(0x20002000),
+                    ExtractedValue = "Count=8"
+                },
+                new()
+                {
+                    NodeId = "loading_state_area_details",
+                    NodeDisplayName = "Loading State Area Details",
+                    Category = "LoadingState",
+                    Status = ValidationStatus.UNVERIFIED,
+                    TraversalAddress = new IntPtr(0x30001000)
+                }
+            }
+        };
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, currentReport);
+
+        var buffsDelta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "comp_buffs_vector");
+        var loadingDelta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "loading_state_area_details");
+
+        check(buffsDelta?.Severity == DeltaSeverity.Informational, "T88: Buffs vector change is Informational.");
+        check(loadingDelta?.Severity == DeltaSeverity.Informational, "T88: Loading state change is Informational.");
+        check(!compResult.HasCriticalRegressions, "T88: Zero critical regressions for dynamic changes.");
+    }
+
+    // 89. Baseline compare static root VALID -> BROKEN is Critical
+    private static void Test89_BaselineCompareStaticRootValidToBrokenIsCritical(Action<bool, string> check)
+    {
+        var baseline = new BaselineSnapshot
+        {
+            ProcessName = "PathExile2",
+            Summary = new BaselineSummary { ValidCount = 1, TotalNodesCount = 1 },
+            Nodes = new List<BaselineNodeSnapshot>
+            {
+                new()
+                {
+                    NodeId = "pattern_file_root",
+                    DisplayName = "File Root (Pattern)",
+                    Category = "Core",
+                    Status = ValidationStatus.VALID,
+                    IsStaticRoot = true,
+                    PatternName = "File Root",
+                    ResolvedAddress = "0x140003000"
+                }
+            }
+        };
+
+        var currentReport = new OffsetDoctorReport
+        {
+            ProcessMetadata = new ProcessMetadata { ProcessName = "PathExile2" },
+            Results = new List<ValidationResult>
+            {
+                new()
+                {
+                    NodeId = "pattern_file_root",
+                    NodeDisplayName = "File Root (Pattern)",
+                    Category = "Core",
+                    Status = ValidationStatus.BROKEN,
+                    ErrorMessage = "File Root pattern did not match."
+                }
+            }
+        };
+
+        var comparisonEngine = new BaselineComparisonEngine();
+        var compResult = comparisonEngine.Compare(baseline, currentReport);
+
+        check(compResult.HasCriticalRegressions, "T89: Static root VALID -> BROKEN flags HasCriticalRegressions.");
+        var delta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "pattern_file_root");
+        check(delta != null && delta.Severity == DeltaSeverity.Critical, "T89: Static root VALID -> BROKEN delta is Critical.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
