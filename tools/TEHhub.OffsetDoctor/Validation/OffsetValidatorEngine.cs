@@ -27,7 +27,8 @@ public sealed class OffsetValidatorEngine
     public List<ValidationResult> ValidateChain(
         IProcessMemoryReader reader,
         List<OffsetNode> manifestNodes,
-        RecoveryContext context)
+        RecoveryContext context,
+        bool allowRecovery = true)
     {
         var results = new List<ValidationResult>();
         var resolvedAddresses = new Dictionary<string, IntPtr>();
@@ -62,13 +63,13 @@ public sealed class OffsetValidatorEngine
             {
                 parentAddr = authAddr;
             }
-            else if (provisionalAddresses.TryGetValue(node.ParentId, out var provAddr) && provAddr != IntPtr.Zero)
+            else if (allowRecovery && provisionalAddresses.TryGetValue(node.ParentId, out var provAddr) && provAddr != IntPtr.Zero)
             {
                 parentAddr = provAddr;
                 isParentProvisional = true;
             }
 
-            if (parentAddr == IntPtr.Zero || !reader.IsValidAddress(parentAddr))
+            if (parentAddr == IntPtr.Zero || !reader.IsValidAddress(parentAddr) || !reader.TryRead<byte>(parentAddr, out _))
             {
                 result.Status = ValidationStatus.BLOCKED;
                 result.ErrorMessage = $"Blocked: Parent node '{node.ParentId}' is not valid or recovered.";
@@ -92,9 +93,9 @@ public sealed class OffsetValidatorEngine
                     resolvedAddresses[node.Id] = result.ResolvedAddress;
                 }
             }
-            else
+            else if (allowRecovery)
             {
-                // Node is BROKEN at configured offset. Attempt bounded recovery.
+                // Node is BROKEN / NEEDS_MANUAL_PROOF at configured offset. Attempt bounded recovery only in recover mode.
                 if (_strategies.TryGetValue(node.Kind, out var strategy))
                 {
                     var candidates = strategy.SearchCandidates(reader, parentAddr, node, context);
@@ -102,34 +103,41 @@ public sealed class OffsetValidatorEngine
 
                     if (candidates.Count == 1)
                     {
-                        var best = candidates[0];
-                        result.BestCandidate = best;
-                        result.Status = best.Confidence switch
-                        {
-                            Confidence.HIGH => ValidationStatus.CANDIDATE_FOUND,
-                            Confidence.MEDIUM => ValidationStatus.NEEDS_MANUAL_PROOF,
-                            _ => ValidationStatus.NEEDS_MANUAL_PROOF
-                        };
-                        provisionalAddresses[node.Id] = best.TargetAddress;
-                    }
-                    else if (candidates.Count > 1)
-                    {
-                        var topScore = candidates[0].Score;
-                        var secondScore = candidates[1].Score;
+                        var single = candidates[0];
+                        result.BestCandidate = single;
 
-                        // Check if top candidate is distinct and confident
-                        if (topScore >= 90 && (topScore - secondScore >= 20))
+                        if (single.Confidence == Confidence.HIGH)
                         {
-                            var best = candidates[0];
-                            result.BestCandidate = best;
                             result.Status = ValidationStatus.CANDIDATE_FOUND;
-                            provisionalAddresses[node.Id] = best.TargetAddress;
+                            provisionalAddresses[node.Id] = single.TargetAddress;
                         }
                         else
                         {
-                            result.BestCandidate = candidates[0];
+                            result.Status = ValidationStatus.NEEDS_MANUAL_PROOF;
+                            // Do NOT apply weak candidate provisionally
+                        }
+                    }
+                    else if (candidates.Count > 1)
+                    {
+                        var topCandidate = candidates[0];
+                        var secondCandidate = candidates[1];
+
+                        // A candidate may be used automatically as a provisional offset ONLY when:
+                        // - BestCandidate.Confidence == HIGH
+                        // - Meaningful score separation (>= 20)
+                        // - Not ambiguous
+                        if (topCandidate.Confidence == Confidence.HIGH && (topCandidate.Score - secondCandidate.Score >= 20))
+                        {
+                            result.BestCandidate = topCandidate;
+                            result.Status = ValidationStatus.CANDIDATE_FOUND;
+                            provisionalAddresses[node.Id] = topCandidate.TargetAddress;
+                        }
+                        else
+                        {
+                            result.BestCandidate = null;
                             result.Status = ValidationStatus.AMBIGUOUS;
-                            provisionalAddresses[node.Id] = candidates[0].TargetAddress;
+                            result.ErrorMessage = $"Multiple competing candidates found ({candidates.Count}) with insufficient score separation. Manual proof required.";
+                            // Do NOT apply ambiguous candidate provisionally
                         }
                     }
                     else
@@ -170,7 +178,8 @@ public sealed class OffsetValidatorEngine
             {
                 var gameStatesAddr = baseAddr + gsOffset + offsetDataValue + 0x04;
                 if (reader.TryRead<GameStateStaticOffset>(gameStatesAddr, out var staticObj) &&
-                    reader.IsValidAddress(staticObj.GameState))
+                    reader.IsValidAddress(staticObj.GameState) &&
+                    reader.TryRead<byte>(staticObj.GameState, out _))
                 {
                     result.Status = ValidationStatus.VALID;
                     result.ResolvedAddress = staticObj.GameState;
@@ -190,7 +199,8 @@ public sealed class OffsetValidatorEngine
 
         // 2. Direct GameState pointer check if synthetic or pre-resolved at base
         if (reader.TryRead<GameStateStaticOffset>(baseAddr, out var directStatic) &&
-            reader.IsValidAddress(directStatic.GameState))
+            reader.IsValidAddress(directStatic.GameState) &&
+            reader.TryRead<byte>(directStatic.GameState, out _))
         {
             result.Status = ValidationStatus.VALID;
             result.ResolvedAddress = directStatic.GameState;
@@ -269,15 +279,16 @@ public sealed class OffsetValidatorEngine
             {
                 if (reader.TryRead<IntPtr>(parentAddr + offset, out var ptr) &&
                     ptr != IntPtr.Zero &&
-                    reader.IsValidAddress(ptr))
+                    reader.IsValidAddress(ptr) &&
+                    reader.TryRead<byte>(ptr, out _))
                 {
                     result.Status = ValidationStatus.VALID;
                     result.ResolvedAddress = ptr;
                     result.ExtractedValue = $"0x{ptr.ToInt64():X}";
                     result.Evidence.Add(new EvidenceRecord
                     {
-                        RuleName = "ValidAddress",
-                        Description = $"Pointer 0x{ptr.ToInt64():X} at +0x{offset:X} is valid user memory",
+                        RuleName = "ValidReadableAddress",
+                        Description = $"Pointer 0x{ptr.ToInt64():X} at +0x{offset:X} points to valid readable memory",
                         ScoreDelta = 50,
                         Passed = true,
                         IsIndependentValidator = true
@@ -286,7 +297,7 @@ public sealed class OffsetValidatorEngine
                 else
                 {
                     result.Status = ValidationStatus.BROKEN;
-                    result.ErrorMessage = $"Invalid or null pointer at +0x{offset:X}";
+                    result.ErrorMessage = $"Invalid, null, or unreadable pointer at +0x{offset:X}";
                 }
                 break;
             }
@@ -301,13 +312,18 @@ public sealed class OffsetValidatorEngine
                     var eVal = (ulong)end.ToInt64();
                     var cVal = (ulong)cap.ToInt64();
 
-                    if (bVal != 0 && eVal != 0 && bVal <= eVal && (cVal == 0 || eVal <= cVal) && reader.IsValidAddress(begin))
+                    if (bVal != 0 && eVal != 0 && bVal <= eVal && (cVal == 0 || eVal <= cVal) &&
+                        reader.IsValidAddress(begin) &&
+                        reader.TryRead<byte>(begin, out _))
                     {
                         var byteSize = (long)(eVal - bVal);
                         var count = byteSize / 8;
 
                         IntPtr target = begin;
-                        if (count > 0 && reader.TryRead<IntPtr>(begin, out var firstElem) && reader.IsValidAddress(firstElem))
+                        if (count > 0 && reader.TryRead<IntPtr>(begin, out var firstElem) &&
+                            firstElem != IntPtr.Zero &&
+                            reader.IsValidAddress(firstElem) &&
+                            reader.TryRead<byte>(firstElem, out _))
                         {
                             target = firstElem;
                         }
@@ -362,16 +378,18 @@ public sealed class OffsetValidatorEngine
                     }
                     else if (val >= 0 && val <= 2_000_000_000)
                     {
-                        result.Status = ValidationStatus.VALID;
+                        // Without explicit ground truth, plausible numeric range is not sufficient to declare VALID
+                        result.Status = ValidationStatus.NEEDS_MANUAL_PROOF;
                         result.ResolvedAddress = parentAddr + offset;
                         result.ExtractedValue = val;
+                        result.ErrorMessage = $"Plausible numeric value {val:N0} at +0x{offset:X} requires explicit verification (--gold <amount>).";
                         result.Evidence.Add(new EvidenceRecord
                         {
                             RuleName = "PlausibleNumericValue",
-                            Description = $"Numeric value {val:N0} at +0x{offset:X} is within valid bounds [0..2,000,000,000]",
-                            ScoreDelta = 50,
+                            Description = $"Numeric value {val:N0} at +0x{offset:X} is within valid bounds [0..2,000,000,000] (unverified without --gold)",
+                            ScoreDelta = 25,
                             Passed = true,
-                            IsIndependentValidator = true
+                            IsIndependentValidator = false
                         });
                         break;
                     }

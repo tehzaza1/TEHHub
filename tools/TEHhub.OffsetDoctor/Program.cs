@@ -40,17 +40,31 @@ for (int i = 0; i < args.Length; i++)
     }
 }
 
-var targetProcess = ProcessDiscovery.FindTargetProcess(explicitPid);
-if (targetProcess == null)
+var discovery = ProcessDiscovery.DiscoverTargetProcess(explicitPid);
+if (discovery.Status == ProcessDiscoveryStatus.MultipleMatches)
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("Multiple matching Path of Exile processes detected:");
+    foreach (var p in discovery.MatchingProcesses)
+    {
+        Console.WriteLine($"  * PID {p.Id}: {p.ProcessName} ({p.MainWindowTitle})");
+    }
+    Console.ResetColor();
+    Console.WriteLine("Please specify which process to attach to using --pid <pid>.");
+    return 1;
+}
+
+if (discovery.Status != ProcessDiscoveryStatus.Success || discovery.SelectedProcess == null)
 {
     Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("Error: Could not find running Path of Exile process.");
+    Console.WriteLine($"Error: {discovery.ErrorMessage ?? "Could not find running Path of Exile process."}");
     Console.ResetColor();
     Console.WriteLine("Searched process names: " + string.Join(", ", ProcessDiscovery.KnownProcessNames));
     Console.WriteLine("Please launch Path of Exile 2 or specify PID using --pid <pid>.");
     return 1;
 }
 
+var targetProcess = discovery.SelectedProcess;
 Console.WriteLine($"Found Target Process: {targetProcess.ProcessName} (PID: {targetProcess.Id})");
 
 using var reader = new WindowsProcessMemoryReader(targetProcess.Id);

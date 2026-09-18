@@ -51,6 +51,32 @@ public sealed class SyntheticMemoryReader : IProcessMemoryReader
         _blocks.Remove((ulong)address.ToInt64());
     }
 
+    public Dictionary<ulong, byte[]> SnapshotAllBlocks()
+    {
+        var snapshot = new Dictionary<ulong, byte[]>();
+        foreach (var (addr, buf) in _blocks)
+        {
+            var copy = new byte[buf.Length];
+            Buffer.BlockCopy(buf, 0, copy, 0, buf.Length);
+            snapshot[addr] = copy;
+        }
+        return snapshot;
+    }
+
+    public bool MemoryMatchesSnapshot(Dictionary<ulong, byte[]> snapshot)
+    {
+        if (snapshot.Count != _blocks.Count) return false;
+
+        foreach (var (addr, buf) in _blocks)
+        {
+            if (!snapshot.TryGetValue(addr, out var origBuf)) return false;
+            if (buf.Length != origBuf.Length) return false;
+            if (!buf.AsSpan().SequenceEqual(origBuf)) return false;
+        }
+
+        return true;
+    }
+
     public unsafe void Write<T>(IntPtr address, T value) where T : unmanaged
     {
         var addr = (ulong)address.ToInt64();

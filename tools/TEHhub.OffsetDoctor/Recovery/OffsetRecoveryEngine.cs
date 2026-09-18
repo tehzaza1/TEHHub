@@ -19,7 +19,8 @@ public sealed class OffsetRecoveryEngine
             AllNodes = manifestNodes
         };
 
-        var results = _validator.ValidateChain(reader, manifestNodes, context);
+        // Strict validate mode: allowRecovery = false
+        var results = _validator.ValidateChain(reader, manifestNodes, context, allowRecovery: false);
 
         return new OffsetDoctorReport
         {
@@ -41,7 +42,7 @@ public sealed class OffsetRecoveryEngine
 
         var bestCandidates = new Dictionary<string, CandidateResult>();
 
-        // Iterative refinement: Search for candidates and apply them provisionally to test downstream nodes
+        // Iterative refinement: Search for candidates and apply them provisionally ONLY when Confidence == HIGH
         bool changed;
         int maxPasses = 5;
         int currentPass = 0;
@@ -52,11 +53,11 @@ public sealed class OffsetRecoveryEngine
             changed = false;
             currentPass++;
 
-            lastResults = _validator.ValidateChain(reader, manifestNodes, context);
+            lastResults = _validator.ValidateChain(reader, manifestNodes, context, allowRecovery: true);
 
             foreach (var r in lastResults)
             {
-                if (r.BestCandidate != null && (r.Status == ValidationStatus.CANDIDATE_FOUND || r.Status == ValidationStatus.NEEDS_MANUAL_PROOF || r.Status == ValidationStatus.AMBIGUOUS))
+                if (r.BestCandidate != null && r.Status == ValidationStatus.CANDIDATE_FOUND && r.BestCandidate.Confidence == Confidence.HIGH)
                 {
                     bestCandidates[r.NodeId] = r.BestCandidate;
 
@@ -69,8 +70,7 @@ public sealed class OffsetRecoveryEngine
             }
         } while (changed && currentPass < maxPasses);
 
-        // Build the final comprehensive results:
-        // Keep original configured default offset on broken nodes and attach the best candidate + candidate status
+        // Build the final comprehensive results
         var finalResults = new List<ValidationResult>();
         foreach (var node in manifestNodes)
         {
@@ -79,7 +79,6 @@ public sealed class OffsetRecoveryEngine
 
             if (bestCandidates.TryGetValue(node.Id, out var candidate))
             {
-                // If a candidate was recovered for this node
                 var recoveredRes = new ValidationResult
                 {
                     NodeId = node.Id,
@@ -89,12 +88,7 @@ public sealed class OffsetRecoveryEngine
                     ExtractedValue = candidate.ExtractedValue ?? $"0x{candidate.TargetAddress.ToInt64():X}",
                     BestCandidate = candidate,
                     Candidates = res.Candidates.Count > 0 ? res.Candidates : [candidate],
-                    Status = candidate.Confidence switch
-                    {
-                        Confidence.HIGH => ValidationStatus.CANDIDATE_FOUND,
-                        Confidence.MEDIUM => ValidationStatus.NEEDS_MANUAL_PROOF,
-                        _ => ValidationStatus.NEEDS_MANUAL_PROOF
-                    },
+                    Status = ValidationStatus.CANDIDATE_FOUND,
                     IsProvisional = res.IsProvisional
                 };
                 finalResults.Add(recoveredRes);
@@ -109,7 +103,8 @@ public sealed class OffsetRecoveryEngine
         foreach (var (nodeId, candidate) in bestCandidates)
         {
             var node = manifestNodes.First(n => n.Id == nodeId);
-            if (candidate.Offset != node.DefaultOffset)
+            // Actionable recommendations only for HIGH confidence non-ambiguous moved candidates
+            if (candidate.Confidence == Confidence.HIGH && candidate.Offset != node.DefaultOffset)
             {
                 recommendations.Add(new OffsetRecommendation
                 {

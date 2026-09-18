@@ -2,6 +2,21 @@ namespace TEHhub.OffsetDoctor.Process;
 
 using System.Diagnostics;
 
+public enum ProcessDiscoveryStatus
+{
+    Success,
+    MultipleMatches,
+    NotFound
+}
+
+public sealed class ProcessDiscoveryResult
+{
+    public ProcessDiscoveryStatus Status { get; init; }
+    public Process? SelectedProcess { get; init; }
+    public List<Process> MatchingProcesses { get; init; } = [];
+    public string? ErrorMessage { get; init; }
+}
+
 public static class ProcessDiscovery
 {
     public static readonly string[] KnownProcessNames =
@@ -17,7 +32,7 @@ public static class ProcessDiscovery
         "PathOfExileEGS"
     ];
 
-    public static Process? FindTargetProcess(int? explicitPid = null)
+    public static ProcessDiscoveryResult DiscoverTargetProcess(int? explicitPid = null)
     {
         if (explicitPid.HasValue)
         {
@@ -26,27 +41,62 @@ public static class ProcessDiscovery
                 var proc = System.Diagnostics.Process.GetProcessById(explicitPid.Value);
                 if (!proc.HasExited)
                 {
-                    return proc;
+                    return new ProcessDiscoveryResult
+                    {
+                        Status = ProcessDiscoveryStatus.Success,
+                        SelectedProcess = proc,
+                        MatchingProcesses = [proc]
+                    };
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                return new ProcessDiscoveryResult
+                {
+                    Status = ProcessDiscoveryStatus.NotFound,
+                    ErrorMessage = $"Could not access process with PID {explicitPid.Value}: {ex.Message}"
+                };
             }
+
+            return new ProcessDiscoveryResult
+            {
+                Status = ProcessDiscoveryStatus.NotFound,
+                ErrorMessage = $"Process with PID {explicitPid.Value} has already exited."
+            };
         }
 
-        var allProcesses = System.Diagnostics.Process.GetProcesses();
-        foreach (var knownName in KnownProcessNames)
+        var matching = FindAllMatchingProcesses();
+        if (matching.Count == 0)
         {
-            var match = allProcesses.FirstOrDefault(p =>
-                string.Equals(p.ProcessName, knownName, StringComparison.OrdinalIgnoreCase) && !p.HasExited);
-            if (match != null)
+            return new ProcessDiscoveryResult
             {
-                return match;
-            }
+                Status = ProcessDiscoveryStatus.NotFound,
+                ErrorMessage = "No running Path of Exile 2 process was discovered."
+            };
         }
 
-        return null;
+        if (matching.Count == 1)
+        {
+            return new ProcessDiscoveryResult
+            {
+                Status = ProcessDiscoveryStatus.Success,
+                SelectedProcess = matching[0],
+                MatchingProcesses = matching
+            };
+        }
+
+        return new ProcessDiscoveryResult
+        {
+            Status = ProcessDiscoveryStatus.MultipleMatches,
+            MatchingProcesses = matching,
+            ErrorMessage = $"Multiple ({matching.Count}) matching Path of Exile processes found. Please specify target using --pid <pid>."
+        };
+    }
+
+    public static Process? FindTargetProcess(int? explicitPid = null)
+    {
+        var result = DiscoverTargetProcess(explicitPid);
+        return result.Status == ProcessDiscoveryStatus.Success ? result.SelectedProcess : null;
     }
 
     public static List<Process> FindAllMatchingProcesses()
