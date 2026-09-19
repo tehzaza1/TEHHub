@@ -24,6 +24,11 @@ namespace AutoExile2.Systems
         public const float WorldToGrid = 1f / GridToWorld;
 
         /// <summary>
+        /// Minimum terrain value considered safe for navigation. Values 1-2 are wall-fringe cells.
+        /// </summary>
+        public const int MinNavigationWalkable = 3;
+
+        /// <summary>
         /// Conservative network bubble radius in grid units.
         /// Entities enter the client entity list at ~200-215 grid; 180 is a safe "seen" threshold.
         /// </summary>
@@ -131,7 +136,62 @@ namespace AutoExile2.Systems
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsWalkableCell(byte[]? walkableData, int bytesPerRow, int gx, int gy)
         {
-            return GetCellValue(walkableData, bytesPerRow, gx, gy) >= 3;
+            return GetCellValue(walkableData, bytesPerRow, gx, gy) >= MinNavigationWalkable;
+        }
+
+        /// <summary>
+        /// Checks whether one adjacent grid step is traversable without clipping through a blocked corner.
+        /// Diagonal movement requires both orthogonal side cells to be walkable as well.
+        /// </summary>
+        public static bool CanTraverseStep(
+            byte[]? walkableData,
+            int bytesPerRow,
+            int fromX,
+            int fromY,
+            int toX,
+            int toY,
+            int minWalkable = MinNavigationWalkable,
+            HashSet<Vector2>? dynamicObstacles = null)
+        {
+            int dx = toX - fromX;
+            int dy = toY - fromY;
+            if (Math.Abs(dx) > 1 || Math.Abs(dy) > 1 || (dx == 0 && dy == 0))
+            {
+                return false;
+            }
+
+            if (IsBlockedCell(walkableData, bytesPerRow, toX, toY, minWalkable, dynamicObstacles))
+            {
+                return false;
+            }
+
+            if (dx != 0 && dy != 0)
+            {
+                if (IsBlockedCell(walkableData, bytesPerRow, fromX + dx, fromY, minWalkable, dynamicObstacles) ||
+                    IsBlockedCell(walkableData, bytesPerRow, fromX, fromY + dy, minWalkable, dynamicObstacles))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsBlockedCell(
+            byte[]? walkableData,
+            int bytesPerRow,
+            int x,
+            int y,
+            int minWalkable,
+            HashSet<Vector2>? dynamicObstacles)
+        {
+            if (GetCellValue(walkableData, bytesPerRow, x, y) < minWalkable)
+            {
+                return true;
+            }
+
+            return dynamicObstacles != null && dynamicObstacles.Contains(new Vector2(x, y));
         }
 
         /// <summary>
@@ -194,18 +254,19 @@ namespace AutoExile2.Systems
             int gx = Math.Clamp((int)gridEnd.X, 0, cols - 1);
             int gy = Math.Clamp((int)gridEnd.Y, 0, rows - 1);
 
-            // Spiral search fallback if start or goal is on wall boundary/fringe
-            if (GetCellValue(walkableData, bytesPerRow, sx, sy) <= 1)
+            // Spiral search fallback if start or goal is on a wall/fringe cell.
+            if (GetCellValue(walkableData, bytesPerRow, sx, sy) < MinNavigationWalkable)
             {
                 (sx, sy) = FindNearestWalkable(walkableData, bytesPerRow, sx, sy, rows, cols);
             }
 
-            if (GetCellValue(walkableData, bytesPerRow, gx, gy) <= 1)
+            if (GetCellValue(walkableData, bytesPerRow, gx, gy) < MinNavigationWalkable)
             {
                 (gx, gy) = FindNearestWalkable(walkableData, bytesPerRow, gx, gy, rows, cols);
             }
 
-            if (GetCellValue(walkableData, bytesPerRow, sx, sy) <= 1 || GetCellValue(walkableData, bytesPerRow, gx, gy) <= 1)
+            if (GetCellValue(walkableData, bytesPerRow, sx, sy) < MinNavigationWalkable ||
+                GetCellValue(walkableData, bytesPerRow, gx, gy) < MinNavigationWalkable)
             {
                 return new List<Vector2>();
             }
@@ -247,11 +308,20 @@ namespace AutoExile2.Systems
                         continue;
                     }
 
-                    int cellValue = GetCellValue(walkableData, bytesPerRow, nx, ny);
-                    if (cellValue <= 1 || (dynamicObstacles != null && dynamicObstacles.Contains(new Vector2(nx, ny))))
+                    if (!CanTraverseStep(
+                            walkableData,
+                            bytesPerRow,
+                            cx,
+                            cy,
+                            nx,
+                            ny,
+                            MinNavigationWalkable,
+                            dynamicObstacles))
                     {
                         continue;
                     }
+
+                    int cellValue = GetCellValue(walkableData, bytesPerRow, nx, ny);
 
                     // AutoExile weighted cost formula: prefers open terrain over narrow/fringe edges
                     float moveCost = flatCost ? baseCost : baseCost * (6 - Math.Min(cellValue, 5));
@@ -401,38 +471,53 @@ namespace AutoExile2.Systems
             int sy = ay < by ? 1 : -1;
             int err = dx - dy;
 
+            if (ax < 0 || ax >= cols || ay < 0 || ay >= rows ||
+                bx < 0 || bx >= cols || by < 0 || by >= rows)
+            {
+                return false;
+            }
+
+            if (IsBlockedCell(walkableData, bytesPerRow, ax, ay, minWalkable, dynamicObstacles))
+            {
+                return false;
+            }
+
             int cx = ax;
             int cy = ay;
 
             while (cx != bx || cy != by)
             {
-                if (cx < 0 || cx >= cols || cy < 0 || cy >= rows)
-                {
-                    return false;
-                }
-
-                if (GetCellValue(walkableData, bytesPerRow, cx, cy) < minWalkable)
-                {
-                    return false;
-                }
-
-                if (dynamicObstacles != null && dynamicObstacles.Contains(new Vector2(cx, cy)))
-                {
-                    return false;
-                }
-
+                int nextX = cx;
+                int nextY = cy;
                 int e2 = 2 * err;
+
                 if (e2 > -dy)
                 {
                     err -= dy;
-                    cx += sx;
+                    nextX += sx;
                 }
 
                 if (e2 < dx)
                 {
                     err += dx;
-                    cy += sy;
+                    nextY += sy;
                 }
+
+                if (!CanTraverseStep(
+                        walkableData,
+                        bytesPerRow,
+                        cx,
+                        cy,
+                        nextX,
+                        nextY,
+                        minWalkable,
+                        dynamicObstacles))
+                {
+                    return false;
+                }
+
+                cx = nextX;
+                cy = nextY;
             }
 
             return true;
@@ -466,7 +551,8 @@ namespace AutoExile2.Systems
 
                         int nx = x + dx;
                         int ny = y + dy;
-                        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && GetCellValue(walkableData, bytesPerRow, nx, ny) >= 2)
+                        if (nx >= 0 && nx < cols && ny >= 0 && ny < rows &&
+                            GetCellValue(walkableData, bytesPerRow, nx, ny) >= MinNavigationWalkable)
                         {
                             return (nx, ny);
                         }

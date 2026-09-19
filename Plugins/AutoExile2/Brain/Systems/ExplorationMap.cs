@@ -127,6 +127,12 @@ namespace AutoExile2.Systems
                 py = nearest.y;
             }
 
+            if (Pathfinding.GetCellValue(walkableData, bytesPerRow, px, py) < MinWalkableValue)
+            {
+                this.LastAction = "No safe walkable start cell found";
+                return;
+            }
+
             var blobCells = this.FloodFill(walkableData, bytesPerRow, px, py, rows, cols);
             if (blobCells.Count == 0)
             {
@@ -463,7 +469,17 @@ namespace AutoExile2.Systems
 
                     if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
 
-                    if (Pathfinding.GetCellValue(walkableData, bytesPerRow, nx, ny) < MinWalkableValue) continue;
+                    if (!Pathfinding.CanTraverseStep(
+                            walkableData,
+                            bytesPerRow,
+                            cell.X,
+                            cell.Y,
+                            nx,
+                            ny,
+                            MinWalkableValue))
+                    {
+                        continue;
+                    }
 
                     var neighbor = new Vector2i(nx, ny);
                     if (visited.Add(neighbor))
