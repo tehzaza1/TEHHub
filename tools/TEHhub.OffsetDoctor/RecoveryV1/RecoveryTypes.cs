@@ -62,7 +62,10 @@ public sealed record RecoveryCandidate(
     ImmutableArray<RecoveryEvidenceRecord> Evidence,
     ImmutableArray<RecoveryEvidenceRecord> ValidationEvidence,
     ImmutableArray<CandidateRejection> RejectionReasons,
-    CandidateDisposition Disposition);
+    CandidateDisposition Disposition)
+{
+    public ImmutableArray<int> ChildPath { get; init; } = [];
+}
 
 public sealed record CandidateEliminationStage(
     EliminationStage Stage,
@@ -87,9 +90,20 @@ public sealed record FrozenDecision(
     RecoveryTerminalResult TerminalResult,
     ImmutableArray<string> SurvivorIds,
     long? Proposal,
-    string EvidenceDigest);
+    string EvidenceDigest)
+{
+    public ImmutableArray<int> ChildPath { get; init; } = [];
+    public ImmutableArray<int> ProposedChildPath { get; init; } = [];
+}
 
-public sealed record RecoveryCurrentValidation(long Value, ImmutableArray<RecoveryEvidenceRecord> Evidence, bool Complete);
+public sealed record ChildPathComparison(
+    ImmutableArray<int> CurrentPath, ImmutableArray<ImmutableArray<int>> HistoricalPaths,
+    bool? ProposalMatchesCurrent, bool? ProposalMatchesHistory);
+
+public sealed record RecoveryCurrentValidation(long Value, ImmutableArray<RecoveryEvidenceRecord> Evidence, bool Complete)
+{
+    public ImmutableArray<int> ChildPath { get; init; } = [];
+}
 
 public sealed record HistoricalComparison(
     long? CurrentValue, ImmutableArray<long> HistoricalValues,
@@ -111,6 +125,7 @@ public sealed record RecoveryResult(
     string? Detail)
 {
     public bool Applied => false;
+    public ChildPathComparison? PathComparison { get; init; }
 }
 
 public sealed record RecoveryReport(

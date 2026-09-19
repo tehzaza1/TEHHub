@@ -47,6 +47,18 @@ public static class RecoveryConsoleReportWriter
                     $"rejections={string.Join(",", candidate.RejectionReasons.Select(r => $"{r.Predicate}:{r.Reason}"))}");
             writer.WriteLine($"  survivors: {string.Join(", ", result.Decision.SurvivorIds)}");
             writer.WriteLine($"  proposal: {(result.Decision.Proposal is long proposal ? $"0x{proposal:X}" : "none")}");
+            if (result.Target.Id == Od144RuneshapePanelRecovery.TargetId)
+            {
+                if (result.CurrentValidation is { } currentPathValidation)
+                    writer.WriteLine($"  configured child path: [{string.Join(",", currentPathValidation.ChildPath)}]");
+                writer.WriteLine($"  derived child path: {(result.Decision.ChildPath.IsEmpty ? "none" : $"[{string.Join(",", result.Decision.ChildPath)}]")}");
+                writer.WriteLine($"  path proposal: {(result.Decision.ProposedChildPath.IsEmpty ? "none" : $"[{string.Join(",", result.Decision.ProposedChildPath)}]")}");
+                foreach (var candidate in result.Discovery.CandidateLedger.Where(c => c.Disposition == CandidateDisposition.Survivor))
+                    writer.WriteLine($"  semantic survivor {candidate.Id}: [{string.Join(",", candidate.ChildPath)}]");
+                if (result.PathComparison is { } pathComparison)
+                    writer.WriteLine($"  post-result path comparison: current=[{string.Join(",", pathComparison.CurrentPath)}], " +
+                        $"history={string.Join(";", pathComparison.HistoricalPaths.Select(p => $"[{string.Join(",", p)}]"))}");
+            }
             writer.WriteLine($"  post-result comparison: {(result.PostResultComparison is null ? "none" : $"current={result.PostResultComparison.CurrentValue}, history={string.Join(",", result.PostResultComparison.HistoricalValues)}")}");
             writer.WriteLine($"  digest: {result.Decision.EvidenceDigest}");
             if (result.Detail is not null) writer.WriteLine($"  detail: {result.Detail}");
