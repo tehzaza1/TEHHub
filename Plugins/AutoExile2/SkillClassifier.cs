@@ -211,15 +211,16 @@ namespace AutoExile2
                     break;
 
                 case CategoryMinion:
-                    slot.Role = SkillRole.TotemOrMinion;
-                    slot.Priority = 5;
-                    slot.MinCastIntervalMs = 6000;
-                    slot.HoldDurationMs = 150;
+                    // PoE2 persistent minions are maintained by the game; keep them visible in detection/UI
+                    // but never configure them as an automated cast.
+                    slot.Role = SkillRole.Disabled;
+                    slot.Priority = 0;
+                    slot.MinCastIntervalMs = 500;
+                    slot.HoldDurationMs = 80;
                     slot.TargetFilter = SkillTargetFilter.Any;
                     slot.OnlyOnLowHp = false;
-                    slot.MinNearbyEnemies = 1;
-                    slot.MaxTargetRange = 60f;
-                    slot.MaxMinionCount = 3;
+                    slot.MinNearbyEnemies = 0;
+                    slot.MaxTargetRange = 0f;
                     slot.OnlyWhenBuffMissing = false;
                     break;
 

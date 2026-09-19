@@ -92,10 +92,9 @@ const CATEGORY_PRESETS = {
     label: '🗣️ Warcry', color: '#ec4899', bg: 'rgba(236,72,153,0.15)'
   },
   Minion: {
-    role: 'TotemOrMinion', priority: 5, interval: 6000, hold: 150, filter: 'Any',
-    lowHp: false, lowHpThresh: 60, minEnemies: 1, maxRange: 60,
-    maxMinions: 3,
-    label: '🧟 Minion', color: '#06b6d4', bg: 'rgba(6,182,212,0.15)'
+    role: 'Disabled', priority: 0, interval: 500, hold: 80, filter: 'Any',
+    lowHp: false, lowHpThresh: 60, minEnemies: 0, maxRange: 0,
+    label: '🧟 Minion (Auto-managed)', color: '#06b6d4', bg: 'rgba(6,182,212,0.15)'
   },
   Movement: {
     role: 'Disabled', priority: 0, interval: 500, hold: 80, filter: 'Any',
@@ -126,7 +125,7 @@ let systemMetadata = {
   roles: [
     { id: "EnemyTargeted", label: "Enemy Targeted (Direct / Single)", desc: "Aim cursor directly at target monster" },
     { id: "PackTargeted", label: "Pack Targeted (AoE / Cluster)", desc: "Aim cursor at pack center" },
-    { id: "TotemOrMinion", label: "Totem / Minion Deploy", desc: "Deploy totem or minion toward enemies" },
+    { id: "TotemOrMinion", label: "Totem Deploy", desc: "Deploy a totem toward enemies; PoE2 minions are auto-managed" },
     { id: "SelfBuffGuard", label: "Self Buff / Guard", desc: "Cast on self without moving cursor" },
     { id: "CorpseTargeted", label: "Corpse Targeted", desc: "Aim at nearest corpse" },
     { id: "Culler", label: "Culler (Focused Fire ahead of Host)", desc: "Aims in front of Leader when close to host" },
@@ -917,7 +916,6 @@ function addSkillSlot(listName, defaultCat = 'Attack', defaultButton = 'RightSho
     OnlyWhenBuffMissing: catDef.onlyWhenBuffMissing || false,
     BuffDebuffName: "",
     MaxTotemCount: catDef.maxTotems || 1,
-    MaxMinionCount: catDef.maxMinions || 3,
     CullerAimDistance: catDef.cullerAimDist || 75,
     CullerStartAttackDistance: catDef.cullerStartDist || 35,
     CullerRequireMonsters: catDef.cullerRequireMonsters !== undefined ? catDef.cullerRequireMonsters : false
@@ -951,7 +949,6 @@ function addPresetSkill(listName, skillName, cat, button, cooldownMs, onlyBuffMi
     OnlyWhenBuffMissing: onlyBuffMissing !== undefined ? onlyBuffMissing : (catDef.onlyWhenBuffMissing || false),
     BuffDebuffName: "",
     MaxTotemCount: catDef.maxTotems || 1,
-    MaxMinionCount: catDef.maxMinions || 3,
     CullerAimDistance: catDef.cullerAimDist || 75,
     CullerStartAttackDistance: catDef.cullerStartDist || 35,
     CullerRequireMonsters: catDef.cullerRequireMonsters !== undefined ? catDef.cullerRequireMonsters : false
@@ -1007,7 +1004,6 @@ function addSkillFromDetected(skillName, cat, listName = 'Skills') {
     OnlyWhenBuffMissing: catDef.onlyWhenBuffMissing || false,
     BuffDebuffName: "",
     MaxTotemCount: catDef.maxTotems || 1,
-    MaxMinionCount: catDef.maxMinions || 3,
     CullerAimDistance: catDef.cullerAimDist || 75,
     CullerStartAttackDistance: catDef.cullerStartDist || 35,
     CullerRequireMonsters: catDef.cullerRequireMonsters !== undefined ? catDef.cullerRequireMonsters : false
@@ -1048,7 +1044,6 @@ function onChangeCategory(listName, slotIndex, val) {
     if (cp.lowHpThresh !== undefined) currentSettings[listName][slotIndex].LowHpThresholdPercent = cp.lowHpThresh;
     if (cp.onlyWhenBuffMissing !== undefined) currentSettings[listName][slotIndex].OnlyWhenBuffMissing = cp.onlyWhenBuffMissing;
     if (cp.maxTotems !== undefined) currentSettings[listName][slotIndex].MaxTotemCount = cp.maxTotems;
-    if (cp.maxMinions !== undefined) currentSettings[listName][slotIndex].MaxMinionCount = cp.maxMinions;
     if (cp.cullerAimDist !== undefined) currentSettings[listName][slotIndex].CullerAimDistance = cp.cullerAimDist;
     if (cp.cullerStartDist !== undefined) currentSettings[listName][slotIndex].CullerStartAttackDistance = cp.cullerStartDist;
     if (cp.cullerRequireMonsters !== undefined) currentSettings[listName][slotIndex].CullerRequireMonsters = cp.cullerRequireMonsters;
