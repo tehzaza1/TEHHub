@@ -5,20 +5,12 @@ using TEHhub.OffsetDoctor.Baseline;
 using TEHhub.OffsetDoctor.Evidence;
 using TEHhub.OffsetDoctor.Manifest;
 using TEHhub.OffsetDoctor.Process;
-<<<<<<< HEAD
-=======
-using TEHhub.OffsetDoctor.Recovery;
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
 using TEHhub.OffsetDoctor.Validation;
 using TEHhub.OffsetDoctor.Watch;
 
 public sealed class OffsetDoctorGuiController
 {
-<<<<<<< HEAD
     private readonly OffsetDoctorValidationRunner _validationRunner = new();
-=======
-    private readonly OffsetRecoveryEngine _recoveryEngine = new();
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     private readonly BaselineCaptureEngine _captureEngine = new();
     private readonly BaselineComparisonEngine _comparisonEngine = new();
     private readonly OffsetWatchEngine _watchEngine = new();
@@ -115,40 +107,18 @@ public sealed class OffsetDoctorGuiController
 
     public bool ValidateNow(IProcessMemoryReader reader, OffsetDoctorGuiModel model)
     {
-<<<<<<< HEAD
-=======
-        bool ownsGate = false;
-        lock (_operationLock)
-        {
-            if (!model.IsBusy)
-            {
-                model.IsBusy = true;
-                model.OperationStatus = "Validating memory offsets...";
-                ownsGate = true;
-            }
-        }
-
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
         model.ErrorMessage = null;
         model.NoticeMessage = null;
 
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-<<<<<<< HEAD
-=======
-            if (ownsGate) EndOperation(model);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             return false;
         }
 
         try
         {
-<<<<<<< HEAD
             var report = _validationRunner.RunValidation(reader, gt);
-=======
-            var report = _recoveryEngine.RunValidation(reader, gt);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             PopulateRowsFromReport(report, model);
 
             model.LastRunTimestampUtc = report.TimestampUtc;
@@ -161,16 +131,6 @@ public sealed class OffsetDoctorGuiController
             model.ErrorMessage = $"Validation failed: {ex.Message}";
             return false;
         }
-<<<<<<< HEAD
-=======
-        finally
-        {
-            if (ownsGate)
-            {
-                EndOperation(model);
-            }
-        }
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     }
 
     public bool WatchUi(
@@ -181,30 +141,12 @@ public sealed class OffsetDoctorGuiController
         string? targetFilter = null,
         CancellationToken cancellationToken = default)
     {
-<<<<<<< HEAD
-=======
-        bool ownsGate = false;
-        lock (_operationLock)
-        {
-            if (!model.IsBusy)
-            {
-                model.IsBusy = true;
-                model.OperationStatus = "Watching UI targets...";
-                ownsGate = true;
-            }
-        }
-
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
         model.ErrorMessage = null;
         model.NoticeMessage = null;
 
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-<<<<<<< HEAD
-=======
-            if (ownsGate) EndOperation(model);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             return false;
         }
 
@@ -235,13 +177,8 @@ public sealed class OffsetDoctorGuiController
 
             model.LastWatchReport = watchReport;
 
-<<<<<<< HEAD
             // Also update the UI with validation-only report
             var validationReport = _validationRunner.RunValidation(reader, gt);
-=======
-            // Also update the UI with current validation report
-            var validationReport = _recoveryEngine.RunValidation(reader, gt);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             PopulateRowsFromReport(validationReport, model);
 
             model.LastRunTimestampUtc = watchReport.EndTimeUtc;
@@ -253,44 +190,16 @@ public sealed class OffsetDoctorGuiController
             model.ErrorMessage = $"Watch UI failed: {ex.Message}";
             return false;
         }
-<<<<<<< HEAD
-=======
-        finally
-        {
-            if (ownsGate)
-            {
-                EndOperation(model);
-            }
-        }
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     }
 
     public bool CaptureBaseline(IProcessMemoryReader reader, OffsetDoctorGuiModel model, string? outputPath = null)
     {
-<<<<<<< HEAD
-=======
-        bool ownsGate = false;
-        lock (_operationLock)
-        {
-            if (!model.IsBusy)
-            {
-                model.IsBusy = true;
-                model.OperationStatus = "Capturing baseline snapshot...";
-                ownsGate = true;
-            }
-        }
-
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
         model.ErrorMessage = null;
         model.NoticeMessage = null;
 
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-<<<<<<< HEAD
-=======
-            if (ownsGate) EndOperation(model);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             return false;
         }
 
@@ -303,13 +212,8 @@ public sealed class OffsetDoctorGuiController
             var snapshot = _captureEngine.Capture(reader, gt);
             BaselineSnapshot.SaveToFile(snapshot, targetPath);
 
-<<<<<<< HEAD
             // Also update the UI with validation-only rows
             var report = _validationRunner.RunValidation(reader, gt);
-=======
-            // Also update the UI with current validation rows
-            var report = _recoveryEngine.RunValidation(reader, gt);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             PopulateRowsFromReport(report, model);
 
             model.LastRunTimestampUtc = snapshot.TimestampUtc;
@@ -322,44 +226,16 @@ public sealed class OffsetDoctorGuiController
             model.ErrorMessage = $"Baseline capture failed: {ex.Message}";
             return false;
         }
-<<<<<<< HEAD
-=======
-        finally
-        {
-            if (ownsGate)
-            {
-                EndOperation(model);
-            }
-        }
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     }
 
     public bool CompareBaseline(IProcessMemoryReader reader, OffsetDoctorGuiModel model, string? inputPath = null)
     {
-<<<<<<< HEAD
-=======
-        bool ownsGate = false;
-        lock (_operationLock)
-        {
-            if (!model.IsBusy)
-            {
-                model.IsBusy = true;
-                model.OperationStatus = "Comparing memory against baseline...";
-                ownsGate = true;
-            }
-        }
-
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
         model.ErrorMessage = null;
         model.NoticeMessage = null;
 
         if (!TryBuildGroundTruth(model, out var gt, out var gtErr))
         {
             model.ErrorMessage = gtErr;
-<<<<<<< HEAD
-=======
-            if (ownsGate) EndOperation(model);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             return false;
         }
 
@@ -376,11 +252,7 @@ public sealed class OffsetDoctorGuiController
             }
 
             var baseline = BaselineSnapshot.LoadFromFile(sourcePath);
-<<<<<<< HEAD
             var report = _validationRunner.RunValidation(reader, gt);
-=======
-            var report = _recoveryEngine.RunValidation(reader, gt);
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
             var compResult = _comparisonEngine.Compare(baseline, report);
 
             PopulateRowsFromReport(report, model);
@@ -408,16 +280,6 @@ public sealed class OffsetDoctorGuiController
             model.ErrorMessage = $"Baseline comparison failed: {ex.Message}";
             return false;
         }
-<<<<<<< HEAD
-=======
-        finally
-        {
-            if (ownsGate)
-            {
-                EndOperation(model);
-            }
-        }
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     }
 
     public void ClearResults(OffsetDoctorGuiModel model)
@@ -443,11 +305,7 @@ public sealed class OffsetDoctorGuiController
         model.LastRunTimestampUtc = null;
     }
 
-<<<<<<< HEAD
     private static void PopulateRowsFromReport(OffsetDoctorValidationReport report, OffsetDoctorGuiModel model)
-=======
-    private static void PopulateRowsFromReport(OffsetDoctorReport report, OffsetDoctorGuiModel model)
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     {
         var manifestNodes = OffsetManifest.CreateFullRepositoryManifest();
         var manifestMap = manifestNodes.ToDictionary(n => n.Id, n => n);
