@@ -63,6 +63,10 @@ namespace AutoExile2.Systems
         }
 
         private DateTime nextAttackAllowed = DateTime.MinValue;
+        private readonly object defensiveInputGate = new();
+        private DateTime defensiveInputBusyUntil = DateTime.MinValue;
+        private int defensiveInputPriority = int.MinValue;
+        private bool defensiveInputIsEmergency;
         public DateTime LastLifeFlaskAt { get; set; } = DateTime.MinValue;
         public DateTime LastManaFlaskAt { get; set; } = DateTime.MinValue;
 
@@ -103,9 +107,27 @@ namespace AutoExile2.Systems
         public List<ActiveBuffInfo> ObservedTargetDebuffs { get; } = new();
 
         /// <summary>
-        /// Stops any currently active channeled skill and releases attack inputs.
+        /// Stops all combat/skill inputs, including an in-flight defensive hold.
+        /// Intended for lifecycle STOP/pause and hard invalid-state cleanup.
         /// </summary>
         public void StopAllChannels()
+        {
+            lock (this.defensiveInputGate)
+            {
+                if (this.activeChannelSlot != null)
+                {
+                    BotInput.StopChannel(this.activeChannelSlot.InputType, this.activeChannelSlot.Key);
+                    this.activeChannelSlot = null;
+                }
+
+                BotInput.ReleaseAllAttackInputs();
+                this.defensiveInputBusyUntil = DateTime.MinValue;
+                this.defensiveInputPriority = int.MinValue;
+                this.defensiveInputIsEmergency = false;
+            }
+        }
+
+        private void StopOffensiveInputs()
         {
             if (this.activeChannelSlot != null)
             {
@@ -113,7 +135,23 @@ namespace AutoExile2.Systems
                 this.activeChannelSlot = null;
             }
 
-            BotInput.ReleaseAllAttackInputs();
+            BotInput.ReleaseOffensiveAttackInputs();
+        }
+
+        private void ClearCombatSnapshot()
+        {
+            this.CurrentTargetId = 0;
+            this.CurrentTargetName = string.Empty;
+            this.CurrentTargetRarity = string.Empty;
+            this.NearbyHostileCount = 0;
+            this.WeightedDensity = 0;
+            this.PackCenter = Vector2.Zero;
+            this.ClosestHostileDistance = float.MaxValue;
+            this.ObservedTargetDebuffs.Clear();
+            this.LastSkillAction = "Idle";
+            this.lastTargetId = 0;
+            this.targetFocusStart = DateTime.MinValue;
+            this.deprioritizedTargets.Clear();
         }
 
         /// <summary>
@@ -212,23 +250,14 @@ namespace AutoExile2.Systems
             if (player == null || area == null || world == null)
             {
                 this.StopAllChannels();
-                this.CurrentTargetId = 0;
-                this.NearbyHostileCount = 0;
-                this.WeightedDensity = 0;
-                this.ClosestHostileDistance = float.MaxValue;
+                this.ClearCombatSnapshot();
                 return false;
             }
 
             if (!player.TryGetComponent<Render>(out var pRender))
             {
                 this.StopAllChannels();
-                this.CurrentTargetId = 0;
-                this.CurrentTargetName = string.Empty;
-                this.CurrentTargetRarity = string.Empty;
-                this.NearbyHostileCount = 0;
-                this.WeightedDensity = 0;
-                this.ClosestHostileDistance = float.MaxValue;
-                this.ObservedTargetDebuffs.Clear();
+                this.ClearCombatSnapshot();
                 return false;
             }
 
@@ -362,8 +391,17 @@ namespace AutoExile2.Systems
                 this.CurrentTargetId = 0;
                 this.CurrentTargetName = string.Empty;
                 this.CurrentTargetRarity = string.Empty;
+                this.PackCenter = Vector2.Zero;
                 this.ObservedTargetDebuffs.Clear();
-                this.StopAllChannels();
+
+                // PrepareDefensiveCast already stopped offense before a self skill fired.
+                // Do not immediately cancel that new defensive hold just because no monster target exists.
+                if (executedSelfSkill == null)
+                {
+                    this.StopOffensiveInputs();
+                    this.LastSkillAction = "Idle";
+                }
+
                 return executedSelfSkill != null;
             }
 
@@ -655,7 +693,10 @@ namespace AutoExile2.Systems
 
                 bool canOverlapOffense =
                     pad?.IsLeaderConnected != true && CanSelfSkillOverlapOffense(slot);
-                this.PrepareDefensiveCast(slot, now, canOverlapOffense);
+                if (!this.TryPrepareDefensiveCast(slot, now, canOverlapOffense, emergency: true))
+                {
+                    continue;
+                }
 
                 slot.LastCastAt = now;
                 this.LastSkillAction = $"Panic Guard: {slot.Name}";
@@ -666,7 +707,11 @@ namespace AutoExile2.Systems
                 }
                 else
                 {
-                    BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Max(30, slot.HoldDurationMs));
+                    BotInput.ExecuteAttack(
+                        slot.InputType,
+                        slot.Key,
+                        Math.Max(30, slot.HoldDurationMs),
+                        defensive: true);
                 }
 
                 return true;
@@ -740,8 +785,16 @@ namespace AutoExile2.Systems
                 }
 
                 bool canOverlapOffense = CanSelfSkillOverlapOffense(slot);
-                this.PrepareDefensiveCast(slot, now, canOverlapOffense);
-                BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Max(30, slot.HoldDurationMs));
+                if (!this.TryPrepareDefensiveCast(slot, now, canOverlapOffense, emergency: false))
+                {
+                    continue;
+                }
+
+                BotInput.ExecuteAttack(
+                    slot.InputType,
+                    slot.Key,
+                    Math.Max(30, slot.HoldDurationMs),
+                    defensive: true);
 
                 slot.LastCastAt = now;
                 this.LastSkillAction = $"Buff: {slot.Name}";
@@ -751,21 +804,65 @@ namespace AutoExile2.Systems
             return null;
         }
 
-        private void PrepareDefensiveCast(SkillSlotConfig slot, DateTime now, bool allowOffensiveOverlap)
+        private bool TryPrepareDefensiveCast(
+            SkillSlotConfig slot,
+            DateTime now,
+            bool allowOffensiveOverlap,
+            bool emergency)
         {
-            // Defensive/self skills outrank offense. Release any active attack channel first.
-            this.StopAllChannels();
-
-            if (allowOffensiveOverlap)
+            lock (this.defensiveInputGate)
             {
-                return;
-            }
+                bool defensiveBusy = now < this.defensiveInputBusyUntil;
+                if (defensiveBusy)
+                {
+                    // Normal Buff/Guard work never interrupts another held defensive input.
+                    if (!emergency)
+                    {
+                        return false;
+                    }
 
-            int holdMs = Math.Max(30, slot.HoldDurationMs) + InputReleaseMarginMs;
-            DateTime blockedUntil = now.AddMilliseconds(holdMs);
-            if (blockedUntil > this.nextAttackAllowed)
-            {
-                this.nextAttackAllowed = blockedUntil;
+                    // Emergency work may preempt a normal defensive hold, but not an equal/higher
+                    // priority emergency that is already in flight.
+                    if (this.defensiveInputIsEmergency &&
+                        slot.Priority <= this.defensiveInputPriority)
+                    {
+                        return false;
+                    }
+
+                    BotInput.ReleaseAllAttackInputs();
+                    if (this.activeChannelSlot != null)
+                    {
+                        BotInput.StopChannel(this.activeChannelSlot.InputType, this.activeChannelSlot.Key);
+                        this.activeChannelSlot = null;
+                    }
+                }
+                else
+                {
+                    this.StopOffensiveInputs();
+                }
+
+                if (allowOffensiveOverlap)
+                {
+                    // This is a synchronous short keyboard tap. It has already preempted offense,
+                    // but does not need to reserve the lane after ExecuteAttack returns.
+                    this.defensiveInputBusyUntil = DateTime.MinValue;
+                    this.defensiveInputPriority = int.MinValue;
+                    this.defensiveInputIsEmergency = false;
+                    return true;
+                }
+
+                int holdMs = Math.Max(30, slot.HoldDurationMs) + InputReleaseMarginMs;
+                DateTime blockedUntil = now.AddMilliseconds(holdMs);
+                this.defensiveInputBusyUntil = blockedUntil;
+                this.defensiveInputPriority = slot.Priority;
+                this.defensiveInputIsEmergency = emergency;
+
+                if (blockedUntil > this.nextAttackAllowed)
+                {
+                    this.nextAttackAllowed = blockedUntil;
+                }
+
+                return true;
             }
         }
 
@@ -1083,7 +1180,7 @@ namespace AutoExile2.Systems
             // Calculate screen position of target
             if (!bestTarget.TryGetComponent<Render>(out var targetRender))
             {
-                this.StopAllChannels();
+                this.StopOffensiveInputs();
                 return true;
             }
 
@@ -1100,7 +1197,7 @@ namespace AutoExile2.Systems
                 !float.IsFinite(targetScreenPos.X) ||
                 !float.IsFinite(targetScreenPos.Y))
             {
-                this.StopAllChannels();
+                this.StopOffensiveInputs();
                 return true;
             }
 
@@ -1116,7 +1213,7 @@ namespace AutoExile2.Systems
                  this.activeChannelSlot.Role == SkillRole.SelfBuffGuard ||
                  this.activeChannelSlot.Role == SkillRole.CorpseTargeted))
             {
-                this.StopAllChannels();
+                this.StopOffensiveInputs();
             }
 
             // If channeling an active skill, keep tracking the same role-aware aim point used to start it.
@@ -1130,7 +1227,7 @@ namespace AutoExile2.Systems
 
                 if (activeAimDistance > activeMaxRange)
                 {
-                    this.StopAllChannels();
+                    this.StopOffensiveInputs();
                 }
                 else
                 {
@@ -1276,7 +1373,7 @@ namespace AutoExile2.Systems
                 {
                     if (this.activeChannelSlot != slot)
                     {
-                        this.StopAllChannels();
+                        this.StopOffensiveInputs();
                         BotInput.StartChannel(slot.InputType, slot.Key);
                         this.activeChannelSlot = slot;
                     }
@@ -1285,7 +1382,7 @@ namespace AutoExile2.Systems
                 {
                     if (this.activeChannelSlot != null)
                     {
-                        this.StopAllChannels();
+                        this.StopOffensiveInputs();
                     }
 
                     BotInput.ExecuteAttack(slot.InputType, slot.Key, slot.HoldDurationMs);
@@ -1353,7 +1450,9 @@ namespace AutoExile2.Systems
             float wx = gridPos.X * 10.87f;
             float wy = gridPos.Y * 10.87f;
             var pos = world.WorldToScreen(new StdTuple3D<float> { X = wx, Y = wy, Z = terrainZ }, terrainZ);
-            if (pos == Vector2.Zero || float.IsNaN(pos.X))
+            if (pos == Vector2.Zero ||
+                !float.IsFinite(pos.X) ||
+                !float.IsFinite(pos.Y))
             {
                 return fallbackScreenPos;
             }
