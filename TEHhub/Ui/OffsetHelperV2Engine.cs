@@ -44,6 +44,26 @@ namespace TEHhub.Ui
         private static readonly int CameraMatrixOffset =
             Marshal.OffsetOf<CameraStructure>(nameof(CameraStructure.WorldToScreenMatrix)).ToInt32();
         private static readonly int EffectiveCameraMatrixOffset = CameraStructureOffset + CameraMatrixOffset;
+
+        private static readonly object SessionEvidenceGate = new();
+        private static int sessionSamples;
+        private static int sessionLoadingSamples;
+        private static bool sessionSawLoadingIdle;
+        private static bool sessionSawLoadingActive;
+        private static int sessionLoadingEnterTransitions;
+        private static int sessionLoadingExitTransitions;
+        private static int sessionAreaInstanceChanges;
+        private static int sessionAreaHashChanges;
+        private static int sessionLocalPlayerChanges;
+        private static int sessionWorldDataChanges;
+        private static DateTime? sessionFirstSampleUtc;
+        private static DateTime? sessionLastSampleUtc;
+        private static byte? previousLoadingState;
+        private static long previousAreaInstance;
+        private static uint previousAreaHash;
+        private static long previousLocalPlayer;
+        private static long previousWorldData;
+
         public enum V2ProbeStatus
         {
             Pass,
@@ -59,6 +79,25 @@ namespace TEHhub.Ui
             Dictionary<string, string> Details,
             long MeasuredValue = 0);
 
+        public sealed record V2SessionEvidence(
+            int Samples,
+            int LoadingSamples,
+            bool SawLoadingIdle,
+            bool SawLoadingActive,
+            int LoadingEnterTransitions,
+            int LoadingExitTransitions,
+            int AreaInstanceChanges,
+            int AreaHashChanges,
+            int LocalPlayerChanges,
+            int WorldDataChanges,
+            DateTime? FirstSampleUtc,
+            DateTime? LastSampleUtc)
+        {
+            public bool HasCompleteLoadingCycle => this.LoadingEnterTransitions > 0 && this.LoadingExitTransitions > 0;
+
+            public bool HasAreaTransition => this.AreaInstanceChanges > 0 || this.AreaHashChanges > 0;
+        }
+
         public sealed record V2PracticalReport(
             DateTime TimestampUtc,
             string GameState,
@@ -67,7 +106,135 @@ namespace TEHhub.Ui
             int TotalPass,
             int TotalWarning,
             int TotalFail,
-            int TotalUnavailable);
+            int TotalUnavailable,
+            V2SessionEvidence SessionEvidence);
+
+        internal static void ResetSessionEvidence()
+        {
+            lock (SessionEvidenceGate)
+            {
+                sessionSamples = 0;
+                sessionLoadingSamples = 0;
+                sessionSawLoadingIdle = false;
+                sessionSawLoadingActive = false;
+                sessionLoadingEnterTransitions = 0;
+                sessionLoadingExitTransitions = 0;
+                sessionAreaInstanceChanges = 0;
+                sessionAreaHashChanges = 0;
+                sessionLocalPlayerChanges = 0;
+                sessionWorldDataChanges = 0;
+                sessionFirstSampleUtc = null;
+                sessionLastSampleUtc = null;
+                previousLoadingState = null;
+                previousAreaInstance = 0;
+                previousAreaHash = 0;
+                previousLocalPlayer = 0;
+                previousWorldData = 0;
+            }
+        }
+
+        internal static V2SessionEvidence GetSessionEvidence()
+        {
+            lock (SessionEvidenceGate)
+            {
+                return new V2SessionEvidence(
+                    sessionSamples,
+                    sessionLoadingSamples,
+                    sessionSawLoadingIdle,
+                    sessionSawLoadingActive,
+                    sessionLoadingEnterTransitions,
+                    sessionLoadingExitTransitions,
+                    sessionAreaInstanceChanges,
+                    sessionAreaHashChanges,
+                    sessionLocalPlayerChanges,
+                    sessionWorldDataChanges,
+                    sessionFirstSampleUtc,
+                    sessionLastSampleUtc);
+            }
+        }
+
+        internal static void RecordSessionEvidenceSample(
+            byte? isLoading,
+            long areaInstance,
+            uint areaHash,
+            long localPlayer,
+            long worldData,
+            DateTime timestampUtc)
+        {
+            lock (SessionEvidenceGate)
+            {
+                sessionSamples++;
+                sessionFirstSampleUtc ??= timestampUtc;
+                sessionLastSampleUtc = timestampUtc;
+
+                if (isLoading is 0 or 1)
+                {
+                    sessionLoadingSamples++;
+                    if (isLoading == 0)
+                    {
+                        sessionSawLoadingIdle = true;
+                    }
+                    else
+                    {
+                        sessionSawLoadingActive = true;
+                    }
+
+                    if (previousLoadingState.HasValue && previousLoadingState.Value != isLoading.Value)
+                    {
+                        if (previousLoadingState.Value == 0 && isLoading.Value == 1)
+                        {
+                            sessionLoadingEnterTransitions++;
+                        }
+                        else if (previousLoadingState.Value == 1 && isLoading.Value == 0)
+                        {
+                            sessionLoadingExitTransitions++;
+                        }
+                    }
+
+                    previousLoadingState = isLoading.Value;
+                }
+
+                if (areaInstance != 0)
+                {
+                    if (previousAreaInstance != 0 && previousAreaInstance != areaInstance)
+                    {
+                        sessionAreaInstanceChanges++;
+                    }
+
+                    previousAreaInstance = areaInstance;
+                }
+
+                if (areaHash != 0)
+                {
+                    if (previousAreaHash != 0 && previousAreaHash != areaHash)
+                    {
+                        sessionAreaHashChanges++;
+                    }
+
+                    previousAreaHash = areaHash;
+                }
+
+                if (localPlayer != 0)
+                {
+                    if (previousLocalPlayer != 0 && previousLocalPlayer != localPlayer)
+                    {
+                        sessionLocalPlayerChanges++;
+                    }
+
+                    previousLocalPlayer = localPlayer;
+                }
+
+                if (worldData != 0)
+                {
+                    if (previousWorldData != 0 && previousWorldData != worldData)
+                    {
+                        sessionWorldDataChanges++;
+                    }
+
+                    previousWorldData = worldData;
+                }
+            }
+        }
 
         /// <summary>
         /// Executes all practical diagnostic probes in a safe, read-only manner.
@@ -91,6 +258,8 @@ namespace TEHhub.Ui
 
                 return BuildReport(gameState, procInfo, probes);
             }
+
+            ObserveSessionEvidence(reader);
 
             // 1. Area / Area Level / Area Hash Probe
             probes.Add(ProbeAreaInstance(reader));
@@ -963,6 +1132,62 @@ namespace TEHhub.Ui
             [FieldOffset(0x19)] public byte IsNil;
         }
 
+        private static void ObserveSessionEvidence(SafeMemoryHandle reader)
+        {
+            byte? isLoading = null;
+            long areaInstance = 0;
+            uint areaHash = 0;
+            long localPlayer = 0;
+            long worldData = 0;
+
+            try
+            {
+                var loadingAddr = Core.States.AreaLoading.Address;
+                if (CanonicalStructuralInvariants.IsCanonicalPointer(loadingAddr) &&
+                    reader.TryReadMemory<AreaLoadingStateOffset>(loadingAddr, out var loadingData) &&
+                    loadingData.IsLoading is 0 or 1)
+                {
+                    isLoading = loadingData.IsLoading;
+                }
+
+                var inGameAddr = Core.States.InGameStateObject.Address;
+                if (CanonicalStructuralInvariants.IsCanonicalPointer(inGameAddr) &&
+                    reader.TryReadMemory<InGameStateOffset>(inGameAddr, out var inGameData))
+                {
+                    if (CanonicalStructuralInvariants.IsCanonicalPointer(inGameData.AreaInstanceData))
+                    {
+                        areaInstance = inGameData.AreaInstanceData.ToInt64();
+
+                        if (reader.TryReadMemory<AreaInstanceOffsets>(inGameData.AreaInstanceData, out var areaData))
+                        {
+                            areaHash = areaData.CurrentAreaHash;
+                            if (CanonicalStructuralInvariants.IsCanonicalPointer(areaData.PlayerInfo.LocalPlayerPtr))
+                            {
+                                localPlayer = areaData.PlayerInfo.LocalPlayerPtr.ToInt64();
+                            }
+                        }
+                    }
+
+                    if (CanonicalStructuralInvariants.IsCanonicalPointer(inGameData.WorldData))
+                    {
+                        worldData = inGameData.WorldData.ToInt64();
+                    }
+                }
+            }
+            catch
+            {
+                // Session evidence is supplementary. Individual probes own detailed failures.
+            }
+
+            RecordSessionEvidenceSample(
+                isLoading,
+                areaInstance,
+                areaHash,
+                localPlayer,
+                worldData,
+                DateTime.UtcNow);
+        }
+
         private static V2PracticalReport BuildReport(string gameState, string procInfo, List<V2ProbeResult> probes)
         {
             int pass = 0, warn = 0, fail = 0, unavail = 0;
@@ -985,7 +1210,8 @@ namespace TEHhub.Ui
                 pass,
                 warn,
                 fail,
-                unavail);
+                unavail,
+                GetSessionEvidence());
         }
     }
 }
