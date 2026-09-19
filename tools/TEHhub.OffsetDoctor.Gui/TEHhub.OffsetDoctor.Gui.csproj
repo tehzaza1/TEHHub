@@ -9,10 +9,22 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <LangVersion>14.0</LangVersion>
+<<<<<<< HEAD
         <UseWindowsForms>true</UseWindowsForms>
     </PropertyGroup>
 
     <ItemGroup>
+=======
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="ClickableTransparentOverlay" Version="11.1.0" />
+        <!-- Override transitive SixLabors.ImageSharp 3.1.6 with patched 3.1.12 -->
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+>>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
         <ProjectReference Include="..\..\TEHhub.Offsets\TEHhub.Offsets.csproj" />
         <ProjectReference Include="..\TEHhub.OffsetDoctor\TEHhub.OffsetDoctor.csproj" />
     </ItemGroup>
