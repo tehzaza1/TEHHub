@@ -693,27 +693,34 @@ namespace AutoExile2.Systems
 
                 bool canOverlapOffense =
                     pad?.IsLeaderConnected != true && CanSelfSkillOverlapOffense(slot);
-                if (!this.TryPrepareDefensiveCast(slot, now, canOverlapOffense, emergency: true))
+                bool executed = this.TryExecuteDefensiveCast(
+                    slot,
+                    now,
+                    canOverlapOffense,
+                    emergency: true,
+                    executeInput: () =>
+                    {
+                        if (pad != null && pad.IsLeaderConnected && slot.GamepadButton != CoopPadButton.None)
+                        {
+                            pad.PressLeaderBuff(slot.GamepadButton, Math.Max(30, slot.HoldDurationMs));
+                        }
+                        else
+                        {
+                            BotInput.ExecuteAttack(
+                                slot.InputType,
+                                slot.Key,
+                                Math.Max(30, slot.HoldDurationMs),
+                                defensive: true);
+                        }
+                    });
+
+                if (!executed)
                 {
                     continue;
                 }
 
                 slot.LastCastAt = now;
                 this.LastSkillAction = $"Panic Guard: {slot.Name}";
-
-                if (pad != null && pad.IsLeaderConnected && slot.GamepadButton != CoopPadButton.None)
-                {
-                    pad.PressLeaderBuff(slot.GamepadButton, Math.Max(30, slot.HoldDurationMs));
-                }
-                else
-                {
-                    BotInput.ExecuteAttack(
-                        slot.InputType,
-                        slot.Key,
-                        Math.Max(30, slot.HoldDurationMs),
-                        defensive: true);
-                }
-
                 return true;
             }
 
@@ -785,16 +792,21 @@ namespace AutoExile2.Systems
                 }
 
                 bool canOverlapOffense = CanSelfSkillOverlapOffense(slot);
-                if (!this.TryPrepareDefensiveCast(slot, now, canOverlapOffense, emergency: false))
+                bool executed = this.TryExecuteDefensiveCast(
+                    slot,
+                    now,
+                    canOverlapOffense,
+                    emergency: false,
+                    executeInput: () => BotInput.ExecuteAttack(
+                        slot.InputType,
+                        slot.Key,
+                        Math.Max(30, slot.HoldDurationMs),
+                        defensive: true));
+
+                if (!executed)
                 {
                     continue;
                 }
-
-                BotInput.ExecuteAttack(
-                    slot.InputType,
-                    slot.Key,
-                    Math.Max(30, slot.HoldDurationMs),
-                    defensive: true);
 
                 slot.LastCastAt = now;
                 this.LastSkillAction = $"Buff: {slot.Name}";
@@ -804,11 +816,12 @@ namespace AutoExile2.Systems
             return null;
         }
 
-        private bool TryPrepareDefensiveCast(
+        private bool TryExecuteDefensiveCast(
             SkillSlotConfig slot,
             DateTime now,
             bool allowOffensiveOverlap,
-            bool emergency)
+            bool emergency,
+            Action executeInput)
         {
             lock (this.defensiveInputGate)
             {
@@ -848,6 +861,7 @@ namespace AutoExile2.Systems
                     this.defensiveInputBusyUntil = DateTime.MinValue;
                     this.defensiveInputPriority = int.MinValue;
                     this.defensiveInputIsEmergency = false;
+                    executeInput();
                     return true;
                 }
 
@@ -862,6 +876,7 @@ namespace AutoExile2.Systems
                     this.nextAttackAllowed = blockedUntil;
                 }
 
+                executeInput();
                 return true;
             }
         }
