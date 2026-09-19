@@ -179,7 +179,7 @@ namespace AutoExile2
         private void StopAutomationInputs()
         {
             this.combatSystem.StopAllChannels();
-            BotInput.ReleaseAllMovementKeys(this.Settings);
+            BotInput.ReleaseAllHeldKeys();
             this.coopGamepad.ResetAllInputs();
         }
 
