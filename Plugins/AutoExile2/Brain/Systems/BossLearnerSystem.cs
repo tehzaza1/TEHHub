@@ -17,12 +17,14 @@ namespace AutoExile2.Systems
         public Vector2? BossCheckpointPos { get; private set; }
         public Vector2? BossDoorPos { get; private set; }
         public bool HasBossTarget => this.BossDoorPos.HasValue || this.BossCheckpointPos.HasValue;
+        public bool BossDoorReached { get; private set; }
         public bool BossReached { get; private set; }
 
         public void Reset()
         {
             this.BossCheckpointPos = null;
             this.BossDoorPos = null;
+            this.BossDoorReached = false;
             this.BossReached = false;
         }
 
@@ -60,12 +62,14 @@ namespace AutoExile2.Systems
                 }
             }
 
-            // 2. Check if player reached the boss area (near door or checkpoint)
-            if (this.BossCheckpointPos.HasValue && Vector2.Distance(playerPos, this.BossCheckpointPos.Value) <= 25f)
+            // 2. Track progression explicitly: reaching the fog door is not the same as
+            // reaching the boss checkpoint inside/after the transition.
+            if (this.BossDoorPos.HasValue && Vector2.Distance(playerPos, this.BossDoorPos.Value) <= 15f)
             {
-                this.BossReached = true;
+                this.BossDoorReached = true;
             }
-            else if (this.BossDoorPos.HasValue && Vector2.Distance(playerPos, this.BossDoorPos.Value) <= 15f)
+
+            if (this.BossCheckpointPos.HasValue && Vector2.Distance(playerPos, this.BossCheckpointPos.Value) <= 25f)
             {
                 this.BossReached = true;
             }

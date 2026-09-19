@@ -184,7 +184,13 @@ namespace AutoExile2.Modes.WaveFarm
             var boss = this.wave.BossLearner;
             if (boss.HasBossTarget)
             {
-                string bossDesc = boss.BossReached ? "Arena Entered (Engaging / Cleared)" : boss.BossDoorPos.HasValue ? "Approaching Fog Door -> Checkpoint" : "Navigating to Boss Checkpoint";
+                string bossDesc = boss.BossReached
+                    ? "Boss Checkpoint Reached"
+                    : boss.BossDoorReached
+                        ? "Fog Door Reached -> Seeking Checkpoint"
+                        : boss.BossDoorPos.HasValue
+                            ? "Approaching Fog Door -> Checkpoint"
+                            : "Navigating to Boss Checkpoint";
                 uint bossCol = boss.BossReached ? colAccent : colWarn;
                 drawList.AddText(new Vector2(x, y), bossCol, $"Boss: {bossDesc}");
                 y += lineH;
