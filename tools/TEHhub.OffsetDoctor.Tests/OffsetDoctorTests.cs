@@ -26,11 +26,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-<<<<<<< HEAD
         Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 117 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
-=======
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 114 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -146,16 +142,11 @@ public static class OffsetDoctorTests
         Test112_GuiRemainsExternalAndNotAddedToMainOverlayRuntime(check);
         Test113_NoRecoveryGhidraOrOffsetSearchAddedInGui(check);
         Test114_GuiOperationsPreserveReadOnlyZeroMemoryWrites(check);
-<<<<<<< HEAD
         Test115_NoClickableTransparentOverlayDependencyRemains(check);
         Test116_NoOverlayBaseClassRemains(check);
         Test117_GuiControllerHasNoDependencyOnRecoveryNamespaceOrOffsetRecoveryEngine(check);
 
         Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 117 Test Scenarios Passed Successfully!\n");
-=======
-
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 114 Test Scenarios Passed Successfully!\n");
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -2818,7 +2809,6 @@ public static class OffsetDoctorTests
         }
     }
 
-<<<<<<< HEAD
     // 115. No ClickableTransparentOverlay dependency in TEHhub.OffsetDoctor.Gui.csproj
     private static void Test115_NoClickableTransparentOverlayDependencyRemains(Action<bool, string> check)
     {
@@ -2887,8 +2877,6 @@ public static class OffsetDoctorTests
         check(model.ComparisonResult == null, "T117: Validation-only report has no recovery artifacts.");
     }
 
-=======
->>>>>>> 486ddd1db1fda98cedf2d2d86e5f0800e42be271
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
     {
         private readonly IProcessMemoryReader _inner;
