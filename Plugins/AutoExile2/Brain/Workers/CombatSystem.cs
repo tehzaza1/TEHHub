@@ -1032,8 +1032,8 @@ namespace AutoExile2.Systems
 
             string name1 = slot.AssignedSkillName ?? string.Empty;
             string name2 = slot.Name ?? string.Empty;
-            string clean1 = CleanBuffString(name1);
-            string clean2 = CleanBuffString(name2);
+            string match1 = NormalizeSkillMatchName(name1);
+            string match2 = NormalizeSkillMatchName(name2);
 
             var candidates = new List<(string key, ActiveSkillDetails details)>();
             foreach (var (k, details) in actor.ActiveSkills)
@@ -1045,9 +1045,9 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                string cleanK = CleanBuffString(k);
-                if ((!string.IsNullOrEmpty(clean1) && (cleanK.Contains(clean1) || clean1.Contains(cleanK))) ||
-                    (!string.IsNullOrEmpty(clean2) && (cleanK.Contains(clean2) || clean2.Contains(cleanK))))
+                string matchK = NormalizeSkillMatchName(k);
+                if ((!string.IsNullOrEmpty(match1) && matchK == match1) ||
+                    (!string.IsNullOrEmpty(match2) && matchK == match2))
                 {
                     candidates.Add((k, details));
                 }
@@ -1120,7 +1120,23 @@ namespace AutoExile2.Systems
 
         private static string CleanBuffString(string s)
         {
-            return s.Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
+            return (s ?? string.Empty).Trim().ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "");
+        }
+
+        private static string NormalizeSkillMatchName(string s)
+        {
+            string clean = CleanBuffString(s);
+            if (clean.EndsWith("active", StringComparison.OrdinalIgnoreCase) && clean.Length > 6)
+            {
+                clean = clean.Substring(0, clean.Length - 6);
+            }
+
+            if (clean.EndsWith("triggered", StringComparison.OrdinalIgnoreCase) && clean.Length > 9)
+            {
+                clean = clean.Substring(0, clean.Length - 9);
+            }
+
+            return clean;
         }
 
         private static List<string> GetBuffAliases(string clean)
@@ -1181,6 +1197,58 @@ namespace AutoExile2.Systems
             return list;
         }
 
+        private static bool ShouldCheckTargetDebuff(SkillSlotConfig slot)
+        {
+            return slot.OnlyWhenBuffMissing &&
+                   (string.Equals(slot.Category, SkillClassifier.CategoryCurse, StringComparison.OrdinalIgnoreCase) ||
+                    slot.Role == SkillRole.PackTargeted);
+        }
+
+        private static bool TargetHasConfiguredDebuff(Entity target, SkillSlotConfig slot)
+        {
+            if (!ShouldCheckTargetDebuff(slot) ||
+                !target.TryGetComponent<Buffs>(out var buffs) ||
+                buffs.FastStatusEffects == null)
+            {
+                return false;
+            }
+
+            string curseToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
+                ? slot.BuffDebuffName
+                : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
+            string cleanCurse = CleanBuffString(curseToMatch);
+            if (string.IsNullOrEmpty(cleanCurse))
+            {
+                return false;
+            }
+
+            var aliases = GetBuffAliases(cleanCurse);
+            foreach (var kv in buffs.FastStatusEffects)
+            {
+                string targetBuffClean = CleanBuffString(kv.Key);
+                string targetBuffCleanNoDigits =
+                    System.Text.RegularExpressions.Regex.Replace(targetBuffClean, @"\d+$", "");
+
+                for (int i = 0; i < aliases.Count; i++)
+                {
+                    string alias = aliases[i];
+                    string aliasNoDigits =
+                        System.Text.RegularExpressions.Regex.Replace(alias, @"\d+$", "");
+
+                    if (targetBuffClean.Contains(alias, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrEmpty(targetBuffCleanNoDigits) &&
+                         !string.IsNullOrEmpty(aliasNoDigits) &&
+                         (targetBuffCleanNoDigits.Contains(aliasNoDigits, StringComparison.OrdinalIgnoreCase) ||
+                          aliasNoDigits.Contains(targetBuffCleanNoDigits, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private bool TickTargetedSkills(
             AreaInstance? area,
             WorldData world,
@@ -1219,6 +1287,7 @@ namespace AutoExile2.Systems
 
             var targetGrid = new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y);
 
+            bool hasExplicitSkillConfiguration = settings.Skills != null && settings.Skills.Count > 0;
             var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
 
             if (this.activeChannelSlot != null &&
@@ -1232,23 +1301,33 @@ namespace AutoExile2.Systems
                 this.StopOffensiveInputs();
             }
 
-            // If channeling an active skill, keep tracking the same role-aware aim point used to start it.
+            // Revalidate user-configured channel conditions every tick. Do not keep a held key
+            // alive after range/vitals/mana/density/rarity/debuff conditions have stopped matching.
             if (this.activeChannelSlot != null)
             {
-                Vector2 activeAimGrid = this.GetSkillAimGrid(this.activeChannelSlot, playerGrid, targetGrid);
+                var activeSlot = this.activeChannelSlot;
+                Vector2 activeAimGrid = this.GetSkillAimGrid(activeSlot, playerGrid, targetGrid);
                 float activeAimDistance = Vector2.Distance(playerGrid, activeAimGrid);
-                float activeMaxRange = this.activeChannelSlot.MaxTargetRange > 0
-                    ? this.activeChannelSlot.MaxTargetRange
+                float activeMaxRange = activeSlot.MaxTargetRange > 0
+                    ? activeSlot.MaxTargetRange
                     : settings.CombatRange;
 
-                if (activeAimDistance > activeMaxRange)
+                bool canContinue =
+                    activeAimDistance <= activeMaxRange &&
+                    (activeSlot.MinNearbyEnemies <= 0 || hostileCount >= activeSlot.MinNearbyEnemies) &&
+                    (!activeSlot.OnlyOnLowHp || vitals.IsLowVital(activeSlot)) &&
+                    (activeSlot.MinManaPercent <= 0 || vitals.ManaPercent >= activeSlot.MinManaPercent) &&
+                    this.MatchesTargetFilter(activeSlot.TargetFilter, bestTargetRarity) &&
+                    !TargetHasConfiguredDebuff(bestTarget, activeSlot);
+
+                if (!canContinue)
                 {
                     this.StopOffensiveInputs();
                 }
                 else
                 {
                     Vector2 activeAimPos = this.GetSkillAimScreen(
-                        this.activeChannelSlot,
+                        activeSlot,
                         world,
                         playerRender,
                         playerGrid,
@@ -1268,14 +1347,24 @@ namespace AutoExile2.Systems
                 .Where(s => s.Enabled &&
                             s.Role != SkillRole.Disabled &&
                             s.Role != SkillRole.SelfBuffGuard &&
-                            s.Role != SkillRole.CorpseTargeted)
+                            s.Role != SkillRole.CorpseTargeted &&
+                            s.Role != SkillRole.Culler)
                 .OrderByDescending(s => s.Priority)
                 .ToList();
 
-            // Fallback to legacy settings if no active skills found
             if (candidateSkills.Count == 0)
             {
-                return this.ExecuteLegacyAttack(world, bestTarget, bestTargetRarity, targetScreenPos, settings);
+                // Preserve legacy attack behavior only for old/unconfigured profiles.
+                // Once the user has an explicit skill list, Disabled/Self/Corpse/Culler-only
+                // configurations must not silently fall back to an unrelated legacy attack.
+                if (!hasExplicitSkillConfiguration)
+                {
+                    return this.ExecuteLegacyAttack(world, bestTarget, bestTargetRarity, targetScreenPos, settings);
+                }
+
+                this.StopOffensiveInputs();
+                this.LastSkillAction = "No offensive skill configured";
+                return true;
             }
 
             foreach (var slot in candidateSkills)
@@ -1305,39 +1394,9 @@ namespace AutoExile2.Systems
                 }
 
                 // 2. Debuff / Curse presence check on target
-                if (slot.OnlyWhenBuffMissing && (slot.Category == SkillClassifier.CategoryCurse || slot.Role == SkillRole.PackTargeted))
+                if (TargetHasConfiguredDebuff(bestTarget, slot))
                 {
-                    if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.FastStatusEffects != null)
-                    {
-                        string curseToMatch = !string.IsNullOrWhiteSpace(slot.BuffDebuffName)
-                            ? slot.BuffDebuffName
-                            : (!string.IsNullOrWhiteSpace(slot.AssignedSkillName) ? slot.AssignedSkillName : slot.Name);
-                            string cleanCurse = CleanBuffString(curseToMatch);
-                            var aliases = GetBuffAliases(cleanCurse);
-                            bool hasDebuff = false;
-                            foreach (var kv in tBuffs.FastStatusEffects)
-                            {
-                                string targetBuffClean = CleanBuffString(kv.Key);
-                                string targetBuffCleanNoDigits = System.Text.RegularExpressions.Regex.Replace(targetBuffClean, @"\d+$", "");
-                                for (int i = 0; i < aliases.Count; i++)
-                                {
-                                    string a = aliases[i];
-                                    string aNoDigits = System.Text.RegularExpressions.Regex.Replace(a, @"\d+$", "");
-                                    if (targetBuffClean.Contains(a, StringComparison.OrdinalIgnoreCase) ||
-                                        (!string.IsNullOrEmpty(targetBuffCleanNoDigits) && !string.IsNullOrEmpty(aNoDigits) &&
-                                         (targetBuffCleanNoDigits.Contains(aNoDigits, StringComparison.OrdinalIgnoreCase) || aNoDigits.Contains(targetBuffCleanNoDigits, StringComparison.OrdinalIgnoreCase))))
-                                    {
-                                        hasDebuff = true;
-                                        break;
-                                    }
-                                }
-                                if (hasDebuff) break;
-                            }
-                            if (hasDebuff)
-                            {
-                                continue; // Monster already has this curse/debuff!
-                            }
-                    }
+                    continue;
                 }
 
                 // Range check must use the actual role-aware cast point, not always the selected monster.
