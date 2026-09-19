@@ -29,8 +29,11 @@ namespace TEHhub.Ui
         private static readonly Vector4 ColorBlue = new(0.40f, 0.75f, 1.00f, 1f);
 
         private static OffsetHelperV2Engine.V2PracticalReport? latestReport;
+        private const double SessionEvidenceSampleIntervalSeconds = 0.10;
+
         private static bool autoRefresh = false;
         private static DateTime lastAutoRefresh = DateTime.MinValue;
+        private static DateTime lastSessionEvidenceSample = DateTime.MinValue;
         private static string statusMessage = "Ready. Press 'Run Diagnostics' to probe active game structures.";
 
         /// <summary>
@@ -53,10 +56,20 @@ namespace TEHhub.Ui
                     continue;
                 }
 
-                // Handle auto-refresh (1.0s interval)
-                if (autoRefresh && (DateTime.UtcNow - lastAutoRefresh).TotalSeconds >= 1.0)
+                var nowUtc = DateTime.UtcNow;
+
+                // Lightweight transition evidence is sampled at ~10 Hz while OH2 is visible.
+                // Full diagnostics remain manual / 1-second auto-refresh.
+                if ((nowUtc - lastSessionEvidenceSample).TotalSeconds >= SessionEvidenceSampleIntervalSeconds)
                 {
-                    lastAutoRefresh = DateTime.UtcNow;
+                    lastSessionEvidenceSample = nowUtc;
+                    OffsetHelperV2Engine.SampleSessionEvidence();
+                }
+
+                // Handle full-diagnostic auto-refresh (1.0s interval).
+                if (autoRefresh && (nowUtc - lastAutoRefresh).TotalSeconds >= 1.0)
+                {
+                    lastAutoRefresh = nowUtc;
                     latestReport = OffsetHelperV2Engine.RunPracticalDiagnostics();
                 }
 
@@ -100,7 +113,8 @@ namespace TEHhub.Ui
                 OffsetHelperV2Engine.ResetSessionEvidence();
                 latestReport = OffsetHelperV2Engine.RunPracticalDiagnostics();
                 lastAutoRefresh = DateTime.UtcNow;
-                statusMessage = "Session transition evidence reset.";
+                lastSessionEvidenceSample = lastAutoRefresh;
+                statusMessage = "Session transition evidence reset; lightweight sampler is active while OH2 is open.";
             }
 
             ImGui.SameLine();
@@ -144,6 +158,7 @@ namespace TEHhub.Ui
                 $"IdleSeen={evidence.SawLoadingIdle}, ActiveSeen={evidence.SawLoadingActive}, " +
                 $"Load Enter/Exit={evidence.LoadingEnterTransitions}/{evidence.LoadingExitTransitions}, " +
                 $"Area Ptr/Hash Changes={evidence.AreaInstanceChanges}/{evidence.AreaHashChanges}");
+            ImGui.TextColored(ColorGrey, "Transition sampler: ~10 Hz while this OH2 window is open; full diagnostics remain manual/1s.");
         }
 
         private static void DrawProbesList(OffsetHelperV2Engine.V2PracticalReport report)
