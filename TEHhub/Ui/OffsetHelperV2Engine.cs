@@ -424,8 +424,9 @@ namespace TEHhub.Ui
                 }
 
                 details["UnionArchitecturalNote"] =
-                    "In C# LayoutKind.Explicit, WorldAreaDetailsPtr (IntPtr) and CameraStructurePtr (CameraStructure) " +
-                    "overlap at +0x98. WorldToScreenMatrix resides at WorldData + 0x98 + 0x108 = +0x1A0. Production matches this layout.";
+                    "The production C# LayoutKind.Explicit declaration overlays WorldAreaDetailsPtr (IntPtr) and " +
+                    "CameraStructurePtr (CameraStructure) at +0x98. WorldToScreenMatrix is therefore read at " +
+                    "WorldData + 0x98 + 0x108 = +0x1A0. This probe validates the live structure; it does not infer a new offset.";
 
                 var isMatrixFinite = !float.IsNaN(matrix.M11) && !float.IsInfinity(matrix.M11) &&
                                      !float.IsNaN(matrix.M44) && !float.IsInfinity(matrix.M44);
@@ -761,6 +762,7 @@ namespace TEHhub.Ui
                 details["TotalSlotEntries"] = itemSlots.Length.ToString();
 
                 int sampledItems = 0;
+                int validatedItems = 0;
                 var distinctItemPtrs = new HashSet<IntPtr>();
 
                 foreach (var slotPtr in itemSlots)
@@ -779,6 +781,10 @@ namespace TEHhub.Ui
                             var detailsStruct = reader.ReadMemory<EntityDetails>(itemEnt.EntityDetailsPtr);
                             var path = reader.ReadStdWString(detailsStruct.name);
                             details[$"Item_{sampledItems}_Path"] = path;
+                            if (path.StartsWith("Metadata/Items/", StringComparison.OrdinalIgnoreCase))
+                            {
+                                validatedItems++;
+                            }
                         }
                     }
 
@@ -787,9 +793,16 @@ namespace TEHhub.Ui
                 }
 
                 details["SampledItemCount"] = sampledItems.ToString();
+                details["ValidatedItemCount"] = validatedItems.ToString();
+
+                if (sampledItems > 0 && validatedItems == 0)
+                {
+                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Warning,
+                        $"Inventory '{targetInvName}' yielded {sampledItems} sampled wrappers, but none resolved to a canonical Metadata/Items entity.", details, sampledItems);
+                }
 
                 return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Pass,
-                    $"Inventory '{targetInvName}' ({invStruct.TotalBoxes.X}x{invStruct.TotalBoxes.Y}): Sampled {sampledItems} distinct items.", details, sampledItems);
+                    $"Inventory '{targetInvName}' ({invStruct.TotalBoxes.X}x{invStruct.TotalBoxes.Y}): Sampled {sampledItems} distinct items, validated {validatedItems}.", details, sampledItems);
             }
             catch (Exception ex)
             {
@@ -814,11 +827,14 @@ namespace TEHhub.Ui
                 }
 
                 details["PlayerAddress"] = $"0x{player.Address.ToInt64():X}";
+                int componentsSeen = 0;
                 int componentsVerified = 0;
+                int componentsFailed = 0;
 
                 // 1. Render component
                 if (player.TryGetComponent<Render>(out var render) && render.Address != IntPtr.Zero)
                 {
+                    componentsSeen++;
                     details["Render.Address"] = $"0x{render.Address.ToInt64():X}";
                     details["Render.GridPosition"] = $"({render.GridPosition.X:F1}, {render.GridPosition.Y:F1})";
                     details["Render.TerrainHeight"] = render.TerrainHeight.ToString("F1");
@@ -827,24 +843,37 @@ namespace TEHhub.Ui
                     var ownerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(header.EntityPtr.ToInt64(), player.Address.ToInt64());
                     details["Render.OwnerValidation"] = ownerCheck.Detail;
                     if (ownerCheck.IsValid) componentsVerified++;
+                    else componentsFailed++;
                 }
 
                 // 2. Life component
                 if (player.TryGetComponent<Life>(out var life) && life.Address != IntPtr.Zero)
                 {
+                    componentsSeen++;
                     details["Life.Address"] = $"0x{life.Address.ToInt64():X}";
                     details["Life.HP"] = $"{life.Health.Current} / {life.Health.Total}";
                     details["Life.Mana"] = $"{life.Mana.Current} / {life.Mana.Total}";
                     details["Life.ES"] = $"{life.EnergyShield.Current} / {life.EnergyShield.Total}";
 
-                    bool hpOk = life.Health.Total > 0 && life.Health.Current <= life.Health.Total && life.Health.Total <= 50000;
+                    var lifeHeader = reader.ReadMemory<ComponentHeader>(life.Address);
+                    var lifeOwnerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(lifeHeader.EntityPtr.ToInt64(), player.Address.ToInt64());
+                    details["Life.OwnerValidation"] = lifeOwnerCheck.Detail;
+
+                    bool hpOk =
+                        life.Health.Total > 0 &&
+                        life.Health.Current >= 0 &&
+                        life.Health.Current <= life.Health.Total &&
+                        life.Health.Total <= 50000;
                     details["Life.HpRangePlausible"] = hpOk.ToString();
-                    if (hpOk) componentsVerified++;
+
+                    if (hpOk && lifeOwnerCheck.IsValid) componentsVerified++;
+                    else componentsFailed++;
                 }
 
                 // 3. Positioned component
                 if (player.TryGetComponent<Positioned>(out var pos) && pos.Address != IntPtr.Zero)
                 {
+                    componentsSeen++;
                     details["Positioned.Address"] = $"0x{pos.Address.ToInt64():X}";
                     details["Positioned.Flags"] = $"0x{pos.Flags:X2}";
                     details["Positioned.IsFriendly"] = pos.IsFriendly.ToString();
@@ -852,27 +881,42 @@ namespace TEHhub.Ui
                     var posOwnerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(posHeader.Header.EntityPtr.ToInt64(), player.Address.ToInt64());
                     details["Positioned.OwnerValidation"] = posOwnerCheck.Detail;
                     if (posOwnerCheck.IsValid) componentsVerified++;
+                    else componentsFailed++;
                 }
 
                 // 4. Actor component
                 if (player.TryGetComponent<Actor>(out var actor) && actor.Address != IntPtr.Zero)
                 {
+                    componentsSeen++;
                     details["Actor.Address"] = $"0x{actor.Address.ToInt64():X}";
                     details["Actor.Animation"] = actor.Animation.ToString();
                     details["Actor.ActiveSkillsCount"] = actor.ActiveSkills.Count.ToString();
-                    componentsVerified++;
+
+                    var actorHeader = reader.ReadMemory<ComponentHeader>(actor.Address);
+                    var actorOwnerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(actorHeader.EntityPtr.ToInt64(), player.Address.ToInt64());
+                    details["Actor.OwnerValidation"] = actorOwnerCheck.Detail;
+                    if (actorOwnerCheck.IsValid) componentsVerified++;
+                    else componentsFailed++;
                 }
 
+                details["ComponentsSeen"] = componentsSeen.ToString();
                 details["ComponentsVerified"] = componentsVerified.ToString();
+                details["ComponentsFailed"] = componentsFailed.ToString();
 
-                if (componentsVerified == 0)
+                if (componentsSeen == 0)
                 {
                     return new V2ProbeResult("Entity Components", V2ProbeStatus.Warning,
-                        "No components successfully validated on LocalPlayer.", details);
+                        "None of the four practical LocalPlayer components were available in this context.", details);
+                }
+
+                if (componentsFailed > 0)
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Warning,
+                        $"Validated {componentsVerified}/{componentsSeen} available components; {componentsFailed} failed owner/range invariants.", details, componentsVerified);
                 }
 
                 return new V2ProbeResult("Entity Components", V2ProbeStatus.Pass,
-                    $"Verified {componentsVerified} components (Render, Life, Positioned, Actor) on LocalPlayer.", details, componentsVerified);
+                    $"Validated all {componentsVerified}/{componentsSeen} available practical components on LocalPlayer.", details, componentsVerified);
             }
             catch (Exception ex)
             {
