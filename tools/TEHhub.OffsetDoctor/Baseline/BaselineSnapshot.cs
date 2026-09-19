@@ -43,6 +43,17 @@ public sealed class BaselineSnapshot
         File.WriteAllText(filePath, ToJson(snapshot));
     }
 
+    public static string GetDefaultBaselinePath()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var dir = Path.Combine(localAppData, "TEHhub", "OffsetDoctor");
+        if (!Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+        return Path.Combine(dir, "offsetdoctor-baseline.json");
+    }
+
     public static BaselineSnapshot LoadFromFile(string filePath)
     {
         if (!File.Exists(filePath))

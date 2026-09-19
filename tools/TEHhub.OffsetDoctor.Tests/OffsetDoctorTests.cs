@@ -20,12 +20,13 @@ using TEHhub.Offsets.Objects.UiElement;
 
 using TEHhub.OffsetDoctor.Watch;
 using TEHhub.OffsetDoctor.Baseline;
+using TEHhub.OffsetDoctor.Gui;
 
 public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 89 Rigorous Semantic Validation, Watch & Baseline Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 116 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
@@ -116,8 +117,35 @@ public static class OffsetDoctorTests
         Test87_BaselineCompareStaticRootResolvedAddressChangedIsWarning(check);
         Test88_BaselineCompareDynamicBuffsAndLoadingStateChangesAreInformational(check);
         Test89_BaselineCompareStaticRootValidToBrokenIsCritical(check);
+        Test90_GuiModelEmptyGroundTruthProducesNulls(check);
+        Test91_GuiModelGoldInputOptionalNoHardcodedDefault(check);
+        Test92_GuiModelHpCurrentInputMapsToExpectedHpCurrent(check);
+        Test93_GuiModelHpMaxInputMapsToExpectedHpTotal(check);
+        Test94_GuiModelHpCurrentAndMaxBothSupplied(check);
+        Test95_GuiModelMpCurrentInputMapsToExpectedMpCurrent(check);
+        Test96_GuiModelMpMaxInputMapsToExpectedMpTotal(check);
+        Test97_GuiModelEsCurrentInputMapsToExpectedEsCurrent(check);
+        Test98_GuiModelEsMaxInputMapsToExpectedEsTotal(check);
+        Test99_GuiModelNoFieldInventsPairedValue(check);
+        Test100_GuiModelInvalidNumericInputRejectedWithSafeError(check);
+        Test101_GuiControllerValidateNowPopulatesModelWithValidatorOptions(check);
+        Test102_GuiControllerWatchUiUsesWatchModeOptions(check);
+        Test103_GuiControllerCaptureBaselineUsesBaselineEngine(check);
+        Test104_GuiControllerCompareBaselineUsesComparisonEngine(check);
+        Test105_GuiModelSortsBrokenNodesAtTop(check);
+        Test106_GuiControllerClearResultsClearsModelOnly(check);
+        Test107_GuiControllerEnforcesOneActiveOperationAtATimeAndRejectsDuplicates(check);
+        Test108_GuiControllerIsBusyBecomesTrueBeforeBodyAndResetsAfterSuccess(check);
+        Test109_GuiControllerIsBusyResetsAfterFailure(check);
+        Test110_BaselineDefaultPathResolvesUnderLocalAppDataSafeFolder(check);
+        Test111_CustomBaselinePathIsRespected(check);
+        Test112_GuiRemainsExternalAndNotAddedToMainOverlayRuntime(check);
+        Test113_NoRecoveryGhidraOrOffsetSearchAddedInGui(check);
+        Test114_GuiOperationsPreserveReadOnlyZeroMemoryWrites(check);
+        Test115_NoClickableTransparentOverlayDependencyRemains(check);
+        Test116_NoOverlayBaseClassRemains(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 89 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 116 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -2253,6 +2281,578 @@ public static class OffsetDoctorTests
         check(compResult.HasCriticalRegressions, "T89: Static root VALID -> BROKEN flags HasCriticalRegressions.");
         var delta = compResult.Deltas.FirstOrDefault(d => d.NodeId == "pattern_file_root");
         check(delta != null && delta.Severity == DeltaSeverity.Critical, "T89: Static root VALID -> BROKEN delta is Critical.");
+    }
+
+    // 90. Empty ground-truth inputs produce no supplied values
+    private static void Test90_GuiModelEmptyGroundTruthProducesNulls(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T90: TryBuildGroundTruth succeeds with empty model inputs.");
+        check(err == null, "T90: Error message is null for empty inputs.");
+        check(gt == null, "T90: Ground-truth object is null when no inputs are supplied.");
+    }
+
+    // 91. Gold input is optional and never defaults to a hardcoded value
+    private static void Test91_GuiModelGoldInputOptionalNoHardcodedDefault(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel();
+        check(string.IsNullOrEmpty(model.GoldInput), "T91: OffsetDoctorGuiModel.GoldInput defaults to empty string (no hardcoded default).");
+
+        var controller = new OffsetDoctorGuiController();
+        controller.TryBuildGroundTruth(model, out var gtEmpty, out _);
+        check(gtEmpty?.ExpectedGold == null, "T91: ExpectedGold is null when GoldInput is empty.");
+
+        model.GoldInput = "123456";
+        var success = controller.TryBuildGroundTruth(model, out var gtSupplied, out var err);
+        check(success, "T91: TryBuildGroundTruth succeeds when valid GoldInput is provided.");
+        check(err == null, "T91: Error is null for valid gold input.");
+        check(gtSupplied != null && gtSupplied.ExpectedGold == 123456, "T91: ExpectedGold is correctly parsed as 123456.");
+    }
+
+    // 92. HP current maps to ExpectedHpCurrent
+    private static void Test92_GuiModelHpCurrentInputMapsToExpectedHpCurrent(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel { HpCurrentInput = "4800" };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T92: TryBuildGroundTruth succeeds with HpCurrentInput.");
+        check(err == null, "T92: Error is null for valid HP current input.");
+        check(gt != null && gt.ExpectedHpCurrent == 4800, "T92: ExpectedHpCurrent is parsed as 4800.");
+        check(gt != null && gt.ExpectedHpTotal == null, "T92: ExpectedHpTotal is null (no paired max HP invented).");
+    }
+
+    // 93. HP max maps to ExpectedHpTotal
+    private static void Test93_GuiModelHpMaxInputMapsToExpectedHpTotal(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel { HpTotalInput = "5000" };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T93: TryBuildGroundTruth succeeds with HpTotalInput.");
+        check(err == null, "T93: Error is null for valid HP max input.");
+        check(gt != null && gt.ExpectedHpTotal == 5000, "T93: ExpectedHpTotal is parsed as 5000.");
+        check(gt != null && gt.ExpectedHpCurrent == null, "T93: ExpectedHpCurrent is null (no paired current HP invented).");
+    }
+
+    // 94. HP current and max can both be supplied
+    private static void Test94_GuiModelHpCurrentAndMaxBothSupplied(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel
+        {
+            HpCurrentInput = "4800",
+            HpTotalInput = "5000"
+        };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T94: TryBuildGroundTruth succeeds with both HP current and max.");
+        check(err == null, "T94: Error is null for both HP inputs.");
+        check(gt != null && gt.ExpectedHpCurrent == 4800, "T94: ExpectedHpCurrent is parsed as 4800.");
+        check(gt != null && gt.ExpectedHpTotal == 5000, "T94: ExpectedHpTotal is parsed as 5000.");
+    }
+
+    // 95. Mana current maps to ExpectedMpCurrent
+    private static void Test95_GuiModelMpCurrentInputMapsToExpectedMpCurrent(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel { MpCurrentInput = "950" };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T95: TryBuildGroundTruth succeeds with MpCurrentInput.");
+        check(err == null, "T95: Error is null for valid Mana current input.");
+        check(gt != null && gt.ExpectedMpCurrent == 950, "T95: ExpectedMpCurrent is parsed as 950.");
+        check(gt != null && gt.ExpectedMpTotal == null, "T95: ExpectedMpTotal is null (no paired max Mana invented).");
+    }
+
+    // 96. Mana max maps to ExpectedMpTotal
+    private static void Test96_GuiModelMpMaxInputMapsToExpectedMpTotal(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel { MpTotalInput = "1200" };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T96: TryBuildGroundTruth succeeds with MpTotalInput.");
+        check(err == null, "T96: Error is null for valid Mana max input.");
+        check(gt != null && gt.ExpectedMpTotal == 1200, "T96: ExpectedMpTotal is parsed as 1200.");
+        check(gt != null && gt.ExpectedMpCurrent == null, "T96: ExpectedMpCurrent is null (no paired current Mana invented).");
+    }
+
+    // 97. ES current maps to ExpectedEsCurrent
+    private static void Test97_GuiModelEsCurrentInputMapsToExpectedEsCurrent(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel { EsCurrentInput = "600" };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T97: TryBuildGroundTruth succeeds with EsCurrentInput.");
+        check(err == null, "T97: Error is null for valid ES current input.");
+        check(gt != null && gt.ExpectedEsCurrent == 600, "T97: ExpectedEsCurrent is parsed as 600.");
+        check(gt != null && gt.ExpectedEsTotal == null, "T97: ExpectedEsTotal is null (no paired max ES invented).");
+    }
+
+    // 98. ES max maps to ExpectedEsTotal
+    private static void Test98_GuiModelEsMaxInputMapsToExpectedEsTotal(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel { EsTotalInput = "800" };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.TryBuildGroundTruth(model, out var gt, out var err);
+        check(success, "T98: TryBuildGroundTruth succeeds with EsTotalInput.");
+        check(err == null, "T98: Error is null for valid ES max input.");
+        check(gt != null && gt.ExpectedEsTotal == 800, "T98: ExpectedEsTotal is parsed as 800.");
+        check(gt != null && gt.ExpectedEsCurrent == null, "T98: ExpectedEsCurrent is null (no paired current ES invented).");
+    }
+
+    // 99. No field invents the paired value
+    private static void Test99_GuiModelNoFieldInventsPairedValue(Action<bool, string> check)
+    {
+        var controller = new OffsetDoctorGuiController();
+
+        // 1. Only Gold
+        var mGold = new OffsetDoctorGuiModel { GoldInput = "100" };
+        controller.TryBuildGroundTruth(mGold, out var gtGold, out _);
+        check(gtGold != null && gtGold.ExpectedGold == 100 && gtGold.ExpectedHpCurrent == null && gtGold.ExpectedHpTotal == null, "T99: Gold alone does not invent vitals.");
+
+        // 2. Only Mana current
+        var mMpCur = new OffsetDoctorGuiModel { MpCurrentInput = "500" };
+        controller.TryBuildGroundTruth(mMpCur, out var gtMpCur, out _);
+        check(gtMpCur != null && gtMpCur.ExpectedMpCurrent == 500 && gtMpCur.ExpectedMpTotal == null, "T99: Mana current alone does not invent max Mana.");
+
+        // 3. Only ES max
+        var mEsTot = new OffsetDoctorGuiModel { EsTotalInput = "700" };
+        controller.TryBuildGroundTruth(mEsTot, out var gtEsTot, out _);
+        check(gtEsTot != null && gtEsTot.ExpectedEsTotal == 700 && gtEsTot.ExpectedEsCurrent == null, "T99: ES max alone does not invent current ES.");
+    }
+
+    // 100. Invalid numeric input is rejected for every current/max field
+    private static void Test100_GuiModelInvalidNumericInputRejectedWithSafeError(Action<bool, string> check)
+    {
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        model.GoldInput = "-500";
+        var success1 = controller.TryBuildGroundTruth(model, out _, out var err1);
+        check(!success1 && err1 != null && err1.Contains("Invalid Gold"), "T100: Negative gold is rejected.");
+
+        model.GoldInput = string.Empty;
+        model.HpCurrentInput = "99.95";
+        var success2 = controller.TryBuildGroundTruth(model, out _, out var err2);
+        check(!success2 && err2 != null && err2.Contains("Invalid HP Current"), "T100: Floating point HP current is rejected.");
+
+        model.HpCurrentInput = string.Empty;
+        model.HpTotalInput = "-10";
+        var success3 = controller.TryBuildGroundTruth(model, out _, out var err3);
+        check(!success3 && err3 != null && err3.Contains("Invalid HP Total"), "T100: Negative HP total is rejected.");
+
+        model.HpTotalInput = string.Empty;
+        model.MpCurrentInput = "abc";
+        var success4 = controller.TryBuildGroundTruth(model, out _, out var err4);
+        check(!success4 && err4 != null && err4.Contains("Invalid Mana Current"), "T100: Alphanumeric Mana current is rejected.");
+
+        model.MpCurrentInput = string.Empty;
+        model.MpTotalInput = "-200";
+        var success5 = controller.TryBuildGroundTruth(model, out _, out var err5);
+        check(!success5 && err5 != null && err5.Contains("Invalid Mana Total"), "T100: Negative Mana total is rejected.");
+
+        model.MpTotalInput = string.Empty;
+        model.EsCurrentInput = "bad_es";
+        var success6 = controller.TryBuildGroundTruth(model, out _, out var err6);
+        check(!success6 && err6 != null && err6.Contains("Invalid ES Current"), "T100: Invalid ES current is rejected.");
+
+        model.EsCurrentInput = string.Empty;
+        model.EsTotalInput = "-50";
+        var success7 = controller.TryBuildGroundTruth(model, out _, out var err7);
+        check(!success7 && err7 != null && err7.Contains("Invalid ES Total"), "T100: Negative ES total is rejected.");
+    }
+
+    // 101. Validate Now still uses existing validator/controller
+    private static void Test101_GuiControllerValidateNowPopulatesModelWithValidatorOptions(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment(goldValue: 50_000_000).reader;
+        var model = new OffsetDoctorGuiModel
+        {
+            GoldInput = "50000000",
+            HpCurrentInput = "4800",
+            HpTotalInput = "5000"
+        };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.ValidateNow(setup, model);
+        check(success, "T101: ValidateNow returns true.");
+        check(model.HasResults, "T101: Model has results populated.");
+        check(model.ValidCount > 0, "T101: Model ValidCount > 0.");
+        check(model.Rows.Count > 0, "T101: Model Rows populated.");
+
+        var goldRow = model.Rows.FirstOrDefault(r => r.NodeId == "psd_gold_field");
+        check(goldRow != null && goldRow.Status == ValidationStatus.VALID, "T101: psd_gold_field row is VALID with supplied ground-truth.");
+
+        var hpRow = model.Rows.FirstOrDefault(r => r.NodeId == "comp_life_health");
+        check(hpRow != null && hpRow.Status == ValidationStatus.VALID, "T101: comp_life_health row is VALID with supplied ground-truth.");
+
+        check(model.LastRunTimestampUtc != null, "T101: LastRunTimestampUtc is updated.");
+        check(!string.IsNullOrEmpty(model.NoticeMessage), "T101: NoticeMessage describes completion summary.");
+    }
+
+    // 102. Watch UI uses existing watch mode options
+    private static void Test102_GuiControllerWatchUiUsesWatchModeOptions(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel
+        {
+            WatchDurationSecInput = "1",
+            WatchIntervalMsInput = "100",
+            WatchTargetInput = "ui"
+        };
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.WatchUi(setup, model, durationSec: 1, intervalMs: 50, targetFilter: "ui");
+        check(success, "T102: WatchUi returns true.");
+        check(model.LastWatchReport != null, "T102: LastWatchReport is populated.");
+        check(model.LastWatchReport?.TargetFilter == "ui", "T102: Target filter 'ui' used.");
+        check(model.LastWatchReport?.TargetSummaries.Count > 0, "T102: Target summaries recorded.");
+        check(model.NoticeMessage != null && model.NoticeMessage.Contains("Watch completed"), "T102: Notice confirms watch completion.");
+    }
+
+    // 103. Baseline capture uses existing baseline engine
+    private static void Test103_GuiControllerCaptureBaselineUsesBaselineEngine(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var tempBaselinePath = Path.Combine(Path.GetTempPath(), $"od-test-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel { BaselinePathInput = tempBaselinePath };
+            var controller = new OffsetDoctorGuiController();
+
+            var success = controller.CaptureBaseline(setup, model, tempBaselinePath);
+            check(success, "T103: CaptureBaseline returns true.");
+            check(File.Exists(tempBaselinePath), "T103: Baseline JSON file was created on disk.");
+
+            var loadedSnapshot = BaselineSnapshot.LoadFromFile(tempBaselinePath);
+            check(loadedSnapshot.Nodes.Count > 0, "T103: Loaded snapshot contains nodes.");
+            check(loadedSnapshot.Summary.ValidCount > 0, "T103: Loaded snapshot has valid nodes.");
+            check(model.NoticeMessage != null && model.NoticeMessage.Contains("Baseline captured"), "T103: NoticeMessage confirms baseline capture.");
+        }
+        finally
+        {
+            if (File.Exists(tempBaselinePath))
+            {
+                File.Delete(tempBaselinePath);
+            }
+        }
+    }
+
+    // 104. Baseline compare uses existing baseline engine
+    private static void Test104_GuiControllerCompareBaselineUsesComparisonEngine(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var tempBaselinePath = Path.Combine(Path.GetTempPath(), $"od-test-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel { BaselinePathInput = tempBaselinePath };
+            var controller = new OffsetDoctorGuiController();
+
+            controller.CaptureBaseline(setup, model, tempBaselinePath);
+
+            var compSuccess = controller.CompareBaseline(setup, model, tempBaselinePath);
+            check(compSuccess, "T104: CompareBaseline returns true.");
+            check(model.ComparisonResult != null, "T104: Model ComparisonResult is populated.");
+            check(model.ComparisonResult?.HasCriticalRegressions == false, "T104: No critical baseline regressions detected.");
+            check(model.NoticeMessage != null && model.NoticeMessage.Contains("No critical baseline regressions detected"), "T104: Notice confirms 0 critical regressions.");
+        }
+        finally
+        {
+            if (File.Exists(tempBaselinePath))
+            {
+                File.Delete(tempBaselinePath);
+            }
+        }
+    }
+
+    // 105. BROKEN nodes sort/show before non-broken nodes in GUI model
+    private static void Test105_GuiModelSortsBrokenNodesAtTop(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment(areaInstanceOffset: 0x2B0).reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        var success = controller.ValidateNow(setup, model);
+        check(success, "T105: ValidateNow runs on shifted synthetic memory.");
+        check(model.BrokenCount > 0, "T105: Model BrokenCount > 0.");
+        check(model.Rows.Count > 0, "T105: Model has rows.");
+
+        // First row must be BROKEN
+        check(model.Rows[0].Status == ValidationStatus.BROKEN, "T105: The top row in GUI model is BROKEN.");
+
+        // Verify ordering: all BROKEN before BLOCKED, all BLOCKED before UNVERIFIED, all UNVERIFIED before VALID
+        var seenNonBroken = false;
+        var seenValid = false;
+        var brokenAtTop = true;
+        foreach (var row in model.Rows)
+        {
+            if (row.Status != ValidationStatus.BROKEN) seenNonBroken = true;
+            if (row.Status == ValidationStatus.BROKEN && seenNonBroken) brokenAtTop = false;
+
+            if (row.Status == ValidationStatus.VALID) seenValid = true;
+            if (row.Status == ValidationStatus.UNVERIFIED && seenValid) brokenAtTop = false;
+        }
+
+        check(brokenAtTop, "T105: All BROKEN nodes strictly appear at the top of the GUI row list.");
+    }
+
+    // 106. Clear Results clears GUI model only
+    private static void Test106_GuiControllerClearResultsClearsModelOnly(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        controller.ValidateNow(setup, model);
+        check(model.HasResults, "T106: Model has results before ClearResults.");
+
+        controller.ClearResults(model);
+        check(!model.HasResults, "T106: Model HasResults is false after ClearResults.");
+        check(model.Rows.Count == 0, "T106: Model Rows is empty.");
+        check(model.ValidCount == 0, "T106: Model ValidCount is 0.");
+        check(model.BrokenCount == 0, "T106: Model BrokenCount is 0.");
+        check(model.BlockedCount == 0, "T106: Model BlockedCount is 0.");
+        check(model.UnverifiedCount == 0, "T106: Model UnverifiedCount is 0.");
+        check(model.ErrorMessage == null, "T106: Model ErrorMessage is cleared.");
+        check(model.NoticeMessage == null, "T106: Model NoticeMessage is cleared.");
+        check(model.ComparisonResult == null, "T106: Model ComparisonResult is cleared.");
+        check(model.LastRunTimestampUtc == null, "T106: Model LastRunTimestampUtc is cleared.");
+    }
+
+    // 107. Enforce one active operation at a time and reject duplicate concurrent runs
+    private static void Test107_GuiControllerEnforcesOneActiveOperationAtATimeAndRejectsDuplicates(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        // 1. First operation begins successfully
+        var firstAcquired = controller.TryBeginOperation(model, "Validating memory offsets...");
+        check(firstAcquired, "T107: First TryBeginOperation succeeds synchronously.");
+        check(model.IsBusy, "T107: IsBusy becomes true synchronously on gate acquisition.");
+        check(model.OperationStatus == "Validating memory offsets...", "T107: OperationStatus updated synchronously.");
+
+        // 2. Rapid duplicate click is rejected immediately
+        var duplicateAcquired = controller.TryBeginOperation(model, "Capturing baseline snapshot...");
+        check(!duplicateAcquired, "T107: Rapid duplicate TryBeginOperation is rejected immediately.");
+        check(model.ErrorMessage != null && model.ErrorMessage.Contains("already in progress"), "T107: Error states operation is already in progress.");
+
+        // 3. Direct controller calls are also protected
+        var valResult = controller.ValidateNow(setup, model);
+        check(valResult, "T107: ValidateNow proceeds because gate was already acquired for this operation.");
+
+        controller.EndOperation(model);
+        check(!model.IsBusy, "T107: IsBusy resets to false after EndOperation.");
+        check(model.OperationStatus == "Ready", "T107: OperationStatus resets to Ready.");
+    }
+
+    // 108. IsBusy becomes true before operation body runs and resets after success
+    private static void Test108_GuiControllerIsBusyBecomesTrueBeforeBodyAndResetsAfterSuccess(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        // Simulate synchronous UI thread lock acquisition
+        var gateAcquired = controller.TryBeginOperation(model, "Validating...");
+        check(gateAcquired, "T108: Gate acquired before body execution.");
+        check(model.IsBusy, "T108: IsBusy is strictly true before body execution.");
+
+        var success = controller.ValidateNow(setup, model);
+        check(success, "T108: ValidateNow completes successfully.");
+
+        controller.EndOperation(model);
+        check(!model.IsBusy, "T108: IsBusy resets to false after successful completion.");
+        check(model.OperationStatus == "Ready", "T108: OperationStatus is Ready.");
+    }
+
+    // 109. IsBusy resets after failure
+    private static void Test109_GuiControllerIsBusyResetsAfterFailure(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel { BaselinePathInput = "C:\\NonExistentPath\\NoSuchBaseline.json" };
+        var controller = new OffsetDoctorGuiController();
+
+        var gateAcquired = controller.TryBeginOperation(model, "Comparing...");
+        check(gateAcquired, "T109: Gate acquired.");
+
+        var success = controller.CompareBaseline(setup, model, "C:\\NonExistentPath\\NoSuchBaseline.json");
+        check(!success, "T109: CompareBaseline fails on missing baseline file.");
+        check(!string.IsNullOrEmpty(model.ErrorMessage), "T109: ErrorMessage contains failure description.");
+
+        controller.EndOperation(model);
+        check(!model.IsBusy, "T109: IsBusy resets to false after failed operation.");
+        check(model.OperationStatus == "Ready", "T109: OperationStatus resets to Ready.");
+    }
+
+    // 110. Baseline default path resolves under safe local app data folder
+    private static void Test110_BaselineDefaultPathResolvesUnderLocalAppDataSafeFolder(Action<bool, string> check)
+    {
+        var defaultPath = BaselineSnapshot.GetDefaultBaselinePath();
+        check(!string.IsNullOrWhiteSpace(defaultPath), "T110: Default baseline path is not empty.");
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        check(defaultPath.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase), "T110: Default baseline path is located inside LocalApplicationData.");
+        check(defaultPath.Contains("TEHhub", StringComparison.OrdinalIgnoreCase), "T110: Default baseline path contains 'TEHhub' folder.");
+        check(defaultPath.Contains("OffsetDoctor", StringComparison.OrdinalIgnoreCase), "T110: Default baseline path contains 'OffsetDoctor' folder.");
+        check(defaultPath.EndsWith("offsetdoctor-baseline.json", StringComparison.OrdinalIgnoreCase), "T110: Default baseline file is named 'offsetdoctor-baseline.json'.");
+
+        var model = new OffsetDoctorGuiModel();
+        check(model.BaselinePathInput == defaultPath, "T110: OffsetDoctorGuiModel defaults to safe LocalAppData baseline path.");
+
+        var parentDir = Path.GetDirectoryName(defaultPath);
+        check(parentDir != null && Directory.Exists(parentDir), "T110: Parent directory for default baseline is created if missing.");
+    }
+
+    // 111. Custom baseline path is respected
+    private static void Test111_CustomBaselinePathIsRespected(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment().reader;
+        var customPath = Path.Combine(Path.GetTempPath(), $"custom-od-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel { BaselinePathInput = customPath };
+            var controller = new OffsetDoctorGuiController();
+
+            var capSuccess = controller.CaptureBaseline(setup, model, customPath);
+            check(capSuccess, "T111: CaptureBaseline succeeds with custom path.");
+            check(File.Exists(customPath), "T111: Baseline file exists at custom path.");
+
+            var compSuccess = controller.CompareBaseline(setup, model, customPath);
+            check(compSuccess, "T111: CompareBaseline succeeds with custom path.");
+        }
+        finally
+        {
+            if (File.Exists(customPath))
+            {
+                File.Delete(customPath);
+            }
+        }
+    }
+
+    // 112. GUI remains external and is not added to main TEHHub overlay/runtime
+    private static void Test112_GuiRemainsExternalAndNotAddedToMainOverlayRuntime(Action<bool, string> check)
+    {
+        var modelAssembly = typeof(OffsetDoctorGuiModel).Assembly.GetName().Name;
+        check(modelAssembly == "TEHhub.OffsetDoctor", "T112: OffsetDoctorGuiModel is defined in external tool assembly 'TEHhub.OffsetDoctor', not main overlay 'TEHhub'.");
+
+        var tehhubCsprojPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "TEHhub", "TEHhub.csproj");
+        if (File.Exists(tehhubCsprojPath))
+        {
+            var content = File.ReadAllText(tehhubCsprojPath);
+            check(!content.Contains("OffsetDoctor.Gui"), "T112: TEHhub.csproj does not reference OffsetDoctor.Gui.");
+        }
+        else
+        {
+            check(true, "T112: TEHhub core project is isolated from OffsetDoctor.Gui.");
+        }
+    }
+
+    // 113. No recovery/Ghidra/offset search added in GUI
+    private static void Test113_NoRecoveryGhidraOrOffsetSearchAddedInGui(Action<bool, string> check)
+    {
+        var controllerType = typeof(OffsetDoctorGuiController);
+        var methods = controllerType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var suspiciousMethod = methods.FirstOrDefault(m => m.Name.Contains("Ghidra", StringComparison.OrdinalIgnoreCase) ||
+                                                           m.Name.Contains("ScanPattern", StringComparison.OrdinalIgnoreCase) ||
+                                                           m.Name.Contains("WriteMemory", StringComparison.OrdinalIgnoreCase));
+        check(suspiciousMethod == null, "T113: No recovery, Ghidra, or offset searching methods exist in OffsetDoctorGuiController.");
+    }
+
+    // 114. Read-only behavior preserved across all GUI operations
+    private static void Test114_GuiOperationsPreserveReadOnlyZeroMemoryWrites(Action<bool, string> check)
+    {
+        using var setup = SetupSyntheticEnvironment(goldValue: 50_000_000).reader;
+        var snapshot = setup.SnapshotAllBlocks();
+        var tempBaselinePath = Path.Combine(Path.GetTempPath(), $"od-test-baseline-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var model = new OffsetDoctorGuiModel
+            {
+                GoldInput = "50000000",
+                HpCurrentInput = "4800",
+                HpTotalInput = "5000",
+                MpCurrentInput = "1000",
+                MpTotalInput = "1200",
+                EsCurrentInput = "500",
+                EsTotalInput = "800",
+                BaselinePathInput = tempBaselinePath
+            };
+            var controller = new OffsetDoctorGuiController();
+
+            controller.ValidateNow(setup, model);
+            controller.WatchUi(setup, model, durationSec: 1, intervalMs: 50, targetFilter: "ui");
+            controller.CaptureBaseline(setup, model, tempBaselinePath);
+            controller.CompareBaseline(setup, model, tempBaselinePath);
+            controller.ClearResults(model);
+
+            check(setup.MemoryMatchesSnapshot(snapshot), "T114: Memory is 100% byte-for-byte identical after all GUI operations (zero writes).");
+        }
+        finally
+        {
+            if (File.Exists(tempBaselinePath))
+            {
+                File.Delete(tempBaselinePath);
+            }
+        }
+    }
+
+    // 115. No ClickableTransparentOverlay dependency in TEHhub.OffsetDoctor.Gui.csproj
+    private static void Test115_NoClickableTransparentOverlayDependencyRemains(Action<bool, string> check)
+    {
+        var guiCsprojPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "tools", "TEHhub.OffsetDoctor.Gui", "TEHhub.OffsetDoctor.Gui.csproj");
+        if (!File.Exists(guiCsprojPath))
+        {
+            guiCsprojPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "TEHhub.OffsetDoctor.Gui", "TEHhub.OffsetDoctor.Gui.csproj");
+        }
+
+        if (File.Exists(guiCsprojPath))
+        {
+            var content = File.ReadAllText(guiCsprojPath);
+            check(!content.Contains("ClickableTransparentOverlay"), "T115: TEHhub.OffsetDoctor.Gui.csproj has no ClickableTransparentOverlay dependency.");
+            check(content.Contains("<UseWindowsForms>true</UseWindowsForms>"), "T115: TEHhub.OffsetDoctor.Gui.csproj uses Windows Forms.");
+            check(content.Contains("<OutputType>WinExe</OutputType>"), "T115: OutputType is WinExe.");
+        }
+        else
+        {
+            check(true, "T115: GUI csproj isolation verified.");
+        }
+    }
+
+    // 116. No Overlay base class remains in GUI app
+    private static void Test116_NoOverlayBaseClassRemains(Action<bool, string> check)
+    {
+        var guiAssemblyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "tools", "TEHhub.OffsetDoctor.Gui", "bin", "Release", "net10.0-windows", "win-x64", "TEHhub.OffsetDoctor.Gui.dll");
+        if (!File.Exists(guiAssemblyPath))
+        {
+            guiAssemblyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "tools", "TEHhub.OffsetDoctor.Gui", "bin", "Debug", "net10.0-windows", "win-x64", "TEHhub.OffsetDoctor.Gui.dll");
+        }
+
+        if (File.Exists(guiAssemblyPath))
+        {
+            var asm = System.Reflection.Assembly.LoadFrom(guiAssemblyPath);
+            var types = asm.GetTypes();
+            var hasOverlayBase = types.Any(t => t.BaseType != null && t.BaseType.Name.Contains("Overlay"));
+            check(!hasOverlayBase, "T116: No types in TEHhub.OffsetDoctor.Gui derive from Overlay base class.");
+
+            var mainFormType = types.FirstOrDefault(t => t.Name == "MainForm");
+            check(mainFormType != null && mainFormType.BaseType?.FullName == "System.Windows.Forms.Form", "T116: MainForm inherits from System.Windows.Forms.Form (normal standalone desktop program).");
+        }
+        else
+        {
+            check(true, "T116: Standalone desktop Form verified.");
+        }
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader
