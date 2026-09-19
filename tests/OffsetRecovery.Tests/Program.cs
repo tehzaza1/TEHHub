@@ -535,6 +535,39 @@ try
     evidence = OffsetHelperV2Engine.GetSessionEvidence();
     Check(evidence.Samples == 0 && evidence.LoadingEnterTransitions == 0 && evidence.AreaInstanceChanges == 0,
         "ResetSessionEvidence must clear all OH2 temporal evidence.");
+    Check(evidence.ProcessId == 0 && evidence.ProcessBase == 0,
+        "ResetSessionEvidence must clear the process identity boundary.");
+
+    // Transition evidence from a previous game process must never carry into a new attachment.
+    OffsetHelperV2Engine.ObserveSessionProcessIdentity(processId: 1001, processBase: 0x7FF600000000);
+    OffsetHelperV2Engine.RecordSessionEvidenceSample(
+        isLoading: 0,
+        areaInstance: 0x120000,
+        areaHash: 0x33333333,
+        localPlayer: 0x220000,
+        worldData: 0x320000,
+        timestampUtc: evidenceT0.AddSeconds(3));
+
+    evidence = OffsetHelperV2Engine.GetSessionEvidence();
+    Check(evidence.ProcessId == 1001 && evidence.ProcessBase == 0x7FF600000000,
+        "OH2 session evidence must bind to the active process identity.");
+    Check(evidence.Samples == 1,
+        "Binding the same process identity must preserve samples captured in that process.");
+
+    OffsetHelperV2Engine.ObserveSessionProcessIdentity(processId: 1001, processBase: 0x7FF600000000);
+    evidence = OffsetHelperV2Engine.GetSessionEvidence();
+    Check(evidence.Samples == 1,
+        "Re-observing the same process identity must not reset OH2 session evidence.");
+
+    OffsetHelperV2Engine.ObserveSessionProcessIdentity(processId: 2002, processBase: 0x7FF700000000);
+    evidence = OffsetHelperV2Engine.GetSessionEvidence();
+    Check(evidence.ProcessId == 2002 && evidence.ProcessBase == 0x7FF700000000,
+        "OH2 session evidence must update its process identity after a reattach.");
+    Check(evidence.Samples == 0 && evidence.LoadingEnterTransitions == 0 &&
+          evidence.LoadingExitTransitions == 0 && evidence.AreaInstanceChanges == 0,
+        "OH2 must discard temporal evidence from the previous game process after a reattach.");
+
+    OffsetHelperV2Engine.ResetSessionEvidence();
 
     Console.WriteLine($"PASS: {assertions} assertions; read-only offset scanner and memory verification intact.");
 }
