@@ -130,6 +130,8 @@ namespace TEHhub.Ui
             ImGui.TextColored(ColorRed, $"Fail: {report.TotalFail}");
             ImGui.SameLine();
             ImGui.TextColored(ColorGrey, $"Unavailable: {report.TotalUnavailable}");
+            ImGui.SameLine();
+            ImGui.TextColored(ColorBlue, $"Runtime: {report.ElapsedMilliseconds:F2} ms");
 
             var evidence = report.SessionEvidence;
             var evidenceColor = evidence.HasCompleteLoadingCycle && evidence.HasAreaTransition
