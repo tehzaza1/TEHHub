@@ -26,7 +26,7 @@ public static class OffsetDoctorTests
 {
     public static void RunAll(Action<bool, string> check)
     {
-        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 116 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
+        Console.WriteLine("\n[TEHhub.OffsetDoctor.Tests] Running 117 Rigorous Semantic Validation, Watch, Baseline & GUI Scenarios...");
 
         Test1_HealthyCoreChain(check);
         Test2_BrokenStaticRootBlocksAllDescendants(check);
