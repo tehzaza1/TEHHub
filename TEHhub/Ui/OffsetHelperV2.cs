@@ -95,6 +95,15 @@ namespace TEHhub.Ui
             ImGui.Checkbox("Auto-refresh (1s)", ref autoRefresh);
 
             ImGui.SameLine();
+            if (ImGui.Button("Reset Session Evidence"))
+            {
+                OffsetHelperV2Engine.ResetSessionEvidence();
+                latestReport = OffsetHelperV2Engine.RunPracticalDiagnostics();
+                lastAutoRefresh = DateTime.UtcNow;
+                statusMessage = "Session transition evidence reset.";
+            }
+
+            ImGui.SameLine();
             if (ImGui.Button("Export JSON Report") && latestReport != null)
             {
                 ExportReportJson(latestReport);
@@ -121,6 +130,17 @@ namespace TEHhub.Ui
             ImGui.TextColored(ColorRed, $"Fail: {report.TotalFail}");
             ImGui.SameLine();
             ImGui.TextColored(ColorGrey, $"Unavailable: {report.TotalUnavailable}");
+
+            var evidence = report.SessionEvidence;
+            var evidenceColor = evidence.HasCompleteLoadingCycle && evidence.HasAreaTransition
+                ? ColorGreen
+                : ColorGrey;
+            ImGui.TextColored(
+                evidenceColor,
+                $"Session Evidence: Samples={evidence.Samples}, LoadingSamples={evidence.LoadingSamples}, " +
+                $"IdleSeen={evidence.SawLoadingIdle}, ActiveSeen={evidence.SawLoadingActive}, " +
+                $"Load Enter/Exit={evidence.LoadingEnterTransitions}/{evidence.LoadingExitTransitions}, " +
+                $"Area Ptr/Hash Changes={evidence.AreaInstanceChanges}/{evidence.AreaHashChanges}");
         }
 
         private static void DrawProbesList(OffsetHelperV2Engine.V2PracticalReport report)
