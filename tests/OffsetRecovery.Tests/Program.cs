@@ -474,6 +474,62 @@ try
     Check(Marshal.OffsetOf<InventoryStruct>(nameof(InventoryStruct.ServerRequestCounter)).ToInt32() == 0x1E8,
         "InventoryStruct.ServerRequestCounter must be at 0x1E8.");
 
+    // OH2 session transition evidence must distinguish a static healthy sample from an observed loading cycle.
+    OffsetHelperV2Engine.ResetSessionEvidence();
+    var evidenceT0 = new DateTime(2026, 9, 20, 0, 0, 0, DateTimeKind.Utc);
+    OffsetHelperV2Engine.RecordSessionEvidenceSample(
+        isLoading: 0,
+        areaInstance: 0x100000,
+        areaHash: 0x11111111,
+        localPlayer: 0x200000,
+        worldData: 0x300000,
+        timestampUtc: evidenceT0);
+
+    var evidence = OffsetHelperV2Engine.GetSessionEvidence();
+    Check(evidence.Samples == 1 && evidence.LoadingSamples == 1,
+        "OH2 session evidence must count the first static sample.");
+    Check(evidence.SawLoadingIdle && !evidence.SawLoadingActive,
+        "OH2 session evidence must record idle loading state without inventing an active loading observation.");
+    Check(!evidence.HasCompleteLoadingCycle && !evidence.HasAreaTransition,
+        "One static sample must not qualify as a loading cycle or area transition.");
+
+    OffsetHelperV2Engine.RecordSessionEvidenceSample(
+        isLoading: 1,
+        areaInstance: 0x100000,
+        areaHash: 0x11111111,
+        localPlayer: 0x200000,
+        worldData: 0x300000,
+        timestampUtc: evidenceT0.AddSeconds(1));
+
+    evidence = OffsetHelperV2Engine.GetSessionEvidence();
+    Check(evidence.LoadingEnterTransitions == 1 && evidence.LoadingExitTransitions == 0,
+        "OH2 session evidence must record the 0->1 loading transition exactly once.");
+    Check(evidence.SawLoadingActive && !evidence.HasCompleteLoadingCycle,
+        "Seeing loading active is not a complete loading cycle until a 1->0 transition is observed.");
+
+    OffsetHelperV2Engine.RecordSessionEvidenceSample(
+        isLoading: 0,
+        areaInstance: 0x110000,
+        areaHash: 0x22222222,
+        localPlayer: 0x210000,
+        worldData: 0x310000,
+        timestampUtc: evidenceT0.AddSeconds(2));
+
+    evidence = OffsetHelperV2Engine.GetSessionEvidence();
+    Check(evidence.LoadingEnterTransitions == 1 && evidence.LoadingExitTransitions == 1,
+        "OH2 session evidence must record one complete 0->1->0 loading cycle.");
+    Check(evidence.HasCompleteLoadingCycle,
+        "OH2 session evidence must identify a complete loading cycle only after both transition directions are observed.");
+    Check(evidence.AreaInstanceChanges == 1 && evidence.AreaHashChanges == 1 && evidence.HasAreaTransition,
+        "OH2 session evidence must record the post-load area pointer/hash replacement.");
+    Check(evidence.LocalPlayerChanges == 1 && evidence.WorldDataChanges == 1,
+        "OH2 session evidence must record post-load LocalPlayer and WorldData replacement evidence.");
+
+    OffsetHelperV2Engine.ResetSessionEvidence();
+    evidence = OffsetHelperV2Engine.GetSessionEvidence();
+    Check(evidence.Samples == 0 && evidence.LoadingEnterTransitions == 0 && evidence.AreaInstanceChanges == 0,
+        "ResetSessionEvidence must clear all OH2 temporal evidence.");
+
     Console.WriteLine($"PASS: {assertions} assertions; read-only offset scanner and memory verification intact.");
 }
 finally
