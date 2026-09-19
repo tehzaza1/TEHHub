@@ -201,7 +201,10 @@ namespace AutoExile2.Systems
             }
 
             // 1. Player Vitals (HP, ES, Combined, and Mana percentages)
-            PlayerVitals vitals = player.TryGetComponent<Life>(out var pLife) ? new PlayerVitals(pLife) : default;
+            // A transient Life-component miss must be treated as unknown/healthy, not 0% HP/Mana.
+            PlayerVitals vitals = player.TryGetComponent<Life>(out var pLife)
+                ? new PlayerVitals(pLife)
+                : new PlayerVitals(null);
 
             // 2. Auto Flasks (AutoExile 1 automated recovery)
             this.TickAutoFlasks(settings, vitals.HpPercent, vitals.ManaPercent);
