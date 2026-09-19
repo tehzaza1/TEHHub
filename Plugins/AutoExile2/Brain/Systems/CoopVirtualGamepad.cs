@@ -50,7 +50,9 @@ namespace AutoExile2.Systems
         private IXbox360Controller? leaderXbox;
 
         private CancellationTokenSource? passthroughCts;
+        private readonly object leaderOverrideGate = new();
         private CoopPadButton leaderActiveOverrideButton = CoopPadButton.None;
+        private long leaderOverrideGeneration;
         private bool leaderActiveFlaskLife = false;
         private bool leaderActiveFlaskMana = false;
 
@@ -63,6 +65,8 @@ namespace AutoExile2.Systems
         public bool IsFollowerManualAiming { get; private set; } = false;
         private CancellationTokenSource? followerPassthroughCts;
         private readonly HashSet<CoopPadButton> followerBotActiveButtons = new();
+        private readonly Dictionary<CoopPadButton, long> followerBotButtonGenerations = new();
+        private long followerBotButtonGeneration;
         public bool IsLeaderSprinting { get; private set; } = false;
         private volatile bool followerSprintActive = false;
 
@@ -369,28 +373,67 @@ namespace AutoExile2.Systems
             if (this.followerXbox == null || button == CoopPadButton.None) return;
 
             var controller = this.followerXbox;
+            long generation;
+            lock (this.followerBotActiveButtons)
+            {
+                generation = ++this.followerBotButtonGeneration;
+                this.followerBotButtonGenerations[button] = generation;
+                this.followerBotActiveButtons.Add(button);
+            }
+
+            try
+            {
+                lock (controller)
+                {
+                    this.ApplyButton(controller, button, true);
+                    controller.SubmitReport();
+                }
+            }
+            catch
+            {
+                lock (this.followerBotActiveButtons)
+                {
+                    if (this.followerBotButtonGenerations.TryGetValue(button, out var current) &&
+                        current == generation)
+                    {
+                        this.followerBotButtonGenerations.Remove(button);
+                        this.followerBotActiveButtons.Remove(button);
+                    }
+                }
+
+                return;
+            }
+
             Task.Run(async () =>
             {
                 try
                 {
-                    lock (this.followerBotActiveButtons)
-                    {
-                        this.followerBotActiveButtons.Add(button);
-                    }
-
-                    lock (controller)
-                    {
-                        this.ApplyButton(controller, button, true);
-                        controller.SubmitReport();
-                    }
-
                     await Task.Delay(Math.Max(30, holdMs));
+                }
+                catch
+                {
+                    // Ignore transient delay failures; ownership cleanup still runs below.
+                }
 
-                    lock (this.followerBotActiveButtons)
+                bool ownsRelease = false;
+                lock (this.followerBotActiveButtons)
+                {
+                    if (this.followerBotButtonGenerations.TryGetValue(button, out var current) &&
+                        current == generation)
                     {
+                        this.followerBotButtonGenerations.Remove(button);
                         this.followerBotActiveButtons.Remove(button);
+                        ownsRelease = true;
                     }
+                }
 
+                if (!ownsRelease)
+                {
+                    return;
+                }
+
+                try
+                {
                     lock (controller)
                     {
                         this.ApplyButton(controller, button, false);
@@ -399,7 +442,7 @@ namespace AutoExile2.Systems
                 }
                 catch
                 {
-                    // Ignore transient
+                    // Ignore transient/disconnect errors.
                 }
             });
         }
@@ -499,20 +542,71 @@ namespace AutoExile2.Systems
             if (this.leaderXbox == null || button == CoopPadButton.None) return;
 
             var controller = this.leaderXbox;
+            long generation;
+            CoopPadButton previousButton;
+            lock (this.leaderOverrideGate)
+            {
+                generation = ++this.leaderOverrideGeneration;
+                previousButton = this.leaderActiveOverrideButton;
+                this.leaderActiveOverrideButton = button;
+            }
+
+            try
+            {
+                lock (controller)
+                {
+                    if (previousButton != CoopPadButton.None && previousButton != button)
+                    {
+                        this.ApplyButton(controller, previousButton, false);
+                    }
+
+                    this.ApplyButton(controller, button, true);
+                    controller.SubmitReport();
+                }
+            }
+            catch
+            {
+                lock (this.leaderOverrideGate)
+                {
+                    if (this.leaderOverrideGeneration == generation)
+                    {
+                        this.leaderActiveOverrideButton = CoopPadButton.None;
+                    }
+                }
+
+                return;
+            }
+
             Task.Run(async () =>
             {
                 try
                 {
-                    this.leaderActiveOverrideButton = button;
-                    lock (controller)
-                    {
-                        this.ApplyButton(controller, button, true);
-                        controller.SubmitReport();
-                    }
-
                     await Task.Delay(Math.Max(30, holdMs));
+                }
+                catch
+                {
+                    // Ignore transient delay failures; generation ownership decides cleanup.
+                }
 
-                    this.leaderActiveOverrideButton = CoopPadButton.None;
+                bool ownsRelease;
+                lock (this.leaderOverrideGate)
+                {
+                    ownsRelease =
+                        this.leaderOverrideGeneration == generation &&
+                        this.leaderActiveOverrideButton == button;
+                    if (ownsRelease)
+                    {
+                        this.leaderActiveOverrideButton = CoopPadButton.None;
+                    }
+                }
+
+                if (!ownsRelease)
+                {
+                    return;
+                }
+
+                try
+                {
                     lock (controller)
                     {
                         this.ApplyButton(controller, button, false);
@@ -521,7 +615,7 @@ namespace AutoExile2.Systems
                 }
                 catch
                 {
-                    this.leaderActiveOverrideButton = CoopPadButton.None;
+                    // Ignore transient/disconnect errors.
                 }
             });
         }
@@ -764,6 +858,8 @@ namespace AutoExile2.Systems
             this.followerSprintActive = false;
             lock (this.followerBotActiveButtons)
             {
+                this.followerBotButtonGeneration++;
+                this.followerBotButtonGenerations.Clear();
                 this.followerBotActiveButtons.Clear();
             }
 
@@ -789,7 +885,12 @@ namespace AutoExile2.Systems
                 }
             }
 
-            this.leaderActiveOverrideButton = CoopPadButton.None;
+            lock (this.leaderOverrideGate)
+            {
+                this.leaderOverrideGeneration++;
+                this.leaderActiveOverrideButton = CoopPadButton.None;
+            }
+
             this.leaderActiveFlaskLife = false;
             this.leaderActiveFlaskMana = false;
         }
