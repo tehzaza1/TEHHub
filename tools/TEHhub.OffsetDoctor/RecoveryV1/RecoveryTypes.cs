@@ -10,7 +10,12 @@ public enum RecoveryTerminalResult
 
 public enum RecoveryEvidenceResult { PASS, FAIL, UNKNOWN }
 public enum CandidateDisposition { Rejected, Equivalent, Survivor, Unresolved }
-public enum EliminationStage { Discovery, RequiredPredicates, Equivalence, IndependentValidation }
+public enum EliminationStage
+{
+    Discovery, RequiredPredicates, Equivalence, IndependentValidation,
+    Od114AlignedBases, Od114ReadableShape, Od114OwnerBackPointer, Od114AnchorStructure,
+    Od114SocketCount, Od114GoldenSlots, Od114AnchorPosition
+}
 public enum StructuralHypothesis { PointerField, ScalarField, StaticPattern }
 
 public sealed record RecoveryIdentity(
@@ -28,13 +33,16 @@ public sealed record RecoveryTargetSpec(
     ImmutableArray<StructuralHypothesis> ApprovedHypotheses,
     bool Applicable = true)
 {
+    public ImmutableArray<string> AdditionalDependencyIds { get; init; } = [];
+
     public static RecoveryTargetSpec Create(string id, RecoveryTargetScope scope, string strategyId,
         IEnumerable<string>? requiredContextKeys = null, string? parentTargetId = null,
         long? rootAddress = null, IEnumerable<StructuralHypothesis>? approvedHypotheses = null,
-        bool applicable = true) =>
+        bool applicable = true, IEnumerable<string>? additionalDependencyIds = null) =>
         new(id, scope, strategyId,
             (requiredContextKeys ?? []).ToImmutableArray(), parentTargetId, rootAddress,
-            (approvedHypotheses ?? []).ToImmutableArray(), applicable);
+            (approvedHypotheses ?? []).ToImmutableArray(), applicable)
+        { AdditionalDependencyIds = (additionalDependencyIds ?? []).ToImmutableArray() };
 }
 
 public sealed record RecoveryContextSnapshot(ImmutableDictionary<string, string> Facts)

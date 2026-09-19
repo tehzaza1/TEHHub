@@ -22,6 +22,7 @@ int legacyAssertions = assertions;
 RecoveryV1Tests.RunAll(Check);
 Od001RecoveryTests.RunAll(Check);
 Od063RecoveryTests.RunAll(Check);
+Od114RecoveryTests.RunAll(Check);
 Console.WriteLine($"[Recovery V1] {assertions - legacyAssertions} assertions verified.");
 
 Console.ForegroundColor = ConsoleColor.Green;

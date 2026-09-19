@@ -106,7 +106,7 @@ public static class DependencyEvaluator
     public static bool TryResolve(RecoverySession session, RecoveryTargetSpec target,
         out long anchor, out ImmutableArray<RecoveryDependencyState> dependencies, out string? error)
     {
-        if (target.ParentTargetId is null)
+        if (target.ParentTargetId is null && target.AdditionalDependencyIds.IsEmpty)
         {
             dependencies = [];
             anchor = target.RootAddress ?? 0;
@@ -114,23 +114,33 @@ public static class DependencyEvaluator
             return error is null;
         }
 
-        if (!session.TryGetResult(target.ParentTargetId, out RecoveryResult? parent) || parent is null)
+        var ids = (target.ParentTargetId is null ? Enumerable.Empty<string>() : [target.ParentTargetId])
+            .Concat(target.AdditionalDependencyIds).Distinct(StringComparer.Ordinal).ToArray();
+        var states = ImmutableArray.CreateBuilder<RecoveryDependencyState>();
+        anchor = target.RootAddress ?? 0;
+        error = target.ParentTargetId is null && target.RootAddress is null
+            ? "Root address is missing." : null;
+        foreach (string id in ids)
         {
-            dependencies = [new RecoveryDependencyState(target.ParentTargetId,
-                RecoveryTerminalResult.BLOCKED_DEPENDENCY, false, string.Empty)];
-            anchor = 0;
-            error = $"Parent '{target.ParentTargetId}' has no result.";
-            return false;
-        }
+            if (!session.TryGetResult(id, out RecoveryResult? parent) || parent is null)
+            {
+                states.Add(new RecoveryDependencyState(id,
+                    RecoveryTerminalResult.BLOCKED_DEPENDENCY, false, string.Empty));
+                error ??= $"Dependency '{id}' has no result.";
+                continue;
+            }
 
-        bool valid = session.TryGetProvisional(target.ParentTargetId, out ProvisionalValue? provisional) &&
-            provisional is not null && provisional.Identity == session.Identity &&
-            parent.Decision.TerminalResult == RecoveryTerminalResult.PROPOSED;
-        dependencies = [new RecoveryDependencyState(target.ParentTargetId,
-            parent.Decision.TerminalResult, valid, parent.Decision.EvidenceDigest,
-            valid ? provisional!.Value : null, valid ? provisional!.CandidateId : null)];
-        anchor = valid ? provisional!.Value : 0;
-        error = valid ? null : $"Parent '{target.ParentTargetId}' lacks a unique validated session value.";
-        return valid;
+            bool valid = session.TryGetProvisional(id, out ProvisionalValue? provisional) &&
+                provisional is not null && provisional.Identity == session.Identity &&
+                parent.Decision.TerminalResult == RecoveryTerminalResult.PROPOSED;
+            states.Add(new RecoveryDependencyState(id, parent.Decision.TerminalResult, valid,
+                parent.Decision.EvidenceDigest, valid ? provisional!.Value : null,
+                valid ? provisional!.CandidateId : null));
+            if (id == target.ParentTargetId && valid) anchor = provisional!.Value;
+            if (!valid) error ??= $"Dependency '{id}' lacks a unique validated session value.";
+        }
+        dependencies = states.ToImmutable();
+        if (error is not null) anchor = 0;
+        return error is null;
     }
 }
