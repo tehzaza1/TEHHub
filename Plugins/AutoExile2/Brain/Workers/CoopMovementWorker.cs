@@ -161,8 +161,9 @@ namespace AutoExile2.Brain.Workers
                     this.lastRepathLeaderPos = targetPos;
                     this.CurrentNavPath.Clear();
                     this.CurrentWaypointIndex = 0;
+                    this.CurrentDestination = null;
 
-                    if (path != null && path.Count > 0)
+                    if (path.Count > 0)
                     {
                         this.CurrentNavPath.AddRange(path);
                         this.CurrentDestination = targetPos;
@@ -202,7 +203,11 @@ namespace AutoExile2.Brain.Workers
                 }
                 else
                 {
-                    steerGridPos = targetPos;
+                    // A direct fallback here drives the follower into the same wall that made LOS fail.
+                    // Stay neutral and retry A* on the normal throttle instead.
+                    pad.SetFollowerMovement(Vector2.Zero);
+                    this.StopSprint(pad);
+                    return;
                 }
             }
 
