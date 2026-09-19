@@ -45,6 +45,7 @@ namespace AutoExile2.Modes.WaveFarm
 
         // Combat engagement lock
         private bool engagedInCombat;
+        private bool engagementTimedOutForCurrentPack;
         private DateTime engageStartTime = DateTime.MinValue;
 
         // Repath throttle
@@ -74,6 +75,7 @@ namespace AutoExile2.Modes.WaveFarm
             this.CurrentWaypointIndex = 0;
             this.CurrentDestination = null;
             this.engagedInCombat = false;
+            this.engagementTimedOutForCurrentPack = false;
             this.engageStartTime = DateTime.MinValue;
             this.failedExploreTargets.Clear();
             this.lastExplorePath = DateTime.MinValue;
@@ -122,28 +124,38 @@ namespace AutoExile2.Modes.WaveFarm
                 inCombat = ctx.Combat.TickCombat(area, world, player, ctx.Settings);
             }
 
-            // Embedded weighted density engagement: Normal=1, Magic=2, Rare/Unique=3 (Threshold >= 3)
-            bool denseEnough = inCombat && ctx.Combat.WeightedDensity >= 3;
+            // Embedded weighted density engagement: Normal=1, Magic=2, Rare/Unique=3.
+            // Farm-plan config is the source of truth; 0 explicitly means never pause for combat.
+            int engagementThreshold = Math.Max(0, config.PauseDensity);
+            bool denseEnough = engagementThreshold > 0 &&
+                               inCombat &&
+                               ctx.Combat.WeightedDensity >= engagementThreshold;
 
-            if (denseEnough)
+            if (!denseEnough)
+            {
+                // The current pack is cleared or has thinned below the engagement threshold.
+                // This also rearms combat locking after a previous timeout.
+                this.engagedInCombat = false;
+                this.engagementTimedOutForCurrentPack = false;
+                this.engageStartTime = DateTime.MinValue;
+            }
+            else if (!this.engagementTimedOutForCurrentPack)
             {
                 if (!this.engagedInCombat)
                 {
                     this.engageStartTime = DateTime.Now;
+                    this.engagedInCombat = true;
                 }
 
-                this.engagedInCombat = true;
-            }
-
-            if (this.engagedInCombat && !inCombat)
-            {
-                this.engagedInCombat = false; // Pack cleared
-            }
-
-            // Safety disengage after 10s
-            if (this.engagedInCombat && (DateTime.Now - this.engageStartTime).TotalSeconds > 10)
-            {
-                this.engagedInCombat = false;
+                // Safety disengage after 10s. Suppress re-locking on the same dense pack
+                // until it falls below the configured threshold, otherwise this would
+                // re-engage again on the very next tick.
+                if ((DateTime.Now - this.engageStartTime).TotalSeconds > 10)
+                {
+                    this.engagedInCombat = false;
+                    this.engagementTimedOutForCurrentPack = true;
+                    ctx.Log($"[Wave] Pack engagement timed out after 10s (weight {ctx.Combat.WeightedDensity}, threshold {engagementThreshold}); resuming navigation");
+                }
             }
 
             if (this.engagedInCombat && inCombat)
