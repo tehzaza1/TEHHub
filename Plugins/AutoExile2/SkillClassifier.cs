@@ -24,6 +24,15 @@ namespace AutoExile2
         public const string CategoryMovement = "Movement";
         public const string CategoryCustom = "Custom";
 
+        /// <summary>
+        /// Returns true for categories that are observed by AutoExile2 but must not receive automated input.
+        /// PoE2 persistent minions are auto-managed by the game and are not manually resummoned by the bot.
+        /// </summary>
+        public static bool IsAutoManagedCategory(string? category)
+        {
+            return string.Equals(category, CategoryMinion, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static readonly string[] TotemKeywords =
         {
             "totem", "ballista", "ancestor", "ancestral", "earthbreaker", "siegeballista", "spelltotem", "holyflame"
@@ -211,15 +220,16 @@ namespace AutoExile2
                     break;
 
                 case CategoryMinion:
-                    slot.Role = SkillRole.TotemOrMinion;
-                    slot.Priority = 5;
-                    slot.MinCastIntervalMs = 6000;
-                    slot.HoldDurationMs = 150;
+                    // PoE2 persistent minions are maintained by the game; keep them visible in detection/UI
+                    // but never configure them as an automated cast.
+                    slot.Role = SkillRole.Disabled;
+                    slot.Priority = 0;
+                    slot.MinCastIntervalMs = 500;
+                    slot.HoldDurationMs = 80;
                     slot.TargetFilter = SkillTargetFilter.Any;
                     slot.OnlyOnLowHp = false;
-                    slot.MinNearbyEnemies = 1;
-                    slot.MaxTargetRange = 60f;
-                    slot.MaxMinionCount = 3;
+                    slot.MinNearbyEnemies = 0;
+                    slot.MaxTargetRange = 0f;
                     slot.OnlyWhenBuffMissing = false;
                     break;
 

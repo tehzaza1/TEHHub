@@ -399,9 +399,6 @@ namespace AutoExile2.WebServer
                         var totemToken = item["MaxTotemCount"] ?? item["maxTotemCount"];
                         if (totemToken != null) slot.MaxTotemCount = SafeInt(totemToken, 1);
 
-                        var minionToken = item["MaxMinionCount"] ?? item["maxMinionCount"];
-                        if (minionToken != null) slot.MaxMinionCount = SafeInt(minionToken, 3);
-
                         var cullerAimToken = item["CullerAimDistance"] ?? item["cullerAimDistance"];
                         if (cullerAimToken != null) slot.CullerAimDistance = SafeFloat(cullerAimToken, 75f);
 
