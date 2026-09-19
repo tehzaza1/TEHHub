@@ -91,6 +91,18 @@ namespace AutoExile2.Systems
             BotInput.ReleaseAllAttackInputs();
         }
 
+        private void ClearCombatSnapshot()
+        {
+            this.CurrentTargetId = 0;
+            this.CurrentTargetName = string.Empty;
+            this.CurrentTargetRarity = string.Empty;
+            this.NearbyHostileCount = 0;
+            this.WeightedDensity = 0;
+            this.ClosestHostileDistance = float.MaxValue;
+            this.PackCenter = Vector2.Zero;
+            this.ObservedTargetDebuffs.Clear();
+        }
+
         /// <summary>
         /// Updates WASD movement during combat based on CombatStyle (Melee vs Ranged) and FightRange.
         /// Melee: Closes in to FightRange, then holds ground to attack.
@@ -187,16 +199,16 @@ namespace AutoExile2.Systems
             if (player == null || area == null || world == null)
             {
                 this.StopAllChannels();
-                this.CurrentTargetId = 0;
-                this.NearbyHostileCount = 0;
-                this.WeightedDensity = 0;
-                this.ClosestHostileDistance = float.MaxValue;
+                this.ClearCombatSnapshot();
                 return false;
             }
 
             if (!player.TryGetComponent<Render>(out var pRender))
             {
-                this.ClosestHostileDistance = float.MaxValue;
+                // A transient render miss invalidates the whole positional combat snapshot.
+                // Stop held attacks/channels so stale input cannot survive until a later tick.
+                this.StopAllChannels();
+                this.ClearCombatSnapshot();
                 return false;
             }
 
@@ -327,6 +339,7 @@ namespace AutoExile2.Systems
                 this.CurrentTargetId = 0;
                 this.CurrentTargetName = string.Empty;
                 this.CurrentTargetRarity = string.Empty;
+                this.ObservedTargetDebuffs.Clear();
                 this.StopAllChannels();
                 return executedSelfSkill;
             }
@@ -345,10 +358,11 @@ namespace AutoExile2.Systems
             }
             this.CurrentTargetName = targetName;
 
-            // Live scan debuffs on the targeted monster
+            // Live scan debuffs on the targeted monster. Always clear the previous target first,
+            // even when the new target has no Buffs component/status-effect collection.
+            this.ObservedTargetDebuffs.Clear();
             if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.FastStatusEffects != null)
             {
-                this.ObservedTargetDebuffs.Clear();
                 foreach (var (debuffName, eff) in tBuffs.FastStatusEffects)
                 {
                     if (string.IsNullOrWhiteSpace(debuffName)) continue;
