@@ -73,9 +73,8 @@ namespace AutoExile2.Brain.Workers
             {
                 foreach (var slot in s.P2Skills.Where(x => x.Enabled && (x.Role == SkillRole.SelfBuffGuard || x.Category == "Buff" || x.Category == "Guard" || x.Category == "Warcry")).OrderByDescending(x => x.Priority))
                 {
-                    int effectiveInterval = CombatSystem.HasAvailableCharges(follower, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
-                    int totalInterval = effectiveInterval + Math.Max(30, slot.HoldDurationMs);
-                    if ((now - slot.LastCastAt).TotalMilliseconds < totalInterval) continue;
+                    int castSpacingMs = CombatSystem.GetSkillCastSpacingMs(slot);
+                    if ((now - slot.LastCastAt).TotalMilliseconds < castSpacingMs) continue;
                     if (!CombatSystem.IsSkillReadyInGame(follower, slot)) continue;
                     if (slot.OnlyOnLowHp && !fVitals.IsLowVital(slot)) continue;
                     if (slot.MinManaPercent > 0 && fVitals.ManaPercent < slot.MinManaPercent) continue;
@@ -117,9 +116,9 @@ namespace AutoExile2.Brain.Workers
             // 2.1 Culler Skills (Focused fire ahead of Leader)
             foreach (var cullerSkill in s.P2Skills.Where(x => x.Enabled && (x.Category == "Culler" || x.Role == SkillRole.Culler)).OrderByDescending(x => x.Priority))
             {
-                int effectiveCullerInterval = Math.Max(100, cullerSkill.MinCastIntervalMs);
-                int totalCullerInterval = effectiveCullerInterval + Math.Max(30, cullerSkill.HoldDurationMs);
-                if ((now - cullerSkill.LastCastAt).TotalMilliseconds < totalCullerInterval) continue;
+                int cullerSpacingMs = Math.Max(100, CombatSystem.GetSkillCastSpacingMs(cullerSkill));
+                if ((now - cullerSkill.LastCastAt).TotalMilliseconds < cullerSpacingMs) continue;
+                if (!CombatSystem.IsSkillReadyInGame(follower, cullerSkill)) continue;
                 if (cullerSkill.MinManaPercent > 0 && fVitals.ManaPercent < cullerSkill.MinManaPercent) continue;
 
                 float rawStartDist = cullerSkill.CullerStartAttackDistance > 0 ? cullerSkill.CullerStartAttackDistance : 35f;
@@ -144,11 +143,18 @@ namespace AutoExile2.Brain.Workers
                     targetRarity = omp.Rarity;
                 }
 
-                foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role != SkillRole.SelfBuffGuard && x.Role != SkillRole.Culler && x.Category != "Buff" && x.Category != "Guard" && x.Category != "Warcry" && x.Category != "Culler" && x.Role != SkillRole.Disabled).OrderByDescending(x => x.Priority))
+                foreach (var skill in s.P2Skills.Where(x => x.Enabled &&
+                    x.Role != SkillRole.SelfBuffGuard &&
+                    x.Role != SkillRole.Culler &&
+                    x.Role != SkillRole.CorpseTargeted &&
+                    x.Category != "Buff" &&
+                    x.Category != "Guard" &&
+                    x.Category != "Warcry" &&
+                    x.Category != "Culler" &&
+                    x.Role != SkillRole.Disabled).OrderByDescending(x => x.Priority))
                 {
-                    int effectiveInterval = CombatSystem.HasAvailableCharges(follower, skill) ? Math.Min(skill.MinCastIntervalMs, 300) : skill.MinCastIntervalMs;
-                    int totalInterval = effectiveInterval + Math.Max(30, skill.HoldDurationMs);
-                    if ((now - skill.LastCastAt).TotalMilliseconds < totalInterval) continue;
+                    int castSpacingMs = CombatSystem.GetSkillCastSpacingMs(skill);
+                    if ((now - skill.LastCastAt).TotalMilliseconds < castSpacingMs) continue;
                     if (!CombatSystem.IsSkillReadyInGame(follower, skill)) continue;
                     if (skill.OnlyOnLowHp && !fVitals.IsLowVital(skill)) continue;
                     if (skill.MinManaPercent > 0 && fVitals.ManaPercent < skill.MinManaPercent) continue;
@@ -162,7 +168,7 @@ namespace AutoExile2.Brain.Workers
                     float effectiveRange = skill.MaxTargetRange > 0 ? skill.MaxTargetRange : 75f;
                     if (p.ClosestEnemyDistance > effectiveRange) continue;
 
-                    if (skill.OnlyWhenBuffMissing && CombatSystem.HasBuff(follower, skill)) continue;
+                    if (CombatSystem.TargetHasConfiguredDebuff(p.BestCombatTarget, skill)) continue;
 
                     skill.LastCastAt = now;
                     this.LastAttackTime = now;

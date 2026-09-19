@@ -44,7 +44,7 @@ namespace AutoExile2.Systems
         /// User MinCastIntervalMs is always honored; charge availability never shortens it.
         /// The hold duration only becomes the floor when it is longer than the configured interval.
         /// </summary>
-        private static int GetSkillCastSpacingMs(SkillSlotConfig slot)
+        internal static int GetSkillCastSpacingMs(SkillSlotConfig slot)
         {
             int configuredInterval = Math.Max(0, slot.MinCastIntervalMs);
             int inputHoldFloor = Math.Max(0, slot.HoldDurationMs) + InputReleaseMarginMs;
@@ -1204,7 +1204,7 @@ namespace AutoExile2.Systems
                     slot.Role == SkillRole.PackTargeted);
         }
 
-        private static bool TargetHasConfiguredDebuff(Entity target, SkillSlotConfig slot)
+        internal static bool TargetHasConfiguredDebuff(Entity target, SkillSlotConfig slot)
         {
             if (!ShouldCheckTargetDebuff(slot) ||
                 !target.TryGetComponent<Buffs>(out var buffs) ||
