@@ -33,6 +33,17 @@ namespace TEHhub.Ui
     /// </summary>
     public static class OffsetHelperV2Engine
     {
+        private static readonly int AreaPlayerInfoOffset =
+            Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.PlayerInfo)).ToInt32();
+        private static readonly int AreaEntitiesOffset =
+            Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.Entities)).ToInt32();
+        private static readonly int WorldAreaDetailsOffset =
+            Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.WorldAreaDetailsPtr)).ToInt32();
+        private static readonly int CameraStructureOffset =
+            Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.CameraStructurePtr)).ToInt32();
+        private static readonly int CameraMatrixOffset =
+            Marshal.OffsetOf<CameraStructure>(nameof(CameraStructure.WorldToScreenMatrix)).ToInt32();
+        private static readonly int EffectiveCameraMatrixOffset = CameraStructureOffset + CameraMatrixOffset;
         public enum V2ProbeStatus
         {
             Pass,
@@ -235,7 +246,7 @@ namespace TEHhub.Ui
                     return new V2ProbeResult("LocalPlayer", V2ProbeStatus.Unavailable, "AreaInstanceData is non-canonical.", details);
                 }
 
-                var playerInfo = reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + 0x5B0);
+                var playerInfo = reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + AreaPlayerInfoOffset);
                 details["LocalPlayerPtr"] = $"0x{playerInfo.LocalPlayerPtr.ToInt64():X}";
 
                 if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerInfo.LocalPlayerPtr))
@@ -308,8 +319,8 @@ namespace TEHhub.Ui
                     return new V2ProbeResult("Awake Entities", V2ProbeStatus.Unavailable, "AreaInstanceData is non-canonical.", details);
                 }
 
-                // EntityListStruct at AreaInstanceData + 0x6F0; AwakeEntities is StdMap at +0x00
-                var awakeMap = reader.ReadMemory<StdMap>(inGameState.AreaInstanceData + 0x6F0);
+                // EntityListStruct starts at the canonical AreaInstanceOffsets.Entities field.
+                var awakeMap = reader.ReadMemory<StdMap>(inGameState.AreaInstanceData + AreaEntitiesOffset);
                 details["AwakeMapHead"] = $"0x{awakeMap.Head.ToInt64():X}";
                 details["AwakeMapSize"] = awakeMap.Size.ToString();
 
@@ -412,17 +423,21 @@ namespace TEHhub.Ui
                         $"WorldData pointer 0x{inGameState.WorldData.ToInt64():X} is non-canonical.", details);
                 }
 
-                // Audit the +0x98 Union:
-                // 1. WorldAreaDetailsPtr (IntPtr at WorldData + 0x98)
-                var worldAreaDetailsPtr = reader.ReadMemory<IntPtr>(inGameState.WorldData + 0x98);
-                details["WorldAreaDetailsPtr (+0x98)"] = $"0x{worldAreaDetailsPtr.ToInt64():X}";
+                // Audit the explicit-layout overlap using canonical struct metadata, not duplicated literals.
+                var worldData = reader.ReadMemory<WorldDataOffset>(inGameState.WorldData);
+                var worldAreaDetailsPtr = worldData.WorldAreaDetailsPtr;
+                var cameraCodePtr = worldData.CameraStructurePtr.CodePtr;
+                var matrix = worldData.CameraStructurePtr.WorldToScreenMatrix;
 
-                // 2. CameraStructure.CodePtr (IntPtr at WorldData + 0x98 + 0x00 = +0x98)
-                details["CameraStructure.CodePtr (+0x98)"] = $"0x{worldAreaDetailsPtr.ToInt64():X} (Shares offset 0x98 with WorldAreaDetailsPtr)";
-
-                // 3. CameraStructure.WorldToScreenMatrix (Matrix4x4 at WorldData + 0x98 + 0x108 = +0x1A0)
-                var matrix = reader.ReadMemory<Matrix4x4>(inGameState.WorldData + 0x1A0);
-                details["CameraStructure.Matrix (+0x1A0)"] = $"M11={matrix.M11:0.00}, M22={matrix.M22:0.00}, M33={matrix.M33:0.00}, M44={matrix.M44:0.00}";
+                details["WorldAreaDetailsOffset"] = $"+0x{WorldAreaDetailsOffset:X}";
+                details["CameraStructureOffset"] = $"+0x{CameraStructureOffset:X}";
+                details["CameraMatrixOffsetWithinStructure"] = $"+0x{CameraMatrixOffset:X}";
+                details["EffectiveCameraMatrixOffset"] = $"+0x{EffectiveCameraMatrixOffset:X}";
+                details[$"WorldAreaDetailsPtr (+0x{WorldAreaDetailsOffset:X})"] = $"0x{worldAreaDetailsPtr.ToInt64():X}";
+                details[$"CameraStructure.CodePtr (+0x{CameraStructureOffset:X})"] =
+                    $"0x{cameraCodePtr.ToInt64():X} (shares the explicit-layout start with WorldAreaDetailsPtr)";
+                details[$"CameraStructure.Matrix (+0x{EffectiveCameraMatrixOffset:X})"] =
+                    $"M11={matrix.M11:0.00}, M22={matrix.M22:0.00}, M33={matrix.M33:0.00}, M44={matrix.M44:0.00}";
 
                 // 4. Trace WorldAreaDetailsStruct dereference:
                 bool areaDetailsValid = false;
@@ -436,8 +451,9 @@ namespace TEHhub.Ui
 
                 details["UnionArchitecturalNote"] =
                     "The production C# LayoutKind.Explicit declaration overlays WorldAreaDetailsPtr (IntPtr) and " +
-                    "CameraStructurePtr (CameraStructure) at +0x98. WorldToScreenMatrix is therefore read at " +
-                    "WorldData + 0x98 + 0x108 = +0x1A0. This probe validates the live structure; it does not infer a new offset.";
+                    $"CameraStructurePtr (CameraStructure) at +0x{CameraStructureOffset:X}. WorldToScreenMatrix is therefore read at " +
+                    $"WorldData + 0x{CameraStructureOffset:X} + 0x{CameraMatrixOffset:X} = +0x{EffectiveCameraMatrixOffset:X}. " +
+                    "This probe validates the live structure; it does not infer a new offset.";
 
                 var isMatrixFinite = !float.IsNaN(matrix.M11) && !float.IsInfinity(matrix.M11) &&
                                      !float.IsNaN(matrix.M44) && !float.IsInfinity(matrix.M44);
@@ -445,13 +461,13 @@ namespace TEHhub.Ui
                 if (!isMatrixFinite)
                 {
                     return new V2ProbeResult("WorldData +0x98 Union Audit", V2ProbeStatus.Fail,
-                        "Matrix elements at +0x1A0 are NaN or Infinity.", details);
+                        $"Matrix elements at +0x{EffectiveCameraMatrixOffset:X} are NaN or Infinity.", details);
                 }
 
                 if (!CanonicalStructuralInvariants.IsCanonicalPointer(worldAreaDetailsPtr))
                 {
                     return new V2ProbeResult("WorldData +0x98 Union Audit", V2ProbeStatus.Warning,
-                        $"Matrix is finite, but +0x98 value 0x{worldAreaDetailsPtr.ToInt64():X} is not a canonical WorldAreaDetails pointer in this context.", details);
+                        $"Matrix is finite, but +0x{WorldAreaDetailsOffset:X} value 0x{worldAreaDetailsPtr.ToInt64():X} is not a canonical WorldAreaDetails pointer in this context.", details);
                 }
 
                 if (!areaDetailsValid)
@@ -461,7 +477,7 @@ namespace TEHhub.Ui
                 }
 
                 return new V2ProbeResult("WorldData +0x98 Union Audit", V2ProbeStatus.Pass,
-                    $"Union structurally consistent: AreaDetailsPtr=0x{worldAreaDetailsPtr.ToInt64():X} (+0x98), row pointer canonical, matrix finite at +0x1A0", details);
+                    $"Union structurally consistent: AreaDetailsPtr=0x{worldAreaDetailsPtr.ToInt64():X} (+0x{WorldAreaDetailsOffset:X}), row pointer canonical, matrix finite at +0x{EffectiveCameraMatrixOffset:X}", details);
             }
             catch (Exception ex)
             {
@@ -485,8 +501,9 @@ namespace TEHhub.Ui
                         "WorldData object is null or has zero address.", details);
                 }
 
-                // Read matrix at +0x1A0
-                var matrix = reader.ReadMemory<Matrix4x4>(world.Address + 0x1A0);
+                var worldData = reader.ReadMemory<WorldDataOffset>(world.Address);
+                var matrix = worldData.CameraStructurePtr.WorldToScreenMatrix;
+                details["EffectiveCameraMatrixOffset"] = $"+0x{EffectiveCameraMatrixOffset:X}";
                 details["M11"] = matrix.M11.ToString("F3");
                 details["M22"] = matrix.M22.ToString("F3");
                 details["M33"] = matrix.M33.ToString("F3");
@@ -585,7 +602,7 @@ namespace TEHhub.Ui
                     return new V2ProbeResult("ServerData", V2ProbeStatus.Unavailable, "AreaInstanceData is non-canonical.", details);
                 }
 
-                var playerInfo = reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + 0x5B0);
+                var playerInfo = reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + AreaPlayerInfoOffset);
                 details["ServerDataPtr"] = $"0x{playerInfo.ServerDataPtr.ToInt64():X}";
 
                 if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerInfo.ServerDataPtr))
@@ -642,7 +659,7 @@ namespace TEHhub.Ui
                     return new V2ProbeResult("Player Inventories", V2ProbeStatus.Unavailable, "AreaInstanceData is non-canonical.", details);
                 }
 
-                var playerInfo = reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + 0x5B0);
+                var playerInfo = reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + AreaPlayerInfoOffset);
                 if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerInfo.ServerDataPtr))
                 {
                     return new V2ProbeResult("Player Inventories", V2ProbeStatus.Unavailable, "ServerDataPtr is non-canonical.", details);
