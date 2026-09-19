@@ -1287,7 +1287,7 @@ namespace AutoExile2.Systems
 
             var targetGrid = new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y);
 
-            bool hasExplicitSkillConfiguration = settings.Skills != null;
+            bool hasExplicitSkillConfiguration = settings.Skills != null && settings.Skills.Count > 0;
             var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
 
             if (this.activeChannelSlot != null &&
@@ -1355,8 +1355,8 @@ namespace AutoExile2.Systems
 
             if (candidateSkills.Count == 0)
             {
-                // Preserve legacy attack behavior only for old/unconfigured profiles.
-                // Once the user has an explicit skill list, Disabled/Self/Corpse/Culler-only
+                // Preserve legacy attack behavior while no skill slots are configured.
+                // Once at least one explicit slot exists, Disabled/Self/Corpse/Culler-only
                 // configurations must not silently fall back to an unrelated legacy attack.
                 if (!hasExplicitSkillConfiguration)
                 {
