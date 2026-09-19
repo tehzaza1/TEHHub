@@ -841,10 +841,20 @@ namespace TEHhub.Ui
                 }
 
                 var serverDataOffsets = reader.ReadMemory<ServerDataOffsets>(playerInfo.ServerDataPtr);
+                var playerDataVectorValidation =
+                    CanonicalStructuralInvariants.ValidateStdVector(serverDataOffsets.PlayerServerDataPtr, elementSize: 8);
+                details["PlayerServerDataPtrVector"] = playerDataVectorValidation.Detail;
+                if (!playerDataVectorValidation.IsValid)
+                {
+                    return new V2ProbeResult("Player Inventories", V2ProbeStatus.Fail,
+                        $"PlayerServerDataPtr vector failed invariant: {playerDataVectorValidation.Detail}", details);
+                }
+
                 var arr = reader.ReadStdVector<IntPtr>(serverDataOffsets.PlayerServerDataPtr);
                 if (arr.Length == 0 || !CanonicalStructuralInvariants.IsCanonicalPointer(arr[0]))
                 {
-                    return new V2ProbeResult("Player Inventories", V2ProbeStatus.Unavailable, "PlayerServerData array is empty.", details);
+                    return new V2ProbeResult("Player Inventories", V2ProbeStatus.Unavailable,
+                        "PlayerServerData array is empty or its first pointer is non-canonical.", details);
                 }
 
                 var serverDataStructure = reader.ReadMemory<ServerDataStructure>(arr[0]);
@@ -962,41 +972,112 @@ namespace TEHhub.Ui
             var details = new Dictionary<string, string>();
             try
             {
-                var liveServerData = Core.States.InGameStateObject.CurrentAreaInstance?.ServerDataObject;
-                if (liveServerData == null || liveServerData.Address == IntPtr.Zero)
+                var inGameAddr = Core.States.InGameStateObject.Address;
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameAddr))
                 {
                     return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
-                        "ServerDataObject remote object is not initialized.", details);
+                        "InGameState is unavailable in the current context.", details);
                 }
 
-                if (!liveServerData.PlayerInventories.TryGetValue(InventoryName.StashInventoryId, out var stashAddr))
+                var inGameState = reader.ReadMemory<InGameStateOffset>(inGameAddr);
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameState.AreaInstanceData))
                 {
                     return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
-                        "StashInventoryId entry is not present in PlayerInventories for the current context.", details);
+                        "AreaInstanceData is unavailable in the current context.", details);
                 }
 
+                var playerInfo =
+                    reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + AreaPlayerInfoOffset);
+                details["ServerDataPtr"] = $"0x{playerInfo.ServerDataPtr.ToInt64():X}";
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerInfo.ServerDataPtr))
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
+                        "ServerDataPtr is unavailable in the current context.", details);
+                }
+
+                var serverDataOffsets = reader.ReadMemory<ServerDataOffsets>(playerInfo.ServerDataPtr);
+                var playerDataVectorValidation =
+                    CanonicalStructuralInvariants.ValidateStdVector(serverDataOffsets.PlayerServerDataPtr, elementSize: 8);
+                details["PlayerServerDataPtrVector"] = playerDataVectorValidation.Detail;
+                if (!playerDataVectorValidation.IsValid)
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Fail,
+                        $"PlayerServerDataPtr vector failed invariant: {playerDataVectorValidation.Detail}", details);
+                }
+
+                var playerServerData = reader.ReadStdVector<IntPtr>(serverDataOffsets.PlayerServerDataPtr);
+                if (playerServerData.Length == 0 ||
+                    !CanonicalStructuralInvariants.IsCanonicalPointer(playerServerData[0]))
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
+                        "PlayerServerData pointer is unavailable in the current context.", details);
+                }
+
+                details["PlayerServerDataAddress"] = $"0x{playerServerData[0].ToInt64():X}";
+                var serverDataStructure = reader.ReadMemory<ServerDataStructure>(playerServerData[0]);
+                var inventoryElementSize = Marshal.SizeOf<InventoryArrayStruct>();
+                var inventoryVectorValidation =
+                    CanonicalStructuralInvariants.ValidateStdVector(
+                        serverDataStructure.PlayerInventories,
+                        elementSize: inventoryElementSize);
+                details["PlayerInventoriesVector"] = inventoryVectorValidation.Detail;
+                if (!inventoryVectorValidation.IsValid)
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Fail,
+                        $"PlayerInventories vector failed invariant: {inventoryVectorValidation.Detail}", details);
+                }
+
+                var inventories = reader.ReadStdVector<InventoryArrayStruct>(serverDataStructure.PlayerInventories);
+                details["DiscoveredInventoryCount"] = inventories.Length.ToString();
                 details["InventoryId"] = ((int)InventoryName.StashInventoryId).ToString();
-                details["StashInventoryAddress"] = $"0x{stashAddr.ToInt64():X}";
 
+                bool stashEntryFound = false;
+                IntPtr stashAddr = IntPtr.Zero;
+                foreach (var inventory in inventories)
+                {
+                    if (inventory.InventoryId != (int)InventoryName.StashInventoryId)
+                    {
+                        continue;
+                    }
+
+                    stashEntryFound = true;
+                    stashAddr = inventory.InventoryPtr0;
+                    break;
+                }
+
+                if (!stashEntryFound)
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
+                        "StashInventoryId entry is not present in the live PlayerInventories vector.", details);
+                }
+
+                details["StashInventoryAddress"] = $"0x{stashAddr.ToInt64():X}";
                 if (stashAddr == IntPtr.Zero)
                 {
                     return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
-                        "StashInventoryId is present but its pointer is null; stash is not currently available in this context.", details);
+                        "StashInventoryId is present but its live pointer is null; stash is not currently available.", details);
                 }
 
                 if (!CanonicalStructuralInvariants.IsCanonicalPointer(stashAddr))
                 {
                     return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Warning,
-                        $"StashInventoryId pointer 0x{stashAddr.ToInt64():X} is non-zero but non-canonical.", details);
+                        $"Live StashInventoryId pointer 0x{stashAddr.ToInt64():X} is non-zero but non-canonical.", details);
                 }
 
-                return ProbeInventoryAddress(reader, "Stash Inventory Context", "StashInventoryId", stashAddr);
+                var result = ProbeInventoryAddress(reader, "Stash Inventory Context", "StashInventoryId", stashAddr);
+                foreach (var detail in details)
+                {
+                    result.Details.TryAdd(detail.Key, detail.Value);
+                }
+
+                result.Details["InventorySource"] = "live ServerData -> PlayerServerData -> PlayerInventories";
+                return result;
             }
             catch (Exception ex)
             {
                 details["Exception"] = ex.Message;
                 return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Fail,
-                    "Exception during stash inventory probe.", details);
+                    "Exception during live stash inventory probe.", details);
             }
         }
 
