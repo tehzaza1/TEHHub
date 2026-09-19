@@ -596,33 +596,169 @@ namespace TEHhub.Ui
                         $"AwakeEntities StdMap failed sentinel/root validation: {mapValidation.Detail}", details, awakeMap.Size);
                 }
 
-                // Sample awake entities from cached instance
-                var liveArea = Core.States.InGameStateObject.CurrentAreaInstance;
-                var awakeDict = liveArea?.AwakeEntities;
-                int sampledCount = 0;
-                if (awakeDict != null && !awakeDict.IsEmpty)
+                var rawSample = SampleAwakeEntitiesFromLiveMap(reader, awakeMap, details);
+
+                // Cached collection is comparison evidence only. The OH2 verdict is based on
+                // the raw live StdMap walk above so a broken/stale production cache cannot
+                // accidentally validate the offset it depends on.
+                var awakeDict = Core.States.InGameStateObject.CurrentAreaInstance?.AwakeEntities;
+                details["CachedAwakeCount"] = (awakeDict?.Count ?? 0).ToString();
+                details["RawVsCachedCountDelta"] = (awakeMap.Size - (awakeDict?.Count ?? 0)).ToString();
+
+                if (awakeMap.Size > 0 && rawSample.Sampled == 0)
                 {
-                    details["CachedAwakeCount"] = awakeDict.Count.ToString();
-                    foreach (var kvp in awakeDict)
-                    {
-                        if (sampledCount >= 5) break;
-                        var ent = kvp.Value;
-                        if (ent != null && ent.Address != IntPtr.Zero)
-                        {
-                            details[$"SampledEntity_{sampledCount}"] = $"Id={ent.Id}, Path={ent.Path}, Addr=0x{ent.Address.ToInt64():X}";
-                            sampledCount++;
-                        }
-                    }
+                    return new V2ProbeResult("Awake Entities", V2ProbeStatus.Warning,
+                        $"StdMap structure is valid with size {awakeMap.Size}, but the bounded raw walk could not resolve an entity sample.",
+                        details,
+                        awakeMap.Size);
                 }
-                details["SampledEntitiesCount"] = sampledCount.ToString();
+
+                if (rawSample.Sampled > 0 && rawSample.MetadataValidated == 0)
+                {
+                    return new V2ProbeResult("Awake Entities", V2ProbeStatus.Warning,
+                        $"Raw map walk sampled {rawSample.Sampled} entity pointers, but none resolved to Metadata/* entities.",
+                        details,
+                        awakeMap.Size);
+                }
 
                 return new V2ProbeResult("Awake Entities", V2ProbeStatus.Pass,
-                    $"StdMap Size: {awakeMap.Size}, Live Cached: {awakeDict?.Count ?? 0}, Sampled: {sampledCount}", details, awakeMap.Size);
+                    $"StdMap Size: {awakeMap.Size}, Raw Sampled: {rawSample.Sampled}, Metadata Validated: {rawSample.MetadataValidated}, Cached: {awakeDict?.Count ?? 0}",
+                    details,
+                    awakeMap.Size);
             }
             catch (Exception ex)
             {
                 details["Exception"] = ex.Message;
                 return new V2ProbeResult("Awake Entities", V2ProbeStatus.Fail, "Exception during AwakeEntities probe.", details);
+            }
+        }
+
+        private static (int Visited, int Sampled, int MetadataValidated) SampleAwakeEntitiesFromLiveMap(
+            SafeMemoryHandle reader,
+            StdMap awakeMap,
+            Dictionary<string, string> details)
+        {
+            const int maxNodesVisited = 64;
+            const int maxEntitySamples = 5;
+
+            var visitedAddresses = new HashSet<IntPtr>();
+            var pending = new Queue<IntPtr>();
+            int visited = 0;
+            int sampled = 0;
+            int metadataValidated = 0;
+            int idMismatches = 0;
+            int unreadableNodes = 0;
+            int rejectedEntityPointers = 0;
+
+            if (!reader.TryReadMemory<StdMapNode<EntityNodeKey, EntityNodeValue>>(
+                    awakeMap.Head,
+                    out var sentinelNode,
+                    recordFailure: false))
+            {
+                details["RawWalk"] = "sentinel could not be read as the typed AwakeEntities node";
+                return (0, 0, 0);
+            }
+
+            if (CanonicalStructuralInvariants.IsCanonicalPointer(sentinelNode.Parent) &&
+                sentinelNode.Parent != awakeMap.Head)
+            {
+                pending.Enqueue(sentinelNode.Parent);
+            }
+
+            while (pending.Count > 0 && visited < maxNodesVisited && sampled < maxEntitySamples)
+            {
+                var nodeAddress = pending.Dequeue();
+                if (nodeAddress == awakeMap.Head ||
+                    !CanonicalStructuralInvariants.IsCanonicalPointer(nodeAddress) ||
+                    !visitedAddresses.Add(nodeAddress))
+                {
+                    continue;
+                }
+
+                if (!reader.TryReadMemory<StdMapNode<EntityNodeKey, EntityNodeValue>>(
+                        nodeAddress,
+                        out var node,
+                        recordFailure: false))
+                {
+                    unreadableNodes++;
+                    continue;
+                }
+
+                visited++;
+                if (node.Color > 1 || node.IsNil)
+                {
+                    continue;
+                }
+
+                EnqueueChild(node.Left);
+                EnqueueChild(node.Right);
+
+                var entityPtr = node.Data.Value.EntityPtr;
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(entityPtr))
+                {
+                    rejectedEntityPointers++;
+                    continue;
+                }
+
+                var sampleIndex = sampled++;
+                var mapId = node.Data.Key.id;
+                var samplePrefix = $"RawSample_{sampleIndex}";
+                details[$"{samplePrefix}_Node"] = $"Node=0x{nodeAddress.ToInt64():X}, MapId={mapId}, EntityPtr=0x{entityPtr.ToInt64():X}";
+
+                if (!reader.TryReadMemory<EntityOffsets>(entityPtr, out var entity, recordFailure: false))
+                {
+                    details[$"{samplePrefix}_Entity"] = "entity header unreadable";
+                    continue;
+                }
+
+                details[$"{samplePrefix}_EntityId"] = entity.Id.ToString();
+                if (entity.Id != mapId)
+                {
+                    idMismatches++;
+                }
+
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(entity.ItemBase.EntityDetailsPtr))
+                {
+                    details[$"{samplePrefix}_Path"] = $"EntityDetailsPtr=0x{entity.ItemBase.EntityDetailsPtr.ToInt64():X} is non-canonical";
+                    continue;
+                }
+
+                if (!reader.TryReadMemory<EntityDetails>(
+                        entity.ItemBase.EntityDetailsPtr,
+                        out var entityDetails,
+                        recordFailure: false))
+                {
+                    details[$"{samplePrefix}_Path"] = "EntityDetails unreadable";
+                    continue;
+                }
+
+                var path = reader.ReadStdWString(entityDetails.name);
+                details[$"{samplePrefix}_Path"] = string.IsNullOrEmpty(path) ? "<empty>" : path;
+                if (path.StartsWith("Metadata/", StringComparison.OrdinalIgnoreCase))
+                {
+                    metadataValidated++;
+                }
+            }
+
+            details["RawWalkNodeBudget"] = maxNodesVisited.ToString();
+            details["RawWalkVisitedNodes"] = visited.ToString();
+            details["RawSampledEntitiesCount"] = sampled.ToString();
+            details["RawMetadataValidatedCount"] = metadataValidated.ToString();
+            details["RawEntityIdMismatchCount"] = idMismatches.ToString();
+            details["RawUnreadableNodeCount"] = unreadableNodes.ToString();
+            details["RawRejectedEntityPointerCount"] = rejectedEntityPointers.ToString();
+            details["RawSamplingSource"] = "live AreaInstance -> AwakeEntities StdMap (bounded direct walk)";
+
+            return (visited, sampled, metadataValidated);
+
+            void EnqueueChild(IntPtr child)
+            {
+                if (child != awakeMap.Head &&
+                    CanonicalStructuralInvariants.IsCanonicalPointer(child) &&
+                    !visitedAddresses.Contains(child))
+                {
+                    pending.Enqueue(child);
+                }
             }
         }
 
