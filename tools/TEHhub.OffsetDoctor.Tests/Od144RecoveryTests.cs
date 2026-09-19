@@ -148,14 +148,52 @@ public static class Od144RecoveryTests
                 new("runeshape-ui-context", "true"), new("runeshape-ui-state", open ? "open" : "closed")]));
         });
         check(reopen.Decision.TerminalResult == RecoveryTerminalResult.PROPOSED &&
-            reopen.Context["state-transition-evidence"] == "closed->open->closed",
+            reopen.Context["state-transition-evidence"] == "closed->open->closed" &&
+            int.Parse(reopen.Context["read-count"]) <= 16384,
             $"Closed-open-closed observations retain one semantic panel and report the transition ({reopen.Decision.TerminalResult}: {reopen.Detail}; reads={reopen.Context["read-count"]}; {reopen.Context["state-transition-evidence"]}).");
         fixture.SetFlags(17, Od144RuneshapePanelRecovery.MaskedFingerprint);
 
         var oldAddress = fixture.Panel(17);
-        fixture.MovePanel(53, recreate: true);
-        check(oldAddress != fixture.Panel(53) && fixture.Run([17]).Decision.ChildPath.SequenceEqual([53]),
-            "A recreated UI address is rediscovered from semantic structure.");
+        var recreatedDuringObservation = fixture.Run([40], passes: 2, state: "closed",
+            beforeObservation: (session, pass) =>
+            {
+                if (pass != 1) return;
+                fixture.MovePanel(53, recreate: true);
+                fixture.SetFlags(53, Od144RuneshapePanelRecovery.MaskedFingerprint |
+                    Od144RuneshapePanelRecovery.VisibleMask);
+                session.ReplaceContext(RecoveryContextSnapshot.Create([
+                    new("runeshape-ui-context", "true"), new("runeshape-ui-state", "open")]));
+            });
+        check(oldAddress != fixture.Panel(53) &&
+            recreatedDuringObservation.Decision.TerminalResult == RecoveryTerminalResult.PROPOSED &&
+            recreatedDuringObservation.Decision.ChildPath.SequenceEqual([53]) &&
+            recreatedDuringObservation.Discovery.CandidateLedger.Count(c =>
+                c.Disposition is CandidateDisposition.Survivor or CandidateDisposition.Equivalent) == 2 &&
+            recreatedDuringObservation.Discovery.CandidateLedger.Any(c => c.ValidationEvidence.Any(e =>
+                e.Predicate == "visibility-state-correlation" && e.Result == RecoveryEvidenceResult.PASS)),
+            "A panel recreated between observations keeps its semantic role and derives the new path.");
+        fixture.SetFlags(53, Od144RuneshapePanelRecovery.MaskedFingerprint);
+        var mismatchedState = fixture.Run([40], passes: 2, state: "closed",
+            beforeObservation: (session, pass) =>
+            {
+                if (pass == 1)
+                    session.ReplaceContext(RecoveryContextSnapshot.Create([
+                        new("runeshape-ui-context", "true"), new("runeshape-ui-state", "open")]));
+            });
+        check(mismatchedState.Decision.TerminalResult == RecoveryTerminalResult.NOT_FOUND &&
+            mismatchedState.Discovery.CandidateLedger.Any(c => c.RejectionReasons.Any(r =>
+                r.Predicate == "visibility-state-correlation")),
+            "A supplied open state without matching visibility cannot validate a transition.");
+        fixture.SetPanelDescendantCycle(53);
+        check(fixture.Run([40]).Decision.TerminalResult == RecoveryTerminalResult.NOT_FOUND,
+            "A descendant cycle is bounded and cannot satisfy the semantic panel shape.");
+        fixture.RemovePanel(53);
+        fixture.ClonePanel(53);
+        fixture.SetMalformedPanelVector(53);
+        check(fixture.Run([40]).Decision.TerminalResult == RecoveryTerminalResult.ERROR,
+            "A malformed semantic child vector makes traversal incomplete and returns ERROR.");
+        fixture.RemovePanel(53);
+        fixture.ClonePanel(53);
         fixture.BreakChild(4);
         check(fixture.Run([17]).Decision.TerminalResult == RecoveryTerminalResult.ERROR,
             "Incomplete traversal is ERROR, not NOT_FOUND.");
@@ -270,6 +308,13 @@ public static class Od144RecoveryTests
             ClonePanel(index);
         }
         public void SetFlags(int index, uint flags) => Reader.Write(_panels[index] + 0x168, flags);
+        public void SetPanelDescendantCycle(int index)
+        {
+            Reader.TryRead(_panels[index] + 0x10, out IntPtr first);
+            Reader.WritePointer(first + 3 * 8, _panels[index]);
+        }
+        public void SetMalformedPanelVector(int index) =>
+            Reader.WritePointer(_panels[index] + 0x18, new IntPtr(0x10000));
         public void SetGenericFlags(int index, uint flags) => Reader.Write(_generic[index] + 0x168, flags);
         public void SetParent(int index, IntPtr parent) => Reader.WritePointer(_panels[index] + 0xB8, parent);
         public void SetRecipeCount(int index, int count)

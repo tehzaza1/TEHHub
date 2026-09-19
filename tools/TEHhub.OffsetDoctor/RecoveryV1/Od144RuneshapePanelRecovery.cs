@@ -58,7 +58,8 @@ public static class Od144RuneshapePanelRecovery
                 ? RecoveryTerminalResult.BLOCKED_CONTEXT : RecoveryTerminalResult.ERROR;
         var view = new UiRead(session.Memory,
             () => ++reads <= MaxReads && watch.ElapsedMilliseconds <= MaxMilliseconds,
-            size => bytesScanned += size);
+            size => bytesScanned += size,
+            () => ++nodes <= MaxNodes);
 
         try
         {
@@ -105,8 +106,9 @@ public static class Od144RuneshapePanelRecovery
             }
             if (forced is null)
             {
-                // The configured-path validation has a separate read budget. Blind
-                // discovery starts from an identical budget for every stale path.
+                // Configured-path validation has a separate read budget. All discovery
+                // observations and their independent validation share one budget.
+                nodes = 0;
                 reads = 0;
                 bytesScanned = 0;
                 watch.Restart();
@@ -121,7 +123,6 @@ public static class Od144RuneshapePanelRecovery
                     var children = view.Children(root, MaxChildren);
                     for (int index = 0; index < children.Length; index++)
                     {
-                        if (++nodes > MaxNodes) throw new IncompleteUiException("UI node budget exceeded.");
                         long address = children[index];
                         if (address == 0) continue;
                         var node = view.Node(address);
@@ -132,6 +133,10 @@ public static class Od144RuneshapePanelRecovery
                         ledger.Add(candidate);
                         var shape = Inspect(view, gameUi, address, candidate.Path, false);
                         candidate.Evidence = shape.Evidence;
+                        // Validate while this observation's tree still exists. A later UI
+                        // transition may recreate the panel at a different address.
+                        if (candidate.Evidence.All(e => !e.Required || e.Result == RecoveryEvidenceResult.PASS))
+                            candidate.Validation = Inspect(view, gameUi, address, candidate.Path, true).Evidence;
                     }
                     if (Guard() is string changed) { forced = GuardResult(changed); detail = changed; break; }
                 }
@@ -145,41 +150,43 @@ public static class Od144RuneshapePanelRecovery
                     input = ledger.Where(c => !c.Rejected).ToArray();
                     foreach (var c in input)
                     {
-                        var repeated = Inspect(view, gameUi, c.Address, c.Path, true);
-                        c.Validation = repeated.Evidence;
                         foreach (var e in c.Validation.Where(e => e.Required && e.Result != RecoveryEvidenceResult.PASS))
                             c.Reject(EliminationStage.IndependentValidation, e.Predicate, e.Detail);
                     }
-                    if (observationPasses > 1 && observedStates.Count == observationPasses &&
-                        observedStates.Zip(observedStates.Skip(1)).Any(pair => pair.First != pair.Second))
+                    if (observedStates.Count == observationPasses &&
+                        observedStates.Any(state => state is "open" or "closed"))
                     {
-                            var stable = input.Where(c => !c.Rejected).ToArray();
-                            var uniquePerPass = stable.GroupBy(c => c.Pass).All(g => g.Count() == 1) &&
-                                stable.Select(c => c.Pass).Distinct().Count() == observationPasses;
-                            var groups = uniquePerPass
-                                ? new[] { stable.AsEnumerable() }
-                                : stable.GroupBy(c => (c.Address, c.Parent)).Select(g => g.AsEnumerable());
-                            foreach (var group in groups)
+                        var stable = input.Where(c => !c.Rejected).ToArray();
+                        bool transition = observedStates.Zip(observedStates.Skip(1))
+                            .Any(pair => pair.First != pair.Second);
+                        var uniquePerPass = stable.GroupBy(c => c.Pass).All(g => g.Count() == 1) &&
+                            stable.Select(c => c.Pass).Distinct().Count() == observationPasses;
+                        var groups = uniquePerPass
+                            ? new[] { stable.AsEnumerable() }
+                            : stable.GroupBy(c => (c.Address, c.Parent)).Select(g => g.AsEnumerable());
+                        foreach (var group in groups)
+                        {
+                            var observations = group.ToArray();
+                            bool correlated = observations.All(c => observedStates[c.Pass] switch
                             {
-                                if (group.Count() < 2) continue;
-                                bool correlated = group.Select(c => (c.Node.Flags & VisibleMask) != 0).Distinct().Count() > 1 &&
-                                    group.All(c => observedStates[c.Pass] switch
-                                    {
-                                        "open" => (c.Node.Flags & VisibleMask) != 0,
-                                        "closed" => (c.Node.Flags & VisibleMask) == 0,
-                                        _ => false
-                                    });
-                                foreach (var c in group)
-                                {
-                                    c.Validation = c.Validation.Add(new("visibility-state-correlation",
-                                        correlated ? RecoveryEvidenceResult.PASS : RecoveryEvidenceResult.FAIL,
-                                        $"states={string.Join("->", observedStates)}; visibility transition={correlated}",
-                                        true, true));
-                                    if (!correlated)
-                                        c.Reject(EliminationStage.IndependentValidation,
-                                            "visibility-state-correlation", "UI state changed without a correlated visibility change.");
-                                }
+                                "open" => (c.Node.Flags & VisibleMask) != 0,
+                                "closed" => (c.Node.Flags & VisibleMask) == 0,
+                                _ => false
+                            });
+                            if (transition)
+                                correlated &= observations.Select(c => c.Pass).Distinct().Count() == observationPasses &&
+                                    observations.Select(c => (c.Node.Flags & VisibleMask) != 0).Distinct().Count() > 1;
+                            foreach (var c in observations)
+                            {
+                                c.Validation = c.Validation.Add(new("visibility-state-correlation",
+                                    correlated ? RecoveryEvidenceResult.PASS : RecoveryEvidenceResult.FAIL,
+                                    $"states={string.Join("->", observedStates)}; correlated={correlated}",
+                                    true, true));
+                                if (!correlated)
+                                    c.Reject(EliminationStage.IndependentValidation,
+                                        "visibility-state-correlation", "UI visibility did not correlate with observed state across the semantic role.");
                             }
+                        }
                     }
                     Stage(stages, EliminationStage.IndependentValidation, input);
                     input = ledger.Where(c => !c.Rejected).ToArray();
@@ -255,15 +262,20 @@ public static class Od144RuneshapePanelRecovery
         foreach (int index in path)
         {
             if (index < 0 || index >= MaxChildren) return 0;
-            var children = view.Children(view.Node(address), MaxChildren);
-            if (index >= children.Length || children[index] == 0) return 0;
-            address = children[index];
+            var node = view.Node(address);
+            if (!view.ValidVector(node.ChildrensPtr, MaxChildren, out int count))
+                throw new IncompleteUiException("Malformed or over-budget UI child vector.");
+            if (index >= count) return 0;
+            address = view.Child(node.ChildrensPtr, index);
+            if (address == 0) return 0;
         }
         return address;
     }
 
     private static Shape Inspect(UiRead view, long root, long address, IReadOnlyList<int> path, bool independent)
     {
+        if (path.Count + RecipeRelativePath.Length > MaxDepth)
+            throw new IncompleteUiException("UI depth budget exceeded.");
         var evidence = ImmutableArray.CreateBuilder<RecoveryEvidenceRecord>();
         void Add(string name, bool pass, string detail) => evidence.Add(new(name,
             pass ? RecoveryEvidenceResult.PASS : RecoveryEvidenceResult.FAIL, detail, true, independent));
@@ -277,19 +289,21 @@ public static class Od144RuneshapePanelRecovery
             FollowPath(view, root, path) == address;
         Add("parent-child-reciprocity", parent,
             $"parent=0x{panel.ParentPtr.ToInt64():X}; trusted parent=0x{expectedParent:X}; path=[{string.Join(",", path)}]");
-        bool containerValid = view.ValidVector(panel.ChildrensPtr, MaxChildren, out int childCount);
-        Add("child-container-shape", containerValid,
+        int childCount = view.VectorCount(panel.ChildrensPtr, MaxChildren);
+        Add("child-container-shape", true,
             $"count={childCount}; first=0x{panel.ChildrensPtr.First.ToInt64():X}");
         long descendant = address;
-        bool relation = containerValid;
+        bool relation = true;
+        var visited = new HashSet<long> { address };
         foreach (int index in RecipeRelativePath)
         {
             if (!relation) break;
             var node = view.Node(descendant);
-            if (!view.ValidVector(node.ChildrensPtr, MaxChildren, out int count) || index >= count)
+            int count = view.VectorCount(node.ChildrensPtr, MaxChildren);
+            if (index >= count)
             { relation = false; break; }
             descendant = view.Child(node.ChildrensPtr, index);
-            if (descendant == 0) { relation = false; break; }
+            if (descendant == 0 || !visited.Add(descendant)) { relation = false; break; }
             var child = view.Node(descendant);
             relation = child.Self.ToInt64() == descendant && child.ParentPtr.ToInt64() == node.Self.ToInt64();
         }
@@ -299,14 +313,15 @@ public static class Od144RuneshapePanelRecovery
         if (relation)
         {
             var container = view.Node(descendant);
-            recipes = view.ValidVector(container.ChildrensPtr, RecipeCountV1, out int count) &&
-                count == RecipeCountV1;
+            int count = view.VectorCount(container.ChildrensPtr, MaxChildren);
+            recipes = count == RecipeCountV1;
             if (recipes)
             {
+                var rows = new HashSet<long>(visited);
                 for (int index = 0; index < RecipeCountV1; index++)
                 {
                     long rowAddress = view.Child(container.ChildrensPtr, index);
-                    if (rowAddress == 0) { recipes = false; break; }
+                    if (rowAddress == 0 || !rows.Add(rowAddress)) { recipes = false; break; }
                     var row = view.Node(rowAddress);
                     if (row.Self.ToInt64() != rowAddress || row.ParentPtr.ToInt64() != descendant)
                     { recipes = false; break; }
@@ -361,11 +376,12 @@ public static class Od144RuneshapePanelRecovery
     }
 
     private sealed class IncompleteUiException(string message) : Exception(message);
-    private sealed class UiRead(IRecoveryReadOnlyMemory memory, Func<bool> withinBudget, Action<int> accountBytes)
+    private sealed class UiRead(IRecoveryReadOnlyMemory memory, Func<bool> withinBudget,
+        Action<int> accountBytes, Func<bool> withinNodeBudget)
     {
         public UiElementBaseOffset Node(long address)
         {
-            if (address < 0x10000 || !withinBudget() ||
+            if (address < 0x10000 || !withinNodeBudget() || !withinBudget() ||
                 !memory.TryRead(address, out UiElementBaseOffset node))
                 throw new IncompleteUiException($"Incomplete UI element read at 0x{address:X}.");
             accountBytes(Marshal.SizeOf<UiElementBaseOffset>());
@@ -381,6 +397,12 @@ public static class Od144RuneshapePanelRecovery
                 !memory.IsValidAddress(first) || last > first && !memory.IsValidAddress(last - 8)) return false;
             count = (int)((last - first) / 8);
             return true;
+        }
+        public int VectorCount(TEHhub.Offsets.Natives.StdVector vector, int maximum)
+        {
+            if (!ValidVector(vector, maximum, out int count))
+                throw new IncompleteUiException("Malformed or over-budget UI child vector.");
+            return count;
         }
         public long Child(TEHhub.Offsets.Natives.StdVector vector, int index)
         {
