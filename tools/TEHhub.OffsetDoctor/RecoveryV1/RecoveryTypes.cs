@@ -88,7 +88,8 @@ public sealed record HistoricalComparison(
     bool? ProposalMatchesCurrent, bool? ProposalMatchesHistory);
 
 public sealed record RecoveryDependencyState(string TargetId, RecoveryTerminalResult Result,
-    bool IndependentlyValidated, string EvidenceDigest);
+    bool IndependentlyValidated, string EvidenceDigest, long? Anchor = null,
+    string? CandidateId = null);
 
 public sealed record ProvisionalValue(long Value, string ParentTargetId, string CandidateId,
     string EvidenceDigest, RecoveryIdentity Identity);

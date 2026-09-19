@@ -90,7 +90,8 @@ public static class ContextRequirementEvaluator
         foreach (string key in target.RequiredContextKeys)
         {
             if (!initial.Facts.TryGetValue(key, out string? initialValue) ||
-                string.IsNullOrWhiteSpace(initialValue))
+                (string.IsNullOrWhiteSpace(initialValue) ||
+                 initialValue.Equals("false", StringComparison.OrdinalIgnoreCase)))
                 return $"Required context '{key}' is missing.";
             if (!current.Facts.TryGetValue(key, out string? currentValue) ||
                 !StringComparer.Ordinal.Equals(initialValue, currentValue))
@@ -126,7 +127,8 @@ public static class DependencyEvaluator
             provisional is not null && provisional.Identity == session.Identity &&
             parent.Decision.TerminalResult == RecoveryTerminalResult.PROPOSED;
         dependencies = [new RecoveryDependencyState(target.ParentTargetId,
-            parent.Decision.TerminalResult, valid, parent.Decision.EvidenceDigest)];
+            parent.Decision.TerminalResult, valid, parent.Decision.EvidenceDigest,
+            valid ? provisional!.Value : null, valid ? provisional!.CandidateId : null)];
         anchor = valid ? provisional!.Value : 0;
         error = valid ? null : $"Parent '{target.ParentTargetId}' lacks a unique validated session value.";
         return valid;

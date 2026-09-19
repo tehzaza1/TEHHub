@@ -25,7 +25,10 @@ public static class RecoveryConsoleReportWriter
         {
             writer.WriteLine($"{result.Target.Id} [{result.Target.Scope.Name}/{result.Target.Scope.InstanceId}] " +
                 $"{result.Decision.TerminalResult} | strategy {result.Target.StrategyId} | Applied=false");
-            writer.WriteLine($"  dependencies: {string.Join(", ", result.Dependencies.Select(d => $"{d.TargetId}:{d.Result}"))}");
+            writer.WriteLine($"  dependencies: {string.Join(", ", result.Dependencies.Select(d =>
+                $"{d.TargetId}:{d.Result}:validated={d.IndependentlyValidated}:" +
+                $"anchor={(d.Anchor is long anchor ? $"0x{anchor:X}" : "none")}:" +
+                $"candidate={d.CandidateId ?? "none"}:digest={d.EvidenceDigest}"))}");
             writer.WriteLine($"  context: {string.Join(", ", result.Context.Select(c => $"{c.Key}={c.Value}"))}");
             writer.WriteLine($"  current validation: {(result.CurrentValidation is null ? "none" :
                 $"0x{result.CurrentValidation.Value:X} complete={result.CurrentValidation.Complete} " +
