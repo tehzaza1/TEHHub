@@ -6,6 +6,7 @@ namespace TEHhub.Ui
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Numerics;
     using System.Runtime.InteropServices;
     using System.Text.Json;
@@ -107,6 +108,7 @@ namespace TEHhub.Ui
             int TotalWarning,
             int TotalFail,
             int TotalUnavailable,
+            double ElapsedMilliseconds,
             V2SessionEvidence SessionEvidence);
 
         internal static void ResetSessionEvidence()
@@ -241,6 +243,7 @@ namespace TEHhub.Ui
         /// </summary>
         public static V2PracticalReport RunPracticalDiagnostics()
         {
+            var startedTimestamp = Stopwatch.GetTimestamp();
             var probes = new List<V2ProbeResult>();
             var gameState = Core.States.GameCurrentState.ToString();
             var procInfo = Core.Process.Information != null
@@ -256,7 +259,7 @@ namespace TEHhub.Ui
                     "Process memory handle is not open or invalid.",
                     new() { ["Attached"] = "false" }));
 
-                return BuildReport(gameState, procInfo, probes);
+                return BuildReport(gameState, procInfo, probes, startedTimestamp);
             }
 
             ObserveSessionEvidence(reader);
@@ -294,7 +297,7 @@ namespace TEHhub.Ui
             // 11. Entity / Component Validation Probe
             probes.Add(ProbeEntityComponents(reader));
 
-            return BuildReport(gameState, procInfo, probes);
+            return BuildReport(gameState, procInfo, probes, startedTimestamp);
         }
 
         // =====================================================================
@@ -1278,7 +1281,11 @@ namespace TEHhub.Ui
                 DateTime.UtcNow);
         }
 
-        private static V2PracticalReport BuildReport(string gameState, string procInfo, List<V2ProbeResult> probes)
+        private static V2PracticalReport BuildReport(
+            string gameState,
+            string procInfo,
+            List<V2ProbeResult> probes,
+            long startedTimestamp)
         {
             int pass = 0, warn = 0, fail = 0, unavail = 0;
             foreach (var p in probes)
@@ -1301,6 +1308,7 @@ namespace TEHhub.Ui
                 warn,
                 fail,
                 unavail,
+                Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds,
                 GetSessionEvidence());
         }
     }
