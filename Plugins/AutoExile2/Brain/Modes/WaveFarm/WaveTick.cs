@@ -113,6 +113,7 @@ namespace AutoExile2.Modes.WaveFarm
             {
                 this.Status = "Wiggling unstuck";
                 this.Decision = "Unstuck";
+                BotInput.ReleaseSprint(ctx.Settings.SprintKey);
                 BotInput.WasdMove(this.unstuckDir, ctx.Settings);
                 return false;
             }
@@ -162,7 +163,19 @@ namespace AutoExile2.Modes.WaveFarm
             {
                 this.Status = $"Engaging pack ({ctx.Combat.NearbyHostileCount} enemies, weight {ctx.Combat.WeightedDensity}) [{ctx.Settings.CombatStyle}]";
                 this.Decision = "PackEngage";
-                ctx.Combat.UpdateCombatMovement(ctx.World, ctx.Player, ctx.Area, ctx.Settings);
+
+                // Sprint is an exploration/travel state. Never carry it into active combat.
+                BotInput.ReleaseSprint(ctx.Settings.SprintKey);
+
+                if (config.SuppressCombatPositioning)
+                {
+                    BotInput.ReleaseAllMovementKeys(ctx.Settings);
+                }
+                else
+                {
+                    ctx.Combat.UpdateCombatMovement(ctx.World, ctx.Player, ctx.Area, ctx.Settings);
+                }
+
                 return false;
             }
 
@@ -170,8 +183,8 @@ namespace AutoExile2.Modes.WaveFarm
             var action = this.EvaluateBestAction(ctx, playerPos);
             this.Decision = action.Type.ToString();
 
-            // 6. Execute action
-            return this.Execute(action, ctx, playerPos, deltaSec);
+            // 6. Execute action. Sparse combat remains attack-move, but sprint stays disabled.
+            return this.Execute(action, ctx, playerPos, deltaSec, inCombat);
         }
 
         private WaveAction EvaluateBestAction(BotContext ctx, Vector2 playerPos)
@@ -264,7 +277,7 @@ namespace AutoExile2.Modes.WaveFarm
             return WaveAction.ExitMap;
         }
 
-        private bool Execute(WaveAction action, BotContext ctx, Vector2 playerPos, float deltaSec)
+        private bool Execute(WaveAction action, BotContext ctx, Vector2 playerPos, float deltaSec, bool inCombat)
         {
             var area = ctx.Area;
             var walkableData = area.GridWalkableData;
@@ -330,8 +343,8 @@ namespace AutoExile2.Modes.WaveFarm
                         }
                     }
 
-                    // Navigate along waypoints
-                    this.FollowWaypoints(ctx, playerPos, deltaSec);
+                    // Navigate along waypoints. Combat can continue firing while moving, but never while sprinting.
+                    this.FollowWaypoints(ctx, playerPos, deltaSec, allowSprint: !inCombat);
                     this.Status = $"Exploring ({ctx.Exploration.ActiveBlobCoverage:P0})";
                     return false;
 
@@ -345,7 +358,7 @@ namespace AutoExile2.Modes.WaveFarm
                 default:
                     if (this.CurrentWaypointIndex < this.CurrentNavPath.Count)
                     {
-                        this.FollowWaypoints(ctx, playerPos, deltaSec);
+                        this.FollowWaypoints(ctx, playerPos, deltaSec, allowSprint: !inCombat);
                     }
                     else
                     {
@@ -357,7 +370,7 @@ namespace AutoExile2.Modes.WaveFarm
             }
         }
 
-        private void FollowWaypoints(BotContext ctx, Vector2 playerPos, float deltaSec)
+        private void FollowWaypoints(BotContext ctx, Vector2 playerPos, float deltaSec, bool allowSprint)
         {
             if (this.CurrentWaypointIndex >= this.CurrentNavPath.Count)
             {
@@ -381,6 +394,7 @@ namespace AutoExile2.Modes.WaveFarm
                     this.unstuckDir = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
                     this.unstuckUntil = DateTime.Now.AddMilliseconds(500);
                     this.CurrentNavPath.Clear();
+                    BotInput.ReleaseSprint(ctx.Settings.SprintKey);
                     ctx.Log("[Wave] Stuck detected, wiggling unstuck and clearing path");
                     return;
                 }
@@ -418,7 +432,9 @@ namespace AutoExile2.Modes.WaveFarm
             float distToDest = this.CurrentDestination.HasValue
                 ? Vector2.Distance(playerPos, this.CurrentDestination.Value)
                 : Vector2.Distance(playerPos, targetWp);
-            bool shouldSprint = ctx.Settings.UseSprint && distToDest >= ctx.Settings.SprintMinDistance;
+            bool shouldSprint = allowSprint &&
+                                ctx.Settings.UseSprint &&
+                                distToDest >= ctx.Settings.SprintMinDistance;
             BotInput.SetSprint(ctx.Settings.SprintKey, shouldSprint);
 
             BotInput.WasdMove(screenDir, ctx.Settings);
