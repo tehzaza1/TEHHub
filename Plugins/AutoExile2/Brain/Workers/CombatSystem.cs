@@ -37,6 +37,31 @@ namespace AutoExile2.Systems
         /// </summary>
         public static int NormalizeFlaskCooldownMs(int configuredMs) => Math.Clamp(configuredMs, 50, 10000);
 
+        private const int InputReleaseMarginMs = 20;
+
+        /// <summary>
+        /// Minimum time between starts of the same configured skill.
+        /// User MinCastIntervalMs is always honored; charge availability never shortens it.
+        /// The hold duration only becomes the floor when it is longer than the configured interval.
+        /// </summary>
+        private static int GetSkillCastSpacingMs(SkillSlotConfig slot)
+        {
+            int configuredInterval = Math.Max(0, slot.MinCastIntervalMs);
+            int inputHoldFloor = Math.Max(0, slot.HoldDurationMs) + InputReleaseMarginMs;
+            return Math.Max(configuredInterval, inputHoldFloor);
+        }
+
+        /// <summary>
+        /// A short keyboard tap completes synchronously in BotInput, so offense can resume in
+        /// the same combat tick without overlapping a held defensive input.
+        /// </summary>
+        private static bool CanSelfSkillOverlapOffense(SkillSlotConfig slot)
+        {
+            return !slot.IsChannel &&
+                   slot.InputType == AttackInputType.KeyboardKey &&
+                   slot.HoldDurationMs <= 30;
+        }
+
         private DateTime nextAttackAllowed = DateTime.MinValue;
         public DateTime LastLifeFlaskAt { get; set; } = DateTime.MinValue;
         public DateTime LastManaFlaskAt { get; set; } = DateTime.MinValue;
@@ -196,7 +221,14 @@ namespace AutoExile2.Systems
 
             if (!player.TryGetComponent<Render>(out var pRender))
             {
+                this.StopAllChannels();
+                this.CurrentTargetId = 0;
+                this.CurrentTargetName = string.Empty;
+                this.CurrentTargetRarity = string.Empty;
+                this.NearbyHostileCount = 0;
+                this.WeightedDensity = 0;
                 this.ClosestHostileDistance = float.MaxValue;
+                this.ObservedTargetDebuffs.Clear();
                 return false;
             }
 
@@ -319,16 +351,20 @@ namespace AutoExile2.Systems
                 this.deprioritizedTargets.Clear();
             }
 
-            // 4. Tick Self-Cast Skills (Buffs, Guards, Cries) independently of target
-            bool executedSelfSkill = this.TickSelfSkills(player, settings, vitals, hostileCount);
+            // 4. Defensive/self lane always evaluates before offense.
+            // Short keyboard taps may share the tick; held/channel inputs reserve the offensive lane.
+            SkillSlotConfig? executedSelfSkill = this.TryTickSelfSkills(player, settings, vitals, hostileCount);
+            bool selfSkillBlocksOffense =
+                executedSelfSkill != null && !CanSelfSkillOverlapOffense(executedSelfSkill);
 
             if (bestTarget == null)
             {
                 this.CurrentTargetId = 0;
                 this.CurrentTargetName = string.Empty;
                 this.CurrentTargetRarity = string.Empty;
+                this.ObservedTargetDebuffs.Clear();
                 this.StopAllChannels();
-                return executedSelfSkill;
+                return executedSelfSkill != null;
             }
 
             this.CurrentTargetId = bestTarget.Id;
@@ -345,10 +381,11 @@ namespace AutoExile2.Systems
             }
             this.CurrentTargetName = targetName;
 
-            // Live scan debuffs on the targeted monster
+            // Live scan debuffs on the targeted monster.
+            // Clear first so a target without Buffs cannot leave stale telemetry from the previous target.
+            this.ObservedTargetDebuffs.Clear();
             if (bestTarget.TryGetComponent<Buffs>(out var tBuffs) && tBuffs.FastStatusEffects != null)
             {
-                this.ObservedTargetDebuffs.Clear();
                 foreach (var (debuffName, eff) in tBuffs.FastStatusEffects)
                 {
                     if (string.IsNullOrWhiteSpace(debuffName)) continue;
@@ -359,6 +396,11 @@ namespace AutoExile2.Systems
                         Charges = eff.Charges,
                     });
                 }
+            }
+
+            if (selfSkillBlocksOffense)
+            {
+                return true;
             }
 
             // 5. Evaluate and Execute Targeted Skills by Priority
@@ -592,14 +634,15 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
-                if (effectiveInterval > 0 && (now - slot.LastCastAt).TotalMilliseconds < effectiveInterval)
+                int castSpacingMs = GetSkillCastSpacingMs(slot);
+                if (castSpacingMs > 0 && (now - slot.LastCastAt).TotalMilliseconds < castSpacingMs)
                 {
                     continue;
                 }
 
                 // In-game dynamic cooldown check (directly from PoE 2 engine memory)
-                if (!IsSkillReadyInGame(player, slot))
+                bool allowUntracked = pad?.IsLeaderConnected == true;
+                if (!IsSkillReadyInGame(player, slot, allowUntracked))
                 {
                     continue;
                 }
@@ -609,6 +652,10 @@ namespace AutoExile2.Systems
                 {
                     continue;
                 }
+
+                bool canOverlapOffense =
+                    pad?.IsLeaderConnected != true && CanSelfSkillOverlapOffense(slot);
+                this.PrepareDefensiveCast(slot, now, canOverlapOffense);
 
                 slot.LastCastAt = now;
                 this.LastSkillAction = $"Panic Guard: {slot.Name}";
@@ -642,11 +689,21 @@ namespace AutoExile2.Systems
 
         public bool TickSelfSkills(Entity player, AutoExile2Settings settings, PlayerVitals vitals, int nearbyHostiles)
         {
+            return this.TryTickSelfSkills(player, settings, vitals, nearbyHostiles) != null;
+        }
+
+        private SkillSlotConfig? TryTickSelfSkills(
+            Entity player,
+            AutoExile2Settings settings,
+            PlayerVitals vitals,
+            int nearbyHostiles)
+        {
             if (settings.Skills == null || settings.Skills.Count == 0)
             {
-                return false;
+                return null;
             }
 
+            var now = DateTime.Now;
             foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard).OrderByDescending(s => s.Priority))
             {
                 if (slot.OnlyOnLowHp && !vitals.IsLowVital(slot))
@@ -664,15 +721,14 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
-                int totalInterval = effectiveInterval + Math.Max(30, slot.HoldDurationMs);
-                if (totalInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < totalInterval)
+                int castSpacingMs = GetSkillCastSpacingMs(slot);
+                if (castSpacingMs > 0 && (now - slot.LastCastAt).TotalMilliseconds < castSpacingMs)
                 {
                     continue;
                 }
 
                 // In-game dynamic cooldown check (directly from PoE 2 engine memory)
-                if (!IsSkillReadyInGame(player, slot))
+                if (!IsSkillReadyInGame(player, slot, allowUntracked: false))
                 {
                     continue;
                 }
@@ -683,14 +739,34 @@ namespace AutoExile2.Systems
                     continue; // Buff already present on player! Do not recast!
                 }
 
+                bool canOverlapOffense = CanSelfSkillOverlapOffense(slot);
+                this.PrepareDefensiveCast(slot, now, canOverlapOffense);
                 BotInput.ExecuteAttack(slot.InputType, slot.Key, Math.Max(30, slot.HoldDurationMs));
 
-                slot.LastCastAt = DateTime.Now;
+                slot.LastCastAt = now;
                 this.LastSkillAction = $"Buff: {slot.Name}";
-                return true;
+                return slot;
             }
 
-            return false;
+            return null;
+        }
+
+        private void PrepareDefensiveCast(SkillSlotConfig slot, DateTime now, bool allowOffensiveOverlap)
+        {
+            // Defensive/self skills outrank offense. Release any active attack channel first.
+            this.StopAllChannels();
+
+            if (allowOffensiveOverlap)
+            {
+                return;
+            }
+
+            int holdMs = Math.Max(30, slot.HoldDurationMs) + InputReleaseMarginMs;
+            DateTime blockedUntil = now.AddMilliseconds(holdMs);
+            if (blockedUntil > this.nextAttackAllowed)
+            {
+                this.nextAttackAllowed = blockedUntil;
+            }
         }
 
         public static bool HasBuff(Entity entity, SkillSlotConfig slot)
@@ -756,51 +832,63 @@ namespace AutoExile2.Systems
             return count;
         }
 
-        public static bool IsSkillReadyInGame(Entity? player, SkillSlotConfig slot)
+        public static bool IsSkillReadyInGame(
+            Entity? player,
+            SkillSlotConfig slot,
+            bool allowUntracked = true)
         {
-            if (player == null || slot == null) return true;
-            if (!player.TryGetComponent<Actor>(out var actor) || actor.ActiveSkills == null || actor.ActiveSkills.Count == 0)
+            if (player == null || slot == null)
             {
-                return true;
+                return allowUntracked;
+            }
+
+            if (!player.TryGetComponent<Actor>(out var actor))
+            {
+                return allowUntracked;
             }
 
             var (matchedKey, matchedDetails) = FindMatchingSkill(actor, slot);
             if (matchedKey == null)
             {
-                return true; // Not in actor.ActiveSkills (e.g. basic item action), allow through
+                // PoE2 minion command skills live on summoned minion actors, not the player's ActiveSkills.
+                // TEHHub aggregates those commands onto the player Actor with a direct usability verdict.
+                if (TryGetMinionCommandUsability(actor, slot, out bool commandUsable))
+                {
+                    return commandUsable;
+                }
+
+                // Solo configured slots fail closed so typos / removed skills do not spam arbitrary inputs.
+                // Existing co-op callers retain the historical fail-open behavior via the default parameter.
+                return allowUntracked;
             }
 
             // 1. Check in-game cooldown charges directly from Actor.ActiveSkillCooldowns
             if (actor.ActiveSkillCooldowns != null &&
                 actor.ActiveSkillCooldowns.TryGetValue(matchedDetails.UnknownIdAndEquipmentInfo, out var cdInfo))
             {
-                // If all cooldown charges are currently exhausted, the skill CANNOT be used!
                 if (cdInfo.CannotBeUsed())
                 {
                     return false;
                 }
             }
 
-            // 2. Check game engine usability flag (IsSkillUsable / "Can use skills" list)
-            // In TEHhub's "Can use skills" list, if a skill is on cooldown or unusable, it disappears from IsSkillUsable.
-            if (actor.IsSkillUsable != null)
+            // 2. Check game engine usability flag (IsSkillUsable / "Can use skills" list).
+            if (actor.IsSkillUsable != null && !actor.IsSkillUsable.Contains(matchedKey))
             {
-                if (!actor.IsSkillUsable.Contains(matchedKey))
+                bool anyUsable = false;
+                string cleanMatched = CleanBuffString(matchedKey);
+                foreach (var usableName in actor.IsSkillUsable)
                 {
-                    bool anyUsable = false;
-                    string cleanMatched = CleanBuffString(matchedKey);
-                    foreach (var usableName in actor.IsSkillUsable)
+                    if (CleanBuffString(usableName) == cleanMatched)
                     {
-                        if (CleanBuffString(usableName) == cleanMatched)
-                        {
-                            anyUsable = true;
-                            break;
-                        }
+                        anyUsable = true;
+                        break;
                     }
-                    if (!anyUsable)
-                    {
-                        return false;
-                    }
+                }
+
+                if (!anyUsable)
+                {
+                    return false;
                 }
             }
 
@@ -878,6 +966,43 @@ namespace AutoExile2.Systems
                 return exact;
 
             return candidates[0];
+        }
+
+        private static bool TryGetMinionCommandUsability(
+            Actor actor,
+            SkillSlotConfig slot,
+            out bool usable)
+        {
+            usable = false;
+            if (actor.MinionCommandSkills == null || actor.MinionCommandSkills.Count == 0)
+            {
+                return false;
+            }
+
+            string name1 = slot.AssignedSkillName ?? string.Empty;
+            string name2 = slot.Name ?? string.Empty;
+            string clean1 = CleanBuffString(name1);
+            string clean2 = CleanBuffString(name2);
+
+            foreach (var (commandName, commandUsable) in actor.MinionCommandSkills)
+            {
+                if (commandName.Equals(name1, StringComparison.OrdinalIgnoreCase) ||
+                    commandName.Equals(name2, StringComparison.OrdinalIgnoreCase))
+                {
+                    usable = commandUsable;
+                    return true;
+                }
+
+                string cleanCommand = CleanBuffString(commandName);
+                if ((!string.IsNullOrEmpty(clean1) && cleanCommand == clean1) ||
+                    (!string.IsNullOrEmpty(clean2) && cleanCommand == clean2))
+                {
+                    usable = commandUsable;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static string CleanBuffString(string s)
@@ -958,6 +1083,7 @@ namespace AutoExile2.Systems
             // Calculate screen position of target
             if (!bestTarget.TryGetComponent<Render>(out var targetRender))
             {
+                this.StopAllChannels();
                 return true;
             }
 
@@ -970,14 +1096,30 @@ namespace AutoExile2.Systems
                 Z = targetZ,
             }, targetZ);
 
-            if (targetScreenPos == Vector2.Zero || float.IsNaN(targetScreenPos.X))
+            if (targetScreenPos == Vector2.Zero ||
+                !float.IsFinite(targetScreenPos.X) ||
+                !float.IsFinite(targetScreenPos.Y))
             {
+                this.StopAllChannels();
                 return true;
             }
 
             float distToTarget = Vector2.Distance(
                 playerGrid,
                 new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y));
+
+            var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
+
+            if (this.activeChannelSlot != null &&
+                (!configuredSkills.Contains(this.activeChannelSlot) ||
+                 !this.activeChannelSlot.Enabled ||
+                 !this.activeChannelSlot.IsChannel ||
+                 this.activeChannelSlot.Role == SkillRole.Disabled ||
+                 this.activeChannelSlot.Role == SkillRole.SelfBuffGuard ||
+                 this.activeChannelSlot.Role == SkillRole.CorpseTargeted))
+            {
+                this.StopAllChannels();
+            }
 
             // If channeling an active skill, update cursor towards target
             if (this.activeChannelSlot != null)
@@ -997,9 +1139,11 @@ namespace AutoExile2.Systems
                 return true;
             }
 
-            var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
             var candidateSkills = configuredSkills
-                .Where(s => s.Enabled && s.Role != SkillRole.Disabled && s.Role != SkillRole.SelfBuffGuard)
+                .Where(s => s.Enabled &&
+                            s.Role != SkillRole.Disabled &&
+                            s.Role != SkillRole.SelfBuffGuard &&
+                            s.Role != SkillRole.CorpseTargeted)
                 .OrderByDescending(s => s.Priority)
                 .ToList();
 
@@ -1011,16 +1155,15 @@ namespace AutoExile2.Systems
 
             foreach (var slot in candidateSkills)
             {
-                // Cooldown / Cast Interval check
-                int effectiveInterval = HasAvailableCharges(player, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
-                int totalInterval = effectiveInterval + Math.Max(30, slot.HoldDurationMs);
-                if (totalInterval > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < totalInterval)
+                // Per-skill cast spacing. Charges affect game readiness, not the user's minimum interval.
+                int castSpacingMs = GetSkillCastSpacingMs(slot);
+                if (castSpacingMs > 0 && (DateTime.Now - slot.LastCastAt).TotalMilliseconds < castSpacingMs)
                 {
                     continue;
                 }
 
                 // In-game dynamic cooldown check (directly from PoE 2 engine memory)
-                if (!IsSkillReadyInGame(player, slot))
+                if (!IsSkillReadyInGame(player, slot, allowUntracked: false))
                 {
                     continue;
                 }
@@ -1136,7 +1279,8 @@ namespace AutoExile2.Systems
                     }
 
                     BotInput.ExecuteAttack(slot.InputType, slot.Key, slot.HoldDurationMs);
-                    this.nextAttackAllowed = DateTime.Now.AddMilliseconds(slot.HoldDurationMs + Math.Max(20, slot.MinCastIntervalMs));
+                    this.nextAttackAllowed = DateTime.Now.AddMilliseconds(
+                        Math.Max(20, slot.HoldDurationMs + InputReleaseMarginMs));
                 }
 
                 slot.LastCastAt = DateTime.Now;
