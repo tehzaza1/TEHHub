@@ -242,39 +242,6 @@ namespace AutoExile2.WebServer
                     case "p2enablecombat":
                         settings.P2EnableCombat = val.Value<bool>();
                         break;
-                    case "p2inputengine":
-                        if (Enum.TryParse<CoopFollowerInputEngine>(val.ToString(), true, out var p2Engine))
-                        {
-                            settings.P2InputEngine = p2Engine;
-                        }
-                        break;
-                    case "cullerenable":
-                        settings.CullerEnable = val.Value<bool>();
-                        break;
-                    case "cullerrightclick":
-                        settings.CullerRightClick = val.Value<bool>();
-                        break;
-                    case "cullergamepadbutton":
-                        settings.CullerGamepadButton = ParseCoopPadButton(val.ToString());
-                        break;
-                    case "cullerkey":
-                        settings.CullerKey = ParseVk(val.ToString());
-                        break;
-                    case "culleraimdistance":
-                        settings.CullerAimDistance = val.Value<float>();
-                        break;
-                    case "cullerstartattackdistance":
-                        settings.CullerStartAttackDistance = val.Value<float>();
-                        break;
-                    case "cullerrequiremonsters":
-                        settings.CullerRequireMonsters = val.Value<bool>();
-                        break;
-                    case "cullerintervalms":
-                        settings.CullerIntervalMs = val.Value<int>();
-                        break;
-                    case "cullerholdms":
-                        settings.CullerHoldMs = val.Value<int>();
-                        break;
                     case "showoverlay":
                         settings.ShowOverlay = val.Value<bool>();
                         break;
