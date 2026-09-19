@@ -424,6 +424,8 @@ try
     var v2Report = OffsetHelperV2Engine.RunPracticalDiagnostics();
     Check(v2Report != null, "OffsetHelperV2Engine.RunPracticalDiagnostics must return a valid report.");
     Check(v2Report!.Probes.Count > 0, "V2 report must contain practical diagnostic probes.");
+    Check(double.IsFinite(v2Report.ElapsedMilliseconds) && v2Report.ElapsedMilliseconds >= 0,
+        "V2 report must contain a finite non-negative measured diagnostic runtime.");
     Check(v2Report.Probes.Any(p => p.Name == "Stash Inventory Context"),
         "V2 report must include an explicit stash-context probe rather than folding stash into generic inventory sampling.");
     Check((int)TEHhub.RemoteEnums.InventoryName.StashInventoryId == 27,
