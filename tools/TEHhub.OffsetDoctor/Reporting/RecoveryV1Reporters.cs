@@ -59,6 +59,17 @@ public static class RecoveryConsoleReportWriter
                     writer.WriteLine($"  post-result path comparison: current=[{string.Join(",", pathComparison.CurrentPath)}], " +
                         $"history={string.Join(";", pathComparison.HistoricalPaths.Select(p => $"[{string.Join(",", p)}]"))}");
             }
+            if (result.Target.Id == Od145AtlasLayoutRecovery.TargetId)
+            {
+                if (result.CurrentValidation?.FieldPair is { } currentFieldPair)
+                    writer.WriteLine($"  configured field pair: {currentFieldPair}");
+                writer.WriteLine($"  proposed field pair: {(result.Decision.ProposedFieldPair is { } proposedPair ? proposedPair.ToString() : "none")}");
+                foreach (var pair in result.Decision.SurvivingFieldPairs)
+                    writer.WriteLine($"  surviving field pair: {pair}");
+                if (result.FieldPairComparison is { } pairComparison)
+                    writer.WriteLine($"  post-result field pair comparison: current={pairComparison.CurrentPair?.ToString() ?? "none"}, " +
+                        $"history={string.Join(";", pairComparison.HistoricalPairs)}");
+            }
             writer.WriteLine($"  post-result comparison: {(result.PostResultComparison is null ? "none" : $"current={result.PostResultComparison.CurrentValue}, history={string.Join(",", result.PostResultComparison.HistoricalValues)}")}");
             writer.WriteLine($"  digest: {result.Decision.EvidenceDigest}");
             if (result.Detail is not null) writer.WriteLine($"  detail: {result.Detail}");

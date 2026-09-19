@@ -14,7 +14,9 @@ public enum EliminationStage
 {
     Discovery, RequiredPredicates, Equivalence, IndependentValidation,
     Od114AlignedBases, Od114ReadableShape, Od114OwnerBackPointer, Od114AnchorStructure,
-    Od114SocketCount, Od114GoldenSlots, Od114AnchorPosition
+    Od114SocketCount, Od114GoldenSlots, Od114AnchorPosition,
+    Od145GridDiscovery, Od145GridValidation, Od145ConnectionsDiscovery,
+    Od145ConnectionsValidation, Od145CrossFieldValidation, Od145FieldPairEquivalence
 }
 public enum StructuralHypothesis { PointerField, ScalarField, StaticPattern }
 
@@ -86,6 +88,17 @@ public sealed record FrozenDiscoveryResult(
     ImmutableArray<string> SurvivorIds,
     DiscoveryScanEvidence? Scan = null);
 
+public sealed record AtlasFieldPair(long GridPositionOffset, long ConnectionsOffset)
+{
+    public override string ToString() => $"(Grid=+0x{GridPositionOffset:X}, Conn=+0x{ConnectionsOffset:X})";
+}
+
+public sealed record AtlasFieldPairComparison(
+    AtlasFieldPair? CurrentPair,
+    ImmutableArray<AtlasFieldPair> HistoricalPairs,
+    bool? ProposalMatchesCurrent,
+    bool? ProposalMatchesHistory);
+
 public sealed record FrozenDecision(
     RecoveryTerminalResult TerminalResult,
     ImmutableArray<string> SurvivorIds,
@@ -94,6 +107,8 @@ public sealed record FrozenDecision(
 {
     public ImmutableArray<int> ChildPath { get; init; } = [];
     public ImmutableArray<int> ProposedChildPath { get; init; } = [];
+    public AtlasFieldPair? ProposedFieldPair { get; init; }
+    public ImmutableArray<AtlasFieldPair> SurvivingFieldPairs { get; init; } = [];
 }
 
 public sealed record ChildPathComparison(
@@ -103,6 +118,7 @@ public sealed record ChildPathComparison(
 public sealed record RecoveryCurrentValidation(long Value, ImmutableArray<RecoveryEvidenceRecord> Evidence, bool Complete)
 {
     public ImmutableArray<int> ChildPath { get; init; } = [];
+    public AtlasFieldPair? FieldPair { get; init; }
 }
 
 public sealed record HistoricalComparison(
@@ -126,6 +142,7 @@ public sealed record RecoveryResult(
 {
     public bool Applied => false;
     public ChildPathComparison? PathComparison { get; init; }
+    public AtlasFieldPairComparison? FieldPairComparison { get; init; }
 }
 
 public sealed record RecoveryReport(
