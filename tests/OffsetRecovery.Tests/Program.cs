@@ -504,6 +504,25 @@ try
     Check(Marshal.SizeOf<EntityNodeValue>() == 0x08,
         "AwakeEntities EntityNodeValue must remain 8 bytes.");
 
+    // OH2 raw LocalPlayer component-map assumptions.
+    Check(Marshal.OffsetOf<ItemStruct>(nameof(ItemStruct.EntityDetailsPtr)).ToInt32() == 0x08,
+        "ItemStruct.EntityDetailsPtr must remain at +0x08.");
+    Check(Marshal.OffsetOf<ItemStruct>(nameof(ItemStruct.ComponentListPtr)).ToInt32() == 0x10,
+        "ItemStruct.ComponentListPtr must remain at +0x10.");
+    Check(Marshal.OffsetOf<EntityDetails>(nameof(EntityDetails.ComponentLookUpPtr)).ToInt32() == 0x28,
+        "EntityDetails.ComponentLookUpPtr must remain at +0x28.");
+    Check(Marshal.OffsetOf<ComponentLookUpStruct>(nameof(ComponentLookUpStruct.ComponentsNameAndIndex)).ToInt32() == 0x28,
+        "ComponentLookUpStruct.ComponentsNameAndIndex must remain at +0x28.");
+    Check(Marshal.SizeOf<ComponentNameAndIndexStruct>() == 0x10,
+        "ComponentNameAndIndexStruct must remain 0x10 bytes.");
+    Check(Marshal.OffsetOf<ComponentNameAndIndexStruct>(nameof(ComponentNameAndIndexStruct.Index)).ToInt32() == 0x08,
+        "ComponentNameAndIndexStruct.Index must remain at +0x08.");
+    Check(Marshal.OffsetOf<RenderOffsets>(nameof(RenderOffsets.Header)).ToInt32() == 0x00 &&
+          Marshal.OffsetOf<LifeOffset>(nameof(LifeOffset.Header)).ToInt32() == 0x00 &&
+          Marshal.OffsetOf<PositionedOffsets>(nameof(PositionedOffsets.Header)).ToInt32() == 0x00 &&
+          Marshal.OffsetOf<ActorOffset>(nameof(ActorOffset.Header)).ToInt32() == 0x00,
+        "Practical component layouts must keep ComponentHeader at +0x00.");
+
     // InGameStateOffset structural validation
     Check(Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.AreaInstanceData)).ToInt32() == 0x290,
         "InGameStateOffset.AreaInstanceData must be at 0x290.");
