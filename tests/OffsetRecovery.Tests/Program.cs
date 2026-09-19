@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -444,6 +445,43 @@ try
 
     var effectiveMatrixOffset = cameraStructOffset + cameraMatrixOffset;
     Check(effectiveMatrixOffset == 0x1A0, "Effective WorldToScreenMatrix offset within WorldData must be 0x1A0 (0x98 + 0x108).");
+
+    // Camera semantic validation must use the same raw matrix that OH2 reads from live WorldData.
+    var identityProjection = Matrix4x4.Identity;
+    Check(OffsetHelperV2Engine.IsFiniteMatrix(identityProjection),
+        "OH2 raw camera validator must accept a finite identity matrix.");
+    Check(
+        OffsetHelperV2Engine.TryProjectWithMatrix(
+            identityProjection,
+            worldX: 0,
+            worldY: 0,
+            worldZ: 0,
+            width: 200,
+            height: 100,
+            out var identityScreen,
+            out _),
+        "OH2 raw camera projection must project a finite identity-matrix sample.");
+    Check(Math.Abs(identityScreen.X - 100f) < 0.001f && Math.Abs(identityScreen.Y - 50f) < 0.001f,
+        "Identity raw camera projection must land at the client center.");
+
+    var nonFiniteProjection = Matrix4x4.Identity;
+    nonFiniteProjection.M23 = float.NaN;
+    Check(!OffsetHelperV2Engine.IsFiniteMatrix(nonFiniteProjection),
+        "OH2 raw camera validator must reject NaN in any matrix element.");
+
+    var zeroWProjection = Matrix4x4.Identity;
+    zeroWProjection.M44 = 0;
+    Check(
+        !OffsetHelperV2Engine.TryProjectWithMatrix(
+            zeroWProjection,
+            worldX: 0,
+            worldY: 0,
+            worldZ: 0,
+            width: 200,
+            height: 100,
+            out _,
+            out _),
+        "OH2 raw camera projection must reject a near-zero clip W.");
 
     var areaDetailsRowOffset = Marshal.OffsetOf<WorldAreaDetailsStruct>(nameof(WorldAreaDetailsStruct.WorldAreaDetailsRowPtr)).ToInt32();
     Check(areaDetailsRowOffset == 0x98, "WorldAreaDetailsStruct.WorldAreaDetailsRowPtr must be at offset 0x98.");

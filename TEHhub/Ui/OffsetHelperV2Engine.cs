@@ -681,8 +681,7 @@ namespace TEHhub.Ui
                     $"WorldData + 0x{CameraStructureOffset:X} + 0x{CameraMatrixOffset:X} = +0x{EffectiveCameraMatrixOffset:X}. " +
                     "This probe validates the live structure; it does not infer a new offset.";
 
-                var isMatrixFinite = !float.IsNaN(matrix.M11) && !float.IsInfinity(matrix.M11) &&
-                                     !float.IsNaN(matrix.M44) && !float.IsInfinity(matrix.M44);
+                var isMatrixFinite = IsFiniteMatrix(matrix);
 
                 if (!isMatrixFinite)
                 {
@@ -735,12 +734,7 @@ namespace TEHhub.Ui
                 details["M33"] = matrix.M33.ToString("F3");
                 details["M44"] = matrix.M44.ToString("F3");
 
-                var isFinite =
-                    !float.IsNaN(matrix.M11) && !float.IsInfinity(matrix.M11) &&
-                    !float.IsNaN(matrix.M22) && !float.IsInfinity(matrix.M22) &&
-                    !float.IsNaN(matrix.M33) && !float.IsInfinity(matrix.M33) &&
-                    !float.IsNaN(matrix.M44) && !float.IsInfinity(matrix.M44);
-
+                var isFinite = IsFiniteMatrix(matrix);
                 var isNonZero = matrix != default;
 
                 if (!isFinite || !isNonZero)
@@ -758,32 +752,47 @@ namespace TEHhub.Ui
                     var worldPos = render.WorldPosition;
                     details["PlayerWorldPos"] = $"({worldPos.X:F1}, {worldPos.Y:F1}, {worldPos.Z:F1})";
 
-                    var screen = world.WorldToScreen(worldPos);
-                    details["ProjectedScreenPos"] = $"({screen.X:F1}, {screen.Y:F1})";
-                    details["WindowArea"] = $"{Core.Process.WindowArea.Width} x {Core.Process.WindowArea.Height}";
-
-                    // Player is typically near the screen center when camera follows
-                    var halfW = Core.Process.WindowArea.Width / 2.0f;
-                    var halfH = Core.Process.WindowArea.Height / 2.0f;
-                    var distFromCenter = Vector2.Distance(screen, new Vector2(halfW, halfH));
-                    details["DistanceFromCenter"] = $"{distFromCenter:F1} px";
-
-                    var screenFinite =
-                        !float.IsNaN(screen.X) && !float.IsInfinity(screen.X) &&
-                        !float.IsNaN(screen.Y) && !float.IsInfinity(screen.Y);
-                    if (!screenFinite)
-                    {
-                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
-                            "WorldToScreen returned NaN or Infinity.", details);
-                    }
-
                     var width = Core.Process.WindowArea.Width;
                     var height = Core.Process.WindowArea.Height;
+                    details["WindowArea"] = $"{width} x {height}";
                     if (width <= 0 || height <= 0)
                     {
                         return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Unavailable,
                             "Window dimensions are unavailable, so projected coordinates cannot be range-checked.", details);
                     }
+
+                    if (!TryProjectWithMatrix(
+                            matrix,
+                            worldPos.X,
+                            worldPos.Y,
+                            worldPos.Z,
+                            width,
+                            height,
+                            out var screen,
+                            out var projectionDetail))
+                    {
+                        details["RawProjectionValidation"] = projectionDetail;
+                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
+                            $"Raw live camera matrix could not project LocalPlayer: {projectionDetail}", details);
+                    }
+
+                    details["ProjectionSource"] = "raw live WorldData matrix";
+                    details["RawProjectionValidation"] = projectionDetail;
+                    details["ProjectedScreenPos"] = $"({screen.X:F1}, {screen.Y:F1})";
+
+                    // Record the production cached result only as comparison evidence.
+                    // Verdicts are based on the raw matrix read by this probe.
+                    var cachedScreen = world.WorldToScreen(worldPos);
+                    if (float.IsFinite(cachedScreen.X) && float.IsFinite(cachedScreen.Y))
+                    {
+                        details["ProductionCachedScreenPos"] = $"({cachedScreen.X:F1}, {cachedScreen.Y:F1})";
+                        details["RawVsCachedDelta"] = $"{Vector2.Distance(screen, cachedScreen):F1} px";
+                    }
+
+                    var halfW = width / 2.0f;
+                    var halfH = height / 2.0f;
+                    var distFromCenter = Vector2.Distance(screen, new Vector2(halfW, halfH));
+                    details["DistanceFromCenter"] = $"{distFromCenter:F1} px";
 
                     var insideClient = screen.X >= 0 && screen.Y >= 0 && screen.X <= width && screen.Y <= height;
                     details["ProjectionInsideClient"] = insideClient.ToString();
@@ -791,11 +800,11 @@ namespace TEHhub.Ui
                     if (!insideClient)
                     {
                         return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
-                            $"Projection is finite but outside the client area: ({screen.X:F0}, {screen.Y:F0}) vs {width}x{height}.", details);
+                            $"Raw-matrix projection is finite but outside the client area: ({screen.X:F0}, {screen.Y:F0}) vs {width}x{height}.", details);
                     }
 
                     return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Pass,
-                        $"Projection valid: Screen ({screen.X:F0}, {screen.Y:F0}) inside {width}x{height}", details);
+                        $"Raw-matrix projection valid: Screen ({screen.X:F0}, {screen.Y:F0}) inside {width}x{height}", details);
                 }
 
                 return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
@@ -1414,6 +1423,80 @@ namespace TEHhub.Ui
                 details["Exception"] = ex.Message;
                 return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail, "Exception during Component probe.", details);
             }
+        }
+
+        internal static bool IsFiniteMatrix(Matrix4x4 matrix) =>
+            float.IsFinite(matrix.M11) && float.IsFinite(matrix.M12) &&
+            float.IsFinite(matrix.M13) && float.IsFinite(matrix.M14) &&
+            float.IsFinite(matrix.M21) && float.IsFinite(matrix.M22) &&
+            float.IsFinite(matrix.M23) && float.IsFinite(matrix.M24) &&
+            float.IsFinite(matrix.M31) && float.IsFinite(matrix.M32) &&
+            float.IsFinite(matrix.M33) && float.IsFinite(matrix.M34) &&
+            float.IsFinite(matrix.M41) && float.IsFinite(matrix.M42) &&
+            float.IsFinite(matrix.M43) && float.IsFinite(matrix.M44);
+
+        internal static bool TryProjectWithMatrix(
+            Matrix4x4 matrix,
+            float worldX,
+            float worldY,
+            float worldZ,
+            int width,
+            int height,
+            out Vector2 screen,
+            out string detail)
+        {
+            screen = Vector2.Zero;
+            if (!IsFiniteMatrix(matrix))
+            {
+                detail = "matrix contains NaN or Infinity";
+                return false;
+            }
+
+            if (width <= 0 || height <= 0)
+            {
+                detail = "client dimensions are not positive";
+                return false;
+            }
+
+            var clipX =
+                ((double)matrix.M11 * worldX) +
+                ((double)matrix.M21 * worldY) +
+                ((double)matrix.M31 * worldZ) +
+                matrix.M41;
+            var clipY =
+                ((double)matrix.M12 * worldX) +
+                ((double)matrix.M22 * worldY) +
+                ((double)matrix.M32 * worldZ) +
+                matrix.M42;
+            var clipW =
+                ((double)matrix.M14 * worldX) +
+                ((double)matrix.M24 * worldY) +
+                ((double)matrix.M34 * worldZ) +
+                matrix.M44;
+
+            if (!double.IsFinite(clipX) || !double.IsFinite(clipY) || !double.IsFinite(clipW))
+            {
+                detail = "clip-space projection is non-finite";
+                return false;
+            }
+
+            if (Math.Abs(clipW) < 1e-8)
+            {
+                detail = "clip W is zero or too close to zero";
+                return false;
+            }
+
+            var screenX = ((clipX / clipW) + 1.0d) * (width / 2.0d);
+            var screenY = (1.0d - (clipY / clipW)) * (height / 2.0d);
+            if (!double.IsFinite(screenX) || !double.IsFinite(screenY))
+            {
+                detail = "screen-space projection is non-finite";
+                return false;
+            }
+
+            screen = new Vector2((float)screenX, (float)screenY);
+            detail = $"finite raw projection with clipW={clipW:F4}";
+            return true;
         }
 
         [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 0x20)]
