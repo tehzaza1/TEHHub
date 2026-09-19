@@ -23,7 +23,10 @@ namespace AutoExile2
         /// <summary>Aim cursor at pack center / cluster (AoE spells, curses, debuffs).</summary>
         PackTargeted = 2,
 
-        /// <summary>Deploy totem or minion toward enemies with recast interval.</summary>
+        /// <summary>
+        /// Deploy a totem toward enemies with recast control.
+        /// The legacy enum name is retained for profile compatibility; PoE2 minions are auto-managed.
+        /// </summary>
         TotemOrMinion = 3,
 
         /// <summary>Self-cast buff, guard (Steelskin, Molten Shell, Enduring Cry, auras) without cursor movement.</summary>
@@ -143,9 +146,6 @@ namespace AutoExile2
 
         /// <summary>Maximum active totems allowed before halting recast (default 1).</summary>
         public int MaxTotemCount { get; set; } = 1;
-
-        /// <summary>Maximum active minions allowed before halting recast (default 3).</summary>
-        public int MaxMinionCount { get; set; } = 3;
 
         /// <summary>Culler: Distance in front of host to aim (Grid units, default 75g).</summary>
         public float CullerAimDistance { get; set; } = 75f;

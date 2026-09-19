@@ -1025,8 +1025,8 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                // 1. Totem / Minion Max Count check
-                if (slot.Category == SkillClassifier.CategoryTotem || slot.Role == SkillRole.TotemOrMinion)
+                // 1. Totem Max Count check. PoE2 minions are auto-managed and never enter this cast path.
+                if (string.Equals(slot.Category, SkillClassifier.CategoryTotem, StringComparison.OrdinalIgnoreCase))
                 {
                     int currentTotems = this.CountActiveTotems(area, player);
                     int maxTotems = slot.MaxTotemCount > 0 ? slot.MaxTotemCount : 1;
