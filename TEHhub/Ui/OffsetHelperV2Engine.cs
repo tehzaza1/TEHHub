@@ -862,15 +862,24 @@ namespace TEHhub.Ui
             var details = new Dictionary<string, string>();
             try
             {
-                var world = Core.States.InGameStateObject.CurrentWorldInstance;
-                if (world == null || world.Address == IntPtr.Zero)
+                var inGameAddr = Core.States.InGameStateObject.Address;
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameAddr))
                 {
                     return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Unavailable,
-                        "WorldData object is null or has zero address.", details);
+                        "InGameState is unavailable in the current context.", details);
                 }
 
-                var worldData = reader.ReadMemory<WorldDataOffset>(world.Address);
+                var inGameState = reader.ReadMemory<InGameStateOffset>(inGameAddr);
+                details["WorldDataPtr"] = $"0x{inGameState.WorldData.ToInt64():X}";
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameState.WorldData))
+                {
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Unavailable,
+                        "WorldData pointer is unavailable in the current context.", details);
+                }
+
+                var worldData = reader.ReadMemory<WorldDataOffset>(inGameState.WorldData);
                 var matrix = worldData.CameraStructurePtr.WorldToScreenMatrix;
+                details["MatrixSource"] = "raw InGameState -> WorldDataOffset";
                 details["EffectiveCameraMatrixOffset"] = $"+0x{EffectiveCameraMatrixOffset:X}";
                 details["M11"] = matrix.M11.ToString("F3");
                 details["M22"] = matrix.M22.ToString("F3");
@@ -879,7 +888,6 @@ namespace TEHhub.Ui
 
                 var isFinite = IsFiniteMatrix(matrix);
                 var isNonZero = matrix != default;
-
                 if (!isFinite || !isNonZero)
                 {
                     return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
@@ -888,76 +896,248 @@ namespace TEHhub.Ui
                             : "Camera projection matrix is all zeroes.", details);
                 }
 
-                // Live test projection using Player position
-                var player = Core.States.InGameStateObject.CurrentAreaInstance?.Player;
-                if (player != null && player.TryGetComponent<Render>(out var render))
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameState.AreaInstanceData))
                 {
-                    var worldPos = render.WorldPosition;
-                    details["PlayerWorldPos"] = $"({worldPos.X:F1}, {worldPos.Y:F1}, {worldPos.Z:F1})";
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                        "Camera matrix is structurally valid, but AreaInstanceData is unavailable for raw LocalPlayer projection.", details);
+                }
 
-                    var width = Core.Process.WindowArea.Width;
-                    var height = Core.Process.WindowArea.Height;
-                    details["WindowArea"] = $"{width} x {height}";
-                    if (width <= 0 || height <= 0)
-                    {
-                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Unavailable,
-                            "Window dimensions are unavailable, so projected coordinates cannot be range-checked.", details);
-                    }
+                var playerInfo =
+                    reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + AreaPlayerInfoOffset);
+                var playerAddress = playerInfo.LocalPlayerPtr;
+                details["LocalPlayerPtr"] = $"0x{playerAddress.ToInt64():X}";
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerAddress))
+                {
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                        "Camera matrix is structurally valid, but LocalPlayer is unavailable for semantic projection validation.", details);
+                }
 
-                    if (!TryProjectWithMatrix(
-                            matrix,
-                            worldPos.X,
-                            worldPos.Y,
-                            worldPos.Z,
-                            width,
-                            height,
-                            out var screen,
-                            out var projectionDetail))
-                    {
-                        details["RawProjectionValidation"] = projectionDetail;
-                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
-                            $"Raw live camera matrix could not project LocalPlayer: {projectionDetail}", details);
-                    }
+                if (!TryResolveRawComponentAddress(
+                        reader,
+                        playerAddress,
+                        "Render",
+                        out var renderAddress,
+                        out var componentDetail))
+                {
+                    details["RawRenderResolution"] = componentDetail;
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                        $"Camera matrix is structurally valid, but raw LocalPlayer Render could not be resolved: {componentDetail}",
+                        details);
+                }
 
-                    details["ProjectionSource"] = "raw live WorldData matrix";
+                details["RawRenderResolution"] = componentDetail;
+                details["RenderAddress"] = $"0x{renderAddress.ToInt64():X}";
+                if (!reader.TryReadMemory<RenderOffsets>(renderAddress, out var renderOffsets, recordFailure: false))
+                {
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                        "Camera matrix is structurally valid, but raw RenderOffsets could not be read.", details);
+                }
+
+                var worldPos = renderOffsets.CurrentWorldPosition;
+                details["PlayerWorldPos"] = $"({worldPos.X:F1}, {worldPos.Y:F1}, {worldPos.Z:F1})";
+                details["PlayerWorldPosSource"] = "raw LocalPlayer RenderOffsets.CurrentWorldPosition";
+
+                if (!float.IsFinite(worldPos.X) ||
+                    !float.IsFinite(worldPos.Y) ||
+                    !float.IsFinite(worldPos.Z))
+                {
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                        "Camera matrix is structurally valid, but raw LocalPlayer world position is non-finite.", details);
+                }
+
+                var width = Core.Process.WindowArea.Width;
+                var height = Core.Process.WindowArea.Height;
+                details["WindowArea"] = $"{width} x {height}";
+                if (width <= 0 || height <= 0)
+                {
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Unavailable,
+                        "Window dimensions are unavailable, so projected coordinates cannot be range-checked.", details);
+                }
+
+                if (!TryProjectWithMatrix(
+                        matrix,
+                        worldPos.X,
+                        worldPos.Y,
+                        worldPos.Z,
+                        width,
+                        height,
+                        out var screen,
+                        out var projectionDetail))
+                {
                     details["RawProjectionValidation"] = projectionDetail;
-                    details["ProjectedScreenPos"] = $"({screen.X:F1}, {screen.Y:F1})";
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
+                        $"Raw live camera matrix could not project raw LocalPlayer position: {projectionDetail}", details);
+                }
 
-                    // Record the production cached result only as comparison evidence.
-                    // Verdicts are based on the raw matrix read by this probe.
-                    var cachedScreen = world.WorldToScreen(worldPos);
+                details["ProjectionSource"] = "raw live WorldData matrix + raw LocalPlayer Render position";
+                details["RawProjectionValidation"] = projectionDetail;
+                details["ProjectedScreenPos"] = $"({screen.X:F1}, {screen.Y:F1})";
+
+                // Production wrappers are comparison evidence only and never decide this verdict.
+                var cachedWorld = Core.States.InGameStateObject.CurrentWorldInstance;
+                var cachedPlayer = Core.States.InGameStateObject.CurrentAreaInstance?.Player;
+                if (cachedWorld != null &&
+                    cachedPlayer != null &&
+                    cachedPlayer.TryGetComponent<Render>(out var cachedRender))
+                {
+                    var cachedWorldPos = cachedRender.WorldPosition;
+                    details["ProductionCachedWorldPos"] =
+                        $"({cachedWorldPos.X:F1}, {cachedWorldPos.Y:F1}, {cachedWorldPos.Z:F1})";
+                    var cachedScreen = cachedWorld.WorldToScreen(cachedWorldPos);
                     if (float.IsFinite(cachedScreen.X) && float.IsFinite(cachedScreen.Y))
                     {
                         details["ProductionCachedScreenPos"] = $"({cachedScreen.X:F1}, {cachedScreen.Y:F1})";
                         details["RawVsCachedDelta"] = $"{Vector2.Distance(screen, cachedScreen):F1} px";
                     }
-
-                    var halfW = width / 2.0f;
-                    var halfH = height / 2.0f;
-                    var distFromCenter = Vector2.Distance(screen, new Vector2(halfW, halfH));
-                    details["DistanceFromCenter"] = $"{distFromCenter:F1} px";
-
-                    var insideClient = screen.X >= 0 && screen.Y >= 0 && screen.X <= width && screen.Y <= height;
-                    details["ProjectionInsideClient"] = insideClient.ToString();
-
-                    if (!insideClient)
-                    {
-                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
-                            $"Raw-matrix projection is finite but outside the client area: ({screen.X:F0}, {screen.Y:F0}) vs {width}x{height}.", details);
-                    }
-
-                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Pass,
-                        $"Raw-matrix projection valid: Screen ({screen.X:F0}, {screen.Y:F0}) inside {width}x{height}", details);
                 }
 
-                return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
-                    "Camera matrix is non-zero and finite, but Player Render position is unavailable for semantic projection validation.", details);
+                var halfW = width / 2.0f;
+                var halfH = height / 2.0f;
+                details["DistanceFromCenter"] =
+                    $"{Vector2.Distance(screen, new Vector2(halfW, halfH)):F1} px";
+
+                var insideClient =
+                    screen.X >= 0 &&
+                    screen.Y >= 0 &&
+                    screen.X <= width &&
+                    screen.Y <= height;
+                details["ProjectionInsideClient"] = insideClient.ToString();
+
+                if (!insideClient)
+                {
+                    return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                        $"Raw-matrix projection is finite but outside the client area: ({screen.X:F0}, {screen.Y:F0}) vs {width}x{height}.",
+                        details);
+                }
+
+                return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Pass,
+                    $"Raw camera + raw Render projection valid: Screen ({screen.X:F0}, {screen.Y:F0}) inside {width}x{height}",
+                    details);
             }
             catch (Exception ex)
             {
                 details["Exception"] = ex.Message;
-                return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail, "Exception during Camera WorldToScreen probe.", details);
+                return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
+                    "Exception during Camera WorldToScreen probe.", details);
             }
+        }
+
+        private static bool TryResolveRawComponentAddress(
+            SafeMemoryHandle reader,
+            IntPtr entityAddress,
+            string componentName,
+            out IntPtr componentAddress,
+            out string detail)
+        {
+            const int maxComponentsInEntity = 50;
+            componentAddress = IntPtr.Zero;
+
+            if (!CanonicalStructuralInvariants.IsCanonicalPointer(entityAddress))
+            {
+                detail = "entity pointer is non-canonical";
+                return false;
+            }
+
+            if (!reader.TryReadMemory<EntityOffsets>(entityAddress, out var entity, recordFailure: false))
+            {
+                detail = "entity header unreadable";
+                return false;
+            }
+
+            var componentVectorValidation =
+                CanonicalStructuralInvariants.ValidateStdVector(entity.ItemBase.ComponentListPtr, elementSize: 8);
+            if (!componentVectorValidation.IsValid)
+            {
+                detail = $"component pointer vector invalid: {componentVectorValidation.Detail}";
+                return false;
+            }
+
+            if (!CanonicalStructuralInvariants.IsCanonicalPointer(entity.ItemBase.EntityDetailsPtr) ||
+                !reader.TryReadMemory<EntityDetails>(
+                    entity.ItemBase.EntityDetailsPtr,
+                    out var entityDetails,
+                    recordFailure: false))
+            {
+                detail = "EntityDetails unavailable";
+                return false;
+            }
+
+            if (!CanonicalStructuralInvariants.IsCanonicalPointer(entityDetails.ComponentLookUpPtr) ||
+                !reader.TryReadMemory<ComponentLookUpStruct>(
+                    entityDetails.ComponentLookUpPtr,
+                    out var lookup,
+                    recordFailure: false))
+            {
+                detail = "component lookup unavailable";
+                return false;
+            }
+
+            if (lookup.ComponentsNameAndIndex.Capacity < 0 ||
+                lookup.ComponentsNameAndIndex.Capacity > maxComponentsInEntity)
+            {
+                detail = $"component lookup capacity {lookup.ComponentsNameAndIndex.Capacity} is out of bounds";
+                return false;
+            }
+
+            var nameVectorValidation =
+                CanonicalStructuralInvariants.ValidateStdVector(
+                    lookup.ComponentsNameAndIndex.Data,
+                    elementSize: Marshal.SizeOf<ComponentNameAndIndexStruct>());
+            if (!nameVectorValidation.IsValid)
+            {
+                detail = $"component name vector invalid: {nameVectorValidation.Detail}";
+                return false;
+            }
+
+            var componentPointers = reader.ReadStdVector<IntPtr>(entity.ItemBase.ComponentListPtr);
+            var namesAndIndexes =
+                reader.ReadStdVector<ComponentNameAndIndexStruct>(lookup.ComponentsNameAndIndex.Data);
+
+            foreach (var nameAndIndex in namesAndIndexes)
+            {
+                if (nameAndIndex.Index < 0 ||
+                    nameAndIndex.Index >= componentPointers.Length ||
+                    !CanonicalStructuralInvariants.IsCanonicalPointer(nameAndIndex.NamePtr))
+                {
+                    continue;
+                }
+
+                var name = reader.ReadString(nameAndIndex.NamePtr);
+                if (!string.Equals(name, componentName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var candidate = componentPointers[nameAndIndex.Index];
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(candidate))
+                {
+                    detail = $"{componentName} pointer is non-canonical";
+                    return false;
+                }
+
+                if (!reader.TryReadMemory<ComponentHeader>(candidate, out var header, recordFailure: false))
+                {
+                    detail = $"{componentName} header unreadable";
+                    return false;
+                }
+
+                var ownerValidation =
+                    CanonicalStructuralInvariants.ValidateComponentOwner(
+                        header.EntityPtr.ToInt64(),
+                        entityAddress.ToInt64());
+                if (!ownerValidation.IsValid)
+                {
+                    detail = $"{componentName} owner mismatch: {ownerValidation.Detail}";
+                    return false;
+                }
+
+                componentAddress = candidate;
+                detail = $"{componentName} resolved from raw component map; owner back-pointer verified";
+                return true;
+            }
+
+            detail = $"{componentName} not found in raw component map";
+            return false;
         }
 
         // =====================================================================
