@@ -531,6 +531,14 @@ try
     Check(Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.UiRootStructPtr)).ToInt32() == 0x2F0,
         "InGameStateOffset.UiRootStructPtr must be at 0x2F0.");
 
+    // AreaLoadingState structural validation used by OH2's lightweight transition sampler.
+    Check(Marshal.OffsetOf<AreaLoadingStateOffset>(nameof(AreaLoadingStateOffset.IsLoading)).ToInt32() == 0x770,
+        "AreaLoadingStateOffset.IsLoading must be at 0x770.");
+    Check(Marshal.OffsetOf<AreaLoadingStateOffset>(nameof(AreaLoadingStateOffset.TotalLoadingScreenTimeMs)).ToInt32() == 0xEC0,
+        "AreaLoadingStateOffset.TotalLoadingScreenTimeMs must be at 0xEC0.");
+    Check(Marshal.OffsetOf<AreaLoadingStateOffset>(nameof(AreaLoadingStateOffset.CurrentAreaDetailsPtr)).ToInt32() == 0xF40,
+        "AreaLoadingStateOffset.CurrentAreaDetailsPtr must be at 0xF40.");
+
     // ServerData structural validation
     Check(Marshal.OffsetOf<ServerDataOffsets>(nameof(ServerDataOffsets.PlayerServerDataPtr)).ToInt32() == 0x48,
         "ServerDataOffsets.PlayerServerDataPtr must be at 0x48.");
