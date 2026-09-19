@@ -12,6 +12,13 @@ public static class RecoveryJsonReportExporter
             WriteIndented = true,
             Converters = { new JsonStringEnumConverter() }
         });
+
+    public static string SerializeAggregate(RecoveryAggregateReport report) =>
+        JsonSerializer.Serialize(report, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Converters = { new JsonStringEnumConverter() }
+        });
 }
 
 public static class RecoveryConsoleReportWriter
@@ -74,5 +81,103 @@ public static class RecoveryConsoleReportWriter
             writer.WriteLine($"  digest: {result.Decision.EvidenceDigest}");
             if (result.Detail is not null) writer.WriteLine($"  detail: {result.Detail}");
         }
+    }
+
+    public static void WriteAggregate(TextWriter writer, RecoveryAggregateReport report)
+    {
+        writer.WriteLine("================================================================================");
+        writer.WriteLine($"Recovery V1 Aggregate Report | Status: {report.AggregateStatus} | Applied={report.Applied}");
+        writer.WriteLine($"Process: {report.Identity.ProcessName} (PID {report.Identity.ProcessId}) | FileVersion: {report.Identity.FileVersion}");
+        writer.WriteLine($"Module: 0x{report.Identity.ModuleBase:X}+0x{report.Identity.ModuleSize:X} | Time: {report.TimestampUtc:u} | Elapsed: {report.TotalElapsedMilliseconds}ms");
+        writer.WriteLine("--------------------------------------------------------------------------------");
+        writer.WriteLine($"Requested targets: {string.Join(", ", report.RequestedTargets)}");
+        if (!report.AutoAddedRunnableDependencies.IsEmpty)
+        {
+            writer.WriteLine($"Auto-added runnable prerequisites: {string.Join(", ", report.AutoAddedRunnableDependencies)}");
+        }
+        writer.WriteLine($"Execution order: {string.Join(" -> ", report.ExecutionOrder)}");
+        writer.WriteLine("--------------------------------------------------------------------------------");
+        writer.WriteLine("Target Execution Summary:");
+        foreach (var metric in report.TargetMetrics)
+        {
+            var res = report.Results.FirstOrDefault(r => r.Target.Id == metric.TargetId);
+            var termResult = res?.Decision.TerminalResult.ToString() ?? "NOT_RUN";
+            var readsText = metric.ReadCount.HasValue ? $"{metric.ReadCount} reads" : "reads N/A";
+            var bytesText = metric.BytesScanned.HasValue ? $"{metric.BytesScanned} bytes" : "bytes N/A";
+            var candidatesText = metric.CandidateCount.HasValue ? $"{metric.CandidateCount} candidates" : "candidates N/A";
+            writer.WriteLine($"  [{metric.TargetId,-6}] {termResult,-18} | {metric.ElapsedMilliseconds,4}ms | {readsText}, {bytesText}, {candidatesText} | Applied=false");
+        }
+        writer.WriteLine("--------------------------------------------------------------------------------");
+        if (!report.Proposals.IsEmpty)
+        {
+            writer.WriteLine("Proposals (UNAPPLIED - Review Required):");
+            foreach (var (targetId, proposal) in report.Proposals)
+            {
+                writer.WriteLine($"  * {targetId}: {proposal} (Applied=false)");
+            }
+            writer.WriteLine("--------------------------------------------------------------------------------");
+        }
+        if (!report.AmbiguousTargets.IsEmpty)
+        {
+            writer.WriteLine("Ambiguous Targets (No Preferred Candidate):");
+            foreach (var targetId in report.AmbiguousTargets)
+            {
+                var res = report.Results.FirstOrDefault(r => r.Target.Id == targetId);
+                var survivors = res != null ? string.Join(", ", res.Decision.SurvivorIds.Select(s => $"0x{s:X}")) : "none";
+                writer.WriteLine($"  * {targetId}: Surviving candidates: [{survivors}]");
+            }
+            writer.WriteLine("--------------------------------------------------------------------------------");
+        }
+        if (!report.BlockedDependencyTargets.IsEmpty)
+        {
+            writer.WriteLine("Blocked Dependency Targets:");
+            foreach (var targetId in report.BlockedDependencyTargets)
+            {
+                var res = report.Results.FirstOrDefault(r => r.Target.Id == targetId);
+                writer.WriteLine($"  * {targetId}: {res?.Detail ?? "Missing or failed dependency"}");
+            }
+            writer.WriteLine("--------------------------------------------------------------------------------");
+        }
+        if (!report.BlockedContextTargets.IsEmpty)
+        {
+            writer.WriteLine("Blocked Context Targets (Zone/UI Not Present):");
+            foreach (var targetId in report.BlockedContextTargets)
+            {
+                var res = report.Results.FirstOrDefault(r => r.Target.Id == targetId);
+                writer.WriteLine($"  * {targetId}: {res?.Detail ?? "Required game context not present"}");
+            }
+            writer.WriteLine("--------------------------------------------------------------------------------");
+        }
+        if (!report.ErrorTargets.IsEmpty || !report.Errors.IsEmpty)
+        {
+            writer.WriteLine("Errors:");
+            foreach (var err in report.Errors)
+            {
+                writer.WriteLine($"  ! {err}");
+            }
+            writer.WriteLine("--------------------------------------------------------------------------------");
+        }
+        writer.WriteLine("Per-Target Details:");
+        foreach (var result in report.Results)
+        {
+            writer.WriteLine($"--- {result.Target.Id} [{result.Target.Scope.Name}/{result.Target.Scope.InstanceId}] : {result.Decision.TerminalResult} ---");
+            writer.WriteLine($"  Strategy: {result.Target.StrategyId} | Applied=false");
+            if (result.CurrentValidation is { } cv)
+                writer.WriteLine($"  Current Validation: Complete={cv.Complete}, 0x{cv.Value:X}");
+            if (result.Discovery.Scan is { } scan)
+                writer.WriteLine($"  Scan: {scan.BytesScanned} bytes, {scan.RawMatchCount} raw matches");
+            if (result.Decision.Proposal is long prop)
+                writer.WriteLine($"  Proposal: 0x{prop:X}");
+            if (result.Decision.ProposedChildPath.Length > 0)
+                writer.WriteLine($"  Proposed Child Path: [{string.Join(",", result.Decision.ProposedChildPath)}]");
+            if (result.Decision.ProposedFieldPair is { } pfp)
+                writer.WriteLine($"  Proposed Field Pair: {pfp}");
+            writer.WriteLine($"  Digest: {result.Decision.EvidenceDigest}");
+            if (result.Detail is not null)
+                writer.WriteLine($"  Detail: {result.Detail}");
+        }
+        writer.WriteLine("--------------------------------------------------------------------------------");
+        writer.WriteLine($"Total Elapsed: {report.TotalElapsedMilliseconds}ms | Total Scanned: {(report.TotalBytesScanned.HasValue ? $"{report.TotalBytesScanned} bytes" : "N/A")}");
+        writer.WriteLine("================================================================================");
     }
 }

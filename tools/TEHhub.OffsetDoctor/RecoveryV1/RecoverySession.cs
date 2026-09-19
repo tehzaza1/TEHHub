@@ -47,11 +47,55 @@ public sealed class RecoverySession
 
     public void ReplaceContext(RecoveryContextSnapshot context) => _context = context;
 
-    public bool TryGetResult(string targetId, out RecoveryResult? result) =>
-        _results.TryGetValue(targetId, out result);
+    public bool TryGetResult(string targetId, out RecoveryResult? result)
+    {
+        if (_results.TryGetValue(targetId, out result)) return true;
+        string norm = RecoveryV1Registry.NormalizeId(targetId);
+        foreach (var (k, v) in _results)
+        {
+            if (RecoveryV1Registry.NormalizeId(k) == norm)
+            {
+                result = v;
+                return true;
+            }
+        }
+        result = null;
+        return false;
+    }
 
-    public bool TryGetProvisional(string targetId, out ProvisionalValue? value) =>
-        _provisional.TryGetValue(targetId, out value);
+    public bool TryGetProvisional(string targetId, out ProvisionalValue? value)
+    {
+        if (_provisional.TryGetValue(targetId, out value)) return true;
+        string norm = RecoveryV1Registry.NormalizeId(targetId);
+        foreach (var (k, v) in _provisional)
+        {
+            if (RecoveryV1Registry.NormalizeId(k) == norm)
+            {
+                value = v;
+                return true;
+            }
+        }
+        value = null;
+        return false;
+    }
+
+    public void TrustAnchor(string id, string name, long address, string provenance = "trusted-anchor")
+    {
+        if (TryGetResult(id, out _)) return;
+        var target = RecoveryTargetSpec.Create(id, new RecoveryTargetScope("trusted-anchor", name),
+            "trusted-anchor-registration", rootAddress: address);
+        var evidence = ImmutableArray.Create(new RecoveryEvidenceRecord(
+            "anchor-registration", RecoveryEvidenceResult.PASS,
+            $"Anchor registered with provenance '{provenance}'.", true, true));
+        var candidate = new DiscoveredCandidate($"anchor-{id}", address, provenance, evidence);
+        var decision = new FrozenDecision(RecoveryTerminalResult.PASS_CURRENT, [candidate.Id], address,
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"{id}:{address}:{provenance}"))));
+        var discovery = new FrozenDiscoveryResult([new RecoveryCandidate(candidate.Id, address, provenance,
+            evidence, evidence, [], CandidateDisposition.Survivor)], [], [candidate.Id]);
+        var result = new RecoveryResult(target, decision, discovery, null, [],
+            ImmutableDictionary<string, string>.Empty.SetItem("provenance", provenance), null, null);
+        Record(result);
+    }
 
     internal void Record(RecoveryResult result)
     {
@@ -130,13 +174,22 @@ public static class DependencyEvaluator
                 continue;
             }
 
-            bool valid = session.TryGetProvisional(id, out ProvisionalValue? provisional) &&
+            bool isProvisional = session.TryGetProvisional(id, out ProvisionalValue? provisional) &&
                 provisional is not null && provisional.Identity == session.Identity &&
                 parent.Decision.TerminalResult == RecoveryTerminalResult.PROPOSED;
+
+            bool isPassCurrent = parent.Decision.TerminalResult == RecoveryTerminalResult.PASS_CURRENT;
+
+            long? anchorValue = isProvisional ? provisional!.Value :
+                (parent.Decision.Proposal ?? parent.CurrentValidation?.Value ?? parent.Target.RootAddress);
+
+            bool valid = (isProvisional || isPassCurrent) && anchorValue.HasValue && anchorValue.Value > 0;
+
             states.Add(new RecoveryDependencyState(id, parent.Decision.TerminalResult, valid,
-                parent.Decision.EvidenceDigest, valid ? provisional!.Value : null,
-                valid ? provisional!.CandidateId : null));
-            if (id == target.ParentTargetId && valid) anchor = provisional!.Value;
+                parent.Decision.EvidenceDigest, valid ? anchorValue : null,
+                isProvisional ? provisional!.CandidateId : null));
+
+            if (id == target.ParentTargetId && valid) anchor = anchorValue!.Value;
             if (!valid) error ??= $"Dependency '{id}' lacks a unique validated session value.";
         }
         dependencies = states.ToImmutable();

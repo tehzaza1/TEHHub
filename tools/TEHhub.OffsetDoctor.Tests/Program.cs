@@ -25,6 +25,7 @@ Od063RecoveryTests.RunAll(Check);
 Od114RecoveryTests.RunAll(Check);
 Od144RecoveryTests.RunAll(Check);
 Od145RecoveryTests.RunAll(Check);
+RecoveryV1IntegrationTests.RunAll(Check);
 Console.WriteLine($"[Recovery V1] {assertions - legacyAssertions} assertions verified.");
 
 Console.ForegroundColor = ConsoleColor.Green;

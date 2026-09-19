@@ -153,3 +153,102 @@ public sealed record RecoveryReport(
         new("recovery-v1.phase1", session.Identity, DateTime.UtcNow,
             session.Results.OrderBy(r => r.Target.Id, StringComparer.Ordinal).ToImmutableArray());
 }
+
+public enum LiveEvidenceStatus
+{
+    LIVE_CURRENT_VALIDATION_PROVEN,
+    LIVE_RECOVERY_PROVEN,
+    LIVE_CONTEXT_PENDING,
+    SYNTHETIC_ONLY
+}
+
+public enum ThresholdClassification
+{
+    STRUCTURAL_ABI_INVARIANT,
+    VERSIONED_SEMANTIC_INVARIANT,
+    SAFETY_BUDGET,
+    DISCOVERY_BOUND,
+    VALIDATION_THRESHOLD
+}
+
+public sealed record VersionedThreshold(
+    string Name,
+    object Value,
+    string DefiningMember,
+    ThresholdClassification Classification,
+    string Purpose);
+
+public sealed record PriorEvidenceRecord(
+    string EvidenceId,
+    string TargetId,
+    LiveEvidenceStatus Status,
+    string BranchExercised,
+    string? BuildIdentity,
+    string? TimestampOrCommit,
+    string Description);
+
+public sealed record CurrentRunLiveEvidence(
+    string TargetId,
+    LiveEvidenceStatus Status,
+    string Details,
+    DateTime TimestampUtc);
+
+public sealed record CurrentValidationInput(
+    long? CurrentNumericValue = null,
+    IReadOnlyList<int>? CurrentPath = null,
+    AtlasFieldPair? CurrentFieldPair = null);
+
+public sealed record PostDecisionComparisonInput(
+    long? ConfiguredNumericValue = null,
+    ImmutableArray<long> HistoricalNumericValues = default,
+    IReadOnlyList<int>? ConfiguredPath = null,
+    ImmutableArray<IReadOnlyList<int>> HistoricalPaths = default,
+    AtlasFieldPair? ConfiguredFieldPair = null,
+    ImmutableArray<AtlasFieldPair> HistoricalFieldPairs = default);
+
+public sealed record TargetExecutionInput(
+    CurrentValidationInput? CurrentValidation,
+    PostDecisionComparisonInput? PostComparison);
+
+public enum RecoveryAggregateStatus
+{
+    COMPLETE,
+    PARTIAL_CONTEXT,
+    ATTENTION_REQUIRED,
+    ERROR
+}
+
+public sealed record TargetBudgetMetric(
+    string TargetId,
+    long ElapsedMilliseconds,
+    long? ReadCount,
+    long? BytesScanned,
+    int? CandidateCount);
+
+public sealed record RecoveryAggregateReport(
+    string SchemaVersion,
+    string RunId,
+    RecoveryIdentity Identity,
+    DateTime TimestampUtc,
+    RecoveryAggregateStatus AggregateStatus,
+    ImmutableArray<string> RequestedTargets,
+    ImmutableArray<string> EffectiveTargets,
+    ImmutableArray<string> AutoAddedRunnableDependencies,
+    ImmutableArray<string> ExecutionOrder,
+    ImmutableArray<RecoveryResult> Results,
+    ImmutableArray<string> BlockedContextTargets,
+    ImmutableArray<string> BlockedDependencyTargets,
+    ImmutableArray<string> NotFoundTargets,
+    ImmutableArray<string> AmbiguousTargets,
+    ImmutableArray<string> ProposedTargets,
+    ImmutableArray<string> PassedCurrentTargets,
+    ImmutableArray<string> ErrorTargets,
+    ImmutableDictionary<string, string> Proposals,
+    ImmutableArray<string> Errors,
+    ImmutableArray<TargetBudgetMetric> TargetMetrics,
+    long TotalElapsedMilliseconds,
+    long? TotalBytesScanned,
+    ImmutableArray<CurrentRunLiveEvidence> CurrentRunLiveEvidence)
+{
+    public bool Applied => false;
+}

@@ -15,4 +15,8 @@
         <ProjectReference Include="..\..\TEHhub.Offsets\TEHhub.Offsets.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="TEHhub.OffsetDoctor.Tests" />
+    </ItemGroup>
+
 </Project>
