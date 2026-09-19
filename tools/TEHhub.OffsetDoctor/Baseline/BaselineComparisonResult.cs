@@ -1,7 +1,7 @@
 namespace TEHhub.OffsetDoctor.Baseline;
 
 using TEHhub.OffsetDoctor.Manifest;
-using TEHhub.OffsetDoctor.Recovery;
+using TEHhub.OffsetDoctor.Validation;
 
 public enum DeltaSeverity
 {
@@ -26,7 +26,7 @@ public sealed class BaselineDelta
 public sealed class BaselineComparisonResult
 {
     public required BaselineSnapshot Baseline { get; init; }
-    public required OffsetDoctorReport CurrentReport { get; init; }
+    public required OffsetDoctorValidationReport CurrentReport { get; init; }
     public List<BaselineDelta> Deltas { get; init; } = [];
 
     public int CriticalCount => Deltas.Count(d => d.Severity == DeltaSeverity.Critical);

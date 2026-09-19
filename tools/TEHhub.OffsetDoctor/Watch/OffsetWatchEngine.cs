@@ -2,12 +2,11 @@ namespace TEHhub.OffsetDoctor.Watch;
 
 using System.Diagnostics;
 using TEHhub.OffsetDoctor.Process;
-using TEHhub.OffsetDoctor.Recovery;
 using TEHhub.OffsetDoctor.Validation;
 
 public sealed class OffsetWatchEngine
 {
-    private readonly OffsetRecoveryEngine _recoveryEngine = new();
+    private readonly OffsetDoctorValidationRunner _validationRunner = new();
 
     public WatchReport RunWatch(
         IProcessMemoryReader reader,
@@ -27,7 +26,7 @@ public sealed class OffsetWatchEngine
         var sw = Stopwatch.StartNew();
 
         // Initial scan
-        var initialReport = _recoveryEngine.RunValidation(reader, groundTruth);
+        var initialReport = _validationRunner.RunValidation(reader, groundTruth);
         foreach (var result in initialReport.Results)
         {
             if (targetMap.TryGetValue(result.NodeId, out var state))
@@ -63,7 +62,7 @@ public sealed class OffsetWatchEngine
             }
 
             var elapsed = sw.Elapsed;
-            var report = _recoveryEngine.RunValidation(reader, groundTruth);
+            var report = _validationRunner.RunValidation(reader, groundTruth);
 
             foreach (var result in report.Results)
             {

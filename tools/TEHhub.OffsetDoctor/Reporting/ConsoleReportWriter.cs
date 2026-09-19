@@ -3,10 +3,22 @@ namespace TEHhub.OffsetDoctor.Reporting;
 using TEHhub.OffsetDoctor.Evidence;
 using TEHhub.OffsetDoctor.Manifest;
 using TEHhub.OffsetDoctor.Recovery;
+using TEHhub.OffsetDoctor.Validation;
 
 public static class ConsoleReportWriter
 {
     public static void PrintReport(OffsetDoctorReport report)
+    {
+        PrintReport(new OffsetDoctorValidationReport
+        {
+            ProcessMetadata = report.ProcessMetadata,
+            TimestampUtc = report.TimestampUtc,
+            Results = report.Results,
+            IsChainHealthy = report.IsChainHealthy
+        });
+    }
+
+    public static void PrintReport(OffsetDoctorValidationReport report)
     {
         Console.WriteLine("================================================================================");
         Console.WriteLine("                     TEHhub Offset Doctor — Validate All                        ");

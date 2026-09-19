@@ -5,13 +5,12 @@ using TEHhub.OffsetDoctor.Baseline;
 using TEHhub.OffsetDoctor.Evidence;
 using TEHhub.OffsetDoctor.Manifest;
 using TEHhub.OffsetDoctor.Process;
-using TEHhub.OffsetDoctor.Recovery;
 using TEHhub.OffsetDoctor.Validation;
 using TEHhub.OffsetDoctor.Watch;
 
 public sealed class OffsetDoctorGuiController
 {
-    private readonly OffsetRecoveryEngine _recoveryEngine = new();
+    private readonly OffsetDoctorValidationRunner _validationRunner = new();
     private readonly BaselineCaptureEngine _captureEngine = new();
     private readonly BaselineComparisonEngine _comparisonEngine = new();
     private readonly OffsetWatchEngine _watchEngine = new();
@@ -119,7 +118,7 @@ public sealed class OffsetDoctorGuiController
 
         try
         {
-            var report = _recoveryEngine.RunValidation(reader, gt);
+            var report = _validationRunner.RunValidation(reader, gt);
             PopulateRowsFromReport(report, model);
 
             model.LastRunTimestampUtc = report.TimestampUtc;
@@ -178,8 +177,8 @@ public sealed class OffsetDoctorGuiController
 
             model.LastWatchReport = watchReport;
 
-            // Also update the UI with current validation report
-            var validationReport = _recoveryEngine.RunValidation(reader, gt);
+            // Also update the UI with validation-only report
+            var validationReport = _validationRunner.RunValidation(reader, gt);
             PopulateRowsFromReport(validationReport, model);
 
             model.LastRunTimestampUtc = watchReport.EndTimeUtc;
@@ -213,8 +212,8 @@ public sealed class OffsetDoctorGuiController
             var snapshot = _captureEngine.Capture(reader, gt);
             BaselineSnapshot.SaveToFile(snapshot, targetPath);
 
-            // Also update the UI with current validation rows
-            var report = _recoveryEngine.RunValidation(reader, gt);
+            // Also update the UI with validation-only rows
+            var report = _validationRunner.RunValidation(reader, gt);
             PopulateRowsFromReport(report, model);
 
             model.LastRunTimestampUtc = snapshot.TimestampUtc;
@@ -253,7 +252,7 @@ public sealed class OffsetDoctorGuiController
             }
 
             var baseline = BaselineSnapshot.LoadFromFile(sourcePath);
-            var report = _recoveryEngine.RunValidation(reader, gt);
+            var report = _validationRunner.RunValidation(reader, gt);
             var compResult = _comparisonEngine.Compare(baseline, report);
 
             PopulateRowsFromReport(report, model);
@@ -306,7 +305,7 @@ public sealed class OffsetDoctorGuiController
         model.LastRunTimestampUtc = null;
     }
 
-    private static void PopulateRowsFromReport(OffsetDoctorReport report, OffsetDoctorGuiModel model)
+    private static void PopulateRowsFromReport(OffsetDoctorValidationReport report, OffsetDoctorGuiModel model)
     {
         var manifestNodes = OffsetManifest.CreateFullRepositoryManifest();
         var manifestMap = manifestNodes.ToDictionary(n => n.Id, n => n);

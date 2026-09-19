@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using TEHhub.OffsetDoctor.Baseline;
 using TEHhub.OffsetDoctor.Process;
-using TEHhub.OffsetDoctor.Recovery;
 using TEHhub.OffsetDoctor.Reporting;
 using TEHhub.OffsetDoctor.Validation;
 using TEHhub.OffsetDoctor.Watch;
@@ -168,8 +167,8 @@ switch (mode)
         }
 
         var baseline = BaselineSnapshot.LoadFromFile(compareInputPath);
-        var recoveryEngine = new OffsetRecoveryEngine();
-        var report = recoveryEngine.RunValidation(reader, groundTruth);
+        var validationRunner = new OffsetDoctorValidationRunner();
+        var report = validationRunner.RunValidation(reader, groundTruth);
 
         var comparisonEngine = new BaselineComparisonEngine();
         var comparisonResult = comparisonEngine.Compare(baseline, report);
@@ -217,8 +216,8 @@ switch (mode)
     case ProgramMode.ValidateAll:
     default:
     {
-        var engine = new OffsetRecoveryEngine();
-        var report = engine.RunValidation(reader, groundTruth);
+        var runner = new OffsetDoctorValidationRunner();
+        var report = runner.RunValidation(reader, groundTruth);
 
         ConsoleReportWriter.PrintReport(report);
 

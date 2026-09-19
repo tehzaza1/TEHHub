@@ -144,8 +144,9 @@ public static class OffsetDoctorTests
         Test114_GuiOperationsPreserveReadOnlyZeroMemoryWrites(check);
         Test115_NoClickableTransparentOverlayDependencyRemains(check);
         Test116_NoOverlayBaseClassRemains(check);
+        Test117_GuiControllerHasNoDependencyOnRecoveryNamespaceOrOffsetRecoveryEngine(check);
 
-        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 116 Test Scenarios Passed Successfully!\n");
+        Console.WriteLine("[TEHhub.OffsetDoctor.Tests] All 117 Test Scenarios Passed Successfully!\n");
     }
 
     private static (SyntheticMemoryReader reader, IntPtr gameState, IntPtr inGameState, IntPtr areaInstance, IntPtr serverData, IntPtr psd, IntPtr goldRecord, IntPtr localPlayer, IntPtr compList, Dictionary<string, IntPtr> compMap) SetupSyntheticEnvironment(
@@ -2853,6 +2854,27 @@ public static class OffsetDoctorTests
         {
             check(true, "T116: Standalone desktop Form verified.");
         }
+    }
+
+    // 117. GUI controller has zero dependency on Recovery namespace or OffsetRecoveryEngine
+    private static void Test117_GuiControllerHasNoDependencyOnRecoveryNamespaceOrOffsetRecoveryEngine(Action<bool, string> check)
+    {
+        var controllerType = typeof(OffsetDoctorGuiController);
+        var fields = controllerType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var recoveryField = fields.FirstOrDefault(f => f.FieldType.FullName != null && f.FieldType.FullName.Contains("Recovery"));
+        check(recoveryField == null, "T117: OffsetDoctorGuiController has zero fields from Recovery namespace.");
+
+        var validationRunnerField = fields.FirstOrDefault(f => f.FieldType == typeof(OffsetDoctorValidationRunner));
+        check(validationRunnerField != null, "T117: OffsetDoctorGuiController uses OffsetDoctorValidationRunner directly.");
+
+        using var setup = SetupSyntheticEnvironment().reader;
+        var model = new OffsetDoctorGuiModel();
+        var controller = new OffsetDoctorGuiController();
+
+        var valOk = controller.ValidateNow(setup, model);
+        check(valOk, "T117: ValidateNow runs successfully via validation-only runner.");
+        check(model.ValidCount > 0, "T117: Validation-only report populates valid nodes.");
+        check(model.ComparisonResult == null, "T117: Validation-only report has no recovery artifacts.");
     }
 
     private sealed class RangeOnlyUnreadableMemoryReader : IProcessMemoryReader

@@ -2,10 +2,22 @@ namespace TEHhub.OffsetDoctor.Baseline;
 
 using TEHhub.OffsetDoctor.Manifest;
 using TEHhub.OffsetDoctor.Recovery;
+using TEHhub.OffsetDoctor.Validation;
 
 public sealed class BaselineComparisonEngine
 {
     public BaselineComparisonResult Compare(BaselineSnapshot baseline, OffsetDoctorReport currentReport)
+    {
+        return Compare(baseline, new OffsetDoctorValidationReport
+        {
+            ProcessMetadata = currentReport.ProcessMetadata,
+            TimestampUtc = currentReport.TimestampUtc,
+            Results = currentReport.Results,
+            IsChainHealthy = currentReport.IsChainHealthy
+        });
+    }
+
+    public BaselineComparisonResult Compare(BaselineSnapshot baseline, OffsetDoctorValidationReport currentReport)
     {
         var deltas = new List<BaselineDelta>();
         var baselineMap = baseline.Nodes.ToDictionary(n => n.NodeId, n => n);

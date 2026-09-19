@@ -29,6 +29,23 @@ public static class JsonReportExporter
         return JsonSerializer.Serialize(report, Options);
     }
 
+    public static void ExportToFile(TEHhub.OffsetDoctor.Validation.OffsetDoctorValidationReport report, string filePath)
+    {
+        var json = JsonSerializer.Serialize(report, Options);
+        var dir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        File.WriteAllText(filePath, json);
+    }
+
+    public static string ToJsonString(TEHhub.OffsetDoctor.Validation.OffsetDoctorValidationReport report)
+    {
+        return JsonSerializer.Serialize(report, Options);
+    }
+
     public static void ExportToFile(TEHhub.OffsetDoctor.Watch.WatchReport report, string filePath)
     {
         var json = JsonSerializer.Serialize(report, Options);

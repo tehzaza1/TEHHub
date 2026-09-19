@@ -2,19 +2,18 @@ namespace TEHhub.OffsetDoctor.Baseline;
 
 using TEHhub.OffsetDoctor.Manifest;
 using TEHhub.OffsetDoctor.Process;
-using TEHhub.OffsetDoctor.Recovery;
 using TEHhub.OffsetDoctor.Validation;
 
 public sealed class BaselineCaptureEngine
 {
-    private readonly OffsetRecoveryEngine _recoveryEngine = new();
+    private readonly OffsetDoctorValidationRunner _validationRunner = new();
 
     public BaselineSnapshot Capture(
         IProcessMemoryReader reader,
         ValidationGroundTruth? groundTruth,
         string? commitHash = null)
     {
-        var report = _recoveryEngine.RunValidation(reader, groundTruth);
+        var report = _validationRunner.RunValidation(reader, groundTruth);
         var manifestNodes = OffsetManifest.CreateFullRepositoryManifest();
         var nodeMap = manifestNodes.ToDictionary(n => n.Id, n => n);
 
