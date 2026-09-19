@@ -49,7 +49,7 @@ namespace AutoExile2.WebServer
                     new { id = SkillRole.PackTargeted.ToString(), label = "Pack Targeted (AoE / Cluster)", desc = "Aim cursor at pack center" },
                     new { id = SkillRole.TotemOrMinion.ToString(), label = "Totem Deploy", desc = "Deploy a totem toward enemies; PoE2 minions are auto-managed" },
                     new { id = SkillRole.SelfBuffGuard.ToString(), label = "Self Buff / Guard", desc = "Cast on self without moving cursor" },
-                    new { id = SkillRole.CorpseTargeted.ToString(), label = "Corpse Targeted", desc = "Aim at nearest corpse" },
+                    new { id = SkillRole.CorpseTargeted.ToString(), label = "Corpse Targeted (Unavailable)", desc = "Reserved until authoritative corpse detection/selection is implemented" },
                     new { id = SkillRole.Culler.ToString(), label = "Culler (Focused Fire ahead of Host)", desc = "Aims in front of Leader when close to host" },
                     new { id = SkillRole.Disabled.ToString(), label = "Disabled", desc = "Do not cast this skill automatically" },
                 },

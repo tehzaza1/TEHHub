@@ -32,7 +32,10 @@ namespace AutoExile2
         /// <summary>Self-cast buff, guard (Steelskin, Molten Shell, Enduring Cry, auras) without cursor movement.</summary>
         SelfBuffGuard = 4,
 
-        /// <summary>Aim at nearest corpse (Detonate Dead, Offerings).</summary>
+        /// <summary>
+        /// Reserved for corpse-targeted skills. AutoExile2 currently does not have authoritative
+        /// corpse selection evidence, so runtime automation deliberately does not execute this role.
+        /// </summary>
         CorpseTargeted = 5,
 
         /// <summary>Culler (Focused Fire ahead of Leader / Cull low HP hostiles).</summary>
@@ -114,7 +117,10 @@ namespace AutoExile2
         /// <summary>Monster rarity filter for when this skill is allowed to trigger.</summary>
         public SkillTargetFilter TargetFilter { get; set; } = SkillTargetFilter.Any;
 
-        /// <summary>Minimum cooldown / interval in milliseconds between casts of this skill.</summary>
+        /// <summary>
+        /// Minimum interval in milliseconds between starts of this skill.
+        /// Available charges never shorten this user-configured minimum.
+        /// </summary>
         public int MinCastIntervalMs { get; set; } = 250;
 
         /// <summary>Input hold duration in milliseconds.</summary>
