@@ -792,7 +792,7 @@ namespace AutoExile2
 
                     if (!active && hasCharges)
                     {
-                        const int debounceMs = CombatSystem.FlaskDebounceMs;
+                        int debounceMs = CombatSystem.NormalizeFlaskCooldownMs(this.Settings.LifeFlaskCooldownMs);
 
                         if ((now - this.combatSystem.LastLifeFlaskAt).TotalMilliseconds >= debounceMs)
                         {
@@ -817,7 +817,7 @@ namespace AutoExile2
 
                     if (!active && hasCharges)
                     {
-                        const int debounceMs = CombatSystem.FlaskDebounceMs;
+                        int debounceMs = CombatSystem.NormalizeFlaskCooldownMs(this.Settings.ManaFlaskCooldownMs);
 
                         if ((now - this.combatSystem.LastManaFlaskAt).TotalMilliseconds >= debounceMs)
                         {

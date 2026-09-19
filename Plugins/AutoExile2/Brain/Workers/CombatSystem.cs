@@ -32,6 +32,11 @@ namespace AutoExile2.Systems
         /// </summary>
         public const int FlaskDebounceMs = 200;
 
+        /// <summary>
+        /// Sanitizes user-configured flask cooldowns while preserving a small anti-spam floor.
+        /// </summary>
+        public static int NormalizeFlaskCooldownMs(int configuredMs) => Math.Clamp(configuredMs, 50, 10000);
+
         private DateTime nextAttackAllowed = DateTime.MinValue;
         public DateTime LastLifeFlaskAt { get; set; } = DateTime.MinValue;
         public DateTime LastManaFlaskAt { get; set; } = DateTime.MinValue;
@@ -493,7 +498,7 @@ namespace AutoExile2.Systems
 
                 if (!active && hasCharges)
                 {
-                    const int debounceMs = FlaskDebounceMs;
+                    int debounceMs = NormalizeFlaskCooldownMs(settings.LifeFlaskCooldownMs);
 
                     if ((now - this.LastLifeFlaskAt).TotalMilliseconds >= debounceMs)
                     {
@@ -523,7 +528,7 @@ namespace AutoExile2.Systems
 
                 if (!active && hasCharges)
                 {
-                    const int debounceMs = FlaskDebounceMs;
+                    int debounceMs = NormalizeFlaskCooldownMs(settings.ManaFlaskCooldownMs);
 
                     if ((now - this.LastManaFlaskAt).TotalMilliseconds >= debounceMs)
                     {
