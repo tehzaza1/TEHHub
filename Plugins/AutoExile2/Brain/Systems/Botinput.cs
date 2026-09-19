@@ -568,6 +568,25 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
+        /// Releases every keyboard key currently held by BotInput, independent of the active profile mapping.
+        /// Use this for lifecycle stop/disable paths where settings may have changed since the key was pressed.
+        /// </summary>
+        public static void ReleaseAllHeldKeys()
+        {
+            lock (KeyLock)
+            {
+                foreach (var key in new List<VK>(HeldKeys))
+                {
+                    keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                }
+
+                HeldKeys.Clear();
+                activeChannelKey = null;
+                lastInputEvent = DateTime.Now;
+            }
+        }
+
+        /// <summary>
         /// Releases all movement and sprint keys.
         /// </summary>
         public static void ReleaseAllMovementKeys(AutoExile2Settings settings)
@@ -608,6 +627,7 @@ namespace AutoExile2.Systems
         public static void WasdMove(Vector2 screenDir, AutoExile2Settings settings) => BotInput.WasdMove(screenDir, settings);
         public static void SetSprint(VK sprintKey, bool hold) => BotInput.SetSprint(sprintKey, hold);
         public static void ReleaseSprint(VK sprintKey) => BotInput.ReleaseSprint(sprintKey);
+        public static void ReleaseAllHeldKeys() => BotInput.ReleaseAllHeldKeys();
         public static void ReleaseAllMovementKeys(AutoExile2Settings settings) => BotInput.ReleaseAllMovementKeys(settings);
     }
 
