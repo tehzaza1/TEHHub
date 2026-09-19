@@ -5,6 +5,7 @@
 namespace AutoExile2
 {
     using System.Collections.Generic;
+    using System.Text.Json.Serialization;
     using ClickableTransparentOverlay.Win32;
     using TEHhub.Plugin;
 
@@ -73,7 +74,8 @@ namespace AutoExile2
     /// </summary>
     public sealed class AutoExile2Settings : IPSettings
     {
-        /// <summary>Master switch to enable the bot.</summary>
+        /// <summary>Runtime-only master switch to enable the bot. Never persisted across sessions.</summary>
+        [JsonIgnore]
         public bool IsRunning = false;
 
         /// <summary>Active operating mode (default: MapFarm).</summary>

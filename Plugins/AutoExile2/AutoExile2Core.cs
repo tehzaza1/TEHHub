@@ -82,16 +82,20 @@ namespace AutoExile2
         public override void OnEnable(bool isGameOpened)
         {
             this.profileManager.Initialize(Path.GetDirectoryName(this.PluginConfigPath("settings.txt")) ?? string.Empty);
-            this.profileManager.OnProfileSwitched += (newName) =>
-            {
-                if (this.modes.TryGetValue(this.Settings.Mode, out var configuredMode))
-                {
-                    this.activeMode = configuredMode;
-                    this.lastModeType = this.Settings.Mode;
-                }
-            };
+            this.profileManager.OnProfileSwitched -= this.HandleProfileSwitched;
+            this.profileManager.OnProfileSwitched += this.HandleProfileSwitched;
 
             this.Settings = this.profileManager.LoadActive(new AutoExile2Settings());
+
+            // Running is session state, not configuration. Always start paused after plugin enable/reload.
+            this.Settings.IsRunning = false;
+            this.lastIsRunning = false;
+            this.lastTickTime = DateTime.Now;
+            this.isModeInitialized = false;
+            this.botCtx = null;
+            this.renderCtx = null;
+            this.runtime.Reset();
+            this.StopAutomationInputs();
 
             if (this.modes.TryGetValue(this.Settings.Mode, out var activeModeObj))
             {
@@ -104,6 +108,7 @@ namespace AutoExile2
                 this.StartWebServer();
             }
 
+            this.botCoroutine?.Cancel();
             this.botCoroutine = CoroutineHandler.Start(this.BotLogicCoroutine());
         }
 
@@ -114,11 +119,68 @@ namespace AutoExile2
             this.botCoroutine = null;
 
             this.Settings.IsRunning = false;
-            this.combatSystem.StopAllChannels();
-            BotInput.ReleaseAllMovementKeys(this.Settings);
+            this.StopAutomationInputs();
+
+            if (this.isModeInitialized && this.botCtx != null)
+            {
+                try
+                {
+                    this.activeMode.OnExit(this.botCtx);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AutoExile2] Mode cleanup failed during disable: {ex.Message}");
+                }
+            }
+
+            this.isModeInitialized = false;
+            this.lastIsRunning = false;
+            this.lastTickTime = DateTime.Now;
+            this.botCtx = null;
+            this.renderCtx = null;
+            this.profileManager.OnProfileSwitched -= this.HandleProfileSwitched;
             this.coopGamepad.Disconnect();
             this.webServer?.Stop();
             this.webServer = null;
+        }
+
+        private void HandleProfileSwitched(string _)
+        {
+            // Switching profile can replace the active mode and all control settings.
+            // Force a clean paused transition so no input from the previous profile leaks through.
+            this.Settings.IsRunning = false;
+            this.StopAutomationInputs();
+
+            if (this.isModeInitialized && this.botCtx != null)
+            {
+                try
+                {
+                    this.activeMode.OnExit(this.botCtx);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AutoExile2] Mode cleanup failed during profile switch: {ex.Message}");
+                }
+            }
+
+            this.isModeInitialized = false;
+            this.lastIsRunning = false;
+            this.lastTickTime = DateTime.Now;
+            this.botCtx = null;
+            this.renderCtx = null;
+
+            if (this.modes.TryGetValue(this.Settings.Mode, out var configuredMode))
+            {
+                this.activeMode = configuredMode;
+                this.lastModeType = this.Settings.Mode;
+            }
+        }
+
+        private void StopAutomationInputs()
+        {
+            this.combatSystem.StopAllChannels();
+            BotInput.ReleaseAllMovementKeys(this.Settings);
+            this.coopGamepad.ResetAllInputs();
         }
 
         /// <inheritdoc/>
@@ -516,9 +578,7 @@ namespace AutoExile2
                 if (ImGui.Button("STOP BOT (PAUSE)", new Vector2(200, 36)))
                 {
                     this.Settings.IsRunning = false;
-                    this.combatSystem.StopAllChannels();
-                    BotInput.ReleaseAllMovementKeys(this.Settings);
-                    this.coopGamepad.Disconnect();
+                    this.StopAutomationInputs();
                 }
                 ImGui.PopStyleColor();
             }
@@ -624,9 +684,7 @@ namespace AutoExile2
                 this.Settings.IsRunning = !this.Settings.IsRunning;
                 if (!this.Settings.IsRunning)
                 {
-                    this.combatSystem.StopAllChannels();
-                    BotInput.ReleaseAllMovementKeys(this.Settings);
-                    this.coopGamepad.ResetAllInputs();
+                    this.StopAutomationInputs();
                 }
             }
             this.lastToggleKeyDown = isToggleDown;
@@ -660,6 +718,11 @@ namespace AutoExile2
         /// </summary>
         private void TickEmergencyRecovery()
         {
+            if (!this.Settings.IsRunning)
+            {
+                return;
+            }
+
             if (Core.States.GameCurrentState != GameStateTypes.InGameState)
             {
                 return;
@@ -850,17 +913,21 @@ namespace AutoExile2
                 // 0. Update active runtime accounting
                 this.runtime.Tick(this.Settings.IsRunning);
 
-                // 0.1 Edge detection: if bot was stopped, reset virtual gamepad inputs to neutral (keep gamepads connected!)
+                // 0.1 Edge detection: neutralize all automation on stop and reset tick timing on resume.
                 if (!this.Settings.IsRunning && this.lastIsRunning)
                 {
-                    this.combatSystem.StopAllChannels();
-                    BotInput.ReleaseAllMovementKeys(this.Settings);
-                    this.coopGamepad.ResetAllInputs();
+                    this.StopAutomationInputs();
+                }
+                else if (this.Settings.IsRunning && !this.lastIsRunning)
+                {
+                    this.lastTickTime = DateTime.Now;
                 }
                 this.lastIsRunning = this.Settings.IsRunning;
 
                 if (!this.Settings.IsRunning)
                 {
+                    // Keep the timing baseline fresh while paused so resume cannot inject a giant DeltaTime.
+                    this.lastTickTime = DateTime.Now;
                     if (this.activeMode is CoopFollowerMode coopPaused && coopPaused.CurrentState != "Standby")
                     {
                         coopPaused.SetStatus("Standby", $"Press {this.Settings.ToggleKey} to Start");
@@ -882,6 +949,7 @@ namespace AutoExile2
 
                     if ((!isInGameState && !isPlayerValid) || currentWorld == null || currentArea == null || player == null)
                     {
+                        this.lastTickTime = DateTime.Now;
                         BotInput.ReleaseAllMovementKeys(this.Settings);
                         if (this.activeMode is CoopFollowerMode coopWait)
                         {
@@ -911,6 +979,7 @@ namespace AutoExile2
 
                         if (!player.TryGetComponent<Render>(out var pRender))
                         {
+                            this.lastTickTime = DateTime.Now;
                             if (this.activeMode is CoopFollowerMode coopRender)
                             {
                                 coopRender.SetStatus("[Waiting for Render]", "Waiting for Player Model...");
@@ -920,8 +989,9 @@ namespace AutoExile2
                         else
                         {
                             var playerGrid = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
-                            float deltaSec = (float)(DateTime.Now - this.lastTickTime).TotalSeconds;
-                            this.lastTickTime = DateTime.Now;
+                            var now = DateTime.Now;
+                            float deltaSec = Math.Clamp((float)(now - this.lastTickTime).TotalSeconds, 0f, 0.1f);
+                            this.lastTickTime = now;
 
                             int playerHp = 0, playerMaxHp = 0, playerMana = 0, playerMaxMana = 0;
                             bool isAlive = true;
