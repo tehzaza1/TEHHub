@@ -72,7 +72,8 @@ public sealed record CandidateEliminationStage(
 public sealed record FrozenDiscoveryResult(
     ImmutableArray<RecoveryCandidate> CandidateLedger,
     ImmutableArray<CandidateEliminationStage> EliminationStages,
-    ImmutableArray<string> SurvivorIds);
+    ImmutableArray<string> SurvivorIds,
+    DiscoveryScanEvidence? Scan = null);
 
 public sealed record FrozenDecision(
     RecoveryTerminalResult TerminalResult,

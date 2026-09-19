@@ -19,7 +19,8 @@ public static class RecoveryConsoleReportWriter
     public static void Write(TextWriter writer, RecoveryReport report)
     {
         writer.WriteLine($"Recovery {report.SchemaVersion} | {report.Identity.ProcessName} " +
-            $"PID {report.Identity.ProcessId} | build {report.Identity.FileVersion}");
+            $"PID {report.Identity.ProcessId} | build {report.Identity.FileVersion} | " +
+            $"module 0x{report.Identity.ModuleBase:X}+0x{report.Identity.ModuleSize:X}");
         foreach (RecoveryResult result in report.Results)
         {
             writer.WriteLine($"{result.Target.Id} [{result.Target.Scope.Name}/{result.Target.Scope.InstanceId}] " +
@@ -28,7 +29,10 @@ public static class RecoveryConsoleReportWriter
             writer.WriteLine($"  context: {string.Join(", ", result.Context.Select(c => $"{c.Key}={c.Value}"))}");
             writer.WriteLine($"  current validation: {(result.CurrentValidation is null ? "none" :
                 $"0x{result.CurrentValidation.Value:X} complete={result.CurrentValidation.Complete} " +
-                string.Join(",", result.CurrentValidation.Evidence.Select(e => $"{e.Predicate}:{e.Result}")))}");
+                    string.Join(",", result.CurrentValidation.Evidence.Select(e => $"{e.Predicate}:{e.Result} ({e.Detail})")))}");
+            writer.WriteLine(result.Discovery.Scan is { } scan
+                ? $"  scan: {scan.BytesScanned} bytes; {scan.RawMatchCount} raw matches; regions={string.Join(", ", scan.Regions)}"
+                : "  scan: not run");
             foreach (CandidateEliminationStage stage in result.Discovery.EliminationStages)
                 writer.WriteLine($"  {stage.Stage}: {stage.InputCount} in, {stage.SurvivingCount} survive, " +
                     $"{stage.RejectedCount} rejected ({string.Join(", ", stage.RejectionReasons.SelectMany(r =>
@@ -36,12 +40,13 @@ public static class RecoveryConsoleReportWriter
             foreach (RecoveryCandidate candidate in result.Discovery.CandidateLedger)
                 writer.WriteLine($"  {candidate.Id}: 0x{candidate.Value:X} {candidate.Disposition}; " +
                     $"origin={candidate.DiscoveryOrigin}; discovery={string.Join(",", candidate.Evidence.Select(e => $"{e.Predicate}:{e.Result}"))}; " +
-                    $"validation={string.Join(",", candidate.ValidationEvidence.Select(e => $"{e.Predicate}:{e.Result}"))}; " +
+                    $"validation={string.Join(",", candidate.ValidationEvidence.Select(e => $"{e.Predicate}:{e.Result} ({e.Detail})"))}; " +
                     $"rejections={string.Join(",", candidate.RejectionReasons.Select(r => $"{r.Predicate}:{r.Reason}"))}");
             writer.WriteLine($"  survivors: {string.Join(", ", result.Decision.SurvivorIds)}");
             writer.WriteLine($"  proposal: {(result.Decision.Proposal is long proposal ? $"0x{proposal:X}" : "none")}");
             writer.WriteLine($"  post-result comparison: {(result.PostResultComparison is null ? "none" : $"current={result.PostResultComparison.CurrentValue}, history={string.Join(",", result.PostResultComparison.HistoricalValues)}")}");
             writer.WriteLine($"  digest: {result.Decision.EvidenceDigest}");
+            if (result.Detail is not null) writer.WriteLine($"  detail: {result.Detail}");
         }
     }
 }

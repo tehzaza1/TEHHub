@@ -19,6 +19,7 @@ public sealed class RecoveryCoordinator
         ImmutableArray<RecoveryDependencyState> dependencies = [];
         long anchor = 0;
         string? detail = null;
+        DiscoveryScanEvidence? scan = null;
         RecoveryTerminalResult? forced = null;
 
         string? Guard()
@@ -78,6 +79,7 @@ public sealed class RecoveryCoordinator
                 var found = discovery.Discover(session.Memory,
                     new BlindDiscoveryRequest(target.Id, target.Scope, anchor, blindContext,
                         target.ApprovedHypotheses));
+                scan = found.Scan;
                 foreach (var candidate in found.Candidates)
                 {
                     if (string.IsNullOrWhiteSpace(candidate.Id) ||
@@ -184,7 +186,7 @@ public sealed class RecoveryCoordinator
         var frozenLedger = ledger.Select(c => c.Freeze()).ToImmutableArray();
         var survivorIds = validated.Select(c => c.Id).ToImmutableArray();
         long? proposal = terminal == RecoveryTerminalResult.PROPOSED ? validated[0].Value : null;
-        var frozenDiscovery = new FrozenDiscoveryResult(frozenLedger, stages.ToImmutableArray(), survivorIds);
+        var frozenDiscovery = new FrozenDiscoveryResult(frozenLedger, stages.ToImmutableArray(), survivorIds, scan);
         var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             JsonSerializer.Serialize(new { target.Id, terminal, survivorIds, proposal, frozenLedger, stages }))));
         var decision = new FrozenDecision(terminal, survivorIds, proposal, digest);

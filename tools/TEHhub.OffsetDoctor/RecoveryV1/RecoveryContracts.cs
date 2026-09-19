@@ -27,8 +27,11 @@ public sealed class BlindDiscoveryRequest
 public sealed record DiscoveredCandidate(string Id, long Value, string Origin,
     ImmutableArray<RecoveryEvidenceRecord> Evidence);
 
+public sealed record DiscoveryScanEvidence(long BytesScanned, int RawMatchCount,
+    ImmutableArray<string> Regions);
+
 public sealed record DiscoveryOutcome(ImmutableArray<DiscoveredCandidate> Candidates,
-    bool Complete, string? Error = null);
+    bool Complete, string? Error = null, DiscoveryScanEvidence? Scan = null);
 
 public interface IBlindDiscoveryStrategy
 {

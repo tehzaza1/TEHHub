@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Collections.Immutable;
 using TEHhub.OffsetDoctor.Baseline;
 using TEHhub.OffsetDoctor.Process;
 using TEHhub.OffsetDoctor.Reporting;
+using TEHhub.OffsetDoctor.RecoveryV1;
 using TEHhub.OffsetDoctor.Validation;
 using TEHhub.OffsetDoctor.Watch;
 
@@ -21,6 +23,8 @@ int durationSec = 120;
 string targetFilter = "all";
 string? outputPath = null;
 string? inputPath = null;
+long? currentRecoveryAddress = null;
+var historicalRecoveryAddresses = new List<long>();
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -41,6 +45,12 @@ for (int i = 0; i < args.Length; i++)
     {
         mode = ProgramMode.Watch;
     }
+    else if (arg.Equals("recover", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length &&
+        args[i + 1].Equals("od-001", StringComparison.OrdinalIgnoreCase))
+    {
+        i++;
+        mode = ProgramMode.RecoverOd001;
+    }
     else if (arg.Equals("validate-all", StringComparison.OrdinalIgnoreCase) || arg.Equals("validate", StringComparison.OrdinalIgnoreCase))
     {
         mode = ProgramMode.ValidateAll;
@@ -52,6 +62,14 @@ for (int i = 0; i < args.Length; i++)
     else if (arg.Equals("--output", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
         outputPath = args[++i];
+    }
+    else if (arg.Equals("--current-address", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        currentRecoveryAddress = ParseAddress(args[++i]);
+    }
+    else if (arg.Equals("--historical-address", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        historicalRecoveryAddresses.Add(ParseAddress(args[++i]));
     }
     else if (arg.Equals("--pid", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
@@ -144,6 +162,17 @@ var groundTruth = new ValidationGroundTruth
 
 switch (mode)
 {
+    case ProgramMode.RecoverOd001:
+    {
+        var session = new RecoverySession(reader, RecoveryContextSnapshot.Create([]));
+        Od001GameStatesRecovery.Run(session, currentRecoveryAddress, historicalRecoveryAddresses);
+        var report = new RecoveryReport("recovery-v1.phase2", session.Identity, DateTime.UtcNow,
+            session.Results.ToImmutableArray());
+        RecoveryConsoleReportWriter.Write(Console.Out, report);
+        if (!string.IsNullOrEmpty(outputPath))
+            File.WriteAllText(outputPath, RecoveryJsonReportExporter.Serialize(report));
+        return report.Results[0].Decision.TerminalResult == RecoveryTerminalResult.ERROR ? 2 : 0;
+    }
     case ProgramMode.BaselineCapture:
     {
         var capturePath = outputPath ?? "offsetdoctor-baseline.json";
@@ -231,6 +260,9 @@ switch (mode)
     }
 }
 
+static long ParseAddress(string text) => text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+    ? Convert.ToInt64(text[2..], 16) : long.Parse(text);
+
 static void PrintUsage()
 {
     Console.WriteLine("Usage: TEHhub.OffsetDoctor [command] [options]");
@@ -239,6 +271,7 @@ static void PrintUsage()
     Console.WriteLine("  validate-all                  Run full repository offset validation scan (default).");
     Console.WriteLine("  validate                      Run full repository offset validation scan.");
     Console.WriteLine("  watch                         Run realtime state-dependent watch mode.");
+    Console.WriteLine("  recover od-001                Run read-only Game States pattern recovery.");
     Console.WriteLine("  baseline capture              Capture a baseline snapshot of current known-good offsets.");
     Console.WriteLine("  baseline compare              Compare live game offsets against a captured baseline snapshot.");
     Console.WriteLine();
@@ -246,6 +279,8 @@ static void PrintUsage()
     Console.WriteLine("  --input <path>                Input baseline snapshot file path for compare mode.");
     Console.WriteLine("  --output <path>               Output file path for baseline capture or validation JSON report.");
     Console.WriteLine("  --pid <pid>                   Target a specific process ID.");
+    Console.WriteLine("  --current-address <address>   Validate a configured OD-001 absolute address first (hex or decimal).");
+    Console.WriteLine("  --historical-address <addr>  Add an address for post-decision comparison only (repeatable).");
     Console.WriteLine("  --gold <amount>               Provide current inventory gold amount for exact semantic verification.");
     Console.WriteLine("  --hp <current>                Provide current player Health amount.");
     Console.WriteLine("  --hp-max <total>              Provide total player Health amount.");
@@ -264,6 +299,6 @@ enum ProgramMode
     ValidateAll,
     Watch,
     BaselineCapture,
-    BaselineCompare
+    BaselineCompare,
+    RecoverOd001
 }
-
