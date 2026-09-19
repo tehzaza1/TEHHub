@@ -1,0 +1,39 @@
+name: Windows .NET 10 CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore solution
+        run: dotnet restore TEHhub.sln
+
+      - name: Build solution (Release)
+        run: dotnet build TEHhub.sln -c Release --no-restore
+
+      - name: Run OffsetRecovery tests
+        run: dotnet run --project tests/OffsetRecovery.Tests/OffsetRecovery.Tests.csproj -c Release
+
+      - name: Run OffsetDoctor tests
+        run: dotnet run --project tools/TEHhub.OffsetDoctor.Tests/TEHhub.OffsetDoctor.Tests.csproj -c Release
