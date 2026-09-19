@@ -90,11 +90,8 @@ namespace AutoExile2
                 if (clean.Contains(kw)) return CategoryMovement;
             }
 
-            foreach (var kw in TotemKeywords)
-            {
-                if (clean.Contains(kw)) return CategoryTotem;
-            }
-
+            // Defensive/cry semantics take precedence over generic ancestral/totem keywords.
+            // Example: "Ancestral Cry" contains "ancestral" but is a Warcry, not a Totem.
             foreach (var kw in GuardKeywords)
             {
                 if (clean.Contains(kw)) return CategoryGuard;
@@ -103,6 +100,11 @@ namespace AutoExile2
             foreach (var kw in WarcryKeywords)
             {
                 if (clean.Contains(kw)) return CategoryWarcry;
+            }
+
+            foreach (var kw in TotemKeywords)
+            {
+                if (clean.Contains(kw)) return CategoryTotem;
             }
 
             foreach (var kw in CurseKeywords)
@@ -180,7 +182,8 @@ namespace AutoExile2
                     slot.MinNearbyEnemies = 0;
                     slot.MaxTargetRange = 0f;
                     slot.OnlyWhenBuffMissing = true;
-                    if (slot.AssignedSkillName.Contains("Convalescence", StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrEmpty(slot.AssignedSkillName) &&
+                        slot.AssignedSkillName.Contains("Convalescence", StringComparison.OrdinalIgnoreCase))
                     {
                         slot.VitalCondition = VitalConditionType.EsOnly;
                     }
