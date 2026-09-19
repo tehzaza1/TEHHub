@@ -47,7 +47,7 @@ namespace AutoExile2.WebServer
                 {
                     new { id = SkillRole.EnemyTargeted.ToString(), label = "Enemy Targeted (Direct / Single)", desc = "Aim cursor directly at target monster" },
                     new { id = SkillRole.PackTargeted.ToString(), label = "Pack Targeted (AoE / Cluster)", desc = "Aim cursor at pack center" },
-                    new { id = SkillRole.TotemOrMinion.ToString(), label = "Totem Deploy", desc = "Deploy a totem toward enemies; PoE2 minions are auto-managed" },
+                    new { id = SkillRole.TotemOrMinion.ToString(), label = "Totem Deploy", desc = "Deploy a totem toward enemies; persistent PoE2 minions are not auto-resummoned" },
                     new { id = SkillRole.SelfBuffGuard.ToString(), label = "Self Buff / Guard", desc = "Cast on self without moving cursor" },
                     new { id = SkillRole.CorpseTargeted.ToString(), label = "Corpse Targeted (Unavailable)", desc = "Reserved until authoritative corpse detection/selection is implemented" },
                     new { id = SkillRole.Culler.ToString(), label = "Culler (Focused Fire ahead of Host)", desc = "Aims in front of Leader when close to host" },
@@ -76,7 +76,7 @@ namespace AutoExile2.WebServer
                     ["Totem"] = new { role = "TotemOrMinion", priority = 6, interval = 4000, hold = 150, filter = "Any", lowHp = false, lowHpThresh = 60, minEnemies = 1, maxRange = 65, maxTotems = 1, label = "🗿 Totem", color = "#f59e0b", bg = "rgba(245,158,11,0.15)" },
                     ["Guard"] = new { role = "SelfBuffGuard", priority = 9, interval = 4000, hold = 100, filter = "Any", lowHp = true, lowHpThresh = 60, minEnemies = 0, maxRange = 0, onlyWhenBuffMissing = true, label = "🛡️ Guard", color = "#ef4444", bg = "rgba(239,68,68,0.15)" },
                     ["Warcry"] = new { role = "SelfBuffGuard", priority = 4, interval = 4000, hold = 100, filter = "Any", lowHp = false, lowHpThresh = 60, minEnemies = 2, maxRange = 0, label = "🗣️ Warcry", color = "#ec4899", bg = "rgba(236,72,153,0.15)" },
-                    ["Minion"] = new { role = "Disabled", priority = 0, interval = 500, hold = 80, filter = "Any", lowHp = false, lowHpThresh = 60, minEnemies = 0, maxRange = 0, label = "🧟 Minion (Auto-managed)", color = "#06b6d4", bg = "rgba(6,182,212,0.15)" },
+                    ["Minion"] = new { role = "Disabled", priority = 0, interval = 500, hold = 80, filter = "Any", lowHp = false, lowHpThresh = 60, minEnemies = 0, maxRange = 0, label = "🧟 Minion (No auto-resummon)", color = "#06b6d4", bg = "rgba(6,182,212,0.15)" },
                     ["Movement"] = new { role = "Disabled", priority = 0, interval = 500, hold = 80, filter = "Any", lowHp = false, lowHpThresh = 60, minEnemies = 0, maxRange = 0, label = "⚡ Movement", color = "#6366f1", bg = "rgba(99,102,241,0.15)" },
                     ["Culler"] = new { role = "Culler", priority = 2, interval = 200, hold = 120, filter = "Any", lowHp = false, lowHpThresh = 60, minEnemies = 0, maxRange = 0, cullerAimDist = 75f, cullerStartDist = 35f, cullerRequireMonsters = false, label = "🎯 Culler", color = "#f43f5e", bg = "rgba(244,63,94,0.15)" },
                     ["Custom"] = new { role = "EnemyTargeted", priority = 5, interval = 500, hold = 150, filter = "Any", lowHp = false, lowHpThresh = 60, minEnemies = 0, maxRange = 0, label = "⚙️ Custom", color = "#94a3b8", bg = "rgba(148,163,184,0.15)" },

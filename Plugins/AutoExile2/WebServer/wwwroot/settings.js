@@ -88,13 +88,13 @@ const CATEGORY_PRESETS = {
   },
   Warcry: {
     role: 'SelfBuffGuard', priority: 4, interval: 4000, hold: 100, filter: 'Any',
-    lowHp: false, lowHpThresh: 60, minEnemies: 1, maxRange: 0,
+    lowHp: false, lowHpThresh: 60, minEnemies: 2, maxRange: 0,
     label: '🗣️ Warcry', color: '#ec4899', bg: 'rgba(236,72,153,0.15)'
   },
   Minion: {
     role: 'Disabled', priority: 0, interval: 500, hold: 80, filter: 'Any',
     lowHp: false, lowHpThresh: 60, minEnemies: 0, maxRange: 0,
-    label: '🧟 Minion (Auto-managed)', color: '#06b6d4', bg: 'rgba(6,182,212,0.15)'
+    label: '🧟 Minion (No auto-resummon)', color: '#06b6d4', bg: 'rgba(6,182,212,0.15)'
   },
   Movement: {
     role: 'Disabled', priority: 0, interval: 500, hold: 80, filter: 'Any',
@@ -125,7 +125,7 @@ let systemMetadata = {
   roles: [
     { id: "EnemyTargeted", label: "Enemy Targeted (Direct / Single)", desc: "Aim cursor directly at target monster" },
     { id: "PackTargeted", label: "Pack Targeted (AoE / Cluster)", desc: "Aim cursor at pack center" },
-    { id: "TotemOrMinion", label: "Totem Deploy", desc: "Deploy a totem toward enemies; PoE2 minions are auto-managed" },
+    { id: "TotemOrMinion", label: "Totem Deploy", desc: "Deploy a totem toward enemies; persistent PoE2 minions are not auto-resummoned" },
     { id: "SelfBuffGuard", label: "Self Buff / Guard", desc: "Cast on self without moving cursor" },
     { id: "CorpseTargeted", label: "Corpse Targeted (Unavailable)", desc: "Reserved until authoritative corpse detection/selection is implemented" },
     { id: "Culler", label: "Culler (Focused Fire ahead of Host)", desc: "Aims in front of Leader when close to host" },
@@ -781,6 +781,43 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
       `;
     }
 
+    const roleValue = String(slot.Role ?? catDef.role ?? '');
+    const showSoloChannel =
+      listName === 'Skills' &&
+      (roleValue === 'EnemyTargeted' || roleValue === 'PackTargeted' ||
+       cat === 'Attack' || cat === 'Curse' || cat === 'Custom');
+
+    const runtimeConditionsHtml = `
+      <div class="category-box" style="margin-top:10px; border-color:rgba(56,189,248,0.18);">
+        <div style="font-weight:700; color:var(--text); font-size:12px; margin-bottom:8px;">Runtime Conditions</div>
+        <div class="grid2">
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label style="margin-bottom:0;">Minimum Mana (%)</label>
+              <input type="number" id="${listName}_minManaNum_${i}" min="0" max="100" step="1"
+                     value="${slot.MinManaPercent ?? 0}" class="num-input"
+                     oninput="const v=Math.max(0,Math.min(100,parseFloat(this.value)||0)); currentSettings['${listName}'][${i}].MinManaPercent=v; const sl=document.getElementById('${listName}_minManaSlider_${i}'); if(sl) sl.value=v;" />
+            </div>
+            <input type="range" id="${listName}_minManaSlider_${i}" min="0" max="100" step="1"
+                   value="${slot.MinManaPercent ?? 0}" class="form-control"
+                   oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MinManaPercent=v; const num=document.getElementById('${listName}_minManaNum_${i}'); if(num) num.value=v;" />
+          </div>
+          ${showSoloChannel ? `
+          <div class="form-group" style="display:flex; flex-direction:column; justify-content:center;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:10px;">
+              <input type="checkbox" ${slot.IsChannel ? 'checked' : ''}
+                     onchange="currentSettings['${listName}'][${i}].IsChannel=this.checked;" />
+              <span style="font-weight:700;">Channel / Hold Continuously</span>
+            </label>
+            <div style="font-size:11px; color:var(--text-dim); margin-top:3px;">
+              Solo only. Releases when range, mana, vital, density, rarity, or debuff conditions fail.
+            </div>
+          </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
     // Row 2 Input / Gamepad controls
     let row2InputHtml = '';
     if (isGamepad) {
@@ -869,7 +906,10 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
         </div>
       </div>
 
-      <!-- ROW 3: Category-Specific Config Box -->
+      <!-- ROW 3: Runtime Conditions -->
+      ${runtimeConditionsHtml}
+
+      <!-- ROW 4: Category-Specific Config Box -->
       ${categorySpecificHtml}
     `;
 

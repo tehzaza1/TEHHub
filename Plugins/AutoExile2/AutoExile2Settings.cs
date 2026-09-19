@@ -42,15 +42,6 @@ namespace AutoExile2
     }
 
     /// <summary>
-    /// Input mode for Player 2 (Follower) in Couch Co-op.
-    /// </summary>
-    public enum CoopFollowerInputEngine
-    {
-        KeyboardMapping = 0,
-        VirtualGamepad = 1,
-    }
-
-    /// <summary>
     /// Relative formation position for Player 2 (Follower) relative to Player 1 (Leader).
     /// </summary>
     public enum CoopFollowerPosition
@@ -260,40 +251,11 @@ namespace AutoExile2
         /// <summary>Player 2 (Follower): Enable autonomous combat (Right stick aim + skills).</summary>
         public bool P2EnableCombat = true;
 
-        /// <summary>Player 2 (Follower): Input engine (Keyboard Mapping vs Virtual Gamepad).</summary>
-        public CoopFollowerInputEngine P2InputEngine { get; set; } = CoopFollowerInputEngine.VirtualGamepad;
-
-        /// <summary>Player 2 (Follower): Autonomous combat skills on controller #2.</summary>
+        /// <summary>
+        /// Player 2 (Follower): Autonomous skills on virtual controller #2.
+        /// Normal follower combat and Culling are configured per skill via SkillRole.
+        /// </summary>
         public List<SkillSlotConfig> P2Skills { get; set; } = SkillSlotConfig.GetDefaultP2Skills();
-
-        // ── Culler Attack Mode Settings ───────────────────────────────────
-
-        /// <summary>Culler Mode: Enable dedicated culling attack.</summary>
-        public bool CullerEnable { get; set; } = false;
-
-        /// <summary>Culler Mode: Right-Click attack instead of key/button.</summary>
-        public bool CullerRightClick { get; set; } = false;
-
-        /// <summary>Culler Mode: Gamepad button to press on Virtual Controller #2.</summary>
-        public AutoExile2.Systems.CoopPadButton CullerGamepadButton { get; set; } = AutoExile2.Systems.CoopPadButton.X;
-
-        /// <summary>Culler Mode: Keyboard key if running via keyboard.</summary>
-        public VK CullerKey { get; set; } = VK.KEY_E;
-
-        /// <summary>Culler Mode: Distance in front of host to aim (Grid units, default 75g).</summary>
-        public float CullerAimDistance { get; set; } = 75f;
-
-        /// <summary>Culler Mode: Distance from host to start attacking (Grid units, default 35g).</summary>
-        public float CullerStartAttackDistance { get; set; } = 35f;
-
-        /// <summary>Culler Mode: Require alive monsters nearby before attacking (true = only attack if monsters exist, false = continuous fire near host).</summary>
-        public bool CullerRequireMonsters { get; set; } = false;
-
-        /// <summary>Culler Mode: Attack interval in milliseconds.</summary>
-        public int CullerIntervalMs { get; set; } = 200;
-
-        /// <summary>Culler Mode: Button hold duration in milliseconds.</summary>
-        public int CullerHoldMs { get; set; } = 120;
 
         /// <summary>Draw path and status overlay on screen.</summary>
         public bool ShowOverlay = true;
