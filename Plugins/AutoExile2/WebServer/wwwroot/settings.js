@@ -127,7 +127,7 @@ let systemMetadata = {
     { id: "PackTargeted", label: "Pack Targeted (AoE / Cluster)", desc: "Aim cursor at pack center" },
     { id: "TotemOrMinion", label: "Totem Deploy", desc: "Deploy a totem toward enemies; PoE2 minions are auto-managed" },
     { id: "SelfBuffGuard", label: "Self Buff / Guard", desc: "Cast on self without moving cursor" },
-    { id: "CorpseTargeted", label: "Corpse Targeted", desc: "Aim at nearest corpse" },
+    { id: "CorpseTargeted", label: "Corpse Targeted (Unavailable)", desc: "Reserved until authoritative corpse detection/selection is implemented" },
     { id: "Culler", label: "Culler (Focused Fire ahead of Host)", desc: "Aims in front of Leader when close to host" },
     { id: "Disabled", label: "Disabled", desc: "Do not cast this skill automatically" }
   ],
@@ -862,7 +862,7 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
         </div>
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <label style="margin-bottom:0;">Cooldown (ms)</label>
+            <label style="margin-bottom:0;">Min Interval (ms)</label>
             <input type="number" id="${listName}_cdNum_${i}" min="0" max="300000" step="50" value="${slot.MinCastIntervalMs}" class="num-input" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].MinCastIntervalMs=v; const sl=document.getElementById('${listName}_cdSlider_${i}'); if(sl) sl.value=v;" />
           </div>
           <input type="range" id="${listName}_cdSlider_${i}" min="0" max="60000" step="100" value="${slot.MinCastIntervalMs}" class="form-control" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].MinCastIntervalMs=v; const num=document.getElementById('${listName}_cdNum_${i}'); if(num) num.value=v;" />
