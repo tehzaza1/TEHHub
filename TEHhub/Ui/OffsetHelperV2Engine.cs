@@ -1065,6 +1065,11 @@ namespace TEHhub.Ui
                 }
 
                 var result = ProbeInventoryAddress(reader, "Stash Inventory Context", "StashInventoryId", stashAddr);
+                foreach (var detail in details)
+                {
+                    result.Details.TryAdd(detail.Key, detail.Value);
+                }
+
                 result.Details["InventorySource"] = "live ServerData -> PlayerServerData -> PlayerInventories";
                 return result;
             }
