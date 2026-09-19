@@ -94,7 +94,7 @@ const CATEGORY_PRESETS = {
   Minion: {
     role: 'Disabled', priority: 0, interval: 500, hold: 80, filter: 'Any',
     lowHp: false, lowHpThresh: 60, minEnemies: 0, maxRange: 0,
-    label: '🧟 Minion (Auto-managed)', color: '#06b6d4', bg: 'rgba(6,182,212,0.15)'
+    label: '🧟 Minion (No auto-resummon)', color: '#06b6d4', bg: 'rgba(6,182,212,0.15)'
   },
   Movement: {
     role: 'Disabled', priority: 0, interval: 500, hold: 80, filter: 'Any',
