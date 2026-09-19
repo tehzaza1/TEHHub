@@ -139,7 +139,8 @@ namespace TEHhub.Ui
                 : ColorGrey;
             ImGui.TextColored(
                 evidenceColor,
-                $"Session Evidence: Samples={evidence.Samples}, LoadingSamples={evidence.LoadingSamples}, " +
+                $"Session Evidence: PID={evidence.ProcessId}, Base=0x{evidence.ProcessBase:X}, " +
+                $"Samples={evidence.Samples}, LoadingSamples={evidence.LoadingSamples}, " +
                 $"IdleSeen={evidence.SawLoadingIdle}, ActiveSeen={evidence.SawLoadingActive}, " +
                 $"Load Enter/Exit={evidence.LoadingEnterTransitions}/{evidence.LoadingExitTransitions}, " +
                 $"Area Ptr/Hash Changes={evidence.AreaInstanceChanges}/{evidence.AreaHashChanges}");
