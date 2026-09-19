@@ -758,11 +758,6 @@ namespace AutoExile2.Systems
 
         public static bool IsSkillReadyInGame(Entity? player, SkillSlotConfig slot)
         {
-            if (slot != null && SkillClassifier.IsAutoManagedCategory(slot.Category))
-            {
-                return false;
-            }
-
             if (player == null || slot == null) return true;
             if (!player.TryGetComponent<Actor>(out var actor) || actor.ActiveSkills == null || actor.ActiveSkills.Count == 0)
             {
@@ -1004,10 +999,7 @@ namespace AutoExile2.Systems
 
             var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
             var candidateSkills = configuredSkills
-                .Where(s => s.Enabled &&
-                            s.Role != SkillRole.Disabled &&
-                            s.Role != SkillRole.SelfBuffGuard &&
-                            !SkillClassifier.IsAutoManagedCategory(s.Category))
+                .Where(s => s.Enabled && s.Role != SkillRole.Disabled && s.Role != SkillRole.SelfBuffGuard)
                 .OrderByDescending(s => s.Priority)
                 .ToList();
 

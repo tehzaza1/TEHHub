@@ -24,15 +24,6 @@ namespace AutoExile2
         public const string CategoryMovement = "Movement";
         public const string CategoryCustom = "Custom";
 
-        /// <summary>
-        /// Returns true for categories that are observed by AutoExile2 but must not receive automated input.
-        /// PoE2 persistent minions are auto-managed by the game and are not manually resummoned by the bot.
-        /// </summary>
-        public static bool IsAutoManagedCategory(string? category)
-        {
-            return string.Equals(category, CategoryMinion, StringComparison.OrdinalIgnoreCase);
-        }
-
         private static readonly string[] TotemKeywords =
         {
             "totem", "ballista", "ancestor", "ancestral", "earthbreaker", "siegeballista", "spelltotem", "holyflame"
