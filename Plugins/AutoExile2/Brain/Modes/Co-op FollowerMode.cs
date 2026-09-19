@@ -336,12 +336,13 @@ namespace AutoExile2.Modes
                 if (s.P1Skills != null && s.P1Skills.Count > 0)
                 {
                     var now = DateTime.Now;
-                    var buffs = leader.TryGetComponent<Buffs>(out var pBuffs) ? pBuffs : null;
 
-                    foreach (var slot in s.P1Skills.Where(x => x.Enabled && (x.Role == SkillRole.SelfBuffGuard || x.Category == "Buff" || x.Category == "Guard" || x.Category == "Warcry")).OrderByDescending(x => x.Priority))
+                    foreach (var slot in s.P1Skills
+                        .Where(x => x.Enabled && x.Role == SkillRole.SelfBuffGuard)
+                        .OrderByDescending(x => x.Priority))
                     {
-                        int effectiveInterval = CombatSystem.HasAvailableCharges(leader, slot) ? Math.Min(slot.MinCastIntervalMs, 300) : slot.MinCastIntervalMs;
-                        if ((now - slot.LastCastAt).TotalMilliseconds < effectiveInterval) continue;
+                        int castSpacingMs = CombatSystem.GetSkillCastSpacingMs(slot);
+                        if ((now - slot.LastCastAt).TotalMilliseconds < castSpacingMs) continue;
                         if (!CombatSystem.IsSkillReadyInGame(leader, slot)) continue;
 
                         if (slot.OnlyOnLowHp && !lVitals.IsLowVital(slot)) continue;
@@ -353,7 +354,7 @@ namespace AutoExile2.Modes
                             Vector2 lGrid = leader.TryGetComponent<Render>(out var lRend)
                                 ? new Vector2(lRend.GridPosition.X, lRend.GridPosition.Y)
                                 : ctx.PlayerGrid;
-                            int nearby = CombatSystem.CountHostilesInRange(ctx.Area, lGrid, 65f);
+                            int nearby = CombatSystem.CountHostilesInRange(ctx.Area, lGrid, s.CombatRange);
                             if (nearby < slot.MinNearbyEnemies) continue;
                         }
 
@@ -370,7 +371,11 @@ namespace AutoExile2.Modes
                         }
                         else
                         {
-                            BotInput.FastPressKey(slot.Key);
+                            BotInput.ExecuteAttack(
+                                AttackInputType.KeyboardKey,
+                                slot.Key,
+                                Math.Max(30, slot.HoldDurationMs),
+                                defensive: true);
                         }
                         break;
                     }
