@@ -34,6 +34,14 @@ namespace TEHhub.Ui
     /// </summary>
     public static class OffsetHelperV2Engine
     {
+        private static readonly int LoadingIsLoadingOffset =
+            Marshal.OffsetOf<AreaLoadingStateOffset>(nameof(AreaLoadingStateOffset.IsLoading)).ToInt32();
+        private static readonly int InGameAreaInstanceOffset =
+            Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.AreaInstanceData)).ToInt32();
+        private static readonly int InGameWorldDataOffset =
+            Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.WorldData)).ToInt32();
+        private static readonly int AreaHashOffset =
+            Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.CurrentAreaHash)).ToInt32();
         private static readonly int AreaPlayerInfoOffset =
             Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.PlayerInfo)).ToInt32();
         private static readonly int AreaEntitiesOffset =
@@ -1306,6 +1314,18 @@ namespace TEHhub.Ui
             [FieldOffset(0x19)] public byte IsNil;
         }
 
+        internal static bool SampleSessionEvidence()
+        {
+            var reader = Core.Process.Handle;
+            if (reader == null || reader.IsInvalid || reader.IsClosed)
+            {
+                return false;
+            }
+
+            ObserveSessionEvidence(reader);
+            return true;
+        }
+
         private static void ObserveSessionEvidence(SafeMemoryHandle reader)
         {
             byte? isLoading = null;
@@ -1318,33 +1338,44 @@ namespace TEHhub.Ui
             {
                 var loadingAddr = Core.States.AreaLoading.Address;
                 if (CanonicalStructuralInvariants.IsCanonicalPointer(loadingAddr) &&
-                    reader.TryReadMemory<AreaLoadingStateOffset>(loadingAddr, out var loadingData) &&
-                    loadingData.IsLoading is 0 or 1)
+                    reader.TryReadMemory<int>(loadingAddr + LoadingIsLoadingOffset, out var loadingValue) &&
+                    loadingValue is 0 or 1)
                 {
-                    isLoading = (byte)loadingData.IsLoading;
+                    isLoading = (byte)loadingValue;
                 }
 
                 var inGameAddr = Core.States.InGameStateObject.Address;
-                if (CanonicalStructuralInvariants.IsCanonicalPointer(inGameAddr) &&
-                    reader.TryReadMemory<InGameStateOffset>(inGameAddr, out var inGameData))
+                if (CanonicalStructuralInvariants.IsCanonicalPointer(inGameAddr))
                 {
-                    if (CanonicalStructuralInvariants.IsCanonicalPointer(inGameData.AreaInstanceData))
+                    if (reader.TryReadMemory<IntPtr>(
+                            inGameAddr + InGameAreaInstanceOffset,
+                            out var areaInstancePtr) &&
+                        CanonicalStructuralInvariants.IsCanonicalPointer(areaInstancePtr))
                     {
-                        areaInstance = inGameData.AreaInstanceData.ToInt64();
+                        areaInstance = areaInstancePtr.ToInt64();
 
-                        if (reader.TryReadMemory<AreaInstanceOffsets>(inGameData.AreaInstanceData, out var areaData))
+                        if (reader.TryReadMemory<uint>(
+                                areaInstancePtr + AreaHashOffset,
+                                out var currentAreaHash))
                         {
-                            areaHash = areaData.CurrentAreaHash;
-                            if (CanonicalStructuralInvariants.IsCanonicalPointer(areaData.PlayerInfo.LocalPlayerPtr))
-                            {
-                                localPlayer = areaData.PlayerInfo.LocalPlayerPtr.ToInt64();
-                            }
+                            areaHash = currentAreaHash;
+                        }
+
+                        if (reader.TryReadMemory<LocalPlayerStruct>(
+                                areaInstancePtr + AreaPlayerInfoOffset,
+                                out var playerInfo) &&
+                            CanonicalStructuralInvariants.IsCanonicalPointer(playerInfo.LocalPlayerPtr))
+                        {
+                            localPlayer = playerInfo.LocalPlayerPtr.ToInt64();
                         }
                     }
 
-                    if (CanonicalStructuralInvariants.IsCanonicalPointer(inGameData.WorldData))
+                    if (reader.TryReadMemory<IntPtr>(
+                            inGameAddr + InGameWorldDataOffset,
+                            out var worldDataPtr) &&
+                        CanonicalStructuralInvariants.IsCanonicalPointer(worldDataPtr))
                     {
-                        worldData = inGameData.WorldData.ToInt64();
+                        worldData = worldDataPtr.ToInt64();
                     }
                 }
             }
