@@ -1316,112 +1316,321 @@ namespace TEHhub.Ui
         // =====================================================================
         private static V2ProbeResult ProbeEntityComponents(SafeMemoryHandle reader)
         {
+            const int maxComponentsInEntity = 50;
             var details = new Dictionary<string, string>();
+
             try
             {
-                var player = Core.States.InGameStateObject.CurrentAreaInstance?.Player;
-                if (player == null || player.Address == IntPtr.Zero)
+                var inGameAddr = Core.States.InGameStateObject.Address;
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameAddr))
                 {
                     return new V2ProbeResult("Entity Components", V2ProbeStatus.Unavailable,
-                        "LocalPlayer RemoteObject is not initialized.", details);
+                        "InGameState is unavailable in the current context.", details);
                 }
 
-                details["PlayerAddress"] = $"0x{player.Address.ToInt64():X}";
+                var inGameState = reader.ReadMemory<InGameStateOffset>(inGameAddr);
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameState.AreaInstanceData))
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Unavailable,
+                        "AreaInstanceData is unavailable in the current context.", details);
+                }
+
+                var playerInfo =
+                    reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + AreaPlayerInfoOffset);
+                var playerAddress = playerInfo.LocalPlayerPtr;
+                details["PlayerAddress"] = $"0x{playerAddress.ToInt64():X}";
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerAddress))
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Unavailable,
+                        "LocalPlayer pointer is unavailable in the current context.", details);
+                }
+
+                if (!reader.TryReadMemory<EntityOffsets>(playerAddress, out var playerEntity, recordFailure: false))
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        "LocalPlayer entity header could not be read.", details);
+                }
+
+                details["PlayerEntityId"] = playerEntity.Id.ToString();
+                details["EntityDetailsPtr"] = $"0x{playerEntity.ItemBase.EntityDetailsPtr.ToInt64():X}";
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerEntity.ItemBase.EntityDetailsPtr))
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        "LocalPlayer EntityDetails pointer is non-canonical.", details);
+                }
+
+                var componentVectorValidation =
+                    CanonicalStructuralInvariants.ValidateStdVector(playerEntity.ItemBase.ComponentListPtr, elementSize: 8);
+                details["ComponentPointerVector"] = componentVectorValidation.Detail;
+                if (!componentVectorValidation.IsValid)
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        $"LocalPlayer component pointer vector failed invariant: {componentVectorValidation.Detail}", details);
+                }
+
+                if (!reader.TryReadMemory<EntityDetails>(
+                        playerEntity.ItemBase.EntityDetailsPtr,
+                        out var entityDetails,
+                        recordFailure: false))
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        "LocalPlayer EntityDetails could not be read.", details);
+                }
+
+                var metadataPath = reader.ReadStdWString(entityDetails.name);
+                details["PlayerMetadataPath"] = string.IsNullOrEmpty(metadataPath) ? "<empty>" : metadataPath;
+                details["ComponentLookUpPtr"] = $"0x{entityDetails.ComponentLookUpPtr.ToInt64():X}";
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(entityDetails.ComponentLookUpPtr))
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        "LocalPlayer ComponentLookUpPtr is non-canonical.", details);
+                }
+
+                if (!reader.TryReadMemory<ComponentLookUpStruct>(
+                        entityDetails.ComponentLookUpPtr,
+                        out var lookup,
+                        recordFailure: false))
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        "LocalPlayer component lookup structure could not be read.", details);
+                }
+
+                details["ComponentNameBucketCapacity"] = lookup.ComponentsNameAndIndex.Capacity.ToString();
+                if (lookup.ComponentsNameAndIndex.Capacity < 0 ||
+                    lookup.ComponentsNameAndIndex.Capacity > maxComponentsInEntity)
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        $"Component lookup capacity {lookup.ComponentsNameAndIndex.Capacity} is outside the bounded 0-{maxComponentsInEntity} range.",
+                        details);
+                }
+
+                var nameEntrySize = Marshal.SizeOf<ComponentNameAndIndexStruct>();
+                var nameVectorValidation =
+                    CanonicalStructuralInvariants.ValidateStdVector(
+                        lookup.ComponentsNameAndIndex.Data,
+                        elementSize: nameEntrySize);
+                details["ComponentNameVector"] = nameVectorValidation.Detail;
+                if (!nameVectorValidation.IsValid)
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                        $"Component name/index vector failed invariant: {nameVectorValidation.Detail}", details);
+                }
+
+                var componentPointers = reader.ReadStdVector<IntPtr>(playerEntity.ItemBase.ComponentListPtr);
+                var namesAndIndexes = reader.ReadStdVector<ComponentNameAndIndexStruct>(lookup.ComponentsNameAndIndex.Data);
+                details["ComponentPointerCount"] = componentPointers.Length.ToString();
+                details["ComponentNameEntryCount"] = namesAndIndexes.Length.ToString();
+
+                if (componentPointers.Length == 0 || namesAndIndexes.Length == 0)
+                {
+                    return new V2ProbeResult("Entity Components", V2ProbeStatus.Warning,
+                        "LocalPlayer component vectors are structurally valid but empty in the current context.", details);
+                }
+
+                var practicalComponents = new HashSet<string>(StringComparer.Ordinal)
+                {
+                    "Render",
+                    "Life",
+                    "Positioned",
+                    "Actor",
+                };
+                var rawComponentAddresses = new Dictionary<string, IntPtr>(StringComparer.Ordinal);
+                int invalidNameIndexes = 0;
+                int unreadableNames = 0;
+
+                foreach (var nameAndIndex in namesAndIndexes)
+                {
+                    if (nameAndIndex.Index < 0 || nameAndIndex.Index >= componentPointers.Length)
+                    {
+                        invalidNameIndexes++;
+                        continue;
+                    }
+
+                    if (!CanonicalStructuralInvariants.IsCanonicalPointer(nameAndIndex.NamePtr))
+                    {
+                        unreadableNames++;
+                        continue;
+                    }
+
+                    var componentName = reader.ReadString(nameAndIndex.NamePtr);
+                    if (string.IsNullOrEmpty(componentName))
+                    {
+                        unreadableNames++;
+                        continue;
+                    }
+
+                    if (practicalComponents.Contains(componentName))
+                    {
+                        rawComponentAddresses[componentName] = componentPointers[nameAndIndex.Index];
+                    }
+                }
+
+                details["InvalidComponentNameIndexCount"] = invalidNameIndexes.ToString();
+                details["UnreadableComponentNameCount"] = unreadableNames.ToString();
+                details["RawComponentMapSource"] =
+                    "LocalPlayer EntityDetails -> ComponentLookUp -> ComponentsNameAndIndex + ComponentListPtr";
+
                 int componentsSeen = 0;
                 int componentsVerified = 0;
                 int componentsFailed = 0;
+                int componentsMissing = 0;
 
-                // 1. Render component
-                if (player.TryGetComponent<Render>(out var render) && render.Address != IntPtr.Zero)
-                {
-                    componentsSeen++;
-                    details["Render.Address"] = $"0x{render.Address.ToInt64():X}";
-                    details["Render.GridPosition"] = $"({render.GridPosition.X:F1}, {render.GridPosition.Y:F1})";
-                    details["Render.TerrainHeight"] = render.TerrainHeight.ToString("F1");
-
-                    var header = reader.ReadMemory<ComponentHeader>(render.Address);
-                    var ownerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(header.EntityPtr.ToInt64(), player.Address.ToInt64());
-                    details["Render.OwnerValidation"] = ownerCheck.Detail;
-                    if (ownerCheck.IsValid) componentsVerified++;
-                    else componentsFailed++;
-                }
-
-                // 2. Life component
-                if (player.TryGetComponent<Life>(out var life) && life.Address != IntPtr.Zero)
-                {
-                    componentsSeen++;
-                    details["Life.Address"] = $"0x{life.Address.ToInt64():X}";
-                    details["Life.HP"] = $"{life.Health.Current} / {life.Health.Total}";
-                    details["Life.Mana"] = $"{life.Mana.Current} / {life.Mana.Total}";
-                    details["Life.ES"] = $"{life.EnergyShield.Current} / {life.EnergyShield.Total}";
-
-                    var lifeHeader = reader.ReadMemory<ComponentHeader>(life.Address);
-                    var lifeOwnerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(lifeHeader.EntityPtr.ToInt64(), player.Address.ToInt64());
-                    details["Life.OwnerValidation"] = lifeOwnerCheck.Detail;
-
-                    bool hpOk =
-                        life.Health.Total > 0 &&
-                        life.Health.Current >= 0 &&
-                        life.Health.Current <= life.Health.Total &&
-                        life.Health.Total <= 50000;
-                    details["Life.HpRangePlausible"] = hpOk.ToString();
-
-                    if (hpOk && lifeOwnerCheck.IsValid) componentsVerified++;
-                    else componentsFailed++;
-                }
-
-                // 3. Positioned component
-                if (player.TryGetComponent<Positioned>(out var pos) && pos.Address != IntPtr.Zero)
-                {
-                    componentsSeen++;
-                    details["Positioned.Address"] = $"0x{pos.Address.ToInt64():X}";
-                    details["Positioned.Flags"] = $"0x{pos.Flags:X2}";
-                    details["Positioned.IsFriendly"] = pos.IsFriendly.ToString();
-                    var posHeader = reader.ReadMemory<PositionedOffsets>(pos.Address);
-                    var posOwnerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(posHeader.Header.EntityPtr.ToInt64(), player.Address.ToInt64());
-                    details["Positioned.OwnerValidation"] = posOwnerCheck.Detail;
-                    if (posOwnerCheck.IsValid) componentsVerified++;
-                    else componentsFailed++;
-                }
-
-                // 4. Actor component
-                if (player.TryGetComponent<Actor>(out var actor) && actor.Address != IntPtr.Zero)
-                {
-                    componentsSeen++;
-                    details["Actor.Address"] = $"0x{actor.Address.ToInt64():X}";
-                    details["Actor.Animation"] = actor.Animation.ToString();
-                    details["Actor.ActiveSkillsCount"] = actor.ActiveSkills.Count.ToString();
-
-                    var actorHeader = reader.ReadMemory<ComponentHeader>(actor.Address);
-                    var actorOwnerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(actorHeader.EntityPtr.ToInt64(), player.Address.ToInt64());
-                    details["Actor.OwnerValidation"] = actorOwnerCheck.Detail;
-                    if (actorOwnerCheck.IsValid) componentsVerified++;
-                    else componentsFailed++;
-                }
+                VerifyPracticalComponent("Render", ValidateRender);
+                VerifyPracticalComponent("Life", ValidateLife);
+                VerifyPracticalComponent("Positioned", ValidatePositioned);
+                VerifyPracticalComponent("Actor", ValidateActor);
 
                 details["ComponentsSeen"] = componentsSeen.ToString();
                 details["ComponentsVerified"] = componentsVerified.ToString();
                 details["ComponentsFailed"] = componentsFailed.ToString();
+                details["ComponentsMissing"] = componentsMissing.ToString();
 
                 if (componentsSeen == 0)
                 {
                     return new V2ProbeResult("Entity Components", V2ProbeStatus.Warning,
-                        "None of the four practical LocalPlayer components were available in this context.", details);
+                        "None of the four practical LocalPlayer components were resolved from the raw live component map.",
+                        details);
                 }
 
-                if (componentsFailed > 0)
+                if (componentsFailed > 0 || componentsMissing > 0)
                 {
                     return new V2ProbeResult("Entity Components", V2ProbeStatus.Warning,
-                        $"Validated {componentsVerified}/{componentsSeen} available components; {componentsFailed} failed owner/range invariants.", details, componentsVerified);
+                        $"Raw component map verified {componentsVerified}/{componentsSeen} resolved components; failed={componentsFailed}, missing={componentsMissing}.",
+                        details,
+                        componentsVerified);
                 }
 
                 return new V2ProbeResult("Entity Components", V2ProbeStatus.Pass,
-                    $"Validated all {componentsVerified}/{componentsSeen} available practical components on LocalPlayer.", details, componentsVerified);
+                    $"Raw component map verified all {componentsVerified}/{componentsSeen} practical LocalPlayer components.",
+                    details,
+                    componentsVerified);
+
+                void VerifyPracticalComponent(string name, Func<IntPtr, bool> semanticValidator)
+                {
+                    if (!rawComponentAddresses.TryGetValue(name, out var address))
+                    {
+                        componentsMissing++;
+                        details[$"{name}.Status"] = "Missing from raw live component map";
+                        return;
+                    }
+
+                    componentsSeen++;
+                    details[$"{name}.Address"] = $"0x{address.ToInt64():X}";
+                    if (!CanonicalStructuralInvariants.IsCanonicalPointer(address))
+                    {
+                        componentsFailed++;
+                        details[$"{name}.Status"] = "Component pointer is non-canonical";
+                        return;
+                    }
+
+                    if (!reader.TryReadMemory<ComponentHeader>(address, out var header, recordFailure: false))
+                    {
+                        componentsFailed++;
+                        details[$"{name}.Status"] = "Component header unreadable";
+                        return;
+                    }
+
+                    var ownerCheck = CanonicalStructuralInvariants.ValidateComponentOwner(
+                        header.EntityPtr.ToInt64(),
+                        playerAddress.ToInt64());
+                    details[$"{name}.OwnerValidation"] = ownerCheck.Detail;
+                    if (!ownerCheck.IsValid)
+                    {
+                        componentsFailed++;
+                        details[$"{name}.Status"] = "Owner back-pointer mismatch";
+                        return;
+                    }
+
+                    if (!semanticValidator(address))
+                    {
+                        componentsFailed++;
+                        details[$"{name}.Status"] = "Semantic invariant failed";
+                        return;
+                    }
+
+                    componentsVerified++;
+                    details[$"{name}.Status"] = "Verified";
+                }
+
+                bool ValidateRender(IntPtr address)
+                {
+                    if (!reader.TryReadMemory<RenderOffsets>(address, out var render, recordFailure: false))
+                    {
+                        details["Render.Semantic"] = "RenderOffsets unreadable";
+                        return false;
+                    }
+
+                    var worldPos = render.CurrentWorldPosition;
+                    var finite =
+                        float.IsFinite(worldPos.X) &&
+                        float.IsFinite(worldPos.Y) &&
+                        float.IsFinite(worldPos.Z) &&
+                        float.IsFinite(render.TerrainHeight);
+                    details["Render.WorldPosition"] =
+                        $"({worldPos.X:F1}, {worldPos.Y:F1}, {worldPos.Z:F1})";
+                    details["Render.TerrainHeight"] = render.TerrainHeight.ToString("F1");
+                    details["Render.Finite"] = finite.ToString();
+                    return finite;
+                }
+
+                bool ValidateLife(IntPtr address)
+                {
+                    if (!reader.TryReadMemory<LifeOffset>(address, out var life, recordFailure: false))
+                    {
+                        details["Life.Semantic"] = "LifeOffset unreadable";
+                        return false;
+                    }
+
+                    details["Life.HP"] = $"{life.Health.Current} / {life.Health.Total}";
+                    details["Life.Mana"] = $"{life.Mana.Current} / {life.Mana.Total}";
+                    details["Life.ES"] = $"{life.EnergyShield.Current} / {life.EnergyShield.Total}";
+                    details["Life.HealthBackPointer"] = $"0x{life.Health.PtrToLifeComponent.ToInt64():X}";
+
+                    var healthRangeOk =
+                        life.Health.Total > 0 &&
+                        life.Health.Current >= 0 &&
+                        life.Health.Current <= life.Health.Total;
+                    var healthBackPointerOk = life.Health.PtrToLifeComponent == address;
+                    details["Life.HealthRangePlausible"] = healthRangeOk.ToString();
+                    details["Life.HealthBackPointerMatches"] = healthBackPointerOk.ToString();
+                    return healthRangeOk && healthBackPointerOk;
+                }
+
+                bool ValidatePositioned(IntPtr address)
+                {
+                    if (!reader.TryReadMemory<PositionedOffsets>(address, out var positioned, recordFailure: false))
+                    {
+                        details["Positioned.Semantic"] = "PositionedOffsets unreadable";
+                        return false;
+                    }
+
+                    details["Positioned.Reaction"] = $"0x{positioned.Reaction:X2}";
+                    details["Positioned.IsFriendly"] = EntityHelper.IsFriendly(positioned.Reaction).ToString();
+                    return true;
+                }
+
+                bool ValidateActor(IntPtr address)
+                {
+                    if (!reader.TryReadMemory<ActorOffset>(address, out var actor, recordFailure: false))
+                    {
+                        details["Actor.Semantic"] = "ActorOffset unreadable";
+                        return false;
+                    }
+
+                    details["Actor.AnimationId"] = actor.AnimationId.ToString();
+                    var activeSkillValidation =
+                        CanonicalStructuralInvariants.ValidateStdVector(
+                            actor.ActiveSkillsPtr,
+                            elementSize: Marshal.SizeOf<ActiveSkillStructure>());
+                    details["Actor.ActiveSkillsVector"] = activeSkillValidation.Detail;
+                    return activeSkillValidation.IsValid;
+                }
             }
             catch (Exception ex)
             {
                 details["Exception"] = ex.Message;
-                return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail, "Exception during Component probe.", details);
+                return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail,
+                    "Exception during raw Component probe.", details);
             }
         }
 
