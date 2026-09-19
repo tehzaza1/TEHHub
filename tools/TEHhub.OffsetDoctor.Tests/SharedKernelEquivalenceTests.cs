@@ -6,6 +6,7 @@ using TEHhub.Offsets.Natives;
 using TEHhub.Offsets.Objects.Components;
 using TEHhub.Offsets.Objects.UiElement;
 using TEHhub.Offsets.Shared;
+using TEHhub.OffsetDoctor.RecoveryV1;
 
 /// <summary>
 /// Phase A convergence test suite verifying:
@@ -105,17 +106,84 @@ public static class SharedKernelEquivalenceTests
         check(CanonicalStructuralAbi.ComponentHeaderEntityPtrOffset == 0x008,
             "CanonicalStructuralAbi.ComponentHeaderEntityPtrOffset must derive 0x008.");
 
-        // Versioned Semantics
+        // Versioned Semantics - Provenance Verification
         check(CanonicalVersionedSemantics.RuneshapeRecipeCountV1 == 321,
             "CanonicalVersionedSemantics.RuneshapeRecipeCountV1 must be 321.");
+        check(CanonicalVersionedSemantics.RuneshapeRecipeCountV1 == Od144RuneshapePanelRecovery.RecipeCountV1,
+            "CanonicalVersionedSemantics.RuneshapeRecipeCountV1 must match Od144RuneshapePanelRecovery.RecipeCountV1.");
+
         check(CanonicalVersionedSemantics.UiVisibleMask == 0x800,
             "CanonicalVersionedSemantics.UiVisibleMask must be 0x800 (bit 11).");
-        check(CanonicalVersionedSemantics.RawRuneshapeFingerprintV1 == 0x22800,
-            "CanonicalVersionedSemantics.RawRuneshapeFingerprintV1 must be 0x22800.");
-        check(CanonicalVersionedSemantics.MaskedRuneshapeFingerprint == 0x22000,
-            "CanonicalVersionedSemantics.MaskedRuneshapeFingerprint must be 0x22000.");
-        check(CanonicalVersionedSemantics.MaskedAtlasMapNodeFp == 0x22000,
-            "CanonicalVersionedSemantics.MaskedAtlasMapNodeFp must be 0x22000.");
+        check(CanonicalVersionedSemantics.UiVisibleMask == Od144RuneshapePanelRecovery.VisibleMask,
+            "CanonicalVersionedSemantics.UiVisibleMask must match Od144RuneshapePanelRecovery.VisibleMask.");
+
+        // Runeshape Fingerprint Provenance: Raw == 0x00462EF1, Masked == 0x004626F1
+        check(CanonicalVersionedSemantics.RawRuneshapeFingerprintV1 == 0x00462EF1,
+            "CanonicalVersionedSemantics.RawRuneshapeFingerprintV1 must be 0x00462EF1.");
+        check(CanonicalVersionedSemantics.RawRuneshapeFingerprintV1 == Od144RuneshapePanelRecovery.RawFingerprintV1,
+            "CanonicalVersionedSemantics.RawRuneshapeFingerprintV1 must match Od144RuneshapePanelRecovery.RawFingerprintV1.");
+
+        check(CanonicalVersionedSemantics.MaskedRuneshapeFingerprint == 0x004626F1,
+            "CanonicalVersionedSemantics.MaskedRuneshapeFingerprint must be 0x004626F1.");
+        check(CanonicalVersionedSemantics.MaskedRuneshapeFingerprint == Od144RuneshapePanelRecovery.MaskedFingerprint,
+            "CanonicalVersionedSemantics.MaskedRuneshapeFingerprint must match Od144RuneshapePanelRecovery.MaskedFingerprint.");
+
+        // Atlas Fingerprint Provenance: Raw == 0x542EF3, Masked == 0x5426F3
+        check(CanonicalVersionedSemantics.AtlasMapNodeFp == 0x542EF3,
+            "CanonicalVersionedSemantics.AtlasMapNodeFp must be 0x542EF3.");
+        check(CanonicalVersionedSemantics.AtlasMapNodeFp == Od145AtlasLayoutRecovery.AtlasMapNodeFp,
+            "CanonicalVersionedSemantics.AtlasMapNodeFp must match Od145AtlasLayoutRecovery.AtlasMapNodeFp.");
+
+        check(CanonicalVersionedSemantics.AtlasMistNodeFp == 0x442EF3,
+            "CanonicalVersionedSemantics.AtlasMistNodeFp must be 0x442EF3.");
+        check(CanonicalVersionedSemantics.AtlasMistNodeFp == Od145AtlasLayoutRecovery.AtlasMistNodeFp,
+            "CanonicalVersionedSemantics.AtlasMistNodeFp must match Od145AtlasLayoutRecovery.AtlasMistNodeFp.");
+
+        check(CanonicalVersionedSemantics.MaskedAtlasMapNodeFp == 0x5426F3,
+            "CanonicalVersionedSemantics.MaskedAtlasMapNodeFp must be 0x5426F3.");
+        check(CanonicalVersionedSemantics.MaskedAtlasMapNodeFp == Od145AtlasLayoutRecovery.MaskedAtlasMapNodeFp,
+            "CanonicalVersionedSemantics.MaskedAtlasMapNodeFp must match Od145AtlasLayoutRecovery.MaskedAtlasMapNodeFp.");
+
+        check(CanonicalVersionedSemantics.MaskedAtlasMistNodeFp == 0x4426F3,
+            "CanonicalVersionedSemantics.MaskedAtlasMistNodeFp must be 0x4426F3.");
+        check(CanonicalVersionedSemantics.MaskedAtlasMistNodeFp == Od145AtlasLayoutRecovery.MaskedAtlasMistNodeFp,
+            "CanonicalVersionedSemantics.MaskedAtlasMistNodeFp must match Od145AtlasLayoutRecovery.MaskedAtlasMistNodeFp.");
+
+        // Derivation checks
+        check(CanonicalVersionedSemantics.MaskedRuneshapeFingerprint ==
+              (CanonicalVersionedSemantics.RawRuneshapeFingerprintV1 & ~CanonicalVersionedSemantics.UiVisibleMask),
+            "MaskedRuneshapeFingerprint must derive from RawRuneshapeFingerprintV1 & ~UiVisibleMask.");
+        check(CanonicalVersionedSemantics.MaskedAtlasMapNodeFp ==
+              (CanonicalVersionedSemantics.AtlasMapNodeFp & ~CanonicalVersionedSemantics.UiVisibleMask),
+            "MaskedAtlasMapNodeFp must derive from AtlasMapNodeFp & ~UiVisibleMask.");
+        check(CanonicalVersionedSemantics.MaskedAtlasMistNodeFp ==
+              (CanonicalVersionedSemantics.AtlasMistNodeFp & ~CanonicalVersionedSemantics.UiVisibleMask),
+            "MaskedAtlasMistNodeFp must derive from AtlasMistNodeFp & ~UiVisibleMask.");
+
+        // MaxMapSize and Safety Budget Classification
+        check(CanonicalVersionedSemantics.MaxMapSize == 1_000_000,
+            "CanonicalVersionedSemantics.MaxMapSize must be 1,000,000.");
+        check(CanonicalVersionedSemantics.MaxMapSizeMetadata.Classification == StructuralInvariantClassification.SAFETY_BUDGET,
+            "MaxMapSize must be classified as SAFETY_BUDGET.");
+
+        // UI Visibility Meaning vs Flags Layout Classification
+        check(CanonicalVersionedSemantics.UiVisibleMaskMetadata.Classification == StructuralInvariantClassification.VERSIONED_SEMANTIC_INVARIANT,
+            "UiVisibleMask bit meaning must be classified as VERSIONED_SEMANTIC_INVARIANT.");
+        check(CanonicalStructuralAbi.UiElementBaseFlagsOffset == 0x168,
+            "UiElementBaseFlagsOffset must be 0x168 (structural field offset).");
+
+        // Atlas edge representation equivalence (Pack=1, Size=20, field-compatible)
+        check(CanonicalLayout<TEHhub.Offsets.Shared.AtlasConnectionEdge>.Size == 20,
+            "TEHhub.Offsets.Shared.AtlasConnectionEdge size must be 20.");
+        check(System.Runtime.InteropServices.Marshal.SizeOf<Od145AtlasLayoutRecovery.AtlasConnectionEdge>() == 20,
+            "Od145AtlasLayoutRecovery.AtlasConnectionEdge size must be 20.");
+        check(CanonicalLayout<TEHhub.Offsets.Shared.AtlasConnectionEdge>.Size ==
+              System.Runtime.InteropServices.Marshal.SizeOf<Od145AtlasLayoutRecovery.AtlasConnectionEdge>(),
+            "Shared and Recovery AtlasConnectionEdge layouts must have identical 20-byte size.");
+        check(typeof(TEHhub.Offsets.Shared.AtlasConnectionEdge).StructLayoutAttribute?.Pack == 1,
+            "Shared AtlasConnectionEdge must have Pack = 1.");
+        check(typeof(Od145AtlasLayoutRecovery.AtlasConnectionEdge).StructLayoutAttribute?.Pack == 1,
+            "Recovery AtlasConnectionEdge must have Pack = 1.");
 
         // Metadata classification record
         var abiMeta = new CanonicalInvariantMetadata(
@@ -269,13 +337,20 @@ public static class SharedKernelEquivalenceTests
         check(!belowFloor.IsValid && belowFloor.Verdict == SharedValidationVerdict.Fail,
             "UiElement address below 0x10000 floor must fail.");
 
-        // 5. Visibility and masking
-        check(CanonicalStructuralInvariants.IsUiVisible(0x22800),
-            "Flags 0x22800 (with bit 11 set) must be visible.");
-        check(!CanonicalStructuralInvariants.IsUiVisible(0x22000),
-            "Flags 0x22000 (with bit 11 cleared) must not be visible.");
-        check(CanonicalStructuralInvariants.GetMaskedUiFlags(0x22800) == 0x22000,
-            "GetMaskedUiFlags for 0x22800 must yield 0x22000.");
+        // 5. Visibility and masking with proven fingerprints
+        check(CanonicalStructuralInvariants.IsUiVisible(CanonicalVersionedSemantics.RawRuneshapeFingerprintV1),
+            "Flags RawRuneshapeFingerprintV1 (0x00462EF1 with bit 11 set) must be visible.");
+        check(!CanonicalStructuralInvariants.IsUiVisible(CanonicalVersionedSemantics.MaskedRuneshapeFingerprint),
+            "Flags MaskedRuneshapeFingerprint (0x004626F1 with bit 11 cleared) must not be visible.");
+        check(CanonicalStructuralInvariants.GetMaskedUiFlags(CanonicalVersionedSemantics.RawRuneshapeFingerprintV1) == CanonicalVersionedSemantics.MaskedRuneshapeFingerprint,
+            "GetMaskedUiFlags for RawRuneshapeFingerprintV1 must yield MaskedRuneshapeFingerprint.");
+
+        check(CanonicalStructuralInvariants.IsUiVisible(CanonicalVersionedSemantics.AtlasMapNodeFp),
+            "Flags AtlasMapNodeFp (0x542EF3 with bit 11 set) must be visible.");
+        check(!CanonicalStructuralInvariants.IsUiVisible(CanonicalVersionedSemantics.MaskedAtlasMapNodeFp),
+            "Flags MaskedAtlasMapNodeFp (0x5426F3 with bit 11 cleared) must not be visible.");
+        check(CanonicalStructuralInvariants.GetMaskedUiFlags(CanonicalVersionedSemantics.AtlasMapNodeFp) == CanonicalVersionedSemantics.MaskedAtlasMapNodeFp,
+            "GetMaskedUiFlags for AtlasMapNodeFp must yield MaskedAtlasMapNodeFp.");
     }
 
     private static void TestComponentOwnerInvariants(Action<bool, string> check)
