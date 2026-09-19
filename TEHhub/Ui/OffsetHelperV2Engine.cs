@@ -912,38 +912,100 @@ namespace TEHhub.Ui
             var details = new Dictionary<string, string>();
             try
             {
-                var liveServerData = Core.States.InGameStateObject.CurrentAreaInstance?.ServerDataObject;
-                if (liveServerData == null || liveServerData.Address == IntPtr.Zero)
+                var inGameAddr = Core.States.InGameStateObject.Address;
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameAddr))
                 {
                     return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Unavailable,
-                        "ServerDataObject remote object is not initialized.", details);
+                        "InGameState is unavailable in the current context.", details);
                 }
 
-                // Check MainInventory1 or Flask1 or any populated inventory
+                var inGameState = reader.ReadMemory<InGameStateOffset>(inGameAddr);
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inGameState.AreaInstanceData))
+                {
+                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Unavailable,
+                        "AreaInstanceData is unavailable in the current context.", details);
+                }
+
+                var playerInfo =
+                    reader.ReadMemory<LocalPlayerStruct>(inGameState.AreaInstanceData + AreaPlayerInfoOffset);
+                details["ServerDataPtr"] = $"0x{playerInfo.ServerDataPtr.ToInt64():X}";
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(playerInfo.ServerDataPtr))
+                {
+                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Unavailable,
+                        "ServerDataPtr is unavailable in the current context.", details);
+                }
+
+                var serverDataOffsets = reader.ReadMemory<ServerDataOffsets>(playerInfo.ServerDataPtr);
+                var playerDataVectorValidation =
+                    CanonicalStructuralInvariants.ValidateStdVector(serverDataOffsets.PlayerServerDataPtr, elementSize: 8);
+                details["PlayerServerDataPtrVector"] = playerDataVectorValidation.Detail;
+                if (!playerDataVectorValidation.IsValid)
+                {
+                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Fail,
+                        $"PlayerServerDataPtr vector failed invariant: {playerDataVectorValidation.Detail}", details);
+                }
+
+                var playerServerData = reader.ReadStdVector<IntPtr>(serverDataOffsets.PlayerServerDataPtr);
+                if (playerServerData.Length == 0 ||
+                    !CanonicalStructuralInvariants.IsCanonicalPointer(playerServerData[0]))
+                {
+                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Unavailable,
+                        "PlayerServerData pointer is unavailable in the current context.", details);
+                }
+
+                details["PlayerServerDataAddress"] = $"0x{playerServerData[0].ToInt64():X}";
+                var serverDataStructure = reader.ReadMemory<ServerDataStructure>(playerServerData[0]);
+                var inventoryElementSize = Marshal.SizeOf<InventoryArrayStruct>();
+                var inventoryVectorValidation =
+                    CanonicalStructuralInvariants.ValidateStdVector(
+                        serverDataStructure.PlayerInventories,
+                        elementSize: inventoryElementSize);
+                details["PlayerInventoriesVector"] = inventoryVectorValidation.Detail;
+                if (!inventoryVectorValidation.IsValid)
+                {
+                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Fail,
+                        $"PlayerInventories vector failed invariant: {inventoryVectorValidation.Detail}", details);
+                }
+
+                var inventories = reader.ReadStdVector<InventoryArrayStruct>(serverDataStructure.PlayerInventories);
+                details["DiscoveredInventoryCount"] = inventories.Length.ToString();
+
                 IntPtr targetInvAddr = IntPtr.Zero;
                 string targetInvName = "None";
 
-                if (liveServerData.PlayerInventories.TryGetValue(InventoryName.MainInventory1, out var mainAddr) &&
-                    CanonicalStructuralInvariants.IsCanonicalPointer(mainAddr))
+                foreach (var inventory in inventories)
                 {
-                    targetInvAddr = mainAddr;
-                    targetInvName = "MainInventory1";
-                }
-                else if (liveServerData.PlayerInventories.TryGetValue(InventoryName.Flask1, out var flaskAddr) &&
-                         CanonicalStructuralInvariants.IsCanonicalPointer(flaskAddr))
-                {
-                    targetInvAddr = flaskAddr;
-                    targetInvName = "Flask1";
-                }
-                else
-                {
-                    // Fallback to any canonical inventory pointer
-                    foreach (var kvp in liveServerData.PlayerInventories)
+                    if (inventory.InventoryId == (int)InventoryName.MainInventory1 &&
+                        CanonicalStructuralInvariants.IsCanonicalPointer(inventory.InventoryPtr0))
                     {
-                        if (CanonicalStructuralInvariants.IsCanonicalPointer(kvp.Value))
+                        targetInvAddr = inventory.InventoryPtr0;
+                        targetInvName = nameof(InventoryName.MainInventory1);
+                        break;
+                    }
+                }
+
+                if (targetInvAddr == IntPtr.Zero)
+                {
+                    foreach (var inventory in inventories)
+                    {
+                        if (inventory.InventoryId == (int)InventoryName.Flask1 &&
+                            CanonicalStructuralInvariants.IsCanonicalPointer(inventory.InventoryPtr0))
                         {
-                            targetInvAddr = kvp.Value;
-                            targetInvName = kvp.Key.ToString();
+                            targetInvAddr = inventory.InventoryPtr0;
+                            targetInvName = nameof(InventoryName.Flask1);
+                            break;
+                        }
+                    }
+                }
+
+                if (targetInvAddr == IntPtr.Zero)
+                {
+                    foreach (var inventory in inventories)
+                    {
+                        if (CanonicalStructuralInvariants.IsCanonicalPointer(inventory.InventoryPtr0))
+                        {
+                            targetInvAddr = inventory.InventoryPtr0;
+                            targetInvName = ((InventoryName)inventory.InventoryId).ToString();
                             break;
                         }
                     }
@@ -952,10 +1014,17 @@ namespace TEHhub.Ui
                 if (targetInvAddr == IntPtr.Zero)
                 {
                     return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Unavailable,
-                        "No canonical inventory pointer available in PlayerInventories.", details);
+                        "No canonical inventory pointer is available in the live PlayerInventories vector.", details);
                 }
 
-                return ProbeInventoryAddress(reader, "Inventory Item Sampling", targetInvName, targetInvAddr);
+                var result = ProbeInventoryAddress(reader, "Inventory Item Sampling", targetInvName, targetInvAddr);
+                foreach (var detail in details)
+                {
+                    result.Details.TryAdd(detail.Key, detail.Value);
+                }
+
+                result.Details["InventorySource"] = "live ServerData -> PlayerServerData -> PlayerInventories";
+                return result;
             }
             catch (Exception ex)
             {
