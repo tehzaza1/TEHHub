@@ -280,6 +280,7 @@ namespace AutoExile2.Modes
             {
                 if (life.Health.Current <= 0) return; // Leader is dead, do not spam flasks or buffs
                 var lVitals = new PlayerVitals(life);
+                DateTime flaskNow = DateTime.Now;
 
                 // Leader Auto Life Flask
                 if (s.P1AutoLifeFlask && lVitals.HpPercent <= s.P1LifeFlaskThresholdPercent)
@@ -290,14 +291,18 @@ namespace AutoExile2.Modes
 
                     if (!active && hasCharges)
                     {
-                        const int debounceMs = CombatSystem.FlaskDebounceMs;
-                        if (pad.IsLeaderConnected)
+                        int debounceMs = CombatSystem.NormalizeFlaskCooldownMs(s.LifeFlaskCooldownMs);
+                        if ((flaskNow - ctx.Combat.LastLifeFlaskAt).TotalMilliseconds >= debounceMs)
                         {
-                            pad.PressLeaderFlask(true, debounceMs);
-                        }
-                        else
-                        {
-                            BotInput.FastPressKey(s.LifeFlaskKey);
+                            ctx.Combat.LastLifeFlaskAt = flaskNow;
+                            if (pad.IsLeaderConnected)
+                            {
+                                pad.PressLeaderFlask(true, debounceMs);
+                            }
+                            else
+                            {
+                                BotInput.FastPressKey(s.LifeFlaskKey);
+                            }
                         }
                     }
                 }
@@ -311,14 +316,18 @@ namespace AutoExile2.Modes
 
                     if (!active && hasCharges)
                     {
-                        const int debounceMs = CombatSystem.FlaskDebounceMs;
-                        if (pad.IsLeaderConnected)
+                        int debounceMs = CombatSystem.NormalizeFlaskCooldownMs(s.ManaFlaskCooldownMs);
+                        if ((flaskNow - ctx.Combat.LastManaFlaskAt).TotalMilliseconds >= debounceMs)
                         {
-                            pad.PressLeaderFlask(false, debounceMs);
-                        }
-                        else
-                        {
-                            BotInput.FastPressKey(s.ManaFlaskKey);
+                            ctx.Combat.LastManaFlaskAt = flaskNow;
+                            if (pad.IsLeaderConnected)
+                            {
+                                pad.PressLeaderFlask(false, debounceMs);
+                            }
+                            else
+                            {
+                                BotInput.FastPressKey(s.ManaFlaskKey);
+                            }
                         }
                     }
                 }
@@ -376,14 +385,15 @@ namespace AutoExile2.Modes
                 if (fLife.Health.Current <= 0) return; // Follower is dead, do not waste flasks
                 var fVitals = new PlayerVitals(fLife);
 
-                const int debounceMs = CombatSystem.FlaskDebounceMs;
+                int lifeDebounceMs = CombatSystem.NormalizeFlaskCooldownMs(s.LifeFlaskCooldownMs);
+                int manaDebounceMs = CombatSystem.NormalizeFlaskCooldownMs(s.ManaFlaskCooldownMs);
 
                 if (s.P2AutoLifeFlask && fVitals.HpPercent <= s.P2LifeFlaskThresholdPercent)
                 {
                     bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(follower, 0, isLife: true);
                     if (!active)
                     {
-                        pad.PressFollowerFlask(true, debounceMs);
+                        pad.PressFollowerFlask(true, lifeDebounceMs);
                     }
                 }
 
@@ -392,7 +402,7 @@ namespace AutoExile2.Modes
                     bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(follower, 1, isLife: false);
                     if (!active)
                     {
-                        pad.PressFollowerFlask(false, debounceMs);
+                        pad.PressFollowerFlask(false, manaDebounceMs);
                     }
                 }
             }

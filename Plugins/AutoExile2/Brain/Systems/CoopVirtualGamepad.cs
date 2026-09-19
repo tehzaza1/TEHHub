@@ -66,9 +66,11 @@ namespace AutoExile2.Systems
         public bool IsLeaderSprinting { get; private set; } = false;
         private volatile bool followerSprintActive = false;
 
-        // Rate-limit stopwatches
-        private readonly Stopwatch leaderFlaskTimer = Stopwatch.StartNew();
-        private readonly Stopwatch followerFlaskTimer = Stopwatch.StartNew();
+        // Rate-limit stopwatches. Life and mana must be independent so one flask does not suppress the other.
+        private readonly Stopwatch leaderLifeFlaskTimer = Stopwatch.StartNew();
+        private readonly Stopwatch leaderManaFlaskTimer = Stopwatch.StartNew();
+        private readonly Stopwatch followerLifeFlaskTimer = Stopwatch.StartNew();
+        private readonly Stopwatch followerManaFlaskTimer = Stopwatch.StartNew();
         private readonly Stopwatch followerSkillTimer = Stopwatch.StartNew();
 
         [LibraryImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
@@ -409,9 +411,11 @@ namespace AutoExile2.Systems
         public void PressFollowerFlask(bool isLife, int cooldownMs = 3000)
         {
             if (this.followerXbox == null) return;
-            if (this.followerFlaskTimer.ElapsedMilliseconds < cooldownMs) return;
 
-            this.followerFlaskTimer.Restart();
+            var timer = isLife ? this.followerLifeFlaskTimer : this.followerManaFlaskTimer;
+            if (timer.ElapsedMilliseconds < cooldownMs) return;
+
+            timer.Restart();
             var button = isLife ? Xbox360Button.Left : Xbox360Button.Right;
             var controller = this.followerXbox;
 
@@ -447,9 +451,11 @@ namespace AutoExile2.Systems
         public void PressLeaderFlask(bool isLife, int cooldownMs = 3000)
         {
             if (this.leaderXbox == null) return;
-            if (this.leaderFlaskTimer.ElapsedMilliseconds < cooldownMs) return;
 
-            this.leaderFlaskTimer.Restart();
+            var timer = isLife ? this.leaderLifeFlaskTimer : this.leaderManaFlaskTimer;
+            if (timer.ElapsedMilliseconds < cooldownMs) return;
+
+            timer.Restart();
             var button = isLife ? Xbox360Button.Left : Xbox360Button.Right;
             var controller = this.leaderXbox;
 
