@@ -68,7 +68,14 @@ namespace AutoExile2.Systems
 
         private static readonly HashSet<VK> HeldKeys = new();
         private static readonly object KeyLock = new();
+        private static readonly object AttackInputLock = new();
         private static readonly Random Rng = new();
+
+        private static long transientAttackGeneration;
+        private static AttackInputType? transientAttackType;
+        private static VK transientAttackKey;
+        private static bool transientAttackIsDown;
+        private static bool transientAttackIsDefensive;
 
         // ── AutoExile Humanized Timing Constants (Box-Muller) ──
         public const float SettleMeanMs = 70f;
@@ -323,9 +330,14 @@ namespace AutoExile2.Systems
         public static void SendKey(int vKey, int baseHoldMs = 25) => TapKey((VK)vKey, baseHoldMs);
 
         /// <summary>
-        /// Executes attack action immediately with zero pre-delay and snappy execution.
+        /// Executes an attack/skill input immediately. Held inputs are tracked so STOP/pause and
+        /// defensive preemption can release them immediately instead of waiting for an old Task delay.
         /// </summary>
-        public static void ExecuteAttack(AttackInputType type, VK key, int baseHoldMs = 50)
+        public static void ExecuteAttack(
+            AttackInputType type,
+            VK key,
+            int baseHoldMs = 50,
+            bool defensive = false)
         {
             if (type == AttackInputType.KeyboardKey && baseHoldMs <= 30)
             {
@@ -333,35 +345,125 @@ namespace AutoExile2.Systems
                 return;
             }
 
+            long generation;
+            lock (AttackInputLock)
+            {
+                // Offense must never cancel a defensive hold that is still active.
+                if (!defensive && transientAttackType.HasValue && transientAttackIsDefensive)
+                {
+                    return;
+                }
+
+                ReleaseTransientAttackLocked(includeDefensive: defensive);
+                generation = ++transientAttackGeneration;
+                transientAttackType = type;
+                transientAttackKey = key;
+                transientAttackIsDown = false;
+                transientAttackIsDefensive = defensive;
+            }
+
             Task.Run(async () =>
             {
                 int hold = Math.Max(15, GaussianDelay(baseHoldMs, 5f));
 
-                switch (type)
+                lock (AttackInputLock)
                 {
-                    case AttackInputType.MouseRight:
-                        mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
-                        await Task.Delay(hold);
-                        mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
-                        break;
-                    case AttackInputType.MouseLeft:
-                        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-                        await Task.Delay(hold);
-                        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-                        break;
-                    case AttackInputType.MouseMiddle:
-                        mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0);
-                        await Task.Delay(hold);
-                        mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
-                        break;
-                    case AttackInputType.KeyboardKey:
-                        keybd_event((byte)key, 0, 0, 0);
-                        await Task.Delay(hold);
-                        keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
-                        break;
+                    if (generation != transientAttackGeneration ||
+                        transientAttackType != type ||
+                        transientAttackKey != key)
+                    {
+                        return;
+                    }
+
+                    SendAttackDown(type, key);
+                    transientAttackIsDown = true;
+                    lastInputEvent = DateTime.Now;
                 }
-                lastInputEvent = DateTime.Now;
+
+                await Task.Delay(hold);
+
+                lock (AttackInputLock)
+                {
+                    if (generation != transientAttackGeneration ||
+                        transientAttackType != type ||
+                        transientAttackKey != key)
+                    {
+                        return;
+                    }
+
+                    if (transientAttackIsDown)
+                    {
+                        SendAttackUp(type, key);
+                    }
+
+                    transientAttackType = null;
+                    transientAttackIsDown = false;
+                    transientAttackIsDefensive = false;
+                    lastInputEvent = DateTime.Now;
+                }
             });
+        }
+
+        private static void SendAttackDown(AttackInputType type, VK key)
+        {
+            switch (type)
+            {
+                case AttackInputType.MouseRight:
+                    mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
+                    break;
+                case AttackInputType.MouseLeft:
+                    mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+                    break;
+                case AttackInputType.MouseMiddle:
+                    mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0);
+                    break;
+                case AttackInputType.KeyboardKey:
+                    keybd_event((byte)key, 0, 0, 0);
+                    break;
+            }
+        }
+
+        private static void SendAttackUp(AttackInputType type, VK key)
+        {
+            switch (type)
+            {
+                case AttackInputType.MouseRight:
+                    mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+                    break;
+                case AttackInputType.MouseLeft:
+                    mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                    break;
+                case AttackInputType.MouseMiddle:
+                    mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
+                    break;
+                case AttackInputType.KeyboardKey:
+                    keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                    break;
+            }
+        }
+
+        private static void ReleaseTransientAttackLocked(bool includeDefensive)
+        {
+            if (!transientAttackType.HasValue)
+            {
+                return;
+            }
+
+            if (transientAttackIsDefensive && !includeDefensive)
+            {
+                return;
+            }
+
+            transientAttackGeneration++;
+            if (transientAttackIsDown)
+            {
+                SendAttackUp(transientAttackType.Value, transientAttackKey);
+            }
+
+            transientAttackType = null;
+            transientAttackIsDown = false;
+            transientAttackIsDefensive = false;
+            lastInputEvent = DateTime.Now;
         }
 
         private static bool isRightMouseDown = false;
@@ -440,25 +542,53 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Releases all currently held attack inputs and channels.
+        /// Releases only offensive transient attacks plus all targeted channels.
+        /// Defensive/self-skill holds are preserved so a normal combat cleanup cannot cut off a Guard/Buff.
+        /// </summary>
+        public static void ReleaseOffensiveAttackInputs()
+        {
+            lock (AttackInputLock)
+            {
+                ReleaseTransientAttackLocked(includeDefensive: false);
+            }
+
+            ReleaseChannelInputs();
+        }
+
+        /// <summary>
+        /// Releases every tracked attack/skill hold and all channels.
+        /// Used by lifecycle STOP/pause and hard safety cleanup.
         /// </summary>
         public static void ReleaseAllAttackInputs()
+        {
+            lock (AttackInputLock)
+            {
+                ReleaseTransientAttackLocked(includeDefensive: true);
+            }
+
+            ReleaseChannelInputs();
+        }
+
+        private static void ReleaseChannelInputs()
         {
             if (isRightMouseDown)
             {
                 mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
                 isRightMouseDown = false;
             }
+
             if (isLeftMouseDown)
             {
                 mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
                 isLeftMouseDown = false;
             }
+
             if (isMiddleMouseDown)
             {
                 mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
                 isMiddleMouseDown = false;
             }
+
             if (activeChannelKey.HasValue)
             {
                 KeyUp(activeChannelKey.Value);
@@ -641,7 +771,7 @@ namespace AutoExile2.Systems
         public static int GaussianDelay(float mean, float stdDev) => BotInput.GaussianDelay(mean, stdDev);
         public static int RandSettle() => BotInput.RandSettle();
         public static int RandHold() => BotInput.RandHold();
-        public static Vector2 RandomizeWithinRect(float cx, float cy, float hw, float hh) => BotInput.RandomizeWithinRect(cx, cy, hw, hw);
+        public static Vector2 RandomizeWithinRect(float cx, float cy, float hw, float hh) => BotInput.RandomizeWithinRect(cx, cy, hw, hh);
         public static void MoveCursor(Vector2 screenPos) => BotInput.MoveCursor(screenPos);
         public static Task MoveCursorOrganic(Vector2 target) => BotInput.MoveCursorOrganic(target);
         public static void HumanClick(Vector2 screenPos, bool rightClick = false) => BotInput.HumanClick(screenPos, rightClick);
