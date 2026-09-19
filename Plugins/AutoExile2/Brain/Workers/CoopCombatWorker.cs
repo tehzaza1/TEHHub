@@ -165,8 +165,14 @@ namespace AutoExile2.Brain.Workers
                     if (skill.TargetFilter == SkillTargetFilter.UniqueOnly && targetRarity != Rarity.Unique) continue;
 
                     if (skill.MinNearbyEnemies > 0 && p.NearbyEnemyCount < skill.MinNearbyEnemies) continue;
+
+                    var targetGrid = new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y);
+                    float targetDistance = Vector2.Distance(p.FollowerGrid, targetGrid);
+                    float castDistance = skill.Role == SkillRole.TotemOrMinion
+                        ? targetDistance * 0.65f
+                        : targetDistance;
                     float effectiveRange = skill.MaxTargetRange > 0 ? skill.MaxTargetRange : 75f;
-                    if (p.ClosestEnemyDistance > effectiveRange) continue;
+                    if (castDistance > effectiveRange) continue;
 
                     if (CombatSystem.TargetHasConfiguredDebuff(p.BestCombatTarget, skill)) continue;
 

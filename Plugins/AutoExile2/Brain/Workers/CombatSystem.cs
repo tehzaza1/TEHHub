@@ -989,10 +989,10 @@ namespace AutoExile2.Systems
             if (actor.IsSkillUsable != null && !actor.IsSkillUsable.Contains(matchedKey))
             {
                 bool anyUsable = false;
-                string cleanMatched = CleanBuffString(matchedKey);
+                string normalizedMatched = NormalizeSkillMatchName(matchedKey);
                 foreach (var usableName in actor.IsSkillUsable)
                 {
-                    if (CleanBuffString(usableName) == cleanMatched)
+                    if (NormalizeSkillMatchName(usableName) == normalizedMatched)
                     {
                         anyUsable = true;
                         break;
@@ -1287,7 +1287,7 @@ namespace AutoExile2.Systems
 
             var targetGrid = new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y);
 
-            bool hasExplicitSkillConfiguration = settings.Skills != null && settings.Skills.Count > 0;
+            bool hasExplicitSkillConfiguration = settings.Skills != null;
             var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
 
             if (this.activeChannelSlot != null &&
@@ -1296,7 +1296,8 @@ namespace AutoExile2.Systems
                  !this.activeChannelSlot.IsChannel ||
                  this.activeChannelSlot.Role == SkillRole.Disabled ||
                  this.activeChannelSlot.Role == SkillRole.SelfBuffGuard ||
-                 this.activeChannelSlot.Role == SkillRole.CorpseTargeted))
+                 this.activeChannelSlot.Role == SkillRole.CorpseTargeted ||
+                 this.activeChannelSlot.Role == SkillRole.Culler))
             {
                 this.StopOffensiveInputs();
             }
@@ -1582,9 +1583,10 @@ namespace AutoExile2.Systems
                 foreach (var entity in area.AwakeEntities.Values)
                 {
                     if (!entity.IsValid) continue;
-                    if (entity.Path.Contains("Totem", StringComparison.OrdinalIgnoreCase) ||
-                        entity.Path.Contains("Ballista", StringComparison.OrdinalIgnoreCase) ||
-                        entity.Path.Contains("Ancestor", StringComparison.OrdinalIgnoreCase))
+                    string path = entity.Path ?? string.Empty;
+                    if (path.Contains("Totem", StringComparison.OrdinalIgnoreCase) ||
+                        path.Contains("Ballista", StringComparison.OrdinalIgnoreCase) ||
+                        path.Contains("Ancestor", StringComparison.OrdinalIgnoreCase))
                     {
                         if (IsFriendlyTotem(entity) && IsTotemAlive(entity))
                         {
