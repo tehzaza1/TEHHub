@@ -64,6 +64,8 @@ namespace TEHhub.Ui
         private static uint previousAreaHash;
         private static long previousLocalPlayer;
         private static long previousWorldData;
+        private static int sessionProcessId;
+        private static long sessionProcessBase;
 
         public enum V2ProbeStatus
         {
@@ -92,7 +94,9 @@ namespace TEHhub.Ui
             int LocalPlayerChanges,
             int WorldDataChanges,
             DateTime? FirstSampleUtc,
-            DateTime? LastSampleUtc)
+            DateTime? LastSampleUtc,
+            int ProcessId,
+            long ProcessBase)
         {
             public bool HasCompleteLoadingCycle => this.LoadingEnterTransitions > 0 && this.LoadingExitTransitions > 0;
 
@@ -132,6 +136,51 @@ namespace TEHhub.Ui
                 previousAreaHash = 0;
                 previousLocalPlayer = 0;
                 previousWorldData = 0;
+                sessionProcessId = 0;
+                sessionProcessBase = 0;
+            }
+        }
+
+        internal static void ObserveSessionProcessIdentity(int processId, long processBase)
+        {
+            if (processId <= 0 || processBase <= 0)
+            {
+                return;
+            }
+
+            lock (SessionEvidenceGate)
+            {
+                if (sessionProcessId == 0 && sessionProcessBase == 0)
+                {
+                    sessionProcessId = processId;
+                    sessionProcessBase = processBase;
+                    return;
+                }
+
+                if (sessionProcessId == processId && sessionProcessBase == processBase)
+                {
+                    return;
+                }
+
+                sessionSamples = 0;
+                sessionLoadingSamples = 0;
+                sessionSawLoadingIdle = false;
+                sessionSawLoadingActive = false;
+                sessionLoadingEnterTransitions = 0;
+                sessionLoadingExitTransitions = 0;
+                sessionAreaInstanceChanges = 0;
+                sessionAreaHashChanges = 0;
+                sessionLocalPlayerChanges = 0;
+                sessionWorldDataChanges = 0;
+                sessionFirstSampleUtc = null;
+                sessionLastSampleUtc = null;
+                previousLoadingState = null;
+                previousAreaInstance = 0;
+                previousAreaHash = 0;
+                previousLocalPlayer = 0;
+                previousWorldData = 0;
+                sessionProcessId = processId;
+                sessionProcessBase = processBase;
             }
         }
 
@@ -151,7 +200,9 @@ namespace TEHhub.Ui
                     sessionLocalPlayerChanges,
                     sessionWorldDataChanges,
                     sessionFirstSampleUtc,
-                    sessionLastSampleUtc);
+                    sessionLastSampleUtc,
+                    sessionProcessId,
+                    sessionProcessBase);
             }
         }
 
@@ -1377,6 +1428,10 @@ namespace TEHhub.Ui
 
         private static void ObserveSessionEvidence(SafeMemoryHandle reader)
         {
+            ObserveSessionProcessIdentity(
+                Core.Process.Information?.Id ?? 0,
+                Core.Process.Address.ToInt64());
+
             byte? isLoading = null;
             long areaInstance = 0;
             uint areaHash = 0;
