@@ -184,8 +184,8 @@ namespace AutoExile2.Modes.WaveFarm
             // P3.5 - Boss Arena Encounter Sequence (Door -> Checkpoint)
             if (this.bossLearner.HasBossTarget && !this.bossLearner.BossReached)
             {
-                // If we detected a Fog Door and player hasn't passed it yet (distance > 15g), go to door first!
-                if (this.bossLearner.BossDoorPos.HasValue && Vector2.Distance(playerPos, this.bossLearner.BossDoorPos.Value) > 15f)
+                // If we detected a Fog Door and have not reached it yet, go to the door first.
+                if (this.bossLearner.BossDoorPos.HasValue && !this.bossLearner.BossDoorReached)
                 {
                     var doorTarget = this.bossLearner.BossDoorPos.Value;
                     if (!this.IsFailedExploreTarget(doorTarget))
@@ -194,7 +194,7 @@ namespace AutoExile2.Modes.WaveFarm
                     }
                 }
 
-                // If door passed or only checkpoint found, walk straight to Boss Checkpoint!
+                // Once the door is reached (or when no door was discovered), continue to the checkpoint.
                 if (this.bossLearner.BossCheckpointPos.HasValue)
                 {
                     var bossTarget = this.bossLearner.BossCheckpointPos.Value;
