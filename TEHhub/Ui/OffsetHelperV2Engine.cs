@@ -145,6 +145,12 @@ namespace TEHhub.Ui
                 var envVec = CanonicalStructuralInvariants.ValidateStdVector(areaOffsets.Environments);
                 details["EnvironmentsVector"] = envVec.Detail;
 
+                if (!envVec.IsValid)
+                {
+                    return new V2ProbeResult("Area & Zone Info", V2ProbeStatus.Fail,
+                        $"Environments vector failed structural validation: {envVec.Detail}", details, areaOffsets.CurrentAreaLevel);
+                }
+
                 if (areaOffsets.CurrentAreaLevel < 1 || areaOffsets.CurrentAreaLevel > 100)
                 {
                     return new V2ProbeResult("Area & Zone Info", V2ProbeStatus.Warning,
@@ -183,13 +189,20 @@ namespace TEHhub.Ui
                 details["TotalLoadingScreenTimeMs"] = $"{data.TotalLoadingScreenTimeMs} ms";
                 details["CurrentAreaDetailsPtr"] = $"0x{data.CurrentAreaDetailsPtr.ToInt64():X}";
 
-                var isDetailsCanonical = CanonicalStructuralInvariants.IsCanonicalPointer(data.CurrentAreaDetailsPtr);
-                details["AreaDetailsCanonical"] = isDetailsCanonical.ToString();
+                var isDetailsCanonical = data.CurrentAreaDetailsPtr == IntPtr.Zero ||
+                                         CanonicalStructuralInvariants.IsCanonicalPointer(data.CurrentAreaDetailsPtr);
+                details["AreaDetailsCanonicalOrNull"] = isDetailsCanonical.ToString();
 
                 if (data.IsLoading != 0 && data.IsLoading != 1)
                 {
                     return new V2ProbeResult("Area Loading State", V2ProbeStatus.Warning,
                         $"IsLoading has unexpected value {data.IsLoading} (expected 0 or 1).", details, data.IsLoading);
+                }
+
+                if (!isDetailsCanonical)
+                {
+                    return new V2ProbeResult("Area Loading State", V2ProbeStatus.Warning,
+                        $"CurrentAreaDetailsPtr 0x{data.CurrentAreaDetailsPtr.ToInt64():X} is non-null and non-canonical.", details, data.IsLoading);
                 }
 
                 return new V2ProbeResult("Area Loading State", V2ProbeStatus.Pass,
@@ -259,6 +272,12 @@ namespace TEHhub.Ui
                 var isValid = EntityHelper.IsValidEntity(entity.IsValid);
                 details["IsValid"] = isValid.ToString();
 
+                if (!isValid)
+                {
+                    return new V2ProbeResult("LocalPlayer", V2ProbeStatus.Warning,
+                        $"Player entity resolved as '{path}' but validity byte is not accepted.", details, entity.Id);
+                }
+
                 return new V2ProbeResult("LocalPlayer", V2ProbeStatus.Pass,
                     $"Player: {path} (Id: {entity.Id}, Valid: {isValid})", details, entity.Id);
             }
@@ -304,6 +323,29 @@ namespace TEHhub.Ui
                 {
                     return new V2ProbeResult("Awake Entities", V2ProbeStatus.Fail,
                         $"AwakeEntities Head pointer 0x{awakeMap.Head.ToInt64():X} is non-canonical.", details);
+                }
+
+                var sentinel = reader.ReadMemory<StdMapNode<uint, IntPtr>>(awakeMap.Head);
+                StdMapNode<uint, IntPtr>? rootNode = null;
+                if (awakeMap.Size > 0 && CanonicalStructuralInvariants.IsCanonicalPointer(sentinel.Parent))
+                {
+                    rootNode = reader.ReadMemory<StdMapNode<uint, IntPtr>>(sentinel.Parent);
+                }
+
+                var mapValidation = CanonicalStructuralInvariants.ValidateStdMap(
+                    awakeMap.Head.ToInt64(),
+                    awakeMap.Size,
+                    sentinel.IsNil ? (byte)1 : (byte)0,
+                    sentinel.Color,
+                    sentinel.Parent.ToInt64(),
+                    rootNode.HasValue ? (byte?)(rootNode.Value.IsNil ? 1 : 0) : null,
+                    rootNode.HasValue ? rootNode.Value.Color : null);
+                details["StdMapValidation"] = mapValidation.Detail;
+
+                if (!mapValidation.IsValid)
+                {
+                    return new V2ProbeResult("Awake Entities", V2ProbeStatus.Fail,
+                        $"AwakeEntities StdMap failed sentinel/root validation: {mapValidation.Detail}", details, awakeMap.Size);
                 }
 
                 // Sample awake entities from cached instance
@@ -394,8 +436,20 @@ namespace TEHhub.Ui
                         "Matrix elements at +0x1A0 are NaN or Infinity.", details);
                 }
 
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(worldAreaDetailsPtr))
+                {
+                    return new V2ProbeResult("WorldData +0x98 Union Audit", V2ProbeStatus.Warning,
+                        $"Matrix is finite, but +0x98 value 0x{worldAreaDetailsPtr.ToInt64():X} is not a canonical WorldAreaDetails pointer in this context.", details);
+                }
+
+                if (!areaDetailsValid)
+                {
+                    return new V2ProbeResult("WorldData +0x98 Union Audit", V2ProbeStatus.Warning,
+                        "WorldAreaDetails pointer is canonical, but its row pointer did not validate.", details);
+                }
+
                 return new V2ProbeResult("WorldData +0x98 Union Audit", V2ProbeStatus.Pass,
-                    $"Union confirmed: AreaDetailsPtr=0x{worldAreaDetailsPtr.ToInt64():X} (+0x98), Matrix verified at +0x1A0", details);
+                    $"Union structurally consistent: AreaDetailsPtr=0x{worldAreaDetailsPtr.ToInt64():X} (+0x98), row pointer canonical, matrix finite at +0x1A0", details);
             }
             catch (Exception ex)
             {
@@ -426,13 +480,20 @@ namespace TEHhub.Ui
                 details["M33"] = matrix.M33.ToString("F3");
                 details["M44"] = matrix.M44.ToString("F3");
 
-                var isFinite = !float.IsNaN(matrix.M11) && !float.IsNaN(matrix.M22) &&
-                               !float.IsInfinity(matrix.M11) && !float.IsInfinity(matrix.M22);
+                var isFinite =
+                    !float.IsNaN(matrix.M11) && !float.IsInfinity(matrix.M11) &&
+                    !float.IsNaN(matrix.M22) && !float.IsInfinity(matrix.M22) &&
+                    !float.IsNaN(matrix.M33) && !float.IsInfinity(matrix.M33) &&
+                    !float.IsNaN(matrix.M44) && !float.IsInfinity(matrix.M44);
 
-                if (!isFinite)
+                var isNonZero = matrix != default;
+
+                if (!isFinite || !isNonZero)
                 {
                     return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
-                        "Camera projection matrix contains NaN or Infinite values.", details);
+                        !isFinite
+                            ? "Camera projection matrix contains NaN or Infinite values."
+                            : "Camera projection matrix is all zeroes.", details);
                 }
 
                 // Live test projection using Player position
@@ -452,12 +513,38 @@ namespace TEHhub.Ui
                     var distFromCenter = Vector2.Distance(screen, new Vector2(halfW, halfH));
                     details["DistanceFromCenter"] = $"{distFromCenter:F1} px";
 
+                    var screenFinite =
+                        !float.IsNaN(screen.X) && !float.IsInfinity(screen.X) &&
+                        !float.IsNaN(screen.Y) && !float.IsInfinity(screen.Y);
+                    if (!screenFinite)
+                    {
+                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Fail,
+                            "WorldToScreen returned NaN or Infinity.", details);
+                    }
+
+                    var width = Core.Process.WindowArea.Width;
+                    var height = Core.Process.WindowArea.Height;
+                    if (width <= 0 || height <= 0)
+                    {
+                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Unavailable,
+                            "Window dimensions are unavailable, so projected coordinates cannot be range-checked.", details);
+                    }
+
+                    var insideClient = screen.X >= 0 && screen.Y >= 0 && screen.X <= width && screen.Y <= height;
+                    details["ProjectionInsideClient"] = insideClient.ToString();
+
+                    if (!insideClient)
+                    {
+                        return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                            $"Projection is finite but outside the client area: ({screen.X:F0}, {screen.Y:F0}) vs {width}x{height}.", details);
+                    }
+
                     return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Pass,
-                        $"Projection valid: Screen ({screen.X:F0}, {screen.Y:F0}) inside {Core.Process.WindowArea.Width}x{Core.Process.WindowArea.Height}", details);
+                        $"Projection valid: Screen ({screen.X:F0}, {screen.Y:F0}) inside {width}x{height}", details);
                 }
 
-                return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Pass,
-                    "Camera matrix is non-zero and finite (Player Render position not yet loaded for live projection).", details);
+                return new V2ProbeResult("Camera WorldToScreen", V2ProbeStatus.Warning,
+                    "Camera matrix is non-zero and finite, but Player Render position is unavailable for semantic projection validation.", details);
             }
             catch (Exception ex)
             {
@@ -571,6 +658,12 @@ namespace TEHhub.Ui
                 var invArray = reader.ReadStdVector<InventoryArrayStruct>(serverDataStructure.PlayerInventories);
                 details["DiscoveredInventoryCount"] = invArray.Length.ToString();
 
+                if (invArray.Length == 0)
+                {
+                    return new V2ProbeResult("Player Inventories", V2ProbeStatus.Unavailable,
+                        "PlayerInventories vector is structurally valid but empty in the current context.", details);
+                }
+
                 int validPtrCount = 0;
                 for (int i = 0; i < Math.Min(invArray.Length, 15); i++)
                 {
@@ -579,6 +672,12 @@ namespace TEHhub.Ui
                     var isCanonical = CanonicalStructuralInvariants.IsCanonicalPointer(ptr0);
                     if (isCanonical) validPtrCount++;
                     details[$"Inv_{i}_{id}"] = $"Id={invArray[i].InventoryId}, Ptr0=0x{ptr0.ToInt64():X}, Valid={isCanonical}";
+                }
+
+                if (validPtrCount == 0)
+                {
+                    return new V2ProbeResult("Player Inventories", V2ProbeStatus.Warning,
+                        $"PlayerInventories contains {invArray.Length} entries, but none of the first {Math.Min(invArray.Length, 15)} pointers are canonical.", details, invArray.Length);
                 }
 
                 return new V2ProbeResult("Player Inventories", V2ProbeStatus.Pass,
@@ -651,6 +750,12 @@ namespace TEHhub.Ui
 
                 var itemVecResult = CanonicalStructuralInvariants.ValidateStdVector(invStruct.ItemList, elementSize: 8);
                 details["ItemListVector"] = itemVecResult.Detail;
+
+                if (!itemVecResult.IsValid)
+                {
+                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Fail,
+                        $"Inventory ItemList vector failed structural validation: {itemVecResult.Detail}", details);
+                }
 
                 var itemSlots = reader.ReadStdVector<IntPtr>(invStruct.ItemList);
                 details["TotalSlotEntries"] = itemSlots.Length.ToString();
