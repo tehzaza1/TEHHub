@@ -124,6 +124,7 @@ namespace AutoExile2.Systems
                 this.defensiveInputBusyUntil = DateTime.MinValue;
                 this.defensiveInputPriority = int.MinValue;
                 this.defensiveInputIsEmergency = false;
+                this.nextAttackAllowed = DateTime.MinValue;
             }
         }
 
@@ -394,7 +395,7 @@ namespace AutoExile2.Systems
                 this.PackCenter = Vector2.Zero;
                 this.ObservedTargetDebuffs.Clear();
 
-                // PrepareDefensiveCast already stopped offense before a self skill fired.
+                // The defensive scheduler already stopped offense before a self skill fired.
                 // Do not immediately cancel that new defensive hold just because no monster target exists.
                 if (executedSelfSkill == null)
                 {
@@ -756,13 +757,12 @@ namespace AutoExile2.Systems
             }
 
             var now = DateTime.Now;
-            foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard).OrderByDescending(s => s.Priority))
+            // Low-HP defensive slots are owned exclusively by the emergency lane so the
+            // render-thread panic path and normal combat loop cannot double-dispatch them.
+            foreach (var slot in settings.Skills
+                .Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard && !s.OnlyOnLowHp)
+                .OrderByDescending(s => s.Priority))
             {
-                if (slot.OnlyOnLowHp && !vitals.IsLowVital(slot))
-                {
-                    continue;
-                }
-
                 if (slot.MinNearbyEnemies > 0 && nearbyHostiles < slot.MinNearbyEnemies)
                 {
                     continue;
@@ -842,12 +842,13 @@ namespace AutoExile2.Systems
                         return false;
                     }
 
-                    BotInput.ReleaseAllAttackInputs();
                     if (this.activeChannelSlot != null)
                     {
                         BotInput.StopChannel(this.activeChannelSlot.InputType, this.activeChannelSlot.Key);
                         this.activeChannelSlot = null;
                     }
+
+                    BotInput.ReleaseAllAttackInputs();
                 }
                 else
                 {
