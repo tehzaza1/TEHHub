@@ -47,19 +47,21 @@ namespace AutoExile2.Brain.Workers
         {
             if (p.FollowerEntity == null || !s.P2EnableCombat || p.IsPeacefulZone)
             {
-                pad.SetFollowerAim(Vector2.Zero);
+                this.NeutralizeAim(pad);
                 return false;
             }
 
             // Sprinting stance sheathes weapons -> no attacks allowed during HardCatchup or active sprint
             if (goal.Type == BotGoalType.HardCatchup || p.FollowerAnimId == ANIM_SPRINT)
             {
+                this.NeutralizeAim(pad);
                 return false;
             }
 
             var follower = p.FollowerEntity;
             if (!follower.TryGetComponent<Life>(out var fLife) || fLife.Health.Current <= 0)
             {
+                this.NeutralizeAim(pad);
                 return false;
             }
 
@@ -97,6 +99,7 @@ namespace AutoExile2.Brain.Workers
 
             if (!shouldAttack || s.P2Skills == null)
             {
+                this.NeutralizeAim(pad);
                 return false;
             }
 
@@ -169,7 +172,14 @@ namespace AutoExile2.Brain.Workers
                 }
             }
 
+            this.NeutralizeAim(pad);
             return false;
+        }
+
+        private void NeutralizeAim(CoopVirtualGamepad pad)
+        {
+            pad.SetFollowerAim(Vector2.Zero);
+            this.ActiveSkillName = string.Empty;
         }
     }
 }
