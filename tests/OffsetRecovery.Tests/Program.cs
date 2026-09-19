@@ -496,6 +496,16 @@ try
     Check(Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.Entities)).ToInt32() == 0x6F0,
         "AreaInstanceOffsets.Entities must be at 0x6F0.");
 
+    // AwakeEntities raw-walk layout assumptions used by OH2.
+    Check(Marshal.SizeOf<StdMapNode<EntityNodeKey, EntityNodeValue>>() == 0x30,
+        "AwakeEntities StdMap node must remain 0x30 bytes.");
+    Check(Marshal.OffsetOf<StdMapNode<EntityNodeKey, EntityNodeValue>>(
+            nameof(StdMapNode<EntityNodeKey, EntityNodeValue>.Data)).ToInt32() == 0x20,
+        "AwakeEntities StdMap node data must remain at +0x20.");
+    Check(Marshal.OffsetOf<StdMapNodeData<EntityNodeKey, EntityNodeValue>>(
+            nameof(StdMapNodeData<EntityNodeKey, EntityNodeValue>.Value)).ToInt32() == 0x08,
+        "AwakeEntities StdMap node value must follow the 8-byte EntityNodeKey.");
+
     // InGameStateOffset structural validation
     Check(Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.AreaInstanceData)).ToInt32() == 0x290,
         "InGameStateOffset.AreaInstanceData must be at 0x290.");
