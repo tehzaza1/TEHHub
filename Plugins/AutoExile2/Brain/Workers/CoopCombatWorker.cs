@@ -71,7 +71,9 @@ namespace AutoExile2.Brain.Workers
             // 1. Self Buff & Guard Skills (Highest combat priority)
             if (s.P2Skills != null)
             {
-                foreach (var slot in s.P2Skills.Where(x => x.Enabled && (x.Role == SkillRole.SelfBuffGuard || x.Category == "Buff" || x.Category == "Guard" || x.Category == "Warcry")).OrderByDescending(x => x.Priority))
+                foreach (var slot in s.P2Skills
+                    .Where(x => x.Enabled && x.Role == SkillRole.SelfBuffGuard)
+                    .OrderByDescending(x => x.Priority))
                 {
                     int castSpacingMs = CombatSystem.GetSkillCastSpacingMs(slot);
                     if ((now - slot.LastCastAt).TotalMilliseconds < castSpacingMs) continue;
@@ -114,7 +116,9 @@ namespace AutoExile2.Brain.Workers
             }
 
             // 2.1 Culler Skills (Focused fire ahead of Leader)
-            foreach (var cullerSkill in s.P2Skills.Where(x => x.Enabled && (x.Category == "Culler" || x.Role == SkillRole.Culler)).OrderByDescending(x => x.Priority))
+            foreach (var cullerSkill in s.P2Skills
+                .Where(x => x.Enabled && x.Role == SkillRole.Culler)
+                .OrderByDescending(x => x.Priority))
             {
                 int cullerSpacingMs = Math.Max(100, CombatSystem.GetSkillCastSpacingMs(cullerSkill));
                 if ((now - cullerSkill.LastCastAt).TotalMilliseconds < cullerSpacingMs) continue;
@@ -147,10 +151,6 @@ namespace AutoExile2.Brain.Workers
                     x.Role != SkillRole.SelfBuffGuard &&
                     x.Role != SkillRole.Culler &&
                     x.Role != SkillRole.CorpseTargeted &&
-                    x.Category != "Buff" &&
-                    x.Category != "Guard" &&
-                    x.Category != "Warcry" &&
-                    x.Category != "Culler" &&
                     x.Role != SkillRole.Disabled).OrderByDescending(x => x.Priority))
                 {
                     int castSpacingMs = CombatSystem.GetSkillCastSpacingMs(skill);
