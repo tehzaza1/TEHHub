@@ -26,7 +26,10 @@ Od114RecoveryTests.RunAll(Check);
 Od144RecoveryTests.RunAll(Check);
 Od145RecoveryTests.RunAll(Check);
 RecoveryV1IntegrationTests.RunAll(Check);
-Console.WriteLine($"[Recovery V1] {assertions - legacyAssertions} assertions verified.");
+int recoveryAssertions = assertions;
+Console.WriteLine($"[Recovery V1] {recoveryAssertions - legacyAssertions} assertions verified.");
+SharedKernelEquivalenceTests.RunAll(Check);
+Console.WriteLine($"[Shared Kernel] {assertions - recoveryAssertions} assertions verified.");
 
 Console.ForegroundColor = ConsoleColor.Green;
 Console.WriteLine($"[PASS] {assertions} assertions verified. All OffsetDoctor tests passed.");
