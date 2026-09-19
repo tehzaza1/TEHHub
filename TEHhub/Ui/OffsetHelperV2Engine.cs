@@ -325,20 +325,31 @@ namespace TEHhub.Ui
                         $"AwakeEntities Head pointer 0x{awakeMap.Head.ToInt64():X} is non-canonical.", details);
                 }
 
-                var sentinel = reader.ReadMemory<StdMapNode<uint, IntPtr>>(awakeMap.Head);
-                StdMapNode<uint, IntPtr>? rootNode = null;
+                if (!reader.TryReadMemory<MapNodeHeader>(awakeMap.Head, out var sentinel))
+                {
+                    return new V2ProbeResult("Awake Entities", V2ProbeStatus.Fail,
+                        "AwakeEntities sentinel node could not be read.", details, awakeMap.Size);
+                }
+
+                MapNodeHeader? rootNode = null;
                 if (awakeMap.Size > 0 && CanonicalStructuralInvariants.IsCanonicalPointer(sentinel.Parent))
                 {
-                    rootNode = reader.ReadMemory<StdMapNode<uint, IntPtr>>(sentinel.Parent);
+                    if (!reader.TryReadMemory<MapNodeHeader>(sentinel.Parent, out var root))
+                    {
+                        return new V2ProbeResult("Awake Entities", V2ProbeStatus.Fail,
+                            "AwakeEntities root node could not be read.", details, awakeMap.Size);
+                    }
+
+                    rootNode = root;
                 }
 
                 var mapValidation = CanonicalStructuralInvariants.ValidateStdMap(
                     awakeMap.Head.ToInt64(),
                     awakeMap.Size,
-                    sentinel.IsNil ? (byte)1 : (byte)0,
+                    sentinel.IsNil,
                     sentinel.Color,
                     sentinel.Parent.ToInt64(),
-                    rootNode.HasValue ? (byte?)(rootNode.Value.IsNil ? 1 : 0) : null,
+                    rootNode.HasValue ? rootNode.Value.IsNil : null,
                     rootNode.HasValue ? rootNode.Value.Color : null);
                 details["StdMapValidation"] = mapValidation.Detail;
 
@@ -923,6 +934,16 @@ namespace TEHhub.Ui
                 details["Exception"] = ex.Message;
                 return new V2ProbeResult("Entity Components", V2ProbeStatus.Fail, "Exception during Component probe.", details);
             }
+        }
+
+        [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 0x20)]
+        private struct MapNodeHeader
+        {
+            [FieldOffset(0x00)] public IntPtr Left;
+            [FieldOffset(0x08)] public IntPtr Parent;
+            [FieldOffset(0x10)] public IntPtr Right;
+            [FieldOffset(0x18)] public byte Color;
+            [FieldOffset(0x19)] public byte IsNil;
         }
 
         private static V2PracticalReport BuildReport(string gameState, string procInfo, List<V2ProbeResult> probes)
