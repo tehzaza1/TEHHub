@@ -285,10 +285,13 @@ namespace TEHhub.Ui
             // 8. PlayerInventories Probe
             probes.Add(ProbePlayerInventories(reader));
 
-            // 9. Inventory / Stash Bounded Item Sampling Probe
+            // 9. Player inventory bounded item sampling probe
             probes.Add(ProbeInventoryItemSampling(reader));
 
-            // 10. Entity / Component Validation Probe
+            // 10. Stash inventory context probe
+            probes.Add(ProbeStashInventoryContext(reader));
+
+            // 11. Entity / Component Validation Probe
             probes.Add(ProbeEntityComponents(reader));
 
             return BuildReport(gameState, procInfo, probes);
@@ -939,19 +942,90 @@ namespace TEHhub.Ui
                         "No canonical inventory pointer available in PlayerInventories.", details);
                 }
 
-                details["TargetInventory"] = targetInvName;
-                details["InventoryAddress"] = $"0x{targetInvAddr.ToInt64():X}";
+                return ProbeInventoryAddress(reader, "Inventory Item Sampling", targetInvName, targetInvAddr);
+            }
+            catch (Exception ex)
+            {
+                details["Exception"] = ex.Message;
+                return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Fail, "Exception during ItemSampling probe.", details);
+            }
+        }
 
-                var invStruct = reader.ReadMemory<InventoryStruct>(targetInvAddr);
+        // =====================================================================
+        // Probe 10: Stash Inventory Context
+        // =====================================================================
+        private static V2ProbeResult ProbeStashInventoryContext(SafeMemoryHandle reader)
+        {
+            var details = new Dictionary<string, string>();
+            try
+            {
+                var liveServerData = Core.States.InGameStateObject.CurrentAreaInstance?.ServerDataObject;
+                if (liveServerData == null || liveServerData.Address == IntPtr.Zero)
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
+                        "ServerDataObject remote object is not initialized.", details);
+                }
+
+                if (!liveServerData.PlayerInventories.TryGetValue(InventoryName.StashInventoryId, out var stashAddr))
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
+                        "StashInventoryId entry is not present in PlayerInventories for the current context.", details);
+                }
+
+                details["InventoryId"] = ((int)InventoryName.StashInventoryId).ToString();
+                details["StashInventoryAddress"] = $"0x{stashAddr.ToInt64():X}";
+
+                if (stashAddr == IntPtr.Zero)
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Unavailable,
+                        "StashInventoryId is present but its pointer is null; stash is not currently available in this context.", details);
+                }
+
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(stashAddr))
+                {
+                    return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Warning,
+                        $"StashInventoryId pointer 0x{stashAddr.ToInt64():X} is non-zero but non-canonical.", details);
+                }
+
+                return ProbeInventoryAddress(reader, "Stash Inventory Context", "StashInventoryId", stashAddr);
+            }
+            catch (Exception ex)
+            {
+                details["Exception"] = ex.Message;
+                return new V2ProbeResult("Stash Inventory Context", V2ProbeStatus.Fail,
+                    "Exception during stash inventory probe.", details);
+            }
+        }
+
+        private static V2ProbeResult ProbeInventoryAddress(
+            SafeMemoryHandle reader,
+            string probeName,
+            string inventoryName,
+            IntPtr inventoryAddress)
+        {
+            var details = new Dictionary<string, string>
+            {
+                ["TargetInventory"] = inventoryName,
+                ["InventoryAddress"] = $"0x{inventoryAddress.ToInt64():X}",
+            };
+
+            try
+            {
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(inventoryAddress))
+                {
+                    return new V2ProbeResult(probeName, V2ProbeStatus.Warning,
+                        $"Inventory '{inventoryName}' pointer 0x{inventoryAddress.ToInt64():X} is non-canonical.", details);
+                }
+
+                var invStruct = reader.ReadMemory<InventoryStruct>(inventoryAddress);
                 details["TotalBoxes"] = $"{invStruct.TotalBoxes.X} x {invStruct.TotalBoxes.Y}";
                 details["ServerRequestCounter"] = invStruct.ServerRequestCounter.ToString();
 
                 var itemVecResult = CanonicalStructuralInvariants.ValidateStdVector(invStruct.ItemList, elementSize: 8);
                 details["ItemListVector"] = itemVecResult.Detail;
-
                 if (!itemVecResult.IsValid)
                 {
-                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Fail,
+                    return new V2ProbeResult(probeName, V2ProbeStatus.Fail,
                         $"Inventory ItemList vector failed structural validation: {itemVecResult.Detail}", details);
                 }
 
@@ -964,11 +1038,19 @@ namespace TEHhub.Ui
 
                 foreach (var slotPtr in itemSlots)
                 {
-                    if (slotPtr == IntPtr.Zero || !CanonicalStructuralInvariants.IsCanonicalPointer(slotPtr)) continue;
-                    if (!distinctItemPtrs.Add(slotPtr)) continue;
+                    if (slotPtr == IntPtr.Zero || !CanonicalStructuralInvariants.IsCanonicalPointer(slotPtr))
+                    {
+                        continue;
+                    }
+
+                    if (!distinctItemPtrs.Add(slotPtr))
+                    {
+                        continue;
+                    }
 
                     var invItem = reader.ReadMemory<InventoryItemStruct>(slotPtr);
-                    details[$"Item_{sampledItems}_Slot"] = $"Start=({invItem.SlotStart.X},{invItem.SlotStart.Y}), End=({invItem.SlotEnd.X},{invItem.SlotEnd.Y}), ItemPtr=0x{invItem.Item.ToInt64():X}";
+                    details[$"Item_{sampledItems}_Slot"] =
+                        $"Start=({invItem.SlotStart.X},{invItem.SlotStart.Y}), End=({invItem.SlotEnd.X},{invItem.SlotEnd.Y}), ItemPtr=0x{invItem.Item.ToInt64():X}";
 
                     if (CanonicalStructuralInvariants.IsCanonicalPointer(invItem.Item))
                     {
@@ -986,7 +1068,10 @@ namespace TEHhub.Ui
                     }
 
                     sampledItems++;
-                    if (sampledItems >= 5) break;
+                    if (sampledItems >= 5)
+                    {
+                        break;
+                    }
                 }
 
                 details["SampledItemCount"] = sampledItems.ToString();
@@ -994,22 +1079,27 @@ namespace TEHhub.Ui
 
                 if (sampledItems > 0 && validatedItems == 0)
                 {
-                    return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Warning,
-                        $"Inventory '{targetInvName}' yielded {sampledItems} sampled wrappers, but none resolved to a canonical Metadata/Items entity.", details, sampledItems);
+                    return new V2ProbeResult(probeName, V2ProbeStatus.Warning,
+                        $"Inventory '{inventoryName}' yielded {sampledItems} sampled wrappers, but none resolved to a canonical Metadata/Items entity.",
+                        details,
+                        sampledItems);
                 }
 
-                return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Pass,
-                    $"Inventory '{targetInvName}' ({invStruct.TotalBoxes.X}x{invStruct.TotalBoxes.Y}): Sampled {sampledItems} distinct items, validated {validatedItems}.", details, sampledItems);
+                return new V2ProbeResult(probeName, V2ProbeStatus.Pass,
+                    $"Inventory '{inventoryName}' ({invStruct.TotalBoxes.X}x{invStruct.TotalBoxes.Y}): sampled {sampledItems} distinct items, validated {validatedItems}.",
+                    details,
+                    sampledItems);
             }
             catch (Exception ex)
             {
                 details["Exception"] = ex.Message;
-                return new V2ProbeResult("Inventory Item Sampling", V2ProbeStatus.Fail, "Exception during ItemSampling probe.", details);
+                return new V2ProbeResult(probeName, V2ProbeStatus.Fail,
+                    $"Exception while validating inventory '{inventoryName}'.", details);
             }
         }
 
         // =====================================================================
-        // Probe 10: Entity / Component Validation
+        // Probe 11: Entity / Component Validation
         // =====================================================================
         private static V2ProbeResult ProbeEntityComponents(SafeMemoryHandle reader)
         {
