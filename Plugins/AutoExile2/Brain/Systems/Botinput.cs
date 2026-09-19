@@ -575,7 +575,7 @@ namespace AutoExile2.Systems
         {
             lock (KeyLock)
             {
-                foreach (var key in HeldKeys.ToArray())
+                foreach (var key in new List<VK>(HeldKeys))
                 {
                     keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
                 }
