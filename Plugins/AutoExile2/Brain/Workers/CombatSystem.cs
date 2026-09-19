@@ -1104,9 +1104,7 @@ namespace AutoExile2.Systems
                 return true;
             }
 
-            float distToTarget = Vector2.Distance(
-                playerGrid,
-                new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y));
+            var targetGrid = new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y);
 
             var configuredSkills = settings.Skills ?? SkillSlotConfig.GetDefaultSlots();
 
@@ -1121,15 +1119,29 @@ namespace AutoExile2.Systems
                 this.StopAllChannels();
             }
 
-            // If channeling an active skill, update cursor towards target
+            // If channeling an active skill, keep tracking the same role-aware aim point used to start it.
             if (this.activeChannelSlot != null)
             {
-                BotInput.MoveCursor(targetScreenPos);
+                Vector2 activeAimGrid = this.GetSkillAimGrid(this.activeChannelSlot, playerGrid, targetGrid);
+                float activeAimDistance = Vector2.Distance(playerGrid, activeAimGrid);
+                float activeMaxRange = this.activeChannelSlot.MaxTargetRange > 0
+                    ? this.activeChannelSlot.MaxTargetRange
+                    : settings.CombatRange;
 
-                // Check if channeling conditions are still met
-                if (distToTarget > (this.activeChannelSlot.MaxTargetRange > 0 ? this.activeChannelSlot.MaxTargetRange : settings.CombatRange))
+                if (activeAimDistance > activeMaxRange)
                 {
                     this.StopAllChannels();
+                }
+                else
+                {
+                    Vector2 activeAimPos = this.GetSkillAimScreen(
+                        this.activeChannelSlot,
+                        world,
+                        playerRender,
+                        playerGrid,
+                        targetGrid,
+                        targetScreenPos);
+                    BotInput.MoveCursor(activeAimPos);
                 }
             }
 
@@ -1215,9 +1227,11 @@ namespace AutoExile2.Systems
                     }
                 }
 
-                // Range check
+                // Range check must use the actual role-aware cast point, not always the selected monster.
+                Vector2 aimGrid = this.GetSkillAimGrid(slot, playerGrid, targetGrid);
+                float aimDistance = Vector2.Distance(playerGrid, aimGrid);
                 float maxRange = slot.MaxTargetRange > 0 ? slot.MaxTargetRange : settings.CombatRange;
-                if (distToTarget > maxRange)
+                if (aimDistance > maxRange)
                 {
                     continue;
                 }
@@ -1246,18 +1260,14 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                // Aim cursor based on SkillRole
-                Vector2 aimPos = targetScreenPos;
-                if (slot.Role == SkillRole.PackTargeted)
-                {
-                    aimPos = this.GetGridScreenPos(world, this.PackCenter, playerRender.TerrainHeight, targetScreenPos);
-                }
-                else if (slot.Role == SkillRole.TotemOrMinion)
-                {
-                    // Deploy totem slightly between player and target pack
-                    var totemGrid = Vector2.Lerp(playerGrid, new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y), 0.65f);
-                    aimPos = this.GetGridScreenPos(world, totemGrid, playerRender.TerrainHeight, targetScreenPos);
-                }
+                // Aim at the same role-aware point that passed the range check.
+                Vector2 aimPos = this.GetSkillAimScreen(
+                    slot,
+                    world,
+                    playerRender,
+                    playerGrid,
+                    targetGrid,
+                    targetScreenPos);
 
                 BotInput.MoveCursor(aimPos);
 
@@ -1289,6 +1299,40 @@ namespace AutoExile2.Systems
             }
 
             return true;
+        }
+
+        private Vector2 GetSkillAimGrid(
+            SkillSlotConfig slot,
+            Vector2 playerGrid,
+            Vector2 targetGrid)
+        {
+            return slot.Role switch
+            {
+                SkillRole.PackTargeted => this.PackCenter,
+                SkillRole.TotemOrMinion => Vector2.Lerp(playerGrid, targetGrid, 0.65f),
+                _ => targetGrid,
+            };
+        }
+
+        private Vector2 GetSkillAimScreen(
+            SkillSlotConfig slot,
+            WorldData world,
+            Render playerRender,
+            Vector2 playerGrid,
+            Vector2 targetGrid,
+            Vector2 targetScreenPos)
+        {
+            if (slot.Role == SkillRole.EnemyTargeted || slot.Role == SkillRole.Culler)
+            {
+                return targetScreenPos;
+            }
+
+            Vector2 aimGrid = this.GetSkillAimGrid(slot, playerGrid, targetGrid);
+            return this.GetGridScreenPos(
+                world,
+                aimGrid,
+                playerRender.TerrainHeight,
+                targetScreenPos);
         }
 
         private bool MatchesTargetFilter(SkillTargetFilter filter, Rarity rarity)
