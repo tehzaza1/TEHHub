@@ -34,6 +34,7 @@ namespace TEHhub
             PerformanceProfiler.InitializeCoroutines();
             MemoryReadDiagnostics.InitializeCoroutines();
             OffsetHelper.InitializeCoroutines();
+            OffsetHelperV2.InitializeCoroutines();
 #if DEBUG
             LocalDiagnosticsApi.Start();
 #endif

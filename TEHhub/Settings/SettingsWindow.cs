@@ -910,6 +910,7 @@ namespace TEHhub.Settings
                 ImGui.Checkbox(L.Label("settings.tools.performance_profiler", "Performance Profiler", "PerformanceProfiler"), ref Core.GHSettings.ShowPerfProfiler);
                 ImGui.Checkbox(L.Label("settings.tools.memory_read_diagnostics", "Memory Read Diagnostics", "MemoryReadDiagnostics"), ref Core.GHSettings.ShowMemoryDiagnostics);
                 ImGui.Checkbox(L.Label("settings.tools.offset_helper", "OffsetHelper (OH)", "OffsetHelper"), ref Core.GHSettings.ShowOffsetHelper);
+                ImGui.Checkbox(L.Label("settings.tools.offset_helper_v2", "OffsetHelper V2 (Dev/Practical)", "OffsetHelperV2"), ref Core.GHSettings.ShowOffsetHelperV2);
 #if DEBUG
                 ImGui.Checkbox(L.Label("settings.tools.krangled_passive_detector", "Krangled Passive Detector", "KrangledPassiveDetector"), ref Core.GHSettings.ShowKrangledPassiveDetector);
 #endif

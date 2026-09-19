@@ -199,6 +199,12 @@ namespace TEHhub.Settings
         public bool ShowOffsetHelper = false;
 
         /// <summary>
+        ///     Gets or sets a value indicating whether to show the OffsetHelper V2 Practical Diagnostics window.
+        ///     Preserves legacy OffsetHelper as default; V2 is an explicit test/dev entry point.
+        /// </summary>
+        public bool ShowOffsetHelperV2 = false;
+
+        /// <summary>
         ///     Gets or sets a value indicating what big nearby means to the user.
         /// </summary>
         public (int Meaning, bool IsVisible, bool FollowMouse) OuterCircle = (Meaning: 70, IsVisible: false, FollowMouse: false);

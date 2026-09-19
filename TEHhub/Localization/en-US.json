@@ -110,6 +110,7 @@
   "settings.tools.performance_profiler": "Performance Profiler",
   "settings.tools.memory_read_diagnostics": "Memory Read Diagnostics",
   "settings.tools.offset_helper": "OffsetHelper (OH)",
+  "settings.tools.offset_helper_v2": "OffsetHelper V2 (Dev/Practical)",
   "settings.tools.krangled_passive_detector": "Krangled Passive Detector",
   "settings.misc.title": "Miscellaneous Config",
   "settings.misc.fix_taskbar": "Fix Taskbar not showing",

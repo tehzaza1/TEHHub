@@ -418,6 +418,62 @@ try
         Marshal.FreeHGlobal(synthMemory);
     }
 
+    // ---------------------------------------------------------------------
+    // OffsetHelper V2 Practical Diagnostics & WorldData +0x98 Union Tests
+    // ---------------------------------------------------------------------
+    var v2Report = OffsetHelperV2Engine.RunPracticalDiagnostics();
+    Check(v2Report != null, "OffsetHelperV2Engine.RunPracticalDiagnostics must return a valid report.");
+    Check(v2Report!.Probes.Count > 0, "V2 report must contain practical diagnostic probes.");
+
+    // WorldData +0x98 Union Audit Verification
+    var worldAreaDetailsOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.WorldAreaDetailsPtr)).ToInt32();
+    var cameraStructOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.CameraStructurePtr)).ToInt32();
+    Check(worldAreaDetailsOffset == 0x98, "WorldDataOffset.WorldAreaDetailsPtr must be at 0x98.");
+    Check(cameraStructOffset == 0x98, "WorldDataOffset.CameraStructurePtr must overlap at 0x98 in LayoutKind.Explicit union.");
+
+    var cameraCodePtrOffset = Marshal.OffsetOf<CameraStructure>(nameof(CameraStructure.CodePtr)).ToInt32();
+    var cameraMatrixOffset = Marshal.OffsetOf<CameraStructure>(nameof(CameraStructure.WorldToScreenMatrix)).ToInt32();
+    Check(cameraCodePtrOffset == 0x00, "CameraStructure.CodePtr must be at offset 0x00.");
+    Check(cameraMatrixOffset == 0x108, "CameraStructure.WorldToScreenMatrix must be at offset 0x108.");
+
+    var effectiveMatrixOffset = cameraStructOffset + cameraMatrixOffset;
+    Check(effectiveMatrixOffset == 0x1A0, "Effective WorldToScreenMatrix offset within WorldData must be 0x1A0 (0x98 + 0x108).");
+
+    var areaDetailsRowOffset = Marshal.OffsetOf<WorldAreaDetailsStruct>(nameof(WorldAreaDetailsStruct.WorldAreaDetailsRowPtr)).ToInt32();
+    Check(areaDetailsRowOffset == 0x98, "WorldAreaDetailsStruct.WorldAreaDetailsRowPtr must be at offset 0x98.");
+
+    // AreaInstanceOffsets structural validation
+    Check(Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.CurrentAreaLevel)).ToInt32() == 0x0BC,
+        "AreaInstanceOffsets.CurrentAreaLevel must be at 0x0BC.");
+    Check(Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.CurrentAreaHash)).ToInt32() == 0x114,
+        "AreaInstanceOffsets.CurrentAreaHash must be at 0x114.");
+    Check(Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.PlayerInfo)).ToInt32() == 0x5B0,
+        "AreaInstanceOffsets.PlayerInfo must be at 0x5B0.");
+    Check(Marshal.OffsetOf<AreaInstanceOffsets>(nameof(AreaInstanceOffsets.Entities)).ToInt32() == 0x6F0,
+        "AreaInstanceOffsets.Entities must be at 0x6F0.");
+
+    // InGameStateOffset structural validation
+    Check(Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.AreaInstanceData)).ToInt32() == 0x290,
+        "InGameStateOffset.AreaInstanceData must be at 0x290.");
+    Check(Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.WorldData)).ToInt32() == 0x368,
+        "InGameStateOffset.WorldData must be at 0x368.");
+    Check(Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.UiRootStructPtr)).ToInt32() == 0x2F0,
+        "InGameStateOffset.UiRootStructPtr must be at 0x2F0.");
+
+    // ServerData structural validation
+    Check(Marshal.OffsetOf<ServerDataOffsets>(nameof(ServerDataOffsets.PlayerServerDataPtr)).ToInt32() == 0x48,
+        "ServerDataOffsets.PlayerServerDataPtr must be at 0x48.");
+    Check(Marshal.OffsetOf<ServerDataStructure>(nameof(ServerDataStructure.PlayerInventories)).ToInt32() == 0x320,
+        "ServerDataStructure.PlayerInventories must be at 0x320.");
+
+    // Inventory structural validation
+    Check(Marshal.OffsetOf<InventoryStruct>(nameof(InventoryStruct.TotalBoxes)).ToInt32() == 0x150,
+        "InventoryStruct.TotalBoxes must be at 0x150.");
+    Check(Marshal.OffsetOf<InventoryStruct>(nameof(InventoryStruct.ItemList)).ToInt32() == 0x170,
+        "InventoryStruct.ItemList must be at 0x170.");
+    Check(Marshal.OffsetOf<InventoryStruct>(nameof(InventoryStruct.ServerRequestCounter)).ToInt32() == 0x1E8,
+        "InventoryStruct.ServerRequestCounter must be at 0x1E8.");
+
     Console.WriteLine($"PASS: {assertions} assertions; read-only offset scanner and memory verification intact.");
 }
 finally
