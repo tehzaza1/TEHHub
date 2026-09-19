@@ -1147,7 +1147,7 @@ namespace TEHhub.Ui
                     reader.TryReadMemory<AreaLoadingStateOffset>(loadingAddr, out var loadingData) &&
                     loadingData.IsLoading is 0 or 1)
                 {
-                    isLoading = loadingData.IsLoading;
+                    isLoading = (byte)loadingData.IsLoading;
                 }
 
                 var inGameAddr = Core.States.InGameStateObject.Address;
