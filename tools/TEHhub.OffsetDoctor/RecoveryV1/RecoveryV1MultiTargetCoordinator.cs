@@ -2,6 +2,7 @@ namespace TEHhub.OffsetDoctor.RecoveryV1;
 
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -295,19 +296,22 @@ public sealed class RecoveryV1MultiTargetCoordinator
             return false;
         }
 
-        // Revalidate UiRoot (OD-014) at InGameState + 0x2F0
-        if (!session.Memory.TryRead(inGameAddr + 0x2F0, out long uiRootAddr) ||
+        long uiRootField = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.UiRootStructPtr)).ToInt64();
+        long gameUiField = Marshal.OffsetOf<UiRootStruct>(nameof(UiRootStruct.GameUiPtr)).ToInt64();
+
+        // Revalidate UiRoot (OD-014) at InGameState + uiRootField
+        if (!session.Memory.TryRead(inGameAddr + uiRootField, out long uiRootAddr) ||
             uiRootAddr < 0x10000 || !session.Memory.IsValidAddress(uiRootAddr))
         {
-            failureReason = $"Intermediate UI anchor revalidation failed: UiRoot at inGame+0x2F0 is unreadable or invalid (0x{uiRootAddr:X}).";
+            failureReason = $"Intermediate UI anchor revalidation failed: UiRoot at inGame+0x{uiRootField:X} is unreadable or invalid (0x{uiRootAddr:X}).";
             return false;
         }
 
-        // Revalidate GameUi (OD-020) at UiRoot + 0xBE0
-        if (!session.Memory.TryRead(uiRootAddr + 0xBE0, out long gameUiAddr) ||
+        // Revalidate GameUi (OD-020) at UiRoot + gameUiField
+        if (!session.Memory.TryRead(uiRootAddr + gameUiField, out long gameUiAddr) ||
             gameUiAddr < 0x10000 || !session.Memory.IsValidAddress(gameUiAddr))
         {
-            failureReason = $"Intermediate UI anchor revalidation failed: GameUi at uiRoot+0xBE0 is unreadable or invalid (0x{gameUiAddr:X}).";
+            failureReason = $"Intermediate UI anchor revalidation failed: GameUi at uiRoot+0x{gameUiField:X} is unreadable or invalid (0x{gameUiAddr:X}).";
             return false;
         }
 

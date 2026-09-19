@@ -321,6 +321,18 @@ public static class RecoveryV1IntegrationTests
             "Scenario C1: OD-014 has provisional-revalidated scope provenance.");
         check(env.Session.TryGetResult("OD-020", out var gameUiRes) && gameUiRes != null,
             "Scenario C1: OD-020 (GameUi) anchor recorded in session.");
+
+        long expectedUiRootOffset = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.UiRootStructPtr)).ToInt64();
+        long expectedGameUiOffset = Marshal.OffsetOf<UiRootStruct>(nameof(UiRootStruct.GameUiPtr)).ToInt64();
+        check(env.Session.TryGetResult("OD-010", out var inGameRes) && inGameRes != null,
+            "Scenario C1: InGameState (OD-010) anchor recorded in session.");
+        long inGameAddr = inGameRes!.Decision.Proposal!.Value;
+        env.Reader.TryRead<long>(new IntPtr(inGameAddr + expectedUiRootOffset), out long observedUiRootAddr);
+        check(observedUiRootAddr == uiRootRes.Decision.Proposal!.Value,
+            "Scenario C1: Intermediate UiRoot anchor address matches canonical InGameStateOffset.UiRootStructPtr resolution.");
+        env.Reader.TryRead<long>(new IntPtr(observedUiRootAddr + expectedGameUiOffset), out long observedGameUiAddr);
+        check(observedGameUiAddr == gameUiRes!.Decision.Proposal!.Value,
+            "Scenario C1: Intermediate GameUi anchor address matches canonical UiRootStruct.GameUiPtr resolution.");
     }
 
     private static void TestScenarioC2_ProvisionalOd001_IntermediateRevalidationFails(Action<bool, string> check)
@@ -692,6 +704,11 @@ public static class RecoveryV1IntegrationTests
         var od145 = RecoveryV1Registry.Get("OD-145").CanonicalThresholdsSupplier();
         check((int)od145.Single(t => t.Name == "StdVectorHeaderSize").Value == Od145AtlasLayoutRecovery.StdVectorHeaderSize,
             "Scenario S: OD-145 StdVectorHeaderSize equals Od145AtlasLayoutRecovery.StdVectorHeaderSize.");
+
+        check(Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.UiRootStructPtr)).ToInt64() == 0x2F0,
+            "Scenario S: Canonical InGameStateOffset.UiRootStructPtr layout offset is 0x2F0.");
+        check(Marshal.OffsetOf<UiRootStruct>(nameof(UiRootStruct.GameUiPtr)).ToInt64() == 0xBE0,
+            "Scenario S: Canonical UiRootStruct.GameUiPtr layout offset is 0xBE0.");
     }
 
     private static void TestScenarioT_UnavailableBudgetMetricsSerializeAsNull(Action<bool, string> check)
@@ -922,20 +939,23 @@ public static class RecoveryV1IntegrationTests
             _uiRootBlock = Reader.AllocateBlock(0x1000);
             _gameUiBlock = Reader.AllocateBlock(0x500);
 
+            long uiRootOffset = Marshal.OffsetOf<InGameStateOffset>(nameof(InGameStateOffset.UiRootStructPtr)).ToInt64();
+            long gameUiOffset = Marshal.OffsetOf<UiRootStruct>(nameof(UiRootStruct.GameUiPtr)).ToInt64();
+
             if (valid)
             {
-                // InGameState + 0x2F0 -> UiRoot
-                Reader.WritePointer(_inGameStateBlock + 0x2F0, _uiRootBlock);
-                // UiRoot + 0xBE0 -> GameUi
-                Reader.WritePointer(_uiRootBlock + 0xBE0, _gameUiBlock);
+                // InGameState + UiRootStructPtr -> UiRoot
+                Reader.WritePointer(_inGameStateBlock + (int)uiRootOffset, _uiRootBlock);
+                // UiRoot + GameUiPtr -> GameUi
+                Reader.WritePointer(_uiRootBlock + (int)gameUiOffset, _gameUiBlock);
                 // GameUi Self invariant
                 Reader.WritePointer(_gameUiBlock + 8, _gameUiBlock);
                 Reader.WritePointer(_gameUiBlock + 0x88, _gameUiBlock);
             }
             else
             {
-                // Broken pointer: InGameState + 0x2F0 is 0
-                Reader.WritePointer(_inGameStateBlock + 0x2F0, IntPtr.Zero);
+                // Broken pointer: InGameState + UiRootStructPtr is 0
+                Reader.WritePointer(_inGameStateBlock + (int)uiRootOffset, IntPtr.Zero);
             }
 
             TrustAnchor("OD-010", "InGameState", _inGameStateBlock.ToInt64());
