@@ -25,6 +25,8 @@ namespace AutoExile2.Modes.Shared
         private InventorySnapshot? inventorySnapshot;
         private DateTime lastInventoryReadUtc = DateTime.MinValue;
         private DateTime nextRetryUtc = DateTime.MinValue;
+        private DateTime tabActionNotBeforeUtc = DateTime.MinValue;
+        private string delayedTabTarget = string.Empty;
         private bool useTabScrollFallback;
 
         public string Status { get; private set; } = "Idle";
@@ -51,6 +53,8 @@ namespace AutoExile2.Modes.Shared
             this.inventorySnapshot = null;
             this.lastInventoryReadUtc = DateTime.MinValue;
             this.nextRetryUtc = DateTime.MinValue;
+            this.tabActionNotBeforeUtc = DateTime.MinValue;
+            this.delayedTabTarget = string.Empty;
             this.useTabScrollFallback = false;
             this.EligibleWaystoneCount = 0;
             this.Status = "Idle";
@@ -115,6 +119,8 @@ namespace AutoExile2.Modes.Shared
 
             if (!ctx.GameUi.IsStashOpen)
             {
+                this.tabActionNotBeforeUtc = DateTime.MinValue;
+                this.delayedTabTarget = string.Empty;
                 if (ctx.GameUi.IsAnyLargePanelOpen)
                 {
                     ctx.Interaction.Cancel(ctx.Settings);
@@ -229,6 +235,8 @@ namespace AutoExile2.Modes.Shared
 
             if (string.Equals(snapshot.CurrentTabName, configuredTab, StringComparison.OrdinalIgnoreCase))
             {
+                this.tabActionNotBeforeUtc = DateTime.MinValue;
+                this.delayedTabTarget = string.Empty;
                 this.useTabScrollFallback = false;
                 this.Status = $"Waystone Tab ready: {snapshot.CurrentTabName}";
                 this.Decision = "WaystoneTabReady";
@@ -241,6 +249,20 @@ namespace AutoExile2.Modes.Shared
             {
                 this.Status = $"Configured Waystone Tab '{configuredTab}' is not visible";
                 this.Decision = "FindWaystoneTab";
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            if (!string.Equals(this.delayedTabTarget, configuredTab, StringComparison.OrdinalIgnoreCase))
+            {
+                this.delayedTabTarget = configuredTab;
+                this.tabActionNotBeforeUtc = now + TimeSpan.FromMilliseconds(Random.Shared.Next(450, 901));
+            }
+
+            if (now < this.tabActionNotBeforeUtc)
+            {
+                this.Status = $"Pausing before Waystone Tab '{tab.Name}' ({(this.tabActionNotBeforeUtc - now).TotalSeconds:F1}s)";
+                this.Decision = "HumanTabDelay";
                 return;
             }
 
