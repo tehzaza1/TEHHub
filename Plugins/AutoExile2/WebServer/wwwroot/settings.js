@@ -1578,9 +1578,12 @@ function renderStashScanner(snap) {
   const status = document.getElementById('stashScanStatus');
   if (status) {
     if (!snap.IsStashOpen) {
-      status.textContent = lastDetectedStashTabs.length > 0
-        ? `Stash ปิดอยู่ — เก็บรายชื่อที่สแกนล่าสุด ${lastDetectedStashTabs.length} แท็บไว้ให้เลือก`
-        : 'เปิด Stash ในเกมเพื่อสแกนรายชื่อแท็บ';
+      const interactionActive = snap.InteractionPhase && snap.InteractionPhase !== 'Idle';
+      status.textContent = interactionActive
+        ? `Interaction ${snap.InteractionPhase}: ${snap.InteractionStatus || 'กำลังทำงาน'}`
+        : lastDetectedStashTabs.length > 0
+          ? `Stash ปิดอยู่ — เก็บรายชื่อที่สแกนล่าสุด ${lastDetectedStashTabs.length} แท็บไว้ให้เลือก`
+          : 'เปิด Stash ในเกมเพื่อสแกนรายชื่อแท็บ';
     } else {
       const current = snap.CurrentStashTab || 'กำลังอ่านชื่อแท็บ';
       const page = snap.CurrentStashPage ? ` | Page ${snap.CurrentStashPage}` : '';

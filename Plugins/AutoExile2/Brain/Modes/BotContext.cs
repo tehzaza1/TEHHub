@@ -20,6 +20,7 @@ namespace AutoExile2.Modes
         public AreaInstance Area { get; set; } = null!;
         public WorldData World { get; set; } = null!;
         public Entity Player { get; set; } = null!;
+        public ImportantUiElements GameUi { get; set; } = null!;
         public Vector2 PlayerGrid { get; set; }
         public float DeltaTime { get; set; }
         public AutoExile2Settings Settings { get; set; } = null!;
@@ -30,6 +31,7 @@ namespace AutoExile2.Modes
         public RuntimeTracker Runtime { get; set; } = null!;
         public BotRecorder Recorder { get; set; } = null!;
         public CoopVirtualGamepad CoopGamepad { get; set; } = null!;
+        public InteractionSystem Interaction { get; set; } = null!;
         public Action<string> Log { get; set; } = _ => { };
     }
 }

@@ -731,6 +731,9 @@ namespace AutoExile2.WebServer
         public bool IsSpecializedStashTab { get; set; }
         public List<string> DetectedStashTabs { get; set; } = new();
         public List<StashTierCountInfo> StashTiers { get; set; } = new();
+        public string InteractionPhase { get; set; } = "Idle";
+        public string InteractionStatus { get; set; } = "Idle";
+        public string InteractionFailure { get; set; } = string.Empty;
     }
 
     public class StashTierCountInfo
