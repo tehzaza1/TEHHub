@@ -32,6 +32,8 @@ namespace AutoExile2.Systems
         private const int MOUSEEVENTF_RIGHTUP = 0x0010;
         private const int MOUSEEVENTF_MIDDLEDOWN = 0x0020;
         private const int MOUSEEVENTF_MIDDLEUP = 0x0040;
+        private const int MOUSEEVENTF_WHEEL = 0x0800;
+        private const int WHEEL_DELTA = 120;
         private const int KEYEVENTF_KEYUP = 0x0002;
         private const uint WM_KEYUP = 0x0101;
 
@@ -241,6 +243,56 @@ namespace AutoExile2.Systems
                 await Task.Delay(RandHold());
                 await SendDelayAsync();
                 mouse_event(upFlag, 0, 0, 0, 0);
+            });
+        }
+
+        /// <summary>
+        /// Moves to a UI control and sends one Ctrl+mouse-wheel notch. Positive direction scrolls
+        /// upward and negative direction scrolls downward. The modifier is always released.
+        /// </summary>
+        public static void HumanCtrlScroll(
+            Vector2 screenPos,
+            int direction,
+            Func<bool>? canScroll = null)
+        {
+            var wheelData = Math.Sign(direction) * WHEEL_DELTA;
+            if (wheelData == 0)
+            {
+                return;
+            }
+
+            Task.Run(async () =>
+            {
+                if (canScroll?.Invoke() == false)
+                {
+                    return;
+                }
+
+                await MoveCursorOrganic(screenPos);
+                await Task.Delay(RandSettle());
+                await SendDelayAsync();
+                if (canScroll?.Invoke() == false)
+                {
+                    return;
+                }
+
+                KeyDown(VK.LCONTROL);
+                try
+                {
+                    await SendDelayAsync();
+                    if (canScroll?.Invoke() == false)
+                    {
+                        return;
+                    }
+
+                    mouse_event(MOUSEEVENTF_WHEEL, 0, 0, wheelData, 0);
+                    lastInputEvent = DateTime.Now;
+                    await Task.Delay(RandHold());
+                }
+                finally
+                {
+                    KeyUp(VK.LCONTROL);
+                }
             });
         }
 

@@ -491,6 +491,27 @@ try
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.Tiers)) != null,
         "Stash snapshots must expose Waystone Tier counts independently from selected-tab inventory items.");
 
+    var topTabs = new[]
+    {
+        new StashTabInfo("Orb", new IntPtr(0x21000), true),
+        new StashTabInfo("Map", new IntPtr(0x22000), false),
+    };
+    var allTabs = new[]
+    {
+        new StashTabInfo("Orb", new IntPtr(0x31000), false, AllTabsIndex: 0),
+        new StashTabInfo("Map", new IntPtr(0x32000), false, AllTabsIndex: 1),
+        new StashTabInfo("Overflow", new IntPtr(0x33000), false, AllTabsIndex: 2),
+    };
+    var mergedTabs = StashUiElement.MergeAllTabsFallbacks(topTabs, allTabs, "Orb");
+    var mergedMap = mergedTabs.Single(tab => tab.Name == "Map");
+    Check(mergedMap.UiAddress == new IntPtr(0x22000) &&
+          mergedMap.FallbackUiAddress == new IntPtr(0x32000) &&
+          mergedMap.AllTabsIndex == 1,
+        "Stash tab SDK must preserve the top-tab address and attach the matching all-tabs row and order as fallback.");
+    var overflowOnly = mergedTabs.Single(tab => tab.Name == "Overflow");
+    Check(overflowOnly.UiAddress == new IntPtr(0x33000) && overflowOnly.AllTabsIndex == 2,
+        "Tabs materialized only in the all-tabs list must remain selectable and ordered.");
+
     // WorldData +0x98 Union Audit Verification
     var worldAreaDetailsOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.WorldAreaDetailsPtr)).ToInt32();
     var cameraStructOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.CameraStructurePtr)).ToInt32();

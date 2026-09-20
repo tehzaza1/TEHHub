@@ -25,6 +25,7 @@ namespace AutoExile2.Modes.Shared
         private InventorySnapshot? inventorySnapshot;
         private DateTime lastInventoryReadUtc = DateTime.MinValue;
         private DateTime nextRetryUtc = DateTime.MinValue;
+        private bool useTabScrollFallback;
 
         public string Status { get; private set; } = "Idle";
 
@@ -50,6 +51,7 @@ namespace AutoExile2.Modes.Shared
             this.inventorySnapshot = null;
             this.lastInventoryReadUtc = DateTime.MinValue;
             this.nextRetryUtc = DateTime.MinValue;
+            this.useTabScrollFallback = false;
             this.EligibleWaystoneCount = 0;
             this.Status = "Idle";
             this.Decision = "Idle";
@@ -206,6 +208,7 @@ namespace AutoExile2.Modes.Shared
                 this.Decision = ctx.Interaction.Phase.ToString();
                 if (result == InteractionResult.Failed)
                 {
+                    this.useTabScrollFallback = !this.useTabScrollFallback;
                     this.nextRetryUtc = DateTime.UtcNow + RetryDelay;
                 }
                 return;
@@ -226,6 +229,7 @@ namespace AutoExile2.Modes.Shared
 
             if (string.Equals(snapshot.CurrentTabName, configuredTab, StringComparison.OrdinalIgnoreCase))
             {
+                this.useTabScrollFallback = false;
                 this.Status = $"Waystone Tab ready: {snapshot.CurrentTabName}";
                 this.Decision = "WaystoneTabReady";
                 return;
@@ -240,19 +244,73 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            if (!ctx.Interaction.BeginUiElement(
+            var beganInteraction = this.useTabScrollFallback
+                ? this.BeginTabScrollFallback(ctx, snapshot, tab, configuredTab)
+                : ctx.Interaction.BeginUiElement(
                     tab.UiAddress,
                     $"Waystone Tab '{tab.Name}'",
-                    current => IsConfiguredTabReady(current, configuredTab)))
+                    current => IsConfiguredTabReady(current, configuredTab),
+                    fallbackUiAddress: tab.FallbackUiAddress,
+                    maxClickAttempts: 4);
+            if (!beganInteraction)
             {
-                this.Status = "Interaction system is busy";
-                this.Decision = "WaitForInteraction";
+                if (this.useTabScrollFallback)
+                {
+                    this.useTabScrollFallback = false;
+                    this.nextRetryUtc = DateTime.UtcNow + RetryDelay;
+                    this.Status = "Cannot Ctrl+scroll tabs because their all-tabs order is unavailable";
+                    this.Decision = "ReadTabOrder";
+                }
+                else
+                {
+                    this.Status = "Interaction system is busy";
+                    this.Decision = "WaitForInteraction";
+                }
+
                 return;
             }
 
-            ctx.Interaction.Tick(ctx);
+            var initialResult = ctx.Interaction.Tick(ctx);
             this.Status = ctx.Interaction.Status;
             this.Decision = ctx.Interaction.Phase.ToString();
+            if (initialResult == InteractionResult.Failed)
+            {
+                this.useTabScrollFallback = !this.useTabScrollFallback;
+                this.nextRetryUtc = DateTime.UtcNow + RetryDelay;
+            }
+        }
+
+        private bool BeginTabScrollFallback(
+            BotContext ctx,
+            StashSnapshot snapshot,
+            StashTabInfo targetTab,
+            string configuredTab)
+        {
+            var currentTab = snapshot.Tabs.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, snapshot.CurrentTabName, StringComparison.OrdinalIgnoreCase));
+            if (currentTab == null || currentTab.AllTabsIndex < 0 || targetTab.AllTabsIndex < 0 ||
+                currentTab.AllTabsIndex == targetTab.AllTabsIndex)
+            {
+                return false;
+            }
+
+            // In PoE 2's vertical tab order, wheel-up selects the preceding row (5 -> 4)
+            // and wheel-down selects the following row (5 -> 6).
+            var wheelDirection = targetTab.AllTabsIndex < currentTab.AllTabsIndex ? 1 : -1;
+            var tabDistance = Math.Abs(targetTab.AllTabsIndex - currentTab.AllTabsIndex);
+            var hoverAddress = currentTab.UiAddress != IntPtr.Zero
+                ? currentTab.UiAddress
+                : currentTab.FallbackUiAddress;
+            var fallbackHoverAddress = hoverAddress == currentTab.FallbackUiAddress
+                ? currentTab.UiAddress
+                : currentTab.FallbackUiAddress;
+            return ctx.Interaction.BeginUiScroll(
+                hoverAddress,
+                $"Waystone Tab '{targetTab.Name}'",
+                wheelDirection,
+                current => IsConfiguredTabReady(current, configuredTab),
+                fallbackHoverAddress,
+                maxScrollAttempts: Math.Min(32, tabDistance + 2));
         }
 
         private static bool IsConfiguredTabReady(BotContext ctx, string configuredTab)

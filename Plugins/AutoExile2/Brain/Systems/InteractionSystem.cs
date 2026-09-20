@@ -36,6 +36,7 @@ namespace AutoExile2.Systems
         Navigating,
         Settling,
         Clicking,
+        Scrolling,
         WaitingForSuccess,
         Succeeded,
         Failed,
@@ -58,6 +59,8 @@ namespace AutoExile2.Systems
         private uint entityId;
         private string entityPath = string.Empty;
         private IntPtr uiAddress;
+        private IntPtr fallbackUiAddress;
+        private int wheelDirection;
         private Func<BotContext, bool>? successPredicate;
         private DateTime startedAtUtc;
         private DateTime settleStartedAtUtc;
@@ -89,7 +92,8 @@ namespace AutoExile2.Systems
         public Vector2? CurrentDestination { get; private set; }
 
         public bool IsBusy => this.Phase is InteractionPhase.Navigating or
-            InteractionPhase.Settling or InteractionPhase.Clicking or InteractionPhase.WaitingForSuccess;
+            InteractionPhase.Settling or InteractionPhase.Clicking or InteractionPhase.Scrolling or
+            InteractionPhase.WaitingForSuccess;
 
         public InteractionResult Result => this.Phase switch
         {
@@ -138,6 +142,7 @@ namespace AutoExile2.Systems
             IntPtr uiAddress,
             string description,
             Func<BotContext, bool> successPredicate,
+            IntPtr fallbackUiAddress = default,
             int maxClickAttempts = DefaultMaxClickAttempts)
         {
             if (uiAddress == IntPtr.Zero || this.IsBusy)
@@ -149,11 +154,46 @@ namespace AutoExile2.Systems
             this.kind = InteractionKind.UiElement;
             this.LastFailure = string.Empty;
             this.uiAddress = uiAddress;
+            this.fallbackUiAddress = fallbackUiAddress;
             this.Description = description;
             this.successPredicate = successPredicate;
             this.maxClickAttempts = Math.Clamp(maxClickAttempts, 1, 10);
             this.startedAtUtc = DateTime.UtcNow;
             this.timeout = TimeSpan.FromSeconds(10);
+            this.Phase = InteractionPhase.Settling;
+            this.settleStartedAtUtc = this.startedAtUtc;
+            this.Status = $"Preparing {description}";
+            return true;
+        }
+
+        /// <summary>
+        /// Starts a bounded Ctrl+mouse-wheel interaction over a stash UI control. Each attempt sends
+        /// one notch and the caller's predicate verifies the selected tab before another is allowed.
+        /// </summary>
+        public bool BeginUiScroll(
+            IntPtr hoverAddress,
+            string description,
+            int wheelDirection,
+            Func<BotContext, bool> successPredicate,
+            IntPtr fallbackHoverAddress = default,
+            int maxScrollAttempts = DefaultMaxClickAttempts)
+        {
+            if (hoverAddress == IntPtr.Zero || wheelDirection == 0 || this.IsBusy)
+            {
+                return false;
+            }
+
+            this.ResetRequest();
+            this.kind = InteractionKind.UiScroll;
+            this.LastFailure = string.Empty;
+            this.uiAddress = hoverAddress;
+            this.fallbackUiAddress = fallbackHoverAddress;
+            this.wheelDirection = Math.Sign(wheelDirection);
+            this.Description = description;
+            this.successPredicate = successPredicate;
+            this.maxClickAttempts = Math.Clamp(maxScrollAttempts, 1, 32);
+            this.startedAtUtc = DateTime.UtcNow;
+            this.timeout = TimeSpan.FromSeconds(Math.Clamp((this.maxClickAttempts * 1.2d) + 3d, 6d, 45d));
             this.Phase = InteractionPhase.Settling;
             this.settleStartedAtUtc = this.startedAtUtc;
             this.Status = $"Preparing {description}";
@@ -198,6 +238,7 @@ namespace AutoExile2.Systems
             {
                 InteractionKind.Entity => this.TickEntity(ctx, now),
                 InteractionKind.UiElement => this.TickUiElement(ctx, now),
+                InteractionKind.UiScroll => this.TickUiScroll(ctx, now),
                 _ => this.Fail(ctx, "No interaction target"),
             };
         }
@@ -345,9 +386,17 @@ namespace AutoExile2.Systems
                 return this.Fail(ctx, $"{this.Description} did not confirm after {this.clickAttempts} clicks");
             }
 
-            if (!TryGetUiClickPoint(this.uiAddress, out var clickPoint))
+            var usedFallback = this.fallbackUiAddress != IntPtr.Zero && this.clickAttempts >= 2;
+            var clickAddress = usedFallback ? this.fallbackUiAddress : this.uiAddress;
+            if (!TryGetUiClickPoint(clickAddress, out var clickPoint))
             {
-                return this.Fail(ctx, $"{this.Description} UI element is hidden or invalid");
+                var alternateAddress = usedFallback ? this.uiAddress : this.fallbackUiAddress;
+                if (alternateAddress == IntPtr.Zero || !TryGetUiClickPoint(alternateAddress, out clickPoint))
+                {
+                    return this.Fail(ctx, $"{this.Description} UI controls are hidden or invalid");
+                }
+
+                usedFallback = !usedFallback;
             }
 
             this.Phase = InteractionPhase.Clicking;
@@ -358,7 +407,55 @@ namespace AutoExile2.Systems
             this.clickAttempts++;
             this.lastClickAtUtc = now;
             this.Phase = InteractionPhase.WaitingForSuccess;
-            this.Status = $"Clicked {this.Description} ({this.clickAttempts}/{this.maxClickAttempts})";
+            var source = usedFallback ? "all-tabs list" : "top tab";
+            this.Status = $"Clicked {this.Description} via {source} ({this.clickAttempts}/{this.maxClickAttempts})";
+            return this.Result;
+        }
+
+        private InteractionResult TickUiScroll(BotContext ctx, DateTime now)
+        {
+            BotInput.ReleaseAllMovementKeys(ctx.Settings);
+            BotInput.ReleaseSprint(ctx.Settings.SprintKey);
+
+            if (this.Phase == InteractionPhase.Settling &&
+                (now - this.settleStartedAtUtc).TotalMilliseconds < SettleMilliseconds)
+            {
+                return this.Result;
+            }
+
+            if (this.Phase == InteractionPhase.WaitingForSuccess &&
+                (now - this.lastClickAtUtc).TotalMilliseconds < ClickRetryMilliseconds)
+            {
+                this.Status = $"Waiting for {this.Description} ({this.clickAttempts}/{this.maxClickAttempts})";
+                return this.Result;
+            }
+
+            if (this.clickAttempts >= this.maxClickAttempts)
+            {
+                return this.Fail(ctx, $"{this.Description} did not confirm after {this.clickAttempts} scroll notches");
+            }
+
+            var hoverAddress = this.uiAddress;
+            if (!TryGetUiClickPoint(hoverAddress, out var hoverPoint))
+            {
+                hoverAddress = this.fallbackUiAddress;
+                if (hoverAddress == IntPtr.Zero || !TryGetUiClickPoint(hoverAddress, out hoverPoint))
+                {
+                    return this.Fail(ctx, $"{this.Description} hover controls are hidden or invalid");
+                }
+            }
+
+            this.Phase = InteractionPhase.Scrolling;
+            var generation = Volatile.Read(ref this.requestGeneration);
+            BotInput.HumanCtrlScroll(
+                hoverPoint,
+                this.wheelDirection,
+                () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+            this.clickAttempts++;
+            this.lastClickAtUtc = now;
+            this.Phase = InteractionPhase.WaitingForSuccess;
+            var direction = this.wheelDirection > 0 ? "up" : "down";
+            this.Status = $"Ctrl+scrolled {direction} for {this.Description} ({this.clickAttempts}/{this.maxClickAttempts})";
             return this.Result;
         }
 
@@ -510,6 +607,8 @@ namespace AutoExile2.Systems
             this.entityId = 0;
             this.entityPath = string.Empty;
             this.uiAddress = IntPtr.Zero;
+            this.fallbackUiAddress = IntPtr.Zero;
+            this.wheelDirection = 0;
             this.successPredicate = null;
             this.startedAtUtc = DateTime.MinValue;
             this.settleStartedAtUtc = DateTime.MinValue;
@@ -534,6 +633,7 @@ namespace AutoExile2.Systems
             None,
             Entity,
             UiElement,
+            UiScroll,
         }
     }
 }
