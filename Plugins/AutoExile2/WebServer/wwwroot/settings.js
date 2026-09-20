@@ -230,8 +230,8 @@ function renderInputTypeOptions(selectedInput) {
 
 const TOTEM_KW = ["totem", "ballista", "ancestor", "ancestral", "earthbreaker", "siegeballista", "spelltotem", "holyflame"];
 const CURSE_KW = ["curse", "hex", "mark", "despair", "flammability", "conductivity", "vulnerability", "punishment", "enfeeble", "temporalchains", "elementalweakness", "poachersmark", "warlordsmark", "assassinsmark", "snipersmark", "projectileweakness", "frostbite", "contagion", "bane", "wither", "frostbomb", "coldexposure", "exposure"];
-const GUARD_KW = ["steelskin", "moltenshell", "immortalcall", "bonearmour", "arcanecloak", "frostshield", "defiancebanner"];
-const WARCRY_KW = ["warcry", "shout", "enduringcry", "intimidatingcry", "rallyingcry", "seismiccry", "battlemagescry", "infernalcry", "generalcry", "ancestralcry"];
+const GUARD_KW = ["convalescence", "encaseinjade", "fortifyingcry", "magmabarrier", "virtuousbarrier", "glacialbarrier", "barrier", "bulwark", "shieldwall", "raiseshield", "arcticarmour", "grimfeast", "guard", "aegis"];
+const WARCRY_KW = ["warcry", "shout", "fortifyingcry", "infernalcry", "ancestralcry", "enduringcry", "intimidatingcry", "rallyingcry", "seismiccry", "battlemagescry", "generalcry"];
 const MINION_KW = ["summon", "raise", "animate", "golem", "skeleton", "zombie", "spectre", "ragingspirit", "reaper", "absolution", "heraldofpurity", "minion", "dominatingblow"];
 const MOVE_KW = ["frostblink", "flamedash", "dash", "leapslam", "shieldcharge", "whirlingblades", "lightningwarp", "blinkarrow", "flickerstrike", "smokemine", "bodyswap", "chargeddash", "blink", "roll"];
 const BUFF_KW = ["bloodrage", "witheringstep", "berserk", "phaserun", "righteousfire", "tempestshield", "grace", "determination", "discipline", "hatred", "anger", "wrath", "zealotry", "malevolence", "pride", "haste", "purity", "vitality", "clarity", "precision", "aura", "herald", "manatempest", "tempest"];
