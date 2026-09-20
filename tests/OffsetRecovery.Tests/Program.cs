@@ -16,6 +16,7 @@ using TEHhub.Offsets.Objects.States.InGameState;
 using TEHhub.RemoteObjects;
 using TEHhub.RemoteObjects.States.InGameStateObjects;
 using TEHhub.RemoteObjects.Components;
+using TEHhub.RemoteObjects.UiElement;
 
 // Exercises the real read-only process-memory reader against allocations in this test process.
 // No game process is opened or modified. No external test packages are needed.
@@ -432,6 +433,64 @@ try
     Check((int)TEHhub.RemoteEnums.InventoryName.StashInventoryId == 27,
         "InventoryName.StashInventoryId must remain mapped to Inventories.dat id 27.");
 
+    // PoE2 interaction-panel SDK states are independent booleans. A stash or vendor can keep
+    // Inventory open at the same time, so consumers must not decode a combined numeric mode.
+    var stashPanels = GameUiPanelDetector.ClassifyTitles("Inventory", "Stash", null);
+    Check(stashPanels.InventoryOpen && stashPanels.StashOpen && !stashPanels.VendorOpen,
+        "Stash detection must independently report Inventory=true, Stash=true, Vendor=false.");
+    var vendorPanels = GameUiPanelDetector.ClassifyTitles("Inventory", null, "Buy or Sell");
+    Check(vendorPanels.InventoryOpen && !vendorPanels.StashOpen && vendorPanels.VendorOpen,
+        "Vendor detection must independently report Inventory=true, Stash=false, Vendor=true.");
+    var inventoryPanels = GameUiPanelDetector.ClassifyTitles("Inventory", null, null);
+    Check(inventoryPanels.InventoryOpen && !inventoryPanels.StashOpen && !inventoryPanels.VendorOpen,
+        "Inventory-only detection must not be promoted to stash or vendor.");
+    var closedPanels = GameUiPanelDetector.ClassifyTitles(null, null, "Buy or Sell");
+    Check(!closedPanels.InventoryOpen && !closedPanels.StashOpen && !closedPanels.VendorOpen,
+        "A detached vendor label without the inventory companion panel must not report Vendor=true.");
+
+    var gameUiType = typeof(ImportantUiElements);
+    Check(gameUiType.GetProperty(nameof(ImportantUiElements.IsInventoryOpen))?.PropertyType == typeof(bool),
+        "GameUi must expose IsInventoryOpen as a separate boolean.");
+    Check(gameUiType.GetProperty(nameof(ImportantUiElements.IsStashOpen))?.PropertyType == typeof(bool),
+        "GameUi must expose IsStashOpen as a separate boolean.");
+    Check(gameUiType.GetProperty(nameof(ImportantUiElements.IsVendorOpen))?.PropertyType == typeof(bool),
+        "GameUi must expose IsVendorOpen as a separate boolean.");
+
+    var stability = new StashSnapshotStabilityGate();
+    Check(!stability.Observe("tab=Map;revision=1", 1_000),
+        "The first stash observation must remain Loading.");
+    Check(!stability.Observe("tab=Map;revision=1", 1_050),
+        "Rapid duplicate reads must not bypass the stash stability window.");
+    Check(stability.Observe("tab=Map;revision=1", 1_100),
+        "An unchanged stash observation after the stability window must become Ready.");
+    Check(!stability.Observe("tab=Map;revision=2", 1_200),
+        "A changed stash inventory revision must return to Loading.");
+    stability.Reset();
+    Check(!stability.Observe("tab=Map;revision=2", 1_400),
+        "Reset must require stability to be established again.");
+
+    var readyEmptyInventory = new InventorySnapshot(
+        InventorySnapshotState.Ready,
+        TEHhub.RemoteEnums.InventoryName.StashInventoryId,
+        new IntPtr(0x10000),
+        12,
+        12,
+        7,
+        Array.Empty<InventorySnapshotItem>(),
+        123,
+        "synthetic ready-empty");
+    Check(readyEmptyInventory.IsEmpty,
+        "A Ready inventory with zero items must be distinguishable as empty.");
+    var loadingEmptyInventory = readyEmptyInventory with { State = InventorySnapshotState.Loading };
+    Check(!loadingEmptyInventory.IsEmpty,
+        "A Loading inventory with zero returned items must not be treated as empty.");
+
+    var tierInfo = new StashTierInfo("XV", 170, new IntPtr(0x20000));
+    Check(tierInfo.Name == "XV" && tierInfo.Count == 170 && tierInfo.UiAddress != IntPtr.Zero,
+        "Waystone Tier SDK entries must keep their label, displayed count, and clickable UI address separate.");
+    Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.Tiers)) != null,
+        "Stash snapshots must expose Waystone Tier counts independently from selected-tab inventory items.");
+
     // WorldData +0x98 Union Audit Verification
     var worldAreaDetailsOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.WorldAreaDetailsPtr)).ToInt32();
     var cameraStructOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.CameraStructurePtr)).ToInt32();
@@ -818,5 +877,3 @@ static class MemoryScannerHelper
     }
 }
 }
-
-

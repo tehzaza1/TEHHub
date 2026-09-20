@@ -42,6 +42,15 @@ namespace AutoExile2.WebServer
                     case "portalkey":
                         settings.PortalKey = ParseVk(val.ToString());
                         break;
+                    case "waystonetab":
+                        settings.WaystoneTab = NormalizeStashTabName(val.ToString());
+                        break;
+                    case "maxtier":
+                        settings.MaxTier = Math.Clamp(val.Value<int>(), 1, 16);
+                        break;
+                    case "dumptab":
+                        settings.DumpTab = NormalizeStashTabName(val.ToString());
+                        break;
                     case "moveup":
                         settings.MoveUp = ParseVk(val.ToString());
                         break;
@@ -287,6 +296,13 @@ namespace AutoExile2.WebServer
         {
             if (token == null) return defaultVal;
             return token.ToString();
+        }
+
+        private static string NormalizeStashTabName(string value)
+        {
+            const int maxLength = 80;
+            var trimmed = value.Trim();
+            return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
         }
 
         public static List<SkillSlotConfig> ParseSkillSlots(JsonNode? val)

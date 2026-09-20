@@ -102,6 +102,15 @@ namespace AutoExile2
         /// <summary>Hotkey to open town portal (Default: B in PoE 2).</summary>
         public VK PortalKey = VK.KEY_B;
 
+        /// <summary>Name of the stash tab AutoExile2 will use for Waystones.</summary>
+        public string WaystoneTab = string.Empty;
+
+        /// <summary>Highest Waystone Tier AutoExile2 may select when opening a map.</summary>
+        public int MaxTier = 16;
+
+        /// <summary>Name of the stash tab AutoExile2 will use for farmed-item dumping.</summary>
+        public string DumpTab = string.Empty;
+
         /// <summary>Primary attack input type.</summary>
         public AttackInputType PrimaryAttackType = AttackInputType.MouseRight;
 

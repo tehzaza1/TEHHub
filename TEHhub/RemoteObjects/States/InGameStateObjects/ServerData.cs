@@ -5,6 +5,7 @@
 namespace TEHhub.RemoteObjects.States.InGameStateObjects
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using Coroutine;
     using TEHhub.Offsets.Natives;
@@ -87,12 +88,33 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         /// <summary>
         ///     Gets the inventories associated with the player.
         /// </summary>
-        internal Dictionary<InventoryName, IntPtr> PlayerInventories { get; } = new();
+        internal ConcurrentDictionary<InventoryName, IntPtr> PlayerInventories { get; } = new();
 
         /// <summary>
         ///     Gets the address of PlayerServerData in remote memory.
         /// </summary>
         public IntPtr PlayerServerDataAddress { get; private set; } = IntPtr.Zero;
+
+        /// <summary>
+        ///     Tries to get one live player-inventory address by its Inventories.dat id.
+        ///     A missing or null entry is normal when that inventory is not available in the current context.
+        /// </summary>
+        /// <param name="name">Inventory id to resolve.</param>
+        /// <param name="address">Live InventoryStruct address, or zero when unavailable.</param>
+        /// <returns><see langword="true" /> only for a present, non-zero entry.</returns>
+        public bool TryGetInventoryAddress(InventoryName name, out IntPtr address)
+        {
+            return this.PlayerInventories.TryGetValue(name, out address) && address != IntPtr.Zero;
+        }
+
+        /// <summary>
+        ///     Reads a bounded snapshot of one live inventory. Ready with zero items is an authoritative
+        ///     empty result; Loading and Unavailable must not be treated as empty.
+        /// </summary>
+        /// <param name="name">Inventory id to read.</param>
+        /// <returns>Read-only inventory snapshot.</returns>
+        public InventorySnapshot ReadInventorySnapshot(InventoryName name) =>
+            InventorySnapshotReader.Read(this, name);
 
         /// <summary>
         ///     Gets the active area / map modifiers.
@@ -219,7 +241,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 this.PlayerInventories.Keys,
                 ref this.selectedInvName))
             {
-                this.SelectedInv.Address = this.PlayerInventories[this.selectedInvName];
+                this.SelectedInv.Address = this.PlayerInventories.TryGetValue(this.selectedInvName, out var address)
+                    ? address
+                    : IntPtr.Zero;
             }
 
             ImGui.SameLine();
@@ -300,6 +324,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             if (playerDataArray.Length == 0)
             {
                 this.PlayerServerDataAddress = IntPtr.Zero;
+                this.PlayerInventories.Clear();
                 return;
             }
 
@@ -307,6 +332,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             if (playerServerDataAddress == IntPtr.Zero)
             {
                 this.PlayerServerDataAddress = IntPtr.Zero;
+                this.PlayerInventories.Clear();
                 return;
             }
 

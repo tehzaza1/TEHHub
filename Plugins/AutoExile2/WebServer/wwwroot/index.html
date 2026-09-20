@@ -658,6 +658,53 @@
 
   <!-- TAB 3: Config (Automated Systems like AutoExile 1) -->
   <div id="tab-config" class="tab-pane" style="display:none;">
+    <!-- PoE2 stash configuration (read-only SDK foundation) -->
+    <div class="card" style="border-color:rgba(234,179,8,0.4); background:linear-gradient(180deg, rgba(234,179,8,0.06) 0%, var(--surface) 100%);">
+      <h2>🗃️ Stash Setup</h2>
+      <div style="font-size:12px; color:var(--text-dim); margin-bottom:14px; line-height:1.5;">
+        ใส่ชื่อแท็บเอง หรือเปิด Stash ในเกมแล้วเลือกจากรายชื่อที่สแกนเจอ รองรับทั้งแท็บธรรมดาและแท็บ Map แบบพิเศษ
+      </div>
+      <div class="grid2">
+        <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border);">
+          <div class="form-group">
+            <label>Waystone Tab</label>
+            <input id="WaystoneTab" type="text" maxlength="80" class="form-control" placeholder="เช่น Map หรือ 5" onchange="saveSettings()" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Max Tier</label>
+            <input id="MaxTier" type="number" min="1" max="16" step="1" value="16" class="form-control" onchange="saveSettings()" />
+          </div>
+        </div>
+        <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border);">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Dump Tab</label>
+            <input id="DumpTab" type="text" maxlength="80" class="form-control" placeholder="เช่น 6" onchange="saveSettings()" />
+          </div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:8px; line-height:1.5;">
+            เก็บชื่อไว้สำหรับระบบฝากของภายหลัง รอบนี้ยังไม่ย้ายไอเทมอัตโนมัติ
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border); margin-top:14px;">
+        <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+          <div>
+            <div style="font-weight:700; font-size:12px; color:var(--text);">Detected Stash Tabs</div>
+            <div id="stashScanStatus" style="font-size:11px; color:var(--text-dim); margin-top:3px;">เปิด Stash ในเกมเพื่อสแกนรายชื่อแท็บ</div>
+          </div>
+          <div id="stashOpenFlags" class="badge" style="font-size:11px;">Inventory=0 | Stash=0 | Vendor=0</div>
+        </div>
+        <select id="detectedStashTabSelect" class="form-control" style="margin-bottom:10px;">
+          <option value="">-- ยังไม่พบแท็บ --</option>
+        </select>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn secondary" style="font-size:12px; padding:7px 12px;" onclick="useDetectedStashTab('WaystoneTab')">Set Waystone Tab</button>
+          <button type="button" class="btn secondary" style="font-size:12px; padding:7px 12px;" onclick="useDetectedStashTab('DumpTab')">Set Dump Tab</button>
+        </div>
+        <div id="stashTierCounts" style="display:none; margin-top:12px; gap:6px; flex-wrap:wrap;"></div>
+      </div>
+    </div>
+
     <!-- Auto Flasks Recovery (Solo Fallback) -->
     <div id="soloFlaskCard" class="card">
       <h2>🧪 Solo Auto Flasks (Keyboard / 1 & 2)</h2>
