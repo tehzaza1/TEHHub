@@ -955,9 +955,10 @@ namespace AutoExile2.Systems
             int count = 0;
             foreach (var (typeId, deployedCount) in actor.DeployedEntities)
             {
-                if (DeployedObjectCounter.CategoryName(typeId).Contains(
-                    "Totem",
-                    StringComparison.OrdinalIgnoreCase))
+                string categoryName = DeployedObjectCounter.CategoryName(typeId);
+                if (typeId == 48349 ||
+                    typeId == 52139 ||
+                    categoryName.Contains("Totem", StringComparison.OrdinalIgnoreCase))
                 {
                     count += deployedCount;
                 }
