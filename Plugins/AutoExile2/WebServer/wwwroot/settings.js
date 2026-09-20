@@ -537,21 +537,20 @@ function renderDetectedSkillsChips() {
       if (p1AssistSkills.length === 0) {
         p1Container.innerHTML =
           '<span style="font-size:11px; color:var(--text-dim); font-style:italic;">No detected P1 Buff / Guard / Warcry skills.</span>';
-        return;
+      } else {
+        p1AssistSkills.forEach(ds => {
+          const cat = ds.Category || autoClassifySkill(ds.Name);
+          const catDef = CATEGORY_PRESETS[cat] || CATEGORY_PRESETS.Attack;
+          const isConfigured = currentSettings.P1Skills?.some(s => s.AssignedSkillName === ds.Name || s.Name === ds.Name);
+          const checkmark = isConfigured ? '✓ ' : '+ ';
+          p1Html += `
+            <span class="skill-chip" style="background:${catDef.bg}; color:${catDef.color}; border:1px solid ${isConfigured ? catDef.color : 'rgba(255,255,255,0.1)'}; font-size:11px;" onclick="addSkillFromDetected('${esc(ds.Name)}', '${esc(cat)}', 'P1Skills')" title="Add to Player 1: ${esc(ds.Name)}">
+              ${checkmark}P1: ${esc(ds.Name)}
+            </span>
+          `;
+        });
+        p1Container.innerHTML = p1Html;
       }
-
-      p1AssistSkills.forEach(ds => {
-        const cat = ds.Category || autoClassifySkill(ds.Name);
-        const catDef = CATEGORY_PRESETS[cat] || CATEGORY_PRESETS.Attack;
-        const isConfigured = currentSettings.P1Skills?.some(s => s.AssignedSkillName === ds.Name || s.Name === ds.Name);
-        const checkmark = isConfigured ? '✓ ' : '+ ';
-        p1Html += `
-          <span class="skill-chip" style="background:${catDef.bg}; color:${catDef.color}; border:1px solid ${isConfigured ? catDef.color : 'rgba(255,255,255,0.1)'}; font-size:11px;" onclick="addSkillFromDetected('${esc(ds.Name)}', '${esc(cat)}', 'P1Skills')" title="Add to Player 1: ${esc(ds.Name)}">
-            ${checkmark}P1: ${esc(ds.Name)}
-          </span>
-        `;
-      });
-      p1Container.innerHTML = p1Html;
     }
   }
 
