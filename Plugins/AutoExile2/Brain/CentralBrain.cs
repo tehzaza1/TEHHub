@@ -226,7 +226,10 @@ namespace AutoExile2.Brain
                 return false;
             }
 
-            foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role == SkillRole.Culler))
+            foreach (var skill in s.P2Skills.Where(x =>
+                x.Enabled &&
+                x.Role == SkillRole.Culler &&
+                x.GamepadButton != CoopPadButton.None))
             {
                 float rawStart = skill.CullerStartAttackDistance > 0
                     ? skill.CullerStartAttackDistance
@@ -258,6 +261,7 @@ namespace AutoExile2.Brain
 
             return s.P2Skills.Any(x =>
                 x.Enabled &&
+                x.GamepadButton != CoopPadButton.None &&
                 x.Role != SkillRole.Disabled &&
                 x.Role != SkillRole.SelfBuffGuard &&
                 x.Role != SkillRole.Culler &&

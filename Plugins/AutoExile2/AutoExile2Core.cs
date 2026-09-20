@@ -882,8 +882,23 @@ namespace AutoExile2
                 this.combatSystem.TickAutoFlasks(player, currentArea.ServerDataObject, this.Settings, vitals.HpPercent, vitals.ManaPercent, this.coopGamepad);
             }
 
-            // 2. Instant Emergency Low-HP SelfBuffGuard Skills
-            this.combatSystem.TickEmergencyLowHpSkills(player, this.Settings, vitals, this.coopGamepad, currentArea);
+            // 2. Instant Emergency Low-HP SelfBuffGuard Skills.
+            // Solo uses Skills; Follower mode uses P1Skills so solo-only guards cannot leak into Controller #1.
+            IReadOnlyCollection<SkillSlotConfig>? emergencySkills =
+                this.Settings.Mode == AutoExileMode.Follower
+                    ? this.Settings.P1Skills
+                    : this.Settings.Skills;
+            CoopVirtualGamepad? emergencyPad =
+                this.Settings.Mode == AutoExileMode.Follower
+                    ? this.coopGamepad
+                    : null;
+            this.combatSystem.TickEmergencyLowHpSkills(
+                player,
+                this.Settings,
+                vitals,
+                emergencySkills,
+                emergencyPad,
+                currentArea);
         }
 
         private void RenderOverlay(WorldData? world, Entity? player, AreaInstance? currentArea)

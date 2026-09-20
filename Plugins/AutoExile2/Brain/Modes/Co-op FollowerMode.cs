@@ -369,7 +369,13 @@ namespace AutoExile2.Modes
                             continue;
                         }
 
-                        // Cast on Virtual Controller #1 or via Keyboard Hotkey if on Physical Gamepad
+                        // Controller #1 assist requires an actual mapped button. If no virtual
+                        // leader controller is connected, keyboard fallback remains available.
+                        if (pad.IsLeaderConnected && slot.GamepadButton == CoopPadButton.None)
+                        {
+                            continue;
+                        }
+
                         slot.LastCastAt = now;
                         if (pad.IsLeaderConnected)
                         {
