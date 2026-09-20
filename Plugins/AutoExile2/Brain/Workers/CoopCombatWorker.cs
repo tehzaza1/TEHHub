@@ -72,7 +72,10 @@ namespace AutoExile2.Brain.Workers
             if (s.P2Skills != null)
             {
                 foreach (var slot in s.P2Skills
-                    .Where(x => x.Enabled && x.Role == SkillRole.SelfBuffGuard)
+                    .Where(x =>
+                        x.Enabled &&
+                        x.Role == SkillRole.SelfBuffGuard &&
+                        x.GamepadButton != CoopPadButton.None)
                     .OrderByDescending(x => x.Priority))
                 {
                     int castSpacingMs = CombatSystem.GetSkillCastSpacingMs(slot);
@@ -94,9 +97,9 @@ namespace AutoExile2.Brain.Workers
 
             // 2. Perform offensive attacks if Brain determined Combat is desired
             // (Enables concurrent attack-moving while walking towards loot or following formation)
-            bool shouldAttack = (directive != null && directive.Combat.ShouldAttack) ||
-                                goal.Type == BotGoalType.Combat ||
-                                (goal.Type == BotGoalType.Loot && p.NearbyEnemyCount > 0);
+            bool shouldAttack =
+                (directive != null && directive.Combat.ShouldAttack) ||
+                goal.Type == BotGoalType.Combat;
 
             if (!shouldAttack || s.P2Skills == null)
             {
@@ -117,7 +120,10 @@ namespace AutoExile2.Brain.Workers
 
             // 2.1 Culler Skills (Focused fire ahead of Leader)
             foreach (var cullerSkill in s.P2Skills
-                .Where(x => x.Enabled && x.Role == SkillRole.Culler)
+                .Where(x =>
+                    x.Enabled &&
+                    x.Role == SkillRole.Culler &&
+                    x.GamepadButton != CoopPadButton.None)
                 .OrderByDescending(x => x.Priority))
             {
                 int cullerSpacingMs = Math.Max(100, CombatSystem.GetSkillCastSpacingMs(cullerSkill));
@@ -163,7 +169,9 @@ namespace AutoExile2.Brain.Workers
                     targetRarity = omp.Rarity;
                 }
 
-                foreach (var skill in s.P2Skills.Where(x => x.Enabled &&
+                foreach (var skill in s.P2Skills.Where(x =>
+                    x.Enabled &&
+                    x.GamepadButton != CoopPadButton.None &&
                     x.Role != SkillRole.SelfBuffGuard &&
                     x.Role != SkillRole.Culler &&
                     x.Role != SkillRole.CorpseTargeted &&

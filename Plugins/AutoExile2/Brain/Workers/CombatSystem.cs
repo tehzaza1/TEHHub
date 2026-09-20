@@ -638,16 +638,19 @@ namespace AutoExile2.Systems
             Entity player,
             AutoExile2Settings settings,
             PlayerVitals vitals,
+            IReadOnlyCollection<SkillSlotConfig>? skillSlots,
             CoopVirtualGamepad? pad = null,
             AreaInstance? area = null)
         {
-            if (settings.Skills == null || settings.Skills.Count == 0)
+            if (skillSlots == null || skillSlots.Count == 0)
             {
                 return false;
             }
 
             var now = DateTime.Now;
-            foreach (var slot in settings.Skills.Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard && s.OnlyOnLowHp).OrderByDescending(s => s.Priority))
+            foreach (var slot in skillSlots
+                .Where(s => s.Enabled && s.Role == SkillRole.SelfBuffGuard && s.OnlyOnLowHp)
+                .OrderByDescending(s => s.Priority))
             {
                 if (!vitals.IsLowVital(slot))
                 {
@@ -679,9 +682,14 @@ namespace AutoExile2.Systems
                     continue;
                 }
 
-                // In-game dynamic cooldown check (directly from PoE 2 engine memory)
-                bool allowUntracked = pad?.IsLeaderConnected == true;
-                if (!IsSkillReadyInGame(player, slot, allowUntracked))
+                // Configured skills fail closed: if the engine cannot match this skill yet, wait.
+                if (!IsSkillReadyInGame(player, slot, allowUntracked: false))
+                {
+                    continue;
+                }
+
+                if (pad?.IsLeaderConnected == true &&
+                    slot.GamepadButton == CoopPadButton.None)
                 {
                     continue;
                 }
@@ -970,7 +978,7 @@ namespace AutoExile2.Systems
         public static bool IsSkillReadyInGame(
             Entity? player,
             SkillSlotConfig slot,
-            bool allowUntracked = true)
+            bool allowUntracked = false)
         {
             if (player == null || slot == null)
             {
@@ -992,8 +1000,8 @@ namespace AutoExile2.Systems
                     return commandUsable;
                 }
 
-                // Solo configured slots fail closed so typos / removed skills do not spam arbitrary inputs.
-                // Existing co-op callers retain the historical fail-open behavior via the default parameter.
+                // Configured slots fail closed so typos, removed skills, or not-yet-populated
+                // Actor data never spam an arbitrary mapped input.
                 return allowUntracked;
             }
 
