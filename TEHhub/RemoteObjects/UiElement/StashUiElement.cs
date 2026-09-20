@@ -31,7 +31,14 @@ namespace TEHhub.RemoteObjects.UiElement
     /// <param name="Name">Displayed tab name.</param>
     /// <param name="UiAddress">Clickable tab-root UiElement address.</param>
     /// <param name="IsSelected">Whether this is the selected control in the captured tab bar.</param>
-    public sealed record StashTabInfo(string Name, IntPtr UiAddress, bool IsSelected);
+    /// <param name="FallbackUiAddress">Clickable row in the vertical all-tabs list, or zero when unavailable.</param>
+    /// <param name="AllTabsIndex">Zero-based position in the vertical all-tabs list, or -1 when unavailable.</param>
+    public sealed record StashTabInfo(
+        string Name,
+        IntPtr UiAddress,
+        bool IsSelected,
+        IntPtr FallbackUiAddress = default,
+        int AllTabsIndex = -1);
 
     /// <summary>
     ///     One Tier control in a specialized PoE2 Waystone stash tab.
@@ -75,6 +82,11 @@ namespace TEHhub.RemoteObjects.UiElement
         // PoE2 0.5.x evidence captured by UiDump:
         // Stash -> content -> tab host -> tab bar. The selected tab is reinserted as the final child.
         private static readonly int[] TabBarPath = { 2, 0, 0, 0, 1, 0 };
+
+        // The vertical all-tabs list remains materialized beside the stash. It is the reliable
+        // fallback when many tabs make a top-bar control clipped or otherwise non-clickable.
+        // UiDump evidence: Stash -> 2 -> 0 -> 0 -> 0 -> 1 -> 4 -> 2.
+        private static readonly int[] AllTabsListPath = { 2, 0, 0, 0, 1, 4, 2 };
 
         // Specialized Waystone tabs add a second 1-6 page bar. Like the main bar, the selected
         // page is reinserted as the final child. Absence is normal for ordinary stash tabs.
@@ -123,6 +135,10 @@ namespace TEHhub.RemoteObjects.UiElement
                 }
 
                 var tabs = ReadTabBar(this.Address, TabBarPath, out var currentTab);
+                tabs = MergeAllTabsFallbacks(
+                    tabs,
+                    ReadNamedControls(this.Address, AllTabsListPath),
+                    currentTab);
                 var pages = ReadTabBar(this.Address, SpecializedPageBarPath, out var currentPage);
                 var tiers = ReadWaystoneTiers(this.Address);
                 var inventory = serverData.ReadInventorySnapshot(InventoryName.StashInventoryId);
@@ -224,6 +240,84 @@ namespace TEHhub.RemoteObjects.UiElement
             }
 
             return output.ToArray();
+        }
+
+        private static IReadOnlyList<StashTabInfo> ReadNamedControls(
+            IntPtr stashRoot,
+            ReadOnlySpan<int> path)
+        {
+            if (!UiElementMemory.TryResolvePath(stashRoot, path, out var list) ||
+                !UiElementMemory.TryReadChildren(list, out var controls) || controls.Length == 0)
+            {
+                return Array.Empty<StashTabInfo>();
+            }
+
+            var output = new List<StashTabInfo>(controls.Length);
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < controls.Length; i++)
+            {
+                var control = controls[i];
+                if (!UiElementMemory.TryFindFirstDisplayText(
+                        control,
+                        maxDepth: 3,
+                        maxNodes: 16,
+                        out var name,
+                        out _))
+                {
+                    continue;
+                }
+
+                name = name.Trim();
+                if (name.Length == 0 || !names.Add(name))
+                {
+                    continue;
+                }
+
+                output.Add(new StashTabInfo(name, control, false, AllTabsIndex: i));
+            }
+
+            return output.ToArray();
+        }
+
+        internal static IReadOnlyList<StashTabInfo> MergeAllTabsFallbacks(
+            IReadOnlyList<StashTabInfo> topTabs,
+            IReadOnlyList<StashTabInfo> allTabs,
+            string currentTab)
+        {
+            if (allTabs.Count == 0)
+            {
+                return topTabs;
+            }
+
+            var merged = new List<StashTabInfo>(Math.Max(topTabs.Count, allTabs.Count));
+            var byName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var topTab in topTabs)
+            {
+                byName[topTab.Name] = merged.Count;
+                merged.Add(topTab);
+            }
+
+            foreach (var listTab in allTabs)
+            {
+                if (byName.TryGetValue(listTab.Name, out var index))
+                {
+                    merged[index] = merged[index] with
+                    {
+                        FallbackUiAddress = listTab.UiAddress,
+                        AllTabsIndex = listTab.AllTabsIndex,
+                    };
+                    continue;
+                }
+
+                byName[listTab.Name] = merged.Count;
+                merged.Add(new StashTabInfo(
+                    listTab.Name,
+                    listTab.UiAddress,
+                    string.Equals(listTab.Name, currentTab, StringComparison.OrdinalIgnoreCase),
+                    AllTabsIndex: listTab.AllTabsIndex));
+            }
+
+            return merged.ToArray();
         }
 
         private static List<StashTierInfo> ReadWaystoneTiers(IntPtr stashRoot)
