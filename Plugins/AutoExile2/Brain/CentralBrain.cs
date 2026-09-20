@@ -142,7 +142,7 @@ namespace AutoExile2.Brain
             if (!p.IsPeacefulZone && s.P2EnableCombat && s.P2Skills != null)
             {
                 bool hasEligibleCuller = false;
-                foreach (var skill in s.P2Skills.Where(x => x.Enabled && (x.Category == "Culler" || x.Role == SkillRole.Culler)))
+                foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role == SkillRole.Culler))
                 {
                     float rawStart = skill.CullerStartAttackDistance > 0 ? skill.CullerStartAttackDistance : 35f;
                     float startGrid = rawStart > 150f ? (rawStart / p.GridToWorld) : rawStart;
@@ -157,7 +157,16 @@ namespace AutoExile2.Brain
                     }
                 }
 
-                bool hasTargetedCombat = p.BestCombatTarget != null && p.NearbyEnemyCount > 0;
+                bool hasEligibleTargetedSkill = s.P2Skills.Any(x =>
+                    x.Enabled &&
+                    x.Role != SkillRole.Disabled &&
+                    x.Role != SkillRole.SelfBuffGuard &&
+                    x.Role != SkillRole.Culler &&
+                    x.Role != SkillRole.CorpseTargeted);
+                bool hasTargetedCombat =
+                    hasEligibleTargetedSkill &&
+                    p.BestCombatTarget != null &&
+                    p.NearbyEnemyCount > 0;
 
                 if (hasEligibleCuller || hasTargetedCombat)
                 {

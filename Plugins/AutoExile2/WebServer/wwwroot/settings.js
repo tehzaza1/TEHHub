@@ -230,8 +230,8 @@ function renderInputTypeOptions(selectedInput) {
 
 const TOTEM_KW = ["totem", "ballista", "ancestor", "ancestral", "earthbreaker", "siegeballista", "spelltotem", "holyflame"];
 const CURSE_KW = ["curse", "hex", "mark", "despair", "flammability", "conductivity", "vulnerability", "punishment", "enfeeble", "temporalchains", "elementalweakness", "poachersmark", "warlordsmark", "assassinsmark", "snipersmark", "projectileweakness", "frostbite", "contagion", "bane", "wither", "frostbomb", "coldexposure", "exposure"];
-const GUARD_KW = ["steelskin", "moltenshell", "immortalcall", "bonearmour", "arcanecloak", "frostshield", "defiancebanner"];
-const WARCRY_KW = ["warcry", "shout", "enduringcry", "intimidatingcry", "rallyingcry", "seismiccry", "battlemagescry", "infernalcry", "generalcry", "ancestralcry"];
+const GUARD_KW = ["convalescence", "encaseinjade", "fortifyingcry", "magmabarrier", "virtuousbarrier", "glacialbarrier", "barrier", "bulwark", "shieldwall", "raiseshield", "arcticarmour", "grimfeast", "guard", "aegis"];
+const WARCRY_KW = ["warcry", "shout", "fortifyingcry", "infernalcry", "ancestralcry", "enduringcry", "intimidatingcry", "rallyingcry", "seismiccry", "battlemagescry", "generalcry"];
 const MINION_KW = ["summon", "raise", "animate", "golem", "skeleton", "zombie", "spectre", "ragingspirit", "reaper", "absolution", "heraldofpurity", "minion", "dominatingblow"];
 const MOVE_KW = ["frostblink", "flamedash", "dash", "leapslam", "shieldcharge", "whirlingblades", "lightningwarp", "blinkarrow", "flickerstrike", "smokemine", "bodyswap", "chargeddash", "blink", "roll"];
 const BUFF_KW = ["bloodrage", "witheringstep", "berserk", "phaserun", "righteousfire", "tempestshield", "grace", "determination", "discipline", "hatred", "anger", "wrath", "zealotry", "malevolence", "pride", "haste", "purity", "vitality", "clarity", "precision", "aura", "herald", "manatempest", "tempest"];
@@ -241,9 +241,9 @@ function autoClassifySkill(name) {
   const clean = name.trim().toLowerCase().replace(/[\s_\-]+/g, '');
   if (clean === 'move' || clean === 'walk') return 'Movement';
   if (MOVE_KW.some(k => clean.includes(k))) return 'Movement';
-  if (TOTEM_KW.some(k => clean.includes(k))) return 'Totem';
   if (GUARD_KW.some(k => clean.includes(k))) return 'Guard';
   if (WARCRY_KW.some(k => clean.includes(k))) return 'Warcry';
+  if (TOTEM_KW.some(k => clean.includes(k))) return 'Totem';
   if (CURSE_KW.some(k => clean.includes(k))) return 'Curse';
   if (MINION_KW.some(k => clean.includes(k))) return 'Minion';
   if (BUFF_KW.some(k => clean.includes(k))) return 'Buff';
@@ -735,13 +735,20 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
           <div style="font-weight:700; color:#f43f5e; font-size:12px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
             🎯 Culler / Focused Fire (Co-op Follower Only)
           </div>
-          <div class="grid2">
+          <div class="grid3">
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <label style="margin-bottom:0;">Distance to Attack (g)</label>
-                <input type="number" id="${listName}_cullerStartNum_${i}" min="5" max="200" step="1" value="${slot.CullerStartAttackDistance > 150 ? Math.round(slot.CullerStartAttackDistance/10.87) : (slot.CullerStartAttackDistance || 35)}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].CullerStartAttackDistance=v; const sl=document.getElementById('${listName}_cullerStartSlider_${i}'); if(sl) sl.value=v; previewRange('CullerStart', v, 'grid', '🎯 Culler Start: ' + v + 'g', '#f43f5e', 'Leader');" />
+                <input type="number" id="${listName}_cullerStartNum_${i}" min="5" max="150" step="1" value="${slot.CullerStartAttackDistance > 150 ? Math.round(slot.CullerStartAttackDistance/10.87) : (slot.CullerStartAttackDistance || 35)}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].CullerStartAttackDistance=v; const sl=document.getElementById('${listName}_cullerStartSlider_${i}'); if(sl) sl.value=v; previewRange('CullerStart', v, 'grid', '🎯 Culler Start: ' + v + 'g', '#f43f5e', 'Leader');" />
               </div>
               <input type="range" id="${listName}_cullerStartSlider_${i}" min="10" max="100" step="1" value="${slot.CullerStartAttackDistance > 150 ? Math.round(slot.CullerStartAttackDistance/10.87) : (slot.CullerStartAttackDistance || 35)}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].CullerStartAttackDistance=v; const num=document.getElementById('${listName}_cullerStartNum_${i}'); if(num) num.value=v; previewRange('CullerStart', v, 'grid', '🎯 Culler Start: ' + v + 'g', '#f43f5e', 'Leader');" />
+            </div>
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="margin-bottom:0;">Aim Ahead of Leader (g)</label>
+                <input type="number" id="${listName}_cullerAimNum_${i}" min="5" max="150" step="1" value="${slot.CullerAimDistance > 150 ? Math.round(slot.CullerAimDistance/10.87) : (slot.CullerAimDistance || 75)}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].CullerAimDistance=v; const sl=document.getElementById('${listName}_cullerAimSlider_${i}'); if(sl) sl.value=v;" />
+              </div>
+              <input type="range" id="${listName}_cullerAimSlider_${i}" min="10" max="120" step="1" value="${slot.CullerAimDistance > 150 ? Math.round(slot.CullerAimDistance/10.87) : (slot.CullerAimDistance || 75)}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].CullerAimDistance=v; const num=document.getElementById('${listName}_cullerAimNum_${i}'); if(num) num.value=v;" />
             </div>
             <div class="form-group" style="display:flex; flex-direction:column; justify-content:center;">
               <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:14px;">
