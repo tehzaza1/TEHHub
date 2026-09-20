@@ -292,6 +292,27 @@ namespace AutoExile2
                     }
                 }
 
+                // Minion command skills are commands executed through already-summoned minions.
+                // They are not summon/resummon actions, so expose them as Custom instead of Minion/Disabled.
+                foreach (var (commandName, commandUsable) in actor.MinionCommandSkills)
+                {
+                    if (string.IsNullOrWhiteSpace(commandName) ||
+                        detectedSkills.Exists(x => x.Name.Equals(commandName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    detectedSkills.Add(new DetectedSkillInfo
+                    {
+                        Name = commandName,
+                        Category = SkillClassifier.CategoryCustom,
+                        CooldownMs = 0,
+                        CanBeUsed = commandUsable,
+                        MaxUses = 1,
+                        ActiveCooldowns = 0,
+                    });
+                }
+
                 if (actor.DeployedEntities != null)
                 {
                     foreach (var (typeId, count) in actor.DeployedEntities)
@@ -497,29 +518,51 @@ namespace AutoExile2
                         followerMana = (int)fVitals.ManaPercent;
                     }
 
-                    if (targetFollowerEntity.TryGetComponent<Actor>(out var fActor) && fActor.ActiveSkills != null)
+                    if (targetFollowerEntity.TryGetComponent<Actor>(out var fActor))
                     {
-                        foreach (var (skillName, details) in fActor.ActiveSkills)
+                        if (fActor.ActiveSkills != null)
                         {
-                            if (string.IsNullOrWhiteSpace(skillName)) continue;
-                            string cat = SkillClassifier.Classify(skillName);
-                            bool usable = fActor.IsSkillUsable.Contains(skillName);
-                            int maxUses = 1;
-                            int activeCds = 0;
-                            if (fActor.ActiveSkillCooldowns != null && fActor.ActiveSkillCooldowns.TryGetValue(details.UnknownIdAndEquipmentInfo, out var cdInfo))
+                            foreach (var (skillName, details) in fActor.ActiveSkills)
                             {
-                                maxUses = cdInfo.MaxUses;
-                                activeCds = cdInfo.TotalActiveCooldowns();
+                                if (string.IsNullOrWhiteSpace(skillName)) continue;
+                                string cat = SkillClassifier.Classify(skillName);
+                                bool usable = fActor.IsSkillUsable.Contains(skillName);
+                                int maxUses = 1;
+                                int activeCds = 0;
+                                if (fActor.ActiveSkillCooldowns != null && fActor.ActiveSkillCooldowns.TryGetValue(details.UnknownIdAndEquipmentInfo, out var cdInfo))
+                                {
+                                    maxUses = cdInfo.MaxUses;
+                                    activeCds = cdInfo.TotalActiveCooldowns();
+                                }
+
+                                p2DetectedSkills.Add(new DetectedSkillInfo
+                                {
+                                    Name = skillName,
+                                    Category = cat,
+                                    CooldownMs = details.TotalCooldownTimeInMs,
+                                    CanBeUsed = usable,
+                                    MaxUses = maxUses,
+                                    ActiveCooldowns = activeCds,
+                                });
+                            }
+                        }
+
+                        foreach (var (commandName, commandUsable) in fActor.MinionCommandSkills)
+                        {
+                            if (string.IsNullOrWhiteSpace(commandName) ||
+                                p2DetectedSkills.Exists(x => x.Name.Equals(commandName, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                continue;
                             }
 
                             p2DetectedSkills.Add(new DetectedSkillInfo
                             {
-                                Name = skillName,
-                                Category = cat,
-                                CooldownMs = details.TotalCooldownTimeInMs,
-                                CanBeUsed = usable,
-                                MaxUses = maxUses,
-                                ActiveCooldowns = activeCds,
+                                Name = commandName,
+                                Category = SkillClassifier.CategoryCustom,
+                                CooldownMs = 0,
+                                CanBeUsed = commandUsable,
+                                MaxUses = 1,
+                                ActiveCooldowns = 0,
                             });
                         }
                     }

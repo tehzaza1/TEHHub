@@ -945,6 +945,27 @@ namespace AutoExile2.Systems
             return count;
         }
 
+        internal static int CountOwnedTotems(Entity? player)
+        {
+            if (player == null || !player.TryGetComponent<Actor>(out var actor))
+            {
+                return 0;
+            }
+
+            int count = 0;
+            foreach (var (typeId, deployedCount) in actor.DeployedEntities)
+            {
+                if (DeployedObjectCounter.CategoryName(typeId).Contains(
+                    "Totem",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    count += deployedCount;
+                }
+            }
+
+            return count;
+        }
+
         public static bool IsSkillReadyInGame(
             Entity? player,
             SkillSlotConfig slot,
@@ -1384,7 +1405,7 @@ namespace AutoExile2.Systems
                 }
 
                 // 1. Totem Max Count check. PoE2 minions are auto-managed and never enter this cast path.
-                if (string.Equals(slot.Category, SkillClassifier.CategoryTotem, StringComparison.OrdinalIgnoreCase))
+                if (slot.Role == SkillRole.TotemOrMinion)
                 {
                     int currentTotems = this.CountActiveTotems(area, player);
                     int maxTotems = slot.MaxTotemCount > 0 ? slot.MaxTotemCount : 1;
