@@ -9,9 +9,12 @@ items, or alter game memory. No AutoExile2 or OH2 dependency.
 1. Build `TEHhub.sln` in Release. UiDump is deployed with the other plugins.
 2. Enable **UiDump** in TEHhub plugin management and open its settings.
 3. Set a label such as `stash-closed`, `stash-tab-maps` or `vendor`.
-4. Open the desired in-game panel, then press **F8** once. Alternatively click
-   **Capture current game UI**; the default 3-second delay lets you return to the game.
-5. Keep the panel/tab stable while capturing. Check the result in plugin settings.
+4. Open the desired in-game panel, then click **Capture current game UI**. This
+   starts immediately and can remain on the Control Center because that window is
+   not part of PoE's `GameUi` tree. Alternatively press **F8** in the game; the
+   configurable hotkey delay gives you time to open the intended panel.
+5. Keep the panel/tab stable while capturing. Progress and any unavailable PID,
+   game-state, root-address, or area evidence are shown in plugin settings.
 6. Use **Open dump folder** or **Copy ZIP path**. Captures are under
    `configs/plugins/UiDump/dumps/` beneath the TEHhub application directory.
 7. Send the ZIP plus a matching screenshot and your PoE2 game version.

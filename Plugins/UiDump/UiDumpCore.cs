@@ -10,7 +10,6 @@ using ClickableTransparentOverlay.Win32;
 using ImGuiNET;
 using TEHhub;
 using TEHhub.Plugin;
-using TEHhub.RemoteEnums;
 using TEHhub.Utils;
 
 public sealed class UiDumpSettings : IPSettings
@@ -75,16 +74,27 @@ public sealed partial class UiDumpCore : PCore<UiDumpSettings>
 
     public override void DrawSettings()
     {
+        // Settings can remain visible while the game is not the foreground window. PManager
+        // deliberately suppresses DrawUI in that situation, so drive pending/capture/save work
+        // here too. The overlay is not part of PoE's GameUi tree and cannot pollute the dump.
+        this.AdvanceCaptureWork(allowHotkey: false);
+
         ImGui.TextWrapped("Open the game UI you want to inspect. Keep the same panel/tab open until capture finishes.");
         ImGui.InputText("Capture label", ref this.Settings.Label, 80);
         ImGuiHelper.NonContinuousEnumComboBox("Capture hotkey", ref this.Settings.Hotkey);
-        ImGui.SliderInt("Delay (seconds)", ref this.Settings.DelaySeconds, 0, 10);
+        ImGui.SliderInt("Hotkey delay (seconds)", ref this.Settings.DelaySeconds, 0, 10);
         ImGui.Checkbox("Include hidden UI subtrees", ref this.Settings.IncludeHidden);
         ImGui.Checkbox("Include raw UI bytes for research", ref this.Settings.IncludeRaw);
         ImGui.SliderInt("Maximum nodes", ref this.Settings.MaxNodes, 1000, 50000);
         bool busy = this.dueAt != 0 || this.capture != null || this.saving != null;
         ImGui.BeginDisabled(busy);
-        if (ImGui.Button("Capture current game UI")) this.Schedule();
+        if (ImGui.Button("Capture current game UI"))
+        {
+            // A settings-button capture is immediate and continues from DrawSettings. Requiring
+            // the user to focus the game first made the original request stall because DrawUI is
+            // hidden whenever TEHhub is foreground and HideOverlaysWhenGameInactive is enabled.
+            this.StartCapture(Environment.TickCount64);
+        }
         ImGui.EndDisabled();
         ImGui.SameLine();
         if (ImGui.Button("Cancel"))
@@ -113,15 +123,23 @@ public sealed partial class UiDumpCore : PCore<UiDumpSettings>
 
     public override void DrawUI()
     {
+        this.AdvanceCaptureWork(allowHotkey: true);
+    }
+
+    private void AdvanceCaptureWork(bool allowHotkey)
+    {
         if (this.saving?.IsCompleted == true)
         {
             try { this.lastFile = this.saving.GetAwaiter().GetResult(); this.status += " | ZIP saved."; }
             catch (Exception error) { this.status = "Save failed: " + error.Message; }
             this.saving = null;
         }
-        bool down = (GetAsyncKeyState((int)this.Settings.Hotkey) & 0x8000) != 0;
-        if (down && !this.keyWasDown && Core.Process.Foreground) this.Schedule();
-        this.keyWasDown = down;
+        if (allowHotkey)
+        {
+            bool down = (GetAsyncKeyState((int)this.Settings.Hotkey) & 0x8000) != 0;
+            if (down && !this.keyWasDown && Core.Process.Foreground) this.Schedule();
+            this.keyWasDown = down;
+        }
         long now = Environment.TickCount64;
         if (this.dueAt != 0 && now >= this.dueAt)
         {
@@ -156,28 +174,43 @@ public sealed partial class UiDumpCore : PCore<UiDumpSettings>
 
     private void StartCapture(long now)
     {
-        var game = Core.States.InGameStateObject;
-        var root = game?.GameUi?.Address ?? IntPtr.Zero;
-        if (Core.Process.Pid == 0 || root == IntPtr.Zero ||
-            Core.States.GameCurrentState is not (GameStateTypes.InGameState or GameStateTypes.EscapeState))
+        if (this.capture != null || this.saving != null)
         {
-            this.status = "Game UI unavailable. Enter the game and open a panel first.";
             return;
         }
+
+        var game = Core.States.InGameStateObject;
+        var root = game?.GameUi?.Address ?? IntPtr.Zero;
+        var gameState = Core.States.GameCurrentState;
+        var areaHash = game?.CurrentAreaInstance?.AreaHash ?? string.Empty;
+        if (Core.Process.Pid == 0 || root == IntPtr.Zero)
+        {
+            this.status =
+                $"Game UI unavailable: PID={Core.Process.Pid}, State={gameState}, " +
+                $"Root=0x{root.ToInt64():X}, AreaHash='{areaHash}', Foreground={Core.Process.Foreground}.";
+            return;
+        }
+
+        // PoE2 0.5.x can be reported as UnknownState while the InGameState and GameUi roots are
+        // already valid. The root is the authority for a read-only UI dump; record the state as
+        // evidence instead of rejecting an otherwise readable tree.
         this.capturedRoot = root;
         this.startedAt = this.previousFrameAt = now;
         this.capture = new UiCapture(root.ToInt64(), new UiSnapshot
         {
             Label = this.Settings.Label,
             GameProcessId = (int)Core.Process.Pid,
-            AreaHash = game?.CurrentAreaInstance?.AreaHash ?? "",
-            GameState = Core.States.GameCurrentState.ToString(),
+            AreaHash = areaHash,
+            GameState = gameState.ToString(),
             RootAddress = $"0x{root.ToInt64():X}",
             Build = typeof(Core).Assembly.GetName().Version?.ToString() ?? "unknown",
             WindowRectangle = Core.Process.WindowArea.ToString(),
             IncludeHidden = this.Settings.IncludeHidden,
             IncludeRaw = this.Settings.IncludeRaw,
         }, Math.Clamp(this.Settings.MaxNodes, 1000, 50000));
+        this.status =
+            $"Capture started: PID={Core.Process.Pid}, State={gameState}, " +
+            $"Root=0x{root.ToInt64():X}, AreaHash='{areaHash}'.";
     }
 
     private void SaveCapture()
