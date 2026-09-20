@@ -6,6 +6,7 @@ namespace AutoExile2.Modes.Shared
 {
     using System;
     using System.Numerics;
+    using TEHhub;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
     using TEHhub.Offsets.Natives;
@@ -16,6 +17,57 @@ namespace AutoExile2.Modes.Shared
     /// </summary>
     public static class ModeHelpers
     {
+        /// <summary>
+        /// Finds the nearest targetable personal stash entity inside the PoE 2 network bubble.
+        /// Guild stash objects are deliberately excluded from automatic interaction.
+        /// </summary>
+        public static Entity? FindNearestStash(
+            AreaInstance area,
+            Vector2 playerGrid,
+            float maxDist = Pathfinding.NetworkBubbleRadius)
+        {
+            if (area == null)
+            {
+                return null;
+            }
+
+            Entity? best = null;
+            float bestDist = maxDist;
+            foreach (var entity in area.AwakeEntities.Values)
+            {
+                if (!entity.IsValid || !IsPersonalStashPath(entity.Path) ||
+                    !entity.TryGetComponent<Targetable>(out var targetable) || !targetable.IsTargetable ||
+                    !entity.TryGetComponent<Render>(out var render))
+                {
+                    continue;
+                }
+
+                var gridPos = new Vector2(render.GridPosition.X, render.GridPosition.Y);
+                var distance = Vector2.Distance(playerGrid, gridPos);
+                if (distance < bestDist)
+                {
+                    best = entity;
+                    bestDist = distance;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>
+        /// Conservative metadata-path classifier for a personal stash target.
+        /// </summary>
+        public static bool IsPersonalStashPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path) ||
+                path.Contains("Guild", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return path.Contains("Stash", StringComparison.OrdinalIgnoreCase);
+        }
+
         /// <summary>
         /// Find the best targetable TownPortal entity near player.
         /// Checks entity path containing "Portal" or "Town_Portals" and Targetable.IsTargetable.
@@ -73,7 +125,7 @@ namespace AutoExile2.Modes.Shared
         /// <summary>
         /// Converts entity world position to screen coordinates and performs a humanized click.
         /// </summary>
-        public static bool ClickEntity(WorldData world, Entity entity)
+        public static bool ClickEntity(WorldData world, Entity entity, Func<bool>? canClick = null)
         {
             if (world == null || entity == null || !entity.IsValid)
             {
@@ -100,7 +152,15 @@ namespace AutoExile2.Modes.Shared
                 return false;
             }
 
-            BotInput.HumanClick(screenPos);
+            var window = Core.Process.WindowArea;
+            if (!float.IsFinite(screenPos.X) || !float.IsFinite(screenPos.Y) ||
+                screenPos.X < 0f || screenPos.Y < 0f ||
+                screenPos.X >= window.Width || screenPos.Y >= window.Height)
+            {
+                return false;
+            }
+
+            BotInput.HumanClick(screenPos + new Vector2(window.Left, window.Top), canClick: canClick);
             return true;
         }
     }

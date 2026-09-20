@@ -41,6 +41,7 @@ namespace AutoExile2
         private readonly RuntimeTracker runtime = new();
         private readonly ProfileManager profileManager = new();
         private readonly CoopVirtualGamepad coopGamepad = new();
+        private readonly InteractionSystem interactionSystem = new();
         private AutoExileWebServer? webServer;
 
         // Coroutine & cached execution contexts to eliminate GC allocation
@@ -179,6 +180,7 @@ namespace AutoExile2
         private void StopAutomationInputs()
         {
             this.combatSystem.StopAllChannels();
+            this.interactionSystem.Reset();
             BotInput.ReleaseAllHeldKeys();
             this.coopGamepad.ResetAllInputs();
         }
@@ -630,6 +632,9 @@ namespace AutoExile2
                     (stashSnapshot.Pages.Count > 0 || stashSnapshot.Tiers.Count > 0),
                 DetectedStashTabs = detectedStashTabs,
                 StashTiers = stashTiers,
+                InteractionPhase = this.interactionSystem.Phase.ToString(),
+                InteractionStatus = this.interactionSystem.Status,
+                InteractionFailure = this.interactionSystem.LastFailure,
             };
         }
 
@@ -963,6 +968,7 @@ namespace AutoExile2
                         Area = currentArea,
                         World = world,
                         Player = player,
+                        GameUi = Core.States.InGameStateObject.GameUi,
                         PlayerGrid = pGrid,
                         DeltaTime = 0f,
                         Settings = this.Settings,
@@ -973,6 +979,7 @@ namespace AutoExile2
                         Runtime = this.runtime,
                         Recorder = this.recorder,
                         CoopGamepad = this.coopGamepad,
+                        Interaction = this.interactionSystem,
                     };
                 }
                 else
@@ -980,6 +987,7 @@ namespace AutoExile2
                     this.renderCtx.Area = currentArea;
                     this.renderCtx.World = world;
                     this.renderCtx.Player = player;
+                    this.renderCtx.GameUi = Core.States.InGameStateObject.GameUi;
                     this.renderCtx.PlayerGrid = pGrid;
                     this.renderCtx.Settings = this.Settings;
                 }
@@ -1097,6 +1105,7 @@ namespace AutoExile2
                                     Area = currentArea,
                                     World = currentWorld,
                                     Player = player,
+                                    GameUi = inGameState!.GameUi,
                                     PlayerGrid = playerGrid,
                                     DeltaTime = deltaSec,
                                     Settings = this.Settings,
@@ -1107,6 +1116,7 @@ namespace AutoExile2
                                     Runtime = this.runtime,
                                     Recorder = this.recorder,
                                     CoopGamepad = this.coopGamepad,
+                                    Interaction = this.interactionSystem,
                                     Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
                                 };
                             }
@@ -1115,6 +1125,7 @@ namespace AutoExile2
                                 this.botCtx.Area = currentArea;
                                 this.botCtx.World = currentWorld;
                                 this.botCtx.Player = player;
+                                this.botCtx.GameUi = inGameState!.GameUi;
                                 this.botCtx.PlayerGrid = playerGrid;
                                 this.botCtx.DeltaTime = deltaSec;
                                 this.botCtx.Settings = this.Settings;

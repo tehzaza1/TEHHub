@@ -13,6 +13,7 @@ namespace AutoExile2.Modes.WaveFarm
     using TEHhub.Offsets.Natives;
     using ImGuiNET;
     using AutoExile2.Modes.WaveFarm.FarmPlans;
+    using AutoExile2.Modes.Shared;
     using AutoExile2.Systems;
 
     /// <summary>
@@ -35,15 +36,22 @@ namespace AutoExile2.Modes.WaveFarm
 
         public string CurrentAction => this.Decision;
 
-        public List<Vector2> CurrentNavPath => this.wave.CurrentNavPath;
+        public List<Vector2> CurrentNavPath => this.phase == WaveFarmPhase.InHideout
+            ? this.hideoutFlow.CurrentNavPath
+            : this.wave.CurrentNavPath;
 
-        public int CurrentWaypointIndex => this.wave.CurrentWaypointIndex;
+        public int CurrentWaypointIndex => this.phase == WaveFarmPhase.InHideout
+            ? this.hideoutFlow.CurrentWaypointIndex
+            : this.wave.CurrentWaypointIndex;
 
-        public Vector2? CurrentDestination => this.wave.CurrentDestination;
+        public Vector2? CurrentDestination => this.phase == WaveFarmPhase.InHideout
+            ? this.hideoutFlow.CurrentDestination
+            : this.wave.CurrentDestination;
 
         private readonly WaveTick wave = new();
         private readonly ZoneStateCache zoneCache = new();
         private readonly ExitHandler exitHandler = new();
+        private readonly HideoutFlow hideoutFlow = new();
         private readonly Dictionary<string, IFarmPlan> plans = new();
         private IFarmPlan? activePlan;
 
@@ -54,7 +62,9 @@ namespace AutoExile2.Modes.WaveFarm
         private bool mapCompleted;
 
         public string Status { get; private set; } = string.Empty;
-        public string Decision => this.wave.Decision;
+        public string Decision => this.phase == WaveFarmPhase.InHideout
+            ? this.hideoutFlow.Decision
+            : this.wave.Decision;
         public int RunsCompleted => this.runsCompleted;
 
         public WaveFarmMode()
@@ -70,6 +80,7 @@ namespace AutoExile2.Modes.WaveFarm
             this.runsCompleted = 0;
             this.mapCompleted = false;
             this.exitHandler.Reset();
+            this.hideoutFlow.Reset(ctx);
 
             if (this.activePlan == null)
             {
@@ -98,6 +109,7 @@ namespace AutoExile2.Modes.WaveFarm
             this.phase = WaveFarmPhase.Idle;
             this.wave.Reset();
             this.exitHandler.Reset();
+            this.hideoutFlow.Reset(ctx);
             this.zoneCache.Clear();
             this.mapCompleted = false;
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
@@ -212,10 +224,10 @@ namespace AutoExile2.Modes.WaveFarm
             y += lineH;
 
             // Nav
-            if (this.wave.CurrentNavPath.Count > 0)
+            if (this.CurrentNavPath.Count > 0)
             {
-                var dest = this.wave.CurrentDestination ?? Vector2.Zero;
-                drawList.AddText(new Vector2(x, y), colBright, $"Nav: wp {this.wave.CurrentWaypointIndex}/{this.wave.CurrentNavPath.Count} -> ({dest.X:F0},{dest.Y:F0})");
+                var dest = this.CurrentDestination ?? Vector2.Zero;
+                drawList.AddText(new Vector2(x, y), colBright, $"Nav: wp {this.CurrentWaypointIndex}/{this.CurrentNavPath.Count} -> ({dest.X:F0},{dest.Y:F0})");
             }
             else
             {
@@ -227,7 +239,7 @@ namespace AutoExile2.Modes.WaveFarm
             drawList.AddText(new Vector2(x, y), colDim, $"Runs completed: {this.runsCompleted}");
 
             // Render Nav Path in world space
-            if (this.wave.CurrentNavPath.Count > 0 && ctx.World != null && ctx.Player.TryGetComponent<TEHhub.RemoteObjects.Components.Render>(out var pRender))
+            if (this.CurrentNavPath.Count > 0 && ctx.World != null && ctx.Player.TryGetComponent<TEHhub.RemoteObjects.Components.Render>(out var pRender))
             {
                 float convertor = ctx.Area.WorldToGridConvertor;
                 float playerTerrainZ = pRender.TerrainHeight;
@@ -238,10 +250,10 @@ namespace AutoExile2.Modes.WaveFarm
                 var playerPos = new Vector2(pRender.GridPosition.X, pRender.GridPosition.Y);
                 renderPoints.Add(playerPos);
 
-                int maxRenderWp = Math.Min(this.wave.CurrentNavPath.Count, this.wave.CurrentWaypointIndex + 25);
-                for (int i = this.wave.CurrentWaypointIndex; i < maxRenderWp; i++)
+                int maxRenderWp = Math.Min(this.CurrentNavPath.Count, this.CurrentWaypointIndex + 25);
+                for (int i = this.CurrentWaypointIndex; i < maxRenderWp; i++)
                 {
-                    renderPoints.Add(this.wave.CurrentNavPath[i]);
+                    renderPoints.Add(this.CurrentNavPath[i]);
                 }
 
                 // 2. Subdivide segments into small steps (~10 grid units) so long lines that cross the screen edge
@@ -277,14 +289,14 @@ namespace AutoExile2.Modes.WaveFarm
                 }
 
                 // 3. Draw waypoint dots at each actual waypoint node
-                for (int i = this.wave.CurrentWaypointIndex; i < maxRenderWp; i++)
+                for (int i = this.CurrentWaypointIndex; i < maxRenderWp; i++)
                 {
-                    var wp = this.wave.CurrentNavPath[i];
+                    var wp = this.CurrentNavPath[i];
                     float wpZ = Pathfinding.GetTerrainHeight(heightData, (int)wp.X, (int)wp.Y, playerTerrainZ);
                     var wpScreen = ctx.World.WorldToScreen(new Vector2(wp.X * convertor, wp.Y * convertor), wpZ);
                     if (wpScreen != Vector2.Zero)
                     {
-                        bool isDest = (i == this.wave.CurrentNavPath.Count - 1);
+                        bool isDest = (i == this.CurrentNavPath.Count - 1);
                         if (isDest)
                         {
                             drawList.AddCircleFilled(wpScreen, 6f, colDestStar);
@@ -301,6 +313,7 @@ namespace AutoExile2.Modes.WaveFarm
 
         private void InitMapState(BotContext ctx)
         {
+            ctx.Interaction.Cancel(ctx.Settings);
             this.phase = WaveFarmPhase.InMap;
             this.mapCompleted = false;
             this.exitHandler.Reset();
@@ -330,8 +343,8 @@ namespace AutoExile2.Modes.WaveFarm
 
         private void TickHideout(BotContext ctx)
         {
-            this.Status = "In Hideout/Town — ready";
-            BotInput.ReleaseAllMovementKeys(ctx.Settings);
+            this.hideoutFlow.Tick(ctx);
+            this.Status = this.hideoutFlow.Status;
         }
 
         private void TickInMap(BotContext ctx)
@@ -371,6 +384,7 @@ namespace AutoExile2.Modes.WaveFarm
             if (world.AreaDetails.IsHideout || world.AreaDetails.IsTown)
             {
                 this.wave.Reset();
+                this.hideoutFlow.Reset(ctx);
                 bool wasExiting = this.phase == WaveFarmPhase.ExitMap;
                 this.phase = WaveFarmPhase.InHideout;
 
@@ -387,6 +401,7 @@ namespace AutoExile2.Modes.WaveFarm
             }
             else
             {
+                this.hideoutFlow.Reset(ctx);
                 ctx.Log($"[WaveFarm] Entered map: {newArea}");
                 this.InitMapState(ctx);
             }

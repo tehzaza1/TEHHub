@@ -214,13 +214,25 @@ namespace AutoExile2.Systems
         /// <summary>
         /// Performs a humanized left or right mouse click at screen position.
         /// </summary>
-        public static void HumanClick(Vector2 screenPos, bool rightClick = false)
+        public static void HumanClick(
+            Vector2 screenPos,
+            bool rightClick = false,
+            Func<bool>? canClick = null)
         {
             Task.Run(async () =>
             {
+                if (canClick?.Invoke() == false)
+                {
+                    return;
+                }
+
                 await MoveCursorOrganic(screenPos);
                 await Task.Delay(RandSettle());
                 await SendDelayAsync();
+                if (canClick?.Invoke() == false)
+                {
+                    return;
+                }
 
                 int downFlag = rightClick ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_LEFTDOWN;
                 int upFlag = rightClick ? MOUSEEVENTF_RIGHTUP : MOUSEEVENTF_LEFTUP;

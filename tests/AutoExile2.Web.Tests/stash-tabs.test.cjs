@@ -76,11 +76,25 @@ context.renderStashScanner({
   IsInventoryOpen: false,
   IsStashOpen: false,
   IsVendorOpen: false,
+  InteractionPhase: 'Idle',
   DetectedStashTabs: [],
   StashTiers: [],
 });
 assert.equal(elements.detectedStashTabSelect.value, '6');
 assert.match(elements.stashScanStatus.textContent, /สแกนล่าสุด 4 แท็บ/);
+
+context.renderStashScanner({
+  IsInventoryOpen: false,
+  IsStashOpen: false,
+  IsVendorOpen: false,
+  InteractionPhase: 'Navigating',
+  InteractionStatus: 'Moving to personal stash (42g)',
+  DetectedStashTabs: [],
+  StashTiers: [],
+});
+assert.equal(
+  elements.stashScanStatus.textContent,
+  'Interaction Navigating: Moving to personal stash (42g)');
 
 context.useDetectedStashTab('WaystoneTab');
 assert.equal(elements.WaystoneTab.value, '6');
