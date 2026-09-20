@@ -286,72 +286,23 @@ namespace AutoExile2.Modes
             {
                 if (life.Health.Current <= 0) return; // Leader is dead, do not spam flasks or buffs
                 var lVitals = new PlayerVitals(life);
-                DateTime flaskNow = DateTime.Now;
 
-                // Leader Auto Life Flask
-                if (s.P1AutoLifeFlask && lVitals.HpPercent <= s.P1LifeFlaskThresholdPercent)
-                {
-                    int lifeSlot = CombatSystem.GetFlaskSlotFromKey(s.LifeFlaskKey, 0);
-                    bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(leader, lifeSlot, isLife: true);
-                    bool hasCharges = !s.CheckFlaskCharges || CombatSystem.HasFlaskCharges(ctx.Area.ServerDataObject, lifeSlot);
-
-                    if (!active && hasCharges)
-                    {
-                        int debounceMs = CombatSystem.NormalizeFlaskCooldownMs(s.LifeFlaskCooldownMs);
-                        if ((flaskNow - ctx.Combat.LastLifeFlaskAt).TotalMilliseconds >= debounceMs)
-                        {
-                            ctx.Combat.LastLifeFlaskAt = flaskNow;
-                            if (pad.IsLeaderConnected)
-                            {
-                                pad.PressLeaderFlask(true, debounceMs);
-                            }
-                            else
-                            {
-                                BotInput.FastPressKey(s.LifeFlaskKey);
-                            }
-                        }
-                    }
-                }
-
-                // Leader Auto Mana Flask
-                if (s.P1AutoManaFlask && lVitals.ManaPercent <= s.P1ManaFlaskThresholdPercent)
-                {
-                    int manaSlot = CombatSystem.GetFlaskSlotFromKey(s.ManaFlaskKey, 1);
-                    bool active = s.CheckFlaskActiveEffect && CombatSystem.IsFlaskActive(leader, manaSlot, isLife: false);
-                    bool hasCharges = !s.CheckFlaskCharges || CombatSystem.HasFlaskCharges(ctx.Area.ServerDataObject, manaSlot);
-
-                    if (!active && hasCharges)
-                    {
-                        int debounceMs = CombatSystem.NormalizeFlaskCooldownMs(s.ManaFlaskCooldownMs);
-                        if ((flaskNow - ctx.Combat.LastManaFlaskAt).TotalMilliseconds >= debounceMs)
-                        {
-                            ctx.Combat.LastManaFlaskAt = flaskNow;
-                            if (pad.IsLeaderConnected)
-                            {
-                                pad.PressLeaderFlask(false, debounceMs);
-                            }
-                            else
-                            {
-                                BotInput.FastPressKey(s.ManaFlaskKey);
-                            }
-                        }
-                    }
-                }
-
-                // Leader Auto Buffs & Guard skills (Full SkillSlotConfig)
+                // P1 emergency flasks and low-HP guards are owned by AutoExile2Core's
+                // frame-rate emergency lane. This worker only handles non-emergency assists.
                 if (s.P1Skills != null && s.P1Skills.Count > 0)
                 {
                     var now = DateTime.Now;
 
                     foreach (var slot in s.P1Skills
-                        .Where(x => x.Enabled && x.Role == SkillRole.SelfBuffGuard)
+                        .Where(x =>
+                            x.Enabled &&
+                            x.Role == SkillRole.SelfBuffGuard &&
+                            !x.OnlyOnLowHp)
                         .OrderByDescending(x => x.Priority))
                     {
                         int castSpacingMs = CombatSystem.GetSkillCastSpacingMs(slot);
                         if ((now - slot.LastCastAt).TotalMilliseconds < castSpacingMs) continue;
                         if (!CombatSystem.IsSkillReadyInGame(leader, slot)) continue;
-
-                        if (slot.OnlyOnLowHp && !lVitals.IsLowVital(slot)) continue;
 
                         if (slot.MinManaPercent > 0 && lVitals.ManaPercent < slot.MinManaPercent) continue;
 
