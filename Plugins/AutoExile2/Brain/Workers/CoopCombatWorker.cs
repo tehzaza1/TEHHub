@@ -131,6 +131,22 @@ namespace AutoExile2.Brain.Workers
 
                 if (cullerSkill.CullerRequireMonsters && p.NearbyEnemyCount == 0) continue;
 
+                float rawAimDist = cullerSkill.CullerAimDistance > 0 ? cullerSkill.CullerAimDistance : 75f;
+                float aimDistGrid = rawAimDist > 150f
+                    ? rawAimDist / Math.Max(0.01f, p.GridToWorld)
+                    : rawAimDist;
+                Vector2 heading = p.LeaderHeading.LengthSquared() > 0.001f
+                    ? Vector2.Normalize(p.LeaderHeading)
+                    : new Vector2(0f, -1f);
+                Vector2 cullerAimGrid = p.LeaderGrid + (heading * aimDistGrid);
+                Vector2 cullerAimDir = BotInput.GridToScreenDirection(
+                    ctx.World,
+                    follower,
+                    cullerAimGrid,
+                    p.FollowerGrid,
+                    p.GridToWorld);
+                pad.SetFollowerAim(cullerAimDir);
+
                 cullerSkill.LastCastAt = now;
                 this.LastAttackTime = now;
                 this.ActiveSkillName = $"Culler: {cullerSkill.Name}";
