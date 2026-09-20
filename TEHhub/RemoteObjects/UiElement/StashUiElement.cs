@@ -54,6 +54,7 @@ namespace TEHhub.RemoteObjects.UiElement
     /// <param name="State">Closed, Loading, or Ready.</param>
     /// <param name="CurrentTabName">Selected top-level stash tab name.</param>
     /// <param name="CurrentPageName">Selected page inside a specialized tab, such as Waystone page 1-6.</param>
+    /// <param name="TopTabBarUiAddress">Visible horizontal top-tab container used as the Ctrl+scroll hover target.</param>
     /// <param name="Tabs">Top-level tab controls currently materialized by the UI.</param>
     /// <param name="Pages">Specialized-tab page controls currently materialized by the UI.</param>
     /// <param name="Tiers">Waystone Tier I-XVI controls and their displayed counts.</param>
@@ -64,6 +65,7 @@ namespace TEHhub.RemoteObjects.UiElement
         StashSnapshotState State,
         string CurrentTabName,
         string CurrentPageName,
+        IntPtr TopTabBarUiAddress,
         IReadOnlyList<StashTabInfo> Tabs,
         IReadOnlyList<StashTabInfo> Pages,
         IReadOnlyList<StashTierInfo> Tiers,
@@ -129,6 +131,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         StashSnapshotState.Closed,
                         string.Empty,
                         string.Empty,
+                        IntPtr.Zero,
                         Array.Empty<StashTabInfo>(),
                         Array.Empty<StashTabInfo>(),
                         Array.Empty<StashTierInfo>(),
@@ -137,6 +140,10 @@ namespace TEHhub.RemoteObjects.UiElement
                         "Stash panel is closed.");
                 }
 
+                var topTabBarUiAddress = UiElementMemory.TryResolvePath(this.Address, TabBarPath, out var topTabBar) &&
+                                         UiElementMemory.IsVisibleThroughParents(topTabBar)
+                    ? topTabBar
+                    : IntPtr.Zero;
                 var tabs = ReadTabBar(this.Address, TabBarPath, out var currentTab);
                 var allTabsListOpen = UiElementMemory.TryResolvePath(this.Address, AllTabsListPath, out var allTabsList) &&
                                       UiElementMemory.IsVisibleThroughParents(allTabsList);
@@ -155,6 +162,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         StashSnapshotState.Loading,
                         string.Empty,
                         currentPage,
+                        topTabBarUiAddress,
                         tabs,
                         pages,
                         tiers,
@@ -170,6 +178,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         StashSnapshotState.Loading,
                         currentTab,
                         currentPage,
+                        topTabBarUiAddress,
                         tabs,
                         pages,
                         tiers,
@@ -186,6 +195,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         StashSnapshotState.Loading,
                         currentTab,
                         currentPage,
+                        topTabBarUiAddress,
                         tabs,
                         pages,
                         tiers,
@@ -198,6 +208,7 @@ namespace TEHhub.RemoteObjects.UiElement
                     StashSnapshotState.Ready,
                     currentTab,
                     currentPage,
+                    topTabBarUiAddress,
                     tabs,
                     pages,
                     tiers,

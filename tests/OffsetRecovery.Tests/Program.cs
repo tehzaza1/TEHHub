@@ -500,6 +500,8 @@ try
         "Stash snapshots must expose Waystone Tier counts independently from selected-tab inventory items.");
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.IsAllTabsListOpen))?.PropertyType == typeof(bool),
         "Stash snapshots must expose the all-tabs list as a separate visibility state.");
+    Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.TopTabBarUiAddress))?.PropertyType == typeof(IntPtr),
+        "Stash snapshots must expose the top tab-bar container as the Ctrl+scroll hover target.");
 
     var topTabs = new[]
     {

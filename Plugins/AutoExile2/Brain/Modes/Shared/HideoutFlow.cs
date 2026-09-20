@@ -244,18 +244,23 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            var topTabUnavailable = tab.UiAddress == IntPtr.Zero;
-            var beganInteraction = this.useTabScrollFallback || topTabUnavailable
+            var sideListFirst = snapshot.IsAllTabsListOpen && tab.FallbackUiAddress != IntPtr.Zero;
+            var primaryAddress = sideListFirst ? tab.FallbackUiAddress : tab.UiAddress;
+            var secondaryAddress = sideListFirst ? tab.UiAddress : IntPtr.Zero;
+            var directTabUnavailable = primaryAddress == IntPtr.Zero;
+            var beganInteraction = this.useTabScrollFallback || directTabUnavailable
                 ? this.BeginTabScrollFallback(ctx, snapshot, tab, configuredTab)
                 : ctx.Interaction.BeginUiElement(
-                    tab.UiAddress,
+                    primaryAddress,
                     $"Waystone Tab '{tab.Name}'",
                     current => IsConfiguredTabReady(current, configuredTab),
-                    fallbackUiAddress: snapshot.IsAllTabsListOpen ? tab.FallbackUiAddress : IntPtr.Zero,
-                    maxClickAttempts: 4);
+                    fallbackUiAddress: secondaryAddress,
+                    maxClickAttempts: 4,
+                    uiSource: sideListFirst ? "all-tabs list" : "top tab",
+                    fallbackUiSource: "top tab");
             if (!beganInteraction)
             {
-                if (this.useTabScrollFallback || topTabUnavailable)
+                if (this.useTabScrollFallback || directTabUnavailable)
                 {
                     this.useTabScrollFallback = false;
                     this.nextRetryUtc = DateTime.UtcNow + RetryDelay;
@@ -299,21 +304,11 @@ namespace AutoExile2.Modes.Shared
             // and wheel-down selects the following row (5 -> 6).
             var wheelDirection = targetTab.AllTabsIndex < currentTab.AllTabsIndex ? 1 : -1;
             var tabDistance = Math.Abs(targetTab.AllTabsIndex - currentTab.AllTabsIndex);
-            var hoverAddress = currentTab.UiAddress;
-            if (hoverAddress == IntPtr.Zero && snapshot.IsAllTabsListOpen)
-            {
-                hoverAddress = currentTab.FallbackUiAddress;
-            }
-
-            var fallbackHoverAddress = snapshot.IsAllTabsListOpen && hoverAddress != currentTab.FallbackUiAddress
-                ? currentTab.FallbackUiAddress
-                : IntPtr.Zero;
             return ctx.Interaction.BeginUiScroll(
-                hoverAddress,
+                snapshot.TopTabBarUiAddress,
                 $"Waystone Tab '{targetTab.Name}'",
                 wheelDirection,
                 current => IsConfiguredTabReady(current, configuredTab),
-                fallbackHoverAddress,
                 maxScrollAttempts: Math.Min(32, tabDistance + 2));
         }
 

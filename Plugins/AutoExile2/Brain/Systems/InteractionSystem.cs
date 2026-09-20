@@ -60,6 +60,8 @@ namespace AutoExile2.Systems
         private string entityPath = string.Empty;
         private IntPtr uiAddress;
         private IntPtr fallbackUiAddress;
+        private string uiSource = "UI control";
+        private string fallbackUiSource = "fallback UI control";
         private int wheelDirection;
         private Func<BotContext, bool>? successPredicate;
         private DateTime startedAtUtc;
@@ -143,7 +145,9 @@ namespace AutoExile2.Systems
             string description,
             Func<BotContext, bool> successPredicate,
             IntPtr fallbackUiAddress = default,
-            int maxClickAttempts = DefaultMaxClickAttempts)
+            int maxClickAttempts = DefaultMaxClickAttempts,
+            string uiSource = "top tab",
+            string fallbackUiSource = "all-tabs list")
         {
             if (uiAddress == IntPtr.Zero || this.IsBusy)
             {
@@ -155,6 +159,8 @@ namespace AutoExile2.Systems
             this.LastFailure = string.Empty;
             this.uiAddress = uiAddress;
             this.fallbackUiAddress = fallbackUiAddress;
+            this.uiSource = uiSource;
+            this.fallbackUiSource = fallbackUiSource;
             this.Description = description;
             this.successPredicate = successPredicate;
             this.maxClickAttempts = Math.Clamp(maxClickAttempts, 1, 10);
@@ -167,15 +173,14 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Starts a bounded Ctrl+mouse-wheel interaction over a stash UI control. Each attempt sends
-        /// one notch and the caller's predicate verifies the selected tab before another is allowed.
+        /// Starts a bounded Ctrl+mouse-wheel interaction at the center of a UI container. Each
+        /// attempt sends one notch and verifies the selected tab before another is allowed.
         /// </summary>
         public bool BeginUiScroll(
             IntPtr hoverAddress,
             string description,
             int wheelDirection,
             Func<BotContext, bool> successPredicate,
-            IntPtr fallbackHoverAddress = default,
             int maxScrollAttempts = DefaultMaxClickAttempts)
         {
             if (hoverAddress == IntPtr.Zero || wheelDirection == 0 || this.IsBusy)
@@ -187,7 +192,6 @@ namespace AutoExile2.Systems
             this.kind = InteractionKind.UiScroll;
             this.LastFailure = string.Empty;
             this.uiAddress = hoverAddress;
-            this.fallbackUiAddress = fallbackHoverAddress;
             this.wheelDirection = Math.Sign(wheelDirection);
             this.Description = description;
             this.successPredicate = successPredicate;
@@ -407,7 +411,7 @@ namespace AutoExile2.Systems
             this.clickAttempts++;
             this.lastClickAtUtc = now;
             this.Phase = InteractionPhase.WaitingForSuccess;
-            var source = usedFallback ? "all-tabs list" : "top tab";
+            var source = usedFallback ? this.fallbackUiSource : this.uiSource;
             this.Status = $"Clicked {this.Description} via {source} ({this.clickAttempts}/{this.maxClickAttempts})";
             return this.Result;
         }
@@ -435,14 +439,9 @@ namespace AutoExile2.Systems
                 return this.Fail(ctx, $"{this.Description} did not confirm after {this.clickAttempts} scroll notches");
             }
 
-            var hoverAddress = this.uiAddress;
-            if (!TryGetUiClickPoint(hoverAddress, out var hoverPoint))
+            if (!TryGetUiClickPoint(this.uiAddress, out var hoverPoint))
             {
-                hoverAddress = this.fallbackUiAddress;
-                if (hoverAddress == IntPtr.Zero || !TryGetUiClickPoint(hoverAddress, out hoverPoint))
-                {
-                    return this.Fail(ctx, $"{this.Description} hover controls are hidden or invalid");
-                }
+                return this.Fail(ctx, $"{this.Description} top tab bar is hidden or invalid");
             }
 
             this.Phase = InteractionPhase.Scrolling;
@@ -608,6 +607,8 @@ namespace AutoExile2.Systems
             this.entityPath = string.Empty;
             this.uiAddress = IntPtr.Zero;
             this.fallbackUiAddress = IntPtr.Zero;
+            this.uiSource = "UI control";
+            this.fallbackUiSource = "fallback UI control";
             this.wheelDirection = 0;
             this.successPredicate = null;
             this.startedAtUtc = DateTime.MinValue;
