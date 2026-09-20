@@ -192,14 +192,25 @@ namespace AutoExile2.Brain.Workers
                     }
 
                     var targetGrid = new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y);
-                    float targetDistance = Vector2.Distance(p.FollowerGrid, targetGrid);
-                    float castDistance = skill.Role == SkillRole.TotemOrMinion
-                        ? targetDistance * 0.65f
-                        : targetDistance;
+                    Vector2 aimGrid = skill.Role switch
+                    {
+                        SkillRole.PackTargeted when p.NearbyEnemyCount > 0 => p.PackCenter,
+                        SkillRole.TotemOrMinion => Vector2.Lerp(p.FollowerGrid, targetGrid, 0.65f),
+                        _ => targetGrid,
+                    };
+                    float castDistance = Vector2.Distance(p.FollowerGrid, aimGrid);
                     float effectiveRange = skill.MaxTargetRange > 0 ? skill.MaxTargetRange : 75f;
                     if (castDistance > effectiveRange) continue;
 
                     if (CombatSystem.TargetHasConfiguredDebuff(p.BestCombatTarget, skill)) continue;
+
+                    Vector2 roleAimDir = BotInput.GridToScreenDirection(
+                        ctx.World,
+                        follower,
+                        aimGrid,
+                        p.FollowerGrid,
+                        p.GridToWorld);
+                    pad.SetFollowerAim(roleAimDir);
 
                     skill.LastCastAt = now;
                     this.LastAttackTime = now;

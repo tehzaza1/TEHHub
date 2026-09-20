@@ -60,6 +60,8 @@ namespace AutoExile2.Brain
 
         public Entity? BestCombatTarget { get; set; }
 
+        public Vector2 PackCenter { get; set; }
+
         public bool HasLosToFormation { get; set; }
 
         public bool HasBlockingMonstersInPath { get; set; }
@@ -110,7 +112,8 @@ namespace AutoExile2.Brain
             Vector2 formationTarget,
             int nearbyEnemies,
             float closestDist,
-            Entity? bestTarget)
+            Entity? bestTarget,
+            Vector2 packCenter)
         {
             var p = new WorldPerception();
             var world = ctx.World;
@@ -156,6 +159,7 @@ namespace AutoExile2.Brain
             p.NearbyEnemyCount = p.Vision.Entities.NearbyEnemyCount;
             p.ClosestEnemyDistance = p.Vision.Entities.ClosestEnemyDistance;
             p.BestCombatTarget = p.Vision.Entities.BestCombatTarget;
+            p.PackCenter = packCenter;
 
             p.WalkableData = area.GridWalkableData;
             p.BytesPerRow = area.TerrainMetadata.BytesPerRow;
