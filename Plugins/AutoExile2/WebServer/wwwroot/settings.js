@@ -622,7 +622,7 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
     let skillOptionsHtml = `<option value="">-- Select Equipped Skill --</option>`;
     let foundCurrent = false;
     let relevantSkills = (listName === 'P2Skills')
-      ? ((p2DetectedSkills && p2DetectedSkills.length > 0) ? p2DetectedSkills : ((p1DetectedSkills && p1DetectedSkills.length > 0) ? p1DetectedSkills : detectedSkills))
+      ? ((p2DetectedSkills && p2DetectedSkills.length > 0) ? p2DetectedSkills : [])
       : ((p1DetectedSkills && p1DetectedSkills.length > 0) ? p1DetectedSkills : detectedSkills);
 
     if (listName === 'P1Skills') {
