@@ -236,6 +236,11 @@ const MINION_KW = ["summon", "raise", "animate", "golem", "skeleton", "zombie", 
 const MOVE_KW = ["frostblink", "flamedash", "dash", "leapslam", "shieldcharge", "whirlingblades", "lightningwarp", "blinkarrow", "flickerstrike", "smokemine", "bodyswap", "chargeddash", "blink", "roll"];
 const BUFF_KW = ["bloodrage", "witheringstep", "berserk", "phaserun", "righteousfire", "tempestshield", "grace", "determination", "discipline", "hatred", "anger", "wrath", "zealotry", "malevolence", "pride", "haste", "purity", "vitality", "clarity", "precision", "aura", "herald", "manatempest", "tempest"];
 
+function isP1AssistCategory(category) {
+  const preset = CATEGORY_PRESETS[category];
+  return preset != null && preset.role === 'SelfBuffGuard';
+}
+
 function autoClassifySkill(name) {
   if (!name) return 'Attack';
   const clean = name.trim().toLowerCase().replace(/[\s_\-]+/g, '');
@@ -527,7 +532,15 @@ function renderDetectedSkillsChips() {
       p1Container.innerHTML = '<span style="font-size:11px; color:var(--text-dim); font-style:italic;">No P1 skills detected yet.</span>';
     } else {
       let p1Html = '';
-      p1List.forEach(ds => {
+      const p1AssistSkills = p1List.filter(ds =>
+        isP1AssistCategory(ds.Category || autoClassifySkill(ds.Name)));
+      if (p1AssistSkills.length === 0) {
+        p1Container.innerHTML =
+          '<span style="font-size:11px; color:var(--text-dim); font-style:italic;">No detected P1 Buff / Guard / Warcry skills.</span>';
+        return;
+      }
+
+      p1AssistSkills.forEach(ds => {
         const cat = ds.Category || autoClassifySkill(ds.Name);
         const catDef = CATEGORY_PRESETS[cat] || CATEGORY_PRESETS.Attack;
         const isConfigured = currentSettings.P1Skills?.some(s => s.AssignedSkillName === ds.Name || s.Name === ds.Name);
@@ -609,9 +622,14 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
     // Assigned skill options
     let skillOptionsHtml = `<option value="">-- Select Equipped Skill --</option>`;
     let foundCurrent = false;
-    const relevantSkills = (listName === 'P2Skills')
+    let relevantSkills = (listName === 'P2Skills')
       ? ((p2DetectedSkills && p2DetectedSkills.length > 0) ? p2DetectedSkills : ((p1DetectedSkills && p1DetectedSkills.length > 0) ? p1DetectedSkills : detectedSkills))
       : ((p1DetectedSkills && p1DetectedSkills.length > 0) ? p1DetectedSkills : detectedSkills);
+
+    if (listName === 'P1Skills') {
+      relevantSkills = relevantSkills.filter(ds =>
+        isP1AssistCategory(ds.Category || autoClassifySkill(ds.Name)));
+    }
 
     relevantSkills.forEach(ds => {
       const isSel = slot.AssignedSkillName === ds.Name;
@@ -627,9 +645,17 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
     skillOptionsHtml += `<option value="__custom__">⚙️ Custom / Manual Name</option>`;
 
     // Category options
+    const isUnsupportedLegacyP1 =
+      listName === 'P1Skills' && !isP1AssistCategory(cat);
     let categoryOptionsHtml = '';
+    if (isUnsupportedLegacyP1) {
+      categoryOptionsHtml +=
+        `<option value="${esc(cat)}" selected disabled>⚠️ ${esc(cat)} (legacy / not executed by P1)</option>`;
+    }
+
     Object.keys(CATEGORY_PRESETS).forEach(k => {
       if (k === 'Culler' && listName !== 'P2Skills') return;
+      if (listName === 'P1Skills' && !isP1AssistCategory(k)) return;
       const cp = CATEGORY_PRESETS[k];
       categoryOptionsHtml += `<option value="${k}" ${k === cat ? 'selected' : ''}>${cp.label}</option>`;
     });
@@ -870,6 +896,15 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
         </div>
       </div>
 
+      ${isUnsupportedLegacyP1 ? `
+      <div class="category-box" style="border-color:rgba(239,68,68,0.45); background:rgba(239,68,68,0.08); margin-bottom:10px;">
+        <div style="font-weight:700; color:#ef4444;">⚠️ P1 assist runtime does not execute this category.</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:3px;">
+          Existing profile data is preserved. Change Category to Buff, Guard, or Warcry to enable this slot for Player 1.
+        </div>
+      </div>
+      ` : ''}
+
       <!-- ROW 1: Skill Selection, Category, Label -->
       <div class="grid3" style="margin-bottom:12px;">
         <div class="form-group">
@@ -937,6 +972,9 @@ function renderAllSkillLists() {
 
 function addSkillSlot(listName, defaultCat = 'Attack', defaultButton = 'RightShoulder') {
   if (!currentSettings[listName]) currentSettings[listName] = [];
+  if (listName === 'P1Skills' && !isP1AssistCategory(defaultCat)) {
+    defaultCat = 'Guard';
+  }
   const isGamepad = (listName === 'P1Skills' || listName === 'P2Skills');
   const catDef = CATEGORY_PRESETS[defaultCat] || CATEGORY_PRESETS.Attack;
 
@@ -972,6 +1010,10 @@ function addSkillSlot(listName, defaultCat = 'Attack', defaultButton = 'RightSho
 
 function addPresetSkill(listName, skillName, cat, button, cooldownMs, onlyBuffMissing) {
   if (!currentSettings[listName]) currentSettings[listName] = [];
+  if (listName === 'P1Skills' && !isP1AssistCategory(cat)) {
+    showToast('P1 assists support Buff, Guard, and Warcry skills only.');
+    return;
+  }
   const catDef = CATEGORY_PRESETS[cat] || CATEGORY_PRESETS.Attack;
   currentSettings[listName].push({
     Enabled: true,
@@ -1026,6 +1068,10 @@ async function clearAllSkills(listName) {
 
 function addSkillFromDetected(skillName, cat, listName = 'Skills') {
   if (!currentSettings[listName]) currentSettings[listName] = [];
+  if (listName === 'P1Skills' && !isP1AssistCategory(cat)) {
+    showToast('P1 assists support Buff, Guard, and Warcry skills only.');
+    return;
+  }
   const isGamepad = (listName === 'P1Skills' || listName === 'P2Skills');
   const catDef = CATEGORY_PRESETS[cat] || CATEGORY_PRESETS.Attack;
   const slot = {
@@ -1078,6 +1124,11 @@ function onSelectAssignedSkill(listName, slotIndex, val) {
 
 function onChangeCategory(listName, slotIndex, val) {
   if (!currentSettings[listName] || !currentSettings[listName][slotIndex]) return;
+  if (listName === 'P1Skills' && !isP1AssistCategory(val)) {
+    showToast('P1 assists support Buff, Guard, and Warcry skills only.');
+    renderAllSkillLists();
+    return;
+  }
   currentSettings[listName][slotIndex].Category = val;
   const cp = CATEGORY_PRESETS[val];
   if (cp) {
