@@ -447,6 +447,14 @@ try
     var closedPanels = GameUiPanelDetector.ClassifyTitles(null, null, "Buy or Sell");
     Check(!closedPanels.InventoryOpen && !closedPanels.StashOpen && !closedPanels.VendorOpen,
         "A detached vendor label without the inventory companion panel must not report Vendor=true.");
+    var materializedHiddenStash = GameUiPanelDetector.ClassifyTitles(
+        "Inventory",
+        "Stash",
+        null,
+        inventoryPanelVisible: false,
+        stashPanelVisible: false);
+    Check(!materializedHiddenStash.InventoryOpen && !materializedHiddenStash.StashOpen,
+        "Materialized title text in hidden PoE2 panel trees must not report inventory or stash open.");
 
     var gameUiType = typeof(ImportantUiElements);
     Check(gameUiType.GetProperty(nameof(ImportantUiElements.IsInventoryOpen))?.PropertyType == typeof(bool),
