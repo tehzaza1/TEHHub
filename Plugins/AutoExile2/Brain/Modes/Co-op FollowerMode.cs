@@ -204,6 +204,7 @@ namespace AutoExile2.Modes
             Entity? bestTarget = null;
             float closestDist = float.MaxValue;
             int nearbyEnemies = 0;
+            Vector2 hostileGridSum = Vector2.Zero;
 
             foreach (var kvp in area.AwakeEntities)
             {
@@ -219,6 +220,7 @@ namespace AutoExile2.Modes
                 if (dFollower <= 75f || dLeader <= 55f)
                 {
                     nearbyEnemies++;
+                    hostileGridSum += mGrid;
                     if (dFollower < closestDist)
                     {
                         closestDist = dFollower;
@@ -228,6 +230,9 @@ namespace AutoExile2.Modes
             }
 
             this.nearbyEnemyCount = nearbyEnemies;
+            Vector2 packCenter = nearbyEnemies > 0
+                ? hostileGridSum / nearbyEnemies
+                : followerGrid;
 
             // Formation target
             float safeDist = Math.Max(2f, s.CoopStopDistance);
@@ -251,7 +256,8 @@ namespace AutoExile2.Modes
                 formationTarget,
                 nearbyEnemies,
                 closestDist,
-                bestTarget);
+                bestTarget,
+                packCenter);
 
             // 7. Central Decision Brain (Goal Selection & Concurrent Directive Synthesis)
             var activeGoal = this.brain.EvaluateCoopGoal(perception, s, this.movementWorker.IsSprinting);

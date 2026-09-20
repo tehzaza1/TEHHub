@@ -141,32 +141,8 @@ namespace AutoExile2.Brain
             string combatReason = string.Empty;
             if (!p.IsPeacefulZone && s.P2EnableCombat && s.P2Skills != null)
             {
-                bool hasEligibleCuller = false;
-                foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role == SkillRole.Culler))
-                {
-                    float rawStart = skill.CullerStartAttackDistance > 0 ? skill.CullerStartAttackDistance : 35f;
-                    float startGrid = rawStart > 150f ? (rawStart / p.GridToWorld) : rawStart;
-
-                    if (p.DistanceToLeader <= startGrid)
-                    {
-                        if (!skill.CullerRequireMonsters || p.NearbyEnemyCount > 0)
-                        {
-                            hasEligibleCuller = true;
-                            break;
-                        }
-                    }
-                }
-
-                bool hasEligibleTargetedSkill = s.P2Skills.Any(x =>
-                    x.Enabled &&
-                    x.Role != SkillRole.Disabled &&
-                    x.Role != SkillRole.SelfBuffGuard &&
-                    x.Role != SkillRole.Culler &&
-                    x.Role != SkillRole.CorpseTargeted);
-                bool hasTargetedCombat =
-                    hasEligibleTargetedSkill &&
-                    p.BestCombatTarget != null &&
-                    p.NearbyEnemyCount > 0;
+                bool hasEligibleCuller = HasEligibleP2Culler(p, s);
+                bool hasTargetedCombat = HasEligibleP2TargetedCombat(p, s);
 
                 if (hasEligibleCuller || hasTargetedCombat)
                 {
@@ -243,6 +219,51 @@ namespace AutoExile2.Brain
             return this.UpdateGoal(winnerGoal);
         }
 
+        private static bool HasEligibleP2Culler(WorldPerception p, AutoExile2Settings s)
+        {
+            if (s.P2Skills == null)
+            {
+                return false;
+            }
+
+            foreach (var skill in s.P2Skills.Where(x => x.Enabled && x.Role == SkillRole.Culler))
+            {
+                float rawStart = skill.CullerStartAttackDistance > 0
+                    ? skill.CullerStartAttackDistance
+                    : 35f;
+                float startGrid = rawStart > 150f
+                    ? rawStart / Math.Max(0.01f, p.GridToWorld)
+                    : rawStart;
+
+                if (p.DistanceToLeader <= startGrid &&
+                    (!skill.CullerRequireMonsters || p.NearbyEnemyCount > 0))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasEligibleP2TargetedCombat(
+            WorldPerception p,
+            AutoExile2Settings s)
+        {
+            if (s.P2Skills == null ||
+                p.BestCombatTarget == null ||
+                p.NearbyEnemyCount <= 0)
+            {
+                return false;
+            }
+
+            return s.P2Skills.Any(x =>
+                x.Enabled &&
+                x.Role != SkillRole.Disabled &&
+                x.Role != SkillRole.SelfBuffGuard &&
+                x.Role != SkillRole.Culler &&
+                x.Role != SkillRole.CorpseTargeted);
+        }
+
         /// <summary>
         /// Synthesizes concurrent multi-channel directives (Legs, Hands, Reflexes)
         /// mirroring a human player multitasking in Co-op mode:
@@ -287,8 +308,10 @@ namespace AutoExile2.Brain
             bool sprintMode = narrativeGoal.Type == BotGoalType.HardCatchup;
             if (!p.IsPeacefulZone && s.P2EnableCombat && s.P2Skills != null && !sprintMode)
             {
-                bool hasTargets = p.NearbyEnemyCount > 0 || p.BestCombatTarget != null;
-                if (hasTargets)
+                bool hasCombatIntent =
+                    HasEligibleP2Culler(p, s) ||
+                    HasEligibleP2TargetedCombat(p, s);
+                if (hasCombatIntent)
                 {
                     dir.Combat.ShouldAttack = true;
                     dir.Combat.TargetEntity = p.BestCombatTarget;
