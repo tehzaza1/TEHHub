@@ -182,6 +182,15 @@ namespace AutoExile2.Brain.Workers
 
                     if (skill.MinNearbyEnemies > 0 && p.NearbyEnemyCount < skill.MinNearbyEnemies) continue;
 
+                    if (skill.Role == SkillRole.TotemOrMinion)
+                    {
+                        int maxTotems = skill.MaxTotemCount > 0 ? skill.MaxTotemCount : 1;
+                        if (CombatSystem.CountOwnedTotems(follower) >= maxTotems)
+                        {
+                            continue;
+                        }
+                    }
+
                     var targetGrid = new Vector2(targetRender.GridPosition.X, targetRender.GridPosition.Y);
                     float targetDistance = Vector2.Distance(p.FollowerGrid, targetGrid);
                     float castDistance = skill.Role == SkillRole.TotemOrMinion
