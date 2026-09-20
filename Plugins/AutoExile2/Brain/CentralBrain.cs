@@ -9,6 +9,7 @@ namespace AutoExile2.Brain
     using System.Linq;
     using System.Numerics;
     using AutoExile2.Modes;
+    using AutoExile2.Systems;
     using TEHhub.RemoteObjects.Components;
 
     /// <summary>
