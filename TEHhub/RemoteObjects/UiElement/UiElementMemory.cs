@@ -70,6 +70,31 @@ namespace TEHhub.RemoteObjects.UiElement
         internal static bool TryReadDisplayText(IntPtr element, out string text) =>
             TryReadText(element, DisplayTextOffset, out text);
 
+        internal static bool IsVisibleThroughParents(IntPtr address)
+        {
+            var reader = Core.Process?.Handle;
+            if (reader == null || address == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            var visited = new HashSet<IntPtr>();
+            for (var depth = 0; depth < 64 && address != IntPtr.Zero; depth++)
+            {
+                if (!visited.Add(address) ||
+                    !reader.TryReadMemory<UiElementBaseOffset>(address, out var element) ||
+                    (element.Self != IntPtr.Zero && element.Self != address) ||
+                    !UiElementBaseFuncs.IsVisibleChecker(element.Flags))
+                {
+                    return false;
+                }
+
+                address = element.ParentPtr;
+            }
+
+            return address == IntPtr.Zero;
+        }
+
         internal static bool TryReadText(IntPtr element, int offset, out string text)
         {
             text = string.Empty;

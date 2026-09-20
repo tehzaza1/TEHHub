@@ -490,6 +490,8 @@ try
         "Waystone Tier SDK entries must keep their label, displayed count, and clickable UI address separate.");
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.Tiers)) != null,
         "Stash snapshots must expose Waystone Tier counts independently from selected-tab inventory items.");
+    Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.IsAllTabsListOpen))?.PropertyType == typeof(bool),
+        "Stash snapshots must expose the all-tabs list as a separate visibility state.");
 
     var topTabs = new[]
     {
@@ -509,8 +511,22 @@ try
           mergedMap.AllTabsIndex == 1,
         "Stash tab SDK must preserve the top-tab address and attach the matching all-tabs row and order as fallback.");
     var overflowOnly = mergedTabs.Single(tab => tab.Name == "Overflow");
-    Check(overflowOnly.UiAddress == new IntPtr(0x33000) && overflowOnly.AllTabsIndex == 2,
-        "Tabs materialized only in the all-tabs list must remain selectable and ordered.");
+    Check(overflowOnly.UiAddress == IntPtr.Zero &&
+          overflowOnly.FallbackUiAddress == new IntPtr(0x33000) &&
+          overflowOnly.AllTabsIndex == 2,
+        "Tabs materialized only in an open all-tabs list must remain selectable and ordered without pretending to have a top-tab control.");
+
+    var closedListTabs = StashUiElement.MergeAllTabsFallbacks(topTabs, allTabs, "Orb", allTabsListOpen: false);
+    var closedListMap = closedListTabs.Single(tab => tab.Name == "Map");
+    var closedListOverflow = closedListTabs.Single(tab => tab.Name == "Overflow");
+    Check(closedListMap.UiAddress == new IntPtr(0x22000) &&
+          closedListMap.FallbackUiAddress == IntPtr.Zero &&
+          closedListMap.AllTabsIndex == 1,
+        "A closed all-tabs list must preserve top-tab input and tab order while suppressing its hidden row address.");
+    Check(closedListOverflow.UiAddress == IntPtr.Zero &&
+          closedListOverflow.FallbackUiAddress == IntPtr.Zero &&
+          closedListOverflow.AllTabsIndex == 2,
+        "A closed all-tabs list must never expose its hidden list-only row as clickable.");
 
     // WorldData +0x98 Union Audit Verification
     var worldAreaDetailsOffset = Marshal.OffsetOf<WorldDataOffset>(nameof(WorldDataOffset.WorldAreaDetailsPtr)).ToInt32();

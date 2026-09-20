@@ -58,6 +58,7 @@ namespace TEHhub.RemoteObjects.UiElement
     /// <param name="Pages">Specialized-tab page controls currently materialized by the UI.</param>
     /// <param name="Tiers">Waystone Tier I-XVI controls and their displayed counts.</param>
     /// <param name="Inventory">ServerData StashInventoryId snapshot for the selected tab.</param>
+    /// <param name="IsAllTabsListOpen">Whether the vertical all-tabs list is visible through its parent chain.</param>
     /// <param name="Diagnostic">Short explanation of the state.</param>
     public sealed record StashSnapshot(
         StashSnapshotState State,
@@ -67,6 +68,7 @@ namespace TEHhub.RemoteObjects.UiElement
         IReadOnlyList<StashTabInfo> Pages,
         IReadOnlyList<StashTierInfo> Tiers,
         InventorySnapshot Inventory,
+        bool IsAllTabsListOpen,
         string Diagnostic)
     {
         /// <summary>Gets a value indicating whether a ready selected tab contains no items.</summary>
@@ -131,14 +133,18 @@ namespace TEHhub.RemoteObjects.UiElement
                         Array.Empty<StashTabInfo>(),
                         Array.Empty<StashTierInfo>(),
                         unavailableInventory,
+                        false,
                         "Stash panel is closed.");
                 }
 
                 var tabs = ReadTabBar(this.Address, TabBarPath, out var currentTab);
+                var allTabsListOpen = UiElementMemory.TryResolvePath(this.Address, AllTabsListPath, out var allTabsList) &&
+                                      UiElementMemory.IsVisibleThroughParents(allTabsList);
                 tabs = MergeAllTabsFallbacks(
                     tabs,
                     ReadNamedControls(this.Address, AllTabsListPath),
-                    currentTab);
+                    currentTab,
+                    allTabsListOpen);
                 var pages = ReadTabBar(this.Address, SpecializedPageBarPath, out var currentPage);
                 var tiers = ReadWaystoneTiers(this.Address);
                 var inventory = serverData.ReadInventorySnapshot(InventoryName.StashInventoryId);
@@ -153,6 +159,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         pages,
                         tiers,
                         inventory,
+                        allTabsListOpen,
                         "Stash is open, but the selected tab label is not materialized yet.");
                 }
 
@@ -167,11 +174,12 @@ namespace TEHhub.RemoteObjects.UiElement
                         pages,
                         tiers,
                         inventory,
+                        allTabsListOpen,
                         $"Stash inventory is {inventory.State}: {inventory.Diagnostic}");
                 }
 
                 var tierRevision = string.Join(',', tiers.ConvertAll(tier => $"{tier.Name}:{tier.Count}"));
-                var revision = $"{currentTab}\u001F{currentPage}\u001F{tierRevision}\u001F{inventory.Address.ToInt64():X}\u001F{inventory.ServerRequestCounter}\u001F{inventory.Revision:X16}";
+                var revision = $"{currentTab}\u001F{currentPage}\u001F{allTabsListOpen}\u001F{tierRevision}\u001F{inventory.Address.ToInt64():X}\u001F{inventory.ServerRequestCounter}\u001F{inventory.Revision:X16}";
                 if (!this.stability.Observe(revision))
                 {
                     return new StashSnapshot(
@@ -182,6 +190,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         pages,
                         tiers,
                         inventory,
+                        allTabsListOpen,
                         "Waiting for identical UI and ServerData observations across the stability window.");
                 }
 
@@ -193,6 +202,7 @@ namespace TEHhub.RemoteObjects.UiElement
                     pages,
                     tiers,
                     inventory,
+                    allTabsListOpen,
                     inventory.IsEmpty ? "Selected tab is ready and empty." : $"Selected tab is ready with {inventory.Items.Count} item(s).");
             }
         }
@@ -282,7 +292,8 @@ namespace TEHhub.RemoteObjects.UiElement
         internal static IReadOnlyList<StashTabInfo> MergeAllTabsFallbacks(
             IReadOnlyList<StashTabInfo> topTabs,
             IReadOnlyList<StashTabInfo> allTabs,
-            string currentTab)
+            string currentTab,
+            bool allTabsListOpen = true)
         {
             if (allTabs.Count == 0)
             {
@@ -303,7 +314,7 @@ namespace TEHhub.RemoteObjects.UiElement
                 {
                     merged[index] = merged[index] with
                     {
-                        FallbackUiAddress = listTab.UiAddress,
+                        FallbackUiAddress = allTabsListOpen ? listTab.UiAddress : IntPtr.Zero,
                         AllTabsIndex = listTab.AllTabsIndex,
                     };
                     continue;
@@ -312,8 +323,9 @@ namespace TEHhub.RemoteObjects.UiElement
                 byName[listTab.Name] = merged.Count;
                 merged.Add(new StashTabInfo(
                     listTab.Name,
-                    listTab.UiAddress,
+                    IntPtr.Zero,
                     string.Equals(listTab.Name, currentTab, StringComparison.OrdinalIgnoreCase),
+                    FallbackUiAddress: allTabsListOpen ? listTab.UiAddress : IntPtr.Zero,
                     AllTabsIndex: listTab.AllTabsIndex));
             }
 

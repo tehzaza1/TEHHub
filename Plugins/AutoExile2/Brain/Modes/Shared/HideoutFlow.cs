@@ -244,17 +244,18 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            var beganInteraction = this.useTabScrollFallback
+            var topTabUnavailable = tab.UiAddress == IntPtr.Zero;
+            var beganInteraction = this.useTabScrollFallback || topTabUnavailable
                 ? this.BeginTabScrollFallback(ctx, snapshot, tab, configuredTab)
                 : ctx.Interaction.BeginUiElement(
                     tab.UiAddress,
                     $"Waystone Tab '{tab.Name}'",
                     current => IsConfiguredTabReady(current, configuredTab),
-                    fallbackUiAddress: tab.FallbackUiAddress,
+                    fallbackUiAddress: snapshot.IsAllTabsListOpen ? tab.FallbackUiAddress : IntPtr.Zero,
                     maxClickAttempts: 4);
             if (!beganInteraction)
             {
-                if (this.useTabScrollFallback)
+                if (this.useTabScrollFallback || topTabUnavailable)
                 {
                     this.useTabScrollFallback = false;
                     this.nextRetryUtc = DateTime.UtcNow + RetryDelay;
@@ -298,12 +299,15 @@ namespace AutoExile2.Modes.Shared
             // and wheel-down selects the following row (5 -> 6).
             var wheelDirection = targetTab.AllTabsIndex < currentTab.AllTabsIndex ? 1 : -1;
             var tabDistance = Math.Abs(targetTab.AllTabsIndex - currentTab.AllTabsIndex);
-            var hoverAddress = currentTab.UiAddress != IntPtr.Zero
-                ? currentTab.UiAddress
-                : currentTab.FallbackUiAddress;
-            var fallbackHoverAddress = hoverAddress == currentTab.FallbackUiAddress
-                ? currentTab.UiAddress
-                : currentTab.FallbackUiAddress;
+            var hoverAddress = currentTab.UiAddress;
+            if (hoverAddress == IntPtr.Zero && snapshot.IsAllTabsListOpen)
+            {
+                hoverAddress = currentTab.FallbackUiAddress;
+            }
+
+            var fallbackHoverAddress = snapshot.IsAllTabsListOpen && hoverAddress != currentTab.FallbackUiAddress
+                ? currentTab.FallbackUiAddress
+                : IntPtr.Zero;
             return ctx.Interaction.BeginUiScroll(
                 hoverAddress,
                 $"Waystone Tab '{targetTab.Name}'",
