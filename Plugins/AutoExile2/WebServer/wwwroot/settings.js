@@ -659,9 +659,9 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <label style="margin-bottom:0;">Max Deploy Range (g)</label>
-                <input type="number" id="${listName}_totemRangeNum_${i}" min="0" max="200" step="1" value="${slot.MaxTargetRange || 65}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const sl=document.getElementById('${listName}_totemRangeSlider_${i}'); if(sl) sl.value=v; previewRange('SkillRange', v, 'grid', 'Totem Range: ' + v + 'g', '#f59e0b', isGamepad ? 'Follower' : 'Player');" />
+                <input type="number" id="${listName}_totemRangeNum_${i}" min="0" max="200" step="1" value="${slot.MaxTargetRange ?? 65}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const sl=document.getElementById('${listName}_totemRangeSlider_${i}'); if(sl) sl.value=v; previewRange('SkillRange', v, 'grid', 'Totem Range: ' + v + 'g', '#f59e0b', isGamepad ? 'Follower' : 'Player');" />
               </div>
-              <input type="range" id="${listName}_totemRangeSlider_${i}" min="20" max="100" value="${slot.MaxTargetRange || 65}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const num=document.getElementById('${listName}_totemRangeNum_${i}'); if(num) num.value=v; previewRange('SkillRange', v, 'grid', 'Totem Range: ' + v + 'g', '#f59e0b', isGamepad ? 'Follower' : 'Player');" />
+              <input type="range" id="${listName}_totemRangeSlider_${i}" min="0" max="100" value="${slot.MaxTargetRange ?? 65}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const num=document.getElementById('${listName}_totemRangeNum_${i}'); if(num) num.value=v; previewRange('SkillRange', v, 'grid', 'Totem Range: ' + v + 'g', '#f59e0b', isGamepad ? 'Follower' : 'Player');" />
             </div>
           </div>
           <div style="margin-top:6px;">${renderTotemDetailsHtml(i)}</div>
@@ -717,9 +717,9 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <label style="margin-bottom:0;">Max Cast Range (g)</label>
-                <input type="number" id="${listName}_curseRangeNum_${i}" min="0" max="200" step="1" value="${slot.MaxTargetRange || 70}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const sl=document.getElementById('${listName}_curseRangeSlider_${i}'); if(sl) sl.value=v; previewRange('SkillRange', v, 'grid', 'Curse Range: ' + v + 'g', '#a855f7', isGamepad ? 'Follower' : 'Player');" />
+                <input type="number" id="${listName}_curseRangeNum_${i}" min="0" max="200" step="1" value="${slot.MaxTargetRange ?? 70}" class="num-input" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const sl=document.getElementById('${listName}_curseRangeSlider_${i}'); if(sl) sl.value=v; previewRange('SkillRange', v, 'grid', 'Curse Range: ' + v + 'g', '#a855f7', isGamepad ? 'Follower' : 'Player');" />
               </div>
-              <input type="range" id="${listName}_curseRangeSlider_${i}" min="20" max="100" value="${slot.MaxTargetRange || 70}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const num=document.getElementById('${listName}_curseRangeNum_${i}'); if(num) num.value=v; previewRange('SkillRange', v, 'grid', 'Curse Range: ' + v + 'g', '#a855f7', isGamepad ? 'Follower' : 'Player');" />
+              <input type="range" id="${listName}_curseRangeSlider_${i}" min="0" max="100" value="${slot.MaxTargetRange ?? 70}" class="form-control" oninput="const v=parseFloat(this.value)||0; currentSettings['${listName}'][${i}].MaxTargetRange=v; const num=document.getElementById('${listName}_curseRangeNum_${i}'); if(num) num.value=v; previewRange('SkillRange', v, 'grid', 'Curse Range: ' + v + 'g', '#a855f7', isGamepad ? 'Follower' : 'Player');" />
             </div>
             <div class="form-group">
               <label><input type="checkbox" ${slot.OnlyWhenBuffMissing ? 'checked' : ''} onchange="currentSettings['${listName}'][${i}].OnlyWhenBuffMissing = this.checked;" /> Target Lacking Curse</label>
@@ -896,13 +896,13 @@ function renderSkillSlotList(listName, containerId, isGamepad) {
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <label style="margin-bottom:0;">Hold (ms)</label>
-            <input type="number" id="${listName}_holdNum_${i}" min="0" max="30000" step="25" value="${slot.HoldDurationMs || 150}" class="num-input" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].HoldDurationMs=v; const sl=document.getElementById('${listName}_holdSlider_${i}'); if(sl) sl.value=v;" />
+            <input type="number" id="${listName}_holdNum_${i}" min="0" max="30000" step="25" value="${slot.HoldDurationMs ?? 150}" class="num-input" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].HoldDurationMs=v; const sl=document.getElementById('${listName}_holdSlider_${i}'); if(sl) sl.value=v;" />
           </div>
-          <input type="range" id="${listName}_holdSlider_${i}" min="0" max="5000" step="25" value="${slot.HoldDurationMs || 150}" class="form-control" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].HoldDurationMs=v; const num=document.getElementById('${listName}_holdNum_${i}'); if(num) num.value=v;" />
+          <input type="range" id="${listName}_holdSlider_${i}" min="0" max="5000" step="25" value="${slot.HoldDurationMs ?? 150}" class="form-control" oninput="const v=parseInt(this.value)||0; currentSettings['${listName}'][${i}].HoldDurationMs=v; const num=document.getElementById('${listName}_holdNum_${i}'); if(num) num.value=v;" />
         </div>
         <div class="form-group">
-          <label>Priority (1-10): <span id="${listName}_priVal_${i}" class="slider-val">${slot.Priority}</span></label>
-          <input type="range" min="1" max="10" value="${slot.Priority}" class="form-control" oninput="document.getElementById('${listName}_priVal_${i}').innerText=this.value; currentSettings['${listName}'][${i}].Priority=parseInt(this.value);" />
+          <label>Priority (0-10): <span id="${listName}_priVal_${i}" class="slider-val">${slot.Priority}</span></label>
+          <input type="range" min="0" max="10" value="${slot.Priority}" class="form-control" oninput="document.getElementById('${listName}_priVal_${i}').innerText=this.value; currentSettings['${listName}'][${i}].Priority=parseInt(this.value);" />
         </div>
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -945,27 +945,27 @@ function addSkillSlot(listName, defaultCat = 'Attack', defaultButton = 'RightSho
     Name: defaultCat + " Slot " + (currentSettings[listName].length + 1),
     AssignedSkillName: "",
     Category: defaultCat,
-    Role: catDef.role || "EnemyTargeted",
+    Role: catDef.role ?? "EnemyTargeted",
     InputType: isGamepad ? "KeyboardKey" : "KeyboardKey",
     Key: "KEY_Q",
     GamepadButton: defaultButton,
-    Priority: catDef.priority || 5,
-    TargetFilter: catDef.filter || "Any",
-    MinCastIntervalMs: catDef.interval || 500,
-    HoldDurationMs: catDef.hold || 150,
-    MaxTargetRange: catDef.maxRange || 0,
-    MinNearbyEnemies: catDef.minEnemies || 0,
-    OnlyOnLowHp: catDef.lowHp || false,
-    VitalCondition: catDef.vitalCondition !== undefined ? catDef.vitalCondition : 2,
-    LowHpThresholdPercent: catDef.lowHpThresh || 60,
+    Priority: catDef.priority ?? 5,
+    TargetFilter: catDef.filter ?? "Any",
+    MinCastIntervalMs: catDef.interval ?? 500,
+    HoldDurationMs: catDef.hold ?? 150,
+    MaxTargetRange: catDef.maxRange ?? 0,
+    MinNearbyEnemies: catDef.minEnemies ?? 0,
+    OnlyOnLowHp: catDef.lowHp ?? false,
+    VitalCondition: catDef.vitalCondition ?? 2,
+    LowHpThresholdPercent: catDef.lowHpThresh ?? 60,
     MinManaPercent: 0,
     IsChannel: false,
-    OnlyWhenBuffMissing: catDef.onlyWhenBuffMissing || false,
+    OnlyWhenBuffMissing: catDef.onlyWhenBuffMissing ?? false,
     BuffDebuffName: "",
-    MaxTotemCount: catDef.maxTotems || 1,
-    CullerAimDistance: catDef.cullerAimDist || 75,
-    CullerStartAttackDistance: catDef.cullerStartDist || 35,
-    CullerRequireMonsters: catDef.cullerRequireMonsters !== undefined ? catDef.cullerRequireMonsters : false
+    MaxTotemCount: catDef.maxTotems ?? 1,
+    CullerAimDistance: catDef.cullerAimDist ?? 75,
+    CullerStartAttackDistance: catDef.cullerStartDist ?? 35,
+    CullerRequireMonsters: catDef.cullerRequireMonsters ?? false
   });
   renderAllSkillLists();
 }
@@ -978,27 +978,27 @@ function addPresetSkill(listName, skillName, cat, button, cooldownMs, onlyBuffMi
     Name: skillName,
     AssignedSkillName: skillName,
     Category: cat,
-    Role: catDef.role || "SelfBuffGuard",
+    Role: catDef.role ?? "SelfBuffGuard",
     InputType: "KeyboardKey",
     Key: "KEY_Q",
     GamepadButton: button,
-    Priority: catDef.priority || 5,
-    TargetFilter: catDef.filter || "Any",
+    Priority: catDef.priority ?? 5,
+    TargetFilter: catDef.filter ?? "Any",
     MinCastIntervalMs: cooldownMs || catDef.interval || 500,
-    HoldDurationMs: catDef.hold || 100,
-    MaxTargetRange: catDef.maxRange || 0,
-    MinNearbyEnemies: catDef.minEnemies || 0,
-    OnlyOnLowHp: catDef.lowHp || false,
-    VitalCondition: catDef.vitalCondition !== undefined ? catDef.vitalCondition : 2,
-    LowHpThresholdPercent: catDef.lowHpThresh || 60,
+    HoldDurationMs: catDef.hold ?? 100,
+    MaxTargetRange: catDef.maxRange ?? 0,
+    MinNearbyEnemies: catDef.minEnemies ?? 0,
+    OnlyOnLowHp: catDef.lowHp ?? false,
+    VitalCondition: catDef.vitalCondition ?? 2,
+    LowHpThresholdPercent: catDef.lowHpThresh ?? 60,
     MinManaPercent: 0,
     IsChannel: false,
-    OnlyWhenBuffMissing: onlyBuffMissing !== undefined ? onlyBuffMissing : (catDef.onlyWhenBuffMissing || false),
+    OnlyWhenBuffMissing: onlyBuffMissing !== undefined ? onlyBuffMissing : (catDef.onlyWhenBuffMissing ?? false),
     BuffDebuffName: "",
-    MaxTotemCount: catDef.maxTotems || 1,
-    CullerAimDistance: catDef.cullerAimDist || 75,
-    CullerStartAttackDistance: catDef.cullerStartDist || 35,
-    CullerRequireMonsters: catDef.cullerRequireMonsters !== undefined ? catDef.cullerRequireMonsters : false
+    MaxTotemCount: catDef.maxTotems ?? 1,
+    CullerAimDistance: catDef.cullerAimDist ?? 75,
+    CullerStartAttackDistance: catDef.cullerStartDist ?? 35,
+    CullerRequireMonsters: catDef.cullerRequireMonsters ?? false
   });
   renderAllSkillLists();
   saveSettings();
@@ -1033,27 +1033,27 @@ function addSkillFromDetected(skillName, cat, listName = 'Skills') {
     Name: skillName,
     AssignedSkillName: skillName,
     Category: cat,
-    Role: catDef.role || "EnemyTargeted",
+    Role: catDef.role ?? "EnemyTargeted",
     InputType: "KeyboardKey",
     Key: "KEY_Q",
     GamepadButton: isGamepad ? "RightShoulder" : "RightShoulder",
-    Priority: catDef.priority || 5,
-    TargetFilter: catDef.filter || "Any",
-    MinCastIntervalMs: catDef.interval || 500,
-    HoldDurationMs: catDef.hold || 150,
-    MaxTargetRange: catDef.maxRange || 0,
-    MinNearbyEnemies: catDef.minEnemies || 0,
-    OnlyOnLowHp: catDef.lowHp || false,
-    VitalCondition: catDef.vitalCondition !== undefined ? catDef.vitalCondition : 2,
-    LowHpThresholdPercent: catDef.lowHpThresh || 60,
+    Priority: catDef.priority ?? 5,
+    TargetFilter: catDef.filter ?? "Any",
+    MinCastIntervalMs: catDef.interval ?? 500,
+    HoldDurationMs: catDef.hold ?? 150,
+    MaxTargetRange: catDef.maxRange ?? 0,
+    MinNearbyEnemies: catDef.minEnemies ?? 0,
+    OnlyOnLowHp: catDef.lowHp ?? false,
+    VitalCondition: catDef.vitalCondition ?? 2,
+    LowHpThresholdPercent: catDef.lowHpThresh ?? 60,
     MinManaPercent: 0,
     IsChannel: false,
-    OnlyWhenBuffMissing: catDef.onlyWhenBuffMissing || false,
+    OnlyWhenBuffMissing: catDef.onlyWhenBuffMissing ?? false,
     BuffDebuffName: "",
-    MaxTotemCount: catDef.maxTotems || 1,
-    CullerAimDistance: catDef.cullerAimDist || 75,
-    CullerStartAttackDistance: catDef.cullerStartDist || 35,
-    CullerRequireMonsters: catDef.cullerRequireMonsters !== undefined ? catDef.cullerRequireMonsters : false
+    MaxTotemCount: catDef.maxTotems ?? 1,
+    CullerAimDistance: catDef.cullerAimDist ?? 75,
+    CullerStartAttackDistance: catDef.cullerStartDist ?? 35,
+    CullerRequireMonsters: catDef.cullerRequireMonsters ?? false
   };
   currentSettings[listName].push(slot);
   renderAllSkillLists();
@@ -1081,19 +1081,21 @@ function onChangeCategory(listName, slotIndex, val) {
   currentSettings[listName][slotIndex].Category = val;
   const cp = CATEGORY_PRESETS[val];
   if (cp) {
-    currentSettings[listName][slotIndex].Role = cp.role || 'EnemyTargeted';
-    currentSettings[listName][slotIndex].Priority = cp.priority || 5;
-    currentSettings[listName][slotIndex].MinCastIntervalMs = cp.interval || 500;
-    currentSettings[listName][slotIndex].HoldDurationMs = cp.hold || 150;
-    currentSettings[listName][slotIndex].TargetFilter = cp.filter || 'Any';
-    if (cp.lowHp !== undefined) currentSettings[listName][slotIndex].OnlyOnLowHp = cp.lowHp;
-    if (cp.vitalCondition !== undefined) currentSettings[listName][slotIndex].VitalCondition = cp.vitalCondition;
-    if (cp.lowHpThresh !== undefined) currentSettings[listName][slotIndex].LowHpThresholdPercent = cp.lowHpThresh;
-    if (cp.onlyWhenBuffMissing !== undefined) currentSettings[listName][slotIndex].OnlyWhenBuffMissing = cp.onlyWhenBuffMissing;
-    if (cp.maxTotems !== undefined) currentSettings[listName][slotIndex].MaxTotemCount = cp.maxTotems;
-    if (cp.cullerAimDist !== undefined) currentSettings[listName][slotIndex].CullerAimDistance = cp.cullerAimDist;
-    if (cp.cullerStartDist !== undefined) currentSettings[listName][slotIndex].CullerStartAttackDistance = cp.cullerStartDist;
-    if (cp.cullerRequireMonsters !== undefined) currentSettings[listName][slotIndex].CullerRequireMonsters = cp.cullerRequireMonsters;
+    currentSettings[listName][slotIndex].Role = cp.role ?? 'EnemyTargeted';
+    currentSettings[listName][slotIndex].Priority = cp.priority ?? 5;
+    currentSettings[listName][slotIndex].MinCastIntervalMs = cp.interval ?? 500;
+    currentSettings[listName][slotIndex].HoldDurationMs = cp.hold ?? 150;
+    currentSettings[listName][slotIndex].TargetFilter = cp.filter ?? 'Any';
+    currentSettings[listName][slotIndex].MaxTargetRange = cp.maxRange ?? 0;
+    currentSettings[listName][slotIndex].MinNearbyEnemies = cp.minEnemies ?? 0;
+    currentSettings[listName][slotIndex].OnlyOnLowHp = cp.lowHp ?? false;
+    currentSettings[listName][slotIndex].VitalCondition = cp.vitalCondition ?? 2;
+    currentSettings[listName][slotIndex].LowHpThresholdPercent = cp.lowHpThresh ?? 60;
+    currentSettings[listName][slotIndex].OnlyWhenBuffMissing = cp.onlyWhenBuffMissing ?? false;
+    currentSettings[listName][slotIndex].MaxTotemCount = cp.maxTotems ?? 1;
+    currentSettings[listName][slotIndex].CullerAimDistance = cp.cullerAimDist ?? 75;
+    currentSettings[listName][slotIndex].CullerStartAttackDistance = cp.cullerStartDist ?? 35;
+    currentSettings[listName][slotIndex].CullerRequireMonsters = cp.cullerRequireMonsters ?? false;
   }
   renderAllSkillLists();
 }
