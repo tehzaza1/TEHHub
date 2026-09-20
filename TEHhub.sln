@@ -59,6 +59,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TEHhub.OffsetDoctor.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TEHhub.OffsetDoctor.Gui", "tools\TEHhub.OffsetDoctor.Gui\TEHhub.OffsetDoctor.Gui.csproj", "{E1898D04-EDF3-4FB1-A190-26EC8A91D6E6}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UiDump", "Plugins\UiDump\UiDump.csproj", "{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Debug|x64.Build.0 = Debug|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Debug|x86.Build.0 = Debug|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Release|x64.ActiveCfg = Release|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Release|x64.Build.0 = Release|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Release|x86.ActiveCfg = Release|Any CPU
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE}.Release|x86.Build.0 = Release|Any CPU
 		{F91E45A5-0DEE-4D4C-A89C-69B18F38134E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F91E45A5-0DEE-4D4C-A89C-69B18F38134E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F91E45A5-0DEE-4D4C-A89C-69B18F38134E}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -302,6 +316,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{6AA6C1D6-3915-4D88-B26D-C3EA9589EDCE} = {9FA3D6BD-1EC1-3BA5-80CB-CE02773A58D5}
 		{112D3DA8-8800-4DAF-9170-B1F0EB8249C7} = {9FA3D6BD-1EC1-3BA5-80CB-CE02773A58D5}
 		{8F659334-9906-4693-B1D3-8ABC188E83A5} = {9FA3D6BD-1EC1-3BA5-80CB-CE02773A58D5}
 		{86A443FF-7326-4B21-BC81-20813A7E307E} = {9FA3D6BD-1EC1-3BA5-80CB-CE02773A58D5}

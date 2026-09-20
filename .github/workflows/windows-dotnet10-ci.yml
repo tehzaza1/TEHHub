@@ -37,3 +37,6 @@ jobs:
 
       - name: Run OffsetDoctor tests
         run: dotnet run --project tools/TEHhub.OffsetDoctor.Tests/TEHhub.OffsetDoctor.Tests.csproj -c Release
+
+      - name: Run UiDump tests
+        run: dotnet run --project Plugins/UiDump/Tests/UiDump.Tests.csproj -c Release
