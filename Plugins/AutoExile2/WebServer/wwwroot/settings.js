@@ -18,6 +18,8 @@ let liveActiveTotems = 0;
 let liveActiveMinions = 0;
 let liveActiveTotemNames = [];
 let liveDeployedObjects = [];
+let lastDetectedStashTabs = [];
+let lastDetectedStashTabsSignature = '';
 
 // Gamepad button options for Co-op
 const GAMEPAD_BUTTON_OPTIONS = [
@@ -1505,10 +1507,102 @@ async function loadSettings() {
     }
     updatePositionHelperVisuals(posVal);
     updateFollowerLockUI();
+    syncStashSettingsInputs();
 
     renderAllSkillLists();
   } catch(e) {
     console.error("Failed to load settings:", e);
+  }
+}
+
+function syncStashSettingsInputs() {
+  const waystoneTab = document.getElementById('WaystoneTab');
+  const maxTier = document.getElementById('MaxTier');
+  const dumpTab = document.getElementById('DumpTab');
+  if (waystoneTab) waystoneTab.value = currentSettings.WaystoneTab || '';
+  if (maxTier) maxTier.value = currentSettings.MaxTier || 16;
+  if (dumpTab) dumpTab.value = currentSettings.DumpTab || '';
+}
+
+function useDetectedStashTab(fieldId) {
+  const select = document.getElementById('detectedStashTabSelect');
+  const input = document.getElementById(fieldId);
+  const name = select ? select.value.trim() : '';
+  if (!input || !name) {
+    showToast('เปิด Stash แล้วเลือกแท็บที่สแกนเจอก่อน');
+    return;
+  }
+
+  input.value = name;
+  saveSettings();
+  showToast(`ตั้ง ${fieldId === 'WaystoneTab' ? 'Waystone Tab' : 'Dump Tab'} เป็น ${name}`);
+}
+
+function renderStashScanner(snap) {
+  const flags = document.getElementById('stashOpenFlags');
+  if (flags) {
+    flags.textContent = `Inventory=${snap.IsInventoryOpen ? 1 : 0} | Stash=${snap.IsStashOpen ? 1 : 0} | Vendor=${snap.IsVendorOpen ? 1 : 0}`;
+  }
+
+  const incomingTabs = Array.isArray(snap.DetectedStashTabs)
+    ? [...new Set(snap.DetectedStashTabs.map(name => String(name).trim()).filter(Boolean))]
+    : [];
+  if (incomingTabs.length > 0) {
+    lastDetectedStashTabs = incomingTabs;
+  }
+
+  const select = document.getElementById('detectedStashTabSelect');
+  const signature = lastDetectedStashTabs.join('\u001f');
+  if (select && signature !== lastDetectedStashTabsSignature) {
+    const previous = select.value;
+    select.replaceChildren();
+    if (lastDetectedStashTabs.length === 0) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = '-- ยังไม่พบแท็บ --';
+      select.appendChild(option);
+    } else {
+      for (const name of lastDetectedStashTabs) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      }
+    }
+
+    const preferred = snap.CurrentStashTab || previous;
+    if (preferred && lastDetectedStashTabs.includes(preferred)) select.value = preferred;
+    lastDetectedStashTabsSignature = signature;
+  }
+
+  const status = document.getElementById('stashScanStatus');
+  if (status) {
+    if (!snap.IsStashOpen) {
+      status.textContent = lastDetectedStashTabs.length > 0
+        ? `Stash ปิดอยู่ — เก็บรายชื่อที่สแกนล่าสุด ${lastDetectedStashTabs.length} แท็บไว้ให้เลือก`
+        : 'เปิด Stash ในเกมเพื่อสแกนรายชื่อแท็บ';
+    } else {
+      const current = snap.CurrentStashTab || 'กำลังอ่านชื่อแท็บ';
+      const page = snap.CurrentStashPage ? ` | Page ${snap.CurrentStashPage}` : '';
+      const kind = snap.IsSpecializedStashTab ? 'Map stash' : 'Normal stash';
+      status.textContent = `${snap.StashState || 'Loading'} | ${current}${page} | ${kind}`;
+    }
+  }
+
+  const tierBox = document.getElementById('stashTierCounts');
+  const tiers = Array.isArray(snap.StashTiers) ? snap.StashTiers : [];
+  if (tierBox) {
+    tierBox.replaceChildren();
+    tierBox.style.display = tiers.length > 0 ? 'flex' : 'none';
+    for (const tier of tiers) {
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = `${tier.Name}: ${tier.Count}`;
+      badge.style.fontSize = '11px';
+      badge.style.borderColor = tier.Count > 0 ? 'var(--accent)' : 'var(--border)';
+      badge.style.color = tier.Count > 0 ? 'var(--accent)' : 'var(--text-dim)';
+      tierBox.appendChild(badge);
+    }
   }
 }
 
@@ -1660,7 +1754,7 @@ async function fetchAndPopulatePlayerNames() {
 async function saveSettings() {
   const payload = { ...currentSettings };
   const simpleFields = [
-    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey',
+    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey', 'WaystoneTab', 'MaxTier', 'DumpTab',
     'MoveUp', 'MoveDown', 'MoveLeft', 'MoveRight',
     'UseSprint', 'SprintKey', 'SprintMinDistance',
     'CombatStyle', 'FightRange', 'CombatRange',
@@ -1714,6 +1808,7 @@ async function saveSettings() {
         currentSettings.Skills = currentSettings.Skills || [];
         currentSettings.P1Skills = currentSettings.P1Skills || [];
         currentSettings.P2Skills = currentSettings.P2Skills || [];
+        syncStashSettingsInputs();
         renderAllSkillLists();
         const posVal = currentSettings.FollowerPosition || 'Back';
         updatePositionHelperVisuals(posVal);
@@ -1774,6 +1869,7 @@ function updateRunStatus(isRunning) {
 
 function updateDashboardSnapshot(snap) {
   if (!snap) return;
+  renderStashScanner(snap);
   document.getElementById('statState').innerText = snap.State || 'IDLE';
   document.getElementById('statDuration').innerText = snap.ActiveDuration || '00:00:00';
   document.getElementById('statArea').innerText = snap.AreaName || 'Unknown';

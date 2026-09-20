@@ -128,6 +128,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         // A mist-shrouded King in the Mists node uses the normal 0x542EF3 fingerprint with bit 20
         // cleared. Its data layout is otherwise identical, so both fingerprints must be accepted.
         private const uint AtlasMistNodeFp = 0x442EF3;
+        private const int VendorDiscoveryIntervalFrames = 15;
 
         // A sea ship is an EndgameRegionActionButton in the atlas child list, not a map node.
         // Rows are 0=Breach, 1=Forest, 2=Ocean/ship, 3=Tower. Its grid coordinate identifies the
@@ -153,6 +154,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private readonly Dictionary<(IntPtr Address, int Index), IntPtr> childPathCache = new(128);
         private int atlasMapCacheFrameCounter = int.MaxValue;
         private int cachedAtlasMapCount = -1;
+        private int vendorDiscoveryFrame = VendorDiscoveryIntervalFrames;
         private string lastAreaHash = string.Empty;
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -208,6 +210,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.RuneshapeCombinationsPanel = new(IntPtr.Zero, this.rootCache);
             this.LeftPanel = new(IntPtr.Zero, this.rootCache);
             this.RightPanel = new(IntPtr.Zero, this.rootCache);
+            this.Stash = new(IntPtr.Zero, this.rootCache);
+            this.VendorPanel = new(IntPtr.Zero, this.rootCache);
             this.ChatParent = new(IntPtr.Zero, this.rootCache);
             this.MapModifiersPanel = new(IntPtr.Zero, this.rootCache);
 
@@ -329,6 +333,26 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public UiElementBase RightPanel { get; }
 
         /// <summary>
+        ///     Gets the PoE2 stash reader. Call <see cref="StashUiElement.ReadSnapshot" /> and wait for
+        ///     <see cref="StashSnapshotState.Ready" /> before treating its selected-tab items as authoritative.
+        /// </summary>
+        public StashUiElement Stash { get; }
+
+        /// <summary>
+        ///     Gets the dynamically discovered vendor panel. Its address is zero while no Buy or Sell panel is open.
+        /// </summary>
+        public UiElementBase VendorPanel { get; }
+
+        /// <summary>Gets a value indicating whether the player inventory panel is open.</summary>
+        public bool IsInventoryOpen { get; private set; }
+
+        /// <summary>Gets a value indicating whether the stash panel is open.</summary>
+        public bool IsStashOpen { get; private set; }
+
+        /// <summary>Gets a value indicating whether a Buy or Sell vendor panel is open.</summary>
+        public bool IsVendorOpen { get; private set; }
+
+        /// <summary>
         ///     Gets the Currency Exchange item-list panel.
         ///     Its visibility reliably indicates that the Currency Exchange screen is open.
         ///     GameUi -> child 114 -> 20 -> 6 -> 1.
@@ -411,6 +435,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.displayParentsCache();
             base.ToImGui();
             ImGui.Text($"Passive Skill Tree Panel Visible: {this.passiveskilltreenodes.IsVisible}");
+            ImGui.Text($"Inventory Open: {this.IsInventoryOpen}");
+            ImGui.Text($"Stash Open: {this.IsStashOpen}");
+            ImGui.Text($"Vendor Open: {this.IsVendorOpen}");
             ImGui.Text($"Total Atlas Maps: {this.AtlasMaps.Count}");
             if (ImGui.TreeNode("Atlas Maps"))
             {
@@ -553,6 +580,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.RuneshapeCombinationsPanel.Address = IntPtr.Zero;
             this.LeftPanel.Address = IntPtr.Zero;
             this.RightPanel.Address = IntPtr.Zero;
+            this.Stash.Address = IntPtr.Zero;
+            this.VendorPanel.Address = IntPtr.Zero;
+            this.IsInventoryOpen = false;
+            this.IsStashOpen = false;
+            this.IsVendorOpen = false;
+            this.vendorDiscoveryFrame = VendorDiscoveryIntervalFrames;
             this.ChatParent.Address = IntPtr.Zero;
             this.MapModifiersPanel.Address = IntPtr.Zero;
             this.atlasMaps.Clear();
@@ -625,6 +658,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 }
             }
 
+            this.UpdateInteractionPanelState();
+
             this.CurrencyExchangePanel.Address = ResolveChildAddress(this.Address, CurrencyExchangePanelChildPath);
             this.GemcuttingPanel.Address = ResolveChildAddress(this.Address, GemcuttingPanelChildPath);
             this.SupportGemcuttingPanel.Address = ResolveChildAddress(this.Address, SupportGemcuttingPanelChildPath);
@@ -632,6 +667,36 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.MapModifiersPanel.Address = this.ResolveMapModifiersContainer();
             this.UpdateAtlasMapData();
             this.UpdateAreaMods();
+        }
+
+        private void UpdateInteractionPanelState()
+        {
+            var allowVendorDiscovery = this.VendorPanel.Address != IntPtr.Zero ||
+                                       ++this.vendorDiscoveryFrame >= VendorDiscoveryIntervalFrames;
+            var detected = GameUiPanelDetector.Detect(
+                this.Address,
+                this.LeftPanel.Address,
+                this.RightPanel.Address,
+                this.VendorPanel.Address,
+                allowVendorDiscovery);
+            this.IsInventoryOpen = detected.InventoryOpen;
+            this.IsStashOpen = detected.StashOpen;
+            this.IsVendorOpen = detected.VendorOpen;
+            if (allowVendorDiscovery)
+            {
+                this.vendorDiscoveryFrame = 0;
+            }
+
+            var stashAddress = detected.StashOpen ? this.LeftPanel.Address : IntPtr.Zero;
+            if (this.Stash.Address != stashAddress)
+            {
+                this.Stash.Address = stashAddress;
+            }
+
+            if (this.VendorPanel.Address != detected.VendorPanelAddress)
+            {
+                this.VendorPanel.Address = detected.VendorPanelAddress;
+            }
         }
 
         private IntPtr ResolveMapModifiersContainer()

@@ -238,6 +238,7 @@ namespace AutoExile2
             var currentArea = inGameState?.CurrentAreaInstance;
             var currentWorld = inGameState?.CurrentWorldInstance;
             var player = currentArea?.Player;
+            var gameUi = inGameState?.GameUi;
 
             int hpPct = 100;
             int esPct = 0;
@@ -569,6 +570,17 @@ namespace AutoExile2
                 }
             }
 
+            var stashSnapshot = gameUi?.IsStashOpen == true
+                ? gameUi.Stash.ReadSnapshot()
+                : null;
+            var detectedStashTabs = stashSnapshot?.Tabs
+                .Select(tab => tab.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new List<string>();
+            var stashTiers = stashSnapshot?.Tiers
+                .Select(tier => new StashTierCountInfo { Name = tier.Name, Count = tier.Count })
+                .ToList() ?? new List<StashTierCountInfo>();
+
             return new AutoExileStatusSnapshot
             {
                 IsRunning = this.Settings.IsRunning,
@@ -608,6 +620,16 @@ namespace AutoExile2
                 IsFollowerActive = followerFound,
                 FollowerSlotIndex = this.coopGamepad.FollowerSlotIndex,
                 LeaderSlotIndex = this.coopGamepad.LeaderSlotIndex,
+                IsInventoryOpen = gameUi?.IsInventoryOpen == true,
+                IsStashOpen = gameUi?.IsStashOpen == true,
+                IsVendorOpen = gameUi?.IsVendorOpen == true,
+                StashState = stashSnapshot?.State.ToString() ?? "Closed",
+                CurrentStashTab = stashSnapshot?.CurrentTabName ?? string.Empty,
+                CurrentStashPage = stashSnapshot?.CurrentPageName ?? string.Empty,
+                IsSpecializedStashTab = stashSnapshot != null &&
+                    (stashSnapshot.Pages.Count > 0 || stashSnapshot.Tiers.Count > 0),
+                DetectedStashTabs = detectedStashTabs,
+                StashTiers = stashTiers,
             };
         }
 
@@ -642,6 +664,11 @@ namespace AutoExile2
 
             var inGameState = Core.States.InGameStateObject;
             var curArea = inGameState?.CurrentAreaInstance;
+            var gameUi = inGameState?.GameUi;
+            ImGui.Text(
+                $"UI SDK: Inventory={(gameUi?.IsInventoryOpen == true ? 1 : 0)} | " +
+                $"Stash={(gameUi?.IsStashOpen == true ? 1 : 0)} | " +
+                $"Vendor={(gameUi?.IsVendorOpen == true ? 1 : 0)}");
             if (curArea?.Player2 != null && curArea.Player2.Address != IntPtr.Zero && curArea.Player2.IsValid)
             {
                 ImGui.SameLine();

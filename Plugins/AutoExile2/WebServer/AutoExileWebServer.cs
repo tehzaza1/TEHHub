@@ -722,6 +722,21 @@ namespace AutoExile2.WebServer
         public bool IsFollowerActive { get; set; } = false;
         public int FollowerSlotIndex { get; set; } = -1;
         public int LeaderSlotIndex { get; set; } = -1;
+        public bool IsInventoryOpen { get; set; }
+        public bool IsStashOpen { get; set; }
+        public bool IsVendorOpen { get; set; }
+        public string StashState { get; set; } = "Closed";
+        public string CurrentStashTab { get; set; } = string.Empty;
+        public string CurrentStashPage { get; set; } = string.Empty;
+        public bool IsSpecializedStashTab { get; set; }
+        public List<string> DetectedStashTabs { get; set; } = new();
+        public List<StashTierCountInfo> StashTiers { get; set; } = new();
+    }
+
+    public class StashTierCountInfo
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Count { get; set; }
     }
 
     public class DetectedSkillInfo
