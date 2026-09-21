@@ -727,6 +727,7 @@ namespace AutoExile2.WebServer
         public bool IsVendorOpen { get; set; }
         public string StashState { get; set; } = "Closed";
         public string CurrentStashTab { get; set; } = string.Empty;
+        public string CurrentStashTier { get; set; } = string.Empty;
         public string CurrentStashPage { get; set; } = string.Empty;
         public bool IsSpecializedStashTab { get; set; }
         public List<string> DetectedStashTabs { get; set; } = new();

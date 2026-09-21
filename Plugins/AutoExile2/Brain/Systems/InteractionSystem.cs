@@ -235,31 +235,6 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
-        /// Starts one ordinary UI click and completes after the client has had time to materialize
-        /// the selected view. The caller verifies the resulting server-backed state separately.
-        /// </summary>
-        public bool BeginUiClickAndSettle(IntPtr uiAddress, string description)
-        {
-            if (uiAddress == IntPtr.Zero || this.IsBusy)
-            {
-                return false;
-            }
-
-            this.ResetRequest();
-            this.kind = InteractionKind.UiClickAndSettle;
-            this.LastFailure = string.Empty;
-            this.uiAddress = uiAddress;
-            this.Description = description;
-            this.maxClickAttempts = 1;
-            this.startedAtUtc = DateTime.UtcNow;
-            this.timeout = TimeSpan.FromSeconds(5);
-            this.Phase = InteractionPhase.Settling;
-            this.settleStartedAtUtc = this.startedAtUtc;
-            this.Status = $"Preparing {description}";
-            return true;
-        }
-
-        /// <summary>
         /// Advances the active request by one bot tick.
         /// </summary>
         public InteractionResult Tick(BotContext ctx)
@@ -298,7 +273,6 @@ namespace AutoExile2.Systems
                 InteractionKind.Entity => this.TickEntity(ctx, now),
                 InteractionKind.UiElement => this.TickUiElement(ctx, now),
                 InteractionKind.UiCtrlClick => this.TickUiElement(ctx, now),
-                InteractionKind.UiClickAndSettle => this.TickUiElement(ctx, now),
                 InteractionKind.UiScroll => this.TickUiScroll(ctx, now),
                 _ => this.Fail(ctx, "No interaction target"),
             };
@@ -442,12 +416,6 @@ namespace AutoExile2.Systems
                 (now - this.lastClickAtUtc).TotalMilliseconds < waitMilliseconds)
             {
                 this.Status = $"Waiting for {this.Description} ({this.clickAttempts}/{this.maxClickAttempts})";
-                return this.Result;
-            }
-
-            if (this.kind == InteractionKind.UiClickAndSettle && this.clickAttempts > 0)
-            {
-                this.Complete(ctx);
                 return this.Result;
             }
 
@@ -712,7 +680,6 @@ namespace AutoExile2.Systems
             Entity,
             UiElement,
             UiCtrlClick,
-            UiClickAndSettle,
             UiScroll,
         }
     }

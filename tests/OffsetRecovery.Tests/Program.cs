@@ -498,13 +498,20 @@ try
         "Waystone Tier SDK entries must keep their label, displayed count, and clickable UI address separate.");
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.Tiers)) != null,
         "Stash snapshots must expose Waystone Tier counts independently from selected-tab inventory items.");
+    Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.CurrentTierName))?.PropertyType == typeof(string),
+        "Stash snapshots must expose the currently visible Waystone Tier panel.");
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.IsAllTabsListOpen))?.PropertyType == typeof(bool),
         "Stash snapshots must expose the all-tabs list as a separate visibility state.");
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.TopTabBarUiAddress))?.PropertyType == typeof(IntPtr),
         "Stash snapshots must expose the top tab-bar container as the Ctrl+scroll hover target.");
-    var visibleItem = new StashVisibleItemInfo(new IntPtr(0x24000), new IntPtr(0x25000));
-    Check(visibleItem.ItemAddress != IntPtr.Zero && visibleItem.UiAddress != IntPtr.Zero,
-        "Visible stash-item SDK entries must keep the live Item and clickable UI addresses separate.");
+    var visibleItem = new StashVisibleItemInfo(
+        new IntPtr(0x24000),
+        new IntPtr(0x25000),
+        "Metadata/Items/Maps/MapKeyTier15");
+    Check(visibleItem.ItemAddress != IntPtr.Zero &&
+          visibleItem.UiAddress != IntPtr.Zero &&
+          visibleItem.ItemPath.EndsWith("Tier15", StringComparison.Ordinal),
+        "Visible stash-item SDK entries must keep validated Item, UI, and metadata path evidence separate.");
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.VisibleItems)) != null,
         "Stash snapshots must expose currently materialized item controls for safe item interaction.");
 

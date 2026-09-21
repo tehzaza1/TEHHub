@@ -1588,9 +1588,10 @@ function renderStashScanner(snap) {
           : 'เปิด Stash ในเกมเพื่อสแกนรายชื่อแท็บ';
     } else {
       const current = snap.CurrentStashTab || 'กำลังอ่านชื่อแท็บ';
+      const tier = snap.CurrentStashTier ? ` | Tier ${snap.CurrentStashTier}` : '';
       const page = snap.CurrentStashPage ? ` | Page ${snap.CurrentStashPage}` : '';
       const kind = snap.IsSpecializedStashTab ? 'Map stash' : 'Normal stash';
-      status.textContent = `${snap.StashState || 'Loading'} | ${current}${page} | ${kind}`;
+      status.textContent = `${snap.StashState || 'Loading'} | ${current}${tier}${page} | ${kind}`;
     }
   }
 

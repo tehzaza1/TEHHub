@@ -60,6 +60,7 @@ context.renderStashScanner({
   IsVendorOpen: false,
   StashState: 'Ready',
   CurrentStashTab: 'Map',
+  CurrentStashTier: 'XV',
   CurrentStashPage: '1',
   IsSpecializedStashTab: true,
   DetectedStashTabs: ['Orb', 'Map', '5', '6'],
@@ -71,7 +72,7 @@ assert.deepEqual(
   elements.detectedStashTabSelect.children.map(option => option.value),
   ['Orb', 'Map', '5', '6']);
 assert.equal(elements.detectedStashTabSelect.value, 'Map');
-assert.match(elements.stashScanStatus.textContent, /Ready \| Map \| Page 1 \| Map stash/);
+assert.match(elements.stashScanStatus.textContent, /Ready \| Map \| Tier XV \| Page 1 \| Map stash/);
 assert.deepEqual(
   elements.stashTierCounts.children.map(badge => badge.textContent),
   ['XIV: 6', 'XV: 170']);

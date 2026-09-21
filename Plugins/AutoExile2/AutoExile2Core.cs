@@ -627,6 +627,7 @@ namespace AutoExile2
                 IsVendorOpen = gameUi?.IsVendorOpen == true,
                 StashState = stashSnapshot?.State.ToString() ?? "Closed",
                 CurrentStashTab = stashSnapshot?.CurrentTabName ?? string.Empty,
+                CurrentStashTier = stashSnapshot?.CurrentTierName ?? string.Empty,
                 CurrentStashPage = stashSnapshot?.CurrentPageName ?? string.Empty,
                 IsSpecializedStashTab = stashSnapshot != null &&
                     (stashSnapshot.Pages.Count > 0 || stashSnapshot.Tiers.Count > 0),
