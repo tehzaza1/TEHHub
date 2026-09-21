@@ -349,7 +349,8 @@ namespace TEHhub.Ui
 
         /// <summary>
         ///     Renders a human-readable summary of known Waystone stats extracted from ModStats.
-        ///     This tests whether StatsFromMods (offset 0x148) contains the Waystone values.
+        ///     PoE2 stores waystone implicit values (Item Rarity, Pack Size, etc.) directly
+        ///     in StatsFromMods rather than in the ImplicitMods vector.
         /// </summary>
         private static void RenderWaystoneStatsSummary(InventorySnapshotItem item)
         {
@@ -368,49 +369,79 @@ namespace TEHhub.Ui
                 return;
             }
 
-            // Well-known Waystone stat mappings (GameStats enum -> display name)
-            (GameStats stat, string label)[] waystoneStatMappings =
+            // Waystone implicit summary stats (displayed on tooltip)
+            // NOTE: PoE2 reuses legacy PoE1 stat IDs with different display semantics.
+            (GameStats stat, string label)[] waystoneSummaryStats =
             {
-                (GameStats.map_item_drop_rarity_positive_percentage, "Item Rarity"),
-                (GameStats.map_pack_size_positive_percentage, "Pack Size"),
-                (GameStats.map_monster_potency_positive_percentage, "Monster Effectiveness"),
-                (GameStats.map_map_item_drop_chance_positive_percentage, "Waystone Drop Chance"),
-                (GameStats.map_item_drop_quantity_positive_percentage, "Item Quantity"),
-                (GameStats.map_item_drop_rarity_positive_percentage_final_from_map, "Item Rarity (final)"),
-                (GameStats.map_pack_size_positive_percentage_final_from_map, "Pack Size (final)"),
-                (GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, "Waystone Drop Chance (final)"),
-                (GameStats.map_monster_potency_positive_percentage_final_from_map, "Monster Effectiveness (final)"),
+                (GameStats.map_pack_size_positive_percentage_final_from_map, "Item Rarity"),
+                (GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, "Pack Size"),
+                (GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, "Monster Effectiveness"),
+                (GameStats.map_unique_item_drop_chance_positive_percentage, "Waystone Drop Chance"),
+                (GameStats.map_rare_monsters_drop_x_additional_rare_items, "Rare Monster Drops"),
+                (GameStats.map_players_skill_area_of_effect_positive_percentage_final, "Player AoE"),
             };
 
-            var foundAny = false;
-            foreach (var (stat, label) in waystoneStatMappings)
+            ImGui.SeparatorText("Waystone Summary");
+            var foundSummary = false;
+            foreach (var (stat, label) in waystoneSummaryStats)
             {
                 if (stats.TryGetValue(stat, out var value))
                 {
                     ImGui.Text($"{label}: +{value}%");
-                    foundAny = true;
+                    foundSummary = true;
                 }
             }
 
-            if (!foundAny)
+            if (!foundSummary)
             {
                 ImGui.TextColored(
                     new Vector4(1f, 0.6f, 0.2f, 1f),
-                    "No known Waystone stats found in ModStats. Values may be under different stat IDs.");
+                    "No known Waystone summary stats found. Stat IDs may have changed.");
             }
 
-            // Show all remaining ModStats not already rendered above for discovery
+            // Explicit mod contributed stats (monster affixes)
+            (GameStats stat, string label)[] explicitModStats =
+            {
+                (GameStats.map_monsters_stun_threshold_positive_percentage, "Monster Stun Threshold"),
+                (GameStats.map_monsters_hit_damage_freeze_multiplier_positive_percentage, "Monster Freeze Damage"),
+                (GameStats.map_monsters_shock_chance_positive_percentage, "Monster Shock Chance"),
+                (GameStats.map_monsters_ailment_threshold_positive_percentage, "Monster Ailment Threshold"),
+            };
+
+            var foundExplicit = false;
+            foreach (var (stat, label) in explicitModStats)
+            {
+                if (stats.TryGetValue(stat, out var value))
+                {
+                    if (!foundExplicit)
+                    {
+                        ImGui.SeparatorText("Explicit Mod Stats");
+                        foundExplicit = true;
+                    }
+
+                    ImGui.TextDisabled($"{label}: {value}");
+                }
+            }
+
+            // Show all remaining ModStats not covered above
             var knownKeys = new HashSet<GameStats>();
-            foreach (var (stat, _) in waystoneStatMappings)
+            foreach (var (stat, _) in waystoneSummaryStats)
             {
                 knownKeys.Add(stat);
             }
+
+            foreach (var (stat, _) in explicitModStats)
+            {
+                knownKeys.Add(stat);
+            }
+
+            knownKeys.Add(GameStats.dummy_stat_display_nothing);
 
             var unknownStats = stats
                 .Where(entry => !knownKeys.Contains(entry.Key))
                 .OrderBy(entry => (int)entry.Key)
                 .ToList();
-            if (unknownStats.Count > 0 && ImGui.TreeNode($"Other ModStats ({unknownStats.Count})##InventoryDvOtherModStats"))
+            if (unknownStats.Count > 0 && ImGui.TreeNode($"Unmapped stats ({unknownStats.Count})##InventoryDvUnmappedStats"))
             {
                 foreach (var entry in unknownStats)
                 {
