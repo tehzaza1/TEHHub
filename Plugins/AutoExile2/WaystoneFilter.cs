@@ -65,31 +65,31 @@ namespace AutoExile2
                 return false;
             }
 
-            if (!PassStrict(settings.MinWaystoneItemRarity, item.WaystoneItemRarity))
+            if (!PassMinimum(settings.MinWaystoneItemRarity, item.WaystoneItemRarity))
             {
                 rejection = "Item Rarity threshold";
                 return false;
             }
 
-            if (!PassStrict(settings.MinWaystonePackSize, item.WaystonePackSize))
+            if (!PassMinimum(settings.MinWaystonePackSize, item.WaystonePackSize))
             {
                 rejection = "Pack Size threshold";
                 return false;
             }
 
-            if (!PassStrict(settings.MinWaystoneMonsterRarity, item.WaystoneMonsterRarity))
+            if (!PassMinimum(settings.MinWaystoneMonsterRarity, item.WaystoneMonsterRarity))
             {
                 rejection = "Monster Rarity threshold";
                 return false;
             }
 
-            if (!PassStrict(settings.MinWaystoneMonsterEffectiveness, item.WaystoneMonsterEffectiveness))
+            if (!PassMinimum(settings.MinWaystoneMonsterEffectiveness, item.WaystoneMonsterEffectiveness))
             {
                 rejection = "Monster Effectiveness threshold";
                 return false;
             }
 
-            if (!PassStrict(settings.MinWaystoneDropChance, item.WaystoneDropChance))
+            if (!PassMinimum(settings.MinWaystoneDropChance, item.WaystoneDropChance))
             {
                 rejection = "Waystone Drop Chance threshold";
                 return false;
@@ -150,7 +150,7 @@ namespace AutoExile2
                 string.Join(',', NormalizeBlockedMods(settings.BlockedWaystoneMods).OrderBy(value => value)),
             });
 
-        private static bool PassStrict(int? configuredMinimum, int? actual) =>
-            !configuredMinimum.HasValue || (actual.HasValue && actual.Value > configuredMinimum.Value);
+        private static bool PassMinimum(int? configuredMinimum, int? actual) =>
+            !configuredMinimum.HasValue || (actual.HasValue && actual.Value >= configuredMinimum.Value);
     }
 }

@@ -114,19 +114,19 @@ namespace AutoExile2
         /// <summary>Highest Waystone Tier AutoExile2 may select when opening a map.</summary>
         public int MaxTier = 16;
 
-        /// <summary>Required Item Rarity percentage. Null disables the filter; actual value must be greater.</summary>
+        /// <summary>Minimum Item Rarity percentage. Null disables the filter; equality passes.</summary>
         public int? MinWaystoneItemRarity;
 
-        /// <summary>Required Pack Size percentage. Null disables the filter; actual value must be greater.</summary>
+        /// <summary>Minimum Pack Size percentage. Null disables the filter; equality passes.</summary>
         public int? MinWaystonePackSize;
 
-        /// <summary>Required Monster Rarity percentage. Null disables the filter; actual value must be greater.</summary>
+        /// <summary>Minimum Monster Rarity percentage. Null disables the filter; equality passes.</summary>
         public int? MinWaystoneMonsterRarity;
 
-        /// <summary>Required Monster Effectiveness percentage. Null disables the filter; actual value must be greater.</summary>
+        /// <summary>Minimum Monster Effectiveness percentage. Null disables the filter; equality passes.</summary>
         public int? MinWaystoneMonsterEffectiveness;
 
-        /// <summary>Required Waystone Drop Chance percentage. Null disables the filter; actual value must be greater.</summary>
+        /// <summary>Minimum Waystone Drop Chance percentage. Null disables the filter; equality passes.</summary>
         public int? MinWaystoneDropChance;
 
         /// <summary>Target explicit modifier count after crafting (4-6). Defaults to the PoE2 cap of six.</summary>
