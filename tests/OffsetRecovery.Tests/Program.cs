@@ -508,6 +508,7 @@ try
     Check(typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.BaseItemName)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ExplicitMods)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ExplicitModsDisplay)) != null &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.WaystoneImplicitMods)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.StackCount)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ModStats)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.WaystoneTier))?.PropertyType == typeof(int?),

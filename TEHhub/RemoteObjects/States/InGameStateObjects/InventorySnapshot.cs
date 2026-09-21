@@ -330,6 +330,15 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         /// <summary>Gets implicit modifiers copied from the Mods component.</summary>
         public IReadOnlyList<InventorySnapshotMod> ImplicitMods { get; init; } = Array.Empty<InventorySnapshotMod>();
 
+        /// <summary>
+        ///     Gets the five PoE2 Waystone implicit tooltip stats decoded from aggregate ModStats.
+        ///     This is intentionally separate from <see cref="ImplicitMods" />, whose contents are
+        ///     limited to the raw Mods-component vector. Revives are derived from explicit mod count
+        ///     and are not an implicit stat.
+        /// </summary>
+        public IReadOnlyList<InventorySnapshotMod> WaystoneImplicitMods { get; init; } =
+            Array.Empty<InventorySnapshotMod>();
+
         /// <summary>Gets explicit modifiers copied from the Mods component.</summary>
         public IReadOnlyList<InventorySnapshotMod> ExplicitMods { get; init; } = Array.Empty<InventorySnapshotMod>();
 
@@ -903,6 +912,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 ChargesPerUse = chargesPerUse,
                 ComponentNames = componentNames,
                 ImplicitMods = implicitMods,
+                WaystoneImplicitMods = snapshotItem.IsWaystone
+                    ? BuildWaystoneImplicitMods(modStats)
+                    : Array.Empty<InventorySnapshotMod>(),
                 ExplicitMods = explicitMods,
                 ExplicitModsDisplay = explicitModsDisplay,
                 EnchantMods = enchantMods,
@@ -918,6 +930,27 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 mod.name,
                 mod.values.value0,
                 mod.values.value1)).ToArray();
+
+        private static InventorySnapshotMod[] BuildWaystoneImplicitMods(
+            IReadOnlyDictionary<GameStats, int> stats)
+        {
+            (GameStats Stat, string Label)[] mappings =
+            {
+                (GameStats.map_pack_size_positive_percentage_final_from_map, "Item Rarity"),
+                (GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, "Pack Size"),
+                (GameStats.map_monster_potency_positive_percentage_final_from_map, "Monster Rarity"),
+                (GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, "Monster Effectiveness"),
+                (GameStats.map_unique_item_drop_chance_positive_percentage, "Waystone Drop Chance"),
+            };
+
+            return mappings
+                .Where(mapping => stats.ContainsKey(mapping.Stat))
+                .Select(mapping => new InventorySnapshotMod(
+                    mapping.Label,
+                    stats[mapping.Stat],
+                    float.NaN))
+                .ToArray();
+        }
 
         private static InventorySlotItemSnapshot ItemAtResult(
             InventorySnapshotState state,

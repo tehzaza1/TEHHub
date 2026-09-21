@@ -290,7 +290,15 @@ namespace TEHhub.Ui
                 RenderDisplayMods("Map modifiers", item.ExplicitModsDisplay);
             }
 
-            RenderMods("Implicit mods", item.ImplicitMods);
+            var displayedImplicitMods = item.IsWaystone && item.WaystoneImplicitMods.Count > 0
+                ? item.WaystoneImplicitMods
+                : item.ImplicitMods;
+            RenderMods("Implicit mods", displayedImplicitMods);
+            if (item.IsWaystone && item.ImplicitMods.Count > 0)
+            {
+                RenderMods("Raw implicit mods", item.ImplicitMods);
+            }
+
             RenderMods("Explicit mods", item.ExplicitMods);
             RenderMods("Enchant mods", item.EnchantMods);
             RenderMods("Other mods", item.OtherMods);
