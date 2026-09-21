@@ -41,6 +41,171 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
     }
 
     /// <summary>
+    ///     Stable, path-based inventory item category. Rarity is intentionally kept separate:
+    ///     for example, a Unique Jewel remains Category=Jewel and Rarity=Unique.
+    /// </summary>
+    public enum InventoryItemCategory
+    {
+        /// <summary>The metadata path is valid but not covered by a known category.</summary>
+        Other,
+
+        /// <summary>A Tier 1-16 PoE2 Waystone.</summary>
+        Waystone,
+
+        /// <summary>A non-Waystone map item.</summary>
+        Map,
+
+        /// <summary>Currency, including microtransaction currency.</summary>
+        Currency,
+
+        /// <summary>Weapons, armour, rings, amulets, belts, or quivers.</summary>
+        Equipment,
+
+        /// <summary>Skill, support, or other gem item.</summary>
+        Gem,
+
+        /// <summary>Flask or charm stored under the Flask metadata family.</summary>
+        FlaskOrCharm,
+
+        /// <summary>Jewel item.</summary>
+        Jewel,
+
+        /// <summary>Precursor tablet / tower augment item.</summary>
+        Tablet,
+
+        /// <summary>Map fragment, scarab, pinnacle key, or ultimatum key.</summary>
+        Fragment,
+
+        /// <summary>Soul Core or another socketable item family.</summary>
+        Socketable,
+
+        /// <summary>Relic or Sanctum item.</summary>
+        Relic,
+
+        /// <summary>Quest item.</summary>
+        Quest,
+
+        /// <summary>League-specific inventory item.</summary>
+        LeagueItem,
+    }
+
+    /// <summary>
+    ///     Classifies inventory items from locale-independent metadata paths without inspecting
+    ///     display names or item art.
+    /// </summary>
+    public static class InventoryItemClassifier
+    {
+        private const string WaystonePrefix = "Metadata/Items/Maps/MapKeyTier";
+
+        /// <summary>Gets the stable category for an item metadata path.</summary>
+        /// <param name="path">Item metadata path.</param>
+        /// <returns>Known category, or <see cref="InventoryItemCategory.Other" />.</returns>
+        public static InventoryItemCategory Classify(string? path)
+        {
+            if (TryGetWaystoneTier(path, out _))
+            {
+                return InventoryItemCategory.Waystone;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Maps/"))
+            {
+                return InventoryItemCategory.Map;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Currency/") ||
+                StartsWith(path, "Metadata/Items/MicrotransactionCurrency/"))
+            {
+                return InventoryItemCategory.Currency;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Armours/") ||
+                StartsWith(path, "Metadata/Items/Weapons/") ||
+                StartsWith(path, "Metadata/Items/Amulets/") ||
+                StartsWith(path, "Metadata/Items/Belts/") ||
+                StartsWith(path, "Metadata/Items/Quivers/") ||
+                StartsWith(path, "Metadata/Items/Rings/"))
+            {
+                return InventoryItemCategory.Equipment;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Gem/") ||
+                StartsWith(path, "Metadata/Items/Gems/"))
+            {
+                return InventoryItemCategory.Gem;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Flasks/"))
+            {
+                return InventoryItemCategory.FlaskOrCharm;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Jewels/"))
+            {
+                return InventoryItemCategory.Jewel;
+            }
+
+            if (StartsWith(path, "Metadata/Items/TowerAugment/"))
+            {
+                return InventoryItemCategory.Tablet;
+            }
+
+            if (StartsWith(path, "Metadata/Items/MapFragments/") ||
+                StartsWith(path, "Metadata/Items/Scarabs/") ||
+                StartsWith(path, "Metadata/Items/Pinnacle/") ||
+                StartsWith(path, "Metadata/Items/UltimatumKey/"))
+            {
+                return InventoryItemCategory.Fragment;
+            }
+
+            if (StartsWith(path, "Metadata/Items/SoulCores/"))
+            {
+                return InventoryItemCategory.Socketable;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Relics/") ||
+                StartsWith(path, "Metadata/Items/Sanctum/"))
+            {
+                return InventoryItemCategory.Relic;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Quest/") ||
+                StartsWith(path, "Metadata/Items/QuestItems/"))
+            {
+                return InventoryItemCategory.Quest;
+            }
+
+            if (StartsWith(path, "Metadata/Items/Expedition/") ||
+                StartsWith(path, "Metadata/Items/Heist/") ||
+                StartsWith(path, "Metadata/Items/Ultimatum/"))
+            {
+                return InventoryItemCategory.LeagueItem;
+            }
+
+            return InventoryItemCategory.Other;
+        }
+
+        /// <summary>Tries to parse an exact Tier 1-16 PoE2 Waystone metadata path.</summary>
+        /// <param name="path">Item metadata path.</param>
+        /// <param name="tier">Parsed Waystone tier.</param>
+        /// <returns>True only for a recognized Waystone path.</returns>
+        public static bool TryGetWaystoneTier(string? path, out int tier)
+        {
+            tier = 0;
+            if (string.IsNullOrWhiteSpace(path) ||
+                !path.StartsWith(WaystonePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var suffix = path[WaystonePrefix.Length..];
+            return int.TryParse(suffix, out tier) && tier is >= 1 and <= 16;
+        }
+
+        private static bool StartsWith(string? path, string prefix) =>
+            path?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    /// <summary>
     ///     One physical inventory cell. Empty cells have zero wrapper and item addresses.
     /// </summary>
     /// <param name="X">Zero-based inventory column.</param>
@@ -123,28 +288,14 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         ///     Gets the PoE2 Waystone tier encoded by the authoritative metadata path, or null when
         ///     this item is not a recognized Tier 1-16 Waystone.
         /// </summary>
-        public int? WaystoneTier
-        {
-            get
-            {
-                const string prefix = "Metadata/Items/Maps/MapKeyTier";
-                if (string.IsNullOrWhiteSpace(this.Path) ||
-                    !this.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    return null;
-                }
-
-                var suffix = this.Path[prefix.Length..];
-                return int.TryParse(suffix, out var tier) && tier is >= 1 and <= 16
-                    ? tier
-                    : null;
-            }
-        }
+        public int? WaystoneTier =>
+            InventoryItemClassifier.TryGetWaystoneTier(this.Path, out var tier) ? tier : null;
 
         /// <summary>Gets a value indicating whether this item is a recognized PoE2 Waystone.</summary>
-        public bool IsWaystone => this.WaystoneTier.HasValue ||
-            (this.ModStats.ContainsKey(GameStats.wing_blast_cone_pullback_percentage) &&
-             this.ModStats.ContainsKey(GameStats.map_unique_item_drop_chance_positive_percentage));
+        public bool IsWaystone => this.WaystoneTier.HasValue;
+
+        /// <summary>Gets the stable path-based item category.</summary>
+        public InventoryItemCategory Category => InventoryItemClassifier.Classify(this.Path);
 
         /// <summary>Gets the localized base item name when Full details were requested.</summary>
         public string BaseItemName { get; init; } = string.Empty;
@@ -181,6 +332,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
         /// <summary>Gets explicit modifiers copied from the Mods component.</summary>
         public IReadOnlyList<InventorySnapshotMod> ExplicitMods { get; init; } = Array.Empty<InventorySnapshotMod>();
+
+        /// <summary>
+        ///     Gets display-ready explicit modifier text. Entries are index-aligned with
+        ///     <see cref="ExplicitMods" /> and raw modifier ids remain available separately.
+        /// </summary>
+        public IReadOnlyList<string> ExplicitModsDisplay { get; init; } = Array.Empty<string>();
 
         /// <summary>Gets enchant modifiers copied from the Mods component.</summary>
         public IReadOnlyList<InventorySnapshotMod> EnchantMods { get; init; } = Array.Empty<InventorySnapshotMod>();
@@ -662,6 +819,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             int? chargesPerUse = null;
             IReadOnlyList<InventorySnapshotMod> implicitMods = Array.Empty<InventorySnapshotMod>();
             IReadOnlyList<InventorySnapshotMod> explicitMods = Array.Empty<InventorySnapshotMod>();
+            IReadOnlyList<string> explicitModsDisplay = Array.Empty<string>();
             IReadOnlyList<InventorySnapshotMod> enchantMods = Array.Empty<InventorySnapshotMod>();
             IReadOnlyList<InventorySnapshotMod> otherMods = Array.Empty<InventorySnapshotMod>();
             IReadOnlyDictionary<GameStats, int> modStats = new Dictionary<GameStats, int>();
@@ -695,48 +853,10 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     rarity = mods.Rarity;
                     implicitMods = CopyMods(mods.ImplicitMods);
                     explicitMods = CopyMods(mods.ExplicitMods);
+                    explicitModsDisplay = mods.ExplicitModsDisplay.ToArray();
                     enchantMods = CopyMods(mods.EnchantMods);
                     otherMods = CopyMods(mods.HellscapeMods);
                     modStats = new Dictionary<GameStats, int>(mods.ModStats);
-
-                    if (implicitMods.Count == 0 && modStats.Count > 0 &&
-                        (modStats.ContainsKey(GameStats.map_unique_item_drop_chance_positive_percentage) ||
-                         modStats.ContainsKey(GameStats.map_pack_size_positive_percentage_final_from_map)))
-                    {
-                        var synth = new List<InventorySnapshotMod>();
-                        var revives = Math.Max(0, 6 - explicitMods.Count);
-                        synth.Add(new InventorySnapshotMod("Revives Available", revives, float.NaN));
-
-                        if (modStats.TryGetValue(GameStats.map_pack_size_positive_percentage_final_from_map, out var rarityVal))
-                        {
-                            synth.Add(new InventorySnapshotMod("Item Rarity", rarityVal, float.NaN));
-                        }
-
-                        if (modStats.TryGetValue(GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, out var packSizeVal))
-                        {
-                            synth.Add(new InventorySnapshotMod("Pack Size", packSizeVal, float.NaN));
-                        }
-
-                        if (modStats.TryGetValue(GameStats.map_monster_potency_positive_percentage_final_from_map, out var monsterRarityVal))
-                        {
-                            synth.Add(new InventorySnapshotMod("Monster Rarity", monsterRarityVal, float.NaN));
-                        }
-
-                        if (modStats.TryGetValue(GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, out var monsterEffectivenessVal))
-                        {
-                            synth.Add(new InventorySnapshotMod("Monster Effectiveness", monsterEffectivenessVal, float.NaN));
-                        }
-
-                        if (modStats.TryGetValue(GameStats.map_unique_item_drop_chance_positive_percentage, out var dropChanceVal))
-                        {
-                            synth.Add(new InventorySnapshotMod("Waystone Drop Chance", dropChanceVal, float.NaN));
-                        }
-
-                        if (synth.Count > 0)
-                        {
-                            implicitMods = synth;
-                        }
-                    }
                 }
             }
             catch (Exception ex)
@@ -784,6 +904,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 ComponentNames = componentNames,
                 ImplicitMods = implicitMods,
                 ExplicitMods = explicitMods,
+                ExplicitModsDisplay = explicitModsDisplay,
                 EnchantMods = enchantMods,
                 OtherMods = otherMods,
                 ModStats = modStats,

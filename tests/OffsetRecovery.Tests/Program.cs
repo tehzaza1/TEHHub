@@ -507,10 +507,30 @@ try
         "Inventory SDK must expose the complete slot map and nullable rarity so unknown is never treated as Normal.");
     Check(typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.BaseItemName)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ExplicitMods)) != null &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ExplicitModsDisplay)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.StackCount)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ModStats)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.WaystoneTier))?.PropertyType == typeof(int?),
         "Full inventory item details must expose identity, modifier rows/stats, stack metadata, and exact Waystone classification.");
+    Check(InventoryItemClassifier.Classify("Metadata/Items/Maps/MapKeyTier15") == InventoryItemCategory.Waystone &&
+          InventoryItemClassifier.Classify("Metadata/Items/Currency/CurrencyUpgradeToRare") == InventoryItemCategory.Currency &&
+          InventoryItemClassifier.Classify("Metadata/Items/Jewels/FourJewel1") == InventoryItemCategory.Jewel &&
+          InventoryItemClassifier.TryGetWaystoneTier("Metadata/Items/Maps/MapKeyTier15", out var classifiedTier) &&
+          classifiedTier == 15,
+        "Inventory categories must use stable metadata paths and keep Waystone tier classification exact.");
+    Check(InventoryItemClassifier.Classify("Metadata/Items/Maps/MapKeyTier99") == InventoryItemCategory.Map &&
+          !InventoryItemClassifier.TryGetWaystoneTier("Metadata/Items/Maps/MapKeyTier99", out _),
+        "Out-of-range MapKey paths must never be accepted as craftable Waystones.");
+    var twoValueWaystoneMod = WaystoneModTranslator.Translate("MapMonsterCritIncrease4", 260, 26);
+    Check(twoValueWaystoneMod.Contains("260", StringComparison.Ordinal) &&
+          twoValueWaystoneMod.Contains("26", StringComparison.Ordinal) &&
+          twoValueWaystoneMod.Contains("Critical Damage", StringComparison.Ordinal),
+        "Waystone mod translation must preserve both values for two-stat explicit modifiers.");
+    var twoValueWaystoneSuffix = WaystoneModTranslator.Translate("MapMonsterStunAilmentThreshold4", 70, 79);
+    Check(twoValueWaystoneSuffix.Contains("70", StringComparison.Ordinal) &&
+          twoValueWaystoneSuffix.Contains("79", StringComparison.Ordinal) &&
+          twoValueWaystoneSuffix.Contains("Ailment Threshold", StringComparison.Ordinal),
+        "Waystone suffix translation must preserve both values for two-stat explicit modifiers.");
     var targetedEmptySlot = new InventorySlotItemSnapshot(
         InventorySnapshotState.Ready,
         TEHhub.RemoteEnums.InventoryName.MainInventory1,

@@ -15,8 +15,8 @@ namespace TEHhub.Utils
     public static class WaystoneModTranslator
     {
         private static readonly Dictionary<string, (string Tag, string Template)> ModMap = new(StringComparer.OrdinalIgnoreCase);
-        private static bool isInitialized;
         private static readonly object LockObj = new();
+        private static volatile bool isInitialized;
 
         /// <summary>
         ///     Maps the actual JSON <c>family</c> values to human-readable templates.
@@ -26,12 +26,14 @@ namespace TEHhub.Utils
         {
             // Prefix families whose text field is a raw stat key string
             ["MapMonsterFast"] = "Monsters have {0}% increased Attack, Cast and Movement Speed",
+            ["MapMonsterCriticalStrikesAndDamage"] = "Monsters have {0}% increased Critical Hit Chance / Monsters have {1}% Critical Damage Bonus",
 
             // Suffix families whose text field is a raw stat key string
             ["MapBurningGround"] = "Area has patches of Burning Ground",
             ["MapChilledGround"] = "Area has patches of Chilled Ground",
             ["MapShockedGround"] = "Area has patches of Shocked Ground",
             ["MapMonsterElementalAilmentChance"] = "Monsters have {0}% chance to inflict Elemental Ailments on Hit",
+            ["MapMonstersStunAndAilmentThreshold"] = "Monsters have {0}% increased Stun Threshold / Monsters have {1}% increased Ailment Threshold",
         };
 
         /// <summary>
@@ -71,23 +73,15 @@ namespace TEHhub.Utils
             var (tag, template) = entry;
             string body;
 
-            if (template.Contains("{0}"))
+            if (template.Contains("{0}", StringComparison.Ordinal) ||
+                template.Contains("{1}", StringComparison.Ordinal))
             {
-                var num = value0;
-                if (float.IsNaN(num))
-                {
-                    body = template.Replace("{0}", "?");
-                }
-                else
-                {
-                    if (template.Contains("less", StringComparison.OrdinalIgnoreCase) ||
-                        template.Contains("reduced", StringComparison.OrdinalIgnoreCase))
-                    {
-                        num = Math.Abs(num);
-                    }
-
-                    body = template.Replace("{0}", ((int)Math.Round(num)).ToString());
-                }
+                var useAbsoluteValue =
+                    template.Contains("less", StringComparison.OrdinalIgnoreCase) ||
+                    template.Contains("reduced", StringComparison.OrdinalIgnoreCase);
+                body = template
+                    .Replace("{0}", FormatValue(value0, useAbsoluteValue), StringComparison.Ordinal)
+                    .Replace("{1}", FormatValue(value1, useAbsoluteValue), StringComparison.Ordinal);
             }
             else
             {
@@ -95,6 +89,16 @@ namespace TEHhub.Utils
             }
 
             return $"[{tag}] {body}";
+        }
+
+        private static string FormatValue(float value, bool useAbsoluteValue)
+        {
+            if (float.IsNaN(value))
+            {
+                return "?";
+            }
+
+            return ((int)Math.Round(useAbsoluteValue ? Math.Abs(value) : value)).ToString();
         }
 
         /// <summary>
@@ -139,7 +143,6 @@ namespace TEHhub.Utils
                 Path.Combine(AppContext.BaseDirectory, "resources", "mod_categories", "Waystones.json"),
                 Path.Combine(Directory.GetCurrentDirectory(), "resources", "mod_categories", "Waystones.json"),
                 Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "resources", "mod_categories", "Waystones.json"),
-                @"C:\Games\Hy-v Tool\TEHHub\resources\mod_categories\Waystones.json",
             };
 
             string? targetFile = null;

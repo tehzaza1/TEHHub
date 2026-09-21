@@ -9,9 +9,6 @@ namespace TEHhub.Ui
     using System.Linq;
     using System.Numerics;
     using ImGuiNET;
-    using TEHhub.Offsets.Natives;
-    using TEHhub.Offsets.Objects.Components;
-    using TEHhub.Offsets.Shared;
     using TEHhub.RemoteEnums;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
@@ -209,16 +206,14 @@ namespace TEHhub.Ui
             }
 
             var isOrigin = item.SlotStartX == x && item.SlotStartY == y;
-            var rarityText = item.Rarity?.ToString() ?? "Unknown";
             var displayName = string.IsNullOrWhiteSpace(item.BaseItemName)
                 ? LastPathSegment(item.Path)
                 : item.BaseItemName;
             var shortName = displayName.Length <= 9 ? displayName : $"{displayName[..8]}…";
             var label = isOrigin
-                ? $"{shortName}\n{rarityText}##inv_{x}_{y}"
+                ? $"{shortName}##inv_{x}_{y}"
                 : $"same item\n({item.SlotStartX},{item.SlotStartY})##inv_{x}_{y}";
 
-            ImGui.PushStyleColor(ImGuiCol.Text, RarityColor(item.Rarity));
             var selected = selectedItemAddress == item.ItemAddress;
             if (ImGui.Selectable(
                     label,
@@ -229,10 +224,9 @@ namespace TEHhub.Ui
                 selectedItemAddress = item.ItemAddress;
             }
 
-            ImGui.PopStyleColor();
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip($"[{x},{y}] {displayName}\n{rarityText}\n{item.Path}\nItem 0x{item.ItemAddress.ToInt64():X}");
+                ImGui.SetTooltip($"[{x},{y}] {displayName}\n{item.Path}\nItem 0x{item.ItemAddress.ToInt64():X}");
             }
         }
 
@@ -253,10 +247,8 @@ namespace TEHhub.Ui
             }
 
             ImGui.TextWrapped($"Name: {(string.IsNullOrWhiteSpace(item.BaseItemName) ? "(unavailable)" : item.BaseItemName)}");
-            ImGui.Text($"Rarity: {item.Rarity?.ToString() ?? "Unknown"}");
-            ImGui.Text(item.WaystoneTier is int tier
-                ? $"Classification: Waystone Tier {tier}"
-                : "Classification: non-Waystone item");
+            ImGui.Text($"Category: {CategoryLabel(item)}");
+            ImGui.Text($"Rarity: {RarityDetail(item)}");
             ImGui.Text($"Modifier rows: {item.ImplicitMods.Count + item.ExplicitMods.Count + item.EnchantMods.Count + item.OtherMods.Count} | Modifier stats: {item.ModStats.Count}");
             ImGui.TextDisabled("Identification state: unknown (no validated SDK field yet)");
             ImGui.Text($"Slot: ({item.SlotStartX},{item.SlotStartY}) -> ({item.SlotEndX},{item.SlotEndY}) | Size: {item.Width} x {item.Height}");
@@ -295,6 +287,7 @@ namespace TEHhub.Ui
             if (item.IsWaystone)
             {
                 RenderWaystoneStatsSummary(item);
+                RenderDisplayMods("Map modifiers", item.ExplicitModsDisplay);
             }
 
             RenderMods("Implicit mods", item.ImplicitMods);
@@ -302,7 +295,6 @@ namespace TEHhub.Ui
             RenderMods("Enchant mods", item.EnchantMods);
             RenderMods("Other mods", item.OtherMods);
             RenderModStats(item.ModStats);
-            RenderImplicitModsProbe(item);
 
             if (ImGui.TreeNode("Raw Item SDK tree##InventoryDvRawItem"))
             {
@@ -326,6 +318,21 @@ namespace TEHhub.Ui
                         ? $": {mod.Value0}"
                         : $": {mod.Value0}, {mod.Value1}";
                 ImGuiHelper.DisplayTextAndCopyOnClick($"{mod.Name}{values}", mod.Name);
+            }
+
+            ImGui.TreePop();
+        }
+
+        private static void RenderDisplayMods(string label, IReadOnlyList<string> mods)
+        {
+            if (!ImGui.TreeNode($"{label} ({mods.Count})##InventoryDvDisplay{label}"))
+            {
+                return;
+            }
+
+            foreach (var mod in mods)
+            {
+                ImGuiHelper.DisplayTextAndCopyOnClick(mod, mod);
             }
 
             ImGui.TreePop();
@@ -462,168 +469,20 @@ namespace TEHhub.Ui
             ImGui.TreePop();
         }
 
-        /// <summary>
-        ///     Probes the Mods component memory around offset 0x60-0x180 looking for valid
-        ///     StdVector entries that could be the real ImplicitMods vector.
-        /// </summary>
-        private static void RenderImplicitModsProbe(InventorySnapshotItem item)
+        private static string CategoryLabel(InventorySnapshotItem item) => item.Category switch
         {
-            if (!ImGui.TreeNode("ImplicitMods offset probe##InventoryDvImplicitProbe"))
-            {
-                return;
-            }
-
-            IntPtr modsComponentAddress;
-            try
-            {
-                if (!item.Item.TryGetComponent<Mods>(out var mods))
-                {
-                    ImGui.TextDisabled("Item has no Mods component.");
-                    ImGui.TreePop();
-                    return;
-                }
-
-                modsComponentAddress = mods.Address;
-            }
-            catch
-            {
-                ImGui.TextDisabled("Could not resolve Mods component address.");
-                ImGui.TreePop();
-                return;
-            }
-
-            if (modsComponentAddress == IntPtr.Zero)
-            {
-                ImGui.TextDisabled("Mods component address is zero.");
-                ImGui.TreePop();
-                return;
-            }
-
-            ImGui.TextDisabled($"Mods component @ 0x{modsComponentAddress.ToInt64():X}");
-            ImGui.TextDisabled("Scanning offsets 0x60-0x180 for valid StdVector<ModArrayStruct>...");
-
-            var reader = Core.Process?.Handle;
-            if (reader == null)
-            {
-                ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), "Process handle is unavailable.");
-                ImGui.TreePop();
-                return;
-            }
-
-            // Known offsets that are already mapped (skip labeling them as candidates)
-            // AllModsType at 0xA0: Implicit=0xA0, Explicit=0xB8, Enchant=0xD0, Hellscape=0xE8, Crucible=0x100
-            var knownOffsets = new HashSet<int> { 0xA0, 0xB8, 0xD0, 0xE8, 0x100 };
-            var probeResults = new List<(int offset, string label, int modCount, string firstMod)>();
-
-            for (var offset = 0x60; offset <= 0x180; offset += 0x08)
-            {
-                var vectorAddress = IntPtr.Add(modsComponentAddress, offset);
-                if (!reader.TryReadMemory<StdVector>(vectorAddress, out var vector))
-                {
-                    continue;
-                }
-
-                if (!CanonicalStructuralInvariants.IsCanonicalPointer(vector.First) ||
-                    !CanonicalStructuralInvariants.IsCanonicalPointer(vector.Last))
-                {
-                    continue;
-                }
-
-                var elementSize = System.Runtime.InteropServices.Marshal.SizeOf<ModArrayStruct>();
-                var byteLength = vector.Last.ToInt64() - vector.First.ToInt64();
-                if (byteLength <= 0 || byteLength % elementSize != 0 || byteLength > 50000)
-                {
-                    continue;
-                }
-
-                var count = (int)(byteLength / elementSize);
-                if (count is < 1 or > 200)
-                {
-                    continue;
-                }
-
-                // Try reading the mod array
-                ModArrayStruct[] modArray;
-                try
-                {
-                    modArray = reader.ReadStdVector<ModArrayStruct>(vector);
-                }
-                catch
-                {
-                    continue;
-                }
-
-                if (modArray.Length == 0)
-                {
-                    continue;
-                }
-
-                // Validate: the first entry should have a readable mod name
-                var firstModName = "(unreadable)";
-                try
-                {
-                    if (modArray[0].ModsPtr != IntPtr.Zero &&
-                        CanonicalStructuralInvariants.IsCanonicalPointer(modArray[0].ModsPtr))
-                    {
-                        firstModName = ObjectMagicProperties.GetModName(modArray[0].ModsPtr);
-                        if (string.IsNullOrWhiteSpace(firstModName))
-                        {
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-                catch
-                {
-                    continue;
-                }
-
-                var label = knownOffsets.Contains(offset)
-                    ? offset switch
-                    {
-                        0xA0 => "[CURRENT ImplicitMods]",
-                        0xB8 => "[CURRENT ExplicitMods]",
-                        0xD0 => "[CURRENT EnchantMods]",
-                        0xE8 => "[CURRENT HellscapeMods]",
-                        0x100 => "[CURRENT CrucibleMods]",
-                        _ => "[CURRENT]",
-                    }
-                    : "[CANDIDATE]";
-
-                probeResults.Add((offset, label, modArray.Length, firstModName));
-            }
-
-            if (probeResults.Count == 0)
-            {
-                ImGui.TextColored(
-                    new Vector4(1f, 0.6f, 0.2f, 1f),
-                    "No valid StdVector<ModArrayStruct> found in scan range.");
-            }
-            else
-            {
-                foreach (var (offset, label, modCount, firstMod) in probeResults)
-                {
-                    var color = label.Contains("CANDIDATE")
-                        ? new Vector4(0.2f, 1f, 0.4f, 1f)
-                        : new Vector4(0.7f, 0.7f, 0.7f, 1f);
-                    ImGui.TextColored(color, $"0x{offset:X3} {label} -- {modCount} mod(s), first: {firstMod}");
-                }
-            }
-
-            ImGui.TreePop();
-        }
-
-        private static Vector4 RarityColor(Rarity? rarity) => rarity switch
-        {
-            Rarity.Normal => new Vector4(0.85f, 0.85f, 0.85f, 1f),
-            Rarity.Magic => new Vector4(0.45f, 0.55f, 1f, 1f),
-            Rarity.Rare => new Vector4(1f, 0.85f, 0.25f, 1f),
-            Rarity.Unique => new Vector4(0.85f, 0.5f, 0.2f, 1f),
-            _ => new Vector4(1f, 0.45f, 0.45f, 1f),
+            InventoryItemCategory.Waystone when item.WaystoneTier is int tier => $"Waystone T{tier}",
+            InventoryItemCategory.FlaskOrCharm => "Flask/Charm",
+            InventoryItemCategory.LeagueItem => "League Item",
+            _ => item.Category.ToString(),
         };
+
+        private static string RarityDetail(InventorySnapshotItem item) =>
+            item.Rarity?.ToString() ??
+            (HasModsComponent(item) ? "Unavailable (Mods read failed)" : "N/A (no Mods component)");
+
+        private static bool HasModsComponent(InventorySnapshotItem item) =>
+            item.ComponentNames.Contains(nameof(Mods), StringComparer.Ordinal);
 
         private static string LastPathSegment(string path)
         {
