@@ -46,6 +46,35 @@ namespace TEHhub.RemoteObjects.Components
         /// </summary>
         public Dictionary<GameStats, int> ModStats = new();
 
+        /// <summary>Gets a value indicating whether this component represents a PoE2 Waystone.</summary>
+        public bool IsWaystone =>
+            this.ModStats.ContainsKey(GameStats.map_unique_item_drop_chance_positive_percentage) ||
+            this.ModStats.ContainsKey(GameStats.map_pack_size_positive_percentage_final_from_map);
+
+        /// <summary>Gets the Waystone Revives Available count (6 - explicit mods count), or null if not a waystone.</summary>
+        public int? WaystoneRevives =>
+            this.IsWaystone ? Math.Max(0, 6 - this.ExplicitMods.Count) : null;
+
+        /// <summary>Gets the Waystone Item Rarity percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneItemRarity =>
+            this.ModStats.TryGetValue(GameStats.map_pack_size_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Pack Size percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystonePackSize =>
+            this.ModStats.TryGetValue(GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Monster Rarity percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneMonsterRarity =>
+            this.ModStats.TryGetValue(GameStats.map_monster_potency_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Monster Effectiveness percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneMonsterEffectiveness =>
+            this.ModStats.TryGetValue(GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Drop Chance percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneDropChance =>
+            this.ModStats.TryGetValue(GameStats.map_unique_item_drop_chance_positive_percentage, out var v) ? v : null;
+
         /// <summary>
         ///     Converts the <see cref="Mods" /> class data to ImGui.
         /// </summary>
