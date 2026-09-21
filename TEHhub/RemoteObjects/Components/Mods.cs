@@ -80,6 +80,43 @@ namespace TEHhub.RemoteObjects.Components
                 ObjectMagicProperties.AddToMods(this.HellscapeMods, reader.ReadStdVector<ModArrayStruct>(data.Details0.Mods.HellscapeMods));
                 ObjectMagicProperties.AddToMods(this.HellscapeMods, reader.ReadStdVector<ModArrayStruct>(data.Details0.Mods.CrucibleMods));
                 base.StatUpdator(this.ModStats, data.Details0.StatsFromMods);
+                if (this.ImplicitMods.Count == 0 && this.ModStats.Count > 0 &&
+                    (this.ModStats.ContainsKey(GameStats.map_unique_item_drop_chance_positive_percentage) ||
+                     this.ModStats.ContainsKey(GameStats.map_pack_size_positive_percentage_final_from_map)))
+                {
+                    this.SynthesizeWaystoneImplicitMods();
+                }
+            }
+        }
+
+        private void SynthesizeWaystoneImplicitMods()
+        {
+            var revives = Math.Max(0, 6 - this.ExplicitMods.Count);
+            this.ImplicitMods.Add(("Revives Available", (revives, float.NaN)));
+
+            if (this.ModStats.TryGetValue(GameStats.map_pack_size_positive_percentage_final_from_map, out var rarity))
+            {
+                this.ImplicitMods.Add(("Item Rarity", (rarity, float.NaN)));
+            }
+
+            if (this.ModStats.TryGetValue(GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, out var packSize))
+            {
+                this.ImplicitMods.Add(("Pack Size", (packSize, float.NaN)));
+            }
+
+            if (this.ModStats.TryGetValue(GameStats.map_monster_potency_positive_percentage_final_from_map, out var monsterRarity))
+            {
+                this.ImplicitMods.Add(("Monster Rarity", (monsterRarity, float.NaN)));
+            }
+
+            if (this.ModStats.TryGetValue(GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, out var monsterEffectiveness))
+            {
+                this.ImplicitMods.Add(("Monster Effectiveness", (monsterEffectiveness, float.NaN)));
+            }
+
+            if (this.ModStats.TryGetValue(GameStats.map_unique_item_drop_chance_positive_percentage, out var dropChance))
+            {
+                this.ImplicitMods.Add(("Waystone Drop Chance", (dropChance, float.NaN)));
             }
         }
     }

@@ -142,7 +142,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         }
 
         /// <summary>Gets a value indicating whether this item is a recognized PoE2 Waystone.</summary>
-        public bool IsWaystone => this.WaystoneTier.HasValue;
+        public bool IsWaystone => this.WaystoneTier.HasValue ||
+            (this.ModStats.ContainsKey(GameStats.wing_blast_cone_pullback_percentage) &&
+             this.ModStats.ContainsKey(GameStats.map_unique_item_drop_chance_positive_percentage));
 
         /// <summary>Gets the localized base item name when Full details were requested.</summary>
         public string BaseItemName { get; init; } = string.Empty;
@@ -193,9 +195,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public IReadOnlyDictionary<GameStats, int> ModStats { get; init; } =
             new Dictionary<GameStats, int>();
 
-        /// <summary>Gets the Waystone Revives Available count from aggregate ModStats, or null if absent.</summary>
+        /// <summary>Gets the Waystone Revives Available count (6 - explicit mods count), or null if not a waystone.</summary>
         public int? WaystoneRevives =>
-            this.ModStats.TryGetValue(GameStats.wing_blast_cone_pullback_percentage, out var v) ? v : null;
+            this.IsWaystone ? Math.Max(0, 6 - this.ExplicitMods.Count) : null;
 
         /// <summary>Gets the Waystone Item Rarity percentage from aggregate ModStats, or null if absent.</summary>
         public int? WaystoneItemRarity =>
