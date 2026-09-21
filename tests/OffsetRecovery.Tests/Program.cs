@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using TEHhub;
 using TEHhub.Ui;
+using TEHhub.Ui.DvEngine;
 using TEHhub.Utils;
 using TEHhub.Offsets;
 using TEHhub.Offsets.Natives;
@@ -492,6 +493,39 @@ try
     var loadingEmptyInventory = readyEmptyInventory with { State = InventorySnapshotState.Loading };
     Check(!loadingEmptyInventory.IsEmpty,
         "A Loading inventory with zero returned items must not be treated as empty.");
+    Check((int)InventorySnapshotDetailLevel.Full != (int)InventorySnapshotDetailLevel.Basic,
+        "Inventory SDK must keep fast Basic reads separate from component-rich Full reads.");
+    var occupiedSlot = new InventorySnapshotSlot(3, 2, new IntPtr(0x11000), new IntPtr(0x12000));
+    var emptySlot = new InventorySnapshotSlot(4, 2, IntPtr.Zero, IntPtr.Zero);
+    Check(occupiedSlot.X == 3 && occupiedSlot.Y == 2 &&
+          occupiedSlot.ItemAddress != IntPtr.Zero && emptySlot.ItemAddress == IntPtr.Zero,
+        "Inventory SDK slots must preserve every grid coordinate and distinguish occupied from empty cells.");
+    Check(typeof(InventorySnapshot).GetProperty(nameof(InventorySnapshot.Slots)) != null &&
+          typeof(InventorySnapshot).GetProperty(nameof(InventorySnapshot.SourceRevision))?.PropertyType == typeof(ulong) &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.Rarity))?.PropertyType ==
+          typeof(TEHhub.RemoteEnums.Rarity?),
+        "Inventory SDK must expose the complete slot map and nullable rarity so unknown is never treated as Normal.");
+    Check(typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.BaseItemName)) != null &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ExplicitMods)) != null &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.StackCount)) != null &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ModStats)) != null &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.WaystoneTier))?.PropertyType == typeof(int?),
+        "Full inventory item details must expose identity, modifier rows/stats, stack metadata, and exact Waystone classification.");
+    var targetedEmptySlot = new InventorySlotItemSnapshot(
+        InventorySnapshotState.Ready,
+        TEHhub.RemoteEnums.InventoryName.MainInventory1,
+        5,
+        2,
+        9,
+        null,
+        "synthetic empty slot");
+    Check(targetedEmptySlot.IsEmpty &&
+          typeof(InventorySlotItemSnapshot).GetProperty(nameof(InventorySlotItemSnapshot.SourceRevision))?.PropertyType == typeof(ulong) &&
+          typeof(ServerData).GetMethod(nameof(ServerData.ReadInventoryItemAt)) != null,
+        "Crafting must refresh one working slot and preserve its cache revision without rescanning every item.");
+    var inventoryDvNode = DvRegistry.FindById("serverdata.inventory");
+    Check(inventoryDvNode?.Kind == DvNodeKind.CustomRenderer && inventoryDvNode.CustomRenderer != null,
+        "DV must provide a dedicated Inventory grid and item inspector entry.");
 
     var tierInfo = new StashTierInfo("XV", 170, new IntPtr(0x20000));
     Check(tierInfo.Name == "XV" && tierInfo.Count == 170 && tierInfo.UiAddress != IntPtr.Zero,

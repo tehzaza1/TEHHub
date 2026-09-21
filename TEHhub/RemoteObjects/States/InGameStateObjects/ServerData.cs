@@ -7,6 +7,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Linq;
     using Coroutine;
     using TEHhub.Offsets.Natives;
     using TEHhub.Offsets.Objects.Components;
@@ -55,6 +56,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private int lastParsedModCount = 0;
         private int lastAdaptiveCandidatesTested = -1;
         private StdVector lastSuccessfulVector = default;
+        private readonly System.Threading.Lock inventorySnapshotLock = new();
+        private readonly Dictionary<InventoryName, InventorySnapshot> inventorySnapshotCache = new();
 
         private NativeAreaModSource lastDiscoverySource = NativeAreaModSource.None;
         private int lastDiscoveryOffset = -1;
@@ -112,9 +115,136 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         ///     empty result; Loading and Unavailable must not be treated as empty.
         /// </summary>
         /// <param name="name">Inventory id to read.</param>
+        /// <param name="detailLevel">Basic slot data or component-rich Full item metadata.</param>
+        /// <param name="forceRefresh">
+        ///     True for an explicit whole-inventory refresh. Prefer <see cref="ReadInventoryItemAt" />
+        ///     when only one known slot changed.
+        /// </param>
         /// <returns>Read-only inventory snapshot.</returns>
-        public InventorySnapshot ReadInventorySnapshot(InventoryName name) =>
-            InventorySnapshotReader.Read(this, name);
+        public InventorySnapshot ReadInventorySnapshot(
+            InventoryName name,
+            InventorySnapshotDetailLevel detailLevel = InventorySnapshotDetailLevel.Basic,
+            bool forceRefresh = false)
+        {
+            lock (this.inventorySnapshotLock)
+            {
+                this.inventorySnapshotCache.TryGetValue(name, out var cachedSnapshot);
+                var snapshot = InventorySnapshotReader.Read(
+                    this,
+                    name,
+                    detailLevel,
+                    cachedSnapshot,
+                    forceRefresh);
+                if (snapshot.State == InventorySnapshotState.Ready)
+                {
+                    this.inventorySnapshotCache[name] = snapshot;
+                }
+                else if (snapshot.State == InventorySnapshotState.Unavailable)
+                {
+                    this.inventorySnapshotCache.Remove(name);
+                }
+
+                return snapshot;
+            }
+        }
+
+        /// <summary>
+        ///     Reads one inventory cell and its current Item metadata without rescanning other slots.
+        ///     This is the intended verification path for a crafting action that keeps one item in one slot.
+        /// </summary>
+        /// <param name="name">Inventory id that owns the slot.</param>
+        /// <param name="x">Zero-based column.</param>
+        /// <param name="y">Zero-based row.</param>
+        /// <param name="detailLevel">Basic identity or component-rich Full item metadata.</param>
+        /// <returns>Targeted slot result. Ready with a null Item means the slot is empty.</returns>
+        public InventorySlotItemSnapshot ReadInventoryItemAt(
+            InventoryName name,
+            int x,
+            int y,
+            InventorySnapshotDetailLevel detailLevel = InventorySnapshotDetailLevel.Full)
+        {
+            lock (this.inventorySnapshotLock)
+            {
+                var result = InventorySnapshotReader.ReadItemAt(this, name, x, y, detailLevel);
+                if (result.State == InventorySnapshotState.Ready &&
+                    this.inventorySnapshotCache.TryGetValue(name, out var cachedSnapshot))
+                {
+                    if ((int)detailLevel >= (int)cachedSnapshot.DetailLevel)
+                    {
+                        this.inventorySnapshotCache[name] = PatchCachedInventoryItem(cachedSnapshot, result);
+                    }
+                    else
+                    {
+                        // A Basic target read cannot safely replace one item in a Full aggregate.
+                        // Drop the aggregate without rescanning; it will be rebuilt only if requested later.
+                        this.inventorySnapshotCache.Remove(name);
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        /// <summary>
+        ///     Gets the inventory ids currently materialized by live PlayerInventories.
+        /// </summary>
+        /// <returns>Stable numeric order suitable for SDK selectors and diagnostics.</returns>
+        public IReadOnlyList<InventoryName> GetAvailableInventoryNames() =>
+            this.PlayerInventories.Keys.OrderBy(name => (int)name).ToArray();
+
+        private static InventorySnapshot PatchCachedInventoryItem(
+            InventorySnapshot cachedSnapshot,
+            InventorySlotItemSnapshot result)
+        {
+            var oldItem = cachedSnapshot.Items.FirstOrDefault(item =>
+                result.X >= item.SlotStartX &&
+                result.X < item.SlotEndX &&
+                result.Y >= item.SlotStartY &&
+                result.Y < item.SlotEndY);
+            var items = cachedSnapshot.Items
+                .Where(item => oldItem == null || item.ItemAddress != oldItem.ItemAddress)
+                .ToList();
+            if (result.Item != null)
+            {
+                items.RemoveAll(item => item.ItemAddress == result.Item.ItemAddress);
+                items.Add(result.Item);
+            }
+
+            var slots = cachedSnapshot.Slots.Select(slot =>
+            {
+                if (oldItem != null && slot.ItemAddress == oldItem.ItemAddress)
+                {
+                    slot = slot with { WrapperAddress = IntPtr.Zero, ItemAddress = IntPtr.Zero };
+                }
+
+                if (result.Item != null &&
+                    slot.X >= result.Item.SlotStartX &&
+                    slot.X < result.Item.SlotEndX &&
+                    slot.Y >= result.Item.SlotStartY &&
+                    slot.Y < result.Item.SlotEndY)
+                {
+                    slot = slot with
+                    {
+                        WrapperAddress = result.Item.WrapperAddress,
+                        ItemAddress = result.Item.ItemAddress,
+                    };
+                }
+
+                return slot;
+            }).ToArray();
+
+            return cachedSnapshot with
+            {
+                ServerRequestCounter = result.ServerRequestCounter,
+                Items = items.ToArray(),
+                Slots = slots,
+                Revision = unchecked(cachedSnapshot.Revision + 1UL),
+                SourceRevision = result.SourceRevision == 0
+                    ? cachedSnapshot.SourceRevision
+                    : result.SourceRevision,
+                Diagnostic = $"Cached snapshot patched from slot ({result.X},{result.Y}); other items were not reread.",
+            };
+        }
 
         /// <summary>
         ///     Gets the active area / map modifiers.
@@ -266,6 +396,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         protected override void CleanUpData()
         {
             this.ClearCurrentlySelectedInventory();
+            lock (this.inventorySnapshotLock)
+            {
+                this.inventorySnapshotCache.Clear();
+            }
+
             this.PlayerInventories.Clear();
             this.PlayerServerDataAddress = IntPtr.Zero;
             this.FlaskInventory.Address = IntPtr.Zero;

@@ -9,6 +9,7 @@ namespace TEHhub.RemoteObjects.Components
     using TEHhub.RemoteEnums;
     using TEHhub.Offsets.Objects.Components;
     using ImGuiNET;
+    using TEHhub.Utils;
 
     /// <summary>
     ///     The <see cref="Mods" /> component in the entity.
@@ -39,6 +40,13 @@ namespace TEHhub.RemoteObjects.Components
             HellscapeMods = new();
 
         /// <summary>
+        ///     Gets the aggregate stats contributed by this item's modifiers. This is intentionally
+        ///     kept separate from the modifier rows so Waystone summaries can use Stats.dat ids
+        ///     without repeatedly decoding every modifier.
+        /// </summary>
+        public Dictionary<GameStats, int> ModStats = new();
+
+        /// <summary>
         ///     Converts the <see cref="Mods" /> class data to ImGui.
         /// </summary>
         internal override void ToImGui()
@@ -49,6 +57,7 @@ namespace TEHhub.RemoteObjects.Components
             ObjectMagicProperties.ModsToImGui("ExplicitMods", this.ExplicitMods);
             ObjectMagicProperties.ModsToImGui("EnchantMods", this.EnchantMods);
             ObjectMagicProperties.ModsToImGui("HellscapeMods", this.HellscapeMods);
+            ImGuiHelper.StatsWidget(this.ModStats, "Stats from Mods");
         }
 
         /// <inheritdoc />
@@ -70,6 +79,7 @@ namespace TEHhub.RemoteObjects.Components
                 ObjectMagicProperties.AddToMods(this.EnchantMods, reader.ReadStdVector<ModArrayStruct>(data.Details0.Mods.EnchantMods));
                 ObjectMagicProperties.AddToMods(this.HellscapeMods, reader.ReadStdVector<ModArrayStruct>(data.Details0.Mods.HellscapeMods));
                 ObjectMagicProperties.AddToMods(this.HellscapeMods, reader.ReadStdVector<ModArrayStruct>(data.Details0.Mods.CrucibleMods));
+                base.StatUpdator(this.ModStats, data.Details0.StatsFromMods);
             }
         }
     }

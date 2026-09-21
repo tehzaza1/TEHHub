@@ -685,7 +685,7 @@ namespace AutoExile2.Modes.Shared
 
         private static int CountEligibleWaystones(InventorySnapshot inventory, int minTier, int maxTier) =>
             inventory.Items.Count(entry =>
-                TryGetWaystoneTier(entry.Item.Path, out var tier) && tier >= minTier && tier <= maxTier);
+                entry.WaystoneTier is int tier && tier >= minTier && tier <= maxTier);
 
         private static bool IsConfiguredTabReady(BotContext ctx, string configuredTab)
         {

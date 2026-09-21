@@ -262,6 +262,17 @@ namespace TEHhub.Ui.DvEngine
                 ObjectResolver = () => Core.States.InGameStateObject?.CurrentAreaInstance?.ServerDataObject,
             });
 
+            Register(new DvNavNode
+            {
+                Id = "serverdata.inventory",
+                DisplayName = "Inventory",
+                Category = "ServerData & Inventory",
+                Path = "States > InGameState > CurrentAreaInstance > ServerData > Inventory",
+                Tags = new[] { "inv", "inventory", "backpack", "bag", "slots", "items", "rarity", "mods", "stack" },
+                Kind = DvNodeKind.CustomRenderer,
+                CustomRenderer = InventoryDebugView.Render,
+            });
+
             // =========================================================================
             // 4. Player Components
             // =========================================================================
