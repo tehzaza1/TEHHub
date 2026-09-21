@@ -6,6 +6,7 @@ namespace AutoExile2.WebServer
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using ClickableTransparentOverlay.Win32;
     using System.Text.Json.Nodes;
 
@@ -20,6 +21,12 @@ namespace AutoExile2.WebServer
             foreach (var prop in jObj)
             {
                 string name = prop.Key;
+                if (prop.Value == null)
+                {
+                    ClearNullableWaystoneThreshold(settings, name);
+                    continue;
+                }
+
                 if (prop.Value is not JsonNode val)
                 {
                     continue;
@@ -45,11 +52,38 @@ namespace AutoExile2.WebServer
                     case "waystonetab":
                         settings.WaystoneTab = NormalizeStashTabName(val.ToString());
                         break;
+                    case "currencytab":
+                        settings.CurrencyTab = NormalizeStashTabName(val.ToString());
+                        break;
                     case "mintier":
                         settings.MinTier = Math.Clamp(val.Value<int>(), 1, 16);
                         break;
                     case "maxtier":
                         settings.MaxTier = Math.Clamp(val.Value<int>(), 1, 16);
+                        break;
+                    case "minwaystoneitemrarity":
+                        settings.MinWaystoneItemRarity = ParseOptionalNonNegativeInt(val);
+                        break;
+                    case "minwaystonepacksize":
+                        settings.MinWaystonePackSize = ParseOptionalNonNegativeInt(val);
+                        break;
+                    case "minwaystonemonsterrarity":
+                        settings.MinWaystoneMonsterRarity = ParseOptionalNonNegativeInt(val);
+                        break;
+                    case "minwaystonemonstereffectiveness":
+                        settings.MinWaystoneMonsterEffectiveness = ParseOptionalNonNegativeInt(val);
+                        break;
+                    case "minwaystonedropchance":
+                        settings.MinWaystoneDropChance = ParseOptionalNonNegativeInt(val);
+                        break;
+                    case "maxwaystonemods":
+                        settings.MaxWaystoneMods = Math.Clamp(val.Value<int>(), 4, 6);
+                        break;
+                    case "blockedwaystonemods":
+                        settings.BlockedWaystoneMods = WaystoneFilter.NormalizeBlockedMods(
+                            val is JsonArray array
+                                ? array.Select(entry => entry?.ToString() ?? string.Empty)
+                                : Array.Empty<string>());
                         break;
                     case "dumptab":
                         settings.DumpTab = NormalizeStashTabName(val.ToString());
@@ -275,6 +309,37 @@ namespace AutoExile2.WebServer
             {
                 (settings.MinTier, settings.MaxTier) = (settings.MaxTier, settings.MinTier);
             }
+
+            settings.MaxWaystoneMods = Math.Clamp(settings.MaxWaystoneMods, 4, 6);
+            settings.BlockedWaystoneMods = WaystoneFilter.NormalizeBlockedMods(settings.BlockedWaystoneMods);
+        }
+
+        private static void ClearNullableWaystoneThreshold(AutoExile2Settings settings, string name)
+        {
+            switch (name.ToLowerInvariant())
+            {
+                case "minwaystoneitemrarity":
+                    settings.MinWaystoneItemRarity = null;
+                    break;
+                case "minwaystonepacksize":
+                    settings.MinWaystonePackSize = null;
+                    break;
+                case "minwaystonemonsterrarity":
+                    settings.MinWaystoneMonsterRarity = null;
+                    break;
+                case "minwaystonemonstereffectiveness":
+                    settings.MinWaystoneMonsterEffectiveness = null;
+                    break;
+                case "minwaystonedropchance":
+                    settings.MinWaystoneDropChance = null;
+                    break;
+            }
+        }
+
+        private static int? ParseOptionalNonNegativeInt(JsonNode value)
+        {
+            var text = value.ToString().Trim();
+            return int.TryParse(text, out var parsed) ? Math.Max(0, parsed) : null;
         }
 
         private static bool SafeBool(JsonNode? token, bool defaultVal = false)

@@ -61,6 +61,7 @@ namespace AutoExile2.WebServer
                     new { id = SkillTargetFilter.RareOrAbove.ToString(), label = "Rare (Yellow) & Bosses Only" },
                     new { id = SkillTargetFilter.UniqueOnly.ToString(), label = "Unique (Bosses) Only" },
                 },
+                waystoneMods = WaystoneFilter.ModifierDefinitions,
                 inputTypes = new object[]
                 {
                     new { id = AttackInputType.MouseRight.ToString(), label = "Right Mouse Button (RMB)" },

@@ -662,13 +662,17 @@
     <div class="card" style="border-color:rgba(234,179,8,0.4); background:linear-gradient(180deg, rgba(234,179,8,0.06) 0%, var(--surface) 100%);">
       <h2>🗃️ Stash Setup</h2>
       <div style="font-size:12px; color:var(--text-dim); margin-bottom:14px; line-height:1.5;">
-        MapFarm จะตรวจ Waystone ในตัวก่อน ถ้าไม่มีจะเดินไปเปิด Stash และเลือก Waystone Tab ที่ตั้งไว้ รองรับทั้งแท็บธรรมดาและแท็บ Map แบบพิเศษ (ยังไม่หยิบของอัตโนมัติในรอบนี้)
+        MapFarm จะตรวจ Waystone ในตัวก่อน ถ้าไม่มีจะเปิด Stash เลือก Waystone Tab และหยิบ Waystone ที่ผ่าน Tier กับ Filter ด้านล่าง
       </div>
       <div class="grid2">
         <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border);">
           <div class="form-group">
             <label>Waystone Tab</label>
             <input id="WaystoneTab" type="text" maxlength="80" class="form-control" placeholder="เช่น Map หรือ 5" onchange="saveSettings()" />
+          </div>
+          <div class="form-group">
+            <label>Currency Tab</label>
+            <input id="CurrencyTab" type="text" maxlength="80" class="form-control" placeholder="เช่น Orb" onchange="saveSettings()" />
           </div>
           <div class="grid2">
             <div class="form-group" style="margin-bottom:0;">
@@ -692,6 +696,52 @@
         </div>
       </div>
 
+      <details id="waystoneFilterPanel" style="background:var(--surface2); padding:12px 14px; border-radius:8px; border:1px solid var(--border); margin-top:14px;">
+        <summary style="cursor:pointer; font-weight:700; font-size:12px; color:var(--yellow); user-select:none;">Waystone Filter</summary>
+        <div style="font-size:11px; color:var(--text-dim); margin:10px 0 12px; line-height:1.5;">
+          ช่องว่าง = ไม่กรอง ค่า Waystone ต้องมากกว่าตัวเลขที่ใส่ ส่วน Max Mods คือจำนวนม็อดเป้าหมายหลังคราฟ (6 mods = 0 Revives)
+        </div>
+        <div class="grid2">
+          <div class="form-group">
+            <label>Item Rarity &gt;</label>
+            <input id="MinWaystoneItemRarity" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+          </div>
+          <div class="form-group">
+            <label>Pack Size &gt;</label>
+            <input id="MinWaystonePackSize" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+          </div>
+          <div class="form-group">
+            <label>Monster Rarity &gt;</label>
+            <input id="MinWaystoneMonsterRarity" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+          </div>
+          <div class="form-group">
+            <label>Monster Effectiveness &gt;</label>
+            <input id="MinWaystoneMonsterEffectiveness" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+          </div>
+          <div class="form-group">
+            <label>Waystone Drop Chance &gt;</label>
+            <input id="MinWaystoneDropChance" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+          </div>
+          <div class="form-group">
+            <label>Max Mods</label>
+            <input id="MaxWaystoneMods" type="number" min="4" max="6" step="1" value="6" class="form-control" onchange="saveSettings()" />
+          </div>
+        </div>
+
+        <div style="font-weight:700; font-size:12px; margin:4px 0 8px;">Modifier Allow List</div>
+        <div style="max-height:360px; overflow:auto; border:1px solid var(--border); border-radius:6px;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead style="position:sticky; top:0; background:var(--surface); z-index:1;">
+              <tr>
+                <th style="text-align:left; padding:8px 10px;">Modifier (allowed by default)</th>
+                <th style="width:70px; text-align:center; padding:8px 10px;">Block</th>
+              </tr>
+            </thead>
+            <tbody id="waystoneModFilterRows"></tbody>
+          </table>
+        </div>
+      </details>
+
       <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border); margin-top:14px;">
         <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
           <div>
@@ -705,6 +755,7 @@
         </select>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="btn secondary" style="font-size:12px; padding:7px 12px;" onclick="useDetectedStashTab('WaystoneTab')">Set Waystone Tab</button>
+          <button type="button" class="btn secondary" style="font-size:12px; padding:7px 12px;" onclick="useDetectedStashTab('CurrencyTab')">Set Currency Tab</button>
           <button type="button" class="btn secondary" style="font-size:12px; padding:7px 12px;" onclick="useDetectedStashTab('DumpTab')">Set Dump Tab</button>
         </div>
         <div id="stashTierCounts" style="display:none; margin-top:12px; gap:6px; flex-wrap:wrap;"></div>

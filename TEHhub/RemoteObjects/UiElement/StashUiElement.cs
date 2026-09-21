@@ -131,11 +131,35 @@ namespace TEHhub.RemoteObjects.UiElement
         }
 
         /// <summary>
+        ///     Resolves the non-item Stash title control used to cancel a currency that may still
+        ///     be attached to the cursor. This never returns an item-grid control.
+        /// </summary>
+        public bool TryGetSafeCursorCancelUiAddress(out IntPtr uiAddress)
+        {
+            uiAddress = IntPtr.Zero;
+            if (this.Address == IntPtr.Zero ||
+                !UiElementMemory.TryResolvePath(this.Address, [1], out var title) ||
+                !UiElementMemory.TryReadDisplayText(title, out var text) ||
+                !string.Equals(text.Trim(), "Stash", StringComparison.OrdinalIgnoreCase) ||
+                !UiElementMemory.IsVisibleThroughParents(title) ||
+                !PluginUiElementReflection.TryGetAbsoluteRect(title, out _, out var size) ||
+                size.X < 16f || size.Y < 8f)
+            {
+                return false;
+            }
+
+            uiAddress = title;
+            return true;
+        }
+
+        /// <summary>
         ///     Reads the currently selected stash tab. Consumers must wait for Ready before acting;
         ///     the first coherent observation is Loading and the second identical observation is Ready.
         /// </summary>
+        /// <param name="detailLevel">Basic item identity or component-rich Full item metadata.</param>
         /// <returns>Current read-only stash snapshot.</returns>
-        public StashSnapshot ReadSnapshot()
+        public StashSnapshot ReadSnapshot(
+            InventorySnapshotDetailLevel detailLevel = InventorySnapshotDetailLevel.Basic)
         {
             lock (this.snapshotLock)
             {
@@ -144,7 +168,9 @@ namespace TEHhub.RemoteObjects.UiElement
                     !UiElementMemory.HasTextAtPath(this.Address, [1], "Stash"))
                 {
                     this.stability.Reset();
-                    var unavailableInventory = serverData.ReadInventorySnapshot(InventoryName.StashInventoryId);
+                    var unavailableInventory = serverData.ReadInventorySnapshot(
+                        InventoryName.StashInventoryId,
+                        detailLevel);
                     return new StashSnapshot(
                         StashSnapshotState.Closed,
                         string.Empty,
@@ -182,7 +208,9 @@ namespace TEHhub.RemoteObjects.UiElement
                     pages = ReadTabBar(activeTierPanel, [0, 0], out currentPage);
                 }
 
-                var inventory = serverData.ReadInventorySnapshot(InventoryName.StashInventoryId);
+                var inventory = serverData.ReadInventorySnapshot(
+                    InventoryName.StashInventoryId,
+                    detailLevel);
                 var visibleItems = ReadVisibleItems(this.Address);
                 if (string.IsNullOrWhiteSpace(currentTab))
                 {

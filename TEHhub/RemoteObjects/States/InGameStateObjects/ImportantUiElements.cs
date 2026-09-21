@@ -18,6 +18,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
     using TEHhub.Offsets.Natives;
     using TEHhub.Offsets.Objects.States.InGameState;
     using TEHhub.Offsets.Objects.UiElement;
+    using TEHhub.Plugin;
     using ImGuiNET;
     using RemoteEnums;
     using UiElement;
@@ -331,6 +332,63 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         ///     UiRoot manager -> 0x6E0.
         /// </summary>
         public UiElementBase RightPanel { get; }
+
+        /// <summary>
+        ///     Resolves the visible clickable UI control for one exact item in the open player
+        ///     inventory. The item address must come from a validated MainInventory snapshot.
+        /// </summary>
+        /// <param name="itemAddress">Validated live Item address to match.</param>
+        /// <param name="uiAddress">Visible clickable UI control, or zero when not materialized.</param>
+        /// <returns>True only when one bounded visible control owns the exact item pointer.</returns>
+        public bool TryGetVisibleInventoryItemUiAddress(IntPtr itemAddress, out IntPtr uiAddress)
+        {
+            const int itemAddressOffset = 0x4E0;
+            const int maxNodes = 1500;
+            uiAddress = IntPtr.Zero;
+            var root = this.RightPanel.Address;
+            var reader = Core.Process?.Handle;
+            if (!this.IsInventoryOpen || itemAddress == IntPtr.Zero || root == IntPtr.Zero || reader == null ||
+                !PluginUiElementReflection.TryValidateItemAddress(itemAddress, out _, out _))
+            {
+                return false;
+            }
+
+            var visited = new HashSet<IntPtr>();
+            var pending = new Queue<IntPtr>();
+            pending.Enqueue(root);
+            while (pending.Count > 0 && visited.Count < maxNodes)
+            {
+                var address = pending.Dequeue();
+                if (address == IntPtr.Zero || !visited.Add(address) ||
+                    !reader.TryReadMemory<UiElementBaseOffset>(address, out var element) ||
+                    (element.Self != IntPtr.Zero && element.Self != address) ||
+                    !UiElementBaseFuncs.IsVisibleChecker(element.Flags))
+                {
+                    continue;
+                }
+
+                if (reader.TryReadMemory<IntPtr>(address + itemAddressOffset, out var candidate) &&
+                    candidate == itemAddress &&
+                    PluginUiElementReflection.TryGetAbsoluteRect(address, out _, out var size) &&
+                    size.X >= 8f && size.Y >= 8f && size.X <= 256f && size.Y <= 256f)
+                {
+                    uiAddress = address;
+                    return true;
+                }
+
+                if (!UiElementMemory.TryReadChildren(address, out var children))
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < children.Length; i++)
+                {
+                    pending.Enqueue(children[i]);
+                }
+            }
+
+            return false;
+        }
 
         /// <summary>
         ///     Gets the PoE2 stash reader. Call <see cref="StashUiElement.ReadSnapshot" /> and wait for

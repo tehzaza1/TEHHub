@@ -433,6 +433,8 @@ try
         "V2 report must include an explicit stash-context probe rather than folding stash into generic inventory sampling.");
     Check((int)TEHhub.RemoteEnums.InventoryName.StashInventoryId == 27,
         "InventoryName.StashInventoryId must remain mapped to Inventories.dat id 27.");
+    Check((int)TEHhub.RemoteEnums.InventoryName.Cursor1 == 13,
+        "InventoryName.Cursor1 must remain mapped to the one-slot cursor inventory id 13.");
 
     // PoE2 interaction-panel SDK states are independent booleans. A stash or vendor can keep
     // Inventory open at the same time, so consumers must not decode a combined numeric mode.
@@ -495,6 +497,24 @@ try
         "A Loading inventory with zero returned items must not be treated as empty.");
     Check((int)InventorySnapshotDetailLevel.Full != (int)InventorySnapshotDetailLevel.Basic,
         "Inventory SDK must keep fast Basic reads separate from component-rich Full reads.");
+    var targetedRead = typeof(ServerData).GetMethod(
+        nameof(ServerData.ReadInventoryItemAt),
+        [typeof(TEHhub.RemoteEnums.InventoryName), typeof(int), typeof(int), typeof(InventorySnapshotDetailLevel)]);
+    Check(targetedRead?.ReturnType == typeof(InventorySlotItemSnapshot),
+        "Inventory SDK must retain the targeted one-slot read used for Cursor1 and Waystone crafting verification.");
+    var readyEmptyCursor = new InventorySlotItemSnapshot(
+        InventorySnapshotState.Ready,
+        TEHhub.RemoteEnums.InventoryName.Cursor1,
+        0,
+        0,
+        11,
+        null,
+        "synthetic ready-empty cursor");
+    Check(readyEmptyCursor.IsEmpty,
+        "Cursor1 Ready with a null item must mean truly empty, not a read error.");
+    Check(!(readyEmptyCursor with { State = InventorySnapshotState.Loading }).IsEmpty &&
+          !(readyEmptyCursor with { State = InventorySnapshotState.Unavailable }).IsEmpty,
+        "Cursor1 Loading or Unavailable must never be treated as empty.");
     var occupiedSlot = new InventorySnapshotSlot(3, 2, new IntPtr(0x11000), new IntPtr(0x12000));
     var emptySlot = new InventorySnapshotSlot(4, 2, IntPtr.Zero, IntPtr.Zero);
     Check(occupiedSlot.X == 3 && occupiedSlot.Y == 2 &&
@@ -532,6 +552,20 @@ try
           twoValueWaystoneSuffix.Contains("79", StringComparison.Ordinal) &&
           twoValueWaystoneSuffix.Contains("Ailment Threshold", StringComparison.Ordinal),
         "Waystone suffix translation must preserve both values for two-stat explicit modifiers.");
+    Check(AutoExile2.WaystoneFilter.ModifierDefinitions.Count >= 32 &&
+          AutoExile2.WaystoneFilter.NormalizeBlockedMods(
+              new[] { "MapBurningGround", "mapburningground", "UnknownMod" })
+              .SequenceEqual(new[] { "MapBurningGround" }),
+        "Waystone filter must expose the complete block table and normalize saved modifier keys.");
+    var waystoneFilterSettings = new AutoExile2.AutoExile2Settings();
+    AutoExile2.WebServer.SettingsHandler.UpdateSettingsFromJson(
+        waystoneFilterSettings,
+        "{\"MinWaystoneItemRarity\":10,\"MinWaystonePackSize\":null,\"MaxWaystoneMods\":9,\"BlockedWaystoneMods\":[\"MapBurningGround\",\"UnknownMod\"]}");
+    Check(waystoneFilterSettings.MinWaystoneItemRarity == 10 &&
+          waystoneFilterSettings.MinWaystonePackSize == null &&
+          waystoneFilterSettings.MaxWaystoneMods == 6 &&
+          waystoneFilterSettings.BlockedWaystoneMods.SequenceEqual(new[] { "MapBurningGround" }),
+        "Waystone filter settings must preserve blank thresholds, clamp maximum mods, and reject unknown block keys.");
     var targetedEmptySlot = new InventorySlotItemSnapshot(
         InventorySnapshotState.Ready,
         TEHhub.RemoteEnums.InventoryName.MainInventory1,

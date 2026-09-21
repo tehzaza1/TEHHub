@@ -105,11 +105,35 @@ namespace AutoExile2
         /// <summary>Name of the stash tab AutoExile2 will use for Waystones.</summary>
         public string WaystoneTab = string.Empty;
 
+        /// <summary>Name of the stash tab AutoExile2 will use for crafting currency.</summary>
+        public string CurrencyTab = string.Empty;
+
         /// <summary>Lowest Waystone Tier AutoExile2 may select when opening a map.</summary>
         public int MinTier = 1;
 
         /// <summary>Highest Waystone Tier AutoExile2 may select when opening a map.</summary>
         public int MaxTier = 16;
+
+        /// <summary>Required Item Rarity percentage. Null disables the filter; actual value must be greater.</summary>
+        public int? MinWaystoneItemRarity;
+
+        /// <summary>Required Pack Size percentage. Null disables the filter; actual value must be greater.</summary>
+        public int? MinWaystonePackSize;
+
+        /// <summary>Required Monster Rarity percentage. Null disables the filter; actual value must be greater.</summary>
+        public int? MinWaystoneMonsterRarity;
+
+        /// <summary>Required Monster Effectiveness percentage. Null disables the filter; actual value must be greater.</summary>
+        public int? MinWaystoneMonsterEffectiveness;
+
+        /// <summary>Required Waystone Drop Chance percentage. Null disables the filter; actual value must be greater.</summary>
+        public int? MinWaystoneDropChance;
+
+        /// <summary>Target explicit modifier count after crafting (4-6). Defaults to the PoE2 cap of six.</summary>
+        public int MaxWaystoneMods = 6;
+
+        /// <summary>Blocked Waystone modifier family keys. Every unlisted family remains allowed.</summary>
+        public List<string> BlockedWaystoneMods = new();
 
         /// <summary>Name of the stash tab AutoExile2 will use for farmed-item dumping.</summary>
         public string DumpTab = string.Empty;

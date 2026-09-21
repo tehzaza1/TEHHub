@@ -13,6 +13,7 @@ namespace AutoExile2.Systems
     using AutoExile2.Modes.Shared;
     using TEHhub;
     using TEHhub.Plugin;
+    using TEHhub.RemoteEnums;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
 
@@ -52,6 +53,7 @@ namespace AutoExile2.Systems
         private const double SettleMilliseconds = 200d;
         private const double ClickRetryMilliseconds = 900d;
         private const double CtrlClickVerificationMilliseconds = 2000d;
+        private const double CurrencyActivationMilliseconds = 650d;
         private const double RepathMilliseconds = 300d;
         private const float WaypointReachedDistance = 12f;
 
@@ -61,9 +63,13 @@ namespace AutoExile2.Systems
         private string entityPath = string.Empty;
         private IntPtr uiAddress;
         private IntPtr fallbackUiAddress;
+        private IntPtr targetUiAddress;
+        private IntPtr cursorCancelUiAddress;
+        private string expectedCursorItemPath = string.Empty;
         private string uiSource = "UI control";
         private string fallbackUiSource = "fallback UI control";
         private int wheelDirection;
+        private int currencyUseStep;
         private Func<BotContext, bool>? successPredicate;
         private DateTime startedAtUtc;
         private DateTime settleStartedAtUtc;
@@ -79,6 +85,7 @@ namespace AutoExile2.Systems
         private float interactionRange;
         private TimeSpan timeout;
         private long requestGeneration;
+        private bool currencyMayBeActive;
 
         public InteractionPhase Phase { get; private set; } = InteractionPhase.Idle;
 
@@ -105,6 +112,12 @@ namespace AutoExile2.Systems
             InteractionPhase.Idle => InteractionResult.Idle,
             _ => InteractionResult.InProgress,
         };
+
+        /// <summary>
+        /// Gets a value indicating that this system activated a currency but has not yet proved
+        /// that the target slot changed or completed a safe cursor cleanup.
+        /// </summary>
+        public bool CurrencyMayBeActive => this.currencyMayBeActive;
 
         /// <summary>
         /// Starts one entity interaction. The entity is refreshed by id on every tick.
@@ -235,6 +248,66 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
+        /// Starts one bounded PoE2 currency action: right-click the currency control, then
+        /// right-click the exact target item control. It never retries either click; callers must
+        /// verify the changed target slot before starting another action.
+        /// </summary>
+        public bool BeginUiCurrencyUse(
+            IntPtr currencyUiAddress,
+            IntPtr targetItemUiAddress,
+            IntPtr cursorCancelUiAddress,
+            string expectedCursorItemPath,
+            string description,
+            Func<BotContext, bool> successPredicate)
+        {
+            if (currencyUiAddress == IntPtr.Zero || targetItemUiAddress == IntPtr.Zero ||
+                cursorCancelUiAddress == IntPtr.Zero || this.IsBusy || this.currencyMayBeActive)
+            {
+                return false;
+            }
+
+            this.ResetRequest();
+            this.kind = InteractionKind.UiCurrencyUse;
+            this.LastFailure = string.Empty;
+            this.uiAddress = currencyUiAddress;
+            this.targetUiAddress = targetItemUiAddress;
+            this.cursorCancelUiAddress = cursorCancelUiAddress;
+            this.expectedCursorItemPath = expectedCursorItemPath;
+            this.Description = description;
+            this.successPredicate = successPredicate;
+            this.maxClickAttempts = 1;
+            this.startedAtUtc = DateTime.UtcNow;
+            this.timeout = TimeSpan.FromSeconds(8);
+            this.Phase = InteractionPhase.Settling;
+            this.settleStartedAtUtc = this.startedAtUtc;
+            this.Status = $"Preparing {description}";
+            return true;
+        }
+
+        /// <summary>
+        /// Starts one recovery right-click on a validated non-item UI control. This is allowed only
+        /// when a previous currency action may have left a currency attached to the cursor.
+        /// </summary>
+        public bool BeginUiCurrencyCursorCleanup(IntPtr safeUiAddress)
+        {
+            if (safeUiAddress == IntPtr.Zero || this.IsBusy || !this.currencyMayBeActive)
+            {
+                return false;
+            }
+
+            this.ResetRequest();
+            this.kind = InteractionKind.UiCurrencyCursorCleanup;
+            this.uiAddress = safeUiAddress;
+            this.Description = "currency cursor cleanup";
+            this.startedAtUtc = DateTime.UtcNow;
+            this.timeout = TimeSpan.FromSeconds(4);
+            this.Phase = InteractionPhase.Settling;
+            this.settleStartedAtUtc = this.startedAtUtc;
+            this.Status = "Preparing currency cursor cleanup";
+            return true;
+        }
+
+        /// <summary>
         /// Advances the active request by one bot tick.
         /// </summary>
         public InteractionResult Tick(BotContext ctx)
@@ -255,7 +328,7 @@ namespace AutoExile2.Systems
                 return InteractionResult.InProgress;
             }
 
-            if (this.IsSuccessful(ctx))
+            if (this.kind != InteractionKind.UiCurrencyUse && this.IsSuccessful(ctx))
             {
                 this.Complete(ctx);
                 return this.Result;
@@ -273,6 +346,8 @@ namespace AutoExile2.Systems
                 InteractionKind.Entity => this.TickEntity(ctx, now),
                 InteractionKind.UiElement => this.TickUiElement(ctx, now),
                 InteractionKind.UiCtrlClick => this.TickUiElement(ctx, now),
+                InteractionKind.UiCurrencyUse => this.TickUiCurrencyUse(ctx, now),
+                InteractionKind.UiCurrencyCursorCleanup => this.TickUiCurrencyCursorCleanup(ctx, now),
                 InteractionKind.UiScroll => this.TickUiScroll(ctx, now),
                 _ => this.Fail(ctx, "No interaction target"),
             };
@@ -503,6 +578,231 @@ namespace AutoExile2.Systems
             return this.Result;
         }
 
+        private InteractionResult TickUiCurrencyUse(BotContext ctx, DateTime now)
+        {
+            BotInput.ReleaseAllMovementKeys(ctx.Settings);
+            BotInput.ReleaseSprint(ctx.Settings.SprintKey);
+
+            if (this.Phase == InteractionPhase.Settling &&
+                (now - this.settleStartedAtUtc).TotalMilliseconds < SettleMilliseconds)
+            {
+                return this.Result;
+            }
+
+            var generation = Volatile.Read(ref this.requestGeneration);
+            if (this.currencyUseStep == 0)
+            {
+                var cursor = ReadCursor(ctx);
+                if (cursor.State == InventorySnapshotState.Loading)
+                {
+                    this.Status = "Waiting for Cursor1 to stabilize before currency use";
+                    return this.Result;
+                }
+
+                if (cursor.State != InventorySnapshotState.Ready)
+                {
+                    return this.Fail(ctx, $"Cursor1 is {cursor.State}");
+                }
+
+                if (cursor.Item != null)
+                {
+                    return this.Fail(ctx, $"Cursor1 is not empty ({cursor.Item.Path})");
+                }
+
+                if (!TryGetUiClickPoint(this.uiAddress, out var currencyPoint))
+                {
+                    return this.Fail(ctx, $"{this.Description} currency UI is hidden or invalid");
+                }
+
+                this.Phase = InteractionPhase.Clicking;
+                this.currencyMayBeActive = true;
+                BotInput.HumanClick(
+                    currencyPoint,
+                    rightClick: true,
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+                this.currencyUseStep = 1;
+                this.lastClickAtUtc = now;
+                this.Phase = InteractionPhase.WaitingForSuccess;
+                this.Status = $"Right-clicked currency for {this.Description}";
+                return this.Result;
+            }
+
+            if (this.currencyUseStep == 1)
+            {
+                if ((now - this.lastClickAtUtc).TotalMilliseconds < CurrencyActivationMilliseconds)
+                {
+                    this.Status = $"Waiting for currency activation: {this.Description}";
+                    return this.Result;
+                }
+
+                var cursor = ReadCursor(ctx);
+                if (cursor.State == InventorySnapshotState.Loading)
+                {
+                    this.Status = $"Waiting for {this.Description} to appear in Cursor1";
+                    return this.Result;
+                }
+
+                if (cursor.State != InventorySnapshotState.Ready)
+                {
+                    return this.Fail(ctx, $"Cursor1 is {cursor.State}");
+                }
+
+                if (cursor.Item == null)
+                {
+                    this.Status = $"Waiting for {this.Description} to appear in Cursor1";
+                    return this.Result;
+                }
+
+                if (!string.Equals(cursor.Item.Path, this.expectedCursorItemPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return this.Fail(ctx, $"Cursor1 holds unexpected item: {cursor.Item.Path}");
+                }
+
+                if (!TryGetUiClickPoint(this.targetUiAddress, out var targetPoint))
+                {
+                    return this.Fail(ctx, $"{this.Description} target item UI is hidden or invalid");
+                }
+
+                this.Phase = InteractionPhase.Clicking;
+                BotInput.HumanClick(
+                    targetPoint,
+                    rightClick: true,
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+                this.currencyUseStep = 2;
+                this.lastClickAtUtc = now;
+                this.Phase = InteractionPhase.WaitingForSuccess;
+                this.Status = $"Right-clicked target for {this.Description}";
+                return this.Result;
+            }
+
+            if (this.currencyUseStep == 2)
+            {
+                if (!this.IsSuccessful(ctx))
+                {
+                    this.Status = $"Verifying target slot for {this.Description}";
+                    return this.Result;
+                }
+
+                var cursor = ReadCursor(ctx);
+                if (cursor.State == InventorySnapshotState.Loading)
+                {
+                    return this.Result;
+                }
+
+                if (cursor.State != InventorySnapshotState.Ready)
+                {
+                    return this.Fail(ctx, $"Cursor1 is {cursor.State} after crafting");
+                }
+
+                if (cursor.Item == null)
+                {
+                    this.Complete(ctx);
+                    return this.Result;
+                }
+
+                if (!string.Equals(cursor.Item.Path, this.expectedCursorItemPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return this.Fail(ctx, $"Cursor1 changed to unexpected item: {cursor.Item.Path}");
+                }
+
+                if (!TryGetUiClickPoint(this.cursorCancelUiAddress, out var cancelPoint))
+                {
+                    return this.Fail(ctx, "Safe cursor cleanup UI is hidden or invalid");
+                }
+
+                BotInput.HumanClick(
+                    cancelPoint,
+                    rightClick: true,
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+                this.currencyUseStep = 3;
+                this.lastClickAtUtc = now;
+                this.Status = "Craft confirmed; clearing currency from Cursor1";
+                return this.Result;
+            }
+
+            var finalCursor = ReadCursor(ctx);
+            if (finalCursor.State == InventorySnapshotState.Ready && finalCursor.Item == null)
+            {
+                this.Complete(ctx);
+                return this.Result;
+            }
+
+            this.Status = $"Waiting for Cursor1 cleanup after {this.Description}";
+            return this.Result;
+        }
+
+        private InteractionResult TickUiCurrencyCursorCleanup(BotContext ctx, DateTime now)
+        {
+            BotInput.ReleaseAllMovementKeys(ctx.Settings);
+            BotInput.ReleaseSprint(ctx.Settings.SprintKey);
+
+            if (this.currencyUseStep == 0)
+            {
+                var cursor = ReadCursor(ctx);
+                if (cursor.State == InventorySnapshotState.Loading)
+                {
+                    return this.Result;
+                }
+
+                if (cursor.State != InventorySnapshotState.Ready)
+                {
+                    return this.Fail(ctx, $"Cursor1 is {cursor.State} during cleanup");
+                }
+
+                if (cursor.Item == null)
+                {
+                    this.currencyMayBeActive = false;
+                    this.Complete(ctx);
+                    return this.Result;
+                }
+
+                if (this.Phase == InteractionPhase.Settling &&
+                    (now - this.settleStartedAtUtc).TotalMilliseconds < SettleMilliseconds)
+                {
+                    return this.Result;
+                }
+
+                if (!TryGetUiClickPoint(this.uiAddress, out var safePoint))
+                {
+                    return this.Fail(ctx, "Safe currency cursor cleanup UI is hidden or invalid");
+                }
+
+                var generation = Volatile.Read(ref this.requestGeneration);
+                BotInput.HumanClick(
+                    safePoint,
+                    rightClick: true,
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+                this.currencyUseStep = 1;
+                this.lastClickAtUtc = now;
+                this.Phase = InteractionPhase.WaitingForSuccess;
+                this.Status = "Right-clicked safe Stash title to clear currency cursor";
+                return this.Result;
+            }
+
+            var after = ReadCursor(ctx);
+            if (after.State == InventorySnapshotState.Loading)
+            {
+                return this.Result;
+            }
+
+            if (after.State == InventorySnapshotState.Ready && after.Item == null)
+            {
+                this.currencyMayBeActive = false;
+                this.Complete(ctx);
+                return this.Result;
+            }
+
+            this.Status = "Waiting for Cursor1 to become empty";
+            return this.Result;
+        }
+
+        private static InventorySlotItemSnapshot ReadCursor(BotContext ctx) =>
+            ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.Cursor1,
+                0,
+                0,
+                InventorySnapshotDetailLevel.Basic);
+
         private void Navigate(BotContext ctx, Vector2 targetGrid, DateTime now)
         {
             var needRepath = this.currentNavPath.Count == 0 ||
@@ -622,6 +922,11 @@ namespace AutoExile2.Systems
 
         private void Complete(BotContext ctx)
         {
+            if (this.kind is InteractionKind.UiCurrencyUse or InteractionKind.UiCurrencyCursorCleanup)
+            {
+                this.currencyMayBeActive = false;
+            }
+
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
             BotInput.ReleaseSprint(ctx.Settings.SprintKey);
             this.currentNavPath.Clear();
@@ -652,9 +957,13 @@ namespace AutoExile2.Systems
             this.entityPath = string.Empty;
             this.uiAddress = IntPtr.Zero;
             this.fallbackUiAddress = IntPtr.Zero;
+            this.targetUiAddress = IntPtr.Zero;
+            this.cursorCancelUiAddress = IntPtr.Zero;
+            this.expectedCursorItemPath = string.Empty;
             this.uiSource = "UI control";
             this.fallbackUiSource = "fallback UI control";
             this.wheelDirection = 0;
+            this.currencyUseStep = 0;
             this.successPredicate = null;
             this.startedAtUtc = DateTime.MinValue;
             this.settleStartedAtUtc = DateTime.MinValue;
@@ -680,6 +989,8 @@ namespace AutoExile2.Systems
             Entity,
             UiElement,
             UiCtrlClick,
+            UiCurrencyUse,
+            UiCurrencyCursorCleanup,
             UiScroll,
         }
     }

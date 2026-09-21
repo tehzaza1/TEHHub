@@ -250,7 +250,10 @@ namespace TEHhub.Ui
             ImGui.Text($"Category: {CategoryLabel(item)}");
             ImGui.Text($"Rarity: {RarityDetail(item)}");
             ImGui.Text($"Modifier rows: {item.ImplicitMods.Count + item.ExplicitMods.Count + item.EnchantMods.Count + item.OtherMods.Count} | Modifier stats: {item.ModStats.Count}");
-            ImGui.TextDisabled("Identification state: unknown (no validated SDK field yet)");
+            ImGui.TextDisabled("Identification state: unknown (capture probe before/after using Wisdom)");
+            ImGuiHelper.DisplayTextAndCopyOnClick(
+                $"Identification probe [Mods+0x90..0x9F]: {item.IdentificationStateProbe}",
+                item.IdentificationStateProbe);
             ImGui.Text($"Slot: ({item.SlotStartX},{item.SlotStartY}) -> ({item.SlotEndX},{item.SlotEndY}) | Size: {item.Width} x {item.Height}");
             ImGuiHelper.IntPtrToImGui("Item address", item.ItemAddress);
             ImGuiHelper.IntPtrToImGui("Wrapper address", item.WrapperAddress);

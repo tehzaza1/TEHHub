@@ -5,6 +5,7 @@
 namespace AutoExile2.Modes.Shared
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
     using System.Numerics;
     using AutoExile2.Systems;
@@ -15,8 +16,8 @@ namespace AutoExile2.Modes.Shared
 
     /// <summary>
     /// First PoE 2 hideout preparation flow: inspect main inventory, open the personal stash,
-    /// select the configured Waystone Tab, and withdraw exactly one Waystone in the configured
-    /// Tier range. Map-device and crafting work intentionally remain outside this phase.
+    /// select the configured Waystone Tab, withdraw exactly one Waystone in the configured Tier
+    /// range, and prepare that inventory slot with Wisdom/Alchemy/Exalted as required.
     /// </summary>
     internal sealed class HideoutFlow
     {
@@ -28,10 +29,15 @@ namespace AutoExile2.Modes.Shared
         private DateTime tabActionNotBeforeUtc = DateTime.MinValue;
         private string delayedTabTarget = string.Empty;
         private string activeConfiguredTab = string.Empty;
+        private string activeFilterSignature = string.Empty;
         private int activeMinTier;
         private int activeMaxTier;
+        private readonly HashSet<int> exhaustedWaystoneTiers = new();
+        private readonly HashSet<IntPtr> stoppedCraftItems = new();
         private bool useTabScrollFallback;
         private bool withdrawalAttempted;
+        private bool currencyWithdrawalAttempted;
+        private IntPtr activeCraftItemAddress;
         private int targetWaystoneTier;
         private int nextSpecializedPage = 1;
         private int pendingPageNumber;
@@ -64,6 +70,7 @@ namespace AutoExile2.Modes.Shared
             this.lastInventoryReadUtc = DateTime.MinValue;
             this.nextRetryUtc = DateTime.MinValue;
             this.activeConfiguredTab = string.Empty;
+            this.activeFilterSignature = string.Empty;
             this.activeMinTier = 0;
             this.activeMaxTier = 0;
             this.ResetStashWorkflow();
@@ -100,6 +107,39 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
+            if (ctx.Interaction.CurrencyMayBeActive ||
+                this.pendingInteraction == PendingInteraction.CursorCleanup)
+            {
+                this.TickCurrencyCursorSafety(ctx);
+                return;
+            }
+
+            var cursorSlot = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.Cursor1,
+                0,
+                0,
+                InventorySnapshotDetailLevel.Basic);
+            if (cursorSlot.State == InventorySnapshotState.Loading)
+            {
+                this.Status = "Cursor1 is changing — waiting";
+                this.Decision = "ReadCursor1";
+                return;
+            }
+
+            if (cursorSlot.State != InventorySnapshotState.Ready)
+            {
+                this.Status = $"Cursor1 is {cursorSlot.State} — automation stopped";
+                this.Decision = "Cursor1Unavailable";
+                return;
+            }
+
+            if (cursorSlot.Item != null)
+            {
+                this.Status = $"Unexpected item on Cursor1: {cursorSlot.Item.Path}";
+                this.Decision = "ClearCursorManually";
+                return;
+            }
+
             var (minTier, maxTier) = GetTierRange(ctx.Settings);
             var inventory = this.ReadInventory(ctx);
             if (inventory.State != InventorySnapshotState.Ready)
@@ -110,12 +150,47 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            this.EligibleWaystoneCount = CountEligibleWaystones(inventory, minTier, maxTier);
-            if (this.EligibleWaystoneCount > 0)
+            var inventoryWaystones = inventory.Items
+                .Where(item => item.WaystoneTier is int tier && tier >= minTier && tier <= maxTier)
+                .OrderByDescending(item => item.WaystoneTier)
+                .ThenBy(item => item.SlotStartY)
+                .ThenBy(item => item.SlotStartX)
+                .ToArray();
+            var actionable = inventoryWaystones
+                .Select(item =>
+                {
+                    var action = WaystoneCrafting.GetNextAction(item, ctx.Settings, out var reason);
+                    return new
+                    {
+                        Item = item,
+                        Action = action,
+                        Reason = reason,
+                    };
+                })
+                .Where(candidate => candidate.Action != WaystoneCraftingAction.Reject &&
+                                    !this.stoppedCraftItems.Contains(candidate.Item.ItemAddress))
+                .FirstOrDefault();
+            this.EligibleWaystoneCount = inventoryWaystones.Count(item =>
+                WaystoneCrafting.GetNextAction(item, ctx.Settings, out _) == WaystoneCraftingAction.Ready);
+            if (actionable?.Action == WaystoneCraftingAction.Ready)
             {
                 ctx.Interaction.Cancel(ctx.Settings);
                 this.Status = $"Inventory ready — {this.EligibleWaystoneCount} Waystone(s) in Tier {minTier}-{maxTier}";
                 this.Decision = "WaystoneReady";
+                return;
+            }
+
+            if (actionable != null)
+            {
+                this.TickCraftWaystone(ctx, actionable.Item, actionable.Action, actionable.Reason);
+                return;
+            }
+
+            if (inventoryWaystones.Length > 0)
+            {
+                ctx.Interaction.Cancel(ctx.Settings);
+                this.Status = "Inventory Waystone(s) cannot be prepared or did not pass the active filter";
+                this.Decision = "NoInventoryWaystonePassedFilters";
                 return;
             }
 
@@ -128,13 +203,16 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
+            var filterSignature = WaystoneFilter.GetSettingsSignature(ctx.Settings);
             if (!string.Equals(this.activeConfiguredTab, configuredTab, StringComparison.OrdinalIgnoreCase) ||
-                this.activeMinTier != minTier || this.activeMaxTier != maxTier)
+                this.activeMinTier != minTier || this.activeMaxTier != maxTier ||
+                !string.Equals(this.activeFilterSignature, filterSignature, StringComparison.Ordinal))
             {
                 ctx.Interaction.Cancel(ctx.Settings);
                 this.activeConfiguredTab = configuredTab;
                 this.activeMinTier = minTier;
                 this.activeMaxTier = maxTier;
+                this.activeFilterSignature = filterSignature;
                 this.ResetStashWorkflow();
             }
 
@@ -166,7 +244,9 @@ namespace AutoExile2.Modes.Shared
             var now = DateTime.UtcNow;
             if (this.inventorySnapshot == null || now - this.lastInventoryReadUtc >= InventoryReadInterval)
             {
-                this.inventorySnapshot = ctx.Area.ServerDataObject.ReadInventorySnapshot(InventoryName.MainInventory1);
+                this.inventorySnapshot = ctx.Area.ServerDataObject.ReadInventorySnapshot(
+                    InventoryName.MainInventory1,
+                    InventorySnapshotDetailLevel.Full);
                 this.lastInventoryReadUtc = now;
             }
 
@@ -218,6 +298,222 @@ namespace AutoExile2.Modes.Shared
             }
         }
 
+        private void TickCraftWaystone(
+            BotContext ctx,
+            InventorySnapshotItem waystone,
+            WaystoneCraftingAction action,
+            string reason)
+        {
+            if (ctx.Interaction.IsBusy)
+            {
+                var result = ctx.Interaction.Tick(ctx);
+                this.Status = ctx.Interaction.Status;
+                this.Decision = ctx.Interaction.Phase.ToString();
+                if (result == InteractionResult.Failed)
+                {
+                    this.HandleInteractionFailure(ctx);
+                }
+
+                return;
+            }
+
+            if (ctx.Interaction.Result == InteractionResult.Succeeded)
+            {
+                this.HandleInteractionSuccess(ctx);
+                return;
+            }
+
+            if (DateTime.UtcNow < this.nextRetryUtc)
+            {
+                this.Status = $"Waiting before crafting action ({(this.nextRetryUtc - DateTime.UtcNow).TotalSeconds:F1}s)";
+                this.Decision = "RetryCraftingAction";
+                return;
+            }
+
+            // Opening the stash also materializes the player inventory UI, which gives the SDK
+            // safe clickable controls for both the currency and this exact Waystone address.
+            if (!ctx.GameUi.IsStashOpen)
+            {
+                if (ctx.GameUi.IsAnyLargePanelOpen)
+                {
+                    ctx.Interaction.Cancel(ctx.Settings);
+                    this.Status = "Another game panel is open — close it before Waystone crafting";
+                    this.Decision = "WaitForPanelClose";
+                    return;
+                }
+
+                this.TickOpenStash(ctx);
+                return;
+            }
+
+            var currencyPath = WaystoneCrafting.GetCurrencyPath(action);
+            var currencyLabel = WaystoneCrafting.GetCurrencyLabel(action);
+            var inventory = this.ReadInventory(ctx);
+            var currency = inventory.Items.FirstOrDefault(item =>
+                string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase) &&
+                (!item.StackCount.HasValue || item.StackCount.Value > 0));
+            if (currency == null)
+            {
+                this.TickWithdrawCurrency(ctx, currencyPath, currencyLabel);
+                return;
+            }
+
+            this.currencyWithdrawalAttempted = false;
+            if (!ctx.GameUi.TryGetVisibleInventoryItemUiAddress(currency.ItemAddress, out var currencyUi) ||
+                !ctx.GameUi.TryGetVisibleInventoryItemUiAddress(waystone.ItemAddress, out var waystoneUi))
+            {
+                this.Status = "Inventory item UI is not materialized yet";
+                this.Decision = "ReadInventoryUi";
+                return;
+            }
+
+            if (!ctx.GameUi.Stash.TryGetSafeCursorCancelUiAddress(out var cursorCancelUi))
+            {
+                this.Status = "Safe Stash cursor-cancel UI is unavailable";
+                this.Decision = "ReadCursorCancelUi";
+                return;
+            }
+
+            var oldRarity = waystone.Rarity;
+            var oldModCount = waystone.ExplicitMods.Count;
+            var slotX = waystone.SlotStartX;
+            var slotY = waystone.SlotStartY;
+            if (!ctx.Interaction.BeginUiCurrencyUse(
+                    currencyUi,
+                    waystoneUi,
+                    cursorCancelUi,
+                    currencyPath,
+                    $"{currencyLabel} on Tier {waystone.WaystoneTier} Waystone",
+                    current => CraftingActionChangedSlot(
+                        current,
+                        action,
+                        slotX,
+                        slotY,
+                        oldRarity,
+                        oldModCount)))
+            {
+                this.Status = "Crafting UI is unavailable";
+                this.Decision = "UseCraftingCurrency";
+                return;
+            }
+
+            this.activeCraftItemAddress = waystone.ItemAddress;
+            this.pendingInteraction = action switch
+            {
+                WaystoneCraftingAction.Identify => PendingInteraction.UseWisdom,
+                WaystoneCraftingAction.Alchemy => PendingInteraction.UseAlchemy,
+                WaystoneCraftingAction.Exalted => PendingInteraction.UseExalted,
+                _ => PendingInteraction.None,
+            };
+            this.Status = reason;
+            this.TickStartedInteraction(ctx);
+        }
+
+        private void TickCurrencyCursorSafety(BotContext ctx)
+        {
+            if (ctx.Interaction.IsBusy)
+            {
+                var result = ctx.Interaction.Tick(ctx);
+                this.Status = ctx.Interaction.Status;
+                this.Decision = ctx.Interaction.Phase.ToString();
+                if (result == InteractionResult.Failed)
+                {
+                    this.HandleInteractionFailure(ctx);
+                }
+                else if (result == InteractionResult.Succeeded)
+                {
+                    this.HandleInteractionSuccess(ctx);
+                }
+
+                return;
+            }
+
+            if (!ctx.Interaction.CurrencyMayBeActive)
+            {
+                if (ctx.Interaction.Result == InteractionResult.Succeeded)
+                {
+                    this.HandleInteractionSuccess(ctx);
+                }
+
+                return;
+            }
+
+            if (!ctx.GameUi.IsStashOpen ||
+                !ctx.GameUi.Stash.TryGetSafeCursorCancelUiAddress(out var safeUi))
+            {
+                this.Status = "Currency may be attached to cursor — reopen Stash for safe cleanup";
+                this.Decision = "CursorCleanupBlocked";
+                return;
+            }
+
+            ctx.Interaction.Reset();
+            if (!ctx.Interaction.BeginUiCurrencyCursorCleanup(safeUi))
+            {
+                this.Status = "Cannot start safe currency cursor cleanup";
+                this.Decision = "CursorCleanupBlocked";
+                return;
+            }
+
+            this.pendingInteraction = PendingInteraction.CursorCleanup;
+            this.TickStartedInteraction(ctx);
+        }
+
+        private void TickWithdrawCurrency(BotContext ctx, string currencyPath, string currencyLabel)
+        {
+            if (this.currencyWithdrawalAttempted)
+            {
+                this.Status = $"{currencyLabel} withdrawal was not confirmed — stopped";
+                this.Decision = "CurrencyWithdrawalUnconfirmed";
+                return;
+            }
+
+            var configuredTab = (ctx.Settings.CurrencyTab ?? string.Empty).Trim();
+            if (configuredTab.Length == 0)
+            {
+                this.Status = $"No {currencyLabel} in inventory — configure Currency Tab";
+                this.Decision = "ConfigureCurrencyTab";
+                return;
+            }
+
+            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Full);
+            if (snapshot.State != StashSnapshotState.Ready)
+            {
+                this.Status = $"Stash {snapshot.State}: {snapshot.Diagnostic}";
+                this.Decision = "ReadCurrencyTab";
+                return;
+            }
+
+            if (!string.Equals(snapshot.CurrentTabName, configuredTab, StringComparison.OrdinalIgnoreCase))
+            {
+                this.BeginSelectCurrencyTab(ctx, snapshot, configuredTab);
+                return;
+            }
+
+            var control = snapshot.VisibleItems.FirstOrDefault(item =>
+                string.Equals(item.ItemPath, currencyPath, StringComparison.OrdinalIgnoreCase));
+            if (control == null)
+            {
+                this.Status = $"Currency Tab '{configuredTab}' has no visible {currencyLabel}";
+                this.Decision = "CurrencyUnavailable";
+                return;
+            }
+
+            var baseline = CountCurrency(this.ReadInventory(ctx), currencyPath);
+            if (!ctx.Interaction.BeginUiCtrlClick(
+                    control.UiAddress,
+                    currencyLabel,
+                    current => CountCurrency(this.ReadInventoryFresh(current), currencyPath) > baseline))
+            {
+                this.Status = $"{currencyLabel} UI is unavailable";
+                this.Decision = "WithdrawCurrency";
+                return;
+            }
+
+            this.currencyWithdrawalAttempted = true;
+            this.pendingInteraction = PendingInteraction.WithdrawCurrency;
+            this.TickStartedInteraction(ctx);
+        }
+
         private void TickStash(BotContext ctx, string configuredTab, int minTier, int maxTier)
         {
             if (ctx.Interaction.IsBusy)
@@ -252,7 +548,7 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            var snapshot = ctx.GameUi.Stash.ReadSnapshot();
+            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Full);
             if (snapshot.State != StashSnapshotState.Ready)
             {
                 this.Status = $"Stash {snapshot.State}: {snapshot.Diagnostic}";
@@ -287,14 +583,20 @@ namespace AutoExile2.Modes.Shared
 
             var target = snapshot.Tiers
                 .Select((tier, index) => new { Info = tier, Tier = index + 1 })
-                .Where(candidate => candidate.Tier >= minTier && candidate.Tier <= maxTier && candidate.Info.Count > 0)
+                .Where(candidate => candidate.Tier >= minTier && candidate.Tier <= maxTier &&
+                                    candidate.Info.Count > 0 &&
+                                    !this.exhaustedWaystoneTiers.Contains(candidate.Tier))
                 .OrderByDescending(candidate => candidate.Tier)
                 .FirstOrDefault();
             if (target == null)
             {
                 this.targetWaystoneTier = 0;
-                this.Status = $"Waystone Tab has no Waystone in Tier {minTier}-{maxTier}";
-                this.Decision = "NoWaystoneInRange";
+                this.Status = this.exhaustedWaystoneTiers.Count > 0
+                    ? $"No Waystone in Tier {minTier}-{maxTier} passed the active filters"
+                    : $"Waystone Tab has no Waystone in Tier {minTier}-{maxTier}";
+                this.Decision = this.exhaustedWaystoneTiers.Count > 0
+                    ? "NoWaystonePassedFilters"
+                    : "NoWaystoneInRange";
                 return;
             }
 
@@ -401,8 +703,12 @@ namespace AutoExile2.Modes.Shared
                         return;
                     }
 
-                    this.Status = $"Tier {this.targetWaystoneTier} reports stock, but no clickable Waystone was found on pages 1-6";
-                    this.Decision = "WaystoneUiUnavailable";
+                    this.exhaustedWaystoneTiers.Add(this.targetWaystoneTier);
+                    this.Status = $"No Waystone in Tier {this.targetWaystoneTier} passed filters — checking lower Tier";
+                    this.Decision = "CheckNextWaystoneTier";
+                    this.targetWaystoneTier = 0;
+                    this.nextSpecializedPage = 1;
+                    this.stashPhase = StashPhase.SelectTier;
                     return;
             }
         }
@@ -468,6 +774,56 @@ namespace AutoExile2.Modes.Shared
             this.TickStartedInteraction(ctx);
         }
 
+        private void BeginSelectCurrencyTab(BotContext ctx, StashSnapshot snapshot, string configuredTab)
+        {
+            var tab = snapshot.Tabs.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, configuredTab, StringComparison.OrdinalIgnoreCase));
+            if (tab == null)
+            {
+                this.Status = $"Configured Currency Tab '{configuredTab}' is not visible";
+                this.Decision = "FindCurrencyTab";
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            var delayKey = $"currency:{configuredTab}";
+            if (!string.Equals(this.delayedTabTarget, delayKey, StringComparison.OrdinalIgnoreCase))
+            {
+                this.delayedTabTarget = delayKey;
+                this.tabActionNotBeforeUtc = now + TimeSpan.FromMilliseconds(Random.Shared.Next(450, 901));
+            }
+
+            if (now < this.tabActionNotBeforeUtc)
+            {
+                this.Status = $"Pausing before Currency Tab '{tab.Name}' ({(this.tabActionNotBeforeUtc - now).TotalSeconds:F1}s)";
+                this.Decision = "HumanTabDelay";
+                return;
+            }
+
+            var sideListFirst = snapshot.IsAllTabsListOpen && tab.FallbackUiAddress != IntPtr.Zero;
+            var primaryAddress = sideListFirst ? tab.FallbackUiAddress : tab.UiAddress;
+            var secondaryAddress = sideListFirst ? tab.UiAddress : IntPtr.Zero;
+            var began = primaryAddress != IntPtr.Zero
+                ? ctx.Interaction.BeginUiElement(
+                    primaryAddress,
+                    $"Currency Tab '{tab.Name}'",
+                    current => IsConfiguredTabReady(current, configuredTab),
+                    fallbackUiAddress: secondaryAddress,
+                    maxClickAttempts: 4,
+                    uiSource: sideListFirst ? "all-tabs list" : "top tab",
+                    fallbackUiSource: "top tab")
+                : this.BeginTabScrollFallback(ctx, snapshot, tab, configuredTab);
+            if (!began)
+            {
+                this.Status = "Currency Tab control is unavailable";
+                this.Decision = "SelectCurrencyTab";
+                return;
+            }
+
+            this.pendingInteraction = PendingInteraction.SelectCurrencyTab;
+            this.TickStartedInteraction(ctx);
+        }
+
         private void BeginSelectPage(
             BotContext ctx,
             StashSnapshot snapshot,
@@ -519,9 +875,13 @@ namespace AutoExile2.Modes.Shared
                 {
                     Ui = control,
                     Tier = TryGetWaystoneTier(control.ItemPath, out var tier) ? tier : 0,
+                    Item = snapshot.Inventory.Items.FirstOrDefault(item => item.ItemAddress == control.ItemAddress),
                 })
                 .Where(candidate => candidate.Tier >= minTier && candidate.Tier <= maxTier &&
-                                    (targetTier == 0 || candidate.Tier == targetTier))
+                                    (targetTier == 0 || candidate.Tier == targetTier) &&
+                                    candidate.Item != null &&
+                                    WaystoneCrafting.GetNextAction(candidate.Item, ctx.Settings, out _) !=
+                                    WaystoneCraftingAction.Reject)
                 .OrderByDescending(candidate => candidate.Tier)
                 .ThenBy(candidate => candidate.Ui.UiAddress.ToInt64())
                 .ToArray();
@@ -535,7 +895,7 @@ namespace AutoExile2.Modes.Shared
             }
 
             var candidate = candidates[0];
-            var baselineCount = this.EligibleWaystoneCount;
+            var baselineCount = CountWaystonesInRange(this.ReadInventory(ctx), minTier, maxTier);
             var itemAddress = candidate.Ui.ItemAddress;
             if (!ctx.Interaction.BeginUiCtrlClick(
                     candidate.Ui.UiAddress,
@@ -545,7 +905,7 @@ namespace AutoExile2.Modes.Shared
                         var currentInventory = this.ReadInventory(current);
                         return currentInventory.State == InventorySnapshotState.Ready &&
                                (currentInventory.Items.Any(item => item.Item.Address == itemAddress) ||
-                                CountEligibleWaystones(currentInventory, minTier, maxTier) > baselineCount);
+                                CountWaystonesInRange(currentInventory, minTier, maxTier) > baselineCount);
                     }))
             {
                 this.Status = "Waystone item UI is unavailable";
@@ -593,6 +953,26 @@ namespace AutoExile2.Modes.Shared
                     break;
                 case PendingInteraction.Withdraw:
                     // The success predicate already proved that main inventory received the item.
+                    this.inventorySnapshot = null;
+                    this.lastInventoryReadUtc = DateTime.MinValue;
+                    break;
+                case PendingInteraction.SelectCurrencyTab:
+                    this.tabActionNotBeforeUtc = DateTime.MinValue;
+                    this.delayedTabTarget = string.Empty;
+                    break;
+                case PendingInteraction.WithdrawCurrency:
+                    this.currencyWithdrawalAttempted = false;
+                    this.inventorySnapshot = null;
+                    this.lastInventoryReadUtc = DateTime.MinValue;
+                    break;
+                case PendingInteraction.UseWisdom:
+                case PendingInteraction.UseAlchemy:
+                case PendingInteraction.UseExalted:
+                    this.activeCraftItemAddress = IntPtr.Zero;
+                    this.inventorySnapshot = null;
+                    this.lastInventoryReadUtc = DateTime.MinValue;
+                    break;
+                case PendingInteraction.CursorCleanup:
                     break;
             }
         }
@@ -603,6 +983,41 @@ namespace AutoExile2.Modes.Shared
             var failure = ctx.Interaction.LastFailure;
             ctx.Interaction.Reset();
             this.pendingInteraction = PendingInteraction.None;
+            if (failed is PendingInteraction.UseWisdom or
+                PendingInteraction.UseAlchemy or
+                PendingInteraction.UseExalted)
+            {
+                if (this.activeCraftItemAddress != IntPtr.Zero)
+                {
+                    this.stoppedCraftItems.Add(this.activeCraftItemAddress);
+                }
+
+                this.activeCraftItemAddress = IntPtr.Zero;
+                this.Status = string.IsNullOrWhiteSpace(failure)
+                    ? "Waystone crafting was not confirmed — item stopped"
+                    : $"{failure} — item stopped";
+                this.Decision = "CraftingUnconfirmed";
+                return;
+            }
+
+            if (failed == PendingInteraction.WithdrawCurrency)
+            {
+                this.Status = string.IsNullOrWhiteSpace(failure)
+                    ? "Currency withdrawal was not confirmed"
+                    : failure;
+                this.Decision = "CurrencyWithdrawalUnconfirmed";
+                return;
+            }
+
+            if (failed == PendingInteraction.CursorCleanup)
+            {
+                this.Status = string.IsNullOrWhiteSpace(failure)
+                    ? "Currency cursor cleanup was not confirmed"
+                    : failure;
+                this.Decision = "CursorCleanupBlocked";
+                return;
+            }
+
             if (failed == PendingInteraction.Withdraw)
             {
                 this.Status = string.IsNullOrWhiteSpace(failure)
@@ -616,6 +1031,11 @@ namespace AutoExile2.Modes.Shared
             {
                 this.useTabScrollFallback = !this.useTabScrollFallback;
                 this.stashPhase = StashPhase.SelectTab;
+            }
+            else if (failed == PendingInteraction.SelectCurrencyTab)
+            {
+                this.tabActionNotBeforeUtc = DateTime.MinValue;
+                this.delayedTabTarget = string.Empty;
             }
             else if (failed == PendingInteraction.SelectTier)
             {
@@ -666,6 +1086,7 @@ namespace AutoExile2.Modes.Shared
             this.useTabScrollFallback = false;
             this.targetWaystoneTier = 0;
             this.nextSpecializedPage = 1;
+            this.exhaustedWaystoneTiers.Clear();
             this.pendingPageNumber = 0;
             this.stashPhase = StashPhase.SelectTab;
             this.pendingInteraction = PendingInteraction.None;
@@ -673,6 +1094,8 @@ namespace AutoExile2.Modes.Shared
             if (!preserveWithdrawalGuard)
             {
                 this.withdrawalAttempted = false;
+                this.currencyWithdrawalAttempted = false;
+                this.stoppedCraftItems.Clear();
             }
         }
 
@@ -683,9 +1106,53 @@ namespace AutoExile2.Modes.Shared
             return minTier <= maxTier ? (minTier, maxTier) : (maxTier, minTier);
         }
 
-        private static int CountEligibleWaystones(InventorySnapshot inventory, int minTier, int maxTier) =>
+        private static int CountWaystonesInRange(InventorySnapshot inventory, int minTier, int maxTier) =>
             inventory.Items.Count(entry =>
                 entry.WaystoneTier is int tier && tier >= minTier && tier <= maxTier);
+
+        private InventorySnapshot ReadInventoryFresh(BotContext ctx)
+        {
+            this.inventorySnapshot = ctx.Area.ServerDataObject.ReadInventorySnapshot(
+                InventoryName.MainInventory1,
+                InventorySnapshotDetailLevel.Full);
+            this.lastInventoryReadUtc = DateTime.UtcNow;
+            return this.inventorySnapshot;
+        }
+
+        private static int CountCurrency(InventorySnapshot inventory, string currencyPath) =>
+            inventory.Items
+                .Where(item => string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase))
+                .Sum(item => Math.Max(1, item.StackCount ?? 1));
+
+        private static bool CraftingActionChangedSlot(
+            BotContext ctx,
+            WaystoneCraftingAction action,
+            int slotX,
+            int slotY,
+            Rarity? oldRarity,
+            int oldModCount)
+        {
+            var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.MainInventory1,
+                slotX,
+                slotY,
+                InventorySnapshotDetailLevel.Full);
+            var item = result.Item;
+            if (result.State != InventorySnapshotState.Ready || item == null || !item.IsWaystone)
+            {
+                return false;
+            }
+
+            return action switch
+            {
+                WaystoneCraftingAction.Identify => item.ExplicitMods.Count > 0,
+                WaystoneCraftingAction.Alchemy =>
+                    item.Rarity == Rarity.Rare &&
+                    (oldRarity != Rarity.Rare || item.ExplicitMods.Count > oldModCount),
+                WaystoneCraftingAction.Exalted => item.ExplicitMods.Count > oldModCount,
+                _ => false,
+            };
+        }
 
         private static bool IsConfiguredTabReady(BotContext ctx, string configuredTab)
         {
@@ -759,6 +1226,12 @@ namespace AutoExile2.Modes.Shared
             SelectPage,
             SelectTier,
             Withdraw,
+            SelectCurrencyTab,
+            WithdrawCurrency,
+            UseWisdom,
+            UseAlchemy,
+            UseExalted,
+            CursorCleanup,
         }
     }
 }

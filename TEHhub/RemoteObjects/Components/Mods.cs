@@ -29,6 +29,13 @@ namespace TEHhub.RemoteObjects.Components
         public Rarity Rarity { get; private set; } = Rarity.Normal;
 
         /// <summary>
+        ///     Gets a diagnostic hex capture around the item-state bytes between rarity and the
+        ///     modifier vectors. This is research-only until the PoE2 identification flag is
+        ///     validated from a before/after capture; automation must not interpret these bytes.
+        /// </summary>
+        public string ItemStateProbe { get; private set; } = string.Empty;
+
+        /// <summary>
         ///     Gets the mods and their values of the entity.
         ///     If a mod doesn't have a value, it will be represented by
         ///     <see cref="float.NaN"/>.
@@ -90,6 +97,9 @@ namespace TEHhub.RemoteObjects.Components
         {
             base.ToImGui();
             ImGui.Text($"Rarity: {this.Rarity}");
+            ImGuiHelper.DisplayTextAndCopyOnClick(
+                $"Item-state probe [0x90..0x9F]: {this.ItemStateProbe}",
+                this.ItemStateProbe);
             ObjectMagicProperties.ModsToImGui("ImplicitMods", this.ImplicitMods);
             ObjectMagicProperties.ModsToImGui("ExplicitMods", this.ExplicitMods);
             ObjectMagicProperties.ModsToImGui("EnchantMods", this.EnchantMods);
@@ -114,6 +124,8 @@ namespace TEHhub.RemoteObjects.Components
             var data = reader.ReadMemory<ModsOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
             this.Rarity = (Rarity)data.Details0.Rarity;
+            this.ItemStateProbe = Convert.ToHexString(
+                reader.ReadMemoryArray<byte>(this.Address + 0x90, 0x10));
 
             if (hasAddressChanged)
             {

@@ -309,6 +309,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         /// </summary>
         public Rarity? Rarity { get; init; }
 
+        /// <summary>
+        ///     Gets research-only Mods bytes around the suspected identification state. No runtime
+        ///     automation may interpret this value until its offset has been validated.
+        /// </summary>
+        public string IdentificationStateProbe { get; init; } = string.Empty;
+
         /// <summary>Gets the current stack count, or null when the item has no Stack component.</summary>
         public int? StackCount { get; init; }
 
@@ -331,10 +337,11 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public IReadOnlyList<InventorySnapshotMod> ImplicitMods { get; init; } = Array.Empty<InventorySnapshotMod>();
 
         /// <summary>
-        ///     Gets the five PoE2 Waystone implicit tooltip stats decoded from aggregate ModStats.
+        ///     Gets the complete PoE2 Waystone tooltip summary: five implicit stats decoded from
+        ///     aggregate ModStats plus Revives calculated from the explicit modifier count.
         ///     This is intentionally separate from <see cref="ImplicitMods" />, whose contents are
-        ///     limited to the raw Mods-component vector. Revives are derived from explicit mod count
-        ///     and are not an implicit stat.
+        ///     limited to the raw Mods-component vector. Revives are display-only derived data and
+        ///     are not used as an implicit filter.
         /// </summary>
         public IReadOnlyList<InventorySnapshotMod> WaystoneImplicitMods { get; init; } =
             Array.Empty<InventorySnapshotMod>();
@@ -821,6 +828,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             var baseItemName = string.Empty;
             var internalName = string.Empty;
             Rarity? rarity = null;
+            var identificationStateProbe = string.Empty;
             int? stackCount = null;
             int? maxStack = null;
             int? maxStackTab = null;
@@ -860,6 +868,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 if (item.TryGetComponent<Mods>(out var mods))
                 {
                     rarity = mods.Rarity;
+                    identificationStateProbe = mods.ItemStateProbe;
                     implicitMods = CopyMods(mods.ImplicitMods);
                     explicitMods = CopyMods(mods.ExplicitMods);
                     explicitModsDisplay = mods.ExplicitModsDisplay.ToArray();
@@ -905,6 +914,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 BaseItemName = baseItemName,
                 InternalName = internalName,
                 Rarity = rarity,
+                IdentificationStateProbe = identificationStateProbe,
                 StackCount = stackCount,
                 MaxStack = maxStack,
                 MaxStackTab = maxStackTab,
@@ -913,7 +923,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 ComponentNames = componentNames,
                 ImplicitMods = implicitMods,
                 WaystoneImplicitMods = snapshotItem.IsWaystone
-                    ? BuildWaystoneImplicitMods(modStats)
+                    ? BuildWaystoneImplicitMods(modStats, explicitMods.Count)
                     : Array.Empty<InventorySnapshotMod>(),
                 ExplicitMods = explicitMods,
                 ExplicitModsDisplay = explicitModsDisplay,
@@ -932,7 +942,8 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 mod.values.value1)).ToArray();
 
         private static InventorySnapshotMod[] BuildWaystoneImplicitMods(
-            IReadOnlyDictionary<GameStats, int> stats)
+            IReadOnlyDictionary<GameStats, int> stats,
+            int explicitModCount)
         {
             (GameStats Stat, string Label)[] mappings =
             {
@@ -943,13 +954,20 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 (GameStats.map_unique_item_drop_chance_positive_percentage, "Waystone Drop Chance"),
             };
 
-            return mappings
+            var implicitStats = mappings
                 .Where(mapping => stats.ContainsKey(mapping.Stat))
                 .Select(mapping => new InventorySnapshotMod(
                     mapping.Label,
                     stats[mapping.Stat],
                     float.NaN))
-                .ToArray();
+                .ToList();
+            implicitStats.Insert(
+                0,
+                new InventorySnapshotMod(
+                    "Revives Available",
+                    Math.Max(0, 6 - explicitModCount),
+                    float.NaN));
+            return implicitStats.ToArray();
         }
 
         private static InventorySlotItemSnapshot ItemAtResult(

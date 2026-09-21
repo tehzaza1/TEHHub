@@ -140,6 +140,7 @@ let systemMetadata = {
     { id: "RareOrAbove", label: "Rare (Yellow) & Bosses Only" },
     { id: "UniqueOnly", label: "Unique (Bosses) Only" }
   ],
+  waystoneMods: [],
   inputTypes: [
     { id: "MouseRight", label: "Mouse Right Click (RMB)" },
     { id: "MouseLeft", label: "Mouse Left Click (LMB)" },
@@ -1517,13 +1518,63 @@ async function loadSettings() {
 
 function syncStashSettingsInputs() {
   const waystoneTab = document.getElementById('WaystoneTab');
+  const currencyTab = document.getElementById('CurrencyTab');
   const minTier = document.getElementById('MinTier');
   const maxTier = document.getElementById('MaxTier');
   const dumpTab = document.getElementById('DumpTab');
   if (waystoneTab) waystoneTab.value = currentSettings.WaystoneTab || '';
+  if (currencyTab) currencyTab.value = currentSettings.CurrencyTab || '';
   if (minTier) minTier.value = currentSettings.MinTier || 1;
   if (maxTier) maxTier.value = currentSettings.MaxTier || 16;
   if (dumpTab) dumpTab.value = currentSettings.DumpTab || '';
+
+  [
+    'MinWaystoneItemRarity',
+    'MinWaystonePackSize',
+    'MinWaystoneMonsterRarity',
+    'MinWaystoneMonsterEffectiveness',
+    'MinWaystoneDropChance'
+  ].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.value = currentSettings[id] == null ? '' : currentSettings[id];
+  });
+
+  const maxMods = document.getElementById('MaxWaystoneMods');
+  if (maxMods) maxMods.value = currentSettings.MaxWaystoneMods == null ? 6 : currentSettings.MaxWaystoneMods;
+  renderWaystoneModFilterRows();
+}
+
+function renderWaystoneModFilterRows() {
+  const body = document.getElementById('waystoneModFilterRows');
+  if (!body) return;
+
+  const definitions = typeof systemMetadata !== 'undefined' && Array.isArray(systemMetadata.waystoneMods)
+    ? systemMetadata.waystoneMods
+    : [];
+  const blocked = new Set(Array.isArray(currentSettings.BlockedWaystoneMods)
+    ? currentSettings.BlockedWaystoneMods.map(value => String(value).toLowerCase())
+    : []);
+  body.innerHTML = definitions.map(definition => {
+    const key = String(definition.Key || definition.key || '');
+    const label = String(definition.Label || definition.label || key);
+    const checked = blocked.has(key.toLowerCase()) ? 'checked' : '';
+    return `<tr style="border-top:1px solid var(--border);">
+      <td style="padding:7px 10px;">${esc(label)}</td>
+      <td style="padding:7px 10px; text-align:center;">
+        <input type="checkbox" ${checked} onchange="setWaystoneModBlocked('${esc(key)}', this.checked)" />
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function setWaystoneModBlocked(key, shouldBlock) {
+  const blocked = new Set(Array.isArray(currentSettings.BlockedWaystoneMods)
+    ? currentSettings.BlockedWaystoneMods.map(value => String(value))
+    : []);
+  if (shouldBlock) blocked.add(key);
+  else blocked.delete(key);
+  currentSettings.BlockedWaystoneMods = [...blocked];
+  saveSettings();
 }
 
 function useDetectedStashTab(fieldId) {
@@ -1537,7 +1588,8 @@ function useDetectedStashTab(fieldId) {
 
   input.value = name;
   saveSettings();
-  showToast(`ตั้ง ${fieldId === 'WaystoneTab' ? 'Waystone Tab' : 'Dump Tab'} เป็น ${name}`);
+  const labels = { WaystoneTab: 'Waystone Tab', CurrencyTab: 'Currency Tab', DumpTab: 'Dump Tab' };
+  showToast(`ตั้ง ${labels[fieldId] || fieldId} เป็น ${name}`);
 }
 
 function renderStashScanner(snap) {
@@ -1760,7 +1812,9 @@ async function fetchAndPopulatePlayerNames() {
 async function saveSettings() {
   const payload = { ...currentSettings };
   const simpleFields = [
-    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey', 'WaystoneTab', 'MinTier', 'MaxTier', 'DumpTab',
+    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey', 'WaystoneTab', 'CurrencyTab', 'MinTier', 'MaxTier', 'DumpTab',
+    'MinWaystoneItemRarity', 'MinWaystonePackSize', 'MinWaystoneMonsterRarity',
+    'MinWaystoneMonsterEffectiveness', 'MinWaystoneDropChance', 'MaxWaystoneMods',
     'MoveUp', 'MoveDown', 'MoveLeft', 'MoveRight',
     'UseSprint', 'SprintKey', 'SprintMinDistance',
     'CombatStyle', 'FightRange', 'CombatRange',

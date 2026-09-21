@@ -27,8 +27,16 @@ function makeElement() {
 
 const elements = {
   WaystoneTab: makeElement(),
+  CurrencyTab: makeElement(),
   MinTier: makeElement(),
   MaxTier: makeElement(),
+  MinWaystoneItemRarity: makeElement(),
+  MinWaystonePackSize: makeElement(),
+  MinWaystoneMonsterRarity: makeElement(),
+  MinWaystoneMonsterEffectiveness: makeElement(),
+  MinWaystoneDropChance: makeElement(),
+  MaxWaystoneMods: makeElement(),
+  waystoneModFilterRows: makeElement(),
   DumpTab: makeElement(),
   stashOpenFlags: makeElement(),
   stashScanStatus: makeElement(),
@@ -38,7 +46,22 @@ const elements = {
 let saves = 0;
 const context = vm.createContext({
   console,
-  currentSettings: { WaystoneTab: '', MinTier: 3, MaxTier: 16, DumpTab: '' },
+  currentSettings: {
+    WaystoneTab: '',
+    CurrencyTab: 'Orb',
+    MinTier: 3,
+    MaxTier: 16,
+    DumpTab: '',
+    MinWaystonePackSize: 20,
+    MaxWaystoneMods: 6,
+    BlockedWaystoneMods: ['MapBurningGround'],
+  },
+  systemMetadata: {
+    waystoneMods: [
+      { Key: 'MapBurningGround', Label: 'Burning Ground' },
+      { Key: 'MapChilledGround', Label: 'Chilled Ground' },
+    ],
+  },
   lastDetectedStashTabs: [],
   lastDetectedStashTabsSignature: '',
   document: {
@@ -47,12 +70,19 @@ const context = vm.createContext({
   },
   saveSettings: () => { saves++; },
   showToast: () => {},
+  esc: value => String(value || ''),
 });
 vm.runInContext(source.slice(start, end), context);
 context.syncStashSettingsInputs();
 assert.equal(elements.MinTier.value, 3);
 assert.equal(elements.MaxTier.value, 16);
-assert.match(source, /'WaystoneTab', 'MinTier', 'MaxTier', 'DumpTab'/);
+assert.equal(elements.CurrencyTab.value, 'Orb');
+assert.equal(elements.MinWaystoneItemRarity.value, '');
+assert.equal(elements.MinWaystonePackSize.value, 20);
+assert.equal(elements.MaxWaystoneMods.value, 6);
+assert.match(elements.waystoneModFilterRows.innerHTML, /Burning Ground/);
+assert.match(elements.waystoneModFilterRows.innerHTML, /checked/);
+assert.match(source, /'WaystoneTab', 'CurrencyTab', 'MinTier', 'MaxTier', 'DumpTab'/);
 
 context.renderStashScanner({
   IsInventoryOpen: true,

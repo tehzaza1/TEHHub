@@ -309,6 +309,8 @@ namespace AutoExile2.WebServer
             dst.Skills = new List<SkillSlotConfig>(src.Skills ?? new List<SkillSlotConfig>());
             dst.P1Skills = new List<SkillSlotConfig>(src.P1Skills ?? new List<SkillSlotConfig>());
             dst.P2Skills = new List<SkillSlotConfig>(src.P2Skills ?? new List<SkillSlotConfig>());
+            dst.BlockedWaystoneMods = WaystoneFilter.NormalizeBlockedMods(src.BlockedWaystoneMods);
+            dst.MaxWaystoneMods = Math.Clamp(src.MaxWaystoneMods, 4, 6);
         }
 
         private string PathFor(string name) => Path.Combine(this.profilesDir, $"{name}.json");
@@ -332,6 +334,8 @@ namespace AutoExile2.WebServer
                     loaded.Skills ??= new List<SkillSlotConfig>();
                     loaded.P1Skills ??= new List<SkillSlotConfig>();
                     loaded.P2Skills ??= new List<SkillSlotConfig>();
+                    loaded.BlockedWaystoneMods = WaystoneFilter.NormalizeBlockedMods(loaded.BlockedWaystoneMods);
+                    loaded.MaxWaystoneMods = Math.Clamp(loaded.MaxWaystoneMods, 4, 6);
                 }
                 return loaded;
             }
