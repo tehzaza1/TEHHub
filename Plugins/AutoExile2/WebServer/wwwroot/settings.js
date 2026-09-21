@@ -1517,9 +1517,11 @@ async function loadSettings() {
 
 function syncStashSettingsInputs() {
   const waystoneTab = document.getElementById('WaystoneTab');
+  const minTier = document.getElementById('MinTier');
   const maxTier = document.getElementById('MaxTier');
   const dumpTab = document.getElementById('DumpTab');
   if (waystoneTab) waystoneTab.value = currentSettings.WaystoneTab || '';
+  if (minTier) minTier.value = currentSettings.MinTier || 1;
   if (maxTier) maxTier.value = currentSettings.MaxTier || 16;
   if (dumpTab) dumpTab.value = currentSettings.DumpTab || '';
 }
@@ -1757,7 +1759,7 @@ async function fetchAndPopulatePlayerNames() {
 async function saveSettings() {
   const payload = { ...currentSettings };
   const simpleFields = [
-    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey', 'WaystoneTab', 'MaxTier', 'DumpTab',
+    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey', 'WaystoneTab', 'MinTier', 'MaxTier', 'DumpTab',
     'MoveUp', 'MoveDown', 'MoveLeft', 'MoveRight',
     'UseSprint', 'SprintKey', 'SprintMinDistance',
     'CombatStyle', 'FightRange', 'CombatRange',

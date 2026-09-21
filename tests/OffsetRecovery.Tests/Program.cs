@@ -502,6 +502,11 @@ try
         "Stash snapshots must expose the all-tabs list as a separate visibility state.");
     Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.TopTabBarUiAddress))?.PropertyType == typeof(IntPtr),
         "Stash snapshots must expose the top tab-bar container as the Ctrl+scroll hover target.");
+    var visibleItem = new StashVisibleItemInfo(new IntPtr(0x24000), new IntPtr(0x25000));
+    Check(visibleItem.ItemAddress != IntPtr.Zero && visibleItem.UiAddress != IntPtr.Zero,
+        "Visible stash-item SDK entries must keep the live Item and clickable UI addresses separate.");
+    Check(typeof(StashSnapshot).GetProperty(nameof(StashSnapshot.VisibleItems)) != null,
+        "Stash snapshots must expose currently materialized item controls for safe item interaction.");
 
     var topTabs = new[]
     {

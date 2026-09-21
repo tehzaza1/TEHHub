@@ -27,6 +27,7 @@ function makeElement() {
 
 const elements = {
   WaystoneTab: makeElement(),
+  MinTier: makeElement(),
   MaxTier: makeElement(),
   DumpTab: makeElement(),
   stashOpenFlags: makeElement(),
@@ -37,7 +38,7 @@ const elements = {
 let saves = 0;
 const context = vm.createContext({
   console,
-  currentSettings: { WaystoneTab: '', MaxTier: 16, DumpTab: '' },
+  currentSettings: { WaystoneTab: '', MinTier: 3, MaxTier: 16, DumpTab: '' },
   lastDetectedStashTabs: [],
   lastDetectedStashTabsSignature: '',
   document: {
@@ -48,6 +49,10 @@ const context = vm.createContext({
   showToast: () => {},
 });
 vm.runInContext(source.slice(start, end), context);
+context.syncStashSettingsInputs();
+assert.equal(elements.MinTier.value, 3);
+assert.equal(elements.MaxTier.value, 16);
+assert.match(source, /'WaystoneTab', 'MinTier', 'MaxTier', 'DumpTab'/);
 
 context.renderStashScanner({
   IsInventoryOpen: true,

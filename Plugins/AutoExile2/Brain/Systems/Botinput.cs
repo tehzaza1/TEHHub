@@ -297,6 +297,56 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
+        /// Moves to a UI item and performs one Ctrl+left-click. The modifier is always released,
+        /// including when the safety predicate changes while the asynchronous input is in flight.
+        /// </summary>
+        public static void HumanCtrlClick(Vector2 screenPos, Func<bool>? canClick = null)
+        {
+            Task.Run(async () =>
+            {
+                if (canClick?.Invoke() == false)
+                {
+                    return;
+                }
+
+                await MoveCursorOrganic(screenPos);
+                await Task.Delay(RandSettle());
+                await SendDelayAsync();
+                if (canClick?.Invoke() == false)
+                {
+                    return;
+                }
+
+                KeyDown(VK.LCONTROL);
+                var mouseDown = false;
+                try
+                {
+                    await SendDelayAsync();
+                    if (canClick?.Invoke() == false)
+                    {
+                        return;
+                    }
+
+                    mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+                    mouseDown = true;
+                    await Task.Delay(RandHold());
+                    await SendDelayAsync();
+                    mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                    mouseDown = false;
+                }
+                finally
+                {
+                    if (mouseDown)
+                    {
+                        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+                    }
+
+                    KeyUp(VK.LCONTROL);
+                }
+            });
+        }
+
+        /// <summary>
         /// Sends a key down event if not already down.
         /// </summary>
         public static void KeyDown(VK key)

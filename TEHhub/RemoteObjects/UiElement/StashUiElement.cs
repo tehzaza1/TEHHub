@@ -6,7 +6,10 @@ namespace TEHhub.RemoteObjects.UiElement
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using TEHhub.Cache;
+    using TEHhub.Offsets.Objects.UiElement;
+    using TEHhub.Plugin;
     using TEHhub.RemoteEnums;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
 
@@ -49,6 +52,13 @@ namespace TEHhub.RemoteObjects.UiElement
     public sealed record StashTierInfo(string Name, int Count, IntPtr UiAddress);
 
     /// <summary>
+    ///     One currently materialized stash item and the visible UI control that owns its item pointer.
+    /// </summary>
+    /// <param name="ItemAddress">Validated live Item address.</param>
+    /// <param name="UiAddress">Visible clickable UiElement address.</param>
+    public sealed record StashVisibleItemInfo(IntPtr ItemAddress, IntPtr UiAddress);
+
+    /// <summary>
     ///     One stable, read-only view of the currently selected PoE2 stash tab.
     /// </summary>
     /// <param name="State">Closed, Loading, or Ready.</param>
@@ -58,6 +68,7 @@ namespace TEHhub.RemoteObjects.UiElement
     /// <param name="Tabs">Top-level tab controls currently materialized by the UI.</param>
     /// <param name="Pages">Specialized-tab page controls currently materialized by the UI.</param>
     /// <param name="Tiers">Waystone Tier I-XVI controls and their displayed counts.</param>
+    /// <param name="VisibleItems">Selected-tab items that currently have a visible clickable UI control.</param>
     /// <param name="Inventory">ServerData StashInventoryId snapshot for the selected tab.</param>
     /// <param name="IsAllTabsListOpen">Whether the vertical all-tabs list is visible through its parent chain.</param>
     /// <param name="Diagnostic">Short explanation of the state.</param>
@@ -69,6 +80,7 @@ namespace TEHhub.RemoteObjects.UiElement
         IReadOnlyList<StashTabInfo> Tabs,
         IReadOnlyList<StashTabInfo> Pages,
         IReadOnlyList<StashTierInfo> Tiers,
+        IReadOnlyList<StashVisibleItemInfo> VisibleItems,
         InventorySnapshot Inventory,
         bool IsAllTabsListOpen,
         string Diagnostic)
@@ -135,6 +147,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         Array.Empty<StashTabInfo>(),
                         Array.Empty<StashTabInfo>(),
                         Array.Empty<StashTierInfo>(),
+                        Array.Empty<StashVisibleItemInfo>(),
                         unavailableInventory,
                         false,
                         "Stash panel is closed.");
@@ -155,6 +168,9 @@ namespace TEHhub.RemoteObjects.UiElement
                 var pages = ReadTabBar(this.Address, SpecializedPageBarPath, out var currentPage);
                 var tiers = ReadWaystoneTiers(this.Address);
                 var inventory = serverData.ReadInventorySnapshot(InventoryName.StashInventoryId);
+                var visibleItems = inventory.State == InventorySnapshotState.Ready
+                    ? ReadVisibleItems(this.Address, inventory)
+                    : Array.Empty<StashVisibleItemInfo>();
                 if (string.IsNullOrWhiteSpace(currentTab))
                 {
                     this.stability.Reset();
@@ -166,6 +182,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         tabs,
                         pages,
                         tiers,
+                        visibleItems,
                         inventory,
                         allTabsListOpen,
                         "Stash is open, but the selected tab label is not materialized yet.");
@@ -182,13 +199,15 @@ namespace TEHhub.RemoteObjects.UiElement
                         tabs,
                         pages,
                         tiers,
+                        visibleItems,
                         inventory,
                         allTabsListOpen,
                         $"Stash inventory is {inventory.State}: {inventory.Diagnostic}");
                 }
 
                 var tierRevision = string.Join(',', tiers.ConvertAll(tier => $"{tier.Name}:{tier.Count}"));
-                var revision = $"{currentTab}\u001F{currentPage}\u001F{allTabsListOpen}\u001F{tierRevision}\u001F{inventory.Address.ToInt64():X}\u001F{inventory.ServerRequestCounter}\u001F{inventory.Revision:X16}";
+                var visibleRevision = string.Join(',', visibleItems.Select(item => $"{item.ItemAddress.ToInt64():X}:{item.UiAddress.ToInt64():X}"));
+                var revision = $"{currentTab}\u001F{currentPage}\u001F{allTabsListOpen}\u001F{tierRevision}\u001F{visibleRevision}\u001F{inventory.Address.ToInt64():X}\u001F{inventory.ServerRequestCounter}\u001F{inventory.Revision:X16}";
                 if (!this.stability.Observe(revision))
                 {
                     return new StashSnapshot(
@@ -199,6 +218,7 @@ namespace TEHhub.RemoteObjects.UiElement
                         tabs,
                         pages,
                         tiers,
+                        visibleItems,
                         inventory,
                         allTabsListOpen,
                         "Waiting for identical UI and ServerData observations across the stability window.");
@@ -212,6 +232,7 @@ namespace TEHhub.RemoteObjects.UiElement
                     tabs,
                     pages,
                     tiers,
+                    visibleItems,
                     inventory,
                     allTabsListOpen,
                     inventory.IsEmpty ? "Selected tab is ready and empty." : $"Selected tab is ready with {inventory.Items.Count} item(s).");
@@ -370,6 +391,64 @@ namespace TEHhub.RemoteObjects.UiElement
             }
 
             return output;
+        }
+
+        private static StashVisibleItemInfo[] ReadVisibleItems(
+            IntPtr stashRoot,
+            InventorySnapshot inventory)
+        {
+            const int itemAddressOffset = 0x4E0;
+            const int maxNodes = 2500;
+            var reader = Core.Process?.Handle;
+            if (reader == null || stashRoot == IntPtr.Zero || inventory.Items.Count == 0)
+            {
+                return Array.Empty<StashVisibleItemInfo>();
+            }
+
+            var inventoryItems = new HashSet<IntPtr>();
+            foreach (var entry in inventory.Items)
+            {
+                inventoryItems.Add(entry.Item.Address);
+            }
+
+            var output = new List<StashVisibleItemInfo>();
+            var matchedItems = new HashSet<IntPtr>();
+            var visited = new HashSet<IntPtr>();
+            var pending = new Queue<IntPtr>();
+            pending.Enqueue(stashRoot);
+            while (pending.Count > 0 && visited.Count < maxNodes && matchedItems.Count < inventoryItems.Count)
+            {
+                var address = pending.Dequeue();
+                if (address == IntPtr.Zero || !visited.Add(address) ||
+                    !reader.TryReadMemory<UiElementBaseOffset>(address, out var element) ||
+                    (element.Self != IntPtr.Zero && element.Self != address) ||
+                    !UiElementBaseFuncs.IsVisibleChecker(element.Flags))
+                {
+                    continue;
+                }
+
+                if (reader.TryReadMemory<IntPtr>(address + itemAddressOffset, out var itemAddress) &&
+                    inventoryItems.Contains(itemAddress) &&
+                    !matchedItems.Contains(itemAddress) &&
+                    PluginUiElementReflection.TryGetAbsoluteRect(address, out _, out var size) &&
+                    size.X >= 8f && size.Y >= 8f && size.X <= 256f && size.Y <= 256f)
+                {
+                    matchedItems.Add(itemAddress);
+                    output.Add(new StashVisibleItemInfo(itemAddress, address));
+                }
+
+                if (!UiElementMemory.TryReadChildren(address, out var children))
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < children.Length; i++)
+                {
+                    pending.Enqueue(children[i]);
+                }
+            }
+
+            return output.ToArray();
         }
     }
 

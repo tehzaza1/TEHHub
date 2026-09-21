@@ -105,6 +105,9 @@ namespace AutoExile2
         /// <summary>Name of the stash tab AutoExile2 will use for Waystones.</summary>
         public string WaystoneTab = string.Empty;
 
+        /// <summary>Lowest Waystone Tier AutoExile2 may select when opening a map.</summary>
+        public int MinTier = 1;
+
         /// <summary>Highest Waystone Tier AutoExile2 may select when opening a map.</summary>
         public int MaxTier = 16;
 

@@ -45,6 +45,9 @@ namespace AutoExile2.WebServer
                     case "waystonetab":
                         settings.WaystoneTab = NormalizeStashTabName(val.ToString());
                         break;
+                    case "mintier":
+                        settings.MinTier = Math.Clamp(val.Value<int>(), 1, 16);
+                        break;
                     case "maxtier":
                         settings.MaxTier = Math.Clamp(val.Value<int>(), 1, 16);
                         break;
@@ -264,6 +267,13 @@ namespace AutoExile2.WebServer
                         settings.WebServerNetworkAccess = val.Value<bool>();
                         break;
                 }
+            }
+
+            settings.MinTier = Math.Clamp(settings.MinTier, 1, 16);
+            settings.MaxTier = Math.Clamp(settings.MaxTier, 1, 16);
+            if (settings.MinTier > settings.MaxTier)
+            {
+                (settings.MinTier, settings.MaxTier) = (settings.MaxTier, settings.MinTier);
             }
         }
 

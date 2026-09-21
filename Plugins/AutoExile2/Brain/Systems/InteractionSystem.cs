@@ -51,6 +51,7 @@ namespace AutoExile2.Systems
         private const int DefaultMaxClickAttempts = 5;
         private const double SettleMilliseconds = 200d;
         private const double ClickRetryMilliseconds = 900d;
+        private const double CtrlClickVerificationMilliseconds = 2000d;
         private const double RepathMilliseconds = 300d;
         private const float WaypointReachedDistance = 12f;
 
@@ -205,6 +206,60 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
+        /// Starts one Ctrl+left-click on a visible UI item. The default is deliberately one attempt:
+        /// a delayed inventory refresh must never cause a second item to be withdrawn accidentally.
+        /// </summary>
+        public bool BeginUiCtrlClick(
+            IntPtr uiAddress,
+            string description,
+            Func<BotContext, bool> successPredicate)
+        {
+            if (uiAddress == IntPtr.Zero || this.IsBusy)
+            {
+                return false;
+            }
+
+            this.ResetRequest();
+            this.kind = InteractionKind.UiCtrlClick;
+            this.LastFailure = string.Empty;
+            this.uiAddress = uiAddress;
+            this.Description = description;
+            this.successPredicate = successPredicate;
+            this.maxClickAttempts = 1;
+            this.startedAtUtc = DateTime.UtcNow;
+            this.timeout = TimeSpan.FromSeconds(6);
+            this.Phase = InteractionPhase.Settling;
+            this.settleStartedAtUtc = this.startedAtUtc;
+            this.Status = $"Preparing {description}";
+            return true;
+        }
+
+        /// <summary>
+        /// Starts one ordinary UI click and completes after the client has had time to materialize
+        /// the selected view. The caller verifies the resulting server-backed state separately.
+        /// </summary>
+        public bool BeginUiClickAndSettle(IntPtr uiAddress, string description)
+        {
+            if (uiAddress == IntPtr.Zero || this.IsBusy)
+            {
+                return false;
+            }
+
+            this.ResetRequest();
+            this.kind = InteractionKind.UiClickAndSettle;
+            this.LastFailure = string.Empty;
+            this.uiAddress = uiAddress;
+            this.Description = description;
+            this.maxClickAttempts = 1;
+            this.startedAtUtc = DateTime.UtcNow;
+            this.timeout = TimeSpan.FromSeconds(5);
+            this.Phase = InteractionPhase.Settling;
+            this.settleStartedAtUtc = this.startedAtUtc;
+            this.Status = $"Preparing {description}";
+            return true;
+        }
+
+        /// <summary>
         /// Advances the active request by one bot tick.
         /// </summary>
         public InteractionResult Tick(BotContext ctx)
@@ -242,6 +297,8 @@ namespace AutoExile2.Systems
             {
                 InteractionKind.Entity => this.TickEntity(ctx, now),
                 InteractionKind.UiElement => this.TickUiElement(ctx, now),
+                InteractionKind.UiCtrlClick => this.TickUiElement(ctx, now),
+                InteractionKind.UiClickAndSettle => this.TickUiElement(ctx, now),
                 InteractionKind.UiScroll => this.TickUiScroll(ctx, now),
                 _ => this.Fail(ctx, "No interaction target"),
             };
@@ -378,10 +435,19 @@ namespace AutoExile2.Systems
                 return this.Result;
             }
 
+            var waitMilliseconds = this.kind == InteractionKind.UiCtrlClick
+                ? CtrlClickVerificationMilliseconds
+                : ClickRetryMilliseconds;
             if (this.Phase == InteractionPhase.WaitingForSuccess &&
-                (now - this.lastClickAtUtc).TotalMilliseconds < ClickRetryMilliseconds)
+                (now - this.lastClickAtUtc).TotalMilliseconds < waitMilliseconds)
             {
                 this.Status = $"Waiting for {this.Description} ({this.clickAttempts}/{this.maxClickAttempts})";
+                return this.Result;
+            }
+
+            if (this.kind == InteractionKind.UiClickAndSettle && this.clickAttempts > 0)
+            {
+                this.Complete(ctx);
                 return this.Result;
             }
 
@@ -390,7 +456,8 @@ namespace AutoExile2.Systems
                 return this.Fail(ctx, $"{this.Description} did not confirm after {this.clickAttempts} clicks");
             }
 
-            var usedFallback = this.fallbackUiAddress != IntPtr.Zero && this.clickAttempts >= 2;
+            var usedFallback = this.kind == InteractionKind.UiElement &&
+                               this.fallbackUiAddress != IntPtr.Zero && this.clickAttempts >= 2;
             var clickAddress = usedFallback ? this.fallbackUiAddress : this.uiAddress;
             if (!TryGetUiClickPoint(clickAddress, out var clickPoint))
             {
@@ -405,14 +472,24 @@ namespace AutoExile2.Systems
 
             this.Phase = InteractionPhase.Clicking;
             var generation = Volatile.Read(ref this.requestGeneration);
-            BotInput.HumanClick(
-                clickPoint,
-                canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+            if (this.kind == InteractionKind.UiCtrlClick)
+            {
+                BotInput.HumanCtrlClick(
+                    clickPoint,
+                    () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+            }
+            else
+            {
+                BotInput.HumanClick(
+                    clickPoint,
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+            }
             this.clickAttempts++;
             this.lastClickAtUtc = now;
             this.Phase = InteractionPhase.WaitingForSuccess;
             var source = usedFallback ? this.fallbackUiSource : this.uiSource;
-            this.Status = $"Clicked {this.Description} via {source} ({this.clickAttempts}/{this.maxClickAttempts})";
+            var action = this.kind == InteractionKind.UiCtrlClick ? "Ctrl+clicked" : "Clicked";
+            this.Status = $"{action} {this.Description} via {source} ({this.clickAttempts}/{this.maxClickAttempts})";
             return this.Result;
         }
 
@@ -634,6 +711,8 @@ namespace AutoExile2.Systems
             None,
             Entity,
             UiElement,
+            UiCtrlClick,
+            UiClickAndSettle,
             UiScroll,
         }
     }
