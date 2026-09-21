@@ -9,7 +9,11 @@ namespace TEHhub.Ui
     using System.Linq;
     using System.Numerics;
     using ImGuiNET;
+    using TEHhub.Offsets.Natives;
+    using TEHhub.Offsets.Objects.Components;
+    using TEHhub.Offsets.Shared;
     using TEHhub.RemoteEnums;
+    using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
     using TEHhub.Utils;
 
@@ -288,11 +292,17 @@ namespace TEHhub.Ui
                 ImGui.TreePop();
             }
 
+            if (item.IsWaystone)
+            {
+                RenderWaystoneStatsSummary(item);
+            }
+
             RenderMods("Implicit mods", item.ImplicitMods);
             RenderMods("Explicit mods", item.ExplicitMods);
             RenderMods("Enchant mods", item.EnchantMods);
             RenderMods("Other mods", item.OtherMods);
             RenderModStats(item.ModStats);
+            RenderImplicitModsProbe(item);
 
             if (ImGui.TreeNode("Raw Item SDK tree##InventoryDvRawItem"))
             {
@@ -332,6 +342,237 @@ namespace TEHhub.Ui
             {
                 var name = stat.Key.ToString();
                 ImGuiHelper.DisplayTextAndCopyOnClick($"{name}: {stat.Value}", name);
+            }
+
+            ImGui.TreePop();
+        }
+
+        /// <summary>
+        ///     Renders a human-readable summary of known Waystone stats extracted from ModStats.
+        ///     This tests whether StatsFromMods (offset 0x148) contains the Waystone values.
+        /// </summary>
+        private static void RenderWaystoneStatsSummary(InventorySnapshotItem item)
+        {
+            if (!ImGui.TreeNode("Waystone stats (from ModStats)##InventoryDvWaystoneStats"))
+            {
+                return;
+            }
+
+            var stats = item.ModStats;
+            if (stats.Count == 0)
+            {
+                ImGui.TextColored(
+                    new Vector4(1f, 0.6f, 0.2f, 1f),
+                    "ModStats is empty. StatsFromMods (0x148) may be unreadable or the offset has shifted.");
+                ImGui.TreePop();
+                return;
+            }
+
+            // Well-known Waystone stat mappings (GameStats enum -> display name)
+            (GameStats stat, string label)[] waystoneStatMappings =
+            {
+                (GameStats.map_item_drop_rarity_positive_percentage, "Item Rarity"),
+                (GameStats.map_pack_size_positive_percentage, "Pack Size"),
+                (GameStats.map_monster_potency_positive_percentage, "Monster Effectiveness"),
+                (GameStats.map_map_item_drop_chance_positive_percentage, "Waystone Drop Chance"),
+                (GameStats.map_item_drop_quantity_positive_percentage, "Item Quantity"),
+                (GameStats.map_item_drop_rarity_positive_percentage_final_from_map, "Item Rarity (final)"),
+                (GameStats.map_pack_size_positive_percentage_final_from_map, "Pack Size (final)"),
+                (GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, "Waystone Drop Chance (final)"),
+                (GameStats.map_monster_potency_positive_percentage_final_from_map, "Monster Effectiveness (final)"),
+            };
+
+            var foundAny = false;
+            foreach (var (stat, label) in waystoneStatMappings)
+            {
+                if (stats.TryGetValue(stat, out var value))
+                {
+                    ImGui.Text($"{label}: +{value}%");
+                    foundAny = true;
+                }
+            }
+
+            if (!foundAny)
+            {
+                ImGui.TextColored(
+                    new Vector4(1f, 0.6f, 0.2f, 1f),
+                    "No known Waystone stats found in ModStats. Values may be under different stat IDs.");
+            }
+
+            // Show all remaining ModStats not already rendered above for discovery
+            var knownKeys = new HashSet<GameStats>();
+            foreach (var (stat, _) in waystoneStatMappings)
+            {
+                knownKeys.Add(stat);
+            }
+
+            var unknownStats = stats
+                .Where(entry => !knownKeys.Contains(entry.Key))
+                .OrderBy(entry => (int)entry.Key)
+                .ToList();
+            if (unknownStats.Count > 0 && ImGui.TreeNode($"Other ModStats ({unknownStats.Count})##InventoryDvOtherModStats"))
+            {
+                foreach (var entry in unknownStats)
+                {
+                    var name = entry.Key.ToString();
+                    ImGuiHelper.DisplayTextAndCopyOnClick($"{name} ({(int)entry.Key}): {entry.Value}", name);
+                }
+
+                ImGui.TreePop();
+            }
+
+            ImGui.TreePop();
+        }
+
+        /// <summary>
+        ///     Probes the Mods component memory around offset 0x60-0x180 looking for valid
+        ///     StdVector entries that could be the real ImplicitMods vector.
+        /// </summary>
+        private static void RenderImplicitModsProbe(InventorySnapshotItem item)
+        {
+            if (!ImGui.TreeNode("ImplicitMods offset probe##InventoryDvImplicitProbe"))
+            {
+                return;
+            }
+
+            IntPtr modsComponentAddress;
+            try
+            {
+                if (!item.Item.TryGetComponent<Mods>(out var mods))
+                {
+                    ImGui.TextDisabled("Item has no Mods component.");
+                    ImGui.TreePop();
+                    return;
+                }
+
+                modsComponentAddress = mods.Address;
+            }
+            catch
+            {
+                ImGui.TextDisabled("Could not resolve Mods component address.");
+                ImGui.TreePop();
+                return;
+            }
+
+            if (modsComponentAddress == IntPtr.Zero)
+            {
+                ImGui.TextDisabled("Mods component address is zero.");
+                ImGui.TreePop();
+                return;
+            }
+
+            ImGui.TextDisabled($"Mods component @ 0x{modsComponentAddress.ToInt64():X}");
+            ImGui.TextDisabled("Scanning offsets 0x60-0x180 for valid StdVector<ModArrayStruct>...");
+
+            var reader = Core.Process?.Handle;
+            if (reader == null)
+            {
+                ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), "Process handle is unavailable.");
+                ImGui.TreePop();
+                return;
+            }
+
+            // Known offsets that are already mapped (skip labeling them as candidates)
+            // AllModsType at 0xA0: Implicit=0xA0, Explicit=0xB8, Enchant=0xD0, Hellscape=0xE8, Crucible=0x100
+            var knownOffsets = new HashSet<int> { 0xA0, 0xB8, 0xD0, 0xE8, 0x100 };
+            var probeResults = new List<(int offset, string label, int modCount, string firstMod)>();
+
+            for (var offset = 0x60; offset <= 0x180; offset += 0x08)
+            {
+                var vectorAddress = IntPtr.Add(modsComponentAddress, offset);
+                if (!reader.TryReadMemory<StdVector>(vectorAddress, out var vector))
+                {
+                    continue;
+                }
+
+                if (!CanonicalStructuralInvariants.IsCanonicalPointer(vector.First) ||
+                    !CanonicalStructuralInvariants.IsCanonicalPointer(vector.Last))
+                {
+                    continue;
+                }
+
+                var elementSize = System.Runtime.InteropServices.Marshal.SizeOf<ModArrayStruct>();
+                var byteLength = vector.Last.ToInt64() - vector.First.ToInt64();
+                if (byteLength <= 0 || byteLength % elementSize != 0 || byteLength > 50000)
+                {
+                    continue;
+                }
+
+                var count = (int)(byteLength / elementSize);
+                if (count is < 1 or > 200)
+                {
+                    continue;
+                }
+
+                // Try reading the mod array
+                ModArrayStruct[] modArray;
+                try
+                {
+                    modArray = reader.ReadStdVector<ModArrayStruct>(vector);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (modArray.Length == 0)
+                {
+                    continue;
+                }
+
+                // Validate: the first entry should have a readable mod name
+                var firstModName = "(unreadable)";
+                try
+                {
+                    if (modArray[0].ModsPtr != IntPtr.Zero &&
+                        CanonicalStructuralInvariants.IsCanonicalPointer(modArray[0].ModsPtr))
+                    {
+                        firstModName = ObjectMagicProperties.GetModName(modArray[0].ModsPtr);
+                        if (string.IsNullOrWhiteSpace(firstModName))
+                        {
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                catch
+                {
+                    continue;
+                }
+
+                var label = knownOffsets.Contains(offset)
+                    ? offset switch
+                    {
+                        0xA0 => "[CURRENT ImplicitMods]",
+                        0xB8 => "[CURRENT ExplicitMods]",
+                        0xD0 => "[CURRENT EnchantMods]",
+                        0xE8 => "[CURRENT HellscapeMods]",
+                        0x100 => "[CURRENT CrucibleMods]",
+                        _ => "[CURRENT]",
+                    }
+                    : "[CANDIDATE]";
+
+                probeResults.Add((offset, label, modArray.Length, firstModName));
+            }
+
+            if (probeResults.Count == 0)
+            {
+                ImGui.TextColored(
+                    new Vector4(1f, 0.6f, 0.2f, 1f),
+                    "No valid StdVector<ModArrayStruct> found in scan range.");
+            }
+            else
+            {
+                foreach (var (offset, label, modCount, firstMod) in probeResults)
+                {
+                    var color = label.Contains("CANDIDATE")
+                        ? new Vector4(0.2f, 1f, 0.4f, 1f)
+                        : new Vector4(0.7f, 0.7f, 0.7f, 1f);
+                    ImGui.TextColored(color, $"0x{offset:X3} {label} -- {modCount} mod(s), first: {firstMod}");
+                }
             }
 
             ImGui.TreePop();
