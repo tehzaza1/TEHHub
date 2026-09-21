@@ -193,6 +193,30 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public IReadOnlyDictionary<GameStats, int> ModStats { get; init; } =
             new Dictionary<GameStats, int>();
 
+        /// <summary>Gets the Waystone Revives Available count from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneRevives =>
+            this.ModStats.TryGetValue(GameStats.wing_blast_cone_pullback_percentage, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Item Rarity percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneItemRarity =>
+            this.ModStats.TryGetValue(GameStats.map_pack_size_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Pack Size percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystonePackSize =>
+            this.ModStats.TryGetValue(GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Monster Rarity percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneMonsterRarity =>
+            this.ModStats.TryGetValue(GameStats.map_monster_potency_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Monster Effectiveness percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneMonsterEffectiveness =>
+            this.ModStats.TryGetValue(GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, out var v) ? v : null;
+
+        /// <summary>Gets the Waystone Drop Chance percentage from aggregate ModStats, or null if absent.</summary>
+        public int? WaystoneDropChance =>
+            this.ModStats.TryGetValue(GameStats.map_unique_item_drop_chance_positive_percentage, out var v) ? v : null;
+
         /// <summary>Gets optional-detail read diagnostics. Empty means no read error was observed.</summary>
         public string DetailDiagnostic { get; init; } = string.Empty;
     }

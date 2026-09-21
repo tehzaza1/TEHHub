@@ -371,23 +371,23 @@ namespace TEHhub.Ui
 
             // Waystone implicit summary stats (displayed on tooltip)
             // NOTE: PoE2 reuses legacy PoE1 stat IDs with different display semantics.
-            (GameStats stat, string label)[] waystoneSummaryStats =
+            (GameStats stat, string label, bool isPercent)[] waystoneSummaryStats =
             {
-                (GameStats.map_pack_size_positive_percentage_final_from_map, "Item Rarity"),
-                (GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, "Pack Size"),
-                (GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, "Monster Effectiveness"),
-                (GameStats.map_unique_item_drop_chance_positive_percentage, "Waystone Drop Chance"),
-                (GameStats.map_rare_monsters_drop_x_additional_rare_items, "Rare Monster Drops"),
-                (GameStats.map_players_skill_area_of_effect_positive_percentage_final, "Player AoE"),
+                (GameStats.wing_blast_cone_pullback_percentage, "Revives Available", false),
+                (GameStats.map_pack_size_positive_percentage_final_from_map, "Item Rarity", true),
+                (GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, "Pack Size", true),
+                (GameStats.map_monster_potency_positive_percentage_final_from_map, "Monster Rarity", true),
+                (GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, "Monster Effectiveness", true),
+                (GameStats.map_unique_item_drop_chance_positive_percentage, "Waystone Drop Chance", true),
             };
 
             ImGui.SeparatorText("Waystone Summary");
             var foundSummary = false;
-            foreach (var (stat, label) in waystoneSummaryStats)
+            foreach (var (stat, label, isPercent) in waystoneSummaryStats)
             {
                 if (stats.TryGetValue(stat, out var value))
                 {
-                    ImGui.Text($"{label}: +{value}%");
+                    ImGui.Text(isPercent ? $"{label}: +{value}%" : $"{label}: {value}");
                     foundSummary = true;
                 }
             }
@@ -404,8 +404,12 @@ namespace TEHhub.Ui
             {
                 (GameStats.map_monsters_stun_threshold_positive_percentage, "Monster Stun Threshold"),
                 (GameStats.map_monsters_hit_damage_freeze_multiplier_positive_percentage, "Monster Freeze Damage"),
-                (GameStats.map_monsters_shock_chance_positive_percentage, "Monster Shock Chance"),
+                (GameStats.map_monsters_shock_chance_positive_percentage, "Monster Extra Damage / Shock Chance"),
                 (GameStats.map_monsters_ailment_threshold_positive_percentage, "Monster Ailment Threshold"),
+                (GameStats.map_rare_monsters_drop_x_additional_rare_items, "Monster Speed Increase"),
+                (GameStats.map_tier_bonus_permillage, "Cooldown Recovery Rate"),
+                (GameStats.lineage_support_gem_limit_positive_, "Curse with Enfeeble"),
+                (GameStats.map_players_skill_area_of_effect_positive_percentage_final, "Player AoE"),
             };
 
             var foundExplicit = false;
@@ -425,7 +429,7 @@ namespace TEHhub.Ui
 
             // Show all remaining ModStats not covered above
             var knownKeys = new HashSet<GameStats>();
-            foreach (var (stat, _) in waystoneSummaryStats)
+            foreach (var (stat, _, _) in waystoneSummaryStats)
             {
                 knownKeys.Add(stat);
             }
