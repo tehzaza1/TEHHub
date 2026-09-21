@@ -130,6 +130,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         // cleared. Its data layout is otherwise identical, so both fingerprints must be accepted.
         private const uint AtlasMistNodeFp = 0x442EF3;
         private const int VendorDiscoveryIntervalFrames = 15;
+        private const int InventoryItemUiCacheMilliseconds = 100;
 
         // A sea ship is an EndgameRegionActionButton in the atlas child list, not a map node.
         // Rows are 0=Breach, 1=Forest, 2=Ocean/ship, 3=Tower. Its grid coordinate identifies the
@@ -153,6 +154,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private int areaModUpdateCounter = int.MaxValue;
         private readonly Dictionary<IntPtr, UiElementBaseOffset> pathOffsetCache = new(64);
         private readonly Dictionary<(IntPtr Address, int Index), IntPtr> childPathCache = new(128);
+        private readonly Dictionary<IntPtr, IntPtr> inventoryItemUiCache = new();
+        private IntPtr inventoryItemUiCacheRoot;
+        private long inventoryItemUiCacheTimestamp;
         private int atlasMapCacheFrameCounter = int.MaxValue;
         private int cachedAtlasMapCount = -1;
         private int vendorDiscoveryFrame = VendorDiscoveryIntervalFrames;
@@ -343,7 +347,6 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public bool TryGetVisibleInventoryItemUiAddress(IntPtr itemAddress, out IntPtr uiAddress)
         {
             const int itemAddressOffset = 0x4E0;
-            const int maxNodes = 1500;
             uiAddress = IntPtr.Zero;
             var root = this.RightPanel.Address;
             var reader = Core.Process?.Handle;
@@ -353,6 +356,34 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 return false;
             }
 
+            var now = Environment.TickCount64;
+            if (root != this.inventoryItemUiCacheRoot ||
+                now - this.inventoryItemUiCacheTimestamp >= InventoryItemUiCacheMilliseconds)
+            {
+                this.RebuildInventoryItemUiCache(root, reader, itemAddressOffset);
+                this.inventoryItemUiCacheRoot = root;
+                this.inventoryItemUiCacheTimestamp = now;
+            }
+
+            if (!this.inventoryItemUiCache.TryGetValue(itemAddress, out var cachedUiAddress) ||
+                !reader.TryReadMemory<IntPtr>(cachedUiAddress + itemAddressOffset, out var cachedItemAddress) ||
+                cachedItemAddress != itemAddress ||
+                !UiElementMemory.IsVisibleThroughParents(cachedUiAddress) ||
+                !PluginUiElementReflection.TryGetAbsoluteRect(cachedUiAddress, out _, out var cachedSize) ||
+                cachedSize.X < 8f || cachedSize.Y < 8f || cachedSize.X > 256f || cachedSize.Y > 256f)
+            {
+                this.inventoryItemUiCache.Remove(itemAddress);
+                return false;
+            }
+
+            uiAddress = cachedUiAddress;
+            return true;
+        }
+
+        private void RebuildInventoryItemUiCache(IntPtr root, SafeMemoryHandle reader, int itemAddressOffset)
+        {
+            const int maxNodes = 1500;
+            this.inventoryItemUiCache.Clear();
             var visited = new HashSet<IntPtr>();
             var pending = new Queue<IntPtr>();
             pending.Enqueue(root);
@@ -368,12 +399,13 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 }
 
                 if (reader.TryReadMemory<IntPtr>(address + itemAddressOffset, out var candidate) &&
-                    candidate == itemAddress &&
+                    candidate != IntPtr.Zero &&
+                    !this.inventoryItemUiCache.ContainsKey(candidate) &&
+                    PluginUiElementReflection.TryValidateItemAddress(candidate, out _, out _) &&
                     PluginUiElementReflection.TryGetAbsoluteRect(address, out _, out var size) &&
                     size.X >= 8f && size.Y >= 8f && size.X <= 256f && size.Y <= 256f)
                 {
-                    uiAddress = address;
-                    return true;
+                    this.inventoryItemUiCache[candidate] = address;
                 }
 
                 if (!UiElementMemory.TryReadChildren(address, out var children))
@@ -386,8 +418,6 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     pending.Enqueue(children[i]);
                 }
             }
-
-            return false;
         }
 
         /// <summary>

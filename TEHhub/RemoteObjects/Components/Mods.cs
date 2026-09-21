@@ -124,8 +124,13 @@ namespace TEHhub.RemoteObjects.Components
             var data = reader.ReadMemory<ModsOffsets>(this.Address);
             this.OwnerEntityAddress = data.Header.EntityPtr;
             this.Rarity = (Rarity)data.Details0.Rarity;
-            this.ItemStateProbe = Convert.ToHexString(
-                reader.ReadMemoryArray<byte>(this.Address + 0x90, 0x10));
+            var itemStateProbe = new byte[0x10];
+            this.ItemStateProbe = reader.TryReadMemoryArray(
+                this.Address + 0x90,
+                itemStateProbe,
+                out _)
+                ? Convert.ToHexString(itemStateProbe)
+                : string.Empty;
 
             if (hasAddressChanged)
             {
