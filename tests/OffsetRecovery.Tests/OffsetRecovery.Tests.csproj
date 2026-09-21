@@ -6,5 +6,6 @@
   <ItemGroup>
     <ProjectReference Include="../../TEHhub/TEHhub.csproj" />
     <ProjectReference Include="../../Plugins/myFarming/myFarming.csproj" />
+    <ProjectReference Include="../../Plugins/AutoExile2/AutoExile2.csproj" />
   </ItemGroup>
 </Project>
