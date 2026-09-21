@@ -6,6 +6,7 @@ namespace TEHhub.RemoteObjects.Components
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using TEHhub.RemoteEnums;
     using TEHhub.Offsets.Objects.Components;
     using ImGuiNET;
@@ -38,6 +39,14 @@ namespace TEHhub.RemoteObjects.Components
             ExplicitMods = new(),
             EnchantMods = new(),
             HellscapeMods = new();
+
+        /// <summary>
+        ///     Gets human-readable display text for each entry in <see cref="ExplicitMods"/>.
+        ///     For Waystone items, each string is the translated mod text (e.g. "[P] Monsters deal 17% of Damage as Extra Chaos").
+        ///     For non-Waystone items, each string is the raw mod name.
+        ///     Index-aligned 1:1 with <see cref="ExplicitMods"/>.
+        /// </summary>
+        public List<string> ExplicitModsDisplay = new();
 
         /// <summary>
         ///     Gets the aggregate stats contributed by this item's modifiers. This is intentionally
@@ -109,6 +118,18 @@ namespace TEHhub.RemoteObjects.Components
                 ObjectMagicProperties.AddToMods(this.HellscapeMods, reader.ReadStdVector<ModArrayStruct>(data.Details0.Mods.HellscapeMods));
                 ObjectMagicProperties.AddToMods(this.HellscapeMods, reader.ReadStdVector<ModArrayStruct>(data.Details0.Mods.CrucibleMods));
                 base.StatUpdator(this.ModStats, data.Details0.StatsFromMods);
+
+                // Populate ExplicitModsDisplay after ModStats is known (IsWaystone depends on ModStats)
+                this.ExplicitModsDisplay.Clear();
+                var isWaystone = this.IsWaystone;
+                foreach (var (name, (v0, v1)) in this.ExplicitMods)
+                {
+                    this.ExplicitModsDisplay.Add(
+                        isWaystone
+                            ? WaystoneModTranslator.Translate(name, v0, v1)
+                            : name);
+                }
+
                 if (this.ImplicitMods.Count == 0 && this.ModStats.Count > 0 &&
                     (this.ModStats.ContainsKey(GameStats.map_unique_item_drop_chance_positive_percentage) ||
                      this.ModStats.ContainsKey(GameStats.map_pack_size_positive_percentage_final_from_map)))
