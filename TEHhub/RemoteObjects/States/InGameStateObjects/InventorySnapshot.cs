@@ -698,6 +698,45 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                     enchantMods = CopyMods(mods.EnchantMods);
                     otherMods = CopyMods(mods.HellscapeMods);
                     modStats = new Dictionary<GameStats, int>(mods.ModStats);
+
+                    if (implicitMods.Count == 0 && modStats.Count > 0 &&
+                        (modStats.ContainsKey(GameStats.map_unique_item_drop_chance_positive_percentage) ||
+                         modStats.ContainsKey(GameStats.map_pack_size_positive_percentage_final_from_map)))
+                    {
+                        var synth = new List<InventorySnapshotMod>();
+                        var revives = Math.Max(0, 6 - explicitMods.Count);
+                        synth.Add(new InventorySnapshotMod("Revives Available", revives, float.NaN));
+
+                        if (modStats.TryGetValue(GameStats.map_pack_size_positive_percentage_final_from_map, out var rarityVal))
+                        {
+                            synth.Add(new InventorySnapshotMod("Item Rarity", rarityVal, float.NaN));
+                        }
+
+                        if (modStats.TryGetValue(GameStats.map_number_of_magic_and_rare_packs_positive_percentage_final_and_rare_monster_modifiers_chance_positive_percentage_final_from_map, out var packSizeVal))
+                        {
+                            synth.Add(new InventorySnapshotMod("Pack Size", packSizeVal, float.NaN));
+                        }
+
+                        if (modStats.TryGetValue(GameStats.map_monster_potency_positive_percentage_final_from_map, out var monsterRarityVal))
+                        {
+                            synth.Add(new InventorySnapshotMod("Monster Rarity", monsterRarityVal, float.NaN));
+                        }
+
+                        if (modStats.TryGetValue(GameStats.map_map_item_drop_chance_positive_percentage_final_from_map, out var monsterEffectivenessVal))
+                        {
+                            synth.Add(new InventorySnapshotMod("Monster Effectiveness", monsterEffectivenessVal, float.NaN));
+                        }
+
+                        if (modStats.TryGetValue(GameStats.map_unique_item_drop_chance_positive_percentage, out var dropChanceVal))
+                        {
+                            synth.Add(new InventorySnapshotMod("Waystone Drop Chance", dropChanceVal, float.NaN));
+                        }
+
+                        if (synth.Count > 0)
+                        {
+                            implicitMods = synth;
+                        }
+                    }
                 }
             }
             catch (Exception ex)
