@@ -9,6 +9,7 @@ namespace AutoExile2.Systems
     using System.Linq;
     using System.Numerics;
     using System.Threading;
+    using ClickableTransparentOverlay.Win32;
     using AutoExile2.Modes;
     using AutoExile2.Modes.Shared;
     using TEHhub;
@@ -729,7 +730,7 @@ namespace AutoExile2.Systems
                 }
 
                 this.Phase = InteractionPhase.Clicking;
-                var shiftClick = this.currencyTargetIndex < this.currencyTargets.Count - 1;
+                var shiftClick = this.currencyTargetIndex < (this.currencyTargets?.Count ?? 0) - 1;
                 this.currencyTargetClickIssued = false;
                 this.currencyTargetClickCompleted = false;
                 this.currencyClickInFlight = true;
