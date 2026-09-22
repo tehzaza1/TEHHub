@@ -17,7 +17,7 @@ namespace AutoExile2.Modes.Shared
     /// <summary>
     /// First PoE 2 hideout preparation flow: inspect main inventory, open the personal stash,
     /// select the configured Waystone Tab, withdraw exactly one Waystone in the configured Tier
-    /// range, and prepare that inventory slot with Wisdom/Alchemy/Exalted as required.
+    /// range, and use Wisdom/Alchemy/Exalted directly from the configured Currency Tab.
     /// </summary>
     internal sealed class HideoutFlow
     {
@@ -36,7 +36,6 @@ namespace AutoExile2.Modes.Shared
         private readonly HashSet<IntPtr> stoppedCraftItems = new();
         private bool useTabScrollFallback;
         private bool withdrawalAttempted;
-        private bool currencyWithdrawalAttempted;
         private IntPtr activeCraftItemAddress;
         private int targetWaystoneTier;
         private int nextSpecializedPage = 1;
@@ -330,8 +329,7 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            // Opening the stash also materializes the player inventory UI, which gives the SDK
-            // safe clickable controls for both the currency and this exact Waystone address.
+            // The stash exposes the currency control; the open player inventory exposes the Waystone.
             if (!ctx.GameUi.IsStashOpen)
             {
                 if (ctx.GameUi.IsAnyLargePanelOpen)
@@ -348,29 +346,45 @@ namespace AutoExile2.Modes.Shared
 
             var currencyPath = WaystoneCrafting.GetCurrencyPath(action);
             var currencyLabel = WaystoneCrafting.GetCurrencyLabel(action);
-            var inventory = this.ReadInventory(ctx);
-            var currency = inventory.Items.FirstOrDefault(item =>
-                string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase) &&
-                (!item.StackCount.HasValue || item.StackCount.Value > 0));
+            var configuredTab = (ctx.Settings.CurrencyTab ?? string.Empty).Trim();
+            if (configuredTab.Length == 0)
+            {
+                this.Status = "Configure Currency Tab for Waystone crafting";
+                this.Decision = "ConfigureCurrencyTab";
+                return;
+            }
+
+            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Full);
+            if (snapshot.State != StashSnapshotState.Ready)
+            {
+                this.Status = $"Currency stash {snapshot.State}: {snapshot.Diagnostic}";
+                this.Decision = "ReadCurrencyTab";
+                return;
+            }
+
+            if (!string.Equals(snapshot.CurrentTabName, configuredTab, StringComparison.OrdinalIgnoreCase))
+            {
+                this.BeginSelectCurrencyTab(ctx, snapshot, configuredTab);
+                return;
+            }
+
+            var control = snapshot.VisibleItems.FirstOrDefault(item =>
+                string.Equals(item.ItemPath, currencyPath, StringComparison.OrdinalIgnoreCase) &&
+                snapshot.Inventory.Items.Any(entry => entry.ItemAddress == item.ItemAddress &&
+                                                      entry.StackCount is > 0));
+            var currency = control == null ? null : snapshot.Inventory.Items.FirstOrDefault(item =>
+                item.ItemAddress == control.ItemAddress);
             if (currency == null)
             {
-                this.TickWithdrawCurrency(ctx, currencyPath, currencyLabel);
+                this.Status = $"No readable {currencyLabel} stack in Currency Tab '{configuredTab}'";
+                this.Decision = "CurrencyUnavailable";
                 return;
             }
 
-            this.currencyWithdrawalAttempted = false;
-            if (!ctx.GameUi.TryGetVisibleInventoryItemUiAddress(currency.ItemAddress, out var currencyUi) ||
-                !ctx.GameUi.TryGetVisibleInventoryItemUiAddress(waystone.ItemAddress, out var waystoneUi))
+            if (!ctx.GameUi.TryGetVisibleInventoryItemUiAddress(waystone.ItemAddress, out var waystoneUi))
             {
-                this.Status = "Inventory item UI is not materialized yet";
+                this.Status = "Waystone inventory UI is not materialized yet";
                 this.Decision = "ReadInventoryUi";
-                return;
-            }
-
-            if (!ctx.GameUi.Stash.TryGetSafeCursorCancelUiAddress(out var cursorCancelUi))
-            {
-                this.Status = "Safe Stash cursor-cancel UI is unavailable";
-                this.Decision = "ReadCursorCancelUi";
                 return;
             }
 
@@ -378,19 +392,27 @@ namespace AutoExile2.Modes.Shared
             var oldModCount = waystone.ExplicitMods.Count;
             var slotX = waystone.SlotStartX;
             var slotY = waystone.SlotStartY;
+            var currencySlotX = currency.SlotStartX;
+            var currencySlotY = currency.SlotStartY;
+            var currencyStackCount = currency.StackCount;
             if (!ctx.Interaction.BeginUiCurrencyUse(
-                    currencyUi,
+                    control!.UiAddress,
                     waystoneUi,
-                    cursorCancelUi,
-                    currencyPath,
                     $"{currencyLabel} on Tier {waystone.WaystoneTier} Waystone",
-                    current => CraftingActionChangedSlot(
-                        current,
-                        action,
-                        slotX,
-                        slotY,
-                        oldRarity,
-                        oldModCount)))
+                    current => CurrencyWasConsumed(
+                                   current,
+                                   configuredTab,
+                                   currencyPath,
+                                   currencySlotX,
+                                   currencySlotY,
+                                   currencyStackCount.Value) &&
+                               CraftingActionChangedSlot(
+                                   current,
+                                   action,
+                                   slotX,
+                                   slotY,
+                                   oldRarity,
+                                   oldModCount)))
             {
                 this.Status = "Crafting UI is unavailable";
                 this.Decision = "UseCraftingCurrency";
@@ -441,7 +463,7 @@ namespace AutoExile2.Modes.Shared
             if (!ctx.GameUi.IsStashOpen ||
                 !ctx.GameUi.Stash.TryGetSafeCursorCancelUiAddress(out var safeUi))
             {
-                this.Status = "Currency may be attached to cursor — reopen Stash for safe cleanup";
+                this.Status = "Right-click currency may still be active — reopen Stash for safe cleanup";
                 this.Decision = "CursorCleanupBlocked";
                 return;
             }
@@ -449,68 +471,12 @@ namespace AutoExile2.Modes.Shared
             ctx.Interaction.Reset();
             if (!ctx.Interaction.BeginUiCurrencyCursorCleanup(safeUi))
             {
-                this.Status = "Cannot start safe currency cursor cleanup";
+                this.Status = "Cannot start safe right-click currency cleanup";
                 this.Decision = "CursorCleanupBlocked";
                 return;
             }
 
             this.pendingInteraction = PendingInteraction.CursorCleanup;
-            this.TickStartedInteraction(ctx);
-        }
-
-        private void TickWithdrawCurrency(BotContext ctx, string currencyPath, string currencyLabel)
-        {
-            if (this.currencyWithdrawalAttempted)
-            {
-                this.Status = $"{currencyLabel} withdrawal was not confirmed — stopped";
-                this.Decision = "CurrencyWithdrawalUnconfirmed";
-                return;
-            }
-
-            var configuredTab = (ctx.Settings.CurrencyTab ?? string.Empty).Trim();
-            if (configuredTab.Length == 0)
-            {
-                this.Status = $"No {currencyLabel} in inventory — configure Currency Tab";
-                this.Decision = "ConfigureCurrencyTab";
-                return;
-            }
-
-            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Full);
-            if (snapshot.State != StashSnapshotState.Ready)
-            {
-                this.Status = $"Stash {snapshot.State}: {snapshot.Diagnostic}";
-                this.Decision = "ReadCurrencyTab";
-                return;
-            }
-
-            if (!string.Equals(snapshot.CurrentTabName, configuredTab, StringComparison.OrdinalIgnoreCase))
-            {
-                this.BeginSelectCurrencyTab(ctx, snapshot, configuredTab);
-                return;
-            }
-
-            var control = snapshot.VisibleItems.FirstOrDefault(item =>
-                string.Equals(item.ItemPath, currencyPath, StringComparison.OrdinalIgnoreCase));
-            if (control == null)
-            {
-                this.Status = $"Currency Tab '{configuredTab}' has no visible {currencyLabel}";
-                this.Decision = "CurrencyUnavailable";
-                return;
-            }
-
-            var baseline = CountCurrency(this.ReadInventory(ctx), currencyPath);
-            if (!ctx.Interaction.BeginUiCtrlClick(
-                    control.UiAddress,
-                    currencyLabel,
-                    current => CountCurrency(this.ReadInventoryFresh(current), currencyPath) > baseline))
-            {
-                this.Status = $"{currencyLabel} UI is unavailable";
-                this.Decision = "WithdrawCurrency";
-                return;
-            }
-
-            this.currencyWithdrawalAttempted = true;
-            this.pendingInteraction = PendingInteraction.WithdrawCurrency;
             this.TickStartedInteraction(ctx);
         }
 
@@ -960,11 +926,6 @@ namespace AutoExile2.Modes.Shared
                     this.tabActionNotBeforeUtc = DateTime.MinValue;
                     this.delayedTabTarget = string.Empty;
                     break;
-                case PendingInteraction.WithdrawCurrency:
-                    this.currencyWithdrawalAttempted = false;
-                    this.inventorySnapshot = null;
-                    this.lastInventoryReadUtc = DateTime.MinValue;
-                    break;
                 case PendingInteraction.UseWisdom:
                 case PendingInteraction.UseAlchemy:
                 case PendingInteraction.UseExalted:
@@ -997,15 +958,6 @@ namespace AutoExile2.Modes.Shared
                     ? "Waystone crafting was not confirmed — item stopped"
                     : $"{failure} — item stopped";
                 this.Decision = "CraftingUnconfirmed";
-                return;
-            }
-
-            if (failed == PendingInteraction.WithdrawCurrency)
-            {
-                this.Status = string.IsNullOrWhiteSpace(failure)
-                    ? "Currency withdrawal was not confirmed"
-                    : failure;
-                this.Decision = "CurrencyWithdrawalUnconfirmed";
                 return;
             }
 
@@ -1094,7 +1046,6 @@ namespace AutoExile2.Modes.Shared
             if (!preserveWithdrawalGuard)
             {
                 this.withdrawalAttempted = false;
-                this.currencyWithdrawalAttempted = false;
                 this.stoppedCraftItems.Clear();
             }
         }
@@ -1110,19 +1061,48 @@ namespace AutoExile2.Modes.Shared
             inventory.Items.Count(entry =>
                 entry.WaystoneTier is int tier && tier >= minTier && tier <= maxTier);
 
-        private InventorySnapshot ReadInventoryFresh(BotContext ctx)
+        private static bool CurrencyWasConsumed(
+            BotContext ctx,
+            string configuredTab,
+            string currencyPath,
+            int slotX,
+            int slotY,
+            int oldStackCount)
         {
-            this.inventorySnapshot = ctx.Area.ServerDataObject.ReadInventorySnapshot(
-                InventoryName.MainInventory1,
-                InventorySnapshotDetailLevel.Full);
-            this.lastInventoryReadUtc = DateTime.UtcNow;
-            return this.inventorySnapshot;
-        }
+            if (!ctx.GameUi.IsStashOpen)
+            {
+                return false;
+            }
 
-        private static int CountCurrency(InventorySnapshot inventory, string currencyPath) =>
-            inventory.Items
-                .Where(item => string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase))
-                .Sum(item => Math.Max(1, item.StackCount ?? 1));
+            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Basic);
+            if (snapshot.State != StashSnapshotState.Ready ||
+                !string.Equals(snapshot.CurrentTabName, configuredTab, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.StashInventoryId,
+                slotX,
+                slotY,
+                InventorySnapshotDetailLevel.Full);
+            if (result.State != InventorySnapshotState.Ready)
+            {
+                return false;
+            }
+
+            if (result.Item == null)
+            {
+                return true;
+            }
+
+            if (!string.Equals(result.Item.Path, currencyPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return result.Item.StackCount.HasValue && result.Item.StackCount.Value < oldStackCount;
+        }
 
         private static bool CraftingActionChangedSlot(
             BotContext ctx,
@@ -1227,7 +1207,6 @@ namespace AutoExile2.Modes.Shared
             SelectTier,
             Withdraw,
             SelectCurrencyTab,
-            WithdrawCurrency,
             UseWisdom,
             UseAlchemy,
             UseExalted,
