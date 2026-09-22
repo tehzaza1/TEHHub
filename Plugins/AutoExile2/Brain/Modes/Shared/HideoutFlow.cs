@@ -374,7 +374,7 @@ namespace AutoExile2.Modes.Shared
                                                       entry.StackCount is > 0));
             var currency = control == null ? null : snapshot.Inventory.Items.FirstOrDefault(item =>
                 item.ItemAddress == control.ItemAddress);
-            if (currency == null)
+            if (currency == null || currency.StackCount is not > 0)
             {
                 this.Status = $"No readable {currencyLabel} stack in Currency Tab '{configuredTab}'";
                 this.Decision = "CurrencyUnavailable";
@@ -394,7 +394,7 @@ namespace AutoExile2.Modes.Shared
             var slotY = waystone.SlotStartY;
             var currencySlotX = currency.SlotStartX;
             var currencySlotY = currency.SlotStartY;
-            var currencyStackCount = currency.StackCount;
+            var currencyStackCount = currency.StackCount.Value;
             if (!ctx.Interaction.BeginUiCurrencyUse(
                     control!.UiAddress,
                     waystoneUi,
@@ -405,7 +405,7 @@ namespace AutoExile2.Modes.Shared
                                    currencyPath,
                                    currencySlotX,
                                    currencySlotY,
-                                   currencyStackCount.Value) &&
+                                   currencyStackCount) &&
                                CraftingActionChangedSlot(
                                    current,
                                    action,
