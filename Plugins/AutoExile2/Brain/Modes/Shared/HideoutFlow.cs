@@ -210,20 +210,33 @@ namespace AutoExile2.Modes.Shared
                 .ThenBy(item => item.SlotStartY)
                 .ThenBy(item => item.SlotStartX)
                 .ToArray();
-            if (batchEnabled && this.waystoneBatchPrimed && inventoryWaystones.Length > 1)
+            var assessedInventoryWaystones = inventoryWaystones
+                .Select(item =>
+                {
+                    var action = WaystoneCrafting.GetNextAction(item, ctx.Settings, out var reason);
+                    return new { Item = item, Action = action, Reason = reason };
+                })
+                .ToArray();
+            var usableWaystoneCount = assessedInventoryWaystones.Count(candidate =>
+                candidate.Action != WaystoneCraftingAction.Reject &&
+                !this.stoppedCraftItems.Contains(candidate.Item.ItemAddress));
+            var readyWaystoneCount = assessedInventoryWaystones.Count(candidate =>
+                candidate.Action == WaystoneCraftingAction.Ready &&
+                !this.stoppedCraftItems.Contains(candidate.Item.ItemAddress));
+            if (batchEnabled && this.waystoneBatchPrimed && readyWaystoneCount > 1)
             {
                 ctx.Interaction.Cancel(ctx.Settings);
-                this.Status = $"Waystone batch ready — {inventoryWaystones.Length} remain; refill starts at 1";
+                this.Status = $"Waystone batch ready — {readyWaystoneCount} remain; refill starts at 1";
                 this.Decision = "WaystoneBatchHolding";
                 return;
             }
 
-            if (batchEnabled && this.waystoneBatchPrimed && inventoryWaystones.Length <= 1)
+            if (batchEnabled && this.waystoneBatchPrimed && readyWaystoneCount <= 1)
             {
                 if (this.waystoneStockExhausted && DateTime.UtcNow < this.nextWaystoneStockRecheckUtc)
                 {
                     ctx.Interaction.Cancel(ctx.Settings);
-                    this.Status = $"Only {inventoryWaystones.Length} Waystone(s) remain; waiting to recheck stash stock";
+                    this.Status = $"Only {readyWaystoneCount} ready Waystone(s) remain; waiting to recheck stash stock";
                     this.Decision = "WaystoneBatchHolding";
                     return;
                 }
@@ -234,7 +247,7 @@ namespace AutoExile2.Modes.Shared
                 this.ResetStashWorkflow();
             }
 
-            if (inventoryWaystones.Length == 0 && this.waystoneStockExhausted &&
+            if (usableWaystoneCount == 0 && this.waystoneStockExhausted &&
                 DateTime.UtcNow >= this.nextWaystoneStockRecheckUtc)
             {
                 this.waystoneStockExhausted = false;
@@ -242,26 +255,24 @@ namespace AutoExile2.Modes.Shared
                 this.ResetStashWorkflow();
             }
 
-            var batchWaystones = inventoryWaystones.Take(batchSize).ToArray();
-            var assessedWaystones = batchWaystones
-                .Select(item =>
-                {
-                    var action = WaystoneCrafting.GetNextAction(item, ctx.Settings, out var reason);
-                    return new
-                    {
-                        Item = item,
-                        Action = action,
-                        Reason = reason,
-                    };
-                })
-                .ToArray();
-            var actionable = assessedWaystones
-                .Where(candidate => candidate.Action is not WaystoneCraftingAction.Reject and not WaystoneCraftingAction.Ready &&
+            // Plugin policy: prioritize already-ready items, then craftable ones. The SDK
+            // only supplies item/UI state and does not decide which Waystone to take.
+            var assessedWaystones = assessedInventoryWaystones
+                .Where(candidate => candidate.Action != WaystoneCraftingAction.Reject &&
                                     !this.stoppedCraftItems.Contains(candidate.Item.ItemAddress))
+                .OrderBy(candidate => candidate.Action == WaystoneCraftingAction.Ready ? 0 : 1)
+                .ThenByDescending(candidate => candidate.Item.WaystoneTier)
+                .ThenBy(candidate => candidate.Item.SlotStartY)
+                .ThenBy(candidate => candidate.Item.SlotStartX)
+                .Take(batchSize)
+                .ToArray();
+            var batchWaystones = assessedWaystones.Select(candidate => candidate.Item).ToArray();
+            var actionable = assessedWaystones
+                .Where(candidate => candidate.Action != WaystoneCraftingAction.Ready)
                 .FirstOrDefault();
-            this.EligibleWaystoneCount = batchWaystones.Count(item =>
-                WaystoneCrafting.GetNextAction(item, ctx.Settings, out _) == WaystoneCraftingAction.Ready);
-            if (inventoryWaystones.Length >= batchSize || this.waystoneStockExhausted)
+            this.EligibleWaystoneCount = assessedWaystones.Count(candidate =>
+                candidate.Action == WaystoneCraftingAction.Ready);
+            if (usableWaystoneCount >= batchSize || this.waystoneStockExhausted)
             {
                 var batchReady = batchWaystones.Length > 0 && assessedWaystones.All(candidate =>
                     candidate.Action == WaystoneCraftingAction.Ready &&
