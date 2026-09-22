@@ -1221,36 +1221,45 @@ namespace AutoExile2.Modes.Shared
             int maxTier,
             int targetTier)
         {
+            var isSpecializedWaystoneTab = snapshot.Tiers.Count == 16;
             var candidates = snapshot.VisibleItems
                 .Select(control => new
                 {
                     Ui = control,
                     Tier = TryGetWaystoneTier(control.ItemPath, out var tier) ? tier : 0,
-                    Item = snapshot.Inventory.Items.FirstOrDefault(item => item.ItemAddress == control.ItemAddress),
+                    Item = snapshot.Inventory.Items.FirstOrDefault(item => item.ItemAddress == control.ItemAddress) ??
+                           control.ItemDetails,
                 })
                 .Where(candidate => candidate.Tier >= minTier && candidate.Tier <= maxTier &&
                                     (targetTier == 0 || candidate.Tier == targetTier) &&
-                                    candidate.Item != null &&
-                                    WaystoneCrafting.GetNextAction(candidate.Item, ctx.Settings, out _) !=
-                                    WaystoneCraftingAction.Reject)
+                                    (isSpecializedWaystoneTab || candidate.Item != null))
                 .Select(candidate => new
                 {
                     candidate.Ui,
                     candidate.Tier,
-                    candidate.Item,
-                    Action = WaystoneCrafting.GetNextAction(candidate.Item!, ctx.Settings, out _),
+                    Action = candidate.Item is { Rarity: not null } item
+                        ? (WaystoneCraftingAction?)WaystoneCrafting.GetNextAction(item, ctx.Settings, out _)
+                        : null,
                 })
+                .Where(candidate => candidate.Action != WaystoneCraftingAction.Reject &&
+                                    (isSpecializedWaystoneTab || candidate.Action.HasValue))
                 // Only current visible page items are readable here; prefer a Ready item on
-                // this page before a craftable one, then retain the configured tier preference.
-                .OrderBy(candidate => candidate.Action == WaystoneCraftingAction.Ready ? 0 : 1)
+                // this page before a craftable one. If a specialized tab hides item details,
+                // withdraw the validated Waystone and inspect it in the main inventory.
+                .OrderBy(candidate => candidate.Action == WaystoneCraftingAction.Ready ? 0 :
+                                      candidate.Action.HasValue ? 1 : 2)
                 .ThenByDescending(candidate => candidate.Tier)
                 .ThenBy(candidate => candidate.Ui.UiAddress.ToInt64())
                 .ToArray();
             if (candidates.Length == 0)
             {
+                var visibleWaystones = snapshot.VisibleItems.Count(control =>
+                    TryGetWaystoneTier(control.ItemPath, out _));
                 this.Status = targetTier > 0
-                    ? $"Scanning Waystone page {snapshot.CurrentPageName} for Tier {targetTier}"
-                    : $"No clickable Waystone in Tier {minTier}-{maxTier} on the selected ordinary tab";
+                    ? $"No eligible Waystone on Tier {targetTier} page {snapshot.CurrentPageName} " +
+                      $"({visibleWaystones} visible, {snapshot.Inventory.Items.Count} server items)"
+                    : $"No clickable Waystone in Tier {minTier}-{maxTier} on the selected ordinary tab " +
+                      $"({visibleWaystones} visible, {snapshot.Inventory.Items.Count} server items)";
                 this.Decision = "FindClickableWaystone";
                 return false;
             }

@@ -57,7 +57,14 @@ namespace TEHhub.RemoteObjects.UiElement
     /// <param name="ItemAddress">Validated live Item address.</param>
     /// <param name="UiAddress">Visible clickable UiElement address.</param>
     /// <param name="ItemPath">Validated item metadata path.</param>
-    public sealed record StashVisibleItemInfo(IntPtr ItemAddress, IntPtr UiAddress, string ItemPath = "");
+    public sealed record StashVisibleItemInfo(IntPtr ItemAddress, IntPtr UiAddress, string ItemPath = "")
+    {
+        /// <summary>
+        ///     Validated item details when requested. For specialized tabs this may come directly
+        ///     from the visible UI item; its slot bounds are unknown outside StashInventoryId.
+        /// </summary>
+        public InventorySnapshotItem? ItemDetails { get; init; }
+    }
 
     /// <summary>
     ///     One stable, read-only view of the currently selected PoE2 stash tab.
@@ -212,6 +219,17 @@ namespace TEHhub.RemoteObjects.UiElement
                     InventoryName.StashInventoryId,
                     detailLevel);
                 var visibleItems = ReadVisibleItems(this.Address);
+                if (detailLevel == InventorySnapshotDetailLevel.Full && tiers.Count == TierNames.Length)
+                {
+                    visibleItems = visibleItems.Select(visible => visible with
+                    {
+                        ItemDetails = inventory.Items.FirstOrDefault(item => item.ItemAddress == visible.ItemAddress) ??
+                                      InventorySnapshotReader.ReadVisibleItem(
+                                          visible.ItemAddress,
+                                          visible.ItemPath,
+                                          detailLevel),
+                    }).ToArray();
+                }
                 if (string.IsNullOrWhiteSpace(currentTab))
                 {
                     this.stability.Reset();

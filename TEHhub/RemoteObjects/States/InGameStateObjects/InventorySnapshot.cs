@@ -429,6 +429,34 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
     internal static class InventorySnapshotReader
     {
+        /// <summary>
+        ///     Reads details for one already-validated visible stash item. Specialized stash pages
+        ///     may expose an item UI without listing its item in StashInventoryId. Slot bounds are
+        ///     unavailable in that case and are never used to click the stash item.
+        /// </summary>
+        internal static InventorySnapshotItem? ReadVisibleItem(
+            IntPtr itemAddress,
+            string expectedPath,
+            InventorySnapshotDetailLevel detailLevel)
+        {
+            if (!PluginUiElementReflection.TryValidateItemAddress(itemAddress, out var path, out _) ||
+                !string.Equals(path, expectedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var item = new Item(itemAddress);
+            if (!item.IsValid || !string.Equals(item.Path, expectedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var snapshotItem = new InventorySnapshotItem(item, IntPtr.Zero, -1, -1, -1, -1);
+            return detailLevel == InventorySnapshotDetailLevel.Full
+                ? ReadFullDetails(snapshotItem)
+                : snapshotItem;
+        }
+
         private const int MaxSlotEntries = 65536;
         private const ulong FnvOffset = 14695981039346656037UL;
         private const ulong FnvPrime = 1099511628211UL;
