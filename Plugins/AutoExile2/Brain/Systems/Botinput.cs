@@ -219,30 +219,75 @@ namespace AutoExile2.Systems
         public static void HumanClick(
             Vector2 screenPos,
             bool rightClick = false,
-            Func<bool>? canClick = null)
+            Func<bool>? canClick = null,
+            bool shiftClick = false,
+            Action? onClickIssued = null,
+            Action<bool>? onClickFinished = null)
         {
             Task.Run(async () =>
             {
-                if (canClick?.Invoke() == false)
-                {
-                    return;
-                }
-
-                await MoveCursorOrganic(screenPos);
-                await Task.Delay(RandSettle());
-                await SendDelayAsync();
-                if (canClick?.Invoke() == false)
-                {
-                    return;
-                }
-
                 int downFlag = rightClick ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_LEFTDOWN;
                 int upFlag = rightClick ? MOUSEEVENTF_RIGHTUP : MOUSEEVENTF_LEFTUP;
+                var mouseDown = false;
+                var pressedShift = false;
+                var clickIssued = false;
 
-                mouse_event(downFlag, 0, 0, 0, 0);
-                await Task.Delay(RandHold());
-                await SendDelayAsync();
-                mouse_event(upFlag, 0, 0, 0, 0);
+                try
+                {
+                    if (canClick?.Invoke() == false)
+                    {
+                        return;
+                    }
+
+                    await MoveCursorOrganic(screenPos);
+                    await Task.Delay(RandSettle());
+                    await SendDelayAsync();
+                    if (canClick?.Invoke() == false)
+                    {
+                        return;
+                    }
+
+                    if (shiftClick && !IsKeyDown(VK.LSHIFT))
+                    {
+                        KeyDown(VK.LSHIFT);
+                        pressedShift = true;
+                    }
+
+                    // The user may take over the mouse while the organic movement is in
+                    // progress. Skip the click if the pointer no longer landed near our target.
+                    if (canClick?.Invoke() == false || Vector2.Distance(GetCurrentCursorPos(), screenPos) > 15f)
+                    {
+                        return;
+                    }
+
+                    mouse_event(downFlag, 0, 0, 0, 0);
+                    mouseDown = true;
+                    clickIssued = true;
+                    onClickIssued?.Invoke();
+                    await Task.Delay(RandHold());
+                    await SendDelayAsync();
+                    mouse_event(upFlag, 0, 0, 0, 0);
+                    mouseDown = false;
+                }
+                finally
+                {
+                    try
+                    {
+                        if (mouseDown)
+                        {
+                            mouse_event(upFlag, 0, 0, 0, 0);
+                        }
+
+                        if (pressedShift)
+                        {
+                            KeyUp(VK.LSHIFT);
+                        }
+                    }
+                    finally
+                    {
+                        onClickFinished?.Invoke(clickIssued);
+                    }
+                }
             });
         }
 

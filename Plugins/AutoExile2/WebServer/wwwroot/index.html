@@ -683,6 +683,14 @@
               <label>Max Tier</label>
               <input id="MaxTier" type="number" min="1" max="16" step="1" value="16" class="form-control" onchange="saveSettings()" />
             </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label><input id="EnableWaystoneBatch" type="checkbox" onchange="syncWaystoneBatchUI(); saveSettings()" /> Prepare a batch of Waystones</label>
+              <div style="font-size:11px; color:var(--text-dim);">Off: prepare one Waystone. On: prepare 5–10 and refill when one remains.</div>
+            </div>
+            <div id="waystoneBatchSizeRow" class="form-group" style="margin-bottom:0; display:none;">
+              <label>Waystones per batch</label>
+              <input id="WaystoneBatchSize" type="number" min="5" max="10" step="1" value="5" class="form-control" onchange="saveSettings()" />
+            </div>
           </div>
         </div>
         <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border);">
@@ -703,23 +711,23 @@
         </div>
         <div class="grid2">
           <div class="form-group">
-            <label>Item Rarity &gt;</label>
+            <label>Item Rarity &ge;</label>
             <input id="MinWaystoneItemRarity" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
           </div>
           <div class="form-group">
-            <label>Pack Size &gt;</label>
+            <label>Pack Size &ge;</label>
             <input id="MinWaystonePackSize" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
           </div>
           <div class="form-group">
-            <label>Monster Rarity &gt;</label>
+            <label>Monster Rarity &ge;</label>
             <input id="MinWaystoneMonsterRarity" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
           </div>
           <div class="form-group">
-            <label>Monster Effectiveness &gt;</label>
+            <label>Monster Effectiveness &ge;</label>
             <input id="MinWaystoneMonsterEffectiveness" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
           </div>
           <div class="form-group">
-            <label>Waystone Drop Chance &gt;</label>
+            <label>Waystone Drop Chance &ge;</label>
             <input id="MinWaystoneDropChance" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
           </div>
           <div class="form-group">

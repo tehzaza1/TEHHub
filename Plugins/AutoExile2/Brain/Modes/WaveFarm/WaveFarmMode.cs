@@ -384,7 +384,7 @@ namespace AutoExile2.Modes.WaveFarm
             if (world.AreaDetails.IsHideout || world.AreaDetails.IsTown)
             {
                 this.wave.Reset();
-                this.hideoutFlow.Reset(ctx);
+                this.hideoutFlow.Reset(ctx, preserveBatchPrimed: true);
                 bool wasExiting = this.phase == WaveFarmPhase.ExitMap;
                 this.phase = WaveFarmPhase.InHideout;
 
@@ -401,7 +401,7 @@ namespace AutoExile2.Modes.WaveFarm
             }
             else
             {
-                this.hideoutFlow.Reset(ctx);
+                this.hideoutFlow.Reset(ctx, preserveBatchPrimed: true);
                 ctx.Log($"[WaveFarm] Entered map: {newArea}");
                 this.InitMapState(ctx);
             }

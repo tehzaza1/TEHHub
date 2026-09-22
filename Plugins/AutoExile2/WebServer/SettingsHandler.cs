@@ -61,6 +61,12 @@ namespace AutoExile2.WebServer
                     case "maxtier":
                         settings.MaxTier = Math.Clamp(val.Value<int>(), 1, 16);
                         break;
+                    case "enablewaystonebatch":
+                        settings.EnableWaystoneBatch = val.Value<bool>();
+                        break;
+                    case "waystonebatchsize":
+                        settings.WaystoneBatchSize = Math.Clamp(val.Value<int>(), 5, 10);
+                        break;
                     case "minwaystoneitemrarity":
                         settings.MinWaystoneItemRarity = ParseOptionalNonNegativeInt(val);
                         break;
@@ -305,6 +311,7 @@ namespace AutoExile2.WebServer
 
             settings.MinTier = Math.Clamp(settings.MinTier, 1, 16);
             settings.MaxTier = Math.Clamp(settings.MaxTier, 1, 16);
+            settings.WaystoneBatchSize = Math.Clamp(settings.WaystoneBatchSize, 5, 10);
             if (settings.MinTier > settings.MaxTier)
             {
                 (settings.MinTier, settings.MaxTier) = (settings.MaxTier, settings.MinTier);

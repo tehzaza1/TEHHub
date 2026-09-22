@@ -43,6 +43,12 @@ namespace AutoExile2.Systems
         Failed,
     }
 
+    /// <summary>A Waystone inventory target and the state predicate that verifies its currency use.</summary>
+    public sealed record CurrencyUseTarget(
+        IntPtr UiAddress,
+        Func<BotContext, bool> SuccessPredicate,
+        Action<BotContext>? BeforeClick = null);
+
     /// <summary>
     /// Serializes world-entity and UI interactions. A request navigates when necessary,
     /// clicks with a bounded retry budget, and succeeds only when its game-state predicate agrees.
@@ -69,6 +75,13 @@ namespace AutoExile2.Systems
         private string fallbackUiSource = "fallback UI control";
         private int wheelDirection;
         private int currencyUseStep;
+        private IReadOnlyList<CurrencyUseTarget>? currencyTargets;
+        private int currencyTargetIndex;
+        private volatile bool currencyActivationIssued;
+        private volatile bool currencyActivationCompleted;
+        private volatile bool currencyTargetClickIssued;
+        private volatile bool currencyTargetClickCompleted;
+        private volatile bool currencyClickInFlight;
         private Func<BotContext, bool>? successPredicate;
         private DateTime startedAtUtc;
         private DateTime settleStartedAtUtc;
@@ -84,7 +97,7 @@ namespace AutoExile2.Systems
         private float interactionRange;
         private TimeSpan timeout;
         private long requestGeneration;
-        private bool currencyMayBeActive;
+        private volatile bool currencyMayBeActive;
 
         public InteractionPhase Phase { get; private set; } = InteractionPhase.Idle;
 
@@ -117,6 +130,10 @@ namespace AutoExile2.Systems
         /// that the target slot changed or completed a safe cursor cleanup.
         /// </summary>
         public bool CurrencyMayBeActive => this.currencyMayBeActive;
+
+        public bool CurrencyClickInFlight => this.currencyClickInFlight;
+
+        public int CurrencyTargetIndex => this.currencyTargetIndex;
 
         /// <summary>
         /// Starts one entity interaction. The entity is refreshed by id on every tick.
@@ -249,8 +266,7 @@ namespace AutoExile2.Systems
         /// <summary>
         /// Starts one bounded PoE2 currency action: right-click the currency control, then
         /// right-click the exact target item control. Right-click currency activation is not
-        /// represented by Cursor1, so callers must verify both currency consumption and the
-        /// changed target slot before this request can succeed.
+        /// represented by Cursor1, so callers verify the changed target slot before success.
         /// </summary>
         public bool BeginUiCurrencyUse(
             IntPtr currencyUiAddress,
@@ -259,7 +275,7 @@ namespace AutoExile2.Systems
             Func<BotContext, bool> successPredicate)
         {
             if (currencyUiAddress == IntPtr.Zero || targetItemUiAddress == IntPtr.Zero ||
-                this.IsBusy || this.currencyMayBeActive)
+                this.IsBusy || this.currencyMayBeActive || this.currencyClickInFlight)
             {
                 return false;
             }
@@ -269,11 +285,42 @@ namespace AutoExile2.Systems
             this.LastFailure = string.Empty;
             this.uiAddress = currencyUiAddress;
             this.targetUiAddress = targetItemUiAddress;
+            this.currencyTargets = new[] { new CurrencyUseTarget(targetItemUiAddress, successPredicate) };
+            this.currencyTargetIndex = 0;
             this.Description = description;
             this.successPredicate = successPredicate;
             this.maxClickAttempts = 1;
             this.startedAtUtc = DateTime.UtcNow;
             this.timeout = TimeSpan.FromSeconds(8);
+            this.Phase = InteractionPhase.Settling;
+            this.settleStartedAtUtc = this.startedAtUtc;
+            this.Status = $"Preparing {description}";
+            return true;
+        }
+
+        /// <summary>Starts one currency activation followed by verified target clicks.</summary>
+        public bool BeginUiCurrencyUseBatch(
+            IntPtr currencyUiAddress,
+            IReadOnlyList<CurrencyUseTarget> targets,
+            string description)
+        {
+            if (currencyUiAddress == IntPtr.Zero || targets == null || targets.Count == 0 ||
+                targets.Any(target => target.UiAddress == IntPtr.Zero || target.SuccessPredicate == null) ||
+                this.IsBusy || this.currencyMayBeActive || this.currencyClickInFlight)
+            {
+                return false;
+            }
+
+            this.ResetRequest();
+            this.kind = InteractionKind.UiCurrencyUse;
+            this.LastFailure = string.Empty;
+            this.uiAddress = currencyUiAddress;
+            this.currencyTargets = targets;
+            this.currencyTargetIndex = 0;
+            this.Description = description;
+            this.maxClickAttempts = 1;
+            this.startedAtUtc = DateTime.UtcNow;
+            this.timeout = TimeSpan.FromSeconds(Math.Clamp(12 + (targets.Count * 3), 15, 210));
             this.Phase = InteractionPhase.Settling;
             this.settleStartedAtUtc = this.startedAtUtc;
             this.Status = $"Preparing {description}";
@@ -611,11 +658,29 @@ namespace AutoExile2.Systems
                 }
 
                 this.Phase = InteractionPhase.Clicking;
-                this.currencyMayBeActive = true;
+                this.currencyActivationIssued = false;
+                this.currencyActivationCompleted = false;
+                this.currencyClickInFlight = true;
                 BotInput.HumanClick(
                     currencyPoint,
                     rightClick: true,
-                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx),
+                    onClickIssued: () =>
+                    {
+                        this.currencyMayBeActive = true;
+                        if (generation == Volatile.Read(ref this.requestGeneration))
+                        {
+                            this.currencyActivationIssued = true;
+                        }
+                    },
+                    onClickFinished: clickIssued =>
+                    {
+                        this.currencyClickInFlight = false;
+                        if (clickIssued && generation == Volatile.Read(ref this.requestGeneration))
+                        {
+                            this.currencyActivationCompleted = true;
+                        }
+                    });
                 this.currencyUseStep = 1;
                 this.lastClickAtUtc = now;
                 this.Phase = InteractionPhase.WaitingForSuccess;
@@ -625,26 +690,75 @@ namespace AutoExile2.Systems
 
             if (this.currencyUseStep == 1)
             {
+                if (!this.currencyActivationIssued)
+                {
+                    if ((now - this.lastClickAtUtc).TotalMilliseconds >= 2500d)
+                    {
+                        return this.Fail(ctx, $"{this.Description} currency click was not issued");
+                    }
+
+                    this.Status = $"Waiting for currency click: {this.Description}";
+                    return this.Result;
+                }
+
+                if (!this.currencyActivationCompleted)
+                {
+                    this.Status = $"Waiting for currency click release: {this.Description}";
+                    return this.Result;
+                }
+
                 if ((now - this.lastClickAtUtc).TotalMilliseconds < CurrencyActivationMilliseconds)
                 {
                     this.Status = $"Waiting for currency activation: {this.Description}";
                     return this.Result;
                 }
 
-                if (!TryGetUiClickPoint(this.targetUiAddress, out var targetPoint))
+                var target = this.currencyTargets?[this.currencyTargetIndex];
+                if (target == null || !TryGetUiClickPoint(target.UiAddress, out var targetPoint))
                 {
                     return this.Fail(ctx, $"{this.Description} target item UI is hidden or invalid");
                 }
 
+                try
+                {
+                    target.BeforeClick?.Invoke(ctx);
+                }
+                catch
+                {
+                    return this.Fail(ctx, $"{this.Description} target baseline could not be read");
+                }
+
                 this.Phase = InteractionPhase.Clicking;
+                var shiftClick = this.currencyTargetIndex < this.currencyTargets.Count - 1;
+                this.currencyTargetClickIssued = false;
+                this.currencyTargetClickCompleted = false;
+                this.currencyClickInFlight = true;
                 BotInput.HumanClick(
                     targetPoint,
                     rightClick: true,
-                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
-                // A normal right-click currency use is one-shot unless Shift is held. Once the
-                // target click has been issued, the game clears the active currency whether the
-                // target accepts it or not. Cursor1 is unrelated to this right-click state.
-                this.currencyMayBeActive = false;
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) &&
+                                    CanIssueInput(ctx) &&
+                                    (shiftClick ||
+                                     (!BotInput.IsKeyDown(VK.LSHIFT) &&
+                                      !BotInput.IsKeyDown(VK.RSHIFT) &&
+                                      !BotInput.IsKeyDown(VK.SHIFT))),
+                    shiftClick: shiftClick,
+                    onClickIssued: () =>
+                    {
+                        this.currencyMayBeActive = shiftClick;
+                        if (generation == Volatile.Read(ref this.requestGeneration))
+                        {
+                            this.currencyTargetClickIssued = true;
+                        }
+                    },
+                    onClickFinished: clickIssued =>
+                    {
+                        this.currencyClickInFlight = false;
+                        if (clickIssued && generation == Volatile.Read(ref this.requestGeneration))
+                        {
+                            this.currencyTargetClickCompleted = true;
+                        }
+                    });
                 this.currencyUseStep = 2;
                 this.lastClickAtUtc = now;
                 this.Phase = InteractionPhase.WaitingForSuccess;
@@ -654,9 +768,47 @@ namespace AutoExile2.Systems
 
             if (this.currencyUseStep == 2)
             {
-                if (!this.IsSuccessful(ctx))
+                if (!this.currencyTargetClickIssued)
+                {
+                    if ((now - this.lastClickAtUtc).TotalMilliseconds >= 2500d)
+                    {
+                        return this.Fail(ctx, $"{this.Description} target click was not issued");
+                    }
+
+                    this.Status = $"Waiting for target click: {this.Description}";
+                    return this.Result;
+                }
+
+                if (!this.currencyTargetClickCompleted)
+                {
+                    this.Status = $"Waiting for target click release: {this.Description}";
+                    return this.Result;
+                }
+
+                var target = this.currencyTargets?[this.currencyTargetIndex];
+                bool targetSucceeded;
+                try
+                {
+                    targetSucceeded = target?.SuccessPredicate(ctx) == true;
+                }
+                catch
+                {
+                    targetSucceeded = false;
+                }
+
+                if (!targetSucceeded)
                 {
                     this.Status = $"Verifying currency count and target slot for {this.Description}";
+                    return this.Result;
+                }
+
+                this.currencyTargetIndex++;
+                if (this.currencyTargets != null && this.currencyTargetIndex < this.currencyTargets.Count)
+                {
+                    this.currencyUseStep = 1;
+                    this.lastClickAtUtc = now;
+                    this.currencyMayBeActive = true;
+                    this.Status = $"Verified target {this.currencyTargetIndex}/{this.currencyTargets.Count} for {this.Description}";
                     return this.Result;
                 }
 
@@ -886,6 +1038,12 @@ namespace AutoExile2.Systems
             this.uiAddress = IntPtr.Zero;
             this.fallbackUiAddress = IntPtr.Zero;
             this.targetUiAddress = IntPtr.Zero;
+            this.currencyTargets = null;
+            this.currencyTargetIndex = 0;
+            this.currencyActivationIssued = false;
+            this.currencyActivationCompleted = false;
+            this.currencyTargetClickIssued = false;
+            this.currencyTargetClickCompleted = false;
             this.uiSource = "UI control";
             this.fallbackUiSource = "fallback UI control";
             this.wheelDirection = 0;

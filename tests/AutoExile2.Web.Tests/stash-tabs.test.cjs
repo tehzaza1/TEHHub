@@ -82,7 +82,7 @@ assert.equal(elements.MinWaystonePackSize.value, 20);
 assert.equal(elements.MaxWaystoneMods.value, 6);
 assert.match(elements.waystoneModFilterRows.innerHTML, /Burning Ground/);
 assert.match(elements.waystoneModFilterRows.innerHTML, /checked/);
-assert.match(source, /'WaystoneTab', 'CurrencyTab', 'MinTier', 'MaxTier', 'DumpTab'/);
+assert.match(source, /'WaystoneTab', 'CurrencyTab', 'MinTier', 'MaxTier', 'EnableWaystoneBatch', 'WaystoneBatchSize', 'DumpTab'/);
 
 context.renderStashScanner({
   IsInventoryOpen: true,

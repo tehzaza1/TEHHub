@@ -16,8 +16,8 @@ namespace AutoExile2.Modes.Shared
 
     /// <summary>
     /// First PoE 2 hideout preparation flow: inspect main inventory, open the personal stash,
-    /// select the configured Waystone Tab, withdraw exactly one Waystone in the configured Tier
-    /// range, and use Wisdom/Alchemy/Exalted directly from the configured Currency Tab.
+    /// select the configured Waystone Tab, withdraw Waystones in the configured Tier range, and
+    /// use Wisdom/Alchemy/Exalted directly from the configured Currency Tab.
     /// </summary>
     internal sealed class HideoutFlow
     {
@@ -32,11 +32,19 @@ namespace AutoExile2.Modes.Shared
         private string activeFilterSignature = string.Empty;
         private int activeMinTier;
         private int activeMaxTier;
+        private int activeBatchSize;
+        private bool activeBatchEnabled;
+        private string activeCurrencyTab = string.Empty;
+        private bool waystoneBatchPrimed;
         private readonly HashSet<int> exhaustedWaystoneTiers = new();
         private readonly HashSet<IntPtr> stoppedCraftItems = new();
+        private readonly List<CraftActionBaseline> activeCraftActions = new();
+        private readonly Dictionary<CraftRetryKey, int> craftRetryCounts = new();
+        private CraftRetryRequest? pendingCraftRetry;
         private bool useTabScrollFallback;
         private bool withdrawalAttempted;
-        private IntPtr activeCraftItemAddress;
+        private bool waystoneStockExhausted;
+        private DateTime nextWaystoneStockRecheckUtc = DateTime.MinValue;
         private int targetWaystoneTier;
         private int nextSpecializedPage = 1;
         private int pendingPageNumber;
@@ -61,17 +69,31 @@ namespace AutoExile2.Modes.Shared
 
         private InteractionSystem? interaction;
 
-        public void Reset(BotContext ctx)
+        public void Reset(BotContext ctx, bool preserveBatchPrimed = false)
         {
             ctx.Interaction.Cancel(ctx.Settings);
             this.interaction = ctx.Interaction;
             this.inventorySnapshot = null;
             this.lastInventoryReadUtc = DateTime.MinValue;
             this.nextRetryUtc = DateTime.MinValue;
-            this.activeConfiguredTab = string.Empty;
-            this.activeFilterSignature = string.Empty;
-            this.activeMinTier = 0;
-            this.activeMaxTier = 0;
+            if (!preserveBatchPrimed)
+            {
+                this.activeConfiguredTab = string.Empty;
+                this.activeFilterSignature = string.Empty;
+                this.activeMinTier = 0;
+                this.activeMaxTier = 0;
+                this.activeBatchSize = 0;
+                this.activeBatchEnabled = false;
+                this.activeCurrencyTab = string.Empty;
+                this.waystoneBatchPrimed = false;
+            }
+
+            this.activeCraftActions.Clear();
+            this.pendingCraftRetry = null;
+            if (!preserveBatchPrimed)
+            {
+                this.craftRetryCounts.Clear();
+            }
             this.ResetStashWorkflow();
             this.EligibleWaystoneCount = 0;
             this.Status = "Idle";
@@ -106,7 +128,7 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            if (ctx.Interaction.CurrencyMayBeActive ||
+            if (ctx.Interaction.CurrencyMayBeActive || ctx.Interaction.CurrencyClickInFlight ||
                 this.pendingInteraction == PendingInteraction.CursorCleanup)
             {
                 this.TickCurrencyCursorSafety(ctx);
@@ -140,6 +162,39 @@ namespace AutoExile2.Modes.Shared
             }
 
             var (minTier, maxTier) = GetTierRange(ctx.Settings);
+            var configuredTab = (ctx.Settings.WaystoneTab ?? string.Empty).Trim();
+            var configuredCurrencyTab = (ctx.Settings.CurrencyTab ?? string.Empty).Trim();
+            var filterSignature = WaystoneFilter.GetSettingsSignature(ctx.Settings);
+            var batchEnabled = ctx.Settings.EnableWaystoneBatch;
+            var batchSize = batchEnabled ? Math.Clamp(ctx.Settings.WaystoneBatchSize, 5, 10) : 1;
+            if (!string.Equals(this.activeConfiguredTab, configuredTab, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(this.activeCurrencyTab, configuredCurrencyTab, StringComparison.OrdinalIgnoreCase) ||
+                this.activeMinTier != minTier || this.activeMaxTier != maxTier ||
+                !string.Equals(this.activeFilterSignature, filterSignature, StringComparison.Ordinal) ||
+                this.activeBatchEnabled != batchEnabled || this.activeBatchSize != batchSize)
+            {
+                ctx.Interaction.Cancel(ctx.Settings);
+                this.activeConfiguredTab = configuredTab;
+                this.activeCurrencyTab = configuredCurrencyTab;
+                this.activeMinTier = minTier;
+                this.activeMaxTier = maxTier;
+                this.activeFilterSignature = filterSignature;
+                this.activeBatchEnabled = batchEnabled;
+                this.activeBatchSize = batchSize;
+                this.waystoneBatchPrimed = false;
+                this.craftRetryCounts.Clear();
+                this.pendingCraftRetry = null;
+                this.ResetStashWorkflow();
+                this.waystoneStockExhausted = false;
+                this.nextWaystoneStockRecheckUtc = DateTime.MinValue;
+            }
+
+            if (this.pendingCraftRetry != null)
+            {
+                this.TickCraftRetry(ctx);
+                return;
+            }
+
             var inventory = this.ReadInventory(ctx);
             if (inventory.State != InventorySnapshotState.Ready)
             {
@@ -155,7 +210,40 @@ namespace AutoExile2.Modes.Shared
                 .ThenBy(item => item.SlotStartY)
                 .ThenBy(item => item.SlotStartX)
                 .ToArray();
-            var actionable = inventoryWaystones
+            if (batchEnabled && this.waystoneBatchPrimed && inventoryWaystones.Length > 1)
+            {
+                ctx.Interaction.Cancel(ctx.Settings);
+                this.Status = $"Waystone batch ready — {inventoryWaystones.Length} remain; refill starts at 1";
+                this.Decision = "WaystoneBatchHolding";
+                return;
+            }
+
+            if (batchEnabled && this.waystoneBatchPrimed && inventoryWaystones.Length <= 1)
+            {
+                if (this.waystoneStockExhausted && DateTime.UtcNow < this.nextWaystoneStockRecheckUtc)
+                {
+                    ctx.Interaction.Cancel(ctx.Settings);
+                    this.Status = $"Only {inventoryWaystones.Length} Waystone(s) remain; waiting to recheck stash stock";
+                    this.Decision = "WaystoneBatchHolding";
+                    return;
+                }
+
+                this.waystoneBatchPrimed = false;
+                this.waystoneStockExhausted = false;
+                this.nextWaystoneStockRecheckUtc = DateTime.MinValue;
+                this.ResetStashWorkflow();
+            }
+
+            if (inventoryWaystones.Length == 0 && this.waystoneStockExhausted &&
+                DateTime.UtcNow >= this.nextWaystoneStockRecheckUtc)
+            {
+                this.waystoneStockExhausted = false;
+                this.nextWaystoneStockRecheckUtc = DateTime.MinValue;
+                this.ResetStashWorkflow();
+            }
+
+            var batchWaystones = inventoryWaystones.Take(batchSize).ToArray();
+            var assessedWaystones = batchWaystones
                 .Select(item =>
                 {
                     var action = WaystoneCrafting.GetNextAction(item, ctx.Settings, out var reason);
@@ -166,53 +254,53 @@ namespace AutoExile2.Modes.Shared
                         Reason = reason,
                     };
                 })
-                .Where(candidate => candidate.Action != WaystoneCraftingAction.Reject &&
+                .ToArray();
+            var actionable = assessedWaystones
+                .Where(candidate => candidate.Action is not WaystoneCraftingAction.Reject and not WaystoneCraftingAction.Ready &&
                                     !this.stoppedCraftItems.Contains(candidate.Item.ItemAddress))
                 .FirstOrDefault();
-            this.EligibleWaystoneCount = inventoryWaystones.Count(item =>
+            this.EligibleWaystoneCount = batchWaystones.Count(item =>
                 WaystoneCrafting.GetNextAction(item, ctx.Settings, out _) == WaystoneCraftingAction.Ready);
-            if (actionable?.Action == WaystoneCraftingAction.Ready)
+            if (inventoryWaystones.Length >= batchSize || this.waystoneStockExhausted)
             {
+                var batchReady = batchWaystones.Length > 0 && assessedWaystones.All(candidate =>
+                    candidate.Action == WaystoneCraftingAction.Ready &&
+                    !this.stoppedCraftItems.Contains(candidate.Item.ItemAddress));
+                if (batchReady)
+                {
+                    ctx.Interaction.Cancel(ctx.Settings);
+                    this.waystoneBatchPrimed = true;
+                    this.Status = $"Inventory ready — {this.EligibleWaystoneCount}/{batchSize} Waystone(s) in Tier {minTier}-{maxTier}";
+                    this.Decision = "WaystoneReady";
+                    return;
+                }
+
+                if (actionable != null)
+                {
+                    this.TickCraftWaystone(ctx, actionable.Item, actionable.Action, actionable.Reason, batchWaystones);
+                    return;
+                }
+
+                if (inventoryWaystones.Length > 0)
+                {
+                    ctx.Interaction.Cancel(ctx.Settings);
+                    this.Status = "Inventory Waystone(s) cannot be prepared or did not pass the active filter";
+                    this.Decision = "NoInventoryWaystonePassedFilters";
+                    return;
+                }
+
                 ctx.Interaction.Cancel(ctx.Settings);
-                this.Status = $"Inventory ready — {this.EligibleWaystoneCount} Waystone(s) in Tier {minTier}-{maxTier}";
-                this.Decision = "WaystoneReady";
+                this.Status = $"No Waystone in Tier {minTier}-{maxTier} is available to prepare";
+                this.Decision = "NoWaystoneInRange";
                 return;
             }
 
-            if (actionable != null)
-            {
-                this.TickCraftWaystone(ctx, actionable.Item, actionable.Action, actionable.Reason);
-                return;
-            }
-
-            if (inventoryWaystones.Length > 0)
-            {
-                ctx.Interaction.Cancel(ctx.Settings);
-                this.Status = "Inventory Waystone(s) cannot be prepared or did not pass the active filter";
-                this.Decision = "NoInventoryWaystonePassedFilters";
-                return;
-            }
-
-            var configuredTab = (ctx.Settings.WaystoneTab ?? string.Empty).Trim();
             if (configuredTab.Length == 0)
             {
                 ctx.Interaction.Cancel(ctx.Settings);
                 this.Status = $"No Waystone in Tier {minTier}-{maxTier} — configure Waystone Tab";
                 this.Decision = "ConfigureWaystoneTab";
                 return;
-            }
-
-            var filterSignature = WaystoneFilter.GetSettingsSignature(ctx.Settings);
-            if (!string.Equals(this.activeConfiguredTab, configuredTab, StringComparison.OrdinalIgnoreCase) ||
-                this.activeMinTier != minTier || this.activeMaxTier != maxTier ||
-                !string.Equals(this.activeFilterSignature, filterSignature, StringComparison.Ordinal))
-            {
-                ctx.Interaction.Cancel(ctx.Settings);
-                this.activeConfiguredTab = configuredTab;
-                this.activeMinTier = minTier;
-                this.activeMaxTier = maxTier;
-                this.activeFilterSignature = filterSignature;
-                this.ResetStashWorkflow();
             }
 
             if (!ctx.GameUi.IsStashOpen)
@@ -301,7 +389,8 @@ namespace AutoExile2.Modes.Shared
             BotContext ctx,
             InventorySnapshotItem waystone,
             WaystoneCraftingAction action,
-            string reason)
+            string reason,
+            IReadOnlyList<InventorySnapshotItem> inventoryWaystones)
         {
             if (ctx.Interaction.IsBusy)
             {
@@ -381,45 +470,102 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            if (!ctx.GameUi.TryGetVisibleInventoryItemUiAddress(waystone.ItemAddress, out var waystoneUi))
-            {
-                this.Status = "Waystone inventory UI is not materialized yet";
-                this.Decision = "ReadInventoryUi";
-                return;
-            }
-
-            var oldRarity = waystone.Rarity;
-            var oldModCount = waystone.ExplicitMods.Count;
-            var slotX = waystone.SlotStartX;
-            var slotY = waystone.SlotStartY;
             var currencySlotX = currency.SlotStartX;
             var currencySlotY = currency.SlotStartY;
             var currencyStackCount = currency.StackCount.Value;
-            if (!ctx.Interaction.BeginUiCurrencyUse(
+
+            var targets = new List<CurrencyUseTarget>();
+            var targetBaselines = new List<CraftActionBaseline>();
+            var exaltedUsesByWaystone = new Dictionary<IntPtr, int>();
+            var targetModCount = Math.Clamp(ctx.Settings.MaxWaystoneMods, 4, 6);
+            foreach (var targetWaystone in inventoryWaystones)
+            {
+                var nextAction = WaystoneCrafting.GetNextAction(targetWaystone, ctx.Settings, out _);
+                if (nextAction is WaystoneCraftingAction.Ready or WaystoneCraftingAction.Reject ||
+                    nextAction != action ||
+                    this.stoppedCraftItems.Contains(targetWaystone.ItemAddress))
+                {
+                    continue;
+                }
+
+                var usesNeeded = action == WaystoneCraftingAction.Exalted
+                    ? Math.Max(0, targetModCount - targetWaystone.ExplicitMods.Count)
+                    : 1;
+                if (usesNeeded <= 0)
+                {
+                    continue;
+                }
+
+                if (!ctx.GameUi.TryGetVisibleInventoryItemUiAddress(targetWaystone.ItemAddress, out var targetUi))
+                {
+                    this.Status = "Waystone inventory UI is not materialized yet";
+                    this.Decision = "ReadInventoryUi";
+                    return;
+                }
+
+                for (var useIndex = 0; useIndex < usesNeeded && targets.Count < currencyStackCount; useIndex++)
+                {
+                    var currencyCountBeforeUse = currencyStackCount - targets.Count;
+                    var modsBeforeUse = targetWaystone.ExplicitMods.Count +
+                                        exaltedUsesByWaystone.GetValueOrDefault(targetWaystone.ItemAddress);
+                    var slotX = targetWaystone.SlotStartX;
+                    var slotY = targetWaystone.SlotStartY;
+                    var rarityBeforeUse = targetWaystone.Rarity;
+                    var waystoneTier = targetWaystone.WaystoneTier;
+                    var baseline = new CraftActionBaseline(
+                        targetWaystone.ItemAddress,
+                        slotX,
+                        slotY,
+                        waystoneTier,
+                        rarityBeforeUse,
+                        modsBeforeUse,
+                        action,
+                        configuredTab,
+                        currencyPath,
+                        currency.ItemAddress,
+                        currencySlotX,
+                        currencySlotY,
+                        currencyCountBeforeUse);
+                    targets.Add(new CurrencyUseTarget(
+                        targetUi,
+                        current => CraftingActionChangedSlot(
+                            current,
+                            baseline.Action,
+                            baseline.WaystoneSlotX,
+                            baseline.WaystoneSlotY,
+                            baseline.WaystoneTier,
+                            baseline.Rarity,
+                            baseline.ModCountBeforeUse),
+                        current => baseline.ObservedCurrencyStackCountBeforeUse = ReadCurrencyStackCount(
+                            current,
+                            baseline.CurrencyTab,
+                            baseline.CurrencyPath,
+                            baseline.CurrencyItemAddress,
+                            baseline.CurrencySlotX,
+                            baseline.CurrencySlotY)));
+                    targetBaselines.Add(baseline);
+                    exaltedUsesByWaystone[targetWaystone.ItemAddress] =
+                        exaltedUsesByWaystone.GetValueOrDefault(targetWaystone.ItemAddress) + 1;
+                }
+
+                if (targets.Count >= currencyStackCount)
+                {
+                    break;
+                }
+            }
+
+            if (targets.Count == 0 || !ctx.Interaction.BeginUiCurrencyUseBatch(
                     control!.UiAddress,
-                    waystoneUi,
-                    $"{currencyLabel} on Tier {waystone.WaystoneTier} Waystone",
-                    current => CurrencyWasConsumed(
-                                   current,
-                                   configuredTab,
-                                   currencyPath,
-                                   currencySlotX,
-                                   currencySlotY,
-                                   currencyStackCount) &&
-                               CraftingActionChangedSlot(
-                                   current,
-                                   action,
-                                   slotX,
-                                   slotY,
-                                   oldRarity,
-                                   oldModCount)))
+                    targets,
+                    $"{currencyLabel} on {targets.Count} Waystone action(s)"))
             {
                 this.Status = "Crafting UI is unavailable";
                 this.Decision = "UseCraftingCurrency";
                 return;
             }
 
-            this.activeCraftItemAddress = waystone.ItemAddress;
+            this.activeCraftActions.Clear();
+            this.activeCraftActions.AddRange(targetBaselines);
             this.pendingInteraction = action switch
             {
                 WaystoneCraftingAction.Identify => PendingInteraction.UseWisdom,
@@ -427,8 +573,222 @@ namespace AutoExile2.Modes.Shared
                 WaystoneCraftingAction.Exalted => PendingInteraction.UseExalted,
                 _ => PendingInteraction.None,
             };
-            this.Status = reason;
+            this.Status = targets.Count > 1 ? $"{reason}; applying to {targets.Count} Waystone action(s)" : reason;
             this.TickStartedInteraction(ctx);
+        }
+
+        private void TickCraftRetry(BotContext ctx)
+        {
+            var retry = this.pendingCraftRetry;
+            if (retry == null)
+            {
+                return;
+            }
+
+            if (ctx.Interaction.IsBusy || ctx.Interaction.CurrencyMayBeActive ||
+                this.pendingInteraction == PendingInteraction.CursorCleanup ||
+                ctx.Interaction.Result != InteractionResult.Idle)
+            {
+                this.Status = "Waiting for currency state to become idle before safe retry";
+                this.Decision = "WaitForCurrencyIdle";
+                return;
+            }
+
+            if (DateTime.UtcNow < retry.NotBeforeUtc)
+            {
+                this.Status = "Waiting for game inventory snapshots to settle before safe retry";
+                this.Decision = "VerifyCraftRetry";
+                return;
+            }
+
+            var baseline = retry.Baseline;
+            if (!ctx.GameUi.IsStashOpen)
+            {
+                this.StopCraftRetry(retry, "Stash closed before retry verification — Waystone stopped to avoid duplicate currency");
+                return;
+            }
+
+            var stash = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Full);
+            if (stash.State != StashSnapshotState.Ready ||
+                !string.Equals(stash.CurrentTabName, baseline.CurrencyTab, StringComparison.OrdinalIgnoreCase))
+            {
+                this.StopCraftRetry(retry, "Currency Tab could not be verified after interruption — Waystone stopped");
+                return;
+            }
+
+            var currencySlot = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.StashInventoryId,
+                baseline.CurrencySlotX,
+                baseline.CurrencySlotY,
+                InventorySnapshotDetailLevel.Full);
+            var waystoneSlot = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.MainInventory1,
+                baseline.WaystoneSlotX,
+                baseline.WaystoneSlotY,
+                InventorySnapshotDetailLevel.Full);
+            if (currencySlot.State != InventorySnapshotState.Ready ||
+                waystoneSlot.State != InventorySnapshotState.Ready)
+            {
+                this.StopCraftRetry(retry, "Currency or Waystone slot is unreadable after interruption — Waystone stopped");
+                return;
+            }
+
+            var currencyItem = currencySlot.Item;
+            var waystoneItem = waystoneSlot.Item;
+            var currencyUnchanged = currencyItem != null &&
+                                    currencyItem.ItemAddress == baseline.CurrencyItemAddress &&
+                                    string.Equals(currencyItem.Path, baseline.CurrencyPath, StringComparison.OrdinalIgnoreCase) &&
+                                    currencyItem.StackCount == baseline.ObservedCurrencyStackCountBeforeUse;
+            var waystoneAction = waystoneItem == null
+                ? WaystoneCraftingAction.Reject
+                : WaystoneCrafting.GetNextAction(waystoneItem, ctx.Settings, out _);
+            var waystoneUnchanged = waystoneItem != null &&
+                                    waystoneItem.ItemAddress == baseline.WaystoneItemAddress &&
+                                    waystoneItem.WaystoneTier == baseline.WaystoneTier &&
+                                    waystoneItem.Rarity == baseline.Rarity &&
+                                    waystoneItem.ExplicitMods.Count == baseline.ModCountBeforeUse &&
+                                    waystoneAction == baseline.Action &&
+                                    waystoneAction is not WaystoneCraftingAction.Ready and not WaystoneCraftingAction.Reject;
+            baseline.ObservedCurrencyStackCountBeforeUse = currencyItem?.StackCount;
+            if (!currencyUnchanged || !waystoneUnchanged)
+            {
+                this.StopCraftRetry(retry, "Currency or Waystone slot changed or is uncertain — item stopped to prevent duplicate currency");
+                return;
+            }
+
+            if (this.craftRetryCounts.GetValueOrDefault(retry.Key) >= 1)
+            {
+                this.StopCraftRetry(retry, "Safe Waystone retry limit reached — item stopped");
+                return;
+            }
+
+            var currencyControl = stash.VisibleItems.FirstOrDefault(item =>
+                item.ItemAddress == baseline.CurrencyItemAddress &&
+                string.Equals(item.ItemPath, baseline.CurrencyPath, StringComparison.OrdinalIgnoreCase));
+            if (currencyControl == null ||
+                !ctx.GameUi.TryGetVisibleInventoryItemUiAddress(baseline.WaystoneItemAddress, out var targetUi))
+            {
+                this.StopCraftRetry(retry, "Currency or Waystone UI is unavailable after interruption — item stopped");
+                return;
+            }
+
+            var retryTarget = new CurrencyUseTarget(
+                targetUi,
+                current => CraftingActionChangedSlot(
+                    current,
+                    baseline.Action,
+                    baseline.WaystoneSlotX,
+                    baseline.WaystoneSlotY,
+                    baseline.WaystoneTier,
+                    baseline.Rarity,
+                    baseline.ModCountBeforeUse),
+                current =>
+                {
+                    if (!CraftSlotsAreUnchanged(current, baseline))
+                    {
+                        throw new InvalidOperationException("Craft slots changed before retry click");
+                    }
+                });
+            if (!ctx.Interaction.BeginUiCurrencyUseBatch(
+                    currencyControl.UiAddress,
+                    new[] { retryTarget },
+                    $"retry {WaystoneCrafting.GetCurrencyLabel(baseline.Action)} once"))
+            {
+                this.StopCraftRetry(retry, "Safe Waystone retry could not start — item stopped");
+                return;
+            }
+
+            this.craftRetryCounts[retry.Key] = this.craftRetryCounts.GetValueOrDefault(retry.Key) + 1;
+            this.pendingCraftRetry = null;
+            this.activeCraftActions.Clear();
+            this.activeCraftActions.Add(baseline);
+            this.pendingInteraction = baseline.Action switch
+            {
+                WaystoneCraftingAction.Identify => PendingInteraction.UseWisdom,
+                WaystoneCraftingAction.Alchemy => PendingInteraction.UseAlchemy,
+                WaystoneCraftingAction.Exalted => PendingInteraction.UseExalted,
+                _ => PendingInteraction.None,
+            };
+            this.Status = "Both slots are unchanged — retrying this currency action once";
+            this.Decision = "RetryCraftingAction";
+            this.TickStartedInteraction(ctx);
+        }
+
+        private void StopCraftRetry(CraftRetryRequest retry, string status)
+        {
+            this.stoppedCraftItems.Add(retry.Baseline.WaystoneItemAddress);
+            this.pendingCraftRetry = null;
+            this.activeCraftActions.Clear();
+            this.Status = status;
+            this.Decision = "CraftingUnconfirmed";
+        }
+
+        private static int? ReadCurrencyStackCount(
+            BotContext ctx,
+            string currencyTab,
+            string currencyPath,
+            IntPtr currencyItemAddress,
+            int slotX,
+            int slotY)
+        {
+            if (!ctx.GameUi.IsStashOpen)
+            {
+                return null;
+            }
+
+            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Basic);
+            if (snapshot.State != StashSnapshotState.Ready ||
+                !string.Equals(snapshot.CurrentTabName, currencyTab, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.StashInventoryId,
+                slotX,
+                slotY,
+                InventorySnapshotDetailLevel.Full);
+            var item = result.Item;
+            return result.State == InventorySnapshotState.Ready && item != null &&
+                   item.ItemAddress == currencyItemAddress &&
+                   string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase)
+                ? item.StackCount
+                : null;
+        }
+
+        private static bool CraftSlotsAreUnchanged(BotContext ctx, CraftActionBaseline baseline)
+        {
+            var currentCurrencyCount = ReadCurrencyStackCount(
+                ctx,
+                baseline.CurrencyTab,
+                baseline.CurrencyPath,
+                baseline.CurrencyItemAddress,
+                baseline.CurrencySlotX,
+                baseline.CurrencySlotY);
+            if (!currentCurrencyCount.HasValue ||
+                currentCurrencyCount != baseline.ObservedCurrencyStackCountBeforeUse)
+            {
+                return false;
+            }
+
+            var waystone = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.MainInventory1,
+                baseline.WaystoneSlotX,
+                baseline.WaystoneSlotY,
+                InventorySnapshotDetailLevel.Full);
+            var item = waystone.Item;
+            if (waystone.State != InventorySnapshotState.Ready || item == null ||
+                item.ItemAddress != baseline.WaystoneItemAddress ||
+                item.WaystoneTier != baseline.WaystoneTier ||
+                item.Rarity != baseline.Rarity ||
+                item.ExplicitMods.Count != baseline.ModCountBeforeUse)
+            {
+                return false;
+            }
+
+            var action = WaystoneCrafting.GetNextAction(item, ctx.Settings, out _);
+            return action == baseline.Action &&
+                   action is not WaystoneCraftingAction.Ready and not WaystoneCraftingAction.Reject;
         }
 
         private void TickCurrencyCursorSafety(BotContext ctx)
@@ -447,6 +807,13 @@ namespace AutoExile2.Modes.Shared
                     this.HandleInteractionSuccess(ctx);
                 }
 
+                return;
+            }
+
+            if (ctx.Interaction.CurrencyClickInFlight)
+            {
+                this.Status = "Waiting for currency mouse button and Shift to release";
+                this.Decision = "WaitForCurrencyClickRelease";
                 return;
             }
 
@@ -543,7 +910,12 @@ namespace AutoExile2.Modes.Shared
             if (!isSpecializedWaystoneTab)
             {
                 this.stashPhase = StashPhase.FindItem;
-                this.TickWithdrawFromSnapshot(ctx, snapshot, minTier, maxTier, targetTier: 0);
+                if (!this.TickWithdrawFromSnapshot(ctx, snapshot, minTier, maxTier, targetTier: 0))
+                {
+                    this.waystoneStockExhausted = true;
+                    this.nextWaystoneStockRecheckUtc = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+                }
+
                 return;
             }
 
@@ -556,6 +928,8 @@ namespace AutoExile2.Modes.Shared
                 .FirstOrDefault();
             if (target == null)
             {
+                this.waystoneStockExhausted = true;
+                this.nextWaystoneStockRecheckUtc = DateTime.UtcNow + TimeSpan.FromSeconds(30);
                 this.targetWaystoneTier = 0;
                 this.Status = this.exhaustedWaystoneTiers.Count > 0
                     ? $"No Waystone in Tier {minTier}-{maxTier} passed the active filters"
@@ -848,7 +1222,17 @@ namespace AutoExile2.Modes.Shared
                                     candidate.Item != null &&
                                     WaystoneCrafting.GetNextAction(candidate.Item, ctx.Settings, out _) !=
                                     WaystoneCraftingAction.Reject)
-                .OrderByDescending(candidate => candidate.Tier)
+                .Select(candidate => new
+                {
+                    candidate.Ui,
+                    candidate.Tier,
+                    candidate.Item,
+                    Action = WaystoneCrafting.GetNextAction(candidate.Item!, ctx.Settings, out _),
+                })
+                // Only current visible page items are readable here; prefer a Ready item on
+                // this page before a craftable one, then retain the configured tier preference.
+                .OrderBy(candidate => candidate.Action == WaystoneCraftingAction.Ready ? 0 : 1)
+                .ThenByDescending(candidate => candidate.Tier)
                 .ThenBy(candidate => candidate.Ui.UiAddress.ToInt64())
                 .ToArray();
             if (candidates.Length == 0)
@@ -919,6 +1303,9 @@ namespace AutoExile2.Modes.Shared
                     break;
                 case PendingInteraction.Withdraw:
                     // The success predicate already proved that main inventory received the item.
+                    this.withdrawalAttempted = false;
+                    this.waystoneStockExhausted = false;
+                    this.nextWaystoneStockRecheckUtc = DateTime.MinValue;
                     this.inventorySnapshot = null;
                     this.lastInventoryReadUtc = DateTime.MinValue;
                     break;
@@ -929,7 +1316,7 @@ namespace AutoExile2.Modes.Shared
                 case PendingInteraction.UseWisdom:
                 case PendingInteraction.UseAlchemy:
                 case PendingInteraction.UseExalted:
-                    this.activeCraftItemAddress = IntPtr.Zero;
+                    this.activeCraftActions.Clear();
                     this.inventorySnapshot = null;
                     this.lastInventoryReadUtc = DateTime.MinValue;
                     break;
@@ -942,22 +1329,48 @@ namespace AutoExile2.Modes.Shared
         {
             var failed = this.pendingInteraction;
             var failure = ctx.Interaction.LastFailure;
+            var failedCurrencyTargetIndex = ctx.Interaction.CurrencyTargetIndex;
             ctx.Interaction.Reset();
             this.pendingInteraction = PendingInteraction.None;
             if (failed is PendingInteraction.UseWisdom or
                 PendingInteraction.UseAlchemy or
                 PendingInteraction.UseExalted)
             {
-                if (this.activeCraftItemAddress != IntPtr.Zero)
+                if (this.activeCraftActions.Count > 0)
                 {
-                    this.stoppedCraftItems.Add(this.activeCraftItemAddress);
+                    var index = Math.Clamp(failedCurrencyTargetIndex, 0, this.activeCraftActions.Count - 1);
+                    var baseline = this.activeCraftActions[index];
+                    var retryKey = new CraftRetryKey(
+                        baseline.WaystoneItemAddress,
+                        baseline.WaystoneSlotX,
+                        baseline.WaystoneSlotY,
+                        baseline.Action,
+                        baseline.ModCountBeforeUse);
+                    if (this.craftRetryCounts.GetValueOrDefault(retryKey) < 1)
+                    {
+                        this.pendingCraftRetry = new CraftRetryRequest(
+                            baseline,
+                            retryKey,
+                            DateTime.UtcNow + TimeSpan.FromMilliseconds(500));
+                        this.Status = $"{failure} — checking both exact slots before one safe retry";
+                        this.Decision = "VerifyCraftRetry";
+                    }
+                    else
+                    {
+                        this.stoppedCraftItems.Add(baseline.WaystoneItemAddress);
+                        this.activeCraftActions.Clear();
+                        this.Status = $"{failure} — retry limit reached; item stopped";
+                        this.Decision = "CraftingUnconfirmed";
+                    }
+                }
+                else
+                {
+                    this.Status = string.IsNullOrWhiteSpace(failure)
+                        ? "Waystone crafting was not confirmed — item stopped"
+                        : $"{failure} — item stopped";
+                    this.Decision = "CraftingUnconfirmed";
                 }
 
-                this.activeCraftItemAddress = IntPtr.Zero;
-                this.Status = string.IsNullOrWhiteSpace(failure)
-                    ? "Waystone crafting was not confirmed — item stopped"
-                    : $"{failure} — item stopped";
-                this.Decision = "CraftingUnconfirmed";
                 return;
             }
 
@@ -1043,6 +1456,8 @@ namespace AutoExile2.Modes.Shared
             this.stashPhase = StashPhase.SelectTab;
             this.pendingInteraction = PendingInteraction.None;
             this.phaseAfterPageSelection = StashPhase.FindItem;
+            this.waystoneStockExhausted = false;
+            this.nextWaystoneStockRecheckUtc = DateTime.MinValue;
             if (!preserveWithdrawalGuard)
             {
                 this.withdrawalAttempted = false;
@@ -1061,54 +1476,12 @@ namespace AutoExile2.Modes.Shared
             inventory.Items.Count(entry =>
                 entry.WaystoneTier is int tier && tier >= minTier && tier <= maxTier);
 
-        private static bool CurrencyWasConsumed(
-            BotContext ctx,
-            string configuredTab,
-            string currencyPath,
-            int slotX,
-            int slotY,
-            int oldStackCount)
-        {
-            if (!ctx.GameUi.IsStashOpen)
-            {
-                return false;
-            }
-
-            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Basic);
-            if (snapshot.State != StashSnapshotState.Ready ||
-                !string.Equals(snapshot.CurrentTabName, configuredTab, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
-                InventoryName.StashInventoryId,
-                slotX,
-                slotY,
-                InventorySnapshotDetailLevel.Full);
-            if (result.State != InventorySnapshotState.Ready)
-            {
-                return false;
-            }
-
-            if (result.Item == null)
-            {
-                return true;
-            }
-
-            if (!string.Equals(result.Item.Path, currencyPath, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            return result.Item.StackCount.HasValue && result.Item.StackCount.Value < oldStackCount;
-        }
-
         private static bool CraftingActionChangedSlot(
             BotContext ctx,
             WaystoneCraftingAction action,
             int slotX,
             int slotY,
+            int? expectedWaystoneTier,
             Rarity? oldRarity,
             int oldModCount)
         {
@@ -1118,7 +1491,8 @@ namespace AutoExile2.Modes.Shared
                 slotY,
                 InventorySnapshotDetailLevel.Full);
             var item = result.Item;
-            if (result.State != InventorySnapshotState.Ready || item == null || !item.IsWaystone)
+            if (result.State != InventorySnapshotState.Ready || item == null || !item.IsWaystone ||
+                item.WaystoneTier != expectedWaystoneTier)
             {
                 return false;
             }
@@ -1198,6 +1572,36 @@ namespace AutoExile2.Modes.Shared
             SelectTier,
             FindItem,
         }
+
+        private sealed record CraftActionBaseline(
+            IntPtr WaystoneItemAddress,
+            int WaystoneSlotX,
+            int WaystoneSlotY,
+            int? WaystoneTier,
+            Rarity? Rarity,
+            int ModCountBeforeUse,
+            WaystoneCraftingAction Action,
+            string CurrencyTab,
+            string CurrencyPath,
+            IntPtr CurrencyItemAddress,
+            int CurrencySlotX,
+            int CurrencySlotY,
+            int CurrencyStackCountBeforeUse)
+        {
+            public int? ObservedCurrencyStackCountBeforeUse { get; set; } = CurrencyStackCountBeforeUse;
+        }
+
+        private readonly record struct CraftRetryKey(
+            IntPtr WaystoneItemAddress,
+            int WaystoneSlotX,
+            int WaystoneSlotY,
+            WaystoneCraftingAction Action,
+            int ModCountBeforeUse);
+
+        private sealed record CraftRetryRequest(
+            CraftActionBaseline Baseline,
+            CraftRetryKey Key,
+            DateTime NotBeforeUtc);
 
         private enum PendingInteraction
         {

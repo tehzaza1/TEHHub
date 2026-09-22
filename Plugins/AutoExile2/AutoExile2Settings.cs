@@ -114,6 +114,12 @@ namespace AutoExile2
         /// <summary>Highest Waystone Tier AutoExile2 may select when opening a map.</summary>
         public int MaxTier = 16;
 
+        /// <summary>Enable preparing and refilling multiple Waystones while in the hideout.</summary>
+        public bool EnableWaystoneBatch;
+
+        /// <summary>Waystones to keep ready in the player inventory when batch mode is enabled (5-10).</summary>
+        public int WaystoneBatchSize = 5;
+
         /// <summary>Minimum Item Rarity percentage. Null disables the filter; equality passes.</summary>
         public int? MinWaystoneItemRarity;
 

@@ -1521,11 +1521,16 @@ function syncStashSettingsInputs() {
   const currencyTab = document.getElementById('CurrencyTab');
   const minTier = document.getElementById('MinTier');
   const maxTier = document.getElementById('MaxTier');
+  const enableWaystoneBatch = document.getElementById('EnableWaystoneBatch');
+  const waystoneBatchSize = document.getElementById('WaystoneBatchSize');
   const dumpTab = document.getElementById('DumpTab');
   if (waystoneTab) waystoneTab.value = currentSettings.WaystoneTab || '';
   if (currencyTab) currencyTab.value = currentSettings.CurrencyTab || '';
   if (minTier) minTier.value = currentSettings.MinTier || 1;
   if (maxTier) maxTier.value = currentSettings.MaxTier || 16;
+  if (enableWaystoneBatch) enableWaystoneBatch.checked = currentSettings.EnableWaystoneBatch === true;
+  if (waystoneBatchSize) waystoneBatchSize.value = currentSettings.WaystoneBatchSize || 5;
+  syncWaystoneBatchUI();
   if (dumpTab) dumpTab.value = currentSettings.DumpTab || '';
 
   [
@@ -1542,6 +1547,12 @@ function syncStashSettingsInputs() {
   const maxMods = document.getElementById('MaxWaystoneMods');
   if (maxMods) maxMods.value = currentSettings.MaxWaystoneMods == null ? 6 : currentSettings.MaxWaystoneMods;
   renderWaystoneModFilterRows();
+}
+
+function syncWaystoneBatchUI() {
+  const enabled = document.getElementById('EnableWaystoneBatch')?.checked === true;
+  const sizeRow = document.getElementById('waystoneBatchSizeRow');
+  if (sizeRow) sizeRow.style.display = enabled ? '' : 'none';
 }
 
 function renderWaystoneModFilterRows() {
@@ -1812,7 +1823,7 @@ async function fetchAndPopulatePlayerNames() {
 async function saveSettings() {
   const payload = { ...currentSettings };
   const simpleFields = [
-    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey', 'WaystoneTab', 'CurrencyTab', 'MinTier', 'MaxTier', 'DumpTab',
+    'Mode', 'ToggleKey', 'DumpKey', 'PortalKey', 'WaystoneTab', 'CurrencyTab', 'MinTier', 'MaxTier', 'EnableWaystoneBatch', 'WaystoneBatchSize', 'DumpTab',
     'MinWaystoneItemRarity', 'MinWaystonePackSize', 'MinWaystoneMonsterRarity',
     'MinWaystoneMonsterEffectiveness', 'MinWaystoneDropChance', 'MaxWaystoneMods',
     'MoveUp', 'MoveDown', 'MoveLeft', 'MoveRight',
