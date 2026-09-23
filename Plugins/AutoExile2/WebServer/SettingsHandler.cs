@@ -306,6 +306,9 @@ namespace AutoExile2.WebServer
                     case "webservernetworkaccess":
                         settings.WebServerNetworkAccess = val.Value<bool>();
                         break;
+                    case "enableactionlogging":
+                        settings.EnableActionLogging = val.Value<bool>();
+                        break;
                 }
             }
 

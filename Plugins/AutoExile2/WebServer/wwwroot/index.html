@@ -960,12 +960,25 @@
         <div style="color:var(--text-dim); font-size:12px;">Loading dumps...</div>
       </div>
     </div>
+
+    <div class="card">
+      <h2>Bot Action Log</h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
+        <div style="font-size:12px; color:var(--text-dim); line-height:1.5;">
+          Records bot decisions and injected keyboard / mouse actions in a JSONL file under <code>Plugins/AutoExile2/Logs</code>. Off by default.
+        </div>
+        <label class="toggle-switch">
+          <input id="EnableActionLogging" type="checkbox" onchange="saveSettings()" />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
   </div>
 
 </div>
 
 <div id="toast" class="toast">Settings Saved Successfully!</div>
 
-<script src="/settings.js?v=3"></script>
+<script src="/settings.js?v=4"></script>
 </body>
 </html>
