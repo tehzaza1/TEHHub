@@ -6,8 +6,10 @@ namespace TEHhub.Ui
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Numerics;
+    using System.Text.Json;
     using ImGuiNET;
     using TEHhub.RemoteEnums;
     using TEHhub.RemoteObjects.Components;
@@ -26,6 +28,15 @@ namespace TEHhub.Ui
         private static IntPtr selectedItemAddress = IntPtr.Zero;
         private static bool forceFullRefresh = true;
         private static bool autoRefreshChanges;
+        private static string corruptionProbeLabel = "before";
+        private static string corruptionProbeStatus = "No corruption probe captured yet.";
+        private static string corruptionProbePath = string.Empty;
+
+        // Capture a bounded, uninterpreted slice that includes the existing rarity probe and
+        // Mods vectors. Do not decode new offsets from these bytes until a before/after pair is
+        // reviewed. The click handler reads this range once for the currently selected item.
+        private const int CorruptionProbeOffset = 0x80;
+        private const int CorruptionProbeLength = 0xE0;
 
         internal static void Render()
         {
@@ -262,6 +273,11 @@ namespace TEHhub.Ui
                 $"Internal name: {(string.IsNullOrWhiteSpace(item.InternalName) ? "(unavailable)" : item.InternalName)}",
                 item.InternalName);
 
+            if (item.IsWaystone)
+            {
+                RenderCorruptionProbe(item, current);
+            }
+
             if (item.StackCount.HasValue)
             {
                 ImGui.Text($"Stack: {item.StackCount}/{item.MaxStack} | Specialized tab max: {item.MaxStackTab}");
@@ -313,6 +329,164 @@ namespace TEHhub.Ui
                 ImGui.TreePop();
             }
         }
+
+        private static void RenderCorruptionProbe(InventorySnapshotItem item, InventorySnapshot current)
+        {
+            ImGui.SeparatorText("Waystone corruption probe (manual one-shot)");
+            ImGui.TextWrapped(
+                "Capture before corruption, corrupt this same Waystone, click Refresh now, then capture again. " +
+                "Label the two files before/after and send both for comparison. This records data only; it does not decide eligibility.");
+            ImGui.SetNextItemWidth(180f);
+            ImGui.InputText("Sample label##InventoryDvCorruptionLabel", ref corruptionProbeLabel, 48);
+            ImGui.SameLine();
+            if (ImGui.Button("Capture selected Waystone##InventoryDvCorruptionCapture"))
+            {
+                CaptureCorruptionProbe(item, current);
+            }
+
+            ImGui.TextWrapped(corruptionProbeStatus);
+            if (!string.IsNullOrWhiteSpace(corruptionProbePath))
+            {
+                ImGuiHelper.DisplayTextAndCopyOnClick(
+                    $"Capture file: {corruptionProbePath}",
+                    corruptionProbePath);
+            }
+        }
+
+        private static void CaptureCorruptionProbe(InventorySnapshotItem item, InventorySnapshot current)
+        {
+            var reader = Core.Process?.Handle;
+            if (reader == null || reader.IsInvalid)
+            {
+                corruptionProbeStatus = "Capture failed: process memory reader is unavailable.";
+                corruptionProbePath = string.Empty;
+                return;
+            }
+
+            try
+            {
+                if (!item.Item.TryGetComponent<Mods>(out var mods) || mods == null || mods.Address == IntPtr.Zero)
+                {
+                    corruptionProbeStatus = "Capture failed: selected item has no readable Mods component.";
+                    corruptionProbePath = string.Empty;
+                    return;
+                }
+
+                var rawBytes = new byte[CorruptionProbeLength];
+                var rawReadSucceeded = reader.TryReadMemoryArray(
+                    mods.Address + CorruptionProbeOffset,
+                    rawBytes,
+                    out var bytesRead);
+                var corruptedStatPresent = item.ModStats.TryGetValue(
+                    GameStats.map_is_corrupted_waystone,
+                    out var corruptedStatValue);
+                var stats = item.ModStats
+                    .OrderBy(entry => entry.Key.ToString(), StringComparer.Ordinal)
+                    .Select(entry => new CorruptionProbeStat(
+                        (int)entry.Key,
+                        entry.Key.ToString(),
+                        entry.Value))
+                    .ToArray();
+
+                var capturedAtUtc = DateTime.UtcNow;
+                var capture = new
+                {
+                    schemaVersion = 1,
+                    capturedAtUtc,
+                    label = string.IsNullOrWhiteSpace(corruptionProbeLabel)
+                        ? "unspecified"
+                        : corruptionProbeLabel.Trim(),
+                    inventory = new
+                    {
+                        name = selectedInventory.ToString(),
+                        address = FormatAddress(current.Address),
+                        revision = $"0x{current.Revision:X16}",
+                        sourceRevision = $"0x{current.SourceRevision:X16}",
+                    },
+                    selectedSlot = new
+                    {
+                        startX = item.SlotStartX,
+                        startY = item.SlotStartY,
+                        endX = item.SlotEndX,
+                        endY = item.SlotEndY,
+                    },
+                    item = new
+                    {
+                        path = item.Path,
+                        baseItemName = item.BaseItemName,
+                        internalName = item.InternalName,
+                        category = item.Category.ToString(),
+                        waystoneTier = item.WaystoneTier,
+                        itemAddress = FormatAddress(item.ItemAddress),
+                        wrapperAddress = FormatAddress(item.WrapperAddress),
+                        rarityFromSnapshot = item.Rarity?.ToString(),
+                    },
+                    modsComponent = new
+                    {
+                        address = FormatAddress(mods.Address),
+                        rarity = mods.Rarity.ToString(),
+                        rawBytes = new
+                        {
+                            offsetFromComponent = $"0x{CorruptionProbeOffset:X}",
+                            length = CorruptionProbeLength,
+                            readSucceeded = rawReadSucceeded,
+                            bytesRead = (ulong)bytesRead,
+                            hex = rawReadSucceeded ? Convert.ToHexString(rawBytes) : string.Empty,
+                        },
+                        modifiers = new
+                        {
+                            implicitMods = item.ImplicitMods.Select(CaptureModifier).ToArray(),
+                            explicitMods = item.ExplicitMods.Select(CaptureModifier).ToArray(),
+                            enchantMods = item.EnchantMods.Select(CaptureModifier).ToArray(),
+                            otherMods = item.OtherMods.Select(CaptureModifier).ToArray(),
+                            explicitDisplay = item.ExplicitModsDisplay.ToArray(),
+                        },
+                        stats,
+                        mapIsCorruptedWaystone = new
+                        {
+                            id = (int)GameStats.map_is_corrupted_waystone,
+                            name = nameof(GameStats.map_is_corrupted_waystone),
+                            present = corruptedStatPresent,
+                            value = corruptedStatPresent ? corruptedStatValue : (int?)null,
+                        },
+                    },
+                    inventoryDetailDiagnostic = item.DetailDiagnostic,
+                };
+
+                var directory = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "configs",
+                    "waystone-corruption-probes");
+                Directory.CreateDirectory(directory);
+                var path = Path.GetFullPath(Path.Combine(
+                    directory,
+                    $"waystone-corruption-{capturedAtUtc:yyyyMMddTHHmmssfffffffZ}.json"));
+                var json = JsonSerializer.Serialize(capture, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(path, json);
+
+                corruptionProbePath = path;
+                corruptionProbeStatus = rawReadSucceeded
+                    ? $"Captured one sample ({corruptionProbeLabel.Trim()}) at {capturedAtUtc:O}. Raw bytes: {CorruptionProbeLength} bytes."
+                    : $"Saved sample metadata, but the raw Mods read failed ({bytesRead} bytes read). Retry after refreshing.";
+            }
+            catch (Exception ex)
+            {
+                corruptionProbePath = string.Empty;
+                corruptionProbeStatus = $"Capture failed: {ex.GetType().Name}: {ex.Message}";
+            }
+        }
+
+        private static CorruptionProbeModifier CaptureModifier(InventorySnapshotMod mod) =>
+            new(
+                mod.Name,
+                float.IsNaN(mod.Value0) ? null : mod.Value0,
+                float.IsNaN(mod.Value1) ? null : mod.Value1);
+
+        private static string FormatAddress(IntPtr address) => $"0x{address.ToInt64():X}";
+
+        private sealed record CorruptionProbeModifier(string Id, float? Value0, float? Value1);
+
+        private sealed record CorruptionProbeStat(int Id, string Name, int Value);
 
         private static void RenderMods(string label, IReadOnlyList<InventorySnapshotMod> mods)
         {

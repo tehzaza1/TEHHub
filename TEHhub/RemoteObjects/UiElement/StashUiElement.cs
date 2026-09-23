@@ -107,6 +107,8 @@ namespace TEHhub.RemoteObjects.UiElement
     /// </summary>
     public sealed class StashUiElement : UiElementBase
     {
+        private const int VisibleItemAddressOffset = 0x4E0;
+
         // PoE2 0.5.x evidence captured by UiDump:
         // Stash -> content -> tab host -> tab bar. The selected tab is reinserted as the final child.
         private static readonly int[] TabBarPath = { 2, 0, 0, 0, 1, 0 };
@@ -323,6 +325,40 @@ namespace TEHhub.RemoteObjects.UiElement
                         ? "Selected tab is ready and empty."
                         : $"Selected tab is ready with {inventory.Items.Count} server item(s) and {visibleItems.Length} visible item control(s).");
             }
+        }
+
+        /// <summary>
+        ///     Reads details for one item control returned by a current stash snapshot. This is a
+        ///     targeted fallback for tabs whose visible UI item is not present in StashInventoryId;
+        ///     its slot bounds remain unknown and must not be used as inventory coordinates.
+        /// </summary>
+        /// <param name="visibleItem">Visible item control from a current stash snapshot.</param>
+        /// <param name="detailLevel">Requested item-detail level.</param>
+        /// <returns>Validated item details, or null if the UI pointer no longer identifies the same item.</returns>
+        public InventorySnapshotItem? ReadVisibleItemDetails(
+            StashVisibleItemInfo visibleItem,
+            InventorySnapshotDetailLevel detailLevel = InventorySnapshotDetailLevel.Full)
+        {
+            var reader = Core.Process?.Handle;
+            if (visibleItem == null || reader == null || this.Address == IntPtr.Zero ||
+                string.IsNullOrWhiteSpace(visibleItem.ItemPath) ||
+                !UiElementMemory.HasTextAtPath(this.Address, [1], "Stash") ||
+                visibleItem.UiAddress == IntPtr.Zero ||
+                !UiElementMemory.IsVisibleThroughParents(visibleItem.UiAddress) ||
+                !PluginUiElementReflection.TryGetAbsoluteRect(visibleItem.UiAddress, out _, out var size) ||
+                size.X < 8f || size.Y < 8f || size.X > 256f || size.Y > 256f ||
+                !reader.TryReadMemory<IntPtr>(visibleItem.UiAddress + VisibleItemAddressOffset, out var uiItemAddress) ||
+                uiItemAddress != visibleItem.ItemAddress ||
+                !PluginUiElementReflection.TryValidateItemAddress(uiItemAddress, out var currentPath, out _) ||
+                !string.Equals(currentPath, visibleItem.ItemPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return InventorySnapshotReader.ReadVisibleItem(
+                uiItemAddress,
+                visibleItem.ItemPath,
+                detailLevel);
         }
 
         private static IReadOnlyList<StashTabInfo> ReadTabBar(

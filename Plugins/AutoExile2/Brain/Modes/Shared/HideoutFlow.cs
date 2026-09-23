@@ -468,22 +468,57 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            var control = snapshot.VisibleItems.FirstOrDefault(item =>
-                string.Equals(item.ItemPath, currencyPath, StringComparison.OrdinalIgnoreCase) &&
-                snapshot.Inventory.Items.Any(entry => entry.ItemAddress == item.ItemAddress &&
-                                                      entry.StackCount is > 0));
-            var currency = control == null ? null : snapshot.Inventory.Items.FirstOrDefault(item =>
-                item.ItemAddress == control.ItemAddress);
-            if (currency == null || currency.StackCount is not > 0)
+            var currencyControls = snapshot.VisibleItems
+                .Where(item => string.Equals(item.ItemPath, currencyPath, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            StashVisibleItemInfo? control = null;
+            InventorySnapshotItem? currency = null;
+            var currencySlotX = -1;
+            var currencySlotY = -1;
+            var matchingInventoryItems = 0;
+            foreach (var visibleCurrency in currencyControls)
             {
-                this.Status = $"No readable {currencyLabel} stack in Currency Tab '{configuredTab}'";
+                var inventoryCurrencyItem = snapshot.Inventory.Items.FirstOrDefault(item =>
+                    item.ItemAddress == visibleCurrency.ItemAddress &&
+                    string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase));
+                if (inventoryCurrencyItem != null)
+                {
+                    matchingInventoryItems++;
+                    if (inventoryCurrencyItem.StackCount is > 0 &&
+                        inventoryCurrencyItem.SlotStartX >= 0 &&
+                        inventoryCurrencyItem.SlotStartY >= 0)
+                    {
+                        control = visibleCurrency;
+                        currency = inventoryCurrencyItem;
+                        currencySlotX = inventoryCurrencyItem.SlotStartX;
+                        currencySlotY = inventoryCurrencyItem.SlotStartY;
+                        break;
+                    }
+                }
+
+                var visibleCurrencyItem = ctx.GameUi.Stash.ReadVisibleItemDetails(visibleCurrency);
+                if (visibleCurrencyItem?.StackCount is > 0 &&
+                    visibleCurrencyItem.ItemAddress == visibleCurrency.ItemAddress &&
+                    string.Equals(visibleCurrencyItem.Path, currencyPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    control = visibleCurrency;
+                    currency = visibleCurrencyItem;
+                    // The UI confirms the item and its stack, but not its server-inventory
+                    // coordinates. Keep -1/-1 so all later reads use this same visible item.
+                    break;
+                }
+            }
+
+            if (control == null || currency?.StackCount is not > 0)
+            {
+                this.Status = $"No readable {currencyLabel} stack in Currency Tab '{configuredTab}' " +
+                              $"(visible controls: {currencyControls.Length}, " +
+                              $"StashInventoryId matches: {matchingInventoryItems})";
                 this.Decision = "CurrencyUnavailable";
                 return;
             }
 
-            var currencySlotX = currency.SlotStartX;
-            var currencySlotY = currency.SlotStartY;
-            var currencyStackCount = currency.StackCount.Value;
+            var currencyStackCount = currency.StackCount.GetValueOrDefault();
 
             var targets = new List<CurrencyUseTarget>();
             var targetBaselines = new List<CraftActionBaseline>();
@@ -627,24 +662,24 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            var currencySlot = ctx.Area.ServerDataObject.ReadInventoryItemAt(
-                InventoryName.StashInventoryId,
+            var currencyItem = ReadCurrencyItem(
+                ctx,
+                stash,
+                baseline.CurrencyPath,
+                baseline.CurrencyItemAddress,
                 baseline.CurrencySlotX,
-                baseline.CurrencySlotY,
-                InventorySnapshotDetailLevel.Full);
+                baseline.CurrencySlotY);
             var waystoneSlot = ctx.Area.ServerDataObject.ReadInventoryItemAt(
                 InventoryName.MainInventory1,
                 baseline.WaystoneSlotX,
                 baseline.WaystoneSlotY,
                 InventorySnapshotDetailLevel.Full);
-            if (currencySlot.State != InventorySnapshotState.Ready ||
-                waystoneSlot.State != InventorySnapshotState.Ready)
+            if (currencyItem == null || waystoneSlot.State != InventorySnapshotState.Ready)
             {
                 this.StopCraftRetry(retry, "Currency or Waystone slot is unreadable after interruption — Waystone stopped");
                 return;
             }
 
-            var currencyItem = currencySlot.Item;
             var waystoneItem = waystoneSlot.Item;
             var currencyUnchanged = currencyItem != null &&
                                     currencyItem.ItemAddress == baseline.CurrencyItemAddress &&
@@ -754,16 +789,66 @@ namespace AutoExile2.Modes.Shared
                 return null;
             }
 
-            var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
-                InventoryName.StashInventoryId,
+            return ReadCurrencyItem(
+                ctx,
+                snapshot,
+                currencyPath,
+                currencyItemAddress,
                 slotX,
-                slotY,
+                slotY)?.StackCount;
+        }
+
+        private static InventorySnapshotItem? ReadCurrencyItem(
+            BotContext ctx,
+            StashSnapshot snapshot,
+            string currencyPath,
+            IntPtr currencyItemAddress,
+            int slotX,
+            int slotY)
+        {
+            if (snapshot.State != StashSnapshotState.Ready ||
+                !ctx.GameUi.IsStashOpen ||
+                currencyItemAddress == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            if (slotX >= 0 && slotY >= 0)
+            {
+                var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                    InventoryName.StashInventoryId,
+                    slotX,
+                    slotY,
+                    InventorySnapshotDetailLevel.Full);
+                var item = result.Item;
+                return result.State == InventorySnapshotState.Ready && item != null &&
+                       item.ItemAddress == currencyItemAddress &&
+                       string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase) &&
+                       item.StackCount is > 0
+                    ? item
+                    : null;
+            }
+
+            if (slotX != -1 || slotY != -1)
+            {
+                return null;
+            }
+
+            var visibleItem = snapshot.VisibleItems.FirstOrDefault(item =>
+                item.ItemAddress == currencyItemAddress &&
+                string.Equals(item.ItemPath, currencyPath, StringComparison.OrdinalIgnoreCase));
+            if (visibleItem == null)
+            {
+                return null;
+            }
+
+            var visibleCurrency = ctx.GameUi.Stash.ReadVisibleItemDetails(
+                visibleItem,
                 InventorySnapshotDetailLevel.Full);
-            var item = result.Item;
-            return result.State == InventorySnapshotState.Ready && item != null &&
-                   item.ItemAddress == currencyItemAddress &&
-                   string.Equals(item.Path, currencyPath, StringComparison.OrdinalIgnoreCase)
-                ? item.StackCount
+            return visibleCurrency?.StackCount is > 0 &&
+                   visibleCurrency.ItemAddress == currencyItemAddress &&
+                   string.Equals(visibleCurrency.Path, currencyPath, StringComparison.OrdinalIgnoreCase)
+                ? visibleCurrency
                 : null;
         }
 
