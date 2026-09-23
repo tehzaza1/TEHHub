@@ -125,7 +125,11 @@ namespace AutoExile2.Modes.Shared
         /// <summary>
         /// Converts entity world position to screen coordinates and performs a humanized click.
         /// </summary>
-        public static bool ClickEntity(WorldData world, Entity entity, Func<bool>? canClick = null)
+        public static bool ClickEntity(
+            WorldData world,
+            Entity entity,
+            Func<bool>? canClick = null,
+            Func<bool>? preMouseDownValidation = null)
         {
             if (world == null || entity == null || !entity.IsValid)
             {
@@ -160,8 +164,12 @@ namespace AutoExile2.Modes.Shared
                 return false;
             }
 
-            BotInput.HumanClick(screenPos + new Vector2(window.Left, window.Top), canClick: canClick);
+            BotInput.HumanClick(
+                screenPos + new Vector2(window.Left, window.Top),
+                canClick: canClick,
+                preMouseDownValidation: preMouseDownValidation);
             return true;
         }
+
     }
 }

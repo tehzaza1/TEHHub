@@ -36,17 +36,26 @@ namespace AutoExile2.Modes.WaveFarm
 
         public string CurrentAction => this.Decision;
 
-        public List<Vector2> CurrentNavPath => this.phase == WaveFarmPhase.InHideout
-            ? this.hideoutFlow.CurrentNavPath
-            : this.wave.CurrentNavPath;
+        public List<Vector2> CurrentNavPath => this.phase switch
+        {
+            WaveFarmPhase.InHideout => this.hideoutFlow.CurrentNavPath,
+            WaveFarmPhase.ExitMap => this.exitHandler.CurrentNavPath,
+            _ => this.wave.CurrentNavPath,
+        };
 
-        public int CurrentWaypointIndex => this.phase == WaveFarmPhase.InHideout
-            ? this.hideoutFlow.CurrentWaypointIndex
-            : this.wave.CurrentWaypointIndex;
+        public int CurrentWaypointIndex => this.phase switch
+        {
+            WaveFarmPhase.InHideout => this.hideoutFlow.CurrentWaypointIndex,
+            WaveFarmPhase.ExitMap => this.exitHandler.CurrentWaypointIndex,
+            _ => this.wave.CurrentWaypointIndex,
+        };
 
-        public Vector2? CurrentDestination => this.phase == WaveFarmPhase.InHideout
-            ? this.hideoutFlow.CurrentDestination
-            : this.wave.CurrentDestination;
+        public Vector2? CurrentDestination => this.phase switch
+        {
+            WaveFarmPhase.InHideout => this.hideoutFlow.CurrentDestination,
+            WaveFarmPhase.ExitMap => this.exitHandler.CurrentDestination,
+            _ => this.wave.CurrentDestination,
+        };
 
         private readonly WaveTick wave = new();
         private readonly ZoneStateCache zoneCache = new();
@@ -62,9 +71,12 @@ namespace AutoExile2.Modes.WaveFarm
         private bool mapCompleted;
 
         public string Status { get; private set; } = string.Empty;
-        public string Decision => this.phase == WaveFarmPhase.InHideout
-            ? this.hideoutFlow.Decision
-            : this.wave.Decision;
+        public string Decision => this.phase switch
+        {
+            WaveFarmPhase.InHideout => this.hideoutFlow.Decision,
+            WaveFarmPhase.ExitMap => this.exitHandler.Decision,
+            _ => this.wave.Decision,
+        };
         public int RunsCompleted => this.runsCompleted;
 
         public WaveFarmMode()
@@ -380,18 +392,21 @@ namespace AutoExile2.Modes.WaveFarm
         {
             var world = ctx.World;
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
+            bool wasExiting = this.phase == WaveFarmPhase.ExitMap;
+            ctx.Interaction.Cancel(ctx.Settings);
+            this.exitHandler.Reset();
 
             if (world.AreaDetails.IsHideout || world.AreaDetails.IsTown)
             {
                 this.wave.Reset();
                 this.hideoutFlow.Reset(ctx, preserveBatchPrimed: true);
-                bool wasExiting = this.phase == WaveFarmPhase.ExitMap;
                 this.phase = WaveFarmPhase.InHideout;
 
                 if (this.mapCompleted || wasExiting)
                 {
                     this.mapCompleted = false;
                     this.runsCompleted++;
+                    this.Status = "In Town/Hideout — standing by";
                     ctx.Log($"[WaveFarm] Run #{this.runsCompleted} complete");
                 }
                 else

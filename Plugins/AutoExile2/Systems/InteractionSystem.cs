@@ -84,6 +84,8 @@ namespace AutoExile2.Systems
         private volatile bool currencyTargetClickCompleted;
         private volatile bool currencyClickInFlight;
         private Func<BotContext, bool>? successPredicate;
+        private IntPtr entityAddress;
+        private bool requireMouseOverEntity;
         private DateTime startedAtUtc;
         private DateTime settleStartedAtUtc;
         private DateTime lastClickAtUtc;
@@ -137,7 +139,9 @@ namespace AutoExile2.Systems
         public int CurrencyTargetIndex => this.currencyTargetIndex;
 
         /// <summary>
-        /// Starts one entity interaction. The entity is refreshed by id on every tick.
+        /// Starts one entity interaction. The entity is refreshed by id on every tick. When
+        /// <paramref name="requireMouseOverEntity"/> is true, the final async click is allowed
+        /// only if the live game MouseOverEntity still matches the selected entity.
         /// </summary>
         public bool BeginEntity(
             BotContext ctx,
@@ -145,9 +149,12 @@ namespace AutoExile2.Systems
             string description,
             Func<BotContext, bool> successPredicate,
             float interactionRange = 20f,
-            int maxClickAttempts = DefaultMaxClickAttempts)
+            int maxClickAttempts = DefaultMaxClickAttempts,
+            bool requireMouseOverEntity = false)
         {
-            if (entity == null || !entity.IsValid || entity.Id == 0 || this.IsBusy)
+            if (entity == null || !entity.IsValid || entity.Id == 0 ||
+                (requireMouseOverEntity && entity.Address == IntPtr.Zero) ||
+                this.IsBusy)
             {
                 return false;
             }
@@ -157,6 +164,8 @@ namespace AutoExile2.Systems
             this.LastFailure = string.Empty;
             this.entityId = entity.Id;
             this.entityPath = entity.Path ?? string.Empty;
+            this.entityAddress = requireMouseOverEntity ? entity.Address : IntPtr.Zero;
+            this.requireMouseOverEntity = requireMouseOverEntity;
             this.Description = description;
             this.successPredicate = successPredicate;
             this.interactionRange = Math.Clamp(interactionRange, 8f, 45f);
@@ -499,10 +508,27 @@ namespace AutoExile2.Systems
 
             this.Phase = InteractionPhase.Clicking;
             var generation = Volatile.Read(ref this.requestGeneration);
+            Func<bool>? preMouseDownValidation = null;
+            if (this.requireMouseOverEntity)
+            {
+                var expectedEntityId = this.entityId;
+                var expectedEntityPath = this.entityPath;
+                var expectedEntityAddress = this.entityAddress;
+                preMouseDownValidation = () =>
+                    generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx) &&
+                    entity.IsValid && entity.Id == expectedEntityId &&
+                    entity.Address == expectedEntityAddress &&
+                    string.Equals(entity.Path, expectedEntityPath, StringComparison.OrdinalIgnoreCase) &&
+                    entity.TryGetComponent<Targetable>(out var clickTargetable) && clickTargetable.IsTargetable &&
+                    entity.TryGetComponent<Render>(out _) &&
+                    IsMouseOverEntity(entity);
+            }
+
             if (!ModeHelpers.ClickEntity(
                     ctx.World,
                     entity,
-                    () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx)))
+                    () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx),
+                    preMouseDownValidation))
             {
                 this.Status = $"Waiting for {this.Description} to be on screen";
                 this.Phase = InteractionPhase.Settling;
@@ -515,6 +541,31 @@ namespace AutoExile2.Systems
             this.Phase = InteractionPhase.WaitingForSuccess;
             this.Status = $"Clicked {this.Description} ({this.clickAttempts}/{this.maxClickAttempts})";
             return this.Result;
+        }
+
+        /// <summary>
+        /// Tests whether the live game MouseOverEntity is the exact supplied entity by id,
+        /// address, and path. Missing, stale, or unreadable hover data fails closed.
+        /// </summary>
+        public static bool IsMouseOverEntity(Entity entity)
+        {
+            try
+            {
+                if (entity == null || !entity.IsValid || entity.Id == 0 || entity.Address == IntPtr.Zero)
+                {
+                    return false;
+                }
+
+                var hovered = Core.States.InGameStateObject?.MouseOverEntity;
+                return hovered != null && hovered.IsValid &&
+                       hovered.Id == entity.Id &&
+                       hovered.Address == entity.Address &&
+                       string.Equals(hovered.Path, entity.Path, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private InteractionResult TickUiElement(BotContext ctx, DateTime now)
@@ -1036,6 +1087,7 @@ namespace AutoExile2.Systems
             this.kind = InteractionKind.None;
             this.entityId = 0;
             this.entityPath = string.Empty;
+            this.entityAddress = IntPtr.Zero;
             this.uiAddress = IntPtr.Zero;
             this.fallbackUiAddress = IntPtr.Zero;
             this.targetUiAddress = IntPtr.Zero;
@@ -1050,6 +1102,7 @@ namespace AutoExile2.Systems
             this.wheelDirection = 0;
             this.currencyUseStep = 0;
             this.successPredicate = null;
+            this.requireMouseOverEntity = false;
             this.startedAtUtc = DateTime.MinValue;
             this.settleStartedAtUtc = DateTime.MinValue;
             this.lastClickAtUtc = DateTime.MinValue;

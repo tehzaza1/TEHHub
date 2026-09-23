@@ -222,7 +222,8 @@ namespace AutoExile2.Systems
             Func<bool>? canClick = null,
             bool shiftClick = false,
             Action? onClickIssued = null,
-            Action<bool>? onClickFinished = null)
+            Action<bool>? onClickFinished = null,
+            Func<bool>? preMouseDownValidation = null)
         {
             Task.Run(async () =>
             {
@@ -260,6 +261,14 @@ namespace AutoExile2.Systems
                         return;
                     }
 
+                    // Entity interactions may require that the game still reports the intended
+                    // entity under the pointer after cursor movement. This check is opt-in so
+                    // existing UI and ordinary world clicks keep their established behavior.
+                    if (!PreMouseDownValidationPassed(preMouseDownValidation))
+                    {
+                        return;
+                    }
+
                     mouse_event(downFlag, 0, 0, 0, 0);
                     mouseDown = true;
                     clickIssued = true;
@@ -289,6 +298,25 @@ namespace AutoExile2.Systems
                     }
                 }
             });
+        }
+
+        private static bool PreMouseDownValidationPassed(Func<bool>? validation)
+        {
+            if (validation == null)
+            {
+                return true;
+            }
+
+            try
+            {
+                return validation();
+            }
+            catch
+            {
+                // The input task runs asynchronously. A failed/stale memory read must suppress
+                // the click instead of allowing an unobserved exception to escape or clicking blind.
+                return false;
+            }
         }
 
         /// <summary>
