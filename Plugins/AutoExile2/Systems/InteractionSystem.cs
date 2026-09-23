@@ -66,6 +66,8 @@ namespace AutoExile2.Systems
         private const float WaypointReachedDistance = 12f;
 
         private readonly List<Vector2> currentNavPath = new();
+        private readonly object currencyClickLock = new();
+        private readonly object uiCtrlClickLock = new();
         private InteractionKind kind;
         private uint entityId;
         private string entityPath = string.Empty;
@@ -76,6 +78,10 @@ namespace AutoExile2.Systems
         private string fallbackUiSource = "fallback UI control";
         private int wheelDirection;
         private int currencyUseStep;
+        private string currencyAreaHash = string.Empty;
+        private bool currencyAreaCaptured;
+        private bool currencyShiftReleasePending;
+        private volatile bool currencyShiftTargetWasIssued;
         private IReadOnlyList<CurrencyUseTarget>? currencyTargets;
         private int currencyTargetIndex;
         private volatile bool currencyActivationIssued;
@@ -100,7 +106,15 @@ namespace AutoExile2.Systems
         private float interactionRange;
         private TimeSpan timeout;
         private long requestGeneration;
+        private long inputClickAttemptToken;
         private volatile bool currencyMayBeActive;
+        private volatile bool lastInputClickIssued;
+        private volatile bool lastInputClickCompleted = true;
+        private volatile bool inputClickInFlight;
+        private object? uiCtrlHoldOwner;
+        private bool uiCtrlReleaseAfterClick;
+        private bool uiCtrlReleasePending;
+        private volatile bool uiCtrlClickInFlight;
 
         public InteractionPhase Phase { get; private set; } = InteractionPhase.Idle;
 
@@ -118,7 +132,7 @@ namespace AutoExile2.Systems
 
         public bool IsBusy => this.Phase is InteractionPhase.Navigating or
             InteractionPhase.Settling or InteractionPhase.Clicking or InteractionPhase.Scrolling or
-            InteractionPhase.WaitingForSuccess;
+            InteractionPhase.WaitingForSuccess || this.currencyClickInFlight || this.inputClickInFlight;
 
         public InteractionResult Result => this.Phase switch
         {
@@ -135,6 +149,15 @@ namespace AutoExile2.Systems
         public bool CurrencyMayBeActive => this.currencyMayBeActive;
 
         public bool CurrencyClickInFlight => this.currencyClickInFlight;
+
+        /// <summary>
+        /// Gets whether the latest ordinary interaction attempt sent a mouse-down event.
+        /// This remains false when asynchronous input was canceled before the click, so callers
+        /// can retry only the no-input case without replaying an action that may have landed.
+        /// </summary>
+        public bool LastInputClickIssued => this.lastInputClickIssued;
+
+        public bool LastInputClickCompleted => this.lastInputClickCompleted;
 
         public int CurrencyTargetIndex => this.currencyTargetIndex;
 
@@ -251,19 +274,23 @@ namespace AutoExile2.Systems
         public bool BeginUiCtrlClick(
             IntPtr uiAddress,
             string description,
-            Func<BotContext, bool> successPredicate)
+            Func<BotContext, bool> successPredicate,
+            object? ctrlHoldOwner = null,
+            bool releaseCtrlHoldAfterClick = false)
         {
             if (uiAddress == IntPtr.Zero || this.IsBusy)
             {
                 return false;
             }
 
-            this.ResetRequest();
+            this.ResetRequest(ctrlHoldOwner);
             this.kind = InteractionKind.UiCtrlClick;
             this.LastFailure = string.Empty;
             this.uiAddress = uiAddress;
             this.Description = description;
             this.successPredicate = successPredicate;
+            this.uiCtrlHoldOwner = ctrlHoldOwner;
+            this.uiCtrlReleaseAfterClick = releaseCtrlHoldAfterClick;
             this.maxClickAttempts = 1;
             this.startedAtUtc = DateTime.UtcNow;
             this.timeout = TimeSpan.FromSeconds(6);
@@ -297,6 +324,8 @@ namespace AutoExile2.Systems
             this.targetUiAddress = targetItemUiAddress;
             this.currencyTargets = new[] { new CurrencyUseTarget(targetItemUiAddress, successPredicate) };
             this.currencyTargetIndex = 0;
+            this.currencyAreaHash = string.Empty;
+            this.currencyShiftTargetWasIssued = false;
             this.Description = description;
             this.successPredicate = successPredicate;
             this.maxClickAttempts = 1;
@@ -327,6 +356,8 @@ namespace AutoExile2.Systems
             this.uiAddress = currencyUiAddress;
             this.currencyTargets = targets;
             this.currencyTargetIndex = 0;
+            this.currencyAreaHash = string.Empty;
+            this.currencyShiftTargetWasIssued = false;
             this.Description = description;
             this.maxClickAttempts = 1;
             this.startedAtUtc = DateTime.UtcNow;
@@ -372,8 +403,30 @@ namespace AutoExile2.Systems
                 return this.Result;
             }
 
+            if (this.kind == InteractionKind.UiCurrencyUse)
+            {
+                var currentAreaHash = ctx.Area.AreaHash ?? string.Empty;
+                if (!this.currencyAreaCaptured)
+                {
+                    this.currencyAreaHash = currentAreaHash;
+                    this.currencyAreaCaptured = true;
+                }
+                else if (!string.Equals(this.currencyAreaHash, currentAreaHash, StringComparison.Ordinal))
+                {
+                    return this.Fail(ctx, $"{this.Description} area changed during currency use");
+                }
+            }
+
             if (!CanIssueInput(ctx))
             {
+                if (this.kind == InteractionKind.UiCurrencyUse &&
+                    (this.currencyTargets?.Count ?? 0) > 1 && this.currencyUseStep >= 1)
+                {
+                    return this.Fail(ctx, $"{this.Description} was interrupted during a multi-Waystone currency batch");
+                }
+
+                this.RequestCurrencyShiftRelease();
+                this.RequestUiCtrlHoldRelease();
                 BotInput.ReleaseAllMovementKeys(ctx.Settings);
                 BotInput.ReleaseSprint(ctx.Settings.SprintKey);
                 this.startedAtUtc += TimeSpan.FromSeconds(ctx.DeltaTime);
@@ -416,13 +469,22 @@ namespace AutoExile2.Systems
             this.Reset();
         }
 
-        public void Reset()
+        public void Reset(bool preserveUiCtrlHold = false)
         {
-            this.ResetRequest();
+            this.ResetRequest(preserveUiCtrlHold ? this.uiCtrlHoldOwner : null);
             this.Phase = InteractionPhase.Idle;
             this.Status = "Idle";
             this.Description = string.Empty;
             this.LastFailure = string.Empty;
+        }
+
+        /// <summary>Requests release of a caller-owned Ctrl batch after its current mouse-up.</summary>
+        public void ReleaseUiCtrlBatch(object? owner = null)
+        {
+            if (owner == null || ReferenceEquals(this.uiCtrlHoldOwner, owner))
+            {
+                this.RequestUiCtrlHoldRelease();
+            }
         }
 
         private static TimeSpan ComputeEntityTimeout(Vector2 playerGrid, Entity entity, float interactionRange)
@@ -508,6 +570,7 @@ namespace AutoExile2.Systems
 
             this.Phase = InteractionPhase.Clicking;
             var generation = Volatile.Read(ref this.requestGeneration);
+            var inputClickToken = this.StartInputClick();
             Func<bool>? preMouseDownValidation = null;
             if (this.requireMouseOverEntity)
             {
@@ -528,8 +591,14 @@ namespace AutoExile2.Systems
                     ctx.World,
                     entity,
                     () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx),
-                    preMouseDownValidation))
+                    preMouseDownValidation,
+                    () =>
+                    {
+                        this.MarkInputClickIssued(inputClickToken);
+                    },
+                    clickIssued => this.FinishInputClick(inputClickToken, clickIssued)))
             {
+                this.FinishInputClick(inputClickToken, clickIssued: false);
                 this.Status = $"Waiting for {this.Description} to be on screen";
                 this.Phase = InteractionPhase.Settling;
                 this.settleStartedAtUtc = now;
@@ -610,17 +679,27 @@ namespace AutoExile2.Systems
 
             this.Phase = InteractionPhase.Clicking;
             var generation = Volatile.Read(ref this.requestGeneration);
+            var inputClickToken = this.StartInputClick();
             if (this.kind == InteractionKind.UiCtrlClick)
             {
+                var ctrlHoldOwner = this.uiCtrlHoldOwner;
+                this.StartUiCtrlClick();
                 BotInput.HumanCtrlClick(
                     clickPoint,
-                    () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+                    () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx),
+                    onClickIssued: () => this.MarkInputClickIssued(inputClickToken),
+                    onClickFinished: clickIssued => this.FinishUiCtrlClick(inputClickToken, clickIssued),
+                    ctrlHoldOwner: ctrlHoldOwner,
+                    releaseCtrlHoldAfterClick: this.uiCtrlReleaseAfterClick,
+                    onCtrlHoldReleased: () => this.OnUiCtrlHoldReleased(ctrlHoldOwner));
             }
             else
             {
                 BotInput.HumanClick(
                     clickPoint,
-                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx));
+                    canClick: () => generation == Volatile.Read(ref this.requestGeneration) && CanIssueInput(ctx),
+                    onClickIssued: () => this.MarkInputClickIssued(inputClickToken),
+                    onClickFinished: clickIssued => this.FinishInputClick(inputClickToken, clickIssued));
             }
             this.clickAttempts++;
             this.lastClickAtUtc = now;
@@ -712,7 +791,7 @@ namespace AutoExile2.Systems
                 this.Phase = InteractionPhase.Clicking;
                 this.currencyActivationIssued = false;
                 this.currencyActivationCompleted = false;
-                this.currencyClickInFlight = true;
+                this.StartCurrencyClick();
                 BotInput.HumanClick(
                     currencyPoint,
                     rightClick: true,
@@ -727,11 +806,7 @@ namespace AutoExile2.Systems
                     },
                     onClickFinished: clickIssued =>
                     {
-                        this.currencyClickInFlight = false;
-                        if (clickIssued && generation == Volatile.Read(ref this.requestGeneration))
-                        {
-                            this.currencyActivationCompleted = true;
-                        }
+                        this.FinishCurrencyClick(generation, clickIssued, activationClick: true);
                     });
                 this.currencyUseStep = 1;
                 this.lastClickAtUtc = now;
@@ -781,10 +856,12 @@ namespace AutoExile2.Systems
                 }
 
                 this.Phase = InteractionPhase.Clicking;
-                var shiftClick = this.currencyTargetIndex < (this.currencyTargets?.Count ?? 0) - 1;
+                var targetCount = this.currencyTargets?.Count ?? 0;
+                var shiftClick = targetCount > 1;
+                var isFinalShiftClick = shiftClick && this.currencyTargetIndex == targetCount - 1;
                 this.currencyTargetClickIssued = false;
                 this.currencyTargetClickCompleted = false;
-                this.currencyClickInFlight = true;
+                this.StartCurrencyClick();
                 BotInput.HumanClick(
                     targetPoint,
                     canClick: () => generation == Volatile.Read(ref this.requestGeneration) &&
@@ -794,9 +871,17 @@ namespace AutoExile2.Systems
                                       !BotInput.IsKeyDown(VK.RSHIFT) &&
                                       !BotInput.IsKeyDown(VK.SHIFT))),
                     shiftClick: shiftClick,
+                    shiftHoldOwner: shiftClick ? this : null,
+                    releaseShiftHoldAfterClick: isFinalShiftClick,
+                    onShiftHoldReleased: this.OnCurrencyShiftHoldReleased,
                     onClickIssued: () =>
                     {
                         this.currencyMayBeActive = shiftClick;
+                        if (shiftClick)
+                        {
+                            this.currencyShiftTargetWasIssued = true;
+                        }
+
                         if (generation == Volatile.Read(ref this.requestGeneration))
                         {
                             this.currencyTargetClickIssued = true;
@@ -804,11 +889,7 @@ namespace AutoExile2.Systems
                     },
                     onClickFinished: clickIssued =>
                     {
-                        this.currencyClickInFlight = false;
-                        if (clickIssued && generation == Volatile.Read(ref this.requestGeneration))
-                        {
-                            this.currencyTargetClickCompleted = true;
-                        }
+                        this.FinishCurrencyClick(generation, clickIssued, activationClick: false);
                     });
                 this.currencyUseStep = 2;
                 this.lastClickAtUtc = now;
@@ -934,6 +1015,160 @@ namespace AutoExile2.Systems
                 0,
                 InventorySnapshotDetailLevel.Basic);
 
+        private void StartCurrencyClick()
+        {
+            lock (this.currencyClickLock)
+            {
+                this.currencyClickInFlight = true;
+            }
+        }
+
+        private long StartInputClick()
+        {
+            var token = Interlocked.Increment(ref this.inputClickAttemptToken);
+            this.lastInputClickIssued = false;
+            this.lastInputClickCompleted = false;
+            this.inputClickInFlight = true;
+            return token;
+        }
+
+        private void MarkInputClickIssued(long token)
+        {
+            if (token == Volatile.Read(ref this.inputClickAttemptToken))
+            {
+                this.lastInputClickIssued = true;
+            }
+        }
+
+        private void FinishInputClick(long token, bool clickIssued)
+        {
+            if (token == Volatile.Read(ref this.inputClickAttemptToken))
+            {
+                if (clickIssued)
+                {
+                    this.lastInputClickIssued = true;
+                }
+
+                this.inputClickInFlight = false;
+                this.lastInputClickCompleted = true;
+            }
+        }
+
+        private void StartUiCtrlClick()
+        {
+            lock (this.uiCtrlClickLock)
+            {
+                this.uiCtrlClickInFlight = true;
+            }
+        }
+
+        private void FinishUiCtrlClick(long token, bool clickIssued)
+        {
+            lock (this.uiCtrlClickLock)
+            {
+                this.uiCtrlClickInFlight = false;
+                if (this.uiCtrlReleasePending)
+                {
+                    this.uiCtrlReleasePending = false;
+                    if (this.uiCtrlHoldOwner != null && BotInput.ReleaseCtrlHold(this.uiCtrlHoldOwner))
+                    {
+                        this.uiCtrlHoldOwner = null;
+                    }
+                }
+            }
+
+            this.FinishInputClick(token, clickIssued);
+        }
+
+        private void RequestUiCtrlHoldRelease()
+        {
+            lock (this.uiCtrlClickLock)
+            {
+                if (this.uiCtrlClickInFlight)
+                {
+                    this.uiCtrlReleasePending = true;
+                    return;
+                }
+
+                this.uiCtrlReleasePending = false;
+                if (this.uiCtrlHoldOwner != null && BotInput.ReleaseCtrlHold(this.uiCtrlHoldOwner))
+                {
+                    this.uiCtrlHoldOwner = null;
+                }
+            }
+        }
+
+        private void OnUiCtrlHoldReleased(object? owner)
+        {
+            lock (this.uiCtrlClickLock)
+            {
+                if (owner != null && ReferenceEquals(this.uiCtrlHoldOwner, owner))
+                {
+                    this.uiCtrlHoldOwner = null;
+                }
+            }
+        }
+
+        private void FinishCurrencyClick(long generation, bool clickIssued, bool activationClick)
+        {
+            lock (this.currencyClickLock)
+            {
+                this.currencyClickInFlight = false;
+                if (this.currencyShiftReleasePending || generation != Volatile.Read(ref this.requestGeneration))
+                {
+                    // HumanClick invokes this only after releasing the mouse button.
+                    if (BotInput.ReleaseShiftHold(this))
+                    {
+                        this.OnCurrencyShiftHoldReleased();
+                    }
+
+                    this.currencyShiftReleasePending = false;
+                }
+
+                if (clickIssued && generation == Volatile.Read(ref this.requestGeneration))
+                {
+                    if (activationClick)
+                    {
+                        this.currencyActivationCompleted = true;
+                    }
+                    else
+                    {
+                        this.currencyTargetClickCompleted = true;
+                    }
+                }
+            }
+        }
+
+        private void RequestCurrencyShiftRelease()
+        {
+            lock (this.currencyClickLock)
+            {
+                if (this.currencyClickInFlight)
+                {
+                    this.currencyShiftReleasePending = true;
+                    return;
+                }
+
+                this.currencyShiftReleasePending = false;
+                if (BotInput.ReleaseShiftHold(this))
+                {
+                    this.OnCurrencyShiftHoldReleased();
+                }
+            }
+        }
+
+        private void OnCurrencyShiftHoldReleased()
+        {
+            lock (this.currencyClickLock)
+            {
+                if (this.currencyShiftTargetWasIssued)
+                {
+                    this.currencyMayBeActive = false;
+                    this.currencyShiftTargetWasIssued = false;
+                }
+            }
+        }
+
         private void Navigate(BotContext ctx, Vector2 targetGrid, DateTime now)
         {
             var needRepath = this.currentNavPath.Count == 0 ||
@@ -1053,9 +1288,20 @@ namespace AutoExile2.Systems
 
         private void Complete(BotContext ctx)
         {
+            this.RequestCurrencyShiftRelease();
+            if (this.kind != InteractionKind.UiCtrlClick || this.uiCtrlHoldOwner == null || this.uiCtrlReleaseAfterClick)
+            {
+                this.RequestUiCtrlHoldRelease();
+            }
             if (this.kind is InteractionKind.UiCurrencyUse or InteractionKind.UiCurrencyCursorCleanup)
             {
-                this.currencyMayBeActive = false;
+                lock (this.currencyClickLock)
+                {
+                    if (!this.currencyClickInFlight)
+                    {
+                        this.currencyMayBeActive = false;
+                    }
+                }
             }
 
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
@@ -1069,6 +1315,9 @@ namespace AutoExile2.Systems
 
         private InteractionResult Fail(BotContext ctx, string reason)
         {
+            Interlocked.Increment(ref this.requestGeneration);
+            this.RequestCurrencyShiftRelease();
+            this.RequestUiCtrlHoldRelease();
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
             BotInput.ReleaseSprint(ctx.Settings.SprintKey);
             this.currentNavPath.Clear();
@@ -1080,9 +1329,16 @@ namespace AutoExile2.Systems
             return InteractionResult.Failed;
         }
 
-        private void ResetRequest()
+        private void ResetRequest(object? preserveUiCtrlHoldOwner = null)
         {
             Interlocked.Increment(ref this.requestGeneration);
+            this.RequestCurrencyShiftRelease();
+            var preserveUiCtrlHold = preserveUiCtrlHoldOwner != null &&
+                                     ReferenceEquals(preserveUiCtrlHoldOwner, this.uiCtrlHoldOwner);
+            if (!preserveUiCtrlHold)
+            {
+                this.RequestUiCtrlHoldRelease();
+            }
             this.kind = InteractionKind.None;
             this.entityId = 0;
             this.entityPath = string.Empty;
@@ -1092,6 +1348,8 @@ namespace AutoExile2.Systems
             this.targetUiAddress = IntPtr.Zero;
             this.currencyTargets = null;
             this.currencyTargetIndex = 0;
+            this.currencyAreaHash = string.Empty;
+            this.currencyAreaCaptured = false;
             this.currencyActivationIssued = false;
             this.currencyActivationCompleted = false;
             this.currencyTargetClickIssued = false;
@@ -1115,6 +1373,16 @@ namespace AutoExile2.Systems
             this.maxClickAttempts = DefaultMaxClickAttempts;
             this.interactionRange = 20f;
             this.timeout = TimeSpan.Zero;
+            this.uiCtrlReleaseAfterClick = false;
+            if (!preserveUiCtrlHold && !this.uiCtrlClickInFlight)
+            {
+                this.uiCtrlHoldOwner = null;
+            }
+            if (!this.inputClickInFlight)
+            {
+                this.lastInputClickIssued = false;
+                this.lastInputClickCompleted = true;
+            }
             this.currentNavPath.Clear();
             this.CurrentWaypointIndex = 0;
             this.CurrentDestination = null;
