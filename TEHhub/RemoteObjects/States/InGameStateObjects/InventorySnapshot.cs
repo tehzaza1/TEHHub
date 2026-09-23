@@ -310,6 +310,12 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         public Rarity? Rarity { get; init; }
 
         /// <summary>
+        ///     Gets the validated Waystone Corrupted state from the Base component, or null when
+        ///     the raw flag byte was unavailable. Non-Waystones do not have this state.
+        /// </summary>
+        public bool? WaystoneCorrupted { get; init; }
+
+        /// <summary>
         ///     Gets research-only Mods bytes around the suspected identification state. No runtime
         ///     automation may interpret this value until its offset has been validated.
         /// </summary>
@@ -855,7 +861,9 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             var componentNames = Array.Empty<string>();
             var baseItemName = string.Empty;
             var internalName = string.Empty;
+            bool? baseComponentFound = null;
             Rarity? rarity = null;
+            bool? waystoneCorrupted = null;
             var identificationStateProbe = string.Empty;
             int? stackCount = null;
             int? maxStack = null;
@@ -880,15 +888,30 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
             try
             {
-                if (item.TryGetComponent<Base>(out var baseComponent))
+                var hasBaseComponent = item.TryGetComponent<Base>(out var baseComponent);
+                baseComponentFound = hasBaseComponent;
+                if (hasBaseComponent)
                 {
                     baseItemName = baseComponent.BaseItemName;
                     internalName = baseComponent.InternalName;
+                    if (snapshotItem.IsWaystone)
+                    {
+                        waystoneCorrupted = WaystoneCorruptionFlag.TryRead(baseComponent);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 diagnostics.Add($"base:{ex.GetType().Name}");
+            }
+
+            if (snapshotItem.IsWaystone && baseComponentFound == false)
+            {
+                diagnostics.Add("waystone-base-component:missing");
+            }
+            else if (snapshotItem.IsWaystone && !waystoneCorrupted.HasValue)
+            {
+                diagnostics.Add("waystone-corruption-flag:unavailable");
             }
 
             try
@@ -942,6 +965,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 BaseItemName = baseItemName,
                 InternalName = internalName,
                 Rarity = rarity,
+                WaystoneCorrupted = waystoneCorrupted,
                 IdentificationStateProbe = identificationStateProbe,
                 StackCount = stackCount,
                 MaxStack = maxStack,
@@ -1031,6 +1055,40 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
                 hash ^= (ulong)value;
                 return hash * FnvPrime;
             }
+        }
+    }
+
+    /// <summary>Reads the empirically validated Corrupted flag from a Waystone's Base component.</summary>
+    internal static class WaystoneCorruptionFlag
+    {
+        /// <summary>Raw Base-component byte offset established by before/after Waystone captures.</summary>
+        internal const int BaseComponentFlagByteOffset = 0xC7;
+
+        /// <summary>Bit set in the captured raw byte when the Waystone is Corrupted.</summary>
+        internal const byte CorruptedMask = 0x01;
+
+        /// <summary>Decodes the validated flag bit. Null input remains unknown.</summary>
+        internal static bool? Decode(byte? rawFlags) =>
+            rawFlags.HasValue ? (rawFlags.Value & CorruptedMask) != 0 : null;
+
+        /// <summary>Reads and decodes the flag byte, preserving unavailable reads as unknown.</summary>
+        internal static bool? TryRead(Base baseComponent)
+        {
+            if (baseComponent == null || baseComponent.Address == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            var flagAddress = IntPtr.Add(baseComponent.Address, BaseComponentFlagByteOffset);
+            if (!CanonicalStructuralInvariants.IsCanonicalPointer(flagAddress))
+            {
+                return null;
+            }
+
+            var reader = Core.Process?.Handle;
+            return reader != null && reader.TryReadMemory<byte>(flagAddress, out var rawFlags)
+                ? Decode(rawFlags)
+                : null;
         }
     }
 }

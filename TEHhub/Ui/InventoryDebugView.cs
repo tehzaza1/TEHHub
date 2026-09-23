@@ -283,6 +283,7 @@ namespace TEHhub.Ui
 
             if (item.IsWaystone)
             {
+                ImGui.Text($"Waystone Corrupted: {WaystoneCorruptionLabel(item.WaystoneCorrupted)}");
                 RenderCorruptionProbe(item, current);
             }
 
@@ -344,7 +345,7 @@ namespace TEHhub.Ui
             ImGui.TextWrapped(
                 "Capture before corruption, corrupt this same Waystone, click Refresh now, then capture again. " +
                 "Label the two files before/after and send both for comparison. Current game mouse-over evidence is sampled opportunistically and may be empty while clicking this button. " +
-                "Raw component prefixes are diagnostic only; this does not interpret them as flags or decide eligibility.");
+                "The decoded Corrupted value uses Base+0xC7 bit 0; raw component prefixes remain available to verify that read.");
             ImGui.SetNextItemWidth(180f);
             ImGui.InputText("Sample label##InventoryDvCorruptionLabel", ref corruptionProbeLabel, 48);
             ImGui.SameLine();
@@ -409,7 +410,7 @@ namespace TEHhub.Ui
                 var capturedAtUtc = DateTime.UtcNow;
                 var capture = new
                 {
-                    schemaVersion = 2,
+                    schemaVersion = 3,
                     capturedAtUtc,
                     label = string.IsNullOrWhiteSpace(corruptionProbeLabel)
                         ? "unspecified"
@@ -435,6 +436,8 @@ namespace TEHhub.Ui
                         internalName = item.InternalName,
                         category = item.Category.ToString(),
                         waystoneTier = item.WaystoneTier,
+                        waystoneCorrupted = item.WaystoneCorrupted,
+                        waystoneCorruptionLabel = WaystoneCorruptionLabel(item.WaystoneCorrupted),
                         itemAddress = FormatAddress(item.ItemAddress),
                         wrapperAddress = FormatAddress(item.WrapperAddress),
                         rarityFromSnapshot = item.Rarity?.ToString(),
@@ -520,6 +523,13 @@ namespace TEHhub.Ui
                 mod.Name,
                 float.IsNaN(mod.Value0) ? null : mod.Value0,
                 float.IsNaN(mod.Value1) ? null : mod.Value1);
+
+        private static string WaystoneCorruptionLabel(bool? corrupted) => corrupted switch
+        {
+            true => "Yes",
+            false => "No",
+            null => "Unknown",
+        };
 
         private static object[] CaptureComponentSnapshots(Item item, SafeMemoryHandle reader) =>
             item.GetComponentAddressPairs()

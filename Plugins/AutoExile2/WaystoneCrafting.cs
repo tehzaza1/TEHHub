@@ -41,6 +41,44 @@ namespace AutoExile2
                 return WaystoneCraftingAction.Reject;
             }
 
+            var action = GetUnprotectedNextAction(item, settings, out var actionReason);
+            if (item.WaystoneCorrupted == true)
+            {
+                if (action == WaystoneCraftingAction.Ready)
+                {
+                    reason = "Corrupted Waystone meets configured filters and is ready";
+                    return WaystoneCraftingAction.Ready;
+                }
+
+                reason = action is WaystoneCraftingAction.Identify or
+                    WaystoneCraftingAction.Alchemy or WaystoneCraftingAction.Exalted
+                    ? $"Corrupted Waystone cannot be crafted; {GetCurrencyLabel(action)} would be required"
+                    : $"Corrupted Waystone rejected: {actionReason}";
+                return WaystoneCraftingAction.Reject;
+            }
+
+            if (!item.WaystoneCorrupted.HasValue &&
+                action is (WaystoneCraftingAction.Identify or WaystoneCraftingAction.Alchemy or WaystoneCraftingAction.Exalted))
+            {
+                reason = "Waystone Corrupted status is unavailable; refusing to use currency";
+                return WaystoneCraftingAction.Reject;
+            }
+
+            reason = actionReason;
+            return action;
+        }
+
+        private static WaystoneCraftingAction GetUnprotectedNextAction(
+            InventorySnapshotItem item,
+            AutoExile2Settings settings,
+            out string reason)
+        {
+            if (!item.Rarity.HasValue)
+            {
+                reason = "rarity unavailable";
+                return WaystoneCraftingAction.Reject;
+            }
+
             var targetMods = Math.Clamp(settings.MaxWaystoneMods, 4, 6);
             switch (item.Rarity.Value)
             {

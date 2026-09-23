@@ -529,10 +529,18 @@ try
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ExplicitMods)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ExplicitModsDisplay)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.WaystoneImplicitMods)) != null &&
+          typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.WaystoneCorrupted))?.PropertyType == typeof(bool?) &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.StackCount)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.ModStats)) != null &&
           typeof(InventorySnapshotItem).GetProperty(nameof(InventorySnapshotItem.WaystoneTier))?.PropertyType == typeof(int?),
-        "Full inventory item details must expose identity, modifier rows/stats, stack metadata, and exact Waystone classification.");
+        "Full inventory item details must expose identity, modifier rows/stats, stack metadata, exact Waystone classification, and nullable Corrupted state.");
+    Check(WaystoneCorruptionFlag.BaseComponentFlagByteOffset == 0xC7 &&
+          WaystoneCorruptionFlag.CorruptedMask == 0x01 &&
+          WaystoneCorruptionFlag.Decode(0x10) == false &&
+          WaystoneCorruptionFlag.Decode(0x11) == true &&
+          WaystoneCorruptionFlag.Decode(0x01) == true &&
+          WaystoneCorruptionFlag.Decode(null) == null,
+        "Waystone Corrupted must decode only Base+0xC7 bit 0 and retain unavailable reads as unknown.");
     Check(InventoryItemClassifier.Classify("Metadata/Items/Maps/MapKeyTier15") == InventoryItemCategory.Waystone &&
           InventoryItemClassifier.Classify("Metadata/Items/Currency/CurrencyUpgradeToRare") == InventoryItemCategory.Currency &&
           InventoryItemClassifier.Classify("Metadata/Items/Jewels/FourJewel1") == InventoryItemCategory.Jewel &&
@@ -566,6 +574,58 @@ try
           waystoneFilterSettings.MaxWaystoneMods == 6 &&
           waystoneFilterSettings.BlockedWaystoneMods.SequenceEqual(new[] { "MapBurningGround" }),
         "Waystone filter settings must preserve blank thresholds, clamp maximum mods, and reject unknown block keys.");
+    InventorySnapshotItem MakeSyntheticWaystone(
+        TEHhub.RemoteEnums.Rarity rarity,
+        bool? corrupted,
+        int modCount,
+        string[]? modNames = null)
+    {
+        var syntheticItem = (Item)RuntimeHelpers.GetUninitializedObject(typeof(Item));
+        typeof(Entity).GetProperty(nameof(Entity.Path))!.SetValue(
+            syntheticItem,
+            "Metadata/Items/Maps/MapKeyTier15");
+        var names = modNames ?? Enumerable.Range(0, modCount)
+            .Select(index => $"SyntheticSafeMod{index}")
+            .ToArray();
+        return new InventorySnapshotItem(syntheticItem, IntPtr.Zero, 0, 0, 1, 1)
+        {
+            Rarity = rarity,
+            WaystoneCorrupted = corrupted,
+            ExplicitMods = names
+                .Select(name => new InventorySnapshotMod(name, 0, float.NaN))
+                .ToArray(),
+        };
+    }
+
+    var craftingSettings = new AutoExile2.AutoExile2Settings { MaxWaystoneMods = 6 };
+    var sixModReady = MakeSyntheticWaystone(TEHhub.RemoteEnums.Rarity.Rare, false, 6);
+    var corruptedSixModReady = MakeSyntheticWaystone(TEHhub.RemoteEnums.Rarity.Rare, true, 6);
+    var corruptedUnderfilled = MakeSyntheticWaystone(TEHhub.RemoteEnums.Rarity.Rare, true, 5);
+    var unknownUnderfilled = MakeSyntheticWaystone(TEHhub.RemoteEnums.Rarity.Rare, null, 5);
+    var unknownSixModReady = MakeSyntheticWaystone(TEHhub.RemoteEnums.Rarity.Rare, null, 6);
+    var corruptedNormal = MakeSyntheticWaystone(TEHhub.RemoteEnums.Rarity.Normal, true, 0);
+    Check(AutoExile2.WaystoneCrafting.GetNextAction(sixModReady, craftingSettings, out _) ==
+              AutoExile2.WaystoneCraftingAction.Ready &&
+          AutoExile2.WaystoneCrafting.GetNextAction(corruptedSixModReady, craftingSettings, out _) ==
+              AutoExile2.WaystoneCraftingAction.Ready &&
+          AutoExile2.WaystoneCrafting.GetNextAction(corruptedUnderfilled, craftingSettings, out var corruptedReason) ==
+              AutoExile2.WaystoneCraftingAction.Reject && corruptedReason.Contains("cannot be crafted", StringComparison.Ordinal) &&
+          AutoExile2.WaystoneCrafting.GetNextAction(unknownUnderfilled, craftingSettings, out var unknownReason) ==
+              AutoExile2.WaystoneCraftingAction.Reject && unknownReason.Contains("unavailable", StringComparison.Ordinal) &&
+          AutoExile2.WaystoneCrafting.GetNextAction(unknownSixModReady, craftingSettings, out _) ==
+              AutoExile2.WaystoneCraftingAction.Ready &&
+          AutoExile2.WaystoneCrafting.GetNextAction(corruptedNormal, craftingSettings, out _) ==
+              AutoExile2.WaystoneCraftingAction.Reject,
+        "Waystone crafting must allow already-ready items, reject currency actions for corrupted/unknown state, and fail closed for corrupted Normal items.");
+    craftingSettings.BlockedWaystoneMods = new List<string> { "MapBurningGround" };
+    var corruptedBlocked = MakeSyntheticWaystone(
+        TEHhub.RemoteEnums.Rarity.Rare,
+        true,
+        6,
+        new[] { "MapSpreadBurningGround3", "Synthetic1", "Synthetic2", "Synthetic3", "Synthetic4", "Synthetic5" });
+    Check(AutoExile2.WaystoneCrafting.GetNextAction(corruptedBlocked, craftingSettings, out var blockedReason) ==
+              AutoExile2.WaystoneCraftingAction.Reject && blockedReason.Contains("blocked mod", StringComparison.Ordinal),
+        "A Corrupted Waystone that fails active filters must remain rejected.");
     var targetedEmptySlot = new InventorySlotItemSnapshot(
         InventorySnapshotState.Ready,
         TEHhub.RemoteEnums.InventoryName.MainInventory1,
