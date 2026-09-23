@@ -313,5 +313,8 @@ namespace AutoExile2
 
         /// <summary>Allow external devices on local network to connect.</summary>
         public bool WebServerNetworkAccess = true;
+
+        /// <summary>Write detailed bot decisions and injected inputs to a JSONL file beside the plugin.</summary>
+        public bool EnableActionLogging;
     }
 }

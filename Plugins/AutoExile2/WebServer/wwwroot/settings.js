@@ -1836,7 +1836,7 @@ async function saveSettings() {
     'CoopPhysicalPadIndex', 'P1AutoLifeFlask', 'P1LifeFlaskThresholdPercent', 'P1AutoManaFlask', 'P1ManaFlaskThresholdPercent',
     'CoopFollowDistance', 'CoopStopDistance', 'CoopSprintDistance',
     'P2AutoLifeFlask', 'P2LifeFlaskThresholdPercent', 'P2AutoManaFlask', 'P2ManaFlaskThresholdPercent', 'P2EnableCombat',
-    'ShowOverlay', 'ShowDistanceCircles', 'WebServerPort', 'WebServerNetworkAccess'
+    'ShowOverlay', 'ShowDistanceCircles', 'WebServerPort', 'WebServerNetworkAccess', 'EnableActionLogging'
   ];
 
   simpleFields.forEach(f => {

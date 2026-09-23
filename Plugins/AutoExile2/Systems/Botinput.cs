@@ -174,6 +174,10 @@ namespace AutoExile2.Systems
         public static void MoveCursor(Vector2 screenPos)
         {
             SetCursorPos((int)screenPos.X, (int)screenPos.Y);
+            if (BotActionLog.Enabled)
+            {
+                BotActionLog.Write("mouse.move", $"Cursor to screen ({screenPos.X:F0}, {screenPos.Y:F0}).");
+            }
         }
 
         /// <summary>
@@ -190,6 +194,10 @@ namespace AutoExile2.Systems
             if (dist < 5f)
             {
                 SetCursorPos((int)target.X, (int)target.Y);
+                if (BotActionLog.Enabled)
+                {
+                    BotActionLog.Write("mouse.move", $"Cursor to screen ({target.X:F0}, {target.Y:F0}).");
+                }
                 return;
             }
 
@@ -219,6 +227,10 @@ namespace AutoExile2.Systems
             var jitterX = (float)((Rng.NextDouble() * 2.0) - 1.0) * LandingJitterPx;
             var jitterY = (float)((Rng.NextDouble() * 2.0) - 1.0) * LandingJitterPx;
             SetCursorPos((int)(target.X + jitterX), (int)(target.Y + jitterY));
+            if (BotActionLog.Enabled)
+            {
+                BotActionLog.Write("mouse.move", $"Cursor to screen ({target.X:F0}, {target.Y:F0}).");
+            }
         }
 
         /// <summary>
@@ -343,6 +355,13 @@ namespace AutoExile2.Systems
                                 }
                             }
                         }
+
+                        if (BotActionLog.Enabled)
+                        {
+                            BotActionLog.Write(
+                                "mouse.click",
+                                $"{(rightClick ? "Right" : "Left")} click at ({screenPos.X:F0}, {screenPos.Y:F0}); shift={shiftClick}; outcome={(clickIssued ? "issued" : "skipped")}");
+                        }
                     }
                     finally
                     {
@@ -381,6 +400,7 @@ namespace AutoExile2.Systems
                     }
 
                     keybd_event((byte)VK.LSHIFT, 0, 0, 0);
+                    if (BotActionLog.Enabled) BotActionLog.Write("input.key", "Pressed LSHIFT for batch interaction.");
                     shiftHoldIsInjected = true;
                     lastInputEvent = DateTime.Now;
                     newlyAcquired = true;
@@ -403,6 +423,7 @@ namespace AutoExile2.Systems
                 }
 
                 keybd_event((byte)VK.LSHIFT, 0, 0, 0);
+                if (BotActionLog.Enabled) BotActionLog.Write("input.key", "Pressed LSHIFT for batch interaction.");
                 shiftHoldOwner = owner;
                 shiftHoldIsInjected = true;
                 lastInputEvent = DateTime.Now;
@@ -433,6 +454,7 @@ namespace AutoExile2.Systems
                 }
 
                 keybd_event((byte)VK.LSHIFT, 0, KEYEVENTF_KEYUP, 0);
+                if (BotActionLog.Enabled) BotActionLog.Write("input.key", "Released LSHIFT for batch interaction.");
                 shiftHoldOwner = null;
                 shiftHoldIsInjected = false;
                 lastInputEvent = DateTime.Now;
@@ -467,6 +489,7 @@ namespace AutoExile2.Systems
                     }
 
                     keybd_event((byte)VK.LCONTROL, 0, 0, 0);
+                    if (BotActionLog.Enabled) BotActionLog.Write("input.key", "Pressed LCONTROL for batch interaction.");
                     ctrlHoldIsInjected = true;
                     lastInputEvent = DateTime.Now;
                     newlyAcquired = true;
@@ -489,6 +512,7 @@ namespace AutoExile2.Systems
                 }
 
                 keybd_event((byte)VK.LCONTROL, 0, 0, 0);
+                if (BotActionLog.Enabled) BotActionLog.Write("input.key", "Pressed LCONTROL for batch interaction.");
                 ctrlHoldOwner = owner;
                 ctrlHoldIsInjected = true;
                 lastInputEvent = DateTime.Now;
@@ -519,6 +543,7 @@ namespace AutoExile2.Systems
                 }
 
                 keybd_event((byte)VK.LCONTROL, 0, KEYEVENTF_KEYUP, 0);
+                if (BotActionLog.Enabled) BotActionLog.Write("input.key", "Released LCONTROL for batch interaction.");
                 ctrlHoldOwner = null;
                 ctrlHoldIsInjected = false;
                 lastInputEvent = DateTime.Now;
@@ -588,6 +613,12 @@ namespace AutoExile2.Systems
                     }
 
                     mouse_event(MOUSEEVENTF_WHEEL, 0, 0, wheelData, 0);
+                    if (BotActionLog.Enabled)
+                    {
+                        BotActionLog.Write(
+                            "mouse.ctrl_scroll",
+                            $"Direction={(direction > 0 ? "up" : "down")}; at=({screenPos.X:F0}, {screenPos.Y:F0}); outcome=issued");
+                    }
                     lastInputEvent = DateTime.Now;
                     await Task.Delay(RandHold());
                 }
@@ -696,6 +727,12 @@ namespace AutoExile2.Systems
                             // Mouse-up and modifier release are complete.
                         }
                     }
+                    if (BotActionLog.Enabled)
+                    {
+                        BotActionLog.Write(
+                            "mouse.ctrl_click",
+                            $"Ctrl+left click at ({screenPos.X:F0}, {screenPos.Y:F0}); outcome={(clickIssued ? "issued" : "skipped")}");
+                    }
                     onClickFinished?.Invoke(clickIssued);
                 }
             });
@@ -706,6 +743,7 @@ namespace AutoExile2.Systems
         /// </summary>
         public static void KeyDown(VK key)
         {
+            bool pressed = false;
             lock (KeyLock)
             {
                 if (!HeldKeys.Contains(key))
@@ -713,7 +751,13 @@ namespace AutoExile2.Systems
                     keybd_event((byte)key, 0, 0, 0);
                     HeldKeys.Add(key);
                     lastInputEvent = DateTime.Now;
+                    pressed = true;
                 }
+            }
+
+            if (pressed && BotActionLog.Enabled)
+            {
+                BotActionLog.Write("input.key", $"Key down: {key}.");
             }
         }
 
@@ -722,6 +766,7 @@ namespace AutoExile2.Systems
         /// </summary>
         public static void KeyUp(VK key)
         {
+            bool released = false;
             lock (KeyLock)
             {
                 if (HeldKeys.Contains(key))
@@ -729,7 +774,13 @@ namespace AutoExile2.Systems
                     keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
                     HeldKeys.Remove(key);
                     lastInputEvent = DateTime.Now;
+                    released = true;
                 }
+            }
+
+            if (released && BotActionLog.Enabled)
+            {
+                BotActionLog.Write("input.key", $"Key up: {key}.");
             }
         }
 
@@ -745,6 +796,8 @@ namespace AutoExile2.Systems
                 return;
             }
 
+            bool sent = false;
+            bool postedToWindow = false;
             try
             {
                 // 1. Post directly to PoE window message queue (identical to AutoHotKeyTrigger / MiscHelper)
@@ -756,17 +809,25 @@ namespace AutoExile2.Systems
 
                 if (hWnd != IntPtr.Zero)
                 {
-                    PostMessage(hWnd, WM_KEYUP, (IntPtr)(int)key, IntPtr.Zero);
+                    postedToWindow = PostMessage(hWnd, WM_KEYUP, (IntPtr)(int)key, IntPtr.Zero);
                 }
 
                 // 2. Also send immediate keybd_event down & up with 0ms hold for any DirectInput/GetAsyncKeyState listeners
                 keybd_event((byte)key, 0, 0, 0);
                 keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                sent = true;
                 lastInputEvent = DateTime.Now;
             }
             catch
             {
                 // Ignore transient errors
+            }
+            finally
+            {
+                if (BotActionLog.Enabled)
+                {
+                    BotActionLog.Write("input.key_press", $"Key={key}; postedToGameWindow={postedToWindow}; outcome={(sent ? "sent" : "failed")}");
+                }
             }
         }
 
@@ -787,9 +848,11 @@ namespace AutoExile2.Systems
             Task.Run(async () =>
             {
                 keybd_event((byte)key, 0, 0, 0);
+                if (BotActionLog.Enabled) BotActionLog.Write("input.key_press", $"Key down: {key} (tap).");
                 int hold = Math.Max(10, GaussianDelay(baseHoldMs, 5f));
                 await Task.Delay(hold);
                 keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
+                if (BotActionLog.Enabled) BotActionLog.Write("input.key_press", $"Key released: {key} (tap).");
                 lastInputEvent = DateTime.Now;
             });
         }
@@ -890,6 +953,11 @@ namespace AutoExile2.Systems
                     keybd_event((byte)key, 0, 0, 0);
                     break;
             }
+
+            if (BotActionLog.Enabled)
+            {
+                BotActionLog.Write("skill.input", $"Pressed {type}{(type == AttackInputType.KeyboardKey ? $" ({key})" : string.Empty)}.");
+            }
         }
 
         private static void SendAttackUp(AttackInputType type, VK key)
@@ -908,6 +976,11 @@ namespace AutoExile2.Systems
                 case AttackInputType.KeyboardKey:
                     keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
                     break;
+            }
+
+            if (BotActionLog.Enabled)
+            {
+                BotActionLog.Write("skill.input", $"Released {type}{(type == AttackInputType.KeyboardKey ? $" ({key})" : string.Empty)}.");
             }
         }
 
@@ -945,6 +1018,7 @@ namespace AutoExile2.Systems
         /// </summary>
         public static void StartChannel(AttackInputType type, VK key)
         {
+            bool started = false;
             switch (type)
             {
                 case AttackInputType.MouseRight:
@@ -952,6 +1026,7 @@ namespace AutoExile2.Systems
                     {
                         mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
                         isRightMouseDown = true;
+                        started = true;
                     }
                     break;
                 case AttackInputType.MouseLeft:
@@ -959,6 +1034,7 @@ namespace AutoExile2.Systems
                     {
                         mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
                         isLeftMouseDown = true;
+                        started = true;
                     }
                     break;
                 case AttackInputType.MouseMiddle:
@@ -966,12 +1042,21 @@ namespace AutoExile2.Systems
                     {
                         mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0);
                         isMiddleMouseDown = true;
+                        started = true;
                     }
                     break;
                 case AttackInputType.KeyboardKey:
                     KeyDown(key);
                     activeChannelKey = key;
                     break;
+            }
+
+            if (started)
+            {
+                if (BotActionLog.Enabled)
+                {
+                    BotActionLog.Write("skill.channel", $"Started {type} channel{(type == AttackInputType.KeyboardKey ? $" ({key})" : string.Empty)}.");
+                }
             }
         }
 
@@ -980,6 +1065,7 @@ namespace AutoExile2.Systems
         /// </summary>
         public static void StopChannel(AttackInputType type, VK key)
         {
+            bool stopped = false;
             switch (type)
             {
                 case AttackInputType.MouseRight:
@@ -987,6 +1073,7 @@ namespace AutoExile2.Systems
                     {
                         mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
                         isRightMouseDown = false;
+                        stopped = true;
                     }
                     break;
                 case AttackInputType.MouseLeft:
@@ -994,6 +1081,7 @@ namespace AutoExile2.Systems
                     {
                         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
                         isLeftMouseDown = false;
+                        stopped = true;
                     }
                     break;
                 case AttackInputType.MouseMiddle:
@@ -1001,12 +1089,22 @@ namespace AutoExile2.Systems
                     {
                         mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0);
                         isMiddleMouseDown = false;
+                        stopped = true;
                     }
                     break;
                 case AttackInputType.KeyboardKey:
                     KeyUp(key);
+                    stopped = true;
                     if (activeChannelKey == key) activeChannelKey = null;
                     break;
+            }
+
+            if (stopped && type != AttackInputType.KeyboardKey)
+            {
+                if (BotActionLog.Enabled)
+                {
+                    BotActionLog.Write("skill.channel", $"Stopped {type} channel.");
+                }
             }
         }
 
@@ -1172,9 +1270,11 @@ namespace AutoExile2.Systems
         /// </summary>
         public static void ReleaseAllHeldKeys()
         {
+            List<VK> released;
             lock (KeyLock)
             {
-                foreach (var key in new List<VK>(HeldKeys))
+                released = new List<VK>(HeldKeys);
+                foreach (var key in released)
                 {
                     keybd_event((byte)key, 0, KEYEVENTF_KEYUP, 0);
                 }
@@ -1182,6 +1282,14 @@ namespace AutoExile2.Systems
                 HeldKeys.Clear();
                 activeChannelKey = null;
                 lastInputEvent = DateTime.Now;
+            }
+
+            if (BotActionLog.Enabled)
+            {
+                foreach (var key in released)
+                {
+                    BotActionLog.Write("input.key", $"Key up: {key} (release all).");
+                }
             }
         }
 

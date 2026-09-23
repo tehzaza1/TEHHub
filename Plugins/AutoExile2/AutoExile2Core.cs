@@ -87,6 +87,7 @@ namespace AutoExile2
             this.profileManager.OnProfileSwitched += this.HandleProfileSwitched;
 
             this.Settings = this.profileManager.LoadActive(new AutoExile2Settings());
+            BotActionLog.Configure(this.Settings.EnableActionLogging, GetPluginDirectory());
 
             // Running is session state, not configuration. Always start paused after plugin enable/reload.
             this.Settings.IsRunning = false;
@@ -143,6 +144,7 @@ namespace AutoExile2
             this.coopGamepad.Disconnect();
             this.webServer?.Stop();
             this.webServer = null;
+            BotActionLog.Close();
         }
 
         private void HandleProfileSwitched(string _)
@@ -151,6 +153,7 @@ namespace AutoExile2
             // Force a clean paused transition so no input from the previous profile leaks through.
             this.Settings.IsRunning = false;
             this.StopAutomationInputs();
+            BotActionLog.Configure(this.Settings.EnableActionLogging, GetPluginDirectory());
 
             if (this.isModeInitialized && this.botCtx != null)
             {
@@ -188,6 +191,7 @@ namespace AutoExile2
         /// <inheritdoc/>
         public override void SaveSettings()
         {
+            BotActionLog.Configure(this.Settings.EnableActionLogging, GetPluginDirectory());
             this.profileManager.SaveActive(this.Settings);
         }
 
@@ -205,6 +209,14 @@ namespace AutoExile2
                 () => this.modes.Values,
                 this.coopGamepad);
             this.webServer.Start();
+        }
+
+        private static string GetPluginDirectory()
+        {
+            string assemblyPath = typeof(AutoExile2Core).Assembly.Location;
+            return string.IsNullOrWhiteSpace(assemblyPath)
+                ? AppContext.BaseDirectory
+                : Path.GetDirectoryName(assemblyPath) ?? AppContext.BaseDirectory;
         }
 
         public string TriggerDump()
@@ -649,6 +661,7 @@ namespace AutoExile2
                 if (ImGui.Button("STOP BOT (PAUSE)", new Vector2(200, 36)))
                 {
                     this.Settings.IsRunning = false;
+                    BotActionLog.Write("bot.control", "Paused from Settings UI.");
                     this.StopAutomationInputs();
                 }
                 ImGui.PopStyleColor();
@@ -659,6 +672,7 @@ namespace AutoExile2
                 if (ImGui.Button("START BOT", new Vector2(200, 36)))
                 {
                     this.Settings.IsRunning = true;
+                    BotActionLog.Write("bot.control", "Started from Settings UI.");
                 }
                 ImGui.PopStyleColor();
             }
@@ -718,6 +732,28 @@ namespace AutoExile2
                     this.StartWebServer();
                 }
             }
+
+            ImGui.Separator();
+            ImGui.Text("Diagnostics");
+            if (ImGui.Checkbox("Write bot action log", ref this.Settings.EnableActionLogging))
+            {
+                BotActionLog.Configure(this.Settings.EnableActionLogging, GetPluginDirectory());
+                this.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Records bot decisions and injected keyboard / mouse inputs. Logging is off by default.");
+            }
+
+            ImGui.TextWrapped($"Log folder: {BotActionLog.LogDirectory}");
+            if (this.Settings.EnableActionLogging && BotActionLog.Status.StartsWith("Action logging unavailable", StringComparison.Ordinal))
+            {
+                ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), BotActionLog.Status);
+            }
+            else
+            {
+                ImGui.TextWrapped(BotActionLog.Status);
+            }
         }
 
         private static ref int UnsafeEnumRef<T>(ref T value) where T : unmanaged, Enum
@@ -758,6 +794,7 @@ namespace AutoExile2
             if (isToggleDown && !this.lastToggleKeyDown)
             {
                 this.Settings.IsRunning = !this.Settings.IsRunning;
+                BotActionLog.Write("bot.control", this.Settings.IsRunning ? "Started by hotkey." : "Paused by hotkey.");
                 if (!this.Settings.IsRunning)
                 {
                     this.StopAutomationInputs();
@@ -1118,7 +1155,11 @@ namespace AutoExile2
                                     Recorder = this.recorder,
                                     CoopGamepad = this.coopGamepad,
                                     Interaction = this.interactionSystem,
-                                    Log = msg => Console.WriteLine($"[AutoExile2] {msg}"),
+                                    Log = msg =>
+                                    {
+                                        Console.WriteLine($"[AutoExile2] {msg}");
+                                        BotActionLog.Write("bot.message", msg);
+                                    },
                                 };
                             }
                             else
@@ -1131,6 +1172,8 @@ namespace AutoExile2
                                 this.botCtx.DeltaTime = deltaSec;
                                 this.botCtx.Settings = this.Settings;
                             }
+
+                            BotActionLog.ObserveAction(this.activeMode.Name, this.activeMode.CurrentAction);
 
                             // Switch active mode if settings changed
                             this.CheckModeSwitch(this.botCtx);
@@ -1158,6 +1201,7 @@ namespace AutoExile2
 
                             // Delegate execution to the active mode! (MapFarm, Follower, Boss, Idle)
                             this.activeMode.Tick(this.botCtx);
+                            BotActionLog.ObserveAction(this.activeMode.Name, this.activeMode.CurrentAction);
                             waitResult = new Wait(0.0166d);
                         }
                     }

@@ -671,18 +671,21 @@ namespace AutoExile2.Modes.Shared
                         current => CraftingActionChangedSlot(
                             current,
                             baseline.Action,
+                            baseline.WaystoneItemAddress,
                             baseline.WaystoneSlotX,
                             baseline.WaystoneSlotY,
                             baseline.WaystoneTier,
                             baseline.Rarity,
-                            baseline.ModCountBeforeUse),
+                            baseline.ModCountBeforeUse,
+                            diagnostic => baseline.VerificationDiagnostic = diagnostic),
                         current => baseline.ObservedCurrencyStackCountBeforeUse = ReadCurrencyStackCount(
                             current,
                             baseline.CurrencyTab,
                             baseline.CurrencyPath,
                             baseline.CurrencyItemAddress,
                             baseline.CurrencySlotX,
-                            baseline.CurrencySlotY)));
+                            baseline.CurrencySlotY),
+                        () => baseline.VerificationDiagnostic));
                     targetBaselines.Add(baseline);
                     exaltedUsesByWaystone[targetWaystone.ItemAddress] =
                         exaltedUsesByWaystone.GetValueOrDefault(targetWaystone.ItemAddress) + 1;
@@ -818,18 +821,21 @@ namespace AutoExile2.Modes.Shared
                 current => CraftingActionChangedSlot(
                     current,
                     baseline.Action,
+                    baseline.WaystoneItemAddress,
                     baseline.WaystoneSlotX,
                     baseline.WaystoneSlotY,
                     baseline.WaystoneTier,
                     baseline.Rarity,
-                    baseline.ModCountBeforeUse),
+                    baseline.ModCountBeforeUse,
+                    diagnostic => baseline.VerificationDiagnostic = diagnostic),
                 current =>
                 {
                     if (!CraftSlotsAreUnchanged(current, baseline))
                     {
                         throw new InvalidOperationException("Craft slots changed before retry click");
                     }
-                });
+                },
+                () => baseline.VerificationDiagnostic);
             if (!ctx.Interaction.BeginUiCurrencyUseBatch(
                     currencyControl.UiAddress,
                     new[] { retryTarget },
@@ -2057,11 +2063,13 @@ namespace AutoExile2.Modes.Shared
         private static bool CraftingActionChangedSlot(
             BotContext ctx,
             WaystoneCraftingAction action,
+            IntPtr expectedWaystoneItemAddress,
             int slotX,
             int slotY,
             int? expectedWaystoneTier,
             Rarity? oldRarity,
-            int oldModCount)
+            int oldModCount,
+            Action<string>? onVerificationDiagnostic = null)
         {
             var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
                 InventoryName.MainInventory1,
@@ -2069,21 +2077,64 @@ namespace AutoExile2.Modes.Shared
                 slotY,
                 InventorySnapshotDetailLevel.Full);
             var item = result.Item;
-            if (result.State != InventorySnapshotState.Ready || item == null || !item.IsWaystone ||
-                item.WaystoneTier != expectedWaystoneTier)
+            if (result.State != InventorySnapshotState.Ready)
             {
+                onVerificationDiagnostic?.Invoke(
+                    $"slot ({slotX},{slotY})={result.State}; expected Waystone tier {expectedWaystoneTier}, " +
+                    $"explicit mods unavailable; {result.Diagnostic}; " +
+                    $"request={result.ServerRequestCounter}, revision=0x{result.SourceRevision:X}");
                 return false;
             }
 
-            return action switch
+            if (item == null)
             {
-                WaystoneCraftingAction.Identify => item.ExplicitMods.Count > 0,
+                onVerificationDiagnostic?.Invoke(
+                    $"slot ({slotX},{slotY}) Ready but empty; expected Waystone 0x{expectedWaystoneItemAddress.ToInt64():X}, " +
+                    $"tier {expectedWaystoneTier}, explicit mods unavailable; " +
+                    $"request={result.ServerRequestCounter}, revision=0x{result.SourceRevision:X}");
+                return false;
+            }
+
+            if (!item.IsWaystone || item.WaystoneTier != expectedWaystoneTier)
+            {
+                onVerificationDiagnostic?.Invoke(
+                    $"slot ({slotX},{slotY}) Ready; item=0x{item.ItemAddress.ToInt64():X} " +
+                    $"(baseline=0x{expectedWaystoneItemAddress.ToInt64():X}), " +
+                    $"path={item.Path}, tier={item.WaystoneTier?.ToString() ?? "unknown"} " +
+                    $"(expected {expectedWaystoneTier?.ToString() ?? "unknown"}), " +
+                    $"explicit mods={item.ExplicitMods.Count}; " +
+                    $"request={result.ServerRequestCounter}, revision=0x{result.SourceRevision:X}");
+                return false;
+            }
+
+            var explicitModCount = item.ExplicitMods.Count;
+            var success = action switch
+            {
+                WaystoneCraftingAction.Identify => explicitModCount > 0,
                 WaystoneCraftingAction.Alchemy =>
                     item.Rarity == Rarity.Rare &&
-                    (oldRarity != Rarity.Rare || item.ExplicitMods.Count > oldModCount),
-                WaystoneCraftingAction.Exalted => item.ExplicitMods.Count > oldModCount,
+                    (oldRarity != Rarity.Rare || explicitModCount > oldModCount),
+                WaystoneCraftingAction.Exalted => explicitModCount > oldModCount,
                 _ => false,
             };
+            var expected = action switch
+            {
+                WaystoneCraftingAction.Identify => "explicit mods > 0",
+                WaystoneCraftingAction.Alchemy when oldRarity != Rarity.Rare => "Rare rarity",
+                WaystoneCraftingAction.Alchemy => $"Rare and explicit mods > {oldModCount}",
+                WaystoneCraftingAction.Exalted => $"explicit mods > {oldModCount}",
+                _ => "a supported crafting action",
+            };
+            var modsDiagnostic = string.IsNullOrWhiteSpace(item.DetailDiagnostic)
+                ? item.Rarity.HasValue ? "Full Mods details readable" : "Mods component unavailable"
+                : item.DetailDiagnostic;
+            onVerificationDiagnostic?.Invoke(
+                $"slot ({slotX},{slotY}) Ready; item=0x{item.ItemAddress.ToInt64():X} " +
+                $"(baseline=0x{expectedWaystoneItemAddress.ToInt64():X}), tier={item.WaystoneTier}; " +
+                $"rarity={item.Rarity?.ToString() ?? "unavailable"}, explicit mods={explicitModCount} " +
+                $"(expected {expected}); details={modsDiagnostic}; " +
+                $"request={result.ServerRequestCounter}, revision=0x{result.SourceRevision:X}");
+            return success;
         }
 
         private static bool IsConfiguredTabReady(BotContext ctx, string configuredTab)
@@ -2167,6 +2218,8 @@ namespace AutoExile2.Modes.Shared
             int CurrencyStackCountBeforeUse)
         {
             public int? ObservedCurrencyStackCountBeforeUse { get; set; } = CurrencyStackCountBeforeUse;
+
+            public string VerificationDiagnostic { get; set; } = "No target-slot read yet";
         }
 
         private sealed record WithdrawalBaseline(

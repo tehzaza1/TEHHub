@@ -48,7 +48,8 @@ namespace AutoExile2.Systems
     public sealed record CurrencyUseTarget(
         IntPtr UiAddress,
         Func<BotContext, bool> SuccessPredicate,
-        Action<BotContext>? BeforeClick = null);
+        Action<BotContext>? BeforeClick = null,
+        Func<string>? PendingVerificationStatus = null);
 
     /// <summary>
     /// Serializes world-entity and UI interactions. A request navigates when necessary,
@@ -62,6 +63,7 @@ namespace AutoExile2.Systems
         private const double CtrlClickVerificationMilliseconds = 2000d;
         private const double CurrencyActivationMilliseconds = 650d;
         private const double CurrencyCleanupMilliseconds = 350d;
+        private const double CurrencyTargetVerificationMilliseconds = 5000d;
         private const double RepathMilliseconds = 300d;
         private const float WaypointReachedDistance = 12f;
 
@@ -95,6 +97,8 @@ namespace AutoExile2.Systems
         private DateTime startedAtUtc;
         private DateTime settleStartedAtUtc;
         private DateTime lastClickAtUtc;
+        private DateTime currencyTargetClickCompletedAtUtc;
+        private string lastCurrencyVerificationDiagnostic = string.Empty;
         private DateTime lastRepathAtUtc;
         private Vector2? lastPathTarget;
         private Vector2 lastPlayerGrid;
@@ -356,6 +360,11 @@ namespace AutoExile2.Systems
             this.uiAddress = currencyUiAddress;
             this.currencyTargets = targets;
             this.currencyTargetIndex = 0;
+            this.lastCurrencyVerificationDiagnostic = string.Empty;
+            if (BotActionLog.Enabled)
+            {
+                BotActionLog.Write("currency.batch", $"Starting {description}; targets={targets.Count}.");
+            }
             this.currencyAreaHash = string.Empty;
             this.currencyShiftTargetWasIssued = false;
             this.Description = description;
@@ -861,6 +870,8 @@ namespace AutoExile2.Systems
                 var isFinalShiftClick = shiftClick && this.currencyTargetIndex == targetCount - 1;
                 this.currencyTargetClickIssued = false;
                 this.currencyTargetClickCompleted = false;
+                this.currencyTargetClickCompletedAtUtc = DateTime.MinValue;
+                this.lastCurrencyVerificationDiagnostic = string.Empty;
                 this.StartCurrencyClick();
                 BotInput.HumanClick(
                     targetPoint,
@@ -930,11 +941,34 @@ namespace AutoExile2.Systems
 
                 if (!targetSucceeded)
                 {
-                    this.Status = $"Verifying currency count and target slot for {this.Description}";
+                    var targetCount = this.currencyTargets?.Count ?? 0;
+                    var pendingStatus = GetCurrencyTargetPendingStatus(target);
+                    this.Status = string.IsNullOrWhiteSpace(pendingStatus)
+                        ? $"Verifying target {this.currencyTargetIndex + 1}/{targetCount} for {this.Description}"
+                        : $"Verifying target {this.currencyTargetIndex + 1}/{targetCount} for {this.Description}: {pendingStatus}";
+                    if (BotActionLog.Enabled && !string.Equals(pendingStatus, this.lastCurrencyVerificationDiagnostic, StringComparison.Ordinal))
+                    {
+                        this.lastCurrencyVerificationDiagnostic = pendingStatus;
+                        BotActionLog.Write("currency.verify", this.Status);
+                    }
+
+                    if (this.currencyTargetClickCompletedAtUtc != DateTime.MinValue &&
+                        (now - this.currencyTargetClickCompletedAtUtc).TotalMilliseconds >= CurrencyTargetVerificationMilliseconds)
+                    {
+                        return this.Fail(
+                            ctx,
+                            $"{this.Description} target {this.currencyTargetIndex + 1}/{targetCount} was not confirmed within " +
+                            $"{CurrencyTargetVerificationMilliseconds / 1000d:F0}s: {pendingStatus}");
+                    }
+
                     return this.Result;
                 }
 
                 this.currencyTargetIndex++;
+                if (BotActionLog.Enabled)
+                {
+                    BotActionLog.Write("currency.confirmed", $"Verified target {this.currencyTargetIndex}/{this.currencyTargets?.Count ?? 0} for {this.Description}: {GetCurrencyTargetPendingStatus(target)}");
+                }
                 if (this.currencyTargets != null && this.currencyTargetIndex < this.currencyTargets.Count)
                 {
                     this.currencyUseStep = 1;
@@ -1014,6 +1048,18 @@ namespace AutoExile2.Systems
                 0,
                 0,
                 InventorySnapshotDetailLevel.Basic);
+
+        private static string GetCurrencyTargetPendingStatus(CurrencyUseTarget? target)
+        {
+            try
+            {
+                return target?.PendingVerificationStatus?.Invoke() ?? string.Empty;
+            }
+            catch
+            {
+                return "verification diagnostics unavailable";
+            }
+        }
 
         private void StartCurrencyClick()
         {
@@ -1133,6 +1179,7 @@ namespace AutoExile2.Systems
                     }
                     else
                     {
+                        this.currencyTargetClickCompletedAtUtc = DateTime.UtcNow;
                         this.currencyTargetClickCompleted = true;
                     }
                 }
@@ -1354,6 +1401,8 @@ namespace AutoExile2.Systems
             this.currencyActivationCompleted = false;
             this.currencyTargetClickIssued = false;
             this.currencyTargetClickCompleted = false;
+            this.currencyTargetClickCompletedAtUtc = DateTime.MinValue;
+            this.lastCurrencyVerificationDiagnostic = string.Empty;
             this.uiSource = "UI control";
             this.fallbackUiSource = "fallback UI control";
             this.wheelDirection = 0;
