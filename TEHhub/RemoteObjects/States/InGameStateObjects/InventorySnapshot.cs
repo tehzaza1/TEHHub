@@ -888,16 +888,19 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
             try
             {
-                var hasBaseComponent = item.TryGetComponent<Base>(out var baseComponent);
-                baseComponentFound = hasBaseComponent;
-                if (hasBaseComponent)
+                if (item.TryGetComponent<Base>(out var baseComponent) && baseComponent is not null)
                 {
+                    baseComponentFound = true;
                     baseItemName = baseComponent.BaseItemName;
                     internalName = baseComponent.InternalName;
                     if (snapshotItem.IsWaystone)
                     {
                         waystoneCorrupted = WaystoneCorruptionFlag.TryRead(baseComponent);
                     }
+                }
+                else
+                {
+                    baseComponentFound = false;
                 }
             }
             catch (Exception ex)
