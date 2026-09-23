@@ -275,7 +275,7 @@ namespace AutoExile2.Systems
 
         /// <summary>
         /// Starts one bounded PoE2 currency action: right-click the currency control, then
-        /// right-click the exact target item control. Right-click currency activation is not
+        /// left-click the exact target item control. Right-click currency activation is not
         /// represented by Cursor1, so callers verify the changed target slot before success.
         /// </summary>
         public bool BeginUiCurrencyUse(
@@ -787,7 +787,6 @@ namespace AutoExile2.Systems
                 this.currencyClickInFlight = true;
                 BotInput.HumanClick(
                     targetPoint,
-                    rightClick: true,
                     canClick: () => generation == Volatile.Read(ref this.requestGeneration) &&
                                     CanIssueInput(ctx) &&
                                     (shiftClick ||
@@ -814,7 +813,7 @@ namespace AutoExile2.Systems
                 this.currencyUseStep = 2;
                 this.lastClickAtUtc = now;
                 this.Phase = InteractionPhase.WaitingForSuccess;
-                this.Status = $"Right-clicked target for {this.Description}";
+                this.Status = $"{(shiftClick ? "Shift+left-clicked" : "Left-clicked")} target for {this.Description}";
                 return this.Result;
             }
 
