@@ -25,15 +25,16 @@ namespace AutoExile2.Systems
         private const int MaxUiSearchNodes = 512;
         private const int MaxUiSearchDepth = 6;
         private const int MaxChildrenPerSearchNode = 128;
+        private const int MaxStashCloseAttempts = 3;
         private static readonly TimeSpan WorkflowTimeout = TimeSpan.FromSeconds(90);
-        private static readonly TimeSpan StashCloseTimeout = TimeSpan.FromSeconds(3);
+        private static readonly TimeSpan StashCloseRetryDelay = TimeSpan.FromSeconds(2);
         private static readonly string MapDeviceVariantsPath =
             "Metadata/Terrain/Missions/Hideouts/Objects/MapDeviceVariants/";
 
         private OpenerState state;
         private DateTime startedAtUtc;
         private DateTime stashCloseDeadlineUtc;
-        private bool stashCloseIssued;
+        private int stashCloseAttempts;
         private bool mapDeviceClickIssued;
         private bool atlasNodeClickIssued;
         private IntPtr targetMapNodeAddress;
@@ -60,7 +61,7 @@ namespace AutoExile2.Systems
             this.state = OpenerState.CloseStash;
             this.startedAtUtc = DateTime.UtcNow;
             this.stashCloseDeadlineUtc = DateTime.MinValue;
-            this.stashCloseIssued = false;
+            this.stashCloseAttempts = 0;
             this.mapDeviceClickIssued = false;
             this.atlasNodeClickIssued = false;
             this.targetMapNodeAddress = IntPtr.Zero;
@@ -75,7 +76,7 @@ namespace AutoExile2.Systems
             this.state = OpenerState.Idle;
             this.startedAtUtc = DateTime.MinValue;
             this.stashCloseDeadlineUtc = DateTime.MinValue;
-            this.stashCloseIssued = false;
+            this.stashCloseAttempts = 0;
             this.mapDeviceClickIssued = false;
             this.atlasNodeClickIssued = false;
             this.targetMapNodeAddress = IntPtr.Zero;
@@ -171,31 +172,34 @@ namespace AutoExile2.Systems
                 return;
             }
 
-            if (!this.stashCloseIssued)
+            if (this.stashCloseAttempts > 0 && DateTime.UtcNow < this.stashCloseDeadlineUtc)
             {
-                if (!CanIssueInput(ctx))
-                {
-                    this.Status = "Waiting for foreground game and inactive chat before closing Stash";
-                    this.Decision = "WaitForSafeInput";
-                    return;
-                }
-
-                BotInput.TapKey(VK.ESCAPE);
-                this.stashCloseIssued = true;
-                this.stashCloseDeadlineUtc = DateTime.UtcNow + StashCloseTimeout;
-                this.state = OpenerState.WaitForStashClose;
-                this.Status = "Sent one Escape to the verified Stash — waiting for it to close";
+                this.Status = $"Waiting for verified Stash close ({this.stashCloseAttempts}/{MaxStashCloseAttempts})";
                 this.Decision = "VerifyStashClosed";
                 return;
             }
 
-            if (DateTime.UtcNow >= this.stashCloseDeadlineUtc)
+            if (this.stashCloseAttempts >= MaxStashCloseAttempts)
             {
-                this.Fail(ctx, "Stash did not close after one Escape — stopped without repeating input", "StashCloseUnconfirmed");
+                this.Fail(ctx, $"Stash did not close after {MaxStashCloseAttempts} Close All UI (Spacebar) attempts", "StashCloseUnconfirmed");
                 return;
             }
 
-            this.Status = "Waiting for verified Stash close";
+            if (!CanIssueInput(ctx))
+            {
+                this.Status = "Waiting for foreground game and inactive chat before closing Stash";
+                this.Decision = "WaitForSafeInput";
+                return;
+            }
+
+            // The observed PoE 2 "Close All User Interface" binding is Spacebar.
+            // Hold it long enough to register, then verify before any bounded retry.
+            BotInput.ReleaseAllMovementKeys(ctx.Settings);
+            BotInput.TapKey(VK.SPACE, baseHoldMs: 80);
+            this.stashCloseAttempts++;
+            this.stashCloseDeadlineUtc = DateTime.UtcNow + StashCloseRetryDelay;
+            this.state = OpenerState.WaitForStashClose;
+            this.Status = $"Sent Close All UI (Spacebar) to Stash ({this.stashCloseAttempts}/{MaxStashCloseAttempts})";
             this.Decision = "VerifyStashClosed";
         }
 

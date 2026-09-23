@@ -87,6 +87,8 @@ namespace AutoExile2.Systems
         private const int DelayFloorMs = 20;
         private const int DelayCeilingMs = 120;
         private const int MinInputEventGapMs = 15;
+        private const int ShiftSettleMinMs = 70;
+        private const int ShiftSettleMaxMs = 100;
 
         // ── AutoExile Mouse Movement Interpolation Constants ──
         private const int MoveMinMs = 15;
@@ -252,6 +254,10 @@ namespace AutoExile2.Systems
                     {
                         KeyDown(VK.LSHIFT);
                         pressedShift = true;
+                        // Give the injected modifier time to reach the game before the
+                        // mouse-down event. A same-tick key/mouse pair can be observed as
+                        // an ordinary click by the game's input loop.
+                        await Task.Delay(Math.Clamp(RandSettle(), ShiftSettleMinMs, ShiftSettleMaxMs));
                     }
 
                     // The user may take over the mouse while the organic movement is in
@@ -264,7 +270,8 @@ namespace AutoExile2.Systems
                     // Entity interactions may require that the game still reports the intended
                     // entity under the pointer after cursor movement. This check is opt-in so
                     // existing UI and ordinary world clicks keep their established behavior.
-                    if (!PreMouseDownValidationPassed(preMouseDownValidation))
+                    if (!PreMouseDownValidationPassed(preMouseDownValidation) ||
+                        (shiftClick && !IsKeyDown(VK.LSHIFT)))
                     {
                         return;
                     }
