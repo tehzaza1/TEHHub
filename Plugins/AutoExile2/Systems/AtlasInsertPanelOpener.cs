@@ -26,6 +26,7 @@ namespace AutoExile2.Systems
         private const int MaxUiSearchDepth = 6;
         private const int MaxChildrenPerSearchNode = 128;
         private const int MaxStashCloseAttempts = 3;
+        private const int MaxNoClickRetries = 1;
         private static readonly TimeSpan WorkflowTimeout = TimeSpan.FromSeconds(90);
         private static readonly TimeSpan StashCloseRetryDelay = TimeSpan.FromSeconds(2);
         private static readonly string MapDeviceVariantsPath =
@@ -35,8 +36,13 @@ namespace AutoExile2.Systems
         private DateTime startedAtUtc;
         private DateTime stashCloseDeadlineUtc;
         private int stashCloseAttempts;
+        private int mapDeviceNoClickRetries;
+        private int atlasNodeNoClickRetries;
         private bool mapDeviceClickIssued;
         private bool atlasNodeClickIssued;
+        private uint targetMapDeviceId;
+        private IntPtr targetMapDeviceAddress;
+        private string targetMapDevicePath = string.Empty;
         private IntPtr targetMapNodeAddress;
         private int targetMapNodeIndex = -1;
         private string targetMapId = string.Empty;
@@ -62,8 +68,13 @@ namespace AutoExile2.Systems
             this.startedAtUtc = DateTime.UtcNow;
             this.stashCloseDeadlineUtc = DateTime.MinValue;
             this.stashCloseAttempts = 0;
+            this.mapDeviceNoClickRetries = 0;
+            this.atlasNodeNoClickRetries = 0;
             this.mapDeviceClickIssued = false;
             this.atlasNodeClickIssued = false;
+            this.targetMapDeviceId = 0;
+            this.targetMapDeviceAddress = IntPtr.Zero;
+            this.targetMapDevicePath = string.Empty;
             this.targetMapNodeAddress = IntPtr.Zero;
             this.targetMapNodeIndex = -1;
             this.targetMapId = string.Empty;
@@ -77,8 +88,13 @@ namespace AutoExile2.Systems
             this.startedAtUtc = DateTime.MinValue;
             this.stashCloseDeadlineUtc = DateTime.MinValue;
             this.stashCloseAttempts = 0;
+            this.mapDeviceNoClickRetries = 0;
+            this.atlasNodeNoClickRetries = 0;
             this.mapDeviceClickIssued = false;
             this.atlasNodeClickIssued = false;
+            this.targetMapDeviceId = 0;
+            this.targetMapDeviceAddress = IntPtr.Zero;
+            this.targetMapDevicePath = string.Empty;
             this.targetMapNodeAddress = IntPtr.Zero;
             this.targetMapNodeIndex = -1;
             this.targetMapId = string.Empty;
@@ -192,6 +208,15 @@ namespace AutoExile2.Systems
                 return;
             }
 
+            if (ctx.Interaction.IsBusy)
+            {
+                this.Status = "Waiting for the previous stash click to release before closing Stash";
+                this.Decision = "WaitForStashClickRelease";
+                return;
+            }
+
+            ctx.Interaction.ReleaseUiCtrlBatch();
+
             // The observed PoE 2 "Close All User Interface" binding is Spacebar.
             // Hold it long enough to register, then verify before any bounded retry.
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
@@ -219,11 +244,22 @@ namespace AutoExile2.Systems
 
             if (this.state == OpenerState.FindMapDevice)
             {
-                var device = FindNearestPersonalMapDevice(ctx.Area, ctx.PlayerGrid);
+                var device = this.targetMapDeviceId == 0
+                    ? FindNearestPersonalMapDevice(ctx.Area, ctx.PlayerGrid)
+                    : FindSamePersonalMapDevice(ctx.Area, this.targetMapDeviceId, this.targetMapDeviceAddress, this.targetMapDevicePath);
                 if (device == null)
                 {
-                    this.Fail(ctx, "No targetable personal Map Device variant was found nearby", "MapDeviceNotFound");
+                    this.Fail(ctx, this.targetMapDeviceId == 0
+                        ? "No targetable personal Map Device variant was found nearby"
+                        : "The original personal Map Device changed before its safe no-click retry", "MapDeviceNotFound");
                     return;
+                }
+
+                if (this.targetMapDeviceId == 0)
+                {
+                    this.targetMapDeviceId = device.Id;
+                    this.targetMapDeviceAddress = device.Address;
+                    this.targetMapDevicePath = device.Path ?? string.Empty;
                 }
 
                 if (!ctx.Interaction.BeginEntity(
@@ -247,7 +283,7 @@ namespace AutoExile2.Systems
             }
 
             var result = ctx.Interaction.Tick(ctx);
-            if (ctx.Interaction.Phase == InteractionPhase.WaitingForSuccess)
+            if (ctx.Interaction.LastInputClickIssued)
             {
                 this.mapDeviceClickIssued = true;
             }
@@ -262,6 +298,22 @@ namespace AutoExile2.Systems
 
             if (result == InteractionResult.Failed)
             {
+                if (!this.mapDeviceClickIssued && !ctx.Interaction.LastInputClickCompleted)
+                {
+                    this.Status = "Waiting for the canceled Map Device input task to finish before deciding on a retry";
+                    this.Decision = "WaitForMapDeviceInputCompletion";
+                    return;
+                }
+
+                if (!this.mapDeviceClickIssued && this.mapDeviceNoClickRetries < MaxNoClickRetries)
+                {
+                    this.mapDeviceNoClickRetries++;
+                    this.state = OpenerState.FindMapDevice;
+                    this.Status = $"Map Device input was not sent — safely retrying the same device ({this.mapDeviceNoClickRetries}/{MaxNoClickRetries})";
+                    this.Decision = "RetryUnissuedMapDeviceClick";
+                    return;
+                }
+
                 this.Fail(ctx, $"Map Device interaction stopped: {ctx.Interaction.LastFailure}", "MapDeviceInteractionFailed");
                 return;
             }
@@ -331,12 +383,8 @@ namespace AutoExile2.Systems
                 this.targetMapNodeAddress = selected.Value.Node.Address;
                 this.targetMapNodeIndex = selected.Value.Node.Index;
                 this.targetMapId = selected.Value.Node.MapId;
-                if (!ctx.Interaction.BeginUiElement(
-                        this.targetMapNodeAddress,
-                        $"Atlas map node {selected.Value.Node.DisplayName}",
-                        current => TryFindInsertionPanel(current, out _, out _),
-                        maxClickAttempts: 1,
-                        uiSource: "visible Atlas map node"))
+                this.atlasNodeNoClickRetries = 0;
+                if (!this.BeginAtlasNodeClick(ctx, selected.Value.Node.DisplayName))
                 {
                     this.Fail(ctx, "Could not start a single Atlas node click", "AtlasNodeClickUnavailable");
                     return;
@@ -354,7 +402,7 @@ namespace AutoExile2.Systems
             }
 
             var result = ctx.Interaction.Tick(ctx);
-            if (ctx.Interaction.Phase == InteractionPhase.WaitingForSuccess)
+            if (ctx.Interaction.LastInputClickIssued)
             {
                 this.atlasNodeClickIssued = true;
             }
@@ -367,6 +415,25 @@ namespace AutoExile2.Systems
 
             if (result == InteractionResult.Failed)
             {
+                if (!this.atlasNodeClickIssued && !ctx.Interaction.LastInputClickCompleted)
+                {
+                    this.Status = "Waiting for the canceled Atlas input task to finish before deciding on a retry";
+                    this.Decision = "WaitForAtlasNodeInputCompletion";
+                    return;
+                }
+
+                if (!this.atlasNodeClickIssued && this.atlasNodeNoClickRetries < MaxNoClickRetries &&
+                    IsSameTargetNodeVisible(ctx.GameUi, this.targetMapNodeIndex, this.targetMapNodeAddress, this.targetMapId))
+                {
+                    this.atlasNodeNoClickRetries++;
+                    if (this.BeginAtlasNodeClick(ctx, this.targetMapId))
+                    {
+                        this.Status = $"Atlas node input was not sent — safely retrying the same node ({this.atlasNodeNoClickRetries}/{MaxNoClickRetries})";
+                        this.Decision = "RetryUnissuedAtlasNodeClick";
+                        return;
+                    }
+                }
+
                 this.Fail(ctx, $"Atlas node selection stopped: {ctx.Interaction.LastFailure}", "InsertionPanelUnconfirmed");
                 return;
             }
@@ -430,6 +497,23 @@ namespace AutoExile2.Systems
             }
 
             return nearest;
+        }
+
+        private static Entity? FindSamePersonalMapDevice(AreaInstance area, uint id, IntPtr address, string path)
+        {
+            foreach (var entity in area.AwakeEntities.Values)
+            {
+                if (entity.IsValid && entity.Id == id && entity.Address == address &&
+                    string.Equals(entity.Path, path, StringComparison.OrdinalIgnoreCase) &&
+                    IsPersonalMapDevicePath(entity.Path) &&
+                    entity.TryGetComponent<Targetable>(out var targetable) && targetable.IsTargetable &&
+                    entity.TryGetComponent<Render>(out _))
+                {
+                    return entity;
+                }
+            }
+
+            return null;
         }
 
         private static bool IsPersonalMapDevicePath(string? path)
@@ -621,6 +705,14 @@ namespace AutoExile2.Systems
             ctx.Settings.IsRunning &&
             Core.Process.Foreground &&
             ctx.GameUi.ChatParent?.IsChatActive != true;
+
+        private bool BeginAtlasNodeClick(BotContext ctx, string displayName) =>
+            ctx.Interaction.BeginUiElement(
+                this.targetMapNodeAddress,
+                $"Atlas map node {displayName}",
+                current => TryFindInsertionPanel(current, out _, out _),
+                maxClickAttempts: 1,
+                uiSource: "visible Atlas map node");
 
         private void Complete(string status, string decision)
         {

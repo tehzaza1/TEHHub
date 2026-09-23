@@ -129,7 +129,9 @@ namespace AutoExile2.Modes.Shared
             WorldData world,
             Entity entity,
             Func<bool>? canClick = null,
-            Func<bool>? preMouseDownValidation = null)
+            Func<bool>? preMouseDownValidation = null,
+            Action? onClickIssued = null,
+            Action<bool>? onClickFinished = null)
         {
             if (world == null || entity == null || !entity.IsValid)
             {
@@ -167,6 +169,8 @@ namespace AutoExile2.Modes.Shared
             BotInput.HumanClick(
                 screenPos + new Vector2(window.Left, window.Top),
                 canClick: canClick,
+                onClickIssued: onClickIssued,
+                onClickFinished: onClickFinished,
                 preMouseDownValidation: preMouseDownValidation);
             return true;
         }

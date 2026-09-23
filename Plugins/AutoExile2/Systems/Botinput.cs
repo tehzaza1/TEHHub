@@ -70,7 +70,13 @@ namespace AutoExile2.Systems
 
         private static readonly HashSet<VK> HeldKeys = new();
         private static readonly object KeyLock = new();
+        private static readonly object ShiftHoldLock = new();
+        private static readonly object CtrlHoldLock = new();
         private static readonly object AttackInputLock = new();
+        private static object? shiftHoldOwner;
+        private static bool shiftHoldIsInjected;
+        private static object? ctrlHoldOwner;
+        private static bool ctrlHoldIsInjected;
         private static readonly Random Rng = new();
 
         private static long transientAttackGeneration;
@@ -225,7 +231,10 @@ namespace AutoExile2.Systems
             bool shiftClick = false,
             Action? onClickIssued = null,
             Action<bool>? onClickFinished = null,
-            Func<bool>? preMouseDownValidation = null)
+            Func<bool>? preMouseDownValidation = null,
+            object? shiftHoldOwner = null,
+            bool releaseShiftHoldAfterClick = false,
+            Action? onShiftHoldReleased = null)
         {
             Task.Run(async () =>
             {
@@ -233,6 +242,7 @@ namespace AutoExile2.Systems
                 int upFlag = rightClick ? MOUSEEVENTF_RIGHTUP : MOUSEEVENTF_LEFTUP;
                 var mouseDown = false;
                 var pressedShift = false;
+                var acquiredOwnedShift = false;
                 var clickIssued = false;
 
                 try
@@ -250,7 +260,21 @@ namespace AutoExile2.Systems
                         return;
                     }
 
-                    if (shiftClick && !IsKeyDown(VK.LSHIFT))
+                    if (shiftClick && shiftHoldOwner != null)
+                    {
+                        if (!TryAcquireShiftHold(shiftHoldOwner, out acquiredOwnedShift))
+                        {
+                            return;
+                        }
+
+                        if (acquiredOwnedShift)
+                        {
+                            // Give the injected modifier time to reach the game before the first
+                            // target mouse-down. The owner keeps it held across later batch clicks.
+                            await Task.Delay(Math.Clamp(RandSettle(), ShiftSettleMinMs, ShiftSettleMaxMs));
+                        }
+                    }
+                    else if (shiftClick && !IsKeyDown(VK.LSHIFT))
                     {
                         KeyDown(VK.LSHIFT);
                         pressedShift = true;
@@ -271,7 +295,9 @@ namespace AutoExile2.Systems
                     // entity under the pointer after cursor movement. This check is opt-in so
                     // existing UI and ordinary world clicks keep their established behavior.
                     if (!PreMouseDownValidationPassed(preMouseDownValidation) ||
-                        (shiftClick && !IsKeyDown(VK.LSHIFT)))
+                        (shiftClick && (shiftHoldOwner == null
+                            ? !IsKeyDown(VK.LSHIFT)
+                            : !IsShiftHoldActive(shiftHoldOwner))))
                     {
                         return;
                     }
@@ -298,6 +324,25 @@ namespace AutoExile2.Systems
                         {
                             KeyUp(VK.LSHIFT);
                         }
+
+                        // A skipped/aborted click cannot leave an owned modifier behind. After a
+                        // successful non-final click, retain it for the next target only while the
+                        // request is still allowed to issue input. The mouse button is already up.
+                        if (shiftHoldOwner != null &&
+                            (releaseShiftHoldAfterClick || !clickIssued || canClick?.Invoke() == false))
+                        {
+                            if (ReleaseShiftHold(shiftHoldOwner))
+                            {
+                                try
+                                {
+                                    onShiftHoldReleased?.Invoke();
+                                }
+                                catch
+                                {
+                                    // The mouse-up and modifier release are already complete.
+                                }
+                            }
+                        }
                     }
                     finally
                     {
@@ -306,6 +351,183 @@ namespace AutoExile2.Systems
                 }
             });
         }
+
+        /// <summary>
+        /// Acquires the dedicated batch Shift hold without adopting a user's already-held Shift.
+        /// The owner token keeps unrelated interaction cleanup from releasing this modifier.
+        /// </summary>
+        public static bool TryAcquireShiftHold(object owner, out bool newlyAcquired)
+        {
+            newlyAcquired = false;
+            if (owner == null)
+            {
+                return false;
+            }
+
+            lock (ShiftHoldLock)
+            {
+                if (ReferenceEquals(shiftHoldOwner, owner))
+                {
+                    if (shiftHoldIsInjected && IsKeyDown(VK.LSHIFT))
+                    {
+                        return true;
+                    }
+
+                    // The injected state was interrupted. Reacquire only if no Shift variant is
+                    // currently down, and let the caller settle it before the next click.
+                    if (IsAnyShiftDown())
+                    {
+                        return false;
+                    }
+
+                    keybd_event((byte)VK.LSHIFT, 0, 0, 0);
+                    shiftHoldIsInjected = true;
+                    lastInputEvent = DateTime.Now;
+                    newlyAcquired = true;
+                    return true;
+                }
+
+                if (shiftHoldOwner != null || IsAnyShiftDown())
+                {
+                    return false;
+                }
+
+                lock (KeyLock)
+                {
+                    if (HeldKeys.Contains(VK.LSHIFT) ||
+                        HeldKeys.Contains(VK.RSHIFT) ||
+                        HeldKeys.Contains(VK.SHIFT))
+                    {
+                        return false;
+                    }
+                }
+
+                keybd_event((byte)VK.LSHIFT, 0, 0, 0);
+                shiftHoldOwner = owner;
+                shiftHoldIsInjected = true;
+                lastInputEvent = DateTime.Now;
+                newlyAcquired = true;
+                return true;
+            }
+        }
+
+        /// <summary>Returns true only while the specified owner still owns the injected Shift.</summary>
+        public static bool IsShiftHoldActive(object owner)
+        {
+            lock (ShiftHoldLock)
+            {
+                return ReferenceEquals(shiftHoldOwner, owner) &&
+                       shiftHoldIsInjected &&
+                       IsKeyDown(VK.LSHIFT);
+            }
+        }
+
+        /// <summary>Releases only the dedicated Shift press acquired by this owner.</summary>
+        public static bool ReleaseShiftHold(object owner)
+        {
+            lock (ShiftHoldLock)
+            {
+                if (!ReferenceEquals(shiftHoldOwner, owner) || !shiftHoldIsInjected)
+                {
+                    return false;
+                }
+
+                keybd_event((byte)VK.LSHIFT, 0, KEYEVENTF_KEYUP, 0);
+                shiftHoldOwner = null;
+                shiftHoldIsInjected = false;
+                lastInputEvent = DateTime.Now;
+                return true;
+            }
+        }
+
+        private static bool IsAnyShiftDown() =>
+            IsKeyDown(VK.LSHIFT) || IsKeyDown(VK.RSHIFT) || IsKeyDown(VK.SHIFT);
+
+        /// <summary>Acquires the dedicated batch Ctrl hold without adopting a user's held Ctrl.</summary>
+        public static bool TryAcquireCtrlHold(object owner, out bool newlyAcquired)
+        {
+            newlyAcquired = false;
+            if (owner == null)
+            {
+                return false;
+            }
+
+            lock (CtrlHoldLock)
+            {
+                if (ReferenceEquals(ctrlHoldOwner, owner))
+                {
+                    if (ctrlHoldIsInjected && IsKeyDown(VK.LCONTROL))
+                    {
+                        return true;
+                    }
+
+                    if (IsAnyCtrlDown())
+                    {
+                        return false;
+                    }
+
+                    keybd_event((byte)VK.LCONTROL, 0, 0, 0);
+                    ctrlHoldIsInjected = true;
+                    lastInputEvent = DateTime.Now;
+                    newlyAcquired = true;
+                    return true;
+                }
+
+                if (ctrlHoldOwner != null || IsAnyCtrlDown())
+                {
+                    return false;
+                }
+
+                lock (KeyLock)
+                {
+                    if (HeldKeys.Contains(VK.LCONTROL) ||
+                        HeldKeys.Contains(VK.RCONTROL) ||
+                        HeldKeys.Contains(VK.CONTROL))
+                    {
+                        return false;
+                    }
+                }
+
+                keybd_event((byte)VK.LCONTROL, 0, 0, 0);
+                ctrlHoldOwner = owner;
+                ctrlHoldIsInjected = true;
+                lastInputEvent = DateTime.Now;
+                newlyAcquired = true;
+                return true;
+            }
+        }
+
+        /// <summary>Returns true only while the specified owner still owns the injected Ctrl.</summary>
+        public static bool IsCtrlHoldActive(object owner)
+        {
+            lock (CtrlHoldLock)
+            {
+                return ReferenceEquals(ctrlHoldOwner, owner) &&
+                       ctrlHoldIsInjected &&
+                       IsKeyDown(VK.LCONTROL);
+            }
+        }
+
+        /// <summary>Releases only the dedicated Ctrl press acquired by this owner.</summary>
+        public static bool ReleaseCtrlHold(object owner)
+        {
+            lock (CtrlHoldLock)
+            {
+                if (!ReferenceEquals(ctrlHoldOwner, owner) || !ctrlHoldIsInjected)
+                {
+                    return false;
+                }
+
+                keybd_event((byte)VK.LCONTROL, 0, KEYEVENTF_KEYUP, 0);
+                ctrlHoldOwner = null;
+                ctrlHoldIsInjected = false;
+                lastInputEvent = DateTime.Now;
+                return true;
+            }
+        }
+
+        private static bool IsAnyCtrlDown() =>
+            IsKeyDown(VK.LCONTROL) || IsKeyDown(VK.RCONTROL) || IsKeyDown(VK.CONTROL);
 
         private static bool PreMouseDownValidationPassed(Func<bool>? validation)
         {
@@ -380,48 +602,101 @@ namespace AutoExile2.Systems
         /// Moves to a UI item and performs one Ctrl+left-click. The modifier is always released,
         /// including when the safety predicate changes while the asynchronous input is in flight.
         /// </summary>
-        public static void HumanCtrlClick(Vector2 screenPos, Func<bool>? canClick = null)
+        public static void HumanCtrlClick(
+            Vector2 screenPos,
+            Func<bool>? canClick = null,
+            Action? onClickIssued = null,
+            Action<bool>? onClickFinished = null,
+            object? ctrlHoldOwner = null,
+            bool releaseCtrlHoldAfterClick = false,
+            Action? onCtrlHoldReleased = null)
         {
             Task.Run(async () =>
             {
-                if (canClick?.Invoke() == false)
-                {
-                    return;
-                }
-
-                await MoveCursorOrganic(screenPos);
-                await Task.Delay(RandSettle());
-                await SendDelayAsync();
-                if (canClick?.Invoke() == false)
-                {
-                    return;
-                }
-
-                KeyDown(VK.LCONTROL);
                 var mouseDown = false;
+                var clickIssued = false;
+                var pressedCtrl = false;
+                var acquiredOwnedCtrl = false;
+                var keepOwnedCtrlHold = false;
                 try
                 {
-                    await SendDelayAsync();
                     if (canClick?.Invoke() == false)
+                    {
+                        return;
+                    }
+
+                    await MoveCursorOrganic(screenPos);
+                    await Task.Delay(RandSettle());
+                    await SendDelayAsync();
+                    if (canClick?.Invoke() == false || Vector2.Distance(GetCurrentCursorPos(), screenPos) > 15f)
+                    {
+                        return;
+                    }
+
+                    if (ctrlHoldOwner != null)
+                    {
+                        if (!TryAcquireCtrlHold(ctrlHoldOwner, out acquiredOwnedCtrl))
+                        {
+                            return;
+                        }
+
+                        if (acquiredOwnedCtrl)
+                        {
+                            await Task.Delay(Math.Clamp(RandSettle(), ShiftSettleMinMs, ShiftSettleMaxMs));
+                        }
+                    }
+                    else
+                    {
+                        KeyDown(VK.LCONTROL);
+                        pressedCtrl = true;
+                    }
+
+                    await SendDelayAsync();
+                    if (canClick?.Invoke() == false || Vector2.Distance(GetCurrentCursorPos(), screenPos) > 15f ||
+                        (ctrlHoldOwner != null && !IsCtrlHoldActive(ctrlHoldOwner)))
                     {
                         return;
                     }
 
                     mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
                     mouseDown = true;
+                    clickIssued = true;
+                    onClickIssued?.Invoke();
                     await Task.Delay(RandHold());
                     await SendDelayAsync();
                     mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
                     mouseDown = false;
+                    keepOwnedCtrlHold = ctrlHoldOwner != null &&
+                                        !releaseCtrlHoldAfterClick &&
+                                        IsCtrlHoldActive(ctrlHoldOwner) &&
+                                        canClick?.Invoke() != false;
                 }
                 finally
                 {
+                    // A stop or exception may arrive during the asynchronous click. Always
+                    // finish the mouse button before releasing the owned modifier.
                     if (mouseDown)
                     {
                         mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
                     }
 
-                    KeyUp(VK.LCONTROL);
+                    if (pressedCtrl)
+                    {
+                        KeyUp(VK.LCONTROL);
+                    }
+
+                    if (ctrlHoldOwner != null && !keepOwnedCtrlHold && ReleaseCtrlHold(ctrlHoldOwner))
+                    {
+                        try
+                        {
+                            onCtrlHoldReleased?.Invoke();
+                        }
+                        catch
+                        {
+                            // Mouse-up and modifier release are complete.
+                        }
+                    }
+                    onClickFinished?.Invoke(clickIssued);
                 }
             });
         }
