@@ -2,6 +2,28 @@
 
 Version format: MAJOR.MINOR.PATCH (x.x.x). Major versions change compatibility, minor versions add features, patch versions fix bugs or make small improvements. Every completed change updates this file; related edits delivered together share one version.
 
+## 1.9.0 — 2026-09-23 [AutoExile2 / PoE 2 SDK Update]
+
+- **`AutoExile2` Combat Roles, Skill Readiness & Party Coordination (#38–#48)**:
+  - Empty configured Skills now disable Legacy Attack; skill usability checks are normalized, and Totem scanning is included in target/role decisions.
+  - Added authoritative `SkillRole` handling for solo and Player 2 configurations, with P1 Guard/Buff cast spacing and range checks, P1 emergency ownership, and editing restricted to Buff, Guard, and Warcry skills.
+  - Connected Web settings for channelled skills' minimum mana and P1/P2 controls; added Culler role targeting and aim rules, P2 offensive intent with pack/enemy/Totem aim selection, and zero-valued Web presets.
+  - Added follower Totem-count limits and PoE 2 minion command detection. Readiness now fails closed, and unavailable `None` actions are not presented as usable buttons.
+- **`AutoExile2` Hideout, Stash & Waystone Workflows (#51–#53 and supporting changes)**:
+  - Added configurable Waystone filters and Currency Tab crafting with readable-stack checks, equal-boundary threshold support, safe currency input, and protection against crafting Corrupted Waystones.
+  - Added batch preparation/refill, usable-tier selection and withdrawal, plus bounded inventory scanning. Stash navigation now targets the selected tab and visible controls, handles specialized Waystone pages and visible currency stacks, and waits for UI state to settle before acting.
+  - Added the shared bounded `InteractionSystem` for verified movement and clicks, then used it to make Waystone and stash actions more resilient to interruptions.
+- **PoE 2 SDK — Stash, Inventory & Waystone Data**:
+  - Added separate Stash, Inventory, and Vendor UI visibility flags and snapshots with explicit Ready, Loading, and Unavailable states. Map stash data exposes per-tier counts and item contents for the selected page.
+  - Added inventory item snapshots and Waystone data including translated explicit mods, all six implicit stats, convenience properties and revive count (`6 - explicit mods`), rarity and corruption flags, plus bounded DV inspection probes.
+  - Improved handling of missing or unreadable Waystone base components and prevented corrupted items from entering the crafting flow.
+- **`UiDump` Read-Only Diagnostic Plugin (#49–#50)**:
+  - Added a separate read-only PoE 2 UI inspection plugin and control-center capture flow for collecting UI structure diagnostics without issuing game input.
+- **`AutoExile2` Portal Flow (#54 and follow-up)**:
+  - Added post-Traverse portal detection and entry, and a fresh-portal-based exit flow that uses the guarded interaction system and confirms the town/hideout transition.
+  - Exit portal creation retries at most five actual key presses, waiting six seconds per attempt. It checks for a fresh portal before each retry and timeout, keeps the original portal snapshot, and waits for safe input before retrying. Atlas/Map Device selection and the loot flow are still pending; the post-Traverse handler is not yet wired to the Atlas opener.
+- **Validation**: Release build is pending CI. Portal entry and exit have not been tested live in game.
+
 ## 1.8.97 — 2026-09-17 [Plugin Update — ExpeditionPathOptimizer]
 
 - **`ExpeditionPathOptimizer` Strict Priority Order (Remnant > Chest > Bridge/Final) & Dynamic Settings Formula Overhaul**:

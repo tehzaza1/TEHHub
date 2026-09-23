@@ -11,21 +11,27 @@ namespace AutoExile2.Systems
     using TEHhub;
 
     /// <summary>
-    /// Creates at most one town portal, waits for that new portal, and exits through it.
+    /// Creates a bounded number of town portal attempts, waits for a new portal, and exits through it.
     /// The entity click is routed through InteractionSystem and confirmed by an area change.
     /// </summary>
     public sealed class ExitHandler
     {
-        private static readonly TimeSpan PortalAppearanceTimeout = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan PortalAttemptTimeout = TimeSpan.FromSeconds(6);
+        private static readonly TimeSpan PortalTotalTimeout = TimeSpan.FromSeconds(30);
+        private const int MaxPortalKeyAttempts = 5;
         private const float MaxPortalDistance = 80f;
         private static readonly List<Vector2> EmptyPath = new();
 
         private readonly HashSet<uint> existingPortalIds = new();
         private ExitPhase phase;
         private DateTime portalKeyTimeUtc = DateTime.MinValue;
+        private DateTime firstPortalKeyTimeUtc = DateTime.MinValue;
         private string sourceAreaHash = string.Empty;
         private InteractionSystem? interaction;
         private bool portalKeyPressed;
+        private bool portalSnapshotCaptured;
+        private bool freshPortalObserved;
+        private int portalKeyAttemptCount;
 
         public string Status { get; private set; } = string.Empty;
 
@@ -54,8 +60,12 @@ namespace AutoExile2.Systems
             this.phase = ExitPhase.Idle;
             this.portalKeyPressed = false;
             this.portalKeyTimeUtc = DateTime.MinValue;
+            this.firstPortalKeyTimeUtc = DateTime.MinValue;
             this.sourceAreaHash = string.Empty;
             this.interaction = null;
+            this.portalSnapshotCaptured = false;
+            this.freshPortalObserved = false;
+            this.portalKeyAttemptCount = 0;
             this.Status = string.Empty;
         }
 
@@ -109,55 +119,166 @@ namespace AutoExile2.Systems
                 return;
             }
 
+            if (this.portalKeyAttemptCount > 0)
+            {
+                // Recheck both targetability and fresh entity ids before another key press.
+                bool freshPortalSeen = this.TryStartFreshPortalInteraction(ctx);
+                if (this.phase == ExitPhase.Interacting || this.IsTerminal)
+                {
+                    return;
+                }
+
+                if (this.HasPortalTotalTimeoutExpired())
+                {
+                    this.StopAfterPortalWait(ctx);
+                    return;
+                }
+
+                if (freshPortalSeen)
+                {
+                    return;
+                }
+
+                var elapsed = DateTime.UtcNow - this.portalKeyTimeUtc;
+                if (elapsed < PortalAttemptTimeout)
+                {
+                    this.phase = ExitPhase.WaitingForPortal;
+                    this.Status = this.GetPortalWaitStatus(elapsed);
+                    return;
+                }
+
+                if (this.portalKeyAttemptCount >= MaxPortalKeyAttempts)
+                {
+                    this.StopAfterPortalWait(ctx);
+                    return;
+                }
+            }
+
             if (!ctx.Settings.IsRunning || !Core.Process.Foreground ||
                 ctx.GameUi.ChatParent?.IsChatActive == true)
             {
                 this.phase = ExitPhase.WaitingForSafeInput;
-                this.Status = "Waiting for foreground game, active bot, and inactive chat";
+                this.Status = this.portalKeyAttemptCount == 0
+                    ? "Waiting for foreground game, active bot, and inactive chat before creating an exit portal"
+                    : $"Portal attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts} produced no portal; waiting for foreground game, active bot, and inactive chat before retrying";
                 return;
             }
 
             if (ctx.GameUi.IsAnyLargePanelOpen)
             {
                 this.phase = ExitPhase.WaitingForSafeInput;
-                this.Status = "Waiting for large panels to close before creating an exit portal";
+                this.Status = this.portalKeyAttemptCount == 0
+                    ? "Waiting for large panels to close before creating an exit portal"
+                    : $"Portal attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts} produced no portal; waiting for large panels to close before retrying";
                 return;
             }
 
             if (ctx.Interaction.IsBusy)
             {
                 this.phase = ExitPhase.WaitingForSafeInput;
-                this.Status = "Waiting for the current interaction to finish";
+                this.Status = this.portalKeyAttemptCount == 0
+                    ? "Waiting for the current interaction to finish before creating an exit portal"
+                    : $"Portal attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts} produced no portal; waiting for the current interaction to finish before retrying";
                 return;
             }
 
-            this.sourceAreaHash = ctx.Area.AreaHash;
-            this.existingPortalIds.Clear();
-            foreach (var existingId in PortalEntitySelector.Snapshot(ctx.Area))
+            if (this.portalKeyAttemptCount > 0 && this.TryStartFreshPortalInteraction(ctx))
             {
-                this.existingPortalIds.Add(existingId);
+                if (this.phase != ExitPhase.Interacting && !this.IsTerminal && this.HasPortalTotalTimeoutExpired())
+                {
+                    this.StopAfterPortalWait(ctx);
+                }
+                return;
             }
 
-            // This is deliberately a one-shot key press. If no new portal appears, the terminal
-            // timeout below will not send another key press or enter an older portal.
+            if (this.portalKeyAttemptCount > 0 && this.HasPortalTotalTimeoutExpired())
+            {
+                this.StopAfterPortalWait(ctx);
+                return;
+            }
+
+            if (!this.portalSnapshotCaptured)
+            {
+                this.sourceAreaHash = ctx.Area.AreaHash;
+                this.existingPortalIds.Clear();
+                foreach (var existingId in PortalEntitySelector.Snapshot(ctx.Area))
+                {
+                    this.existingPortalIds.Add(existingId);
+                }
+
+                this.portalSnapshotCaptured = true;
+            }
+
+            // Count only actual key presses. A temporarily unsafe state does not consume an attempt.
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
             BotInput.FastPressKey(ctx.Settings.PortalKey);
             this.portalKeyPressed = true;
             this.portalKeyTimeUtc = DateTime.UtcNow;
+            if (this.portalKeyAttemptCount == 0)
+            {
+                this.firstPortalKeyTimeUtc = this.portalKeyTimeUtc;
+            }
+            this.portalKeyAttemptCount++;
             this.phase = ExitPhase.WaitingForPortal;
-            this.Status = $"Opening exit portal [{ctx.Settings.PortalKey}]...";
-            ctx.Log($"[ExitHandler] Pressed portal key {ctx.Settings.PortalKey} once");
+            this.Status = this.portalKeyAttemptCount == 1
+                ? $"Opening exit portal [{ctx.Settings.PortalKey}] (attempt 1/{MaxPortalKeyAttempts})..."
+                : $"Retrying exit portal [{ctx.Settings.PortalKey}] (attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts})...";
+            ctx.Log($"[ExitHandler] Pressed portal key {ctx.Settings.PortalKey} (attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts})");
         }
 
         private void PollForExitPortal(BotContext ctx)
         {
-            var elapsed = DateTime.UtcNow - this.portalKeyTimeUtc;
-            if (elapsed >= PortalAppearanceTimeout)
+            bool freshPortalSeen = this.TryStartFreshPortalInteraction(ctx);
+            if (this.phase == ExitPhase.Interacting || this.IsTerminal)
             {
-                this.phase = ExitPhase.TimedOut;
-                this.Status = "Timed out waiting for a new exit portal; portal key will not be repeated";
-                ctx.Log("[ExitHandler] Exit portal timed out; stopping without another key press");
                 return;
+            }
+
+            if (this.HasPortalTotalTimeoutExpired())
+            {
+                this.StopAfterPortalWait(ctx);
+                return;
+            }
+
+            if (freshPortalSeen)
+            {
+                return;
+            }
+
+            var elapsed = DateTime.UtcNow - this.portalKeyTimeUtc;
+            if (elapsed < PortalAttemptTimeout)
+            {
+                this.Status = this.GetPortalWaitStatus(elapsed);
+                return;
+            }
+
+            if (this.portalKeyAttemptCount >= MaxPortalKeyAttempts)
+            {
+                this.StopAfterPortalWait(ctx);
+                return;
+            }
+
+            this.phase = ExitPhase.WaitingForSafeInput;
+            this.Status = $"Portal attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts} produced no portal; waiting for safe conditions before retrying";
+            ctx.Log($"[ExitHandler] Portal attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts} timed out; checking again before a safe retry");
+        }
+
+        private bool TryStartFreshPortalInteraction(BotContext ctx)
+        {
+            // Remember any fresh portal ID, even while it is not targetable or close enough.
+            // Retrying after seeing one could create a duplicate portal while the first settles.
+            foreach (var portalId in PortalEntitySelector.Snapshot(ctx.Area))
+            {
+                if (!this.existingPortalIds.Contains(portalId))
+                {
+                    this.freshPortalObserved = true;
+                    break;
+                }
+            }
+
+            if (!this.freshPortalObserved)
+            {
+                return false;
             }
 
             var candidates = PortalEntitySelector.FindFreshTargetable(
@@ -166,10 +287,17 @@ namespace AutoExile2.Systems
                 this.existingPortalIds,
                 MaxPortalDistance);
 
+            if (this.HasPortalTotalTimeoutExpired())
+            {
+                this.StopAfterPortalWait(ctx);
+                return true;
+            }
+
             if (candidates.Count == 0)
             {
-                this.Status = $"Waiting for exit portal ({elapsed.TotalSeconds:F0}/{PortalAppearanceTimeout.TotalSeconds:F0}s)";
-                return;
+                this.phase = ExitPhase.WaitingForPortal;
+                this.Status = "A new exit portal appeared; waiting for it to become targetable and enter range";
+                return true;
             }
 
             if (!PortalEntitySelector.TrySelectNearest(candidates, out var selected))
@@ -177,15 +305,24 @@ namespace AutoExile2.Systems
                 this.phase = ExitPhase.Failed;
                 this.Status = "No targetable exit portal candidate was available";
                 ctx.Log($"[ExitHandler] {this.Status}");
-                return;
+                return true;
+            }
+
+            if (!ctx.Settings.IsRunning || !Core.Process.Foreground ||
+                ctx.GameUi.ChatParent?.IsChatActive == true)
+            {
+                this.phase = ExitPhase.WaitingForSafeInput;
+                this.Status = "Exit portal found; waiting for foreground game, active bot, and inactive chat before entering";
+                return true;
             }
 
             if (ctx.GameUi.IsAnyLargePanelOpen || ctx.Interaction.IsBusy)
             {
+                this.phase = ExitPhase.WaitingForSafeInput;
                 this.Status = ctx.GameUi.IsAnyLargePanelOpen
                     ? "Exit portal found; waiting for large panels to close"
                     : "Exit portal found; waiting for the current interaction to finish";
-                return;
+                return true;
             }
 
             bool started = ctx.Interaction.BeginEntity(
@@ -203,13 +340,29 @@ namespace AutoExile2.Systems
                 this.phase = ExitPhase.Failed;
                 this.Status = "Could not start the exit portal interaction";
                 ctx.Log($"[ExitHandler] {this.Status}");
-                return;
+                return true;
             }
 
             this.interaction = ctx.Interaction;
             this.phase = ExitPhase.Interacting;
             this.Status = $"Approaching nearest exit portal ({selected.Distance:F0}g)";
             ctx.Log($"[ExitHandler] Navigating to nearest new exit portal ({selected.Entity.Path})");
+            return true;
+        }
+
+        private string GetPortalWaitStatus(TimeSpan elapsed) =>
+            $"Waiting for exit portal (attempt {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts}, {elapsed.TotalSeconds:F0}/{PortalAttemptTimeout.TotalSeconds:F0}s)";
+
+        private bool HasPortalTotalTimeoutExpired() =>
+            this.firstPortalKeyTimeUtc != DateTime.MinValue &&
+            DateTime.UtcNow - this.firstPortalKeyTimeUtc >= PortalTotalTimeout;
+
+        private void StopAfterPortalWait(BotContext ctx)
+        {
+            // Callers inspect fresh portal IDs and targetability before reaching this point.
+            this.phase = ExitPhase.TimedOut;
+            this.Status = $"Exit portal wait timed out after {PortalTotalTimeout.TotalSeconds:F0}s and {this.portalKeyAttemptCount}/{MaxPortalKeyAttempts} key attempts; stopping without entering an older portal";
+            ctx.Log($"[ExitHandler] {this.Status}");
         }
 
         private void TickInteraction(BotContext ctx)
