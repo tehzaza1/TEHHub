@@ -636,13 +636,6 @@ namespace AutoExile2.Modes.Shared
                     continue;
                 }
 
-                if (!ctx.GameUi.TryGetVisibleInventoryItemUiAddress(targetWaystone.ItemAddress, out var targetUi))
-                {
-                    this.Status = "Waystone inventory UI is not materialized yet";
-                    this.Decision = "ReadInventoryUi";
-                    return;
-                }
-
                 for (var useIndex = 0; useIndex < usesNeeded && targets.Count < currencyStackCount; useIndex++)
                 {
                     var currencyCountBeforeUse = currencyStackCount - targets.Count;
@@ -667,7 +660,7 @@ namespace AutoExile2.Modes.Shared
                         currencySlotY,
                         currencyCountBeforeUse);
                     targets.Add(new CurrencyUseTarget(
-                        targetUi,
+                        IntPtr.Zero,
                         current => CraftingActionChangedSlot(
                             current,
                             baseline.Action,
@@ -677,15 +670,36 @@ namespace AutoExile2.Modes.Shared
                             baseline.WaystoneTier,
                             baseline.Rarity,
                             baseline.ModCountBeforeUse,
-                            diagnostic => baseline.VerificationDiagnostic = diagnostic),
-                        current => baseline.ObservedCurrencyStackCountBeforeUse = ReadCurrencyStackCount(
-                            current,
-                            baseline.CurrencyTab,
-                            baseline.CurrencyPath,
-                            baseline.CurrencyItemAddress,
-                            baseline.CurrencySlotX,
-                            baseline.CurrencySlotY),
-                        () => baseline.VerificationDiagnostic));
+                            diagnostic => baseline.VerificationDiagnostic = diagnostic,
+                            itemAddress =>
+                            {
+                                foreach (var relatedBaseline in targetBaselines.Where(candidate =>
+                                             candidate.WaystoneSlotX == baseline.WaystoneSlotX &&
+                                             candidate.WaystoneSlotY == baseline.WaystoneSlotY))
+                                {
+                                    relatedBaseline.WaystoneItemAddress = itemAddress;
+                                }
+                            }),
+                        current =>
+                        {
+                            var currentCurrencyCount = ReadCurrencyStackCount(
+                                current,
+                                baseline.CurrencyTab,
+                                baseline.CurrencyPath,
+                                baseline.CurrencyItemAddress,
+                                baseline.CurrencySlotX,
+                                baseline.CurrencySlotY);
+                            if (currentCurrencyCount != baseline.CurrencyStackCountBeforeUse)
+                            {
+                                throw new InvalidOperationException("Currency stack changed before its target click");
+                            }
+
+                            baseline.WaystoneItemAddress = ReadExpectedCraftTarget(current, baseline).ItemAddress;
+                            baseline.ObservedCurrencyStackCountBeforeUse = currentCurrencyCount;
+                        },
+                        () => baseline.VerificationDiagnostic,
+                        current => ResolveCraftTargetUiAddress(current, baseline),
+                        () => baseline.WaystoneItemAddress));
                     targetBaselines.Add(baseline);
                     exaltedUsesByWaystone[targetWaystone.ItemAddress] =
                         exaltedUsesByWaystone.GetValueOrDefault(targetWaystone.ItemAddress) + 1;
@@ -809,15 +823,14 @@ namespace AutoExile2.Modes.Shared
             var currencyControl = stash.VisibleItems.FirstOrDefault(item =>
                 item.ItemAddress == baseline.CurrencyItemAddress &&
                 string.Equals(item.ItemPath, baseline.CurrencyPath, StringComparison.OrdinalIgnoreCase));
-            if (currencyControl == null ||
-                !ctx.GameUi.TryGetVisibleInventoryItemUiAddress(baseline.WaystoneItemAddress, out var targetUi))
+            if (currencyControl == null)
             {
-                this.StopCraftRetry(retry, "Currency or Waystone UI is unavailable after interruption — item stopped");
+                this.StopCraftRetry(retry, "Currency UI is unavailable after interruption — item stopped");
                 return;
             }
 
             var retryTarget = new CurrencyUseTarget(
-                targetUi,
+                IntPtr.Zero,
                 current => CraftingActionChangedSlot(
                     current,
                     baseline.Action,
@@ -827,7 +840,8 @@ namespace AutoExile2.Modes.Shared
                     baseline.WaystoneTier,
                     baseline.Rarity,
                     baseline.ModCountBeforeUse,
-                    diagnostic => baseline.VerificationDiagnostic = diagnostic),
+                    diagnostic => baseline.VerificationDiagnostic = diagnostic,
+                    itemAddress => baseline.WaystoneItemAddress = itemAddress),
                 current =>
                 {
                     if (!CraftSlotsAreUnchanged(current, baseline))
@@ -835,7 +849,9 @@ namespace AutoExile2.Modes.Shared
                         throw new InvalidOperationException("Craft slots changed before retry click");
                     }
                 },
-                () => baseline.VerificationDiagnostic);
+                () => baseline.VerificationDiagnostic,
+                current => ResolveCraftTargetUiAddress(current, baseline),
+                () => baseline.WaystoneItemAddress);
             if (!ctx.Interaction.BeginUiCurrencyUseBatch(
                     currencyControl.UiAddress,
                     new[] { retryTarget },
@@ -986,6 +1002,40 @@ namespace AutoExile2.Modes.Shared
             var action = WaystoneCrafting.GetNextAction(item, ctx.Settings, out _);
             return action == baseline.Action &&
                    action is not WaystoneCraftingAction.Ready and not WaystoneCraftingAction.Reject;
+        }
+
+        private static InventorySnapshotItem ReadExpectedCraftTarget(
+            BotContext ctx,
+            CraftActionBaseline baseline)
+        {
+            var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
+                InventoryName.MainInventory1,
+                baseline.WaystoneSlotX,
+                baseline.WaystoneSlotY,
+                InventorySnapshotDetailLevel.Full);
+            var item = result.Item;
+            if (result.State != InventorySnapshotState.Ready || item == null || !item.IsWaystone ||
+                item.WaystoneTier != baseline.WaystoneTier ||
+                item.Rarity != baseline.Rarity ||
+                item.ExplicitMods.Count != baseline.ModCountBeforeUse ||
+                item.WaystoneCorrupted != false ||
+                WaystoneCrafting.GetNextAction(item, ctx.Settings, out _) != baseline.Action)
+            {
+                throw new InvalidOperationException("Waystone slot no longer matches the expected crafting action");
+            }
+
+            return item;
+        }
+
+        private static IntPtr ResolveCraftTargetUiAddress(
+            BotContext ctx,
+            CraftActionBaseline baseline)
+        {
+            var item = ReadExpectedCraftTarget(ctx, baseline);
+            baseline.WaystoneItemAddress = item.ItemAddress;
+            return ctx.GameUi.TryGetVisibleInventoryItemUiAddress(item.ItemAddress, out var uiAddress)
+                ? uiAddress
+                : IntPtr.Zero;
         }
 
         private void TickCurrencyCursorSafety(BotContext ctx)
@@ -2069,7 +2119,8 @@ namespace AutoExile2.Modes.Shared
             int? expectedWaystoneTier,
             Rarity? oldRarity,
             int oldModCount,
-            Action<string>? onVerificationDiagnostic = null)
+            Action<string>? onVerificationDiagnostic = null,
+            Action<IntPtr>? onItemAddressObserved = null)
         {
             var result = ctx.Area.ServerDataObject.ReadInventoryItemAt(
                 InventoryName.MainInventory1,
@@ -2106,6 +2157,8 @@ namespace AutoExile2.Modes.Shared
                     $"request={result.ServerRequestCounter}, revision=0x{result.SourceRevision:X}");
                 return false;
             }
+
+            onItemAddressObserved?.Invoke(item.ItemAddress);
 
             var explicitModCount = item.ExplicitMods.Count;
             var success = action switch
@@ -2203,7 +2256,7 @@ namespace AutoExile2.Modes.Shared
         }
 
         private sealed record CraftActionBaseline(
-            IntPtr WaystoneItemAddress,
+            IntPtr InitialWaystoneItemAddress,
             int WaystoneSlotX,
             int WaystoneSlotY,
             int? WaystoneTier,
@@ -2217,6 +2270,8 @@ namespace AutoExile2.Modes.Shared
             int CurrencySlotY,
             int CurrencyStackCountBeforeUse)
         {
+            public IntPtr WaystoneItemAddress { get; set; } = InitialWaystoneItemAddress;
+
             public int? ObservedCurrencyStackCountBeforeUse { get; set; } = CurrencyStackCountBeforeUse;
 
             public string VerificationDiagnostic { get; set; } = "No target-slot read yet";

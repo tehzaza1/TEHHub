@@ -49,7 +49,9 @@ namespace AutoExile2.Systems
         IntPtr UiAddress,
         Func<BotContext, bool> SuccessPredicate,
         Action<BotContext>? BeforeClick = null,
-        Func<string>? PendingVerificationStatus = null);
+        Func<string>? PendingVerificationStatus = null,
+        Func<BotContext, IntPtr>? UiAddressResolver = null,
+        Func<IntPtr>? ExpectedItemAddress = null);
 
     /// <summary>
     /// Serializes world-entity and UI interactions. A request navigates when necessary,
@@ -63,6 +65,7 @@ namespace AutoExile2.Systems
         private const double CtrlClickVerificationMilliseconds = 2000d;
         private const double CurrencyActivationMilliseconds = 650d;
         private const double CurrencyCleanupMilliseconds = 350d;
+        private const double CurrencyTargetUiResolveMilliseconds = 500d;
         private const double CurrencyTargetVerificationMilliseconds = 5000d;
         private const double RepathMilliseconds = 300d;
         private const float WaypointReachedDistance = 12f;
@@ -98,6 +101,7 @@ namespace AutoExile2.Systems
         private DateTime settleStartedAtUtc;
         private DateTime lastClickAtUtc;
         private DateTime currencyTargetClickCompletedAtUtc;
+        private DateTime currencyTargetUiResolveStartedAtUtc;
         private string lastCurrencyVerificationDiagnostic = string.Empty;
         private DateTime lastRepathAtUtc;
         private Vector2? lastPathTarget;
@@ -348,7 +352,10 @@ namespace AutoExile2.Systems
             string description)
         {
             if (currencyUiAddress == IntPtr.Zero || targets == null || targets.Count == 0 ||
-                targets.Any(target => target.UiAddress == IntPtr.Zero || target.SuccessPredicate == null) ||
+                targets.Any(target =>
+                    (target.UiAddress == IntPtr.Zero && target.UiAddressResolver == null) ||
+                    (target.UiAddressResolver != null && target.ExpectedItemAddress == null) ||
+                    target.SuccessPredicate == null) ||
                 this.IsBusy || this.currencyMayBeActive || this.currencyClickInFlight)
             {
                 return false;
@@ -850,9 +857,9 @@ namespace AutoExile2.Systems
                 }
 
                 var target = this.currencyTargets?[this.currencyTargetIndex];
-                if (target == null || !TryGetUiClickPoint(target.UiAddress, out var targetPoint))
+                if (target == null)
                 {
-                    return this.Fail(ctx, $"{this.Description} target item UI is hidden or invalid");
+                    return this.Fail(ctx, $"{this.Description} target item is unavailable");
                 }
 
                 try
@@ -864,6 +871,38 @@ namespace AutoExile2.Systems
                     return this.Fail(ctx, $"{this.Description} target baseline could not be read");
                 }
 
+                IntPtr targetUiAddress;
+                try
+                {
+                    targetUiAddress = target.UiAddressResolver?.Invoke(ctx) ?? target.UiAddress;
+                }
+                catch
+                {
+                    return this.Fail(ctx, $"{this.Description} target changed before its click");
+                }
+
+                if (targetUiAddress == IntPtr.Zero || !TryGetUiClickPoint(targetUiAddress, out var targetPoint))
+                {
+                    if (target.UiAddressResolver != null)
+                    {
+                        if (this.currencyTargetUiResolveStartedAtUtc == DateTime.MinValue)
+                        {
+                            this.currencyTargetUiResolveStartedAtUtc = now;
+                        }
+
+                        if ((now - this.currencyTargetUiResolveStartedAtUtc).TotalMilliseconds <
+                            CurrencyTargetUiResolveMilliseconds)
+                        {
+                            this.Status = $"Waiting for a fresh target UI control for {this.Description}";
+                            return this.Result;
+                        }
+                    }
+
+                    return this.Fail(ctx, $"{this.Description} target item UI is hidden or invalid");
+                }
+
+                this.currencyTargetUiResolveStartedAtUtc = DateTime.MinValue;
+
                 this.Phase = InteractionPhase.Clicking;
                 var targetCount = this.currencyTargets?.Count ?? 0;
                 var shiftClick = targetCount > 1;
@@ -872,6 +911,16 @@ namespace AutoExile2.Systems
                 this.currencyTargetClickCompleted = false;
                 this.currencyTargetClickCompletedAtUtc = DateTime.MinValue;
                 this.lastCurrencyVerificationDiagnostic = string.Empty;
+                var expectedTargetItemAddress = target.ExpectedItemAddress?.Invoke() ?? IntPtr.Zero;
+                Func<bool>? preMouseDownValidation = null;
+                if (target.ExpectedItemAddress != null)
+                {
+                    preMouseDownValidation = () =>
+                        generation == Volatile.Read(ref this.requestGeneration) &&
+                        CanIssueInput(ctx) &&
+                        IsResolvedItemUiAddress(targetUiAddress, expectedTargetItemAddress, targetPoint);
+                }
+
                 this.StartCurrencyClick();
                 BotInput.HumanClick(
                     targetPoint,
@@ -901,7 +950,8 @@ namespace AutoExile2.Systems
                     onClickFinished: clickIssued =>
                     {
                         this.FinishCurrencyClick(generation, clickIssued, activationClick: false);
-                    });
+                    },
+                    preMouseDownValidation: preMouseDownValidation);
                 this.currencyUseStep = 2;
                 this.lastClickAtUtc = now;
                 this.Phase = InteractionPhase.WaitingForSuccess;
@@ -972,6 +1022,7 @@ namespace AutoExile2.Systems
                 if (this.currencyTargets != null && this.currencyTargetIndex < this.currencyTargets.Count)
                 {
                     this.currencyUseStep = 1;
+                    this.currencyTargetUiResolveStartedAtUtc = DateTime.MinValue;
                     this.lastClickAtUtc = now;
                     this.currencyMayBeActive = true;
                     this.Status = $"Verified target {this.currencyTargetIndex}/{this.currencyTargets.Count} for {this.Description}";
@@ -1315,6 +1366,22 @@ namespace AutoExile2.Systems
             return true;
         }
 
+        private static bool IsResolvedItemUiAddress(
+            IntPtr uiAddress,
+            IntPtr expectedItemAddress,
+            Vector2 expectedClickPoint)
+        {
+            const int inventoryItemAddressOffset = 0x4E0;
+            var reader = Core.Process?.Handle;
+            return reader != null &&
+                   uiAddress != IntPtr.Zero &&
+                   expectedItemAddress != IntPtr.Zero &&
+                   reader.TryReadMemory<IntPtr>(uiAddress + inventoryItemAddressOffset, out var currentItemAddress) &&
+                   currentItemAddress == expectedItemAddress &&
+                   TryGetUiClickPoint(uiAddress, out var currentClickPoint) &&
+                   Vector2.Distance(currentClickPoint, expectedClickPoint) <= 8f;
+        }
+
         private static bool CanIssueInput(BotContext ctx) =>
             ctx.Settings.IsRunning &&
             Core.Process.Foreground &&
@@ -1402,6 +1469,7 @@ namespace AutoExile2.Systems
             this.currencyTargetClickIssued = false;
             this.currencyTargetClickCompleted = false;
             this.currencyTargetClickCompletedAtUtc = DateTime.MinValue;
+            this.currencyTargetUiResolveStartedAtUtc = DateTime.MinValue;
             this.lastCurrencyVerificationDiagnostic = string.Empty;
             this.uiSource = "UI control";
             this.fallbackUiSource = "fallback UI control";
