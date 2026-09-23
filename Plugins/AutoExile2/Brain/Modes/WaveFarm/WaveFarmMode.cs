@@ -38,21 +38,27 @@ namespace AutoExile2.Modes.WaveFarm
 
         public List<Vector2> CurrentNavPath => this.phase switch
         {
-            WaveFarmPhase.InHideout => this.hideoutFlow.CurrentNavPath,
+            WaveFarmPhase.InHideout => this.atlasInsertPanelOpener.IsStarted
+                ? this.atlasInsertPanelOpener.CurrentNavPath
+                : this.hideoutFlow.CurrentNavPath,
             WaveFarmPhase.ExitMap => this.exitHandler.CurrentNavPath,
             _ => this.wave.CurrentNavPath,
         };
 
         public int CurrentWaypointIndex => this.phase switch
         {
-            WaveFarmPhase.InHideout => this.hideoutFlow.CurrentWaypointIndex,
+            WaveFarmPhase.InHideout => this.atlasInsertPanelOpener.IsStarted
+                ? this.atlasInsertPanelOpener.CurrentWaypointIndex
+                : this.hideoutFlow.CurrentWaypointIndex,
             WaveFarmPhase.ExitMap => this.exitHandler.CurrentWaypointIndex,
             _ => this.wave.CurrentWaypointIndex,
         };
 
         public Vector2? CurrentDestination => this.phase switch
         {
-            WaveFarmPhase.InHideout => this.hideoutFlow.CurrentDestination,
+            WaveFarmPhase.InHideout => this.atlasInsertPanelOpener.IsStarted
+                ? this.atlasInsertPanelOpener.CurrentDestination
+                : this.hideoutFlow.CurrentDestination,
             WaveFarmPhase.ExitMap => this.exitHandler.CurrentDestination,
             _ => this.wave.CurrentDestination,
         };
@@ -61,6 +67,7 @@ namespace AutoExile2.Modes.WaveFarm
         private readonly ZoneStateCache zoneCache = new();
         private readonly ExitHandler exitHandler = new();
         private readonly HideoutFlow hideoutFlow = new();
+        private readonly AtlasInsertPanelOpener atlasInsertPanelOpener = new();
         private readonly Dictionary<string, IFarmPlan> plans = new();
         private IFarmPlan? activePlan;
 
@@ -73,7 +80,9 @@ namespace AutoExile2.Modes.WaveFarm
         public string Status { get; private set; } = string.Empty;
         public string Decision => this.phase switch
         {
-            WaveFarmPhase.InHideout => this.hideoutFlow.Decision,
+            WaveFarmPhase.InHideout => this.atlasInsertPanelOpener.IsStarted
+                ? this.atlasInsertPanelOpener.Decision
+                : this.hideoutFlow.Decision,
             WaveFarmPhase.ExitMap => this.exitHandler.Decision,
             _ => this.wave.Decision,
         };
@@ -93,6 +102,7 @@ namespace AutoExile2.Modes.WaveFarm
             this.mapCompleted = false;
             this.exitHandler.Reset();
             this.hideoutFlow.Reset(ctx);
+            this.atlasInsertPanelOpener.Reset();
 
             if (this.activePlan == null)
             {
@@ -122,6 +132,7 @@ namespace AutoExile2.Modes.WaveFarm
             this.wave.Reset();
             this.exitHandler.Reset();
             this.hideoutFlow.Reset(ctx);
+            this.atlasInsertPanelOpener.Reset();
             this.zoneCache.Clear();
             this.mapCompleted = false;
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
@@ -355,7 +366,24 @@ namespace AutoExile2.Modes.WaveFarm
 
         private void TickHideout(BotContext ctx)
         {
+            if (this.atlasInsertPanelOpener.IsStarted)
+            {
+                this.atlasInsertPanelOpener.Tick(ctx);
+                this.Status = this.atlasInsertPanelOpener.Status;
+                return;
+            }
+
             this.hideoutFlow.Tick(ctx);
+            if (string.Equals(this.hideoutFlow.Decision, "WaystoneReady", StringComparison.Ordinal))
+            {
+                // Latch on the same tick: batch mode may report WaystoneReady only once before
+                // changing to WaystoneBatchHolding on the next HideoutFlow tick.
+                this.atlasInsertPanelOpener.Begin();
+                this.atlasInsertPanelOpener.Tick(ctx);
+                this.Status = this.atlasInsertPanelOpener.Status;
+                return;
+            }
+
             this.Status = this.hideoutFlow.Status;
         }
 
@@ -394,6 +422,7 @@ namespace AutoExile2.Modes.WaveFarm
             BotInput.ReleaseAllMovementKeys(ctx.Settings);
             bool wasExiting = this.phase == WaveFarmPhase.ExitMap;
             ctx.Interaction.Cancel(ctx.Settings);
+            this.atlasInsertPanelOpener.Reset();
             this.exitHandler.Reset();
 
             if (world.AreaDetails.IsHideout || world.AreaDetails.IsTown)
