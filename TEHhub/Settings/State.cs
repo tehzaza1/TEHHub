@@ -156,6 +156,19 @@ namespace TEHhub.Settings
         public bool ShowDataVisualization = false;
 
         /// <summary>
+        ///     Gets or sets the pinned navigation target IDs for DV v2.
+        /// </summary>
+        public List<string> DataVisualizationFavoriteNodeIds = new()
+        {
+            "player.life",
+            "player.buffs",
+            "serverdata.gold",
+            "area.modifiers",
+            "core.loaded_files",
+            "legacy.all",
+        };
+
+        /// <summary>
         ///     Gets or sets a value indicating whether
         ///     to show KrangledPassiveDetector window or not.
         /// </summary>
@@ -333,6 +346,26 @@ namespace TEHhub.Settings
         /// </summary>
         void IJsonOnDeserialized.OnDeserialized()
         {
+            if (DataVisualizationFavoriteNodeIds == null)
+            {
+                DataVisualizationFavoriteNodeIds = new()
+                {
+                    "player.life",
+                    "player.buffs",
+                    "serverdata.gold",
+                    "area.modifiers",
+                    "core.loaded_files",
+                    "legacy.all",
+                };
+            }
+            else
+            {
+                DataVisualizationFavoriteNodeIds = DataVisualizationFavoriteNodeIds
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
             if (MonstersPathsToIgnore != null)
             {
                 MonstersPathsToIgnore = MonstersPathsToIgnore

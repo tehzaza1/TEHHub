@@ -21,7 +21,9 @@ namespace TEHhub.Ui
     /// </summary>
     public static class DataVisualization
     {
-        private static readonly DvNavigationContext NavContext = new("serverdata.gold");
+        private static readonly DvNavigationContext NavContext = new(
+            "serverdata.gold",
+            Core.GHSettings.DataVisualizationFavoriteNodeIds);
         private static string searchQuery = string.Empty;
 
         /// <summary>
@@ -330,6 +332,8 @@ namespace TEHhub.Ui
             if (ImGui.SmallButton(isFav ? "★ Unpin Favorite##favBtn" : "☆ Pin Favorite##favBtn"))
             {
                 NavContext.ToggleFavorite(node.Id);
+                Core.GHSettings.DataVisualizationFavoriteNodeIds = NavContext.FavoriteNodeIds.ToList();
+                CoroutineHandler.RaiseEvent(TEHhubEvents.TimeToSaveAllSettings);
             }
 
             ImGui.SameLine();

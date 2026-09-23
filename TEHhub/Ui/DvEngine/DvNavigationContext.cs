@@ -15,11 +15,7 @@ namespace TEHhub.Ui.DvEngine
     public sealed class DvNavigationContext
     {
         private const int MaxRecentCount = 15;
-
-        private readonly List<string> history = new();
-        private int historyIndex = -1;
-        private readonly List<string> recentNodeIds = new();
-        private readonly HashSet<string> favoriteNodeIds = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly string[] DefaultFavoriteNodeIds =
         {
             "player.life",
             "player.buffs",
@@ -29,16 +25,30 @@ namespace TEHhub.Ui.DvEngine
             "legacy.all",
         };
 
+        private readonly List<string> history = new();
+        private int historyIndex = -1;
+        private readonly List<string> recentNodeIds = new();
+        private readonly HashSet<string> favoriteNodeIds = new(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="DvNavigationContext"/> class.
         /// </summary>
         /// <param name="initialNodeId">Default starting navigation target.</param>
-        public DvNavigationContext(string initialNodeId = "serverdata.gold")
+        /// <param name="initialFavoriteNodeIds">Saved favorite node IDs, or the defaults when omitted.</param>
+        public DvNavigationContext(string initialNodeId = "serverdata.gold", IEnumerable<string>? initialFavoriteNodeIds = null)
         {
             this.SelectedNodeId = initialNodeId;
             this.history.Add(initialNodeId);
             this.historyIndex = 0;
             this.recentNodeIds.Add(initialNodeId);
+
+            foreach (var nodeId in initialFavoriteNodeIds ?? DefaultFavoriteNodeIds)
+            {
+                if (!string.IsNullOrWhiteSpace(nodeId))
+                {
+                    this.favoriteNodeIds.Add(nodeId);
+                }
+            }
         }
 
         /// <summary>
@@ -134,6 +144,11 @@ namespace TEHhub.Ui.DvEngine
         /// </summary>
         public void ToggleFavorite(string nodeId)
         {
+            if (string.IsNullOrWhiteSpace(nodeId))
+            {
+                return;
+            }
+
             if (this.favoriteNodeIds.Contains(nodeId))
             {
                 this.favoriteNodeIds.Remove(nodeId);

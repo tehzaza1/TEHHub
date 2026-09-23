@@ -7,6 +7,8 @@ namespace OffsetRecovery.Tests
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Text.Json;
+    using TEHhub.Settings;
     using TEHhub.Ui.DvEngine;
 
     internal static class DvNavigationTests
@@ -179,7 +181,33 @@ namespace OffsetRecovery.Tests
             nav.ToggleFavorite("player.life");
             check(nav.IsFavorite("player.life"), "ToggleFavorite must re-add 'player.life'.");
 
-            // 10. Unavailable Resolver Does Not Throw or Break
+            // 10. Favorites survive persistence through the existing core settings JSON.
+            var settings = new State();
+            var persistedNav = new DvNavigationContext("serverdata.gold", settings.DataVisualizationFavoriteNodeIds);
+            persistedNav.ToggleFavorite("player.life");
+            persistedNav.ToggleFavorite("area.current");
+            settings.DataVisualizationFavoriteNodeIds = persistedNav.FavoriteNodeIds.ToList();
+            var settingsJson = JsonSerializer.Serialize(settings, StateJsonContext.Default.State);
+            var loadedSettings = JsonSerializer.Deserialize(settingsJson, StateJsonContext.Default.State)!;
+            var restoredNav = new DvNavigationContext("serverdata.gold", loadedSettings.DataVisualizationFavoriteNodeIds);
+            check(restoredNav.IsFavorite("area.current"), "New DV v2 favorites must survive settings serialization and reload.");
+            check(!restoredNav.IsFavorite("player.life"), "Removed default favorites must stay removed after settings reload.");
+            check(restoredNav.IsFavorite("player.buffs"), "Unchanged default favorites must be preserved in the saved list.");
+
+            var emptySettings = new State
+            {
+                DataVisualizationFavoriteNodeIds = new(),
+            };
+            var emptyJson = JsonSerializer.Serialize(emptySettings, StateJsonContext.Default.State);
+            var loadedEmptySettings = JsonSerializer.Deserialize(emptyJson, StateJsonContext.Default.State)!;
+            var emptyNav = new DvNavigationContext("serverdata.gold", loadedEmptySettings.DataVisualizationFavoriteNodeIds);
+            check(emptyNav.FavoriteNodeIds.Count == 0, "An intentionally empty DV v2 favorites list must remain empty after reload.");
+
+            var legacySettings = JsonSerializer.Deserialize("{}", StateJsonContext.Default.State)!;
+            check(legacySettings.DataVisualizationFavoriteNodeIds.Contains("player.life"),
+                "Existing core settings without a DV v2 favorites field must retain the default favorites.");
+
+            // 11. Unavailable Resolver Does Not Throw or Break
             var unavailableNode = new DvNavNode
             {
                 Id = "test.null",
@@ -192,7 +220,7 @@ namespace OffsetRecovery.Tests
             var resolvedNull = unavailableNode.ObjectResolver();
             check(resolvedNull == null, "Null resolver safely returns null without throwing.");
 
-            // 11. Legacy View Node Exists and Uses Preserved Legacy Layout Path
+            // 12. Legacy View Node Exists and Uses Preserved Legacy Layout Path
             var legacyNode = DvRegistry.FindById("legacy.all");
             check(legacyNode != null, "'legacy.all' must exist in registry.");
             check(legacyNode!.Kind == DvNodeKind.Legacy, "'legacy.all' must have Kind == DvNodeKind.Legacy.");
