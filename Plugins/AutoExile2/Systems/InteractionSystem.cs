@@ -51,7 +51,8 @@ namespace AutoExile2.Systems
         Action<BotContext>? BeforeClick = null,
         Func<string>? PendingVerificationStatus = null,
         Func<BotContext, IntPtr>? UiAddressResolver = null,
-        Func<IntPtr>? ExpectedItemAddress = null);
+        Func<IntPtr>? ExpectedItemAddress = null,
+        Func<string>? PreClickDiagnostic = null);
 
     /// <summary>
     /// Serializes world-entity and UI interactions. A request navigates when necessary,
@@ -866,9 +867,9 @@ namespace AutoExile2.Systems
                 {
                     target.BeforeClick?.Invoke(ctx);
                 }
-                catch
+                catch (Exception exception)
                 {
-                    return this.Fail(ctx, $"{this.Description} target baseline could not be read");
+                    return this.FailCurrencyTargetPrecheck(ctx, $"{exception.GetType().Name}: {exception.Message}");
                 }
 
                 IntPtr targetUiAddress;
@@ -876,9 +877,9 @@ namespace AutoExile2.Systems
                 {
                     targetUiAddress = target.UiAddressResolver?.Invoke(ctx) ?? target.UiAddress;
                 }
-                catch
+                catch (Exception exception)
                 {
-                    return this.Fail(ctx, $"{this.Description} target changed before its click");
+                    return this.FailCurrencyTargetPrecheck(ctx, $"{exception.GetType().Name}: {exception.Message}");
                 }
 
                 if (targetUiAddress == IntPtr.Zero || !TryGetUiClickPoint(targetUiAddress, out var targetPoint))
@@ -898,10 +899,21 @@ namespace AutoExile2.Systems
                         }
                     }
 
-                    return this.Fail(ctx, $"{this.Description} target item UI is hidden or invalid");
+                    return this.FailCurrencyTargetPrecheck(ctx, "target item UI is hidden or invalid");
                 }
 
                 this.currencyTargetUiResolveStartedAtUtc = DateTime.MinValue;
+                if (BotActionLog.Enabled)
+                {
+                    var precheckTargetCount = this.currencyTargets?.Count ?? 0;
+                    var diagnostic = GetCurrencyTargetPreClickDiagnostic(target);
+                    BotActionLog.Write(
+                        "currency.precheck",
+                        $"Target {this.currencyTargetIndex + 1}/{precheckTargetCount} passed pre-click validation; " +
+                        (string.IsNullOrWhiteSpace(diagnostic)
+                            ? "live Waystone slot and UI control resolved."
+                            : $"{diagnostic}; live Waystone slot and UI control resolved."));
+                }
 
                 this.Phase = InteractionPhase.Clicking;
                 var targetCount = this.currencyTargets?.Count ?? 0;
@@ -965,7 +977,9 @@ namespace AutoExile2.Systems
                 {
                     if ((now - this.lastClickAtUtc).TotalMilliseconds >= 2500d)
                     {
-                        return this.Fail(ctx, $"{this.Description} target click was not issued");
+                        return this.FailCurrencyTargetPrecheck(
+                            ctx,
+                            "target click was not issued (the live UI/item safety check or input gate may have rejected it); no click was sent");
                     }
 
                     this.Status = $"Waiting for target click: {this.Description}";
@@ -1099,6 +1113,40 @@ namespace AutoExile2.Systems
                 0,
                 0,
                 InventorySnapshotDetailLevel.Basic);
+
+        private InteractionResult FailCurrencyTargetPrecheck(BotContext ctx, string diagnostic)
+        {
+            var targetCount = this.currencyTargets?.Count ?? 0;
+            var targetNumber = this.currencyTargetIndex + 1;
+            var target = this.currencyTargets != null && this.currencyTargetIndex < this.currencyTargets.Count
+                ? this.currencyTargets[this.currencyTargetIndex]
+                : null;
+            var targetDiagnostic = GetCurrencyTargetPreClickDiagnostic(target);
+            var reason = $"{this.Description} target {targetNumber}/{targetCount} pre-click validation failed: {diagnostic}";
+            if (!string.IsNullOrWhiteSpace(targetDiagnostic))
+            {
+                reason += $"; {targetDiagnostic}";
+            }
+
+            if (BotActionLog.Enabled)
+            {
+                BotActionLog.Write("currency.precheck_failed", reason);
+            }
+
+            return this.Fail(ctx, reason);
+        }
+
+        private static string GetCurrencyTargetPreClickDiagnostic(CurrencyUseTarget? target)
+        {
+            try
+            {
+                return target?.PreClickDiagnostic?.Invoke() ?? string.Empty;
+            }
+            catch (Exception exception)
+            {
+                return $"pre-click diagnostic unavailable ({exception.GetType().Name}: {exception.Message})";
+            }
+        }
 
         private static string GetCurrencyTargetPendingStatus(CurrencyUseTarget? target)
         {
