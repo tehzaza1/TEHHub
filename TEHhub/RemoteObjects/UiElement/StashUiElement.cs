@@ -166,9 +166,11 @@ namespace TEHhub.RemoteObjects.UiElement
         ///     the first coherent observation is Loading and the second identical observation is Ready.
         /// </summary>
         /// <param name="detailLevel">Basic item identity or component-rich Full item metadata.</param>
+        /// <param name="forceInventoryRefresh">Refreshes the cached StashInventoryId snapshot even when its source revision appears unchanged.</param>
         /// <returns>Current read-only stash snapshot.</returns>
         public StashSnapshot ReadSnapshot(
-            InventorySnapshotDetailLevel detailLevel = InventorySnapshotDetailLevel.Basic)
+            InventorySnapshotDetailLevel detailLevel = InventorySnapshotDetailLevel.Basic,
+            bool forceInventoryRefresh = false)
         {
             lock (this.snapshotLock)
             {
@@ -179,7 +181,8 @@ namespace TEHhub.RemoteObjects.UiElement
                     this.stability.Reset();
                     var unavailableInventory = serverData.ReadInventorySnapshot(
                         InventoryName.StashInventoryId,
-                        detailLevel);
+                        detailLevel,
+                        forceRefresh: forceInventoryRefresh);
                     return new StashSnapshot(
                         StashSnapshotState.Closed,
                         string.Empty,
@@ -219,7 +222,8 @@ namespace TEHhub.RemoteObjects.UiElement
 
                 var inventory = serverData.ReadInventorySnapshot(
                     InventoryName.StashInventoryId,
-                    detailLevel);
+                    detailLevel,
+                    forceRefresh: forceInventoryRefresh);
                 var visibleItems = ReadVisibleItems(this.Address);
                 if (detailLevel == InventorySnapshotDetailLevel.Full && tiers.Count == TierNames.Length)
                 {

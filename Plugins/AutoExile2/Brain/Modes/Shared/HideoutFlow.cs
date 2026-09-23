@@ -22,6 +22,8 @@ namespace AutoExile2.Modes.Shared
     internal sealed class HideoutFlow
     {
         private static readonly TimeSpan InventoryReadInterval = TimeSpan.FromMilliseconds(250);
+        private static readonly TimeSpan ActiveSnapshotRefreshInterval = TimeSpan.FromMilliseconds(200);
+        private static readonly TimeSpan PageScanSettleDelay = TimeSpan.FromMilliseconds(400);
         private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
         private InventorySnapshot? inventorySnapshot;
         private DateTime lastInventoryReadUtc = DateTime.MinValue;
@@ -43,11 +45,22 @@ namespace AutoExile2.Modes.Shared
         private CraftRetryRequest? pendingCraftRetry;
         private bool useTabScrollFallback;
         private bool withdrawalAttempted;
+        private WithdrawalBaseline? withdrawalBaseline;
+        private bool withdrawalStashChanged;
+        private bool withdrawalFinalVerificationPending;
+        private DateTime withdrawalFinalVerificationNotBeforeUtc = DateTime.MinValue;
+        private int withdrawalVerificationRetries;
+        private DateTime nextActiveSnapshotRefreshUtc = DateTime.MinValue;
         private bool waystoneStockExhausted;
         private DateTime nextWaystoneStockRecheckUtc = DateTime.MinValue;
         private int targetWaystoneTier;
         private int nextSpecializedPage = 1;
         private int pendingPageNumber;
+        private int delayedPageNumber;
+        private DateTime pageClickNotBeforeUtc = DateTime.MinValue;
+        private string settlingPageName = string.Empty;
+        private DateTime pageScanNotBeforeUtc = DateTime.MinValue;
+        private bool forcePageStashRefresh;
         private StashPhase stashPhase = StashPhase.SelectTab;
         private PendingInteraction pendingInteraction = PendingInteraction.None;
         private StashPhase phaseAfterPageSelection = StashPhase.FindItem;
@@ -204,6 +217,21 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
+            if (this.withdrawalAttempted && this.withdrawalBaseline is { } completedWithdrawal &&
+                IsWithdrawalConfirmed(inventory, completedWithdrawal))
+            {
+                if (this.pendingInteraction == PendingInteraction.Withdraw)
+                {
+                    ctx.Interaction.Reset();
+                    this.pendingInteraction = PendingInteraction.None;
+                }
+
+                if (!ctx.Interaction.IsBusy && this.pendingInteraction == PendingInteraction.None)
+                {
+                    this.ClearWithdrawalGuard();
+                }
+            }
+
             var inventoryWaystones = inventory.Items
                 .Where(item => item.WaystoneTier is int tier && tier >= minTier && tier <= maxTier)
                 .OrderByDescending(item => item.WaystoneTier)
@@ -337,18 +365,54 @@ namespace AutoExile2.Modes.Shared
             this.TickStash(ctx, configuredTab, minTier, maxTier);
         }
 
-        private InventorySnapshot ReadInventory(BotContext ctx)
+        private InventorySnapshot ReadInventory(BotContext ctx, bool forceRefresh = false)
         {
             var now = DateTime.UtcNow;
-            if (this.inventorySnapshot == null || now - this.lastInventoryReadUtc >= InventoryReadInterval)
+            if (forceRefresh || this.inventorySnapshot == null || now - this.lastInventoryReadUtc >= InventoryReadInterval)
             {
                 this.inventorySnapshot = ctx.Area.ServerDataObject.ReadInventorySnapshot(
                     InventoryName.MainInventory1,
-                    InventorySnapshotDetailLevel.Full);
+                    InventorySnapshotDetailLevel.Full,
+                    forceRefresh);
                 this.lastInventoryReadUtc = now;
             }
 
             return this.inventorySnapshot;
+        }
+
+        private StashSnapshot? RefreshActiveSnapshots(BotContext ctx)
+        {
+            var actionInProgress = this.pendingInteraction is PendingInteraction.Withdraw or
+                PendingInteraction.UseWisdom or PendingInteraction.UseAlchemy or PendingInteraction.UseExalted or
+                PendingInteraction.CursorCleanup;
+            var scanningWaystonePages = this.targetWaystoneTier > 0 &&
+                this.stashPhase is StashPhase.SelectPage or StashPhase.FindItem;
+            if (!actionInProgress && !scanningWaystonePages)
+            {
+                return null;
+            }
+
+            var now = DateTime.UtcNow;
+            if (now < this.nextActiveSnapshotRefreshUtc)
+            {
+                return null;
+            }
+
+            this.inventorySnapshot = ctx.Area.ServerDataObject.ReadInventorySnapshot(
+                InventoryName.MainInventory1,
+                InventorySnapshotDetailLevel.Full,
+                forceRefresh: true);
+            this.lastInventoryReadUtc = now;
+            var stashSnapshot = ctx.GameUi.Stash.ReadSnapshot(
+                InventorySnapshotDetailLevel.Full,
+                forceInventoryRefresh: true);
+            if (this.withdrawalBaseline is { } baseline && IsStashWithdrawalChanged(stashSnapshot, baseline))
+            {
+                this.withdrawalStashChanged = true;
+            }
+
+            this.nextActiveSnapshotRefreshUtc = now + ActiveSnapshotRefreshInterval;
+            return stashSnapshot;
         }
 
         private void TickOpenStash(BotContext ctx)
@@ -405,6 +469,7 @@ namespace AutoExile2.Modes.Shared
         {
             if (ctx.Interaction.IsBusy)
             {
+                this.RefreshActiveSnapshots(ctx);
                 var result = ctx.Interaction.Tick(ctx);
                 this.Status = ctx.Interaction.Status;
                 this.Decision = ctx.Interaction.Phase.ToString();
@@ -620,6 +685,7 @@ namespace AutoExile2.Modes.Shared
                 _ => PendingInteraction.None,
             };
             this.Status = targets.Count > 1 ? $"{reason}; applying to {targets.Count} Waystone action(s)" : reason;
+            this.nextActiveSnapshotRefreshUtc = DateTime.UtcNow + ActiveSnapshotRefreshInterval;
             this.TickStartedInteraction(ctx);
         }
 
@@ -891,6 +957,7 @@ namespace AutoExile2.Modes.Shared
         {
             if (ctx.Interaction.IsBusy)
             {
+                this.RefreshActiveSnapshots(ctx);
                 var result = ctx.Interaction.Tick(ctx);
                 this.Status = ctx.Interaction.Status;
                 this.Decision = ctx.Interaction.Phase.ToString();
@@ -947,6 +1014,7 @@ namespace AutoExile2.Modes.Shared
         {
             if (ctx.Interaction.IsBusy)
             {
+                this.RefreshActiveSnapshots(ctx);
                 var result = ctx.Interaction.Tick(ctx);
                 this.Status = ctx.Interaction.Status;
                 this.Decision = ctx.Interaction.Phase.ToString();
@@ -965,6 +1033,12 @@ namespace AutoExile2.Modes.Shared
 
             if (this.withdrawalAttempted && this.pendingInteraction == PendingInteraction.None)
             {
+                if (this.withdrawalFinalVerificationPending)
+                {
+                    this.TickFinalWithdrawalVerification(ctx);
+                    return;
+                }
+
                 this.Status = "Waystone withdrawal was not confirmed — stopped to avoid withdrawing a second item";
                 this.Decision = "WithdrawalUnconfirmed";
                 return;
@@ -977,7 +1051,8 @@ namespace AutoExile2.Modes.Shared
                 return;
             }
 
-            var snapshot = ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Full);
+            var activeSnapshot = this.RefreshActiveSnapshots(ctx);
+            var snapshot = activeSnapshot ?? ctx.GameUi.Stash.ReadSnapshot(InventorySnapshotDetailLevel.Full);
             if (snapshot.State != StashSnapshotState.Ready)
             {
                 this.Status = $"Stash {snapshot.State}: {snapshot.Diagnostic}";
@@ -1041,6 +1116,9 @@ namespace AutoExile2.Modes.Shared
                 this.targetWaystoneTier = target.Tier;
                 this.nextSpecializedPage = 1;
                 this.stashPhase = StashPhase.SelectTier;
+                this.ResetPageClickDelay();
+                this.settlingPageName = string.Empty;
+                this.pageScanNotBeforeUtc = DateTime.MinValue;
             }
 
             switch (this.stashPhase)
@@ -1057,6 +1135,7 @@ namespace AutoExile2.Modes.Shared
                     {
                         this.nextSpecializedPage = 2;
                         this.stashPhase = StashPhase.FindItem;
+                        this.BeginPageScanSettle("1");
                         this.Status = $"Waystone Tier {this.targetWaystoneTier}, page 1 ready";
                         this.Decision = "FindClickableWaystone";
                         return;
@@ -1111,6 +1190,29 @@ namespace AutoExile2.Modes.Shared
                     return;
 
                 case StashPhase.FindItem:
+                    if (this.WaitForPageScanSettle(ctx, snapshot))
+                    {
+                        return;
+                    }
+
+                    if (this.forcePageStashRefresh)
+                    {
+                        snapshot = activeSnapshot ?? ctx.GameUi.Stash.ReadSnapshot(
+                            InventorySnapshotDetailLevel.Full,
+                            forceInventoryRefresh: true);
+                        if (snapshot.State != StashSnapshotState.Ready ||
+                            !string.Equals(snapshot.CurrentPageName, this.settlingPageName, StringComparison.Ordinal))
+                        {
+                            this.Status = $"Waiting for fresh Waystone page {this.settlingPageName} contents";
+                            this.Decision = "SettleWaystonePage";
+                            return;
+                        }
+
+                        this.forcePageStashRefresh = false;
+                        this.settlingPageName = string.Empty;
+                        this.pageScanNotBeforeUtc = DateTime.MinValue;
+                    }
+
                     if (snapshot.Tiers[this.targetWaystoneTier - 1].Count <= 0)
                     {
                         this.targetWaystoneTier = 0;
@@ -1269,8 +1371,23 @@ namespace AutoExile2.Modes.Shared
             var pageName = pageNumber.ToString();
             if (string.Equals(snapshot.CurrentPageName, pageName, StringComparison.Ordinal))
             {
+                this.ResetPageClickDelay();
                 this.nextSpecializedPage = Math.Max(this.nextSpecializedPage, pageNumber + 1);
                 this.stashPhase = phaseAfterSelection;
+                this.BeginPageScanSettle(pageName);
+                return;
+            }
+
+            if (this.delayedPageNumber != pageNumber)
+            {
+                this.delayedPageNumber = pageNumber;
+                this.pageClickNotBeforeUtc = DateTime.UtcNow + TimeSpan.FromMilliseconds(Random.Shared.Next(1000, 1301));
+            }
+
+            if (DateTime.UtcNow < this.pageClickNotBeforeUtc)
+            {
+                this.Status = $"Pausing before Waystone page {pageName} ({(this.pageClickNotBeforeUtc - DateTime.UtcNow).TotalSeconds:F1}s)";
+                this.Decision = "SettleWaystonePage";
                 return;
             }
 
@@ -1294,9 +1411,63 @@ namespace AutoExile2.Modes.Shared
             }
 
             this.pendingPageNumber = pageNumber;
+            this.ResetPageClickDelay();
             this.phaseAfterPageSelection = phaseAfterSelection;
             this.pendingInteraction = PendingInteraction.SelectPage;
             this.TickStartedInteraction(ctx);
+        }
+
+        private void BeginPageScanSettle(string pageName)
+        {
+            if (string.Equals(this.settlingPageName, pageName, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            this.settlingPageName = pageName;
+            this.pageScanNotBeforeUtc = DateTime.UtcNow + PageScanSettleDelay;
+            this.forcePageStashRefresh = true;
+        }
+
+        private bool WaitForPageScanSettle(BotContext ctx, StashSnapshot snapshot)
+        {
+            if (this.settlingPageName.Length == 0)
+            {
+                return false;
+            }
+
+            if (!string.Equals(snapshot.CurrentPageName, this.settlingPageName, StringComparison.Ordinal))
+            {
+                if (DateTime.UtcNow >= this.pageScanNotBeforeUtc + RetryDelay)
+                {
+                    var expectedPage = int.Parse(this.settlingPageName);
+                    this.settlingPageName = string.Empty;
+                    this.pageScanNotBeforeUtc = DateTime.MinValue;
+                    this.forcePageStashRefresh = false;
+                    this.BeginSelectPage(ctx, snapshot, expectedPage, StashPhase.FindItem);
+                    return true;
+                }
+
+                this.Status = $"Waiting for Waystone page {this.settlingPageName} to become active";
+                this.Decision = "SettleWaystonePage";
+                return true;
+            }
+
+            if (DateTime.UtcNow < this.pageScanNotBeforeUtc)
+            {
+                this.Status = $"Waiting for Waystone page {this.settlingPageName} contents to settle " +
+                              $"({(this.pageScanNotBeforeUtc - DateTime.UtcNow).TotalSeconds:F1}s)";
+                this.Decision = "SettleWaystonePage";
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ResetPageClickDelay()
+        {
+            this.delayedPageNumber = 0;
+            this.pageClickNotBeforeUtc = DateTime.MinValue;
         }
 
         private bool TickWithdrawFromSnapshot(
@@ -1350,18 +1521,35 @@ namespace AutoExile2.Modes.Shared
             }
 
             var candidate = candidates[0];
-            var baselineCount = CountWaystonesInRange(this.ReadInventory(ctx), minTier, maxTier);
+            var baselineInventory = this.ReadInventory(ctx, forceRefresh: true);
+            if (baselineInventory.State != InventorySnapshotState.Ready)
+            {
+                this.Status = $"Main inventory {baselineInventory.State}: waiting before Waystone withdrawal";
+                this.Decision = "ReadInventoryBeforeWithdrawal";
+                return true;
+            }
+
             var itemAddress = candidate.Ui.ItemAddress;
+            var baseline = new WithdrawalBaseline(
+                itemAddress,
+                candidate.Tier,
+                CountWaystonesInTier(baselineInventory, candidate.Tier),
+                baselineInventory.Items.Select(item => item.ItemAddress).ToHashSet(),
+                snapshot.Tiers.Count >= candidate.Tier
+                    ? snapshot.Tiers[candidate.Tier - 1].Count
+                    : -1,
+                snapshot.CurrentTabName,
+                snapshot.CurrentTierName,
+                snapshot.CurrentPageName,
+                snapshot.VisibleItems.Any(item => item.ItemAddress == itemAddress));
+            this.withdrawalBaseline = baseline;
+            this.withdrawalStashChanged = false;
+            this.withdrawalFinalVerificationPending = false;
+            this.withdrawalVerificationRetries = 0;
             if (!ctx.Interaction.BeginUiCtrlClick(
                     candidate.Ui.UiAddress,
                     $"Tier {candidate.Tier} Waystone",
-                    current =>
-                    {
-                        var currentInventory = this.ReadInventory(current);
-                        return currentInventory.State == InventorySnapshotState.Ready &&
-                               (currentInventory.Items.Any(item => item.Item.Address == itemAddress) ||
-                                CountWaystonesInRange(currentInventory, minTier, maxTier) > baselineCount);
-                    }))
+                    current => IsWithdrawalConfirmed(this.ReadInventory(current), baseline)))
             {
                 this.Status = "Waystone item UI is unavailable";
                 this.Decision = "WithdrawWaystone";
@@ -1370,8 +1558,68 @@ namespace AutoExile2.Modes.Shared
 
             this.withdrawalAttempted = true;
             this.pendingInteraction = PendingInteraction.Withdraw;
+            this.nextActiveSnapshotRefreshUtc = DateTime.UtcNow + ActiveSnapshotRefreshInterval;
             this.TickStartedInteraction(ctx);
             return true;
+        }
+
+        private void TickFinalWithdrawalVerification(BotContext ctx)
+        {
+            if (DateTime.UtcNow < this.withdrawalFinalVerificationNotBeforeUtc)
+            {
+                this.Status = "Waiting 200ms before the final fresh Waystone inventory check";
+                this.Decision = "VerifyWithdrawal";
+                return;
+            }
+
+            var inventory = ctx.Area.ServerDataObject.ReadInventorySnapshot(
+                InventoryName.MainInventory1,
+                InventorySnapshotDetailLevel.Full,
+                forceRefresh: true);
+            this.inventorySnapshot = inventory;
+            this.lastInventoryReadUtc = DateTime.UtcNow;
+            var stash = ctx.GameUi.Stash.ReadSnapshot(
+                InventorySnapshotDetailLevel.Full,
+                forceInventoryRefresh: true);
+            if (this.withdrawalBaseline is { } baseline && IsStashWithdrawalChanged(stash, baseline))
+            {
+                this.withdrawalStashChanged = true;
+            }
+
+            if (inventory.State == InventorySnapshotState.Ready &&
+                this.withdrawalBaseline is { } confirmedBaseline &&
+                IsWithdrawalConfirmed(inventory, confirmedBaseline))
+            {
+                this.ClearWithdrawalGuard();
+                this.Status = "Waystone withdrawal confirmed by a fresh inventory snapshot";
+                this.Decision = "WithdrawalConfirmed";
+                return;
+            }
+
+            if (inventory.State != InventorySnapshotState.Ready && this.withdrawalVerificationRetries++ < 3)
+            {
+                this.withdrawalFinalVerificationNotBeforeUtc = DateTime.UtcNow + ActiveSnapshotRefreshInterval;
+                this.Status = $"Main inventory {inventory.State}: retrying final withdrawal check";
+                this.Decision = "VerifyWithdrawal";
+                return;
+            }
+
+            this.withdrawalFinalVerificationPending = false;
+            this.Status = this.withdrawalStashChanged
+                ? "Stash changed but no Waystone appeared in a fresh inventory read — stopped to avoid a second withdrawal"
+                : "Waystone withdrawal was not confirmed by a fresh inventory read — stopped to avoid a second withdrawal";
+            this.Decision = "WithdrawalUnconfirmed";
+        }
+
+        private void ClearWithdrawalGuard()
+        {
+            this.withdrawalAttempted = false;
+            this.withdrawalBaseline = null;
+            this.withdrawalStashChanged = false;
+            this.withdrawalFinalVerificationPending = false;
+            this.withdrawalFinalVerificationNotBeforeUtc = DateTime.MinValue;
+            this.withdrawalVerificationRetries = 0;
+            this.nextActiveSnapshotRefreshUtc = DateTime.MinValue;
         }
 
         private void TickStartedInteraction(BotContext ctx)
@@ -1399,16 +1647,20 @@ namespace AutoExile2.Modes.Shared
                     this.nextSpecializedPage = 1;
                     break;
                 case PendingInteraction.SelectPage:
+                {
+                    var selectedPageName = this.pendingPageNumber.ToString();
                     this.nextSpecializedPage = Math.Max(this.nextSpecializedPage, this.pendingPageNumber + 1);
                     this.pendingPageNumber = 0;
                     this.stashPhase = this.phaseAfterPageSelection;
+                    this.BeginPageScanSettle(selectedPageName);
                     break;
+                }
                 case PendingInteraction.SelectTier:
                     this.stashPhase = StashPhase.SelectPage;
                     break;
                 case PendingInteraction.Withdraw:
                     // The success predicate already proved that main inventory received the item.
-                    this.withdrawalAttempted = false;
+                    this.ClearWithdrawalGuard();
                     this.waystoneStockExhausted = false;
                     this.nextWaystoneStockRecheckUtc = DateTime.MinValue;
                     this.inventorySnapshot = null;
@@ -1428,6 +1680,8 @@ namespace AutoExile2.Modes.Shared
                 case PendingInteraction.CursorCleanup:
                     break;
             }
+
+            this.nextActiveSnapshotRefreshUtc = DateTime.MinValue;
         }
 
         private void HandleInteractionFailure(BotContext ctx)
@@ -1490,10 +1744,11 @@ namespace AutoExile2.Modes.Shared
 
             if (failed == PendingInteraction.Withdraw)
             {
-                this.Status = string.IsNullOrWhiteSpace(failure)
-                    ? "Waystone withdrawal was not confirmed"
-                    : failure;
-                this.Decision = "WithdrawalUnconfirmed";
+                this.withdrawalFinalVerificationPending = true;
+                this.withdrawalFinalVerificationNotBeforeUtc = DateTime.UtcNow + ActiveSnapshotRefreshInterval;
+                this.withdrawalVerificationRetries = 0;
+                this.Status = "Waystone click did not confirm — waiting for one fresh inventory check before stopping";
+                this.Decision = "VerifyWithdrawal";
                 return;
             }
 
@@ -1513,6 +1768,7 @@ namespace AutoExile2.Modes.Shared
             }
             else if (failed == PendingInteraction.SelectPage)
             {
+                this.ResetPageClickDelay();
                 this.stashPhase = this.pendingPageNumber == 1
                     ? StashPhase.SelectPage
                     : this.phaseAfterPageSelection;
@@ -1558,14 +1814,19 @@ namespace AutoExile2.Modes.Shared
             this.nextSpecializedPage = 1;
             this.exhaustedWaystoneTiers.Clear();
             this.pendingPageNumber = 0;
+            this.ResetPageClickDelay();
+            this.settlingPageName = string.Empty;
+            this.pageScanNotBeforeUtc = DateTime.MinValue;
             this.stashPhase = StashPhase.SelectTab;
             this.pendingInteraction = PendingInteraction.None;
             this.phaseAfterPageSelection = StashPhase.FindItem;
             this.waystoneStockExhausted = false;
             this.nextWaystoneStockRecheckUtc = DateTime.MinValue;
+            this.nextActiveSnapshotRefreshUtc = DateTime.MinValue;
+            this.forcePageStashRefresh = false;
             if (!preserveWithdrawalGuard)
             {
-                this.withdrawalAttempted = false;
+                this.ClearWithdrawalGuard();
                 this.stoppedCraftItems.Clear();
             }
         }
@@ -1580,6 +1841,40 @@ namespace AutoExile2.Modes.Shared
         private static int CountWaystonesInRange(InventorySnapshot inventory, int minTier, int maxTier) =>
             inventory.Items.Count(entry =>
                 entry.WaystoneTier is int tier && tier >= minTier && tier <= maxTier);
+
+        private static int CountWaystonesInTier(InventorySnapshot inventory, int tier) =>
+            inventory.Items.Count(entry => entry.WaystoneTier == tier);
+
+        private static bool IsWithdrawalConfirmed(InventorySnapshot inventory, WithdrawalBaseline baseline)
+        {
+            if (inventory.State != InventorySnapshotState.Ready)
+            {
+                return false;
+            }
+
+            return inventory.Items.Any(item =>
+                       item.ItemAddress == baseline.ItemAddress && item.WaystoneTier == baseline.Tier) ||
+                   inventory.Items.Any(item =>
+                       item.WaystoneTier == baseline.Tier &&
+                       !baseline.MainInventoryItemAddresses.Contains(item.ItemAddress)) ||
+                   CountWaystonesInTier(inventory, baseline.Tier) > baseline.MainInventoryTierCount;
+        }
+
+        private static bool IsStashWithdrawalChanged(StashSnapshot snapshot, WithdrawalBaseline baseline)
+        {
+            if (snapshot.State != StashSnapshotState.Ready || baseline.StashTierCount < 0 ||
+                !string.Equals(snapshot.CurrentTabName, baseline.StashTabName, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(snapshot.CurrentTierName, baseline.StashTierName, StringComparison.Ordinal) ||
+                !string.Equals(snapshot.CurrentPageName, baseline.StashPageName, StringComparison.Ordinal) ||
+                snapshot.Tiers.Count < baseline.Tier)
+            {
+                return false;
+            }
+
+            return snapshot.Tiers[baseline.Tier - 1].Count < baseline.StashTierCount ||
+                   (baseline.WasVisibleOnStashPage &&
+                    snapshot.VisibleItems.All(item => item.ItemAddress != baseline.ItemAddress));
+        }
 
         private static bool CraftingActionChangedSlot(
             BotContext ctx,
@@ -1695,6 +1990,17 @@ namespace AutoExile2.Modes.Shared
         {
             public int? ObservedCurrencyStackCountBeforeUse { get; set; } = CurrencyStackCountBeforeUse;
         }
+
+        private sealed record WithdrawalBaseline(
+            IntPtr ItemAddress,
+            int Tier,
+            int MainInventoryTierCount,
+            HashSet<IntPtr> MainInventoryItemAddresses,
+            int StashTierCount,
+            string StashTabName,
+            string StashTierName,
+            string StashPageName,
+            bool WasVisibleOnStashPage);
 
         private readonly record struct CraftRetryKey(
             IntPtr WaystoneItemAddress,
