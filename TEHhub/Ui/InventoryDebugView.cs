@@ -11,9 +11,12 @@ namespace TEHhub.Ui
     using System.Numerics;
     using System.Text.Json;
     using ImGuiNET;
+    using TEHhub.Offsets.Objects.States.InGameState;
+    using TEHhub.Offsets.Objects.UiElement;
     using TEHhub.RemoteEnums;
     using TEHhub.RemoteObjects.Components;
     using TEHhub.RemoteObjects.States.InGameStateObjects;
+    using TEHhub.RemoteObjects.UiElement;
     using TEHhub.Utils;
 
     /// <summary>
@@ -37,6 +40,11 @@ namespace TEHhub.Ui
         // reviewed. The click handler reads this range once for the currently selected item.
         private const int CorruptionProbeOffset = 0x80;
         private const int CorruptionProbeLength = 0xE0;
+        // Raw item-root prefix includes the typed ItemStruct (+0x00..+0x27) and known
+        // EntityOffsets identity/status fields at +0x88/+0x8C. Keep it uninterpreted.
+        private const int CorruptionProbeItemRootLength = 0x90;
+        private const int CorruptionProbeComponentPrefixLength = 0x100;
+        private const int CorruptionProbeMaxComponents = 50;
 
         internal static void Render()
         {
@@ -335,7 +343,8 @@ namespace TEHhub.Ui
             ImGui.SeparatorText("Waystone corruption probe (manual one-shot)");
             ImGui.TextWrapped(
                 "Capture before corruption, corrupt this same Waystone, click Refresh now, then capture again. " +
-                "Label the two files before/after and send both for comparison. This records data only; it does not decide eligibility.");
+                "Label the two files before/after and send both for comparison. Current game mouse-over evidence is sampled opportunistically and may be empty while clicking this button. " +
+                "Raw component prefixes are diagnostic only; this does not interpret them as flags or decide eligibility.");
             ImGui.SetNextItemWidth(180f);
             ImGui.InputText("Sample label##InventoryDvCorruptionLabel", ref corruptionProbeLabel, 48);
             ImGui.SameLine();
@@ -377,6 +386,15 @@ namespace TEHhub.Ui
                     mods.Address + CorruptionProbeOffset,
                     rawBytes,
                     out var bytesRead);
+                var itemStructReadSucceeded = reader.TryReadMemory<ItemStruct>(item.ItemAddress, out var itemStruct);
+                var itemStructBytes = new byte[CorruptionProbeItemRootLength];
+                var itemStructBytesReadSucceeded = reader.TryReadMemoryArray(
+                    item.ItemAddress,
+                    itemStructBytes,
+                    out var itemStructBytesRead);
+                var componentSnapshots = CaptureComponentSnapshots(item.Item, reader);
+                var visibleItemControl = CaptureVisibleItemControl(item.ItemAddress);
+                var mouseOverEntity = CaptureMouseOverEntity(item.ItemAddress);
                 var corruptedStatPresent = item.ModStats.TryGetValue(
                     GameStats.map_is_corrupted_waystone,
                     out var corruptedStatValue);
@@ -391,7 +409,7 @@ namespace TEHhub.Ui
                 var capturedAtUtc = DateTime.UtcNow;
                 var capture = new
                 {
-                    schemaVersion = 1,
+                    schemaVersion = 2,
                     capturedAtUtc,
                     label = string.IsNullOrWhiteSpace(corruptionProbeLabel)
                         ? "unspecified"
@@ -421,6 +439,27 @@ namespace TEHhub.Ui
                         wrapperAddress = FormatAddress(item.WrapperAddress),
                         rarityFromSnapshot = item.Rarity?.ToString(),
                     },
+                    itemStruct = new
+                    {
+                        address = FormatAddress(item.ItemAddress),
+                        readSucceeded = itemStructReadSucceeded,
+                        vTableAddress = itemStructReadSucceeded ? FormatAddress(itemStruct.VTablePtr) : string.Empty,
+                        entityDetailsAddress = itemStructReadSucceeded ? FormatAddress(itemStruct.EntityDetailsPtr) : string.Empty,
+                        componentListBegin = itemStructReadSucceeded ? FormatAddress(itemStruct.ComponentListPtr.First) : string.Empty,
+                        componentListEnd = itemStructReadSucceeded ? FormatAddress(itemStruct.ComponentListPtr.Last) : string.Empty,
+                        componentListStorageEnd = itemStructReadSucceeded ? FormatAddress(itemStruct.ComponentListPtr.End) : string.Empty,
+                        rawBytes = new
+                        {
+                            offsetFromItem = "0x0",
+                            length = CorruptionProbeItemRootLength,
+                            readSucceeded = itemStructBytesReadSucceeded,
+                            bytesRead = (ulong)itemStructBytesRead,
+                            hex = itemStructBytesReadSucceeded ? Convert.ToHexString(itemStructBytes) : string.Empty,
+                        },
+                    },
+                    componentSnapshots,
+                    visibleItemControl,
+                    mouseOverEntity,
                     modsComponent = new
                     {
                         address = FormatAddress(mods.Address),
@@ -481,6 +520,87 @@ namespace TEHhub.Ui
                 mod.Name,
                 float.IsNaN(mod.Value0) ? null : mod.Value0,
                 float.IsNaN(mod.Value1) ? null : mod.Value1);
+
+        private static object[] CaptureComponentSnapshots(Item item, SafeMemoryHandle reader) =>
+            item.GetComponentAddressPairs()
+                .OrderBy(component => component.Key, StringComparer.Ordinal)
+                .Take(CorruptionProbeMaxComponents)
+                .Select(component =>
+                {
+                    var componentBytes = new byte[CorruptionProbeComponentPrefixLength];
+                    nuint componentBytesRead = 0;
+                    var readSucceeded = component.Value != IntPtr.Zero &&
+                                        reader.TryReadMemoryArray(component.Value, componentBytes, out componentBytesRead);
+                    return (object)new
+                    {
+                        name = component.Key,
+                        address = FormatAddress(component.Value),
+                        rawPrefix = new
+                        {
+                            offsetFromComponent = "0x0",
+                            length = CorruptionProbeComponentPrefixLength,
+                            readSucceeded,
+                            bytesRead = (ulong)componentBytesRead,
+                            hex = readSucceeded ? Convert.ToHexString(componentBytes) : string.Empty,
+                        },
+                    };
+                })
+                .ToArray();
+
+        private static object CaptureVisibleItemControl(IntPtr itemAddress)
+        {
+            var gameUi = Core.States.InGameStateObject?.GameUi;
+            var uiAddress = IntPtr.Zero;
+            var found = gameUi != null && gameUi.TryGetVisibleInventoryItemUiAddress(itemAddress, out uiAddress);
+            if (!found)
+            {
+                return new
+                {
+                    found = false,
+                    reason = "No visible player-inventory control matched the selected item pointer.",
+                };
+            }
+
+            var reader = Core.Process?.Handle;
+            var ui = default(UiElementBaseOffset);
+            var uiReadSucceeded = reader != null && reader.TryReadMemory(uiAddress, out ui);
+            var hasDisplayText = UiElementMemory.TryReadDisplayText(uiAddress, out var displayText);
+            return new
+            {
+                found = true,
+                address = FormatAddress(uiAddress),
+                visibleThroughParents = UiElementMemory.IsVisibleThroughParents(uiAddress),
+                uiReadSucceeded,
+                selfAddress = uiReadSucceeded ? FormatAddress(ui.Self) : string.Empty,
+                parentAddress = uiReadSucceeded ? FormatAddress(ui.ParentPtr) : string.Empty,
+                flags = uiReadSucceeded ? $"0x{ui.Flags:X8}" : string.Empty,
+                positionModifier = uiReadSucceeded ? new { x = ui.PositionModifier.X, y = ui.PositionModifier.Y } : null,
+                relativePosition = uiReadSucceeded ? new { x = ui.RelativePosition.X, y = ui.RelativePosition.Y } : null,
+                unscaledSize = uiReadSucceeded ? new { x = ui.UnscaledSize.X, y = ui.UnscaledSize.Y } : null,
+                displayTextReadSucceeded = hasDisplayText,
+                displayText = hasDisplayText ? displayText : string.Empty,
+            };
+        }
+
+        private static object? CaptureMouseOverEntity(IntPtr itemAddress)
+        {
+            var mouseOverEntity = Core.States.InGameStateObject?.MouseOverEntity;
+            if (mouseOverEntity == null || !mouseOverEntity.IsValid)
+            {
+                return null;
+            }
+
+            var matchesSelectedItem = mouseOverEntity.Address == itemAddress;
+            return new
+            {
+                address = FormatAddress(mouseOverEntity.Address),
+                path = mouseOverEntity.Path,
+                isSelectedItem = matchesSelectedItem,
+                componentNames = matchesSelectedItem
+                    ? mouseOverEntity.GetComponentNames().OrderBy(name => name, StringComparer.Ordinal).ToArray()
+                    : Array.Empty<string>(),
+            };
+        }
 
         private static string FormatAddress(IntPtr address) => $"0x{address.ToInt64():X}";
 
