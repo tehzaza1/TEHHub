@@ -22,11 +22,12 @@ namespace AutoExile2.Systems
         private const int MaxRetainedNodes = 20000;
         private const int MaxPointerHistoryPerNode = 16;
         private static readonly TimeSpan CaptureInterval = TimeSpan.FromMilliseconds(250);
-        private static readonly TimeSpan PersistenceCheckpointInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan PersistenceCheckpointInterval = TimeSpan.FromHours(1);
         private static readonly Regex PlausibleMapIdPattern = new("^[A-Za-z][A-Za-z0-9_]{0,95}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         private readonly object sync = new();
         private readonly Dictionary<AtlasNodeIdentity, MutableAtlasNodeObservation> observations = new();
+        private readonly Dictionary<int, MutableAtlasNodeObservation> observationsByPersistentId = new();
         private uint gameProcessId;
         private long revision;
         private int captureCursor;
@@ -36,7 +37,9 @@ namespace AutoExile2.Systems
         private bool hitRetentionLimit;
         private bool persistentIdsReady;
         private int nextPersistentNodeId = 1;
-        private bool persistenceDirty;
+        private readonly HashSet<int> dirtyPersistentNodeIds = new();
+        private bool fullPersistenceSnapshotRequested;
+        private bool persistenceSignalPending;
         private DateTime lastPersistenceSaveScheduledAtUtc = DateTime.MinValue;
 
         /// <summary>
@@ -166,19 +169,20 @@ namespace AutoExile2.Systems
                         if (this.persistentIdsReady)
                         {
                             observation.AssignPersistentNodeId(this.AllocatePersistentNodeIdLocked());
+                            this.observationsByPersistentId.Add(observation.PersistentNodeId, observation);
                         }
 
                         this.observations.Add(identity, observation);
                         if (observation.PersistentNodeId > 0)
                         {
-                            this.persistenceDirty = true;
+                            this.dirtyPersistentNodeIds.Add(observation.PersistentNodeId);
                         }
                     }
 
                     if (observation.Update(node, observedAtUtc, MaxPointerHistoryPerNode, validGridPositions) &&
                         observation.PersistentNodeId > 0)
                     {
-                        this.persistenceDirty = true;
+                        this.dirtyPersistentNodeIds.Add(observation.PersistentNodeId);
                     }
                 }
 
@@ -281,7 +285,15 @@ namespace AutoExile2.Systems
                     {
                         var liveObservationIsNewer = current.LastSeenUtc > persisted.LastSeenUtc;
                         current.MergePersisted(persisted);
-                        this.persistenceDirty |= liveObservationIsNewer && current.PersistentNodeId > 0;
+                        if (current.PersistentNodeId > 0)
+                        {
+                            this.observationsByPersistentId[current.PersistentNodeId] = current;
+                        }
+
+                        if (liveObservationIsNewer && current.PersistentNodeId > 0)
+                        {
+                            this.dirtyPersistentNodeIds.Add(current.PersistentNodeId);
+                        }
                         continue;
                     }
 
@@ -291,7 +303,12 @@ namespace AutoExile2.Systems
                         break;
                     }
 
-                    this.observations.Add(persisted.Identity, new MutableAtlasNodeObservation(persisted));
+                    var restored = new MutableAtlasNodeObservation(persisted);
+                    this.observations.Add(persisted.Identity, restored);
+                    if (restored.PersistentNodeId > 0)
+                    {
+                        this.observationsByPersistentId.Add(restored.PersistentNodeId, restored);
+                    }
                 }
 
                 this.revision++;
@@ -325,7 +342,6 @@ namespace AutoExile2.Systems
                         .DefaultIfEmpty(0)
                         .Max() + 1);
 
-                var assignedIds = 0;
                 foreach (var observation in this.observations.Values
                     .Where(observation => observation.PersistentNodeId == 0)
                     .Where(observation => IsPlausibleMapId(observation.Identity.MapId) &&
@@ -335,11 +351,16 @@ namespace AutoExile2.Systems
                     .ThenBy(observation => observation.Identity.MapId, StringComparer.Ordinal))
                 {
                     observation.AssignPersistentNodeId(this.AllocatePersistentNodeIdLocked());
-                    assignedIds++;
+                    this.observationsByPersistentId.Add(observation.PersistentNodeId, observation);
+                    this.dirtyPersistentNodeIds.Add(observation.PersistentNodeId);
                 }
 
                 this.persistentIdsReady = true;
-                this.persistenceDirty |= assignedIds > 0;
+                if (this.lastPersistenceSaveScheduledAtUtc == DateTime.MinValue)
+                {
+                    this.lastPersistenceSaveScheduledAtUtc = DateTime.UtcNow;
+                }
+
                 this.revision++;
             }
         }
@@ -352,18 +373,84 @@ namespace AutoExile2.Systems
         {
             lock (this.sync)
             {
-                var hasPersistentNodes = this.observations.Values.Any(observation => observation.PersistentNodeId > 0);
+                var hasPersistentNodes = this.persistentIdsReady && this.observations.Count > 0;
                 var checkpointDue = hasPersistentNodes &&
                     (this.lastPersistenceSaveScheduledAtUtc == DateTime.MinValue ||
                      nowUtc - this.lastPersistenceSaveScheduledAtUtc >= PersistenceCheckpointInterval);
-                if (!this.persistenceDirty && !checkpointDue)
+                var hasChanges = this.dirtyPersistentNodeIds.Count > 0 || this.fullPersistenceSnapshotRequested;
+                if ((!hasChanges && !checkpointDue) || (this.persistenceSignalPending && !checkpointDue))
                 {
                     return false;
                 }
 
-                this.persistenceDirty = false;
+                this.fullPersistenceSnapshotRequested |= checkpointDue;
+                this.persistenceSignalPending = true;
                 this.lastPersistenceSaveScheduledAtUtc = nowUtc;
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Takes a detached batch of durable node changes. Periodic checkpoints return the full
+        /// graph; ordinary updates return only nodes whose durable fields changed.
+        /// </summary>
+        public IReadOnlyList<AtlasNodeObservation> TakePersistenceBatch(out bool isFullSnapshot, bool forceFullSnapshot = false)
+        {
+            lock (this.sync)
+            {
+                isFullSnapshot = forceFullSnapshot || this.fullPersistenceSnapshotRequested;
+                this.persistenceSignalPending = false;
+                List<AtlasNodeObservation> nodes;
+                if (isFullSnapshot)
+                {
+                    nodes = this.observations.Values
+                        .Where(observation => observation.PersistentNodeId > 0)
+                        .Select(observation => observation.ToSnapshot())
+                        .ToList();
+                    this.fullPersistenceSnapshotRequested = false;
+                    this.dirtyPersistentNodeIds.Clear();
+                }
+                else
+                {
+                    nodes = new List<AtlasNodeObservation>(this.dirtyPersistentNodeIds.Count);
+                    foreach (var persistentNodeId in this.dirtyPersistentNodeIds.OrderBy(id => id))
+                    {
+                        if (this.observationsByPersistentId.TryGetValue(persistentNodeId, out var observation))
+                        {
+                            nodes.Add(observation.ToSnapshot());
+                        }
+                    }
+
+                    this.dirtyPersistentNodeIds.Clear();
+                }
+
+                return nodes;
+            }
+        }
+
+        /// <summary>
+        /// Requeues a failed persistence batch without losing changes captured while disk IO ran.
+        /// </summary>
+        public void RequeuePersistenceBatch(IReadOnlyList<AtlasNodeObservation> nodes, bool isFullSnapshot)
+        {
+            lock (this.sync)
+            {
+                if (isFullSnapshot)
+                {
+                    this.fullPersistenceSnapshotRequested = true;
+                }
+                else
+                {
+                    foreach (var node in nodes)
+                    {
+                        if (node.PersistentNodeId > 0)
+                        {
+                            this.dirtyPersistentNodeIds.Add(node.PersistentNodeId);
+                        }
+                    }
+                }
+
+                this.persistenceSignalPending = true;
             }
         }
 
@@ -388,13 +475,16 @@ namespace AutoExile2.Systems
             lock (this.sync)
             {
                 this.observations.Clear();
+                this.observationsByPersistentId.Clear();
                 this.captureCursor = 0;
                 this.lastSourceNodeCount = -1;
                 this.lastCaptureAtUtc = DateTime.MinValue;
                 this.hasCompletedCapturePass = false;
                 this.hitRetentionLimit = false;
                 this.nextPersistentNodeId = 1;
-                this.persistenceDirty = false;
+                this.dirtyPersistentNodeIds.Clear();
+                this.fullPersistenceSnapshotRequested = false;
+                this.persistenceSignalPending = false;
                 this.lastPersistenceSaveScheduledAtUtc = DateTime.MinValue;
                 this.revision++;
             }
@@ -420,11 +510,14 @@ namespace AutoExile2.Systems
         private void ResetLocked()
         {
             this.observations.Clear();
+            this.observationsByPersistentId.Clear();
             this.ResetGameProcessLocked();
             this.hitRetentionLimit = false;
             this.persistentIdsReady = false;
             this.nextPersistentNodeId = 1;
-            this.persistenceDirty = false;
+            this.dirtyPersistentNodeIds.Clear();
+            this.fullPersistenceSnapshotRequested = false;
+            this.persistenceSignalPending = false;
             this.lastPersistenceSaveScheduledAtUtc = DateTime.MinValue;
             this.revision++;
         }
