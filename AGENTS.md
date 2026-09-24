@@ -56,3 +56,9 @@ The legacy `patch-day-offset-recovery` and `ghidra-mcp-setup` references point t
 
 - Follow the repository C# style: `// <copyright>` headers, namespace-scoped `using` directives, XML documentation for public APIs, and English identifiers/comments. Nullable reference types are enabled; warning 1591 for missing public documentation is suppressed.
 - Comments referring to `F-0xx` or audit findings preserve security/correctness reasoning. Keep that reasoning when editing nearby code, including the no-`Environment.Exit` rule in `TEHhub/Program.cs` and the plugin unload lifecycle in `PManager`.
+
+## Agent roles agreed with the user
+
+- The primary Codex agent uses Sol at medium reasoning for review, diagnosis, and debugging. It may use Sol high when the work needs it, but must tell the user before moving to high.
+- Delegate substantive code writing to Luna at extra-high or maximum reasoning. The primary agent writes code only for genuinely small fixes.
+- Keep changes in local Git. The user handles pushing; do not create a pull request for this workflow.
