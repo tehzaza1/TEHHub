@@ -47,6 +47,8 @@ The first external capture of these nodes showed no connections because the stan
 
 After this live comparison, the Atlas map catalog should be a versioned JSON file read on plugin startup and merged with new observations without deleting old nodes. It retains topology and last-observed content/status; an old status is historical data, not a current click authorization. Writes should be atomic and deferred from the render callback. Keep separate observation times so older nodes can be recognized as stale.
 
+The runtime Atlas graph is created from live observations at `Plugins/AutoExile2/Data/atlas-observations.json` beside the deployed plugin. `configs/plugins/AutoExile2` is reserved for settings.
+
 The durable graph assigns one stable file-local numeric ID per observed node, keyed internally by grid position plus MapId. Each entry includes its in-game display name, map type (including unique maps), biome, validated neighbor IDs, and compact target metadata where available. Repeated map names at different grid positions have separate IDs. New nodes receive new IDs; existing IDs are never renumbered or removed on a later partial scan. UI address, child index, and rectangle stay out of this file. Completion is a timestamped last observation and must be refreshed from the live Atlas before acting on a route node.
 
 Timestamped `lastObservedState: accessibleNow` may guide which distant frontier to pan toward when its node is outside the current UI snapshot. It remains a hint: after the node becomes observable, verify its current state is `AccessibleNow` before any click. A changed state invalidates the candidate and triggers replanning. The same live verification applies to a target boss node.

@@ -88,8 +88,9 @@ namespace AutoExile2
         public override void OnEnable(bool isGameOpened)
         {
             this.atlasObservationCache.ResetGameProcess();
+            string atlasObservationPath = Path.Combine(GetPluginDirectory(), "Data", "atlas-observations.json");
             this.atlasObservationPersistence.Start(
-                this.PluginConfigPath("atlas-observations.json"),
+                atlasObservationPath,
                 message => Console.WriteLine($"[AutoExile2.Atlas] {message}"));
             this.atlasObservationLifecycleCoroutine?.Cancel();
             this.atlasObservationLifecycleCoroutine = CoroutineHandler.Start(
