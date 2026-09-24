@@ -18,12 +18,14 @@ namespace TEHhub.Plugin
 
         private readonly AssemblyDependencyResolver resolver;
         private readonly string dependenciesDirectory;
+        private readonly string pluginDirectory;
 
         public PluginAssemblyLoadContext(string assemblyLocation)
             : base(isCollectible: true)
         {
             this.resolver = new AssemblyDependencyResolver(assemblyLocation);
-            this.dependenciesDirectory = Path.Combine(Path.GetDirectoryName(assemblyLocation)!, "Dependencies");
+            this.pluginDirectory = Path.GetDirectoryName(assemblyLocation)!;
+            this.dependenciesDirectory = Path.Combine(this.pluginDirectory, "Dependencies");
         }
 
         protected override Assembly? Load(AssemblyName assemblyName)
@@ -55,7 +57,27 @@ namespace TEHhub.Plugin
         protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
         {
             var path = this.resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
-            return path == null || !File.Exists(path) ? IntPtr.Zero : this.LoadUnmanagedDllFromPath(path);
+            if (path != null && File.Exists(path))
+            {
+                return this.LoadUnmanagedDllFromPath(path);
+            }
+
+            // AutoExile2 stages SQLitePCLRaw's RID-specific native asset beside the plugin's
+            // deps manifest. Resolve it explicitly when AssemblyDependencyResolver does not
+            // return the staged path after the plugin is copied into its own directory.
+            if (string.Equals(
+                    Path.GetFileNameWithoutExtension(unmanagedDllName),
+                    "e_sqlite3",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var sqlitePath = Path.Combine(this.pluginDirectory, "runtimes", "win-x64", "native", "e_sqlite3.dll");
+                if (File.Exists(sqlitePath))
+                {
+                    return this.LoadUnmanagedDllFromPath(sqlitePath);
+                }
+            }
+
+            return IntPtr.Zero;
         }
     }
 }
