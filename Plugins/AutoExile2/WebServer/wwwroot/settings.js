@@ -31,10 +31,10 @@ const GAMEPAD_BUTTON_OPTIONS = [
   { value: "B", num: 2, label: "Button B" },
   { value: "LeftShoulder", num: 5, label: "LB (Left Bumper)" },
   { value: "LeftTrigger", num: 7, label: "LT (Left Trigger)" },
-  { value: "DPadUp", num: 11, label: "⬆️ D-Pad Up (ลูกศรขึ้น)" },
-  { value: "DPadDown", num: 12, label: "⬇️ D-Pad Down (ลูกศรลง)" },
-  { value: "DPadLeft", num: 13, label: "⬅️ D-Pad Left (ลูกศรซ้าย)" },
-  { value: "DPadRight", num: 14, label: "➡️ D-Pad Right (ลูกศรขวา)" }
+  { value: "DPadUp", num: 11, label: "⬆️ D-Pad Up" },
+  { value: "DPadDown", num: 12, label: "⬇️ D-Pad Down" },
+  { value: "DPadLeft", num: 13, label: "⬅️ D-Pad Left" },
+  { value: "DPadRight", num: 14, label: "➡️ D-Pad Right" }
 ];
 
 function renderGamepadButtonOptions(selected) {
@@ -1593,14 +1593,14 @@ function useDetectedStashTab(fieldId) {
   const input = document.getElementById(fieldId);
   const name = select ? select.value.trim() : '';
   if (!input || !name) {
-    showToast('เปิด Stash แล้วเลือกแท็บที่สแกนเจอก่อน');
+    showToast('Open the Stash and select a detected tab first.');
     return;
   }
 
   input.value = name;
   saveSettings();
   const labels = { WaystoneTab: 'Waystone Tab', CurrencyTab: 'Currency Tab', DumpTab: 'Dump Tab' };
-  showToast(`ตั้ง ${labels[fieldId] || fieldId} เป็น ${name}`);
+  showToast(`${labels[fieldId] || fieldId} set to ${name}`);
 }
 
 function renderStashScanner(snap) {
@@ -1624,7 +1624,7 @@ function renderStashScanner(snap) {
     if (lastDetectedStashTabs.length === 0) {
       const option = document.createElement('option');
       option.value = '';
-      option.textContent = '-- ยังไม่พบแท็บ --';
+      option.textContent = '-- No tabs detected --';
       select.appendChild(option);
     } else {
       for (const name of lastDetectedStashTabs) {
@@ -1645,12 +1645,12 @@ function renderStashScanner(snap) {
     if (!snap.IsStashOpen) {
       const interactionActive = snap.InteractionPhase && snap.InteractionPhase !== 'Idle';
       status.textContent = interactionActive
-        ? `Interaction ${snap.InteractionPhase}: ${snap.InteractionStatus || 'กำลังทำงาน'}`
+        ? `Interaction ${snap.InteractionPhase}: ${snap.InteractionStatus || 'In progress'}`
         : lastDetectedStashTabs.length > 0
-          ? `Stash ปิดอยู่ — เก็บรายชื่อที่สแกนล่าสุด ${lastDetectedStashTabs.length} แท็บไว้ให้เลือก`
-          : 'เปิด Stash ในเกมเพื่อสแกนรายชื่อแท็บ';
+          ? `Stash is closed — keeping ${lastDetectedStashTabs.length} recently scanned tab(s) available.`
+          : 'Open the in-game Stash to scan its tabs.';
     } else {
-      const current = snap.CurrentStashTab || 'กำลังอ่านชื่อแท็บ';
+      const current = snap.CurrentStashTab || 'Reading tab name';
       const tier = snap.CurrentStashTier ? ` | Tier ${snap.CurrentStashTier}` : '';
       const page = snap.CurrentStashPage ? ` | Page ${snap.CurrentStashPage}` : '';
       const kind = snap.IsSpecializedStashTab ? 'Map stash' : 'Normal stash';
@@ -1699,7 +1699,7 @@ function clearFollowerName() {
     updateFollowerLockUI();
     const sel = document.getElementById('followerPlayerSelect');
     if (sel) sel.value = '';
-    showToast('ล้างชื่อหัวแล้ว (กลับสู่โหมด Auto-Detect)');
+    showToast('Leader target cleared (Auto-Detect enabled).');
   }
 }
 
@@ -1711,7 +1711,7 @@ function selectFollowerName(name) {
     updateFollowerLockUI();
     const sel = document.getElementById('followerPlayerSelect');
     if (sel) sel.value = name;
-    showToast(`ล็อกหัวที่จะตาม: ${name}`);
+    showToast(`Follower target locked: ${name}`);
   }
 }
 
@@ -1746,7 +1746,7 @@ function populatePlayerOptions(players, playerNames) {
       select.style.display = 'inline-block';
       if (hash !== lastPlayerNamesHash) {
         lastPlayerNamesHash = hash;
-        let html = `<option value="">-- เลือกจากรายชื่อที่สแกนเจอ (${names.length} คน) --</option>`;
+        let html = `<option value="">-- Select from detected players (${names.length}) --</option>`;
         if (players && players.length > 0 && typeof players[0] === 'object') {
           html += names.map(name => {
             const p = players.find(player => player.Name === name) || { Name: name };
@@ -1763,7 +1763,7 @@ function populatePlayerOptions(players, playerNames) {
       if (cur) select.value = cur;
     } else {
       select.style.display = 'none';
-      select.innerHTML = '<option value="">-- ไม่พบผู้เล่นอื่น --</option>';
+      select.innerHTML = '<option value="">-- No other players found --</option>';
       lastPlayerNamesHash = '';
     }
   }
@@ -1784,13 +1784,13 @@ async function fetchAndPopulatePlayerNames() {
     populatePlayerOptions(players, playerNames);
 
     if (playerNames.length === 0) {
-      showToast('⚠️ ไม่พบผู้เล่นอื่นในพื้นที่/แมพขณะนี้ (ต้องอยู่ในแมพหรือห้องเดียวกัน)');
+      showToast('⚠️ No other players found nearby. Both players must be in the same area or map.');
     } else if (playerNames.length === 1 && playerNames[0] !== data.leader) {
       const targetName = playerNames[0];
       selectFollowerName(targetName);
-      showToast(`✅ ดึงชื่อตัวละครสำเร็จ: [${targetName}] ล็อกเป้าหมายเรียบร้อย`);
+      showToast(`✅ Character found: [${targetName}]. Follower target locked.`);
     } else {
-      showToast(`👥 พบผู้เล่น ${playerNames.length} คน! เลือกชื่อจากช่องหรือรายการได้ทันที`);
+      showToast(`👥 Found ${playerNames.length} players. Select a name from the field or list.`);
       const select = document.getElementById('followerPlayerSelect');
       if (select) {
         select.style.display = 'inline-block';
@@ -1806,14 +1806,14 @@ async function fetchAndPopulatePlayerNames() {
       populatePlayerOptions(null, names);
       if (names.length === 1 && names[0] !== sData.LeaderPlayerName) {
         selectFollowerName(names[0]);
-        showToast(`✅ ดึงชื่อตัวละครสำเร็จ: [${names[0]}] ล็อกเป้าหมายเรียบร้อย`);
+        showToast(`✅ Character found: [${names[0]}]. Follower target locked.`);
       } else if (names.length > 1) {
-        showToast(`👥 พบผู้เล่น ${names.length} คน! เลือกชื่อจากรายการได้ทันที`);
+        showToast(`👥 Found ${names.length} players. Select a name from the list.`);
       } else {
-        showToast('⚠️ ไม่พบผู้เล่นอื่นในพื้นที่/แมพขณะนี้');
+        showToast('⚠️ No other players found nearby.');
       }
     } catch(e2) {
-      showToast('❌ ไม่สามารถดึงรายชื่อผู้เล่นได้');
+      showToast('❌ Could not retrieve the player list.');
     }
   } finally {
     if (btn) btn.innerHTML = origText;
@@ -2103,7 +2103,7 @@ function updateDashboardSnapshot(snap) {
   if (snap.NearbyPlayerNames && document.getElementById('nearbyPlayerChips')) {
     const chipBox = document.getElementById('nearbyPlayerChips');
     if (snap.NearbyPlayerNames.length === 0) {
-      chipBox.innerHTML = '<span style="font-size:11px; color:var(--text-dim); font-style:italic;">ไม่พบผู้เล่นอื่นในขณะนี้</span>';
+      chipBox.innerHTML = '<span style="font-size:11px; color:var(--text-dim); font-style:italic;">No other players nearby.</span>';
     } else {
       const curLock = (document.getElementById('FollowerCharacterName')?.value.trim().toLowerCase() || '');
       chipBox.innerHTML = snap.NearbyPlayerNames.map(name => {

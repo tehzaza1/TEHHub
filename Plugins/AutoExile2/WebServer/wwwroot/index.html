@@ -297,7 +297,7 @@
           <!-- P1 Life Flask -->
           <div style="background:var(--surface); padding:14px; border-radius:8px; border:1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <label style="font-weight:700; color:#f87171; font-size:12px;">Auto Life Flask (D-Pad Left / ลูกศรซ้าย)</label>
+              <label style="font-weight:700; color:#f87171; font-size:12px;">Auto Life Flask (D-Pad Left)</label>
               <label class="toggle-switch">
                 <input id="P1AutoLifeFlask" type="checkbox" checked onchange="saveSettings()" />
                 <span class="slider"></span>
@@ -318,7 +318,7 @@
           <!-- P1 Mana Flask -->
           <div style="background:var(--surface); padding:14px; border-radius:8px; border:1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <label style="font-weight:700; color:#60a5fa; font-size:12px;">Auto Mana Flask (D-Pad Right / ลูกศรขวา)</label>
+              <label style="font-weight:700; color:#60a5fa; font-size:12px;">Auto Mana Flask (D-Pad Right)</label>
               <label class="toggle-switch">
                 <input id="P1AutoManaFlask" type="checkbox" checked onchange="saveSettings()" />
                 <span class="slider"></span>
@@ -360,7 +360,7 @@
       <div class="card coop-card" style="border-left:4px solid #38bdf8;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
           <h2 style="color:#38bdf8; margin:0;">🤖 Player 2 - Co-op FollowerMode Controls <span id="p2CharNameBadge" style="font-size:12px; color:var(--text); text-transform:none; margin-left:6px;"></span></h2>
-          <span class="badge" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;">100% Autonomous (ตัวตาม)</span>
+          <span class="badge" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;">100% Autonomous Follower</span>
         </div>
 
         <!-- P2 Control Engine Banner (Virtual Gamepad #2 + Keyboard Passthrough) -->
@@ -369,9 +369,9 @@
             <div>
               <div style="font-weight:700; font-size:12px; color:#38bdf8; text-transform:uppercase;">🎮 Player 2 Controls: Virtual Gamepad #2 + Keyboard Passthrough</div>
               <div style="font-size:11px; color:var(--text-dim); margin-top:4px; line-height:1.6;">
-                • 🚶 <strong>กดเดินเองได้ทันที:</strong> กดปุ่มลูกศร (<b>Arrow Keys</b>: ขึ้น/ลง/ซ้าย/ขวา) บนคีย์บอร์ด ตัวที่ 2 จะเดินตามมือคุณทันที (Manual Override)<br>
-                • 🤖 <strong>ปล่อยมือให้บอทเดิน:</strong> เมื่อปล่อยปุ่มลูกศร บอทจะกลับมาช่วยเดินตามตัวหลักด้วยระบบ Hybrid A* และช่วยสู้อัตโนมัติ<br>
-                • ⌨️ <strong>ปุ่มกดของตัวที่ 2:</strong> เดิน (Arrow Keys) | เล็งเป้า (Numpad) | สกิล (A, B, X, Y, RB, RT) | ขวดยา (D-Pad Left: 3, Right: 4)
+                • 🚶 <strong>Manual Movement:</strong> Hold an arrow key to move Player 2 immediately (manual override).<br>
+                • 🤖 <strong>Automatic Follow:</strong> Release the arrow keys to resume Hybrid A* following and automatic combat.<br>
+                • ⌨️ <strong>Player 2 Controls:</strong> Movement (Arrow Keys) | Aim (Numpad) | Skills (A, B, X, Y, RB, RT) | Flasks (D-Pad Left: 3, Right: 4)
               </div>
             </div>
             <span class="badge" style="border-color:#38bdf8; color:#38bdf8; font-weight:700; padding:6px 14px;">🎮 Gamepad #2 + ⌨️ Passthrough</span>
@@ -381,29 +381,29 @@
         <!-- Co-op Leader Character Lock (Target Name) -->
         <div style="background:var(--surface); padding:16px; border-radius:8px; border:1px solid var(--border); margin-bottom:16px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
-            <div style="font-weight:700; font-size:12px; color:#38bdf8; text-transform:uppercase;">🎯 Co-op Leader Lock (ล็อกชื่อหัวที่จะตาม)</div>
+            <div style="font-weight:700; font-size:12px; color:#38bdf8; text-transform:uppercase;">🎯 Co-op Leader Lock (Target Player 1)</div>
             <span id="followerLockBadge" class="badge" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;">Auto-Detect</span>
           </div>
           <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px; line-height:1.5;">
-            กดปุ่ม <strong>Get Player Name</strong> แล้วเลือกชื่อ Player 1 (หัว). ระบบจะให้ Player 2 เป็นตัวตามโดยอัตโนมัติ; หากเลือกชื่อตัวตามเอง ระบบจะไม่สลับคู่ให้
+            Click <strong>Get Player Name</strong> and select Player 1 (the leader). Player 2 will follow Player 1 automatically. Selecting Player 2 instead locks that character as the follower target and disables automatic pairing.
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
             <button type="button" id="btnGetPlayerNames" class="btn primary" style="font-size:11px; padding:7px 14px; font-weight:700; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;" onclick="fetchAndPopulatePlayerNames()">
               📥 Get Player Name
             </button>
             <div style="position:relative; flex:1; min-width:200px; max-width:280px;">
-              <input id="FollowerCharacterName" list="followerNameDatalist" type="text" class="form-control" placeholder="พิมพ์หรือเลือกชื่อตัวละคร..." onchange="onFollowerInputChange()" style="font-weight:700; color:#38bdf8; width:100%;" autocomplete="off" />
+              <input id="FollowerCharacterName" list="followerNameDatalist" type="text" class="form-control" placeholder="Type or select a character..." onchange="onFollowerInputChange()" style="font-weight:700; color:#38bdf8; width:100%;" autocomplete="off" />
               <datalist id="followerNameDatalist"></datalist>
             </div>
             <select id="followerPlayerSelect" class="form-control" onchange="onSelectFollowerFromDropdown(this.value)" style="font-size:12px; color:#e2e8f0; max-width:260px; display:none;">
-              <option value="">-- เลือกจากรายชื่อที่สแกนเจอ --</option>
+              <option value="">-- Select from detected players --</option>
             </select>
-            <button type="button" class="btn secondary" style="font-size:11px; padding:7px 12px;" onclick="clearFollowerName()">✕ ล้างชื่อ</button>
+            <button type="button" class="btn secondary" style="font-size:11px; padding:7px 12px;" onclick="clearFollowerName()">✕ Clear Target</button>
           </div>
           <div id="nearbyPlayersContainer" style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span style="font-size:11px; font-weight:700; color:var(--text-dim);">รายชื่อผู้เล่นใกล้เคียง (คลิกเพื่อเลือกทันที):</span>
+            <span style="font-size:11px; font-weight:700; color:var(--text-dim);">Nearby Players (click to select):</span>
             <div id="nearbyPlayerChips" style="display:inline-flex; gap:6px; flex-wrap:wrap;">
-              <span style="font-size:11px; color:var(--text-dim); font-style:italic;">กดปุ่ม "Get Player Name" หรือรอระบบสแกนอัตโนมัติ</span>
+              <span style="font-size:11px; color:var(--text-dim); font-style:italic;">Click "Get Player Name" or wait for automatic scanning.</span>
             </div>
           </div>
         </div>
@@ -415,7 +415,7 @@
             <span id="posHelperLabelBadge" class="badge" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;">Back</span>
           </div>
           <div style="font-size:11px; color:var(--text-dim); margin-bottom:12px; line-height:1.5;">
-            เลือกตำแหน่งการยืนของตัวตาม (Follower 🔴) สัมพันธ์กับทิศทางที่ตัวหลักหันหน้า/เดิน (Leader ⬆️)
+            Choose the follower's position relative to the leader's facing and movement direction.
           </div>
 
 
@@ -555,7 +555,7 @@
                 </div>
               </div>
               <input id="CoopStopDistance" type="range" min="3" max="30" value="10" class="form-control" oninput="document.getElementById('CoopStopDistance_num').value=this.value; previewRange('CoopStopDistance', this.value, 'grid', 'Safe Distance (Stop): ' + this.value + 'g', '#10b981', 'Leader');" onchange="saveSettings()" />
-              <small style="font-size:10px; color:var(--text-dim);">หยุดเดินเมื่อถึงระยะนี้ (อยู่นิ่ง/ยืนตีสบาย)</small>
+              <small style="font-size:10px; color:var(--text-dim);">Stops following at this distance so the follower can stay nearby and attack.</small>
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -566,7 +566,7 @@
                 </div>
               </div>
               <input id="CoopFollowDistance" type="range" min="6" max="60" value="20" class="form-control" oninput="document.getElementById('CoopFollowDistance_num').value=this.value; previewRange('CoopFollowDistance', this.value, 'grid', 'Follow Trigger: ' + this.value + 'g', '#06b6d4', 'Leader');" onchange="saveSettings()" />
-              <small style="font-size:10px; color:var(--text-dim);">เมื่อหัวเดินห่างเกินระยะนี้ จะเริ่มก้าวตาม</small>
+              <small style="font-size:10px; color:var(--text-dim);">Starts following when the leader moves beyond this distance.</small>
             </div>
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -577,7 +577,7 @@
                 </div>
               </div>
               <input id="CoopSprintDistance" type="range" min="20" max="100" value="40" class="form-control" oninput="document.getElementById('CoopSprintDistance_num').value=this.value; previewRange('CoopSprintDistance', this.value, 'grid', 'Sprint Catchup: ' + this.value + 'g', '#eab308', 'Leader');" onchange="saveSettings()" />
-              <small style="font-size:10px; color:var(--text-dim);">ห่างเกินระยะนี้จะกดวิ่ง Sprint สปีดตาม</small>
+              <small style="font-size:10px; color:var(--text-dim);">Uses Sprint to catch up when farther than this distance.</small>
             </div>
           </div>
         </div>
@@ -587,7 +587,7 @@
           <!-- P2 Life Flask -->
           <div style="background:var(--surface); padding:14px; border-radius:8px; border:1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <label style="font-weight:700; color:#f87171; font-size:12px;">Follower Life Flask (D-Pad Left / ปุ่ม 3)</label>
+              <label style="font-weight:700; color:#f87171; font-size:12px;">Follower Life Flask (D-Pad Left / Button 3)</label>
               <label class="toggle-switch">
                 <input id="P2AutoLifeFlask" type="checkbox" checked onchange="saveSettings()" />
                 <span class="slider"></span>
@@ -608,7 +608,7 @@
           <!-- P2 Mana Flask -->
           <div style="background:var(--surface); padding:14px; border-radius:8px; border:1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <label style="font-weight:700; color:#60a5fa; font-size:12px;">Follower Mana Flask (D-Pad Right / ปุ่ม 4)</label>
+              <label style="font-weight:700; color:#60a5fa; font-size:12px;">Follower Mana Flask (D-Pad Right / Button 4)</label>
               <label class="toggle-switch">
                 <input id="P2AutoManaFlask" type="checkbox" checked onchange="saveSettings()" />
                 <span class="slider"></span>
@@ -662,17 +662,17 @@
     <div class="card" style="border-color:rgba(234,179,8,0.4); background:linear-gradient(180deg, rgba(234,179,8,0.06) 0%, var(--surface) 100%);">
       <h2>🗃️ Stash Setup</h2>
       <div style="font-size:12px; color:var(--text-dim); margin-bottom:14px; line-height:1.5;">
-        MapFarm จะตรวจ Waystone ในตัวก่อน ถ้าไม่มีจะเปิด Stash เลือก Waystone Tab และหยิบ Waystone ที่ผ่าน Tier กับ Filter ด้านล่าง
+        MapFarm checks the inventory for a Waystone first. If none is available, it opens the Stash, selects the Waystone Tab, and takes a Waystone that meets the tier and filters below.
       </div>
       <div class="grid2">
         <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border);">
           <div class="form-group">
             <label>Waystone Tab</label>
-            <input id="WaystoneTab" type="text" maxlength="80" class="form-control" placeholder="เช่น Map หรือ 5" onchange="saveSettings()" />
+            <input id="WaystoneTab" type="text" maxlength="80" class="form-control" placeholder="e.g. Map or 5" onchange="saveSettings()" />
           </div>
           <div class="form-group">
             <label>Currency Tab</label>
-            <input id="CurrencyTab" type="text" maxlength="80" class="form-control" placeholder="เช่น Orb" onchange="saveSettings()" />
+            <input id="CurrencyTab" type="text" maxlength="80" class="form-control" placeholder="e.g. Orb" onchange="saveSettings()" />
           </div>
           <div class="grid2">
             <div class="form-group" style="margin-bottom:0;">
@@ -696,10 +696,10 @@
         <div style="background:var(--surface2); padding:14px; border-radius:8px; border:1px solid var(--border);">
           <div class="form-group" style="margin-bottom:0;">
             <label>Dump Tab</label>
-            <input id="DumpTab" type="text" maxlength="80" class="form-control" placeholder="เช่น 6" onchange="saveSettings()" />
+            <input id="DumpTab" type="text" maxlength="80" class="form-control" placeholder="e.g. 6" onchange="saveSettings()" />
           </div>
           <div style="font-size:11px; color:var(--text-dim); margin-top:8px; line-height:1.5;">
-            เก็บชื่อไว้สำหรับระบบฝากของภายหลัง รอบนี้ยังไม่ย้ายไอเทมอัตโนมัติ
+            The tab name is saved for a future item-dumping feature. Items are not moved automatically yet.
           </div>
         </div>
       </div>
@@ -707,28 +707,28 @@
       <details id="waystoneFilterPanel" style="background:var(--surface2); padding:12px 14px; border-radius:8px; border:1px solid var(--border); margin-top:14px;">
         <summary style="cursor:pointer; font-weight:700; font-size:12px; color:var(--yellow); user-select:none;">Waystone Filter</summary>
         <div style="font-size:11px; color:var(--text-dim); margin:10px 0 12px; line-height:1.5;">
-          ช่องว่าง = ไม่กรอง ค่า Waystone ต้องเท่ากับหรือมากกว่าตัวเลขที่ใส่ ส่วน Max Mods คือจำนวนม็อดเป้าหมายหลังคราฟ (6 mods = 0 Revives)
+          Leave a field blank to ignore that filter. A Waystone must meet or exceed each entered value. Max Mods is the target number of modifiers after crafting (6 mods = 0 Revives).
         </div>
         <div class="grid2">
           <div class="form-group">
             <label>Item Rarity &ge;</label>
-            <input id="MinWaystoneItemRarity" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+            <input id="MinWaystoneItemRarity" type="number" min="0" step="1" class="form-control" placeholder="Any" onchange="saveSettings()" />
           </div>
           <div class="form-group">
             <label>Pack Size &ge;</label>
-            <input id="MinWaystonePackSize" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+            <input id="MinWaystonePackSize" type="number" min="0" step="1" class="form-control" placeholder="Any" onchange="saveSettings()" />
           </div>
           <div class="form-group">
             <label>Monster Rarity &ge;</label>
-            <input id="MinWaystoneMonsterRarity" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+            <input id="MinWaystoneMonsterRarity" type="number" min="0" step="1" class="form-control" placeholder="Any" onchange="saveSettings()" />
           </div>
           <div class="form-group">
             <label>Monster Effectiveness &ge;</label>
-            <input id="MinWaystoneMonsterEffectiveness" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+            <input id="MinWaystoneMonsterEffectiveness" type="number" min="0" step="1" class="form-control" placeholder="Any" onchange="saveSettings()" />
           </div>
           <div class="form-group">
             <label>Waystone Drop Chance &ge;</label>
-            <input id="MinWaystoneDropChance" type="number" min="0" step="1" class="form-control" placeholder="ไม่สน" onchange="saveSettings()" />
+            <input id="MinWaystoneDropChance" type="number" min="0" step="1" class="form-control" placeholder="Any" onchange="saveSettings()" />
           </div>
           <div class="form-group">
             <label>Max Mods</label>
@@ -754,12 +754,12 @@
         <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
           <div>
             <div style="font-weight:700; font-size:12px; color:var(--text);">Detected Stash Tabs</div>
-            <div id="stashScanStatus" style="font-size:11px; color:var(--text-dim); margin-top:3px;">เปิด Stash ในเกมเพื่อสแกนรายชื่อแท็บ</div>
+            <div id="stashScanStatus" style="font-size:11px; color:var(--text-dim); margin-top:3px;">Open the in-game Stash to scan its tabs.</div>
           </div>
           <div id="stashOpenFlags" class="badge" style="font-size:11px;">Inventory=0 | Stash=0 | Vendor=0</div>
         </div>
         <select id="detectedStashTabSelect" class="form-control" style="margin-bottom:10px;">
-          <option value="">-- ยังไม่พบแท็บ --</option>
+          <option value="">-- No tabs detected --</option>
         </select>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="btn secondary" style="font-size:12px; padding:7px 12px;" onclick="useDetectedStashTab('WaystoneTab')">Set Waystone Tab</button>
@@ -829,13 +829,13 @@
       <div style="background:var(--surface2); padding:14px 18px; border-radius:8px; border:1px solid var(--border); margin-top:14px;">
         <div style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--accent); margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
           <span>⚡ Flask Intelligence &amp; Buff Tracking (AutoHotKey Trigger Engine)</span>
-          <span class="badge" style="border-color:var(--accent); color:var(--accent); font-size:11px;">Fixed Debounce: 200ms (ฝังในระบบ)</span>
+          <span class="badge" style="border-color:var(--accent); color:var(--accent); font-size:11px;">Fixed Debounce: 200ms (built in)</span>
         </div>
         <div class="grid2">
           <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">
             <div>
               <div style="font-weight:700; font-size:12px; color:var(--text);">Check Active Buff / Effect</div>
-              <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">ตรวจเช็คว่ากำลังมีผลของขวดยาทำงานอยู่หรือไม่ (ไม่กดซ้ำซ้อนจนเปลืองชาร์จยา)</div>
+              <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">Checks whether a flask effect is already active to avoid wasting charges.</div>
             </div>
             <label class="toggle-switch">
               <input id="CheckFlaskActiveEffect" type="checkbox" checked onchange="saveSettings()" />
@@ -845,7 +845,7 @@
           <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:10px 14px; border-radius:6px; border:1px solid var(--border);">
             <div>
               <div style="font-weight:700; font-size:12px; color:var(--text);">Check Flask Charges</div>
-              <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">ตรวจเช็คจำนวนขวดยาว่ามีชาร์จพอใช้งานจริงหรือไม่จาก Server Inventory</div>
+              <div style="font-size:11px; color:var(--text-dim); margin-top:2px;">Checks the server inventory to confirm the flask has enough charges to use.</div>
             </div>
             <label class="toggle-switch">
               <input id="CheckFlaskCharges" type="checkbox" checked onchange="saveSettings()" />
