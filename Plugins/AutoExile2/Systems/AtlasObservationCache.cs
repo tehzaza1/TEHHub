@@ -40,6 +40,20 @@ namespace AutoExile2.Systems
         private DateTime lastPersistenceSaveScheduledAtUtc = DateTime.MinValue;
 
         /// <summary>
+        /// Gets the number of currently retained Atlas observations without copying the graph.
+        /// </summary>
+        public int ObservedNodeCount
+        {
+            get
+            {
+                lock (this.sync)
+                {
+                    return this.observations.Count;
+                }
+            }
+        }
+
+        /// <summary>
         /// Captures one bounded slice of the live Atlas snapshot. Call this from AutoExile2's
         /// render callback, after TEHHub's per-frame update has refreshed <see cref="ImportantUiElements.AtlasMaps"/>.
         /// </summary>
@@ -362,6 +376,27 @@ namespace AutoExile2.Systems
             lock (this.sync)
             {
                 this.ResetGameProcessLocked();
+            }
+        }
+
+        /// <summary>
+        /// Clears the observed graph while keeping the current process and persistence-load state
+        /// so subsequent live Atlas captures can immediately rebuild it.
+        /// </summary>
+        public void ClearObservedGraph()
+        {
+            lock (this.sync)
+            {
+                this.observations.Clear();
+                this.captureCursor = 0;
+                this.lastSourceNodeCount = -1;
+                this.lastCaptureAtUtc = DateTime.MinValue;
+                this.hasCompletedCapturePass = false;
+                this.hitRetentionLimit = false;
+                this.nextPersistentNodeId = 1;
+                this.persistenceDirty = false;
+                this.lastPersistenceSaveScheduledAtUtc = DateTime.MinValue;
+                this.revision++;
             }
         }
 

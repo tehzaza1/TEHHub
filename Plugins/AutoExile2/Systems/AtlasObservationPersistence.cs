@@ -39,6 +39,7 @@ namespace AutoExile2.Systems
 
         private readonly AtlasObservationCache cache;
         private readonly object lifecycleSync = new();
+        private readonly object resetSync = new();
         private PersistenceRun? activeRun;
         private Task? lastWorker;
 
@@ -54,9 +55,13 @@ namespace AutoExile2.Systems
         /// <param name="log">A logger for load and save diagnostics.</param>
         internal void Start(string filePath, Action<string> log)
         {
-            this.cache.BeginPersistenceLoad();
             lock (this.lifecycleSync)
             {
+                lock (this.resetSync)
+                {
+                    this.cache.BeginPersistenceLoad();
+                }
+
                 this.activeRun?.RequestStop();
 
                 var run = new PersistenceRun(Path.GetFullPath(filePath), log);
@@ -87,6 +92,23 @@ namespace AutoExile2.Systems
             }
 
             run?.ScheduleSave();
+        }
+
+        /// <summary>
+        /// Clears the live graph immediately and queues deletion of the saved graph on the same
+        /// worker that performs loads and writes. The reset generation prevents an older startup
+        /// load from merging nodes back after the user clears the cache.
+        /// </summary>
+        internal void ResetAtlasCache()
+        {
+            lock (this.lifecycleSync)
+            {
+                lock (this.resetSync)
+                {
+                    this.cache.ClearObservedGraph();
+                    this.activeRun?.RequestReset();
+                }
+            }
         }
 
         /// <summary>
@@ -123,6 +145,19 @@ namespace AutoExile2.Systems
 
         private async Task LoadExistingFileAsync(PersistenceRun run)
         {
+            long resetCountAtStart;
+            lock (this.resetSync)
+            {
+                resetCountAtStart = run.RequestedResetCount;
+            }
+
+            if (resetCountAtStart > 0)
+            {
+                run.Log("Skipped loading the Atlas map because a cache reset is pending.");
+                this.cache.CompletePersistenceLoad();
+                return;
+            }
+
             try
             {
                 if (!File.Exists(run.FilePath))
@@ -145,8 +180,18 @@ namespace AutoExile2.Systems
                 var document = JsonSerializer.Deserialize<AtlasMapFileDto>(bytes, JsonOptions)
                     ?? throw new InvalidDataException("Atlas map JSON root was null.");
                 var (observations, filteredConnections) = ValidateAndCreateObservations(document);
-                this.cache.MergePersistedNodes(observations);
-                run.Log($"Loaded {observations.Count} Atlas map nodes from {run.FilePath}; ignored {filteredConnections} invalid or dangling edges.");
+                lock (this.resetSync)
+                {
+                    if (run.RequestedResetCount == resetCountAtStart)
+                    {
+                        this.cache.MergePersistedNodes(observations);
+                        run.Log($"Loaded {observations.Count} Atlas map nodes from {run.FilePath}; ignored {filteredConnections} invalid or dangling edges.");
+                    }
+                    else
+                    {
+                        run.Log("Discarded the loaded Atlas map because the cache was reset while it was being read.");
+                    }
+                }
             }
             catch (OperationCanceledException)
             {
@@ -154,7 +199,17 @@ namespace AutoExile2.Systems
             }
             catch (Exception ex)
             {
-                this.BackupRejectedFile(run, ex);
+                lock (this.resetSync)
+                {
+                    if (run.RequestedResetCount == resetCountAtStart)
+                    {
+                        this.BackupRejectedFile(run, ex);
+                    }
+                    else
+                    {
+                        run.Log("Skipped preserving the rejected Atlas map because the cache was reset during loading.");
+                    }
+                }
             }
             finally
             {
@@ -317,6 +372,7 @@ namespace AutoExile2.Systems
         private async Task WriteLoopAsync(PersistenceRun run)
         {
             long savedRequest = 0;
+            long deletedResetCount = 0;
             while (true)
             {
                 await run.WaitForSignalAsync().ConfigureAwait(false);
@@ -324,6 +380,29 @@ namespace AutoExile2.Systems
                 {
                     await Task.Delay(SaveCoalesceDelay, run.Token).ConfigureAwait(false);
                     run.DrainSignals();
+                }
+
+                var resetRequest = run.RequestedResetCount;
+                if (resetRequest > deletedResetCount)
+                {
+                    try
+                    {
+                        File.Delete(run.FilePath);
+                        deletedResetCount = resetRequest;
+                        run.Log($"Cleared the saved Atlas map at {run.FilePath}.");
+                    }
+                    catch (Exception ex)
+                    {
+                        run.Log($"Atlas map reset failed: {ex.Message}. Will retry.");
+                        if (run.IsStopping)
+                        {
+                            return;
+                        }
+
+                        await Task.Delay(RetryDelay, run.Token).ConfigureAwait(false);
+                        run.SignalRetry();
+                        continue;
+                    }
                 }
 
                 if (!run.CanWrite)
@@ -343,7 +422,11 @@ namespace AutoExile2.Systems
                     {
                         var snapshot = this.cache.GetSnapshot();
                         var document = CreateDocument(snapshot);
-                        await this.WriteAtomicAsync(run, document).ConfigureAwait(false);
+                        if (document.Nodes?.Count > 0)
+                        {
+                            await this.WriteAtomicAsync(run, document).ConfigureAwait(false);
+                        }
+
                         savedRequest = request;
                     }
                     catch (OperationCanceledException)
@@ -364,9 +447,15 @@ namespace AutoExile2.Systems
                     }
                 }
 
-                if (run.IsStopping)
+                if (run.IsStopping && run.RequestedResetCount <= deletedResetCount)
                 {
                     return;
+                }
+
+                if (run.RequestedResetCount > deletedResetCount)
+                {
+                    run.SignalRetry();
+                    continue;
                 }
 
                 if (run.RequestedSaveCount > savedRequest)
@@ -596,6 +685,7 @@ namespace AutoExile2.Systems
         {
             private readonly SemaphoreSlim signal = new(0, 1);
             private long requestedSaveCount;
+            private long requestedResetCount;
             private int stopping;
             private int canWrite = 1;
 
@@ -619,9 +709,17 @@ namespace AutoExile2.Systems
 
             internal long RequestedSaveCount => Interlocked.Read(ref this.requestedSaveCount);
 
+            internal long RequestedResetCount => Interlocked.Read(ref this.requestedResetCount);
+
             internal void ScheduleSave()
             {
                 Interlocked.Increment(ref this.requestedSaveCount);
+                this.ReleaseSignal();
+            }
+
+            internal void RequestReset()
+            {
+                Interlocked.Increment(ref this.requestedResetCount);
                 this.ReleaseSignal();
             }
 

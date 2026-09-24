@@ -1,0 +1,6 @@
+{
+  "atlas.cache_section": "แคช Atlas",
+  "atlas.cache_nodes": "จำนวนโหนดที่ตรวจพบ: {0}",
+  "atlas.reset_button": "รีเซ็ตแคช Atlas",
+  "atlas.reset_tooltip": "ล้างข้อมูล Atlas ที่บันทึกไว้และในหน่วยความจำ แผนที่จะสร้างใหม่จากการสแกน Atlas ที่กำลังทำงานอยู่"
+}

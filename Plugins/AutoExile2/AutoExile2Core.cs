@@ -753,6 +753,20 @@ namespace AutoExile2
             }
 
             ImGui.Separator();
+            ImGui.Text(this.PluginText.T("atlas.cache_section", "Atlas cache"));
+            ImGui.TextWrapped(this.PluginText.F("atlas.cache_nodes", "Observed nodes: {0}", this.atlasObservationCache.ObservedNodeCount));
+            if (ImGui.Button(this.PluginText.Label("atlas.reset_button", "Reset Atlas cache", "AutoExile2AtlasCacheReset")))
+            {
+                this.atlasObservationPersistence.ResetAtlasCache();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(this.PluginText.T(
+                    "atlas.reset_tooltip",
+                    "Clears saved and in-memory Atlas observations. The map will refill from live Atlas scans."));
+            }
+
+            ImGui.Separator();
             ImGui.Text("Diagnostics");
             if (ImGui.Checkbox("Write bot action log", ref this.Settings.EnableActionLogging))
             {

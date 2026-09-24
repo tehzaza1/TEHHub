@@ -1,0 +1,6 @@
+{
+  "atlas.cache_section": "Atlas cache",
+  "atlas.cache_nodes": "Observed nodes: {0}",
+  "atlas.reset_button": "Reset Atlas cache",
+  "atlas.reset_tooltip": "Clears saved and in-memory Atlas observations. The map will refill from live Atlas scans."
+}
