@@ -41,6 +41,8 @@ namespace AutoExile2.Systems
             MaxDepth = 24,
             Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
         };
+        private static readonly object SqliteProviderInitializationLock = new();
+        private static bool sqliteProviderInitialized;
 
         private readonly AtlasObservationCache cache;
         private readonly object lifecycleSync = new();
@@ -146,6 +148,9 @@ namespace AutoExile2.Systems
                 // the next instance assigns IDs only after the final flush is visible.
                 persistenceGate.WaitOne();
                 ownsPersistenceGate = true;
+                run.Log($"Atlas persistence worker started. Database: {run.FilePath}");
+                EnsureSqliteProviderInitialized();
+                run.Log("SQLite e_sqlite3 provider initialized.");
                 await this.LoadExistingFileAsync(run).ConfigureAwait(false);
                 await this.WriteLoopAsync(run).ConfigureAwait(false);
             }
@@ -155,7 +160,7 @@ namespace AutoExile2.Systems
             }
             catch (Exception ex)
             {
-                run.Log($"Atlas persistence worker stopped: {ex.Message}");
+                run.Log($"Atlas persistence worker stopped: {ex}");
             }
             finally
             {
@@ -532,6 +537,7 @@ namespace AutoExile2.Systems
 
         private static SqliteConnection OpenDatabase(string filePath)
         {
+            EnsureSqliteProviderInitialized();
             var connection = new SqliteConnection(new SqliteConnectionStringBuilder
             {
                 DataSource = filePath,
@@ -553,6 +559,23 @@ namespace AutoExile2.Systems
             {
                 connection.Dispose();
                 throw;
+            }
+        }
+
+        private static void EnsureSqliteProviderInitialized()
+        {
+            lock (SqliteProviderInitializationLock)
+            {
+                if (sqliteProviderInitialized)
+                {
+                    return;
+                }
+
+                // Microsoft.Data.Sqlite.Core requires an explicit SQLitePCLRaw provider setup.
+                // AutoExile2 resolves dependencies in a collectible plugin ALC, so relying on an
+                // application-level provider initializer can leave raw.sqlite3_open unconfigured.
+                SQLitePCL.Batteries_V2.Init();
+                sqliteProviderInitialized = true;
             }
         }
 
@@ -798,7 +821,7 @@ namespace AutoExile2.Systems
                     }
                     catch (Exception ex)
                     {
-                        run.Log($"Atlas map reset failed: {ex.Message}. Will retry.");
+                        run.Log($"Atlas map reset failed: {ex}. Will retry.");
                         if (run.IsStopping)
                         {
                             return;
@@ -844,15 +867,16 @@ namespace AutoExile2.Systems
                         }
 
                         savedRequest = request;
-                        if (batch.Count > 0 && !migration)
+                        if (batch.Count > 0 && !migration &&
+                            run.ShouldLogSaveSummary(batch.Count, DateTime.UtcNow, out var sessionTotal))
                         {
-                            run.Log($"Saved {batch.Count} changed Atlas map nodes to {run.FilePath}.");
+                            run.Log($"Saved {batch.Count} changed Atlas map nodes (session total {sessionTotal}) to {run.FilePath}.");
                         }
                     }
                     catch (Exception ex)
                     {
                         this.cache.RequeuePersistenceBatch(batch, isFullSnapshot);
-                        run.Log($"Atlas database save failed: {ex.Message}. Will retry.");
+                        run.Log($"Atlas database save failed: {ex}. Will retry.");
                         if (run.IsStopping)
                         {
                             return;
@@ -933,6 +957,8 @@ namespace AutoExile2.Systems
             private readonly SemaphoreSlim signal = new(0, 1);
             private long requestedSaveCount;
             private long requestedResetCount;
+            private long totalSavedNodeCount;
+            private DateTime lastSaveSummaryLogUtc = DateTime.MinValue;
             private int stopping;
             private int canWrite = 1;
             private int needsLegacyMigration;
@@ -1007,6 +1033,20 @@ namespace AutoExile2.Systems
             internal void SignalRetry() => this.ReleaseSignal();
 
             internal void DisableWrites() => Volatile.Write(ref this.canWrite, 0);
+
+            internal bool ShouldLogSaveSummary(int savedNodeCount, DateTime nowUtc, out long sessionTotal)
+            {
+                this.totalSavedNodeCount += savedNodeCount;
+                sessionTotal = this.totalSavedNodeCount;
+                if (this.totalSavedNodeCount == savedNodeCount ||
+                    nowUtc - this.lastSaveSummaryLogUtc >= TimeSpan.FromMinutes(1))
+                {
+                    this.lastSaveSummaryLogUtc = nowUtc;
+                    return true;
+                }
+
+                return false;
+            }
 
             internal void Log(string message)
             {

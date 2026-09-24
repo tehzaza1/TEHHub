@@ -1,6 +1,9 @@
 {
   "atlas.cache_section": "แคช Atlas",
   "atlas.cache_nodes": "จำนวนโหนดที่ตรวจพบ: {0}",
+  "atlas.cache_scan_rate": "จับข้อมูลทุกเฟรมเรนเดอร์ สูงสุด 256 โหนดต่อเฟรม; Core รีเฟรชรายการต้นทางทุก 20 เฟรม",
+  "atlas.cache_database_path": "ฐานข้อมูล: {0}",
+  "atlas.cache_save_status": "สถานะการบันทึก: {0}",
   "atlas.reset_button": "รีเซ็ตแคช Atlas",
   "atlas.reset_tooltip": "ล้างข้อมูล Atlas ที่บันทึกไว้และในหน่วยความจำ แผนที่จะสร้างใหม่จากการสแกน Atlas ที่กำลังทำงานอยู่"
 }

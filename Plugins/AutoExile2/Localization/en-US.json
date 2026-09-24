@@ -1,6 +1,9 @@
 {
   "atlas.cache_section": "Atlas cache",
   "atlas.cache_nodes": "Observed nodes: {0}",
+  "atlas.cache_scan_rate": "Capture: each render frame, up to 256 nodes/frame; Core refreshes the source list every 20 frames.",
+  "atlas.cache_database_path": "Database: {0}",
+  "atlas.cache_save_status": "Save status: {0}",
   "atlas.reset_button": "Reset Atlas cache",
   "atlas.reset_tooltip": "Clears saved and in-memory Atlas observations. The map will refill from live Atlas scans."
 }

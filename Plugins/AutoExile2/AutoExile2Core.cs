@@ -10,6 +10,7 @@ namespace AutoExile2
     using System.Linq;
     using System.IO;
     using System.Numerics;
+    using System.Text;
     using ClickableTransparentOverlay.Win32;
     using TEHhub;
     using TEHhub.CoroutineEvents;
@@ -33,6 +34,8 @@ namespace AutoExile2
     /// </summary>
     public sealed class AutoExile2Core : PCore<AutoExile2Settings>
     {
+        private const long MaxAtlasPersistenceLogBytes = 2 * 1024 * 1024;
+
         // Core shared systems
         private readonly ExplorationMap explorationMap = new();
         private readonly CombatSystem combatSystem = new();
@@ -45,7 +48,11 @@ namespace AutoExile2
         private readonly InteractionSystem interactionSystem = new();
         private readonly AtlasObservationCache atlasObservationCache = new();
         private readonly AtlasObservationPersistence atlasObservationPersistence;
+        private readonly object atlasPersistenceLogSync = new();
         private AutoExileWebServer? webServer;
+        private string atlasObservationPath = string.Empty;
+        private string atlasPersistenceLogPath = string.Empty;
+        private volatile string atlasPersistenceStatus = "Atlas cache persistence has not started.";
 
         // Coroutine & cached execution contexts to eliminate GC allocation
         private ActiveCoroutine? botCoroutine;
@@ -89,11 +96,13 @@ namespace AutoExile2
         {
             this.atlasObservationCache.ResetGameProcess();
             string atlasObservationDirectory = Path.Combine(GetPluginDirectory(), "Data");
-            string atlasObservationPath = Path.Combine(atlasObservationDirectory, "atlas-observations.sqlite");
+            this.atlasObservationPath = Path.Combine(atlasObservationDirectory, "atlas-observations.sqlite");
+            this.atlasPersistenceLogPath = Path.Combine(GetPluginDirectory(), "Logs", "atlas-persistence.log");
             string legacyAtlasObservationPath = Path.Combine(atlasObservationDirectory, "atlas-observations.json");
+            this.LogAtlasPersistence("Atlas cache persistence starting.");
             this.atlasObservationPersistence.Start(
-                atlasObservationPath,
-                message => Console.WriteLine($"[AutoExile2.Atlas] {message}"),
+                this.atlasObservationPath,
+                this.LogAtlasPersistence,
                 legacyAtlasObservationPath);
             this.atlasObservationLifecycleCoroutine?.Cancel();
             this.atlasObservationLifecycleCoroutine = CoroutineHandler.Start(
@@ -239,6 +248,53 @@ namespace AutoExile2
             return string.IsNullOrWhiteSpace(assemblyPath)
                 ? AppContext.BaseDirectory
                 : Path.GetDirectoryName(assemblyPath) ?? AppContext.BaseDirectory;
+        }
+
+        private void LogAtlasPersistence(string message)
+        {
+            var statusLine = message.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? message;
+            this.atlasPersistenceStatus = statusLine.Length <= 180 ? statusLine : statusLine.Substring(0, 177) + "...";
+            Console.WriteLine($"[AutoExile2.Atlas] {message}");
+
+            try
+            {
+                lock (this.atlasPersistenceLogSync)
+                {
+                    var directory = Path.GetDirectoryName(this.atlasPersistenceLogPath);
+                    if (string.IsNullOrWhiteSpace(directory))
+                    {
+                        throw new InvalidOperationException("Atlas persistence log path has no parent directory.");
+                    }
+
+                    Directory.CreateDirectory(directory);
+                    if (File.Exists(this.atlasPersistenceLogPath) &&
+                        new FileInfo(this.atlasPersistenceLogPath).Length >= MaxAtlasPersistenceLogBytes)
+                    {
+                        var backupPath = this.atlasPersistenceLogPath + ".1";
+                        if (File.Exists(backupPath))
+                        {
+                            File.Delete(backupPath);
+                        }
+
+                        File.Move(this.atlasPersistenceLogPath, backupPath);
+                    }
+
+                    using var stream = new FileStream(
+                        this.atlasPersistenceLogPath,
+                        FileMode.Append,
+                        FileAccess.Write,
+                        FileShare.ReadWrite);
+                    using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                    writer.WriteLine($"[{DateTime.UtcNow:O}] {message}");
+                    writer.Flush();
+                    stream.Flush(flushToDisk: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                this.atlasPersistenceStatus = $"Persistence log unavailable: {ex.Message}";
+                Console.WriteLine($"[AutoExile2.Atlas] Could not write persistence diagnostics: {ex}");
+            }
         }
 
         public string TriggerDump()
@@ -758,6 +814,16 @@ namespace AutoExile2
             ImGui.Separator();
             ImGui.Text(this.PluginText.T("atlas.cache_section", "Atlas cache"));
             ImGui.TextWrapped(this.PluginText.F("atlas.cache_nodes", "Observed nodes: {0}", this.atlasObservationCache.ObservedNodeCount));
+            ImGui.TextWrapped(this.PluginText.T(
+                "atlas.cache_scan_rate",
+                "Capture: each render frame, up to 256 nodes/frame; Core refreshes the source list every 20 frames."));
+            ImGui.TextWrapped(this.PluginText.F("atlas.cache_database_path", "Database: {0}", this.atlasObservationPath));
+            var persistenceColor = this.atlasPersistenceStatus.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
+                                   this.atlasPersistenceStatus.Contains("stopped", StringComparison.OrdinalIgnoreCase) ||
+                                   this.atlasPersistenceStatus.Contains("unavailable", StringComparison.OrdinalIgnoreCase)
+                ? new Vector4(1f, 0.4f, 0.4f, 1f)
+                : new Vector4(0.75f, 0.9f, 1f, 1f);
+            ImGui.TextColored(persistenceColor, this.PluginText.F("atlas.cache_save_status", "Save status: {0}", this.atlasPersistenceStatus));
             if (ImGui.Button(this.PluginText.Label("atlas.reset_button", "Reset Atlas cache", "AutoExile2AtlasCacheReset")))
             {
                 this.atlasObservationPersistence.ResetAtlasCache();

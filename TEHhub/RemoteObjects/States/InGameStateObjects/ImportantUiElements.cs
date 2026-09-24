@@ -159,6 +159,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         private long inventoryItemUiCacheTimestamp;
         private int atlasMapCacheFrameCounter = int.MaxValue;
         private int cachedAtlasMapCount = -1;
+        private long atlasMapsRevision;
         private int vendorDiscoveryFrame = VendorDiscoveryIntervalFrames;
         private string lastAreaHash = string.Empty;
 
@@ -300,6 +301,13 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
         ///     Gets the current Atlas map nodes exposed for plugins.
         /// </summary>
         public IReadOnlyList<AtlasMapNode> AtlasMaps => this.atlasMaps;
+
+        /// <summary>
+        /// Gets the revision of the materialized Atlas node snapshot. This changes only when Core
+        /// rebuilds the node list, allowing consumers to refresh derived indexes without scanning
+        /// the full Atlas on every render frame.
+        /// </summary>
+        public long AtlasMapsRevision => this.atlasMapsRevision;
 
         /// <summary>Gets the Uncharted Waters region buttons currently materialized by the atlas panel.</summary>
         public IReadOnlyList<AtlasRegionButton> AtlasOceanButtons => this.atlasOceanButtons;
@@ -677,6 +685,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             this.ChatParent.Address = IntPtr.Zero;
             this.MapModifiersPanel.Address = IntPtr.Zero;
             this.atlasMaps.Clear();
+            this.atlasMapsRevision++;
             this.areaMods.Clear();
             this.areaModNames.Clear();
             this.areaModUpdateCounter = int.MaxValue;
@@ -1005,9 +1014,15 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             var isAtlasVisible = this.Atlas.IsVisible || (isController && this.Atlas.Address != IntPtr.Zero && (Core.Process.Handle.ReadMemory<UiElementBaseOffset>(this.Atlas.Address).Flags & IsVisibleMask) != 0);
             if (this.Atlas.Address == IntPtr.Zero || !isAtlasVisible)
             {
+                var hadAtlasSnapshot = this.atlasMaps.Count > 0 || this.atlasOceanButtons.Count > 0 || this.atlasMarkers.Count > 0;
                 this.atlasMaps.Clear();
                 this.atlasOceanButtons.Clear();
                 this.atlasMarkers.Clear();
+                if (hadAtlasSnapshot)
+                {
+                    this.atlasMapsRevision++;
+                }
+
                 this.cachedAtlasMapCount = -1;
                 this.atlasMapCacheFrameCounter = int.MaxValue;
                 return;
@@ -1021,9 +1036,15 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
             var atlasCount = this.Atlas.TotalChildrens;
             if (atlasCount <= 0 || atlasCount > 10000)
             {
+                var hadAtlasSnapshot = this.atlasMaps.Count > 0 || this.atlasOceanButtons.Count > 0 || this.atlasMarkers.Count > 0;
                 this.atlasMaps.Clear();
                 this.atlasOceanButtons.Clear();
                 this.atlasMarkers.Clear();
+                if (hadAtlasSnapshot)
+                {
+                    this.atlasMapsRevision++;
+                }
+
                 this.cachedAtlasMapCount = -1;
                 this.atlasMapCacheFrameCounter = int.MaxValue;
                 return;
@@ -1125,6 +1146,7 @@ namespace TEHhub.RemoteObjects.States.InGameStateObjects
 
             this.atlasMarkers.Clear();
             this.atlasMarkers.AddRange(resolved);
+            this.atlasMapsRevision++;
             this.cachedAtlasMapCount = atlasCount;
             this.atlasMapCacheFrameCounter = 0;
         }

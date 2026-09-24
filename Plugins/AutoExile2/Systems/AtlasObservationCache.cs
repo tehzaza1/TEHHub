@@ -18,21 +18,22 @@ namespace AutoExile2.Systems
     /// </summary>
     internal sealed class AtlasObservationCache
     {
-        private const int MaxNodesPerCapture = 1024;
+        private const int MaxNodesPerCapture = 256;
         private const int MaxRetainedNodes = 20000;
         private const int MaxPointerHistoryPerNode = 16;
-        private static readonly TimeSpan CaptureInterval = TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan PersistenceCheckpointInterval = TimeSpan.FromHours(1);
         private static readonly Regex PlausibleMapIdPattern = new("^[A-Za-z][A-Za-z0-9_]{0,95}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         private readonly object sync = new();
         private readonly Dictionary<AtlasNodeIdentity, MutableAtlasNodeObservation> observations = new();
         private readonly Dictionary<int, MutableAtlasNodeObservation> observationsByPersistentId = new();
+        private readonly HashSet<AtlasGridPosition> validGridPositions = new();
         private uint gameProcessId;
         private long revision;
         private int captureCursor;
         private int lastSourceNodeCount = -1;
         private DateTime lastCaptureAtUtc = DateTime.MinValue;
+        private long lastAtlasMapsRevision = -1;
         private bool hasCompletedCapturePass;
         private bool hitRetentionLimit;
         private bool persistentIdsReady;
@@ -100,29 +101,13 @@ namespace AutoExile2.Systems
                     this.captureCursor = 0;
                     this.lastSourceNodeCount = -1;
                     this.lastCaptureAtUtc = DateTime.MinValue;
+                    this.lastAtlasMapsRevision = -1;
+                    this.validGridPositions.Clear();
                     this.hasCompletedCapturePass = false;
                     return false;
                 }
 
-                if (observedAtUtc - this.lastCaptureAtUtc < CaptureInterval)
-                {
-                    return false;
-                }
-
                 var sourceNodeCount = atlasMaps.Count;
-                var validGridPositions = new HashSet<AtlasGridPosition>();
-                foreach (var candidate in atlasMaps)
-                {
-                    if (candidate != null && IsPlausibleMapId(candidate.MapId))
-                    {
-                        var position = new AtlasGridPosition(candidate.GridPosition.X, candidate.GridPosition.Y);
-                        if (IsValidGridPosition(position))
-                        {
-                            validGridPositions.Add(position);
-                        }
-                    }
-                }
-
                 if (sourceNodeCount != this.lastSourceNodeCount)
                 {
                     // A changed source size starts a new bounded pass. Historical nodes remain
@@ -130,6 +115,27 @@ namespace AutoExile2.Systems
                     this.captureCursor = 0;
                     this.hasCompletedCapturePass = false;
                     this.lastSourceNodeCount = sourceNodeCount;
+                }
+
+                // Core refreshes AtlasMaps topology less often than the render loop. Rebuild this
+                // lookup only when that snapshot changes so 60 Hz capture stays proportional to
+                // the bounded slice rather than rescanning every map node every frame.
+                if (this.lastAtlasMapsRevision != gameUi.AtlasMapsRevision)
+                {
+                    this.validGridPositions.Clear();
+                    foreach (var candidate in atlasMaps)
+                    {
+                        if (candidate != null && IsPlausibleMapId(candidate.MapId))
+                        {
+                            var position = new AtlasGridPosition(candidate.GridPosition.X, candidate.GridPosition.Y);
+                            if (IsValidGridPosition(position))
+                            {
+                                this.validGridPositions.Add(position);
+                            }
+                        }
+                    }
+
+                    this.lastAtlasMapsRevision = gameUi.AtlasMapsRevision;
                 }
 
                 this.lastCaptureAtUtc = observedAtUtc;
@@ -479,6 +485,8 @@ namespace AutoExile2.Systems
                 this.captureCursor = 0;
                 this.lastSourceNodeCount = -1;
                 this.lastCaptureAtUtc = DateTime.MinValue;
+                this.lastAtlasMapsRevision = -1;
+                this.validGridPositions.Clear();
                 this.hasCompletedCapturePass = false;
                 this.hitRetentionLimit = false;
                 this.nextPersistentNodeId = 1;
@@ -544,6 +552,8 @@ namespace AutoExile2.Systems
             this.captureCursor = 0;
             this.lastSourceNodeCount = -1;
             this.lastCaptureAtUtc = DateTime.MinValue;
+            this.lastAtlasMapsRevision = -1;
+            this.validGridPositions.Clear();
             this.hasCompletedCapturePass = false;
             this.revision++;
         }
