@@ -2,11 +2,7 @@
 
 This file combines the applicable repository guidance from `CLAUDE.md` with the user's agent-role preference below. Where `CLAUDE.md` uses retired project names, use the current TEHHub names and commands in this file. The old statement that the repository has no automated tests is stale: current tests include `tools/TEHhub.OffsetDoctor.Tests` and `tests/AutoExile2.Web.Tests`.
 
-## Agent roles
 
-- The primary Codex agent runs as Sol medium and owns review, debugging, investigation, coordination, and final verification. It does not implement code except for genuinely small, focused edits.
-- Delegate implementation work to Luna at xhigh or max reasoning. The primary agent reviews and integrates that work.
-- The primary agent may raise Sol to high when a review or debugging problem needs it, and tells the user when doing so.
 
 ## What this is
 
