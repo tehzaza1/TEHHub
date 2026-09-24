@@ -10,6 +10,7 @@ using TEHhub.OffsetDoctor.Watch;
 Console.WriteLine("TEHhub.OffsetDoctor — PoE2 Read-Only Offset Health Scanner");
 
 var mode = ProgramMode.ValidateAll;
+int atlasApiPort = 57321;
 int? explicitPid = null;
 int? expectedGold = null;
 int? expectedHpCurrent = null;
@@ -45,6 +46,10 @@ for (int i = 0; i < args.Length; i++)
     else if (arg.Equals("watch", StringComparison.OrdinalIgnoreCase))
     {
         mode = ProgramMode.Watch;
+    }
+    else if (arg.Equals("atlas-api", StringComparison.OrdinalIgnoreCase))
+    {
+        mode = ProgramMode.AtlasApi;
     }
     else if (arg.Equals("recover", StringComparison.OrdinalIgnoreCase))
     {
@@ -89,6 +94,10 @@ for (int i = 0; i < args.Length; i++)
     else if (arg.Equals("--pid", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
         if (int.TryParse(args[++i], out var pid)) explicitPid = pid;
+    }
+    else if (arg.Equals("--port", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+    {
+        if (int.TryParse(args[++i], out var port) && port is > 0 and < 65536) atlasApiPort = port;
     }
     else if (arg.Equals("--gold", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
     {
@@ -135,6 +144,11 @@ for (int i = 0; i < args.Length; i++)
         PrintUsage();
         return 0;
     }
+}
+
+if (mode == ProgramMode.AtlasApi)
+{
+    return await AtlasScanApiServer.RunAsync(atlasApiPort, explicitPid);
 }
 
 var discovery = ProcessDiscovery.DiscoverTargetProcess(explicitPid);
@@ -295,6 +309,7 @@ static void PrintUsage()
     Console.WriteLine("  validate-all                  Run full repository offset validation scan (default).");
     Console.WriteLine("  validate                      Run full repository offset validation scan.");
     Console.WriteLine("  watch                         Run realtime state-dependent watch mode.");
+    Console.WriteLine("  atlas-api                     Start a localhost Atlas scan API (read-only).");
     Console.WriteLine("  recover <target>              Run read-only OffsetDoctor Recovery V1.");
     Console.WriteLine("                                Targets: od-001, od-063, od-114, od-144, od-145, v1, all");
     Console.WriteLine("                                Or comma-separated list (e.g. recover od-001,od-063)");
@@ -305,6 +320,7 @@ static void PrintUsage()
     Console.WriteLine("  --input <path>                Input baseline snapshot file path for compare mode.");
     Console.WriteLine("  --output <path>               Output file path for baseline capture, validation, or recovery JSON report.");
     Console.WriteLine("  --pid <pid>                   Target a specific process ID.");
+    Console.WriteLine("  --port <port>                 Atlas API port (default: 57321).");
     Console.WriteLine("  --current-address <address>   Validate a configured OD-001 absolute address first (hex or decimal).");
     Console.WriteLine("  --historical-address <addr>  Add an address for post-decision comparison only (repeatable).");
     Console.WriteLine("  --gold <amount>               Provide current inventory gold amount for exact semantic verification.");
@@ -326,5 +342,6 @@ enum ProgramMode
     Watch,
     BaselineCapture,
     BaselineCompare,
-    RecoverV1
+    RecoverV1,
+    AtlasApi
 }

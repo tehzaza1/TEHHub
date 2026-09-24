@@ -12,6 +12,7 @@ namespace AutoExile2
     using System.Numerics;
     using ClickableTransparentOverlay.Win32;
     using TEHhub;
+    using TEHhub.CoroutineEvents;
     using TEHhub.Plugin;
     using TEHhub.RemoteEnums;
     using TEHhub.RemoteEnums.Entity;
@@ -42,10 +43,13 @@ namespace AutoExile2
         private readonly ProfileManager profileManager = new();
         private readonly CoopVirtualGamepad coopGamepad = new();
         private readonly InteractionSystem interactionSystem = new();
+        private readonly AtlasObservationCache atlasObservationCache = new();
+        private readonly AtlasObservationPersistence atlasObservationPersistence;
         private AutoExileWebServer? webServer;
 
         // Coroutine & cached execution contexts to eliminate GC allocation
         private ActiveCoroutine? botCoroutine;
+        private ActiveCoroutine? atlasObservationLifecycleCoroutine;
         private BotContext? renderCtx;
         private BotContext? botCtx;
 
@@ -66,6 +70,7 @@ namespace AutoExile2
 
         public AutoExile2Core()
         {
+            this.atlasObservationPersistence = new AtlasObservationPersistence(this.atlasObservationCache);
             var waveFarm = new AutoExile2.Modes.WaveFarm.WaveFarmMode();
             var follower = new CoopFollowerMode();
             var boss = new BossMode();
@@ -82,6 +87,15 @@ namespace AutoExile2
         /// <inheritdoc/>
         public override void OnEnable(bool isGameOpened)
         {
+            this.atlasObservationCache.ResetGameProcess();
+            this.atlasObservationPersistence.Start(
+                this.PluginConfigPath("atlas-observations.json"),
+                message => Console.WriteLine($"[AutoExile2.Atlas] {message}"));
+            this.atlasObservationLifecycleCoroutine?.Cancel();
+            this.atlasObservationLifecycleCoroutine = CoroutineHandler.Start(
+                this.ResetAtlasObservationsOnGameClose(),
+                "[AutoExile2] Reset Atlas observations on game close");
+
             this.profileManager.Initialize(Path.GetDirectoryName(this.PluginConfigPath("settings.txt")) ?? string.Empty);
             this.profileManager.OnProfileSwitched -= this.HandleProfileSwitched;
             this.profileManager.OnProfileSwitched += this.HandleProfileSwitched;
@@ -119,6 +133,10 @@ namespace AutoExile2
         {
             this.botCoroutine?.Cancel();
             this.botCoroutine = null;
+            this.atlasObservationLifecycleCoroutine?.Cancel();
+            this.atlasObservationLifecycleCoroutine = null;
+            this.atlasObservationPersistence.ScheduleSave();
+            this.atlasObservationPersistence.Stop();
 
             this.Settings.IsRunning = false;
             this.StopAutomationInputs();
@@ -789,6 +807,19 @@ namespace AutoExile2
         /// <inheritdoc/>
         public override void DrawUI()
         {
+            // DrawUI runs on the render thread after TEHHub's per-frame RemoteObject update,
+            // so AtlasMaps is a bounded, current Core snapshot here. The cache never reads game
+            // memory itself and only captures while the Atlas panel is visible.
+            var atlasState = Core.States.InGameStateObject;
+            if (this.atlasObservationCache.CaptureSlice(
+                Core.Process.Pid,
+                atlasState?.GameUi,
+                DateTime.UtcNow) &&
+                this.atlasObservationCache.TryConsumePersistenceChangeOrCheckpoint(DateTime.UtcNow))
+            {
+                this.atlasObservationPersistence.ScheduleSave();
+            }
+
             // 1. Hotkey edge trigger polling (instant sub-microsecond response)
             bool isToggleDown = BotInput.IsKeyDown(this.Settings.ToggleKey);
             if (isToggleDown && !this.lastToggleKeyDown)
@@ -1013,6 +1044,7 @@ namespace AutoExile2
                         Combat = this.combatSystem,
                         Exploration = this.explorationMap,
                         ThreatMap = this.threatMap,
+                        AtlasObservations = this.atlasObservationCache,
                         Perf = this.perf,
                         Runtime = this.runtime,
                         Recorder = this.recorder,
@@ -1150,6 +1182,7 @@ namespace AutoExile2
                                     Combat = this.combatSystem,
                                     Exploration = this.explorationMap,
                                     ThreatMap = this.threatMap,
+                                    AtlasObservations = this.atlasObservationCache,
                                     Perf = this.perf,
                                     Runtime = this.runtime,
                                     Recorder = this.recorder,
@@ -1218,6 +1251,16 @@ namespace AutoExile2
 
                 // Yield ~60 Hz tick rate (16.6ms)
                 yield return waitResult;
+            }
+        }
+
+        private IEnumerator<Wait> ResetAtlasObservationsOnGameClose()
+        {
+            while (true)
+            {
+                yield return new Wait(TEHhubEvents.OnClose);
+                this.atlasObservationCache.ResetGameProcess();
+                this.atlasObservationPersistence.ScheduleSave();
             }
         }
 

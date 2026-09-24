@@ -27,6 +27,12 @@ namespace AutoExile2.Modes
         public CombatSystem Combat { get; set; } = null!;
         public ExplorationMap Exploration { get; set; } = null!;
         public ThreatMap ThreatMap { get; set; } = null!;
+
+        /// <summary>
+        /// Process-local history of Atlas nodes observed from the live Core snapshot.
+        /// </summary>
+        internal AtlasObservationCache AtlasObservations { get; set; } = null!;
+
         public PerformanceTracker Perf { get; set; } = null!;
         public RuntimeTracker Runtime { get; set; } = null!;
         public BotRecorder Recorder { get; set; } = null!;
