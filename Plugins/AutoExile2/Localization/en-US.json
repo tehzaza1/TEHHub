@@ -1,6 +1,8 @@
 {
   "atlas.cache_section": "Atlas cache",
-  "atlas.cache_nodes": "Observed nodes: {0}",
+  "atlas.cache_nodes": "Observed nodes: {0} (auto-expanding capacity: {1})",
+  "atlas.cache_limit_reached": "Atlas cache reached its {0}-node in-memory safety ceiling. New nodes were not retained.",
+  "atlas.cache_database_limit_reached": "Atlas database reached its {0} MiB safety limit or storage is full. New nodes were not retained.",
   "atlas.cache_scan_rate": "Capture: each render frame, up to 256 nodes/frame; Core refreshes the source list every 20 frames.",
   "atlas.cache_database_path": "Database: {0}",
   "atlas.cache_save_status": "Save status: {0}",

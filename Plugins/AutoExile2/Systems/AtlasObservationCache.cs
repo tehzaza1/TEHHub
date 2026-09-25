@@ -18,8 +18,10 @@ namespace AutoExile2.Systems
     /// </summary>
     internal sealed class AtlasObservationCache
     {
+        internal const int InitialRetentionCapacity = 10000;
+        internal const int RetentionCapacityGrowth = 10000;
+        internal const int MaximumRetainedNodes = 500000;
         private const int MaxNodesPerCapture = 256;
-        private const int MaxRetainedNodes = 20000;
         private const int MaxPointerHistoryPerNode = 16;
         private static readonly TimeSpan PersistenceCheckpointInterval = TimeSpan.FromHours(1);
         private static readonly Regex PlausibleMapIdPattern = new("^[A-Za-z][A-Za-z0-9_]{0,95}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -36,6 +38,8 @@ namespace AutoExile2.Systems
         private long lastAtlasMapsRevision = -1;
         private bool hasCompletedCapturePass;
         private bool hitRetentionLimit;
+        private bool hitDatabaseSizeLimit;
+        private int retentionCapacity = InitialRetentionCapacity;
         private bool persistentIdsReady;
         private int nextPersistentNodeId = 1;
         private readonly HashSet<int> dirtyPersistentNodeIds = new();
@@ -53,6 +57,48 @@ namespace AutoExile2.Systems
                 lock (this.sync)
                 {
                     return this.observations.Count;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the current automatic retention capacity, which grows in 10,000-node steps.
+        /// </summary>
+        public int RetentionCapacity
+        {
+            get
+            {
+                lock (this.sync)
+                {
+                    return this.retentionCapacity;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the safety ceiling has prevented one or more nodes from being retained.
+        /// </summary>
+        public bool HitRetentionLimit
+        {
+            get
+            {
+                lock (this.sync)
+                {
+                    return this.hitRetentionLimit;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets whether persistence stopped accepting new nodes after reaching its database-size safety limit.
+        /// </summary>
+        public bool HitDatabaseSizeLimit
+        {
+            get
+            {
+                lock (this.sync)
+                {
+                    return this.hitDatabaseSizeLimit;
                 }
             }
         }
@@ -165,7 +211,13 @@ namespace AutoExile2.Systems
                     var identity = new AtlasNodeIdentity(node.GridPosition.X, node.GridPosition.Y, node.MapId ?? string.Empty);
                     if (!this.observations.TryGetValue(identity, out var observation))
                     {
-                        if (this.observations.Count >= MaxRetainedNodes)
+                        if (this.hitDatabaseSizeLimit)
+                        {
+                            continue;
+                        }
+
+                        this.ExpandRetentionCapacityLocked();
+                        if (this.observations.Count >= this.retentionCapacity)
                         {
                             this.hitRetentionLimit = true;
                             continue;
@@ -179,6 +231,7 @@ namespace AutoExile2.Systems
                         }
 
                         this.observations.Add(identity, observation);
+                        this.ExpandRetentionCapacityLocked();
                         if (observation.PersistentNodeId > 0)
                         {
                             this.dirtyPersistentNodeIds.Add(observation.PersistentNodeId);
@@ -303,7 +356,8 @@ namespace AutoExile2.Systems
                         continue;
                     }
 
-                    if (this.observations.Count >= MaxRetainedNodes)
+                    this.ExpandRetentionCapacityLocked();
+                    if (this.observations.Count >= this.retentionCapacity)
                     {
                         this.hitRetentionLimit = true;
                         break;
@@ -311,6 +365,7 @@ namespace AutoExile2.Systems
 
                     var restored = new MutableAtlasNodeObservation(persisted);
                     this.observations.Add(persisted.Identity, restored);
+                    this.ExpandRetentionCapacityLocked();
                     if (restored.PersistentNodeId > 0)
                     {
                         this.observationsByPersistentId.Add(restored.PersistentNodeId, restored);
@@ -461,6 +516,17 @@ namespace AutoExile2.Systems
         }
 
         /// <summary>
+        /// Stops accepting new nodes when SQLite cannot persist within its configured size bound.
+        /// </summary>
+        public void MarkDatabaseSizeLimitHit()
+        {
+            lock (this.sync)
+            {
+                this.hitDatabaseSizeLimit = true;
+            }
+        }
+
+        /// <summary>
         /// Clears process-specific sampling and UI pointer diagnostics while retaining the
         /// process-independent observed map for merging with persisted Atlas knowledge.
         /// </summary>
@@ -489,6 +555,8 @@ namespace AutoExile2.Systems
                 this.validGridPositions.Clear();
                 this.hasCompletedCapturePass = false;
                 this.hitRetentionLimit = false;
+                this.hitDatabaseSizeLimit = false;
+                this.retentionCapacity = InitialRetentionCapacity;
                 this.nextPersistentNodeId = 1;
                 this.dirtyPersistentNodeIds.Clear();
                 this.fullPersistenceSnapshotRequested = false;
@@ -521,6 +589,8 @@ namespace AutoExile2.Systems
             this.observationsByPersistentId.Clear();
             this.ResetGameProcessLocked();
             this.hitRetentionLimit = false;
+            this.hitDatabaseSizeLimit = false;
+            this.retentionCapacity = InitialRetentionCapacity;
             this.persistentIdsReady = false;
             this.nextPersistentNodeId = 1;
             this.dirtyPersistentNodeIds.Clear();
@@ -532,12 +602,32 @@ namespace AutoExile2.Systems
 
         private int AllocatePersistentNodeIdLocked()
         {
-            if (this.nextPersistentNodeId <= 0 || this.nextPersistentNodeId == int.MaxValue)
+            var candidate = this.nextPersistentNodeId is > 0 and <= MaximumRetainedNodes
+                ? this.nextPersistentNodeId
+                : 1;
+            for (var attempt = 0; attempt < MaximumRetainedNodes; attempt++)
             {
-                throw new InvalidOperationException("Atlas persistent node ID space is exhausted.");
+                if (!this.observationsByPersistentId.ContainsKey(candidate))
+                {
+                    this.nextPersistentNodeId = candidate == MaximumRetainedNodes ? 1 : candidate + 1;
+                    return candidate;
+                }
+
+                candidate = candidate == MaximumRetainedNodes ? 1 : candidate + 1;
             }
 
-            return this.nextPersistentNodeId++;
+            throw new InvalidOperationException("Atlas persistent node ID space is exhausted.");
+        }
+
+        private void ExpandRetentionCapacityLocked()
+        {
+            var expansionThreshold = this.retentionCapacity - (this.retentionCapacity / 10);
+            if (this.retentionCapacity < MaximumRetainedNodes && this.observations.Count >= expansionThreshold)
+            {
+                this.retentionCapacity = Math.Min(
+                    MaximumRetainedNodes,
+                    this.retentionCapacity + RetentionCapacityGrowth);
+            }
         }
 
         private void ResetGameProcessLocked()

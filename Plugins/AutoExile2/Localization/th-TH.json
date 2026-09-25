@@ -1,6 +1,8 @@
 {
   "atlas.cache_section": "แคช Atlas",
-  "atlas.cache_nodes": "จำนวนโหนดที่ตรวจพบ: {0}",
+  "atlas.cache_nodes": "จำนวนโหนดที่ตรวจพบ: {0} (ความจุขยายอัตโนมัติ: {1})",
+  "atlas.cache_limit_reached": "แคช Atlas ถึงขีดจำกัดหน่วยความจำ {0} โหนดแล้ว จึงไม่เก็บโหนดใหม่",
+  "atlas.cache_database_limit_reached": "ฐานข้อมูล Atlas ถึงขีดจำกัด {0} MiB หรือพื้นที่จัดเก็บเต็ม จึงไม่เก็บโหนดใหม่",
   "atlas.cache_scan_rate": "จับข้อมูลทุกเฟรมเรนเดอร์ สูงสุด 256 โหนดต่อเฟรม; Core รีเฟรชรายการต้นทางทุก 20 เฟรม",
   "atlas.cache_database_path": "ฐานข้อมูล: {0}",
   "atlas.cache_save_status": "สถานะการบันทึก: {0}",

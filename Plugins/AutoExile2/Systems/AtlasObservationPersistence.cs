@@ -25,10 +25,12 @@ namespace AutoExile2.Systems
     internal sealed class AtlasObservationPersistence
     {
         private const int LegacySchemaVersion = 2;
-        private const int DatabaseSchemaVersion = 1;
+        private const int DatabaseSchemaVersion = 2;
         private const int MaxLegacyFileBytes = 32 * 1024 * 1024;
-        private const long MaxDatabaseBytes = 128L * 1024 * 1024;
-        private const int MaxFileNodes = 20000;
+        internal const int MaxDatabaseSizeMiB = 512;
+        private const long MaxDatabaseBytes = MaxDatabaseSizeMiB * 1024L * 1024L;
+        private const int MaxLegacyFileNodes = 20000;
+        private const int MaxDatabaseNodes = AtlasObservationCache.MaximumRetainedNodes;
         private const int MaxConnectionsPerNode = 128;
         private const int MaxBadgesPerNode = 32;
         private static readonly TimeSpan SaveCoalesceDelay = TimeSpan.FromSeconds(3);
@@ -298,17 +300,19 @@ namespace AutoExile2.Systems
 
             var document = JsonSerializer.Deserialize<AtlasMapFileDto>(bytes, JsonOptions)
                 ?? throw new InvalidDataException("Atlas map JSON root was null.");
-            return ValidateAndCreateObservations(document).Nodes;
+            return ValidateAndCreateObservations(document, MaxLegacyFileNodes).Nodes;
         }
 
-        private static (List<AtlasNodeObservation> Nodes, int FilteredConnections) ValidateAndCreateObservations(AtlasMapFileDto document)
+        private static (List<AtlasNodeObservation> Nodes, int FilteredConnections) ValidateAndCreateObservations(
+            AtlasMapFileDto document,
+            int maxNodeCount)
         {
             if (document.SchemaVersion != LegacySchemaVersion)
             {
                 throw new InvalidDataException($"Unsupported Atlas map schema version {document.SchemaVersion}.");
             }
 
-            if (document.Nodes == null || document.Nodes.Count > MaxFileNodes)
+            if (document.Nodes == null || document.Nodes.Count > maxNodeCount)
             {
                 throw new InvalidDataException("Atlas map node list is missing or exceeds the supported limit.");
             }
@@ -322,7 +326,7 @@ namespace AutoExile2.Systems
             {
                 if (node == null ||
                     node.NodeId <= 0 ||
-                    node.NodeId > MaxFileNodes ||
+                    node.NodeId > maxNodeCount ||
                     !nodeIds.Add(node.NodeId) ||
                     !AtlasObservationCache.IsPlausibleMapId(node.MapId) ||
                     string.IsNullOrWhiteSpace(node.Name) || node.Name.Length > 256 ||
@@ -454,9 +458,9 @@ namespace AutoExile2.Systems
                 using var reader = nodeCommand.ExecuteReader();
                 while (reader.Read())
                 {
-                    if (nodesById.Count >= MaxFileNodes)
+                    if (nodesById.Count >= MaxDatabaseNodes)
                     {
-                        throw new InvalidDataException($"Atlas database exceeds the {MaxFileNodes} node limit.");
+                        throw new InvalidDataException($"Atlas database exceeds the {MaxDatabaseNodes} node limit.");
                     }
 
                     var node = new AtlasPersistedNodeDto
@@ -522,7 +526,7 @@ namespace AutoExile2.Systems
                 UpdatedAtUtc = DateTime.UtcNow,
                 Nodes = nodesById.Values.OrderBy(node => node.NodeId).ToList(),
             };
-            return ValidateAndCreateObservations(document);
+            return ValidateAndCreateObservations(document, MaxDatabaseNodes);
         }
 
         private static DateTime ReadUtcDateTime(long ticks)
@@ -553,6 +557,21 @@ namespace AutoExile2.Systems
                 using var command = connection.CreateCommand();
                 command.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA wal_autocheckpoint=1000;";
                 command.ExecuteNonQuery();
+                command.CommandText = "PRAGMA page_size;";
+                var pageSize = Convert.ToInt64(command.ExecuteScalar());
+                if (pageSize <= 0)
+                {
+                    throw new InvalidDataException("Atlas database reported an invalid SQLite page size.");
+                }
+
+                var maxPageCount = MaxDatabaseBytes / pageSize;
+                command.CommandText = $"PRAGMA max_page_count={maxPageCount};";
+                var configuredPageCount = Convert.ToInt64(command.ExecuteScalar());
+                if (configuredPageCount > maxPageCount)
+                {
+                    throw new InvalidDataException($"Atlas database exceeds the {MaxDatabaseBytes} byte safety limit.");
+                }
+
                 return connection;
             }
             catch
@@ -589,22 +608,80 @@ namespace AutoExile2.Systems
                 return;
             }
 
-            if (schemaVersion != 0)
+            if (schemaVersion == 0)
             {
-                throw new InvalidDataException($"Unsupported Atlas database schema version {schemaVersion}.");
+                command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
+                if (Convert.ToInt32(command.ExecuteScalar()) != 0)
+                {
+                    throw new InvalidDataException("Atlas database has tables but no recognized schema version.");
+                }
+
+                using var createTransaction = connection.BeginTransaction();
+                command.Transaction = createTransaction;
+                command.CommandText = CreateDatabaseSchemaSql();
+                command.ExecuteNonQuery();
+                createTransaction.Commit();
+                return;
             }
 
-            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';";
-            if (Convert.ToInt32(command.ExecuteScalar()) != 0)
+            if (schemaVersion == 1)
             {
-                throw new InvalidDataException("Atlas database has tables but no recognized schema version.");
+                MigrateDatabaseSchemaV1ToV2(connection);
+                return;
             }
 
-            using var transaction = connection.BeginTransaction();
-            command.Transaction = transaction;
-            command.CommandText = "CREATE TABLE Nodes (NodeId INTEGER NOT NULL PRIMARY KEY CHECK(NodeId > 0 AND NodeId <= 20000), GridX INTEGER NOT NULL, GridY INTEGER NOT NULL, MapId TEXT NOT NULL, Name TEXT NOT NULL, Type TEXT NOT NULL, BiomeId INTEGER NOT NULL CHECK(BiomeId BETWEEN 0 AND 255), FirstSeenUtcTicks INTEGER NOT NULL, LastObservedUtcTicks INTEGER NOT NULL, LastObservedState INTEGER NOT NULL, UNIQUE(GridX, GridY, MapId), CHECK(FirstSeenUtcTicks <= LastObservedUtcTicks)); CREATE TABLE Connections (NodeId INTEGER NOT NULL REFERENCES Nodes(NodeId) ON DELETE CASCADE, TargetX INTEGER NOT NULL CHECK(TargetX BETWEEN -100000 AND 100000), TargetY INTEGER NOT NULL CHECK(TargetY BETWEEN -100000 AND 100000), PRIMARY KEY(NodeId, TargetX, TargetY)); CREATE TABLE Badges (NodeId INTEGER NOT NULL REFERENCES Nodes(NodeId) ON DELETE CASCADE, ContentId INTEGER NOT NULL CHECK(ContentId BETWEEN 131072 AND 196607), PRIMARY KEY(NodeId, ContentId)); PRAGMA user_version=1;";
-            command.ExecuteNonQuery();
-            transaction.Commit();
+            throw new InvalidDataException($"Unsupported Atlas database schema version {schemaVersion}.");
+        }
+
+        private static string CreateDatabaseSchemaSql() =>
+            $"{CreateNodesTableSql("Nodes")} {CreateConnectionsTableSql()} {CreateBadgesTableSql()} PRAGMA user_version={DatabaseSchemaVersion};";
+
+        private static string CreateNodesTableSql(string tableName) =>
+            $"CREATE TABLE {tableName} (NodeId INTEGER NOT NULL PRIMARY KEY CHECK(NodeId > 0 AND NodeId <= {MaxDatabaseNodes}), GridX INTEGER NOT NULL, GridY INTEGER NOT NULL, MapId TEXT NOT NULL, Name TEXT NOT NULL, Type TEXT NOT NULL, BiomeId INTEGER NOT NULL CHECK(BiomeId BETWEEN 0 AND 255), FirstSeenUtcTicks INTEGER NOT NULL, LastObservedUtcTicks INTEGER NOT NULL, LastObservedState INTEGER NOT NULL, UNIQUE(GridX, GridY, MapId), CHECK(FirstSeenUtcTicks <= LastObservedUtcTicks));";
+
+        private static string CreateConnectionsTableSql() =>
+            "CREATE TABLE Connections (NodeId INTEGER NOT NULL REFERENCES Nodes(NodeId) ON DELETE CASCADE, TargetX INTEGER NOT NULL CHECK(TargetX BETWEEN -100000 AND 100000), TargetY INTEGER NOT NULL CHECK(TargetY BETWEEN -100000 AND 100000), PRIMARY KEY(NodeId, TargetX, TargetY));";
+
+        private static string CreateBadgesTableSql() =>
+            "CREATE TABLE Badges (NodeId INTEGER NOT NULL REFERENCES Nodes(NodeId) ON DELETE CASCADE, ContentId INTEGER NOT NULL CHECK(ContentId BETWEEN 131072 AND 196607), PRIMARY KEY(NodeId, ContentId));";
+
+        private static void MigrateDatabaseSchemaV1ToV2(SqliteConnection connection)
+        {
+            // SQLite cannot widen a CHECK constraint in place. Disable FK enforcement before
+            // BEGIN, rebuild only Nodes inside one transaction, then restore FK enforcement.
+            // Connections and Badges keep their rows and their references to the Nodes name.
+            using var foreignKeysCommand = connection.CreateCommand();
+            foreignKeysCommand.CommandText = "PRAGMA foreign_keys=OFF;";
+            foreignKeysCommand.ExecuteNonQuery();
+            try
+            {
+                using var transaction = connection.BeginTransaction();
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText =
+                    $"{CreateNodesTableSql("Nodes_v2")} " +
+                    "INSERT INTO Nodes_v2 (NodeId, GridX, GridY, MapId, Name, Type, BiomeId, FirstSeenUtcTicks, LastObservedUtcTicks, LastObservedState) " +
+                    "SELECT NodeId, GridX, GridY, MapId, Name, Type, BiomeId, FirstSeenUtcTicks, LastObservedUtcTicks, LastObservedState FROM Nodes; " +
+                    "DROP TABLE Nodes; ALTER TABLE Nodes_v2 RENAME TO Nodes; " +
+                    $"PRAGMA user_version={DatabaseSchemaVersion};";
+                command.ExecuteNonQuery();
+
+                command.CommandText = "PRAGMA foreign_key_check;";
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        throw new InvalidDataException("Atlas database migration found a foreign-key violation.");
+                    }
+                }
+
+                transaction.Commit();
+            }
+            finally
+            {
+                foreignKeysCommand.CommandText = "PRAGMA foreign_keys=ON;";
+                foreignKeysCommand.ExecuteNonQuery();
+            }
         }
 
         private static void SaveDatabase(string filePath, IReadOnlyList<AtlasNodeObservation> nodes)
@@ -817,6 +894,7 @@ namespace AutoExile2.Systems
                         DeleteSavedAtlasData(run);
                         deletedResetCount = resetRequest;
                         run.ClearMigration();
+                        run.EnableWrites();
                         run.Log($"Cleared the saved Atlas map at {run.FilePath}.");
                     }
                     catch (Exception ex)
@@ -875,15 +953,30 @@ namespace AutoExile2.Systems
                     }
                     catch (Exception ex)
                     {
-                        this.cache.RequeuePersistenceBatch(batch, isFullSnapshot);
-                        run.Log($"Atlas database save failed: {ex}. Will retry.");
+                        var databaseSizeLimitReached = ex is SqliteException sqliteException && sqliteException.SqliteErrorCode == 13;
+                        if (databaseSizeLimitReached)
+                        {
+                            this.cache.MarkDatabaseSizeLimitHit();
+                            run.DisableWrites();
+                            run.Log($"Atlas database save stopped at its {MaxDatabaseBytes / (1024 * 1024)} MiB safety limit, or because the drive is full. Additional Atlas nodes will not be retained for this session.");
+                        }
+                        else
+                        {
+                            this.cache.RequeuePersistenceBatch(batch, isFullSnapshot);
+                            run.Log($"Atlas database save failed: {ex}. Will retry.");
+                        }
+
                         if (run.IsStopping)
                         {
                             return;
                         }
 
-                        await Task.Delay(RetryDelay, run.Token).ConfigureAwait(false);
-                        run.SignalRetry();
+                        if (!databaseSizeLimitReached)
+                        {
+                            await Task.Delay(RetryDelay, run.Token).ConfigureAwait(false);
+                            run.SignalRetry();
+                        }
+
                         continue;
                     }
                 }
@@ -1033,6 +1126,8 @@ namespace AutoExile2.Systems
             internal void SignalRetry() => this.ReleaseSignal();
 
             internal void DisableWrites() => Volatile.Write(ref this.canWrite, 0);
+
+            internal void EnableWrites() => Volatile.Write(ref this.canWrite, 1);
 
             internal bool ShouldLogSaveSummary(int savedNodeCount, DateTime nowUtc, out long sessionTotal)
             {

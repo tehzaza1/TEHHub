@@ -813,7 +813,31 @@ namespace AutoExile2
 
             ImGui.Separator();
             ImGui.Text(this.PluginText.T("atlas.cache_section", "Atlas cache"));
-            ImGui.TextWrapped(this.PluginText.F("atlas.cache_nodes", "Observed nodes: {0}", this.atlasObservationCache.ObservedNodeCount));
+            ImGui.TextWrapped(this.PluginText.F(
+                "atlas.cache_nodes",
+                "Observed nodes: {0} (auto-expanding capacity: {1})",
+                this.atlasObservationCache.ObservedNodeCount,
+                this.atlasObservationCache.RetentionCapacity));
+            if (this.atlasObservationCache.HitRetentionLimit)
+            {
+                ImGui.TextColored(
+                    new Vector4(1f, 0.4f, 0.4f, 1f),
+                    this.PluginText.F(
+                        "atlas.cache_limit_reached",
+                        "Atlas cache reached its {0}-node in-memory safety ceiling. New nodes were not retained.",
+                        AtlasObservationCache.MaximumRetainedNodes));
+            }
+
+            if (this.atlasObservationCache.HitDatabaseSizeLimit)
+            {
+                ImGui.TextColored(
+                    new Vector4(1f, 0.4f, 0.4f, 1f),
+                    this.PluginText.F(
+                        "atlas.cache_database_limit_reached",
+                        "Atlas database reached its {0} MiB safety limit or storage is full. New nodes were not retained.",
+                        AtlasObservationPersistence.MaxDatabaseSizeMiB));
+            }
+
             ImGui.TextWrapped(this.PluginText.T(
                 "atlas.cache_scan_rate",
                 "Capture: each render frame, up to 256 nodes/frame; Core refreshes the source list every 20 frames."));
